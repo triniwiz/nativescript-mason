@@ -1,0 +1,285 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 5.7 (swiftlang-5.7.0.127.4 clang-1400.0.29.50)
+// swift-module-flags: -target arm64-apple-ios9.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -module-name Mason
+// swift-module-flags-ignorable: -enable-bare-slash-regex
+import Foundation
+@_exported import Mason
+import Swift
+import UIKit
+import _Concurrency
+import _StringProcessing
+@_inheritsConvenienceInitializers @objc(Mason) @objcMembers public class TSCMason : ObjectiveC.NSObject {
+  @objc override dynamic public init()
+  @objc public func clear()
+  @objc deinit
+}
+@_inheritsConvenienceInitializers @objc(MeasureOutput) public class MeasureOutput : ObjectiveC.NSObject {
+  @objc override dynamic public init()
+  @objc deinit
+}
+@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonNode) @objcMembers public class MasonNode : ObjectiveC.NSObject {
+  public typealias MeasureFunc = (CoreFoundation.CGSize?, CoreFoundation.CGSize) -> CoreFoundation.CGSize
+  @objc override dynamic public init()
+  @objc public init(style: Mason.MasonStyle)
+  @objc public init(style: Mason.MasonStyle, children: [Mason.MasonNode])
+  public init(style: Mason.MasonStyle, measureFunc: @escaping Mason.MasonNode.MeasureFunc)
+  @objc deinit
+}
+@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonLayout) @objcMembers public class MasonLayout : ObjectiveC.NSObject {
+  @objc final public let order: Swift.Int
+  @objc final public let x: Swift.Float
+  @objc final public let y: Swift.Float
+  @objc final public let width: Swift.Float
+  @objc final public let height: Swift.Float
+  @objc final public let children: [Mason.MasonLayout]
+  @objc override dynamic public var description: Swift.String {
+    @objc get
+  }
+  @objc deinit
+}
+@_inheritsConvenienceInitializers @objc(MasonStyle) @objcMembers public class MasonStyle : ObjectiveC.NSObject {
+  @objc override dynamic public init()
+  public var display: Mason.Display {
+    get
+    set
+  }
+  public var positionType: Mason.PositionType {
+    get
+    set
+  }
+  public var direction: Mason.Direction {
+    get
+    set
+  }
+  public var flexDirection: Mason.FlexDirection {
+    get
+    set
+  }
+  public var flexWrap: Mason.FlexWrap {
+    get
+    set
+  }
+  public var overflow: Mason.Overflow {
+    get
+    set
+  }
+  public var alignItems: Mason.AlignItems {
+    get
+    set
+  }
+  public var alignSelf: Mason.AlignSelf {
+    get
+    set
+  }
+  public var alignContent: Mason.AlignContent {
+    get
+    set
+  }
+  public var justifyContent: Mason.JustifyContent {
+    get
+    set
+  }
+  public var position: Mason.MasonRect<Mason.MasonDimension> {
+    get
+    set
+  }
+  public var margin: Mason.MasonRect<Mason.MasonDimension> {
+    get
+    set
+  }
+  public var padding: Mason.MasonRect<Mason.MasonDimension> {
+    get
+    set
+  }
+  public var border: Mason.MasonRect<Mason.MasonDimension> {
+    get
+    set
+  }
+  @objc public var flexGrow: Swift.Float {
+    @objc get
+    @objc set
+  }
+  @objc public var flexShrink: Swift.Float {
+    @objc get
+    @objc set
+  }
+  public var flexBasis: Mason.MasonDimension {
+    get
+    set
+  }
+  public var size: Mason.MasonSize<Mason.MasonDimension> {
+    get
+    set
+  }
+  public var minSize: Mason.MasonSize<Mason.MasonDimension> {
+    get
+    set
+  }
+  public var maxSize: Mason.MasonSize<Mason.MasonDimension> {
+    get
+    set
+  }
+  public var flexGap: Mason.MasonSize<Mason.MasonDimension> {
+    get
+    set
+  }
+  public var aspectRatio: Swift.Float? {
+    get
+    set
+  }
+  @objc deinit
+}
+public struct MasonRect<T> {
+}
+public struct MasonSize<T> {
+}
+public enum MasonDimension {
+  case Points(Swift.Float)
+  case Percent(Swift.Float)
+  case Auto
+  case Undefined
+}
+public enum AlignItems : Swift.Int, Swift.RawRepresentable {
+  case FlexStart
+  case FlexEnd
+  case Center
+  case Baseline
+  case Stretch
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.AlignItems.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.AlignItems.RawValue)
+}
+public enum AlignSelf : Swift.Int, Swift.RawRepresentable {
+  case Auto
+  case FlexStart
+  case FlexEnd
+  case Center
+  case Baseline
+  case Stretch
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.AlignSelf.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.AlignSelf.RawValue)
+}
+public enum AlignContent : Swift.Int, Swift.RawRepresentable {
+  case FlexStart
+  case FlexEnd
+  case Center
+  case Stretch
+  case SpaceBetween
+  case SpaceAround
+  case SpaceEvenly
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.AlignContent.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.AlignContent.RawValue)
+}
+public enum Direction : Swift.Int, Swift.RawRepresentable {
+  case Inherit
+  case LTR
+  case RTL
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.Direction.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.Direction.RawValue)
+}
+public enum Display : Swift.Int, Swift.RawRepresentable {
+  case Flex
+  case None
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.Display.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.Display.RawValue)
+}
+public enum FlexDirection : Swift.Int, Swift.RawRepresentable {
+  case Row
+  case Column
+  case RowReverse
+  case ColumnReverse
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.FlexDirection.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.FlexDirection.RawValue)
+}
+public enum JustifyContent : Swift.Int, Swift.RawRepresentable {
+  case FlexStart
+  case FlexEnd
+  case Center
+  case SpaceBetween
+  case SpaceAround
+  case SpaceEvenly
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.JustifyContent.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.JustifyContent.RawValue)
+}
+public enum Overflow : Swift.Int, Swift.RawRepresentable {
+  case Visible
+  case Hidden
+  case Scroll
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.Overflow.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.Overflow.RawValue)
+}
+public enum PositionType : Swift.Int, Swift.RawRepresentable {
+  case Relative
+  case Absolute
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.PositionType.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.PositionType.RawValue)
+}
+public enum FlexWrap : Swift.Int, Swift.RawRepresentable {
+  case NoWrap
+  case Wrap
+  case WrapReverse
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.FlexWrap.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.FlexWrap.RawValue)
+}
+@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonView) @_Concurrency.MainActor(unsafe) public class MasonView : UIKit.UIView {
+  @_Concurrency.MainActor(unsafe) @objc override dynamic public init(frame: CoreFoundation.CGRect)
+  @_Concurrency.MainActor(unsafe) public var style: Mason.MasonStyle {
+    get
+    set
+  }
+  @_Concurrency.MainActor(unsafe) @objc override dynamic public func layoutSubviews()
+  @_Concurrency.MainActor(unsafe) public func nodeForView(view: UIKit.UIView) -> Mason.MasonNode
+  @_Concurrency.MainActor(unsafe) @objc override dynamic public func addSubview(_ view: UIKit.UIView)
+  @_Concurrency.MainActor(unsafe) @objc override dynamic public func insertSubview(_ view: UIKit.UIView, at index: Swift.Int)
+  @_Concurrency.MainActor(unsafe) @objc override dynamic public func removeFromSuperview()
+  @objc deinit
+}
+extension Mason.AlignItems : Swift.Equatable {}
+extension Mason.AlignItems : Swift.Hashable {}
+extension Mason.AlignSelf : Swift.Equatable {}
+extension Mason.AlignSelf : Swift.Hashable {}
+extension Mason.AlignContent : Swift.Equatable {}
+extension Mason.AlignContent : Swift.Hashable {}
+extension Mason.Direction : Swift.Equatable {}
+extension Mason.Direction : Swift.Hashable {}
+extension Mason.Display : Swift.Equatable {}
+extension Mason.Display : Swift.Hashable {}
+extension Mason.FlexDirection : Swift.Equatable {}
+extension Mason.FlexDirection : Swift.Hashable {}
+extension Mason.JustifyContent : Swift.Equatable {}
+extension Mason.JustifyContent : Swift.Hashable {}
+extension Mason.Overflow : Swift.Equatable {}
+extension Mason.Overflow : Swift.Hashable {}
+extension Mason.PositionType : Swift.Equatable {}
+extension Mason.PositionType : Swift.Hashable {}
+extension Mason.FlexWrap : Swift.Equatable {}
+extension Mason.FlexWrap : Swift.Hashable {}

@@ -1,0 +1,13 @@
+[workspace]
+members = ["mason-core", "mason-android", "mason-ios"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "z"
+debug = false
+incremental = false
+strip = true
+debug-assertions = false
+overflow-checks = false

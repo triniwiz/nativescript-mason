@@ -1,0 +1,100 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/nativescript-masonkit",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/js:tsc",
+      "options": {
+        "outputPath": "dist/packages/nativescript-masonkit",
+        "tsConfig": "packages/nativescript-masonkit/tsconfig.json",
+        "packageJson": "packages/nativescript-masonkit/package.json",
+        "main": "packages/nativescript-masonkit/index.d.ts",
+        "assets": [
+          "packages/nativescript-masonkit/*.md",
+          "packages/nativescript-masonkit/index.d.ts",
+          "LICENSE",
+          {
+            "glob": "**/*",
+            "input": "packages/nativescript-masonkit/platforms/",
+            "output": "./platforms/"
+          }
+        ],
+        "dependsOn": [
+          {
+            "target": "build.all",
+            "projects": "dependencies"
+          }
+        ]
+      }
+    },
+    "build.all": {
+      "executor": "@nrwl/workspace:run-commands",
+      "options": {
+        "commands": ["node tools/scripts/build-finish.ts nativescript-masonkit"],
+        "parallel": false
+      },
+      "outputs": ["dist/packages/nativescript-masonkit"],
+      "dependsOn": [
+        {
+          "target": "build.all",
+          "projects": "dependencies"
+        },
+        {
+          "target": "build",
+          "projects": "self"
+        }
+      ]
+    },
+    "build.native.ios.framework.release": {
+      "outputs": ["dist/packages"],
+      "options": {
+        "commands": ["sh masonkit-build-ios-framework.sh"],
+        "cwd": "tools/scripts",
+        "parallel": false
+      },
+      "executor": "@nrwl/workspace:run-commands"
+    },
+    "build.native.ios.framework.debug": {
+      "outputs": ["dist/packages"],
+      "options": {
+        "commands": ["sh masonkit-build-ios-framework.sh"],
+        "cwd": "tools/scripts",
+        "parallel": false
+      },
+      "executor": "@nrwl/workspace:run-commands"
+    },
+    "build.native.ios.debug": {
+      "outputs": ["dist/packages"],
+      "options": {
+        "commands": ["sh masonkit-build-ios-native.sh"],
+        "cwd": "tools/scripts",
+        "parallel": false
+      },
+      "executor": "@nrwl/workspace:run-commands"
+    },
+    "build.native.ios.release": {
+      "outputs": ["dist/packages"],
+      "options": {
+        "commands": ["sh masonkit-build-ios-native.sh --release"],
+        "cwd": "tools/scripts",
+        "parallel": false
+      },
+      "executor": "@nrwl/workspace:run-commands"
+    },
+    "focus": {
+      "executor": "@nrwl/workspace:run-commands",
+      "options": {
+        "commands": ["nx g @nativescript/plugin-tools:focus-packages nativescript-masonkit"],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "options": {
+        "lintFilePatterns": ["packages/nativescript-masonkit/**/*.ts"]
+      }
+    }
+  },
+  "tags": []
+}

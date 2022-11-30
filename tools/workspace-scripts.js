@@ -55,12 +55,19 @@ module.exports = {
       },
     },
     '⚙️': {
-      script: `npx cowsay "@nativescript/* packages will keep your ⚙️ cranking"`,
-      description: '_____________  @nativescript/*  _____________',
+      script: `npx cowsay "@triniwiz/* packages will keep your ⚙️ cranking"`,
+      description: '_____________  @triniwiz/*  _____________',
     },
     // packages
     // build output is always in dist/packages
-    '@nativescript': {
+    '@triniwiz': {
+      // @triniwiz/nativescript-masonkit
+      'nativescript-masonkit': {
+        build: {
+          script: 'nx run nativescript-masonkit:build.all',
+          description: '@triniwiz/nativescript-masonkit: Build',
+        },
+      },
       'build-all': {
         script: 'nx run-many --target=build.all --all',
         description: 'Build all packages',
@@ -71,8 +78,12 @@ module.exports = {
       description: '_____________  Focus (VS Code supported)  _____________',
     },
     focus: {
+      'nativescript-masonkit': {
+        script: 'nx run nativescript-masonkit:focus',
+        description: 'Focus on @triniwiz/nativescript-masonkit',
+      },
       reset: {
-        script: 'nx g @nativescript/plugin-tools:focus-packages',
+        script: 'nx g @triniwiz/plugin-tools:focus-packages',
         description: 'Reset Focus',
       },
     },

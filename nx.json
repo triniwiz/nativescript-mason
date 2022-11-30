@@ -1,5 +1,5 @@
 {
-  "npmScope": "nativescript",
+  "npmScope": "triniwiz",
   "affected": {
     "defaultBase": "master"
   },

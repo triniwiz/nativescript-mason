@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="mason">
+        <attr name="flex_alignContent" format="enum">
+            <enum name="flex_start" value="0" />
+            <enum name="flex_end" value="1" />
+            <enum name="center" value="2" />
+            <enum name="stretch" value="3" />
+            <enum name="space_between" value="4" />
+            <enum name="space_around" value="5" />
+        </attr>
+
+        <attr name="flex_alignItems" format="enum">
+            <enum name="flex_start" value="0" />
+            <enum name="flex_end" value="1" />
+            <enum name="center" value="2" />
+            <enum name="baseline" value="3" />
+            <enum name="stretch" value="4" />
+        </attr>
+
+        <attr name="flex_alignSelf" format="enum">
+            <enum name="auto" value="0" />
+            <enum name="flex_start" value="1" />
+            <enum name="flex_end" value="2" />
+            <enum name="center" value="3" />
+            <enum name="baseline" value="4" />
+            <enum name="stretch" value="5" />
+        </attr>
+
+        <attr name="flex_aspectRatio" format="float" />
+
+        <attr name="mason_borderLeft" format="dimension" />
+        <attr name="mason_borderTop" format="dimension" />
+        <attr name="mason_borderRight" format="dimension" />
+        <attr name="mason_borderBottom" format="dimension" />
+        <attr name="mason_borderStart" format="dimension" />
+        <attr name="mason_borderEnd" format="dimension" />
+        <attr name="mason_borderAll" format="dimension" />
+
+        <attr name="mason_direction" format="enum">
+            <enum name="inherit" value="0" />
+            <enum name="ltr" value="1" />
+            <enum name="rtl" value="2" />
+        </attr>
+
+        <attr name="mason_display" format="enum">
+            <enum name="flex" value="0" />
+            <enum name="none" value="1" />
+        </attr>
+
+        <attr name="flex_basis" format="float|string" />
+
+        <attr name="flex_direction" format="enum">
+            <enum name="row" value="0" />
+            <enum name="column" value="1" />
+            <enum name="row_reverse" value="2" />
+            <enum name="column_reverse" value="3" />
+        </attr>
+
+        <attr name="flex_grow" format="float" />
+
+        <attr name="flex_shrink" format="float" />
+
+        <attr name="mason_height" format="dimension|string" />
+
+        <attr name="flex_justifyContent" format="enum">
+            <enum name="flex_start" value="0" />
+            <enum name="flex_end" value="1" />
+            <enum name="center" value="2" />
+            <enum name="space_between" value="3" />
+            <enum name="space_around" value="4" />
+            <enum name="space_evenly" value="5" />
+        </attr>
+
+        <attr name="mason_marginLeft" format="dimension|string" />
+        <attr name="mason_marginTop" format="dimension|string" />
+        <attr name="mason_marginRight" format="dimension|string" />
+        <attr name="mason_marginBottom" format="dimension|string" />
+        <attr name="mason_marginStart" format="dimension|string" />
+        <attr name="mason_marginEnd" format="dimension|string" />
+        <attr name="mason_marginAll" format="dimension|string" />
+
+        <attr name="mason_maxHeight" format="dimension|string" />
+
+        <attr name="mason_maxWidth" format="dimension|string" />
+
+        <attr name="mason_minHeight" format="dimension|string" />
+
+        <attr name="mason_minWidth" format="dimension|string" />
+
+        <attr name="mason_overflow" format="enum">
+            <enum name="visible" value="0" />
+            <enum name="hidden" value="1" />
+            <enum name="scroll" value="2" />
+        </attr>
+
+        <attr name="mason_paddingLeft" format="dimension|string" />
+        <attr name="mason_paddingTop" format="dimension|string" />
+        <attr name="mason_paddingRight" format="dimension|string" />
+        <attr name="mason_paddingBottom" format="dimension|string" />
+        <attr name="mason_paddingStart" format="dimension|string" />
+        <attr name="mason_paddingEnd" format="dimension|string" />
+        <attr name="mason_paddingAll" format="dimension|string" />
+
+        <attr name="mason_positionLeft" format="dimension|string" />
+        <attr name="mason_positionTop" format="dimension|string" />
+        <attr name="mason_positionRight" format="dimension|string" />
+        <attr name="mason_positionBottom" format="dimension|string" />
+        <attr name="mason_positionStart" format="dimension|string" />
+        <attr name="mason_positionEnd" format="dimension|string" />
+        <attr name="mason_positionAll" format="dimension|string" />
+
+        <attr name="mason_positionType" format="enum">
+            <enum name="relative" value="0" />
+            <enum name="absolute" value="1" />
+        </attr>
+
+        <attr name="mason_width" format="dimension|string" />
+
+        <attr name="flex_wrap" format="enum">
+            <enum name="no_wrap" value="0" />
+            <enum name="wrap" value="1" />
+            <enum name="wrap_reverse" value="2" />
+        </attr>
+    </declare-styleable>
+</resources>

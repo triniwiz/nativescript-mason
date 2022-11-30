@@ -1,0 +1,11 @@
+framework module Mason {
+  umbrella header "Mason.h"
+
+  export *
+  module * { export * }
+}
+
+module Mason.Swift {
+  header "Mason-Swift.h"
+  requires objc
+}
