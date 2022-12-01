@@ -11,6 +11,11 @@ pub extern "C" fn mason_init() -> *mut c_void {
 }
 
 #[no_mangle]
+pub extern "C" fn mason_init_with_capacity(capacity: usize) -> *mut c_void {
+    Mason::with_capacity(capacity).into_raw() as *mut c_void
+}
+
+#[no_mangle]
 pub extern "C" fn mason_destroy(mason: *mut c_void) {
     if mason.is_null() {
         return;

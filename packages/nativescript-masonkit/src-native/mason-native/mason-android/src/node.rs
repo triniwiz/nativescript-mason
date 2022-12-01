@@ -815,6 +815,71 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeGetChildA
 }
 
 #[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetChildren(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    children: jlongArray,
+) {
+    if taffy == 0 || node == 0 {
+        return;
+    }
+    unsafe {
+        let mut mason = Box::from_raw(taffy as *mut Mason);
+        let node = Box::from_raw(node as *mut Node);
+
+        if let Ok(array) = env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+            let data = std::slice::from_raw_parts_mut(
+                array.as_ptr() as *mut jlong,
+                array.size().unwrap_or_default() as usize,
+            );
+            let data: Vec<Node> = data
+                .iter()
+                .map(|v| {
+                    let v = *v as *mut Node;
+                    *v
+                })
+                .collect();
+            mason.set_children(*node, data.as_slice());
+        }
+    }
+}
+
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChildren(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    children: jlongArray,
+) {
+    if taffy == 0 || node == 0 {
+        return;
+    }
+    unsafe {
+        let mut mason = Box::from_raw(taffy as *mut Mason);
+        let node = Box::from_raw(node as *mut Node);
+
+        if let Ok(array) = env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+            let data = std::slice::from_raw_parts_mut(
+                array.as_ptr() as *mut jlong,
+                array.size().unwrap_or_default() as usize,
+            );
+            let data: Vec<Node> = data
+                .iter()
+                .map(|v| {
+                    let v = *v as *mut Node;
+                    *v
+                })
+                .collect();
+            mason.add_children(*node, data.as_slice());
+        }
+    }
+}
+
+#[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChild(
     _: JNIEnv,
     _: JObject,
@@ -924,7 +989,6 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeInsertChi
     }
 }
 
-
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeInsertChildAfter(
     _: JNIEnv,
@@ -990,6 +1054,66 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeMarkDirty
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
         mason.mark_dirty(*node);
+        Box::leak(mason);
+        Box::leak(node);
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeIsChildrenSame(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    children: jlongArray,
+) -> jboolean {
+    if taffy == 0 || node == 0 {
+        return JNI_FALSE;
+    }
+    unsafe {
+        let mason = Box::from_raw(taffy as *mut Mason);
+        let node = Box::from_raw(node as *mut Node);
+
+        match env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+            Ok(array) => {
+                let size = array.size().unwrap_or_default() as usize;
+                if mason.child_count(*node) != size {
+                    return JNI_TRUE;
+                }
+                let data = std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, size);
+                let data: Vec<Node> = data
+                    .iter()
+                    .map(|v| {
+                        let v = *v as *mut Node;
+                        *v
+                    })
+                    .collect();
+                if mason.is_children_same(*node, data.as_slice()) {
+                    return JNI_TRUE;
+                }
+                JNI_FALSE
+            }
+            Err(_) => JNI_FALSE,
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeRemoveChildren(
+    _: JNIEnv,
+    _: JObject,
+    taffy: jlong,
+    node: jlong,
+) {
+    if taffy == 0 || node == 0 {
+        return;
+    }
+    unsafe {
+        let mut mason = Box::from_raw(taffy as *mut Mason);
+        let node = Box::from_raw(node as *mut Node);
+
+        mason.remove_children(*node);
+
         Box::leak(mason);
         Box::leak(node);
     }

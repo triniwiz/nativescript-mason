@@ -1,3 +1,5 @@
+/// <reference path="android-declarations.d.ts"/>
+
 declare module org {
   export module nativescript {
     export module mason {
@@ -560,6 +562,7 @@ declare module org {
           public getAlignSelf(): org.nativescript.mason.masonkit.AlignSelf;
           public getAlignItems(): org.nativescript.mason.masonkit.AlignItems;
           public finalize(): void;
+          public setPaddingRight(param0: number, param1: number): void;
           public setAlignItems(param0: org.nativescript.mason.masonkit.AlignItems): void;
           public setDisplay(param0: org.nativescript.mason.masonkit.Display): void;
           public updateStyle$masonkit_release(
@@ -638,6 +641,7 @@ declare module org {
           public setPadding(param0: org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>): void;
           public getMinSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
           public setDirection(param0: org.nativescript.mason.masonkit.Direction): void;
+          public setPaddingWithValueType(param0: number, param1: number): void;
           public getOverflow(): org.nativescript.mason.masonkit.Overflow;
           public getBorder(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>;
           public getMaxSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
@@ -647,6 +651,8 @@ declare module org {
           public getJustifyContent(): org.nativescript.mason.masonkit.JustifyContent;
           public getPositionType(): org.nativescript.mason.masonkit.PositionType;
           public getDirection(): org.nativescript.mason.masonkit.Direction;
+          public setPaddingLeft(param0: number, param1: number): void;
+          public setPaddingBottom(param0: number, param1: number): void;
           public getFlexGap(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
           public isDirty$masonkit_release(): boolean;
           public setFlexGap(param0: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>): void;
@@ -657,6 +663,7 @@ declare module org {
           public setAlignSelf(param0: org.nativescript.mason.masonkit.AlignSelf): void;
           public getAspectRatio(): java.lang.Float;
           public setOverflow(param0: org.nativescript.mason.masonkit.Overflow): void;
+          public setPaddingTop(param0: number, param1: number): void;
           public getAlignContent(): org.nativescript.mason.masonkit.AlignContent;
           public setMaxSize(param0: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>): void;
           public setDirty$masonkit_release(param0: boolean): void;
@@ -688,37 +695,39 @@ declare module org {
       export module masonkit {
         export class View {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.View>;
-          public addViews(param0: androidNative.Array<globalAndroid.view.View>, param1: number, param2: globalAndroid.view.ViewGroup.LayoutParams): void;
-          public onMeasure(param0: number, param1: number): void;
-          public invalidate(param0: globalAndroid.view.View): void;
           public removeViewsInLayout(param0: number, param1: number): void;
           public nodeForView(param0: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
           public removeAllViewsInLayout(): void;
-          public generateLayoutParams(param0: globalAndroid.util.AttributeSet): globalAndroid.view.ViewGroup.LayoutParams;
           public getStyle(): org.nativescript.mason.masonkit.Style;
-          public constructor(param0: globalAndroid.content.Context, param1: globalAndroid.util.AttributeSet, param2: number);
-          public removeView(param0: globalAndroid.view.View): void;
           public generateLayoutParams(param0: globalAndroid.view.ViewGroup.LayoutParams): globalAndroid.view.ViewGroup.LayoutParams;
-          public setStyle(param0: org.nativescript.mason.masonkit.Style): void;
           public addView(param0: globalAndroid.view.View, param1: org.nativescript.mason.masonkit.Node): void;
           public constructor(param0: globalAndroid.content.Context, param1: globalAndroid.util.AttributeSet);
-          public constructor(param0: globalAndroid.content.Context);
-          public removeViewAt(param0: number): void;
           public removeViewInLayout(param0: globalAndroid.view.View): void;
-          public removeAllViews(): void;
-          public applyLayoutParams(param0: org.nativescript.mason.masonkit.View.LayoutParams, param1: org.nativescript.mason.masonkit.Node, param2: globalAndroid.view.View): void;
-          public getNode(): org.nativescript.mason.masonkit.Node;
+          public addViews(param0: androidNative.Array<globalAndroid.view.View>, param1: number): void;
           public generateDefaultLayoutParams(): globalAndroid.view.ViewGroup.LayoutParams;
-          public onLayout(param0: boolean, param1: number, param2: number, param3: number, param4: number): void;
           public addView(param0: globalAndroid.view.View, param1: number, param2: globalAndroid.view.ViewGroup.LayoutParams): void;
           public checkLayoutParams(param0: globalAndroid.view.ViewGroup.LayoutParams): boolean;
           public removeViews(param0: number, param1: number): void;
+          public onMeasure(param0: number, param1: number): void;
+          public invalidate(param0: globalAndroid.view.View): void;
+          public generateLayoutParams(param0: globalAndroid.util.AttributeSet): globalAndroid.view.ViewGroup.LayoutParams;
+          public constructor(param0: globalAndroid.content.Context, param1: globalAndroid.util.AttributeSet, param2: number);
+          public removeView(param0: globalAndroid.view.View): void;
+          public setStyle(param0: org.nativescript.mason.masonkit.Style): void;
+          public constructor(param0: globalAndroid.content.Context);
+          public removeViewAt(param0: number): void;
+          public removeAllViews(): void;
+          public addViews(param0: androidNative.Array<globalAndroid.view.View>): void;
+          public applyLayoutParams(param0: org.nativescript.mason.masonkit.View.LayoutParams, param1: org.nativescript.mason.masonkit.Node, param2: globalAndroid.view.View): void;
+          public getNode(): org.nativescript.mason.masonkit.Node;
+          public onLayout(param0: boolean, param1: number, param2: number, param3: number, param4: number): void;
           public setStyleFromString(param0: string): void;
           public getStyleAsString(): string;
         }
         export module View {
           export class Companion {
             public static class: java.lang.Class<org.nativescript.mason.masonkit.View.Companion>;
+            public getGson$masonkit_release(): com.google.gson.Gson;
             public getNodesRef$masonkit_release(): java.util.WeakHashMap<globalAndroid.view.View, org.nativescript.mason.masonkit.Node>;
           }
           export class LayoutParams {

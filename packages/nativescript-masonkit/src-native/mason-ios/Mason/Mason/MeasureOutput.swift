@@ -7,14 +7,15 @@
 
 import Foundation
 
+@objcMembers
 @objc(MeasureOutput)
 public class MeasureOutput: NSObject {
     
-    static func make(width: CGFloat, height: CGFloat) -> Int64 {
-        return make(width: Float(width), height: Float(height))
+    @nonobjc static func make(width: CGFloat, height: CGFloat) -> Int64 {
+        return make(Float(width), Float(height))
     }
     
-    static func make(width: Float, height: Float) -> Int64 {
+    static func make(_ width: Float, _ height: Float) -> Int64 {
         let wBits = width.bitPattern
         let hBits = height.bitPattern
         
@@ -22,7 +23,7 @@ public class MeasureOutput: NSObject {
     }
     
     static func make(width: Int, height: Int) -> Int64 {
-        return MeasureOutput.make(width: Float(width), height: Float(height))
+        return MeasureOutput.make(Float(width), Float(height))
     }
     
     static func getWidth(_ measureOutput: Int64) -> Float {

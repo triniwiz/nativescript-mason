@@ -27,6 +27,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeInit(
 }
 
 #[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeInitWithCapacity(
+    _: JNIEnv,
+    _: JObject,
+    capacity: jint
+) -> jlong {
+    mason_core::Mason::with_capacity(capacity as usize).into_raw() as jlong
+}
+
+
+
+#[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeClear(
     _: JNIEnv,
     _: JObject,

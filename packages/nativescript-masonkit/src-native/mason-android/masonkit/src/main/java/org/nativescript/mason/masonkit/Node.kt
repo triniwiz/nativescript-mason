@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.view.View.MeasureSpec
 import java.lang.ref.WeakReference
+import java.util.WeakHashMap
 
 class Node private constructor(private var nativePtr: Long) {
   var data: Any? = null
@@ -319,6 +320,10 @@ class Node private constructor(private var nativePtr: Long) {
     return Layout.fromFloatArray(nativeLayout(Mason.instance.nativePtr, nativePtr), 0).second
   }
 
+  fun getNativePtr(): Long {
+    return nativePtr
+  }
+
   fun compute() {
     nativeCompute(Mason.instance.nativePtr, nativePtr)
   }
@@ -448,6 +453,12 @@ class Node private constructor(private var nativePtr: Long) {
     }
   }
 
+  fun removeChildren() {
+    nativeRemoveChildren(Mason.instance.nativePtr, nativePtr)
+    children.forEach { it.owner = null }
+    children.clear()
+  }
+
   fun removeChild(child: Node): Node? {
     val removedNode = nativeRemoveChild(Mason.instance.nativePtr, nativePtr, child.nativePtr)
     if (removedNode == 0L) {
@@ -528,7 +539,8 @@ class Node private constructor(private var nativePtr: Long) {
       Mason.initLib()
     }
 
-    private val nodes = mutableMapOf<Long, Node>()
+    @JvmStatic
+    internal val nodes = WeakHashMap<Long, Node>()
 
     @JvmStatic
     private external fun nativeNewNode(mason: Long, style: Long): Long
@@ -609,6 +621,11 @@ class Node private constructor(private var nativePtr: Long) {
   private external fun nativeMarkDirty(mason: Long, node: Long)
 
   private external fun nativeDirty(mason: Long, node: Long): Boolean
+
+  private external fun nativeRemoveChildren(
+    mason: Long,
+    node: Long,
+  )
 
   private external fun nativeRemoveChildAt(
     mason: Long,

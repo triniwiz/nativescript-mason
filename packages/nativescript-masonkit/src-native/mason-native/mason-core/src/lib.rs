@@ -45,12 +45,26 @@ impl Mason {
         Default::default()
     }
 
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            taffy: Taffy::with_capacity(capacity),
+        }
+    }
+
     pub fn into_raw(self) -> *mut Mason {
         Box::into_raw(Box::new(self))
     }
 
     pub fn new_node(&mut self, style: Style) -> Option<Node> {
         self.taffy.new_leaf(style.style).map(Node::from_taffy).ok()
+    }
+
+    pub fn is_children_same(&self, node: Node, children: &[Node]) -> bool {
+        let children: Vec<taffy::node::Node> = children.iter().map(|v| v.node).collect();
+        self.taffy
+            .children(node.node)
+            .map(|v| v == children)
+            .unwrap_or(false)
     }
 
     pub fn new_node_with_measure_func(
@@ -107,6 +121,17 @@ impl Mason {
             .child_at_index(node.node, index)
             .map(Node::from_taffy)
             .ok()
+    }
+
+    pub fn set_children(&mut self, node: Node, children: &[Node]) {
+        let children: Vec<taffy::node::Node> = children.iter().map(|v| v.node).collect();
+        let _ = self.taffy.set_children(node.node, children.as_slice()).ok();
+    }
+
+    pub fn add_children(&mut self, node: Node, children: &[Node]) {
+        for child in children.iter() {
+            let _ = self.taffy.add_child(node.node, child.node).ok();
+        }
     }
 
     pub fn add_child(&mut self, node: Node, child: Node) {
@@ -178,6 +203,14 @@ impl Mason {
             .ok()
     }
 
+    pub fn remove_children(&mut self, node: Node) {
+        if self.taffy.child_count(node.node).unwrap_or_default() == 0 {
+            return;
+        }
+        println!("has {}" , self.taffy.child_count(node.node).unwrap_or_default());
+        let _ = self.taffy.remove(node.node);
+    }
+
     pub fn is_node_same(&self, first: Node, second: Node) -> bool {
         first == second
     }
@@ -233,7 +266,6 @@ impl Mason {
         }
     }
 }
-
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Size<T> {

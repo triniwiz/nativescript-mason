@@ -7,18 +7,67 @@
 
 import Foundation
 
+@objcMembers
+@objc(MasonRectCompat)
+public class MasonRectCompat: NSObject {
+    public var left: MasonDimensionCompat
+    public var right: MasonDimensionCompat
+    public var top: MasonDimensionCompat
+    public var bottom: MasonDimensionCompat
+    
+    public init(_ left: MasonDimensionCompat, _ right: MasonDimensionCompat, _ top: MasonDimensionCompat, _ bottom: MasonDimensionCompat) {
+        self.left = left
+        self.right = right
+        self.top = top
+        self.bottom = bottom
+    }
+    
+    public init(_ rect: MasonRect<MasonDimension>) {
+        left = MasonDimensionCompat(value: rect.left)
+        right = MasonDimensionCompat(value: rect.right)
+        top = MasonDimensionCompat(value: rect.top)
+        bottom = MasonDimensionCompat(value: rect.bottom)
+    }
+    
+    func intoMasonRect()-> MasonRect<MasonDimension> {
+        return MasonRect(left.dimension, right.dimension, top.dimension, bottom.dimension)
+    }
+}
+
 
 public struct MasonRect<T> {
     var left: T
     var right: T
     var top: T
     var bottom: T
+    internal var compat: MasonRectCompat? = nil
     
-    init(_ left: T, _ right: T, _ top: T, _ bottom: T) {
+    public init(_ left: T, _ right: T, _ top: T, _ bottom: T) {
         self.left = left
         self.right = right
         self.top = top
         self.bottom = bottom
+    }
+}
+
+@objcMembers
+@objc(MasonSizeCompat)
+public class MasonSizeCompat: NSObject{
+    public var width: MasonDimensionCompat
+    public var height: MasonDimensionCompat
+    
+    init(_ width: MasonDimensionCompat, _ height: MasonDimensionCompat) {
+        self.width = width
+        self.height = height
+    }
+    
+    func intoMasonSize()-> MasonSize<MasonDimension> {
+        return MasonSize(width.dimension, height.dimension)
+    }
+    
+    public init(_ size: MasonSize<MasonDimension>) {
+        width = MasonDimensionCompat(value: size.width)
+        height = MasonDimensionCompat(value: size.height)
     }
 }
 
@@ -27,11 +76,136 @@ public struct MasonSize<T>{
     var width: T
     var height: T
     
-    init(_ width: T, _ height: T) {
+    internal var compat: MasonSizeCompat? = nil
+    
+    public init(_ width: T, _ height: T) {
         self.width = width
         self.height = height
     }
 }
+
+
+@objc(MasonDimensionCompatType)
+public enum MasonDimensionCompatType: Int, RawRepresentable {
+    case Points
+    case Percent
+    case Auto
+    case Undefined
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Points:
+            return 0
+        case .Percent:
+            return 1
+        case .Auto:
+            return 2
+        case .Undefined:
+            return 3
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+            self = .Points
+        case 1:
+            self = .Percent
+        case 2:
+            self = .Auto
+        case 3:
+            self = .Undefined
+        default:
+            return nil
+        }
+    }
+}
+
+@objcMembers
+@objc(MasonDimensionCompat)
+public class MasonDimensionCompat: NSObject {
+    internal let dimension: MasonDimension
+    internal let dimensionType: MasonDimensionCompatType
+    public init(points: Float) {
+        dimension = .Points(points)
+        dimensionType = .Points
+    }
+    
+    public init(percent: Float) {
+        dimension = .Percent(percent)
+        dimensionType = .Percent
+    }
+    
+    internal init(value: MasonDimension) {
+        dimension = value
+        switch(value){
+        case .Points(_):
+            dimensionType = .Points
+        case .Percent(_):
+            dimensionType = .Percent
+        case .Auto:
+            dimensionType = .Auto
+        case .Undefined:
+            dimensionType = .Undefined
+        }
+    }
+    
+    public var type: MasonDimensionCompatType {
+        get {
+            return dimensionType
+        }
+    }
+    
+    public var value: Float {
+        get {
+            switch(dimension){
+            case .Points(let points):
+                return points
+            case .Percent(let percent):
+                return percent
+            case .Auto:
+                return 0
+            case .Undefined:
+                return 0
+            }
+        }
+    }
+    
+    public var cssValue: String {
+        get {
+            switch(dimension){
+            case .Points(let points):
+                return "\(points)px"
+            case .Percent(let percent):
+                return "\(percent)%"
+            case .Auto:
+                return "auto"
+            case .Undefined:
+                return "undefined"
+            }
+        }
+    }
+    
+    public static let Undefined = MasonDimensionCompat(value: .Undefined)
+    
+    public static let Auto = MasonDimensionCompat(value: .Auto)
+}
+
+
+public func MasonDimensionFromPoints(value: Float) -> MasonDimension {
+    return .Points(value)
+}
+
+public func MasonDimensionFromPercent(value: Float) -> MasonDimension {
+    return .Percent(value)
+}
+
+public let MasonDimensionAuto = MasonDimension.Auto
+
+public let MasonDimensionUndefined = MasonDimension.Undefined
 
 
 public enum MasonDimension {
@@ -39,7 +213,6 @@ public enum MasonDimension {
     case Percent(Float)
     case Auto
     case Undefined
-    
     
     internal var type: Int32 {
         get {
@@ -66,7 +239,7 @@ public enum MasonDimension {
 }
 
 
-
+@objc(AlignItems)
 public enum AlignItems: Int, RawRepresentable {
     case FlexStart
     case FlexEnd
@@ -110,6 +283,7 @@ public enum AlignItems: Int, RawRepresentable {
     }
 }
 
+@objc(AlignSelf)
 public enum AlignSelf: Int, RawRepresentable {
     case Auto
     case FlexStart
@@ -158,6 +332,7 @@ public enum AlignSelf: Int, RawRepresentable {
     }
 }
 
+@objc(AlignContent)
 public enum AlignContent: Int, RawRepresentable  {
     case FlexStart
     case FlexEnd
@@ -211,6 +386,7 @@ public enum AlignContent: Int, RawRepresentable  {
     }
 }
 
+@objc(Direction)
 public enum Direction: Int, RawRepresentable {
     case Inherit
     case LTR
@@ -244,6 +420,7 @@ public enum Direction: Int, RawRepresentable {
     }
 }
 
+@objc(Display)
 public enum Display: Int, RawRepresentable {
     case Flex
     case None
@@ -272,6 +449,7 @@ public enum Display: Int, RawRepresentable {
     }
 }
 
+@objc(FlexDirection)
 public enum FlexDirection: Int, RawRepresentable {
     case Row
     case Column
@@ -310,6 +488,7 @@ public enum FlexDirection: Int, RawRepresentable {
     }
 }
 
+@objc(JustifyContent)
 public enum JustifyContent: Int, RawRepresentable {
     case FlexStart
     case FlexEnd
@@ -358,6 +537,7 @@ public enum JustifyContent: Int, RawRepresentable {
     }
 }
 
+@objc(Overflow)
 public enum Overflow: Int, RawRepresentable {
     case Visible
     case Hidden
@@ -391,6 +571,7 @@ public enum Overflow: Int, RawRepresentable {
     }
 }
 
+@objc(PositionType)
 public enum PositionType: Int, RawRepresentable {
     case Relative
     case Absolute
@@ -419,6 +600,7 @@ public enum PositionType: Int, RawRepresentable {
     }
 }
 
+@objc(FlexWrap)
 public enum FlexWrap: Int, RawRepresentable {
     case NoWrap
     case Wrap

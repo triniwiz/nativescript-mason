@@ -254,7 +254,91 @@ using UInt = size_t;
 #endif
 
 #if defined(__OBJC__)
+typedef SWIFT_ENUM_NAMED(NSInteger, AlignContent, "AlignContent", open) {
+  AlignContentFlexStart = 0,
+  AlignContentFlexEnd = 1,
+  AlignContentCenter = 2,
+  AlignContentStretch = 3,
+  AlignContentSpaceBetween = 4,
+  AlignContentSpaceAround = 5,
+  AlignContentSpaceEvenly = 6,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, AlignItems, "AlignItems", open) {
+  AlignItemsFlexStart = 0,
+  AlignItemsFlexEnd = 1,
+  AlignItemsCenter = 2,
+  AlignItemsBaseline = 3,
+  AlignItemsStretch = 4,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, AlignSelf, "AlignSelf", open) {
+  AlignSelfAuto = 0,
+  AlignSelfFlexStart = 1,
+  AlignSelfFlexEnd = 2,
+  AlignSelfCenter = 3,
+  AlignSelfBaseline = 4,
+  AlignSelfStretch = 5,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, Direction, "Direction", open) {
+  DirectionInherit = 0,
+  DirectionLTR = 1,
+  DirectionRTL = 2,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, Display, "Display", open) {
+  DisplayFlex = 0,
+  DisplayNone = 1,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, FlexDirection, "FlexDirection", open) {
+  FlexDirectionRow = 0,
+  FlexDirectionColumn = 1,
+  FlexDirectionRowReverse = 2,
+  FlexDirectionColumnReverse = 3,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, FlexWrap, "FlexWrap", open) {
+  FlexWrapNoWrap = 0,
+  FlexWrapWrap = 1,
+  FlexWrapWrapReverse = 2,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, JustifyContent, "JustifyContent", open) {
+  JustifyContentFlexStart = 0,
+  JustifyContentFlexEnd = 1,
+  JustifyContentCenter = 2,
+  JustifyContentSpaceBetween = 3,
+  JustifyContentSpaceAround = 4,
+  JustifyContentSpaceEvenly = 5,
+};
+
+enum MasonDimensionCompatType : NSInteger;
 @class NSString;
+
+SWIFT_CLASS_NAMED("MasonDimensionCompat")
+@interface MasonDimensionCompat : NSObject
+- (nonnull instancetype)initWithPoints:(float)points OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithPercent:(float)percent OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) enum MasonDimensionCompatType type;
+@property (nonatomic, readonly) float value;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Undefined;)
++ (MasonDimensionCompat * _Nonnull)Undefined SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Auto;)
++ (MasonDimensionCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonDimensionCompatType, "MasonDimensionCompatType", open) {
+  MasonDimensionCompatTypePoints = 0,
+  MasonDimensionCompatTypePercent = 1,
+  MasonDimensionCompatTypeAuto = 2,
+  MasonDimensionCompatTypeUndefined = 3,
+};
+
 
 SWIFT_CLASS_NAMED("MasonLayout")
 @interface MasonLayout : NSObject
@@ -273,27 +357,113 @@ SWIFT_CLASS_NAMED("MasonLayout")
 
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
+@property (nonatomic, readonly) void * _Null_unspecified nativePtr;
+@property (nonatomic, strong) MasonStyle * _Nonnull style;
+@property (nonatomic, readonly, copy) NSArray<MasonNode *> * _Nonnull children;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style children:(NSArray<MasonNode *> * _Nonnull)children OBJC_DESIGNATED_INITIALIZER;
 @end
 
 
+SWIFT_CLASS_NAMED("MasonRectCompat")
+@interface MasonRectCompat : NSObject
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull left;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull right;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull top;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull bottom;
+- (nonnull instancetype)init:(MasonDimensionCompat * _Nonnull)left :(MasonDimensionCompat * _Nonnull)right :(MasonDimensionCompat * _Nonnull)top :(MasonDimensionCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MasonSizeCompat")
+@interface MasonSizeCompat : NSObject
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull width;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull height;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum PositionType : NSInteger;
+enum Overflow : NSInteger;
+
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
+@property (nonatomic, readonly) void * _Null_unspecified nativePtr;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic) enum Display display;
+@property (nonatomic) enum PositionType positionType;
+@property (nonatomic) enum Direction direction;
+@property (nonatomic) enum FlexDirection flexDirection;
+@property (nonatomic) enum FlexWrap flexWrap;
+@property (nonatomic) enum Overflow overflow;
+@property (nonatomic) enum AlignItems alignItems;
+@property (nonatomic) enum AlignSelf alignSelf;
+@property (nonatomic) enum AlignContent alignContent;
+@property (nonatomic) enum JustifyContent justifyContent;
+@property (nonatomic, strong) MasonRectCompat * _Nonnull positionCompat;
+- (void)setPositionLeft:(float)value :(NSInteger)type;
+- (void)setPositionRight:(float)value :(NSInteger)type;
+- (void)setPositionTop:(float)value :(NSInteger)type;
+- (void)setPositionBottom:(float)value :(NSInteger)type;
+- (void)setPositionWithValueType:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonRectCompat * _Nonnull marginCompat;
+- (void)setMarginLeft:(float)value :(NSInteger)type;
+- (void)setMarginRight:(float)value :(NSInteger)type;
+- (void)setMarginTop:(float)value :(NSInteger)type;
+- (void)setMarginBottom:(float)value :(NSInteger)type;
+- (void)setMarginWithValueType:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonRectCompat * _Nonnull paddingCompat;
+- (void)setPaddingLeft:(float)value :(NSInteger)type;
+- (void)setPaddingRight:(float)value :(NSInteger)type;
+- (void)setPaddingTop:(float)value :(NSInteger)type;
+- (void)setPaddingBottom:(float)value :(NSInteger)type;
+- (void)setPaddingWithValueType:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonRectCompat * _Nonnull borderCompat;
+- (void)setBorderLeft:(float)value :(NSInteger)type;
+- (void)setBorderRight:(float)value :(NSInteger)type;
+- (void)setBorderTop:(float)value :(NSInteger)type;
+- (void)setBorderBottom:(float)value :(NSInteger)type;
+- (void)setBorderWithValueType:(float)value :(NSInteger)type;
 @property (nonatomic) float flexGrow;
 @property (nonatomic) float flexShrink;
+@property (nonatomic, strong) MasonSizeCompat * _Nonnull minSizeCompat;
+- (void)setMinSizeWidth:(float)value :(NSInteger)type;
+- (void)setMinSizeHeight:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonSizeCompat * _Nonnull sizeCompat;
+- (void)setSizeWidth:(float)value :(NSInteger)type;
+- (void)setSizeHeight:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonSizeCompat * _Nonnull maxSizeCompat;
+- (void)setMaxSizeWidth:(float)value :(NSInteger)type;
+- (void)setMaxSizeHeight:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonSizeCompat * _Nonnull flexGapCompat;
+- (void)setFlexGapWidth:(float)value :(NSInteger)type;
+- (void)setFlexGapHeight:(float)value :(NSInteger)type;
 @end
 
 @class NSCoder;
 
 SWIFT_CLASS_NAMED("MasonView")
 @interface MasonView : UIView
+@property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 - (nonnull instancetype)initWithFrame:(CGRect)frame OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+@property (nonatomic, strong) MasonStyle * _Nonnull style;
+- (void)setPadding:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setBorder:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setMargin:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setPosition:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setMinSize:(float)width :(float)height;
+- (void)setSize:(float)width :(float)height;
+- (void)setMaxSize:(float)width :(float)height;
+- (void)setFlexGap:(float)width :(float)height;
 - (void)layoutSubviews;
+- (MasonNode * _Nonnull)nodeForViewWithView:(UIView * _Nonnull)view SWIFT_WARN_UNUSED_RESULT;
 - (void)addSubview:(UIView * _Nonnull)view;
+- (void)addSubviews:(NSArray<UIView *> * _Nonnull)views;
+- (void)addSubviews:(NSArray<UIView *> * _Nonnull)views at:(NSInteger)index;
 - (void)insertSubview:(UIView * _Nonnull)view atIndex:(NSInteger)index;
 - (void)removeFromSuperview;
 @end
@@ -304,9 +474,21 @@ SWIFT_CLASS_NAMED("MeasureOutput")
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @end
 
+typedef SWIFT_ENUM_NAMED(NSInteger, Overflow, "Overflow", open) {
+  OverflowVisible = 0,
+  OverflowHidden = 1,
+  OverflowScroll = 2,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, PositionType, "PositionType", open) {
+  PositionTypeRelative = 0,
+  PositionTypeAbsolute = 1,
+};
+
 
 SWIFT_CLASS_NAMED("TSCMason")
 @interface Mason : NSObject
+@property (nonatomic, readonly) void * _Null_unspecified nativePtr;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (void)clear;
 @end
@@ -575,7 +757,91 @@ using UInt = size_t;
 #endif
 
 #if defined(__OBJC__)
+typedef SWIFT_ENUM_NAMED(NSInteger, AlignContent, "AlignContent", open) {
+  AlignContentFlexStart = 0,
+  AlignContentFlexEnd = 1,
+  AlignContentCenter = 2,
+  AlignContentStretch = 3,
+  AlignContentSpaceBetween = 4,
+  AlignContentSpaceAround = 5,
+  AlignContentSpaceEvenly = 6,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, AlignItems, "AlignItems", open) {
+  AlignItemsFlexStart = 0,
+  AlignItemsFlexEnd = 1,
+  AlignItemsCenter = 2,
+  AlignItemsBaseline = 3,
+  AlignItemsStretch = 4,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, AlignSelf, "AlignSelf", open) {
+  AlignSelfAuto = 0,
+  AlignSelfFlexStart = 1,
+  AlignSelfFlexEnd = 2,
+  AlignSelfCenter = 3,
+  AlignSelfBaseline = 4,
+  AlignSelfStretch = 5,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, Direction, "Direction", open) {
+  DirectionInherit = 0,
+  DirectionLTR = 1,
+  DirectionRTL = 2,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, Display, "Display", open) {
+  DisplayFlex = 0,
+  DisplayNone = 1,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, FlexDirection, "FlexDirection", open) {
+  FlexDirectionRow = 0,
+  FlexDirectionColumn = 1,
+  FlexDirectionRowReverse = 2,
+  FlexDirectionColumnReverse = 3,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, FlexWrap, "FlexWrap", open) {
+  FlexWrapNoWrap = 0,
+  FlexWrapWrap = 1,
+  FlexWrapWrapReverse = 2,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, JustifyContent, "JustifyContent", open) {
+  JustifyContentFlexStart = 0,
+  JustifyContentFlexEnd = 1,
+  JustifyContentCenter = 2,
+  JustifyContentSpaceBetween = 3,
+  JustifyContentSpaceAround = 4,
+  JustifyContentSpaceEvenly = 5,
+};
+
+enum MasonDimensionCompatType : NSInteger;
 @class NSString;
+
+SWIFT_CLASS_NAMED("MasonDimensionCompat")
+@interface MasonDimensionCompat : NSObject
+- (nonnull instancetype)initWithPoints:(float)points OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithPercent:(float)percent OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) enum MasonDimensionCompatType type;
+@property (nonatomic, readonly) float value;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Undefined;)
++ (MasonDimensionCompat * _Nonnull)Undefined SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Auto;)
++ (MasonDimensionCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonDimensionCompatType, "MasonDimensionCompatType", open) {
+  MasonDimensionCompatTypePoints = 0,
+  MasonDimensionCompatTypePercent = 1,
+  MasonDimensionCompatTypeAuto = 2,
+  MasonDimensionCompatTypeUndefined = 3,
+};
+
 
 SWIFT_CLASS_NAMED("MasonLayout")
 @interface MasonLayout : NSObject
@@ -594,27 +860,113 @@ SWIFT_CLASS_NAMED("MasonLayout")
 
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
+@property (nonatomic, readonly) void * _Null_unspecified nativePtr;
+@property (nonatomic, strong) MasonStyle * _Nonnull style;
+@property (nonatomic, readonly, copy) NSArray<MasonNode *> * _Nonnull children;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style children:(NSArray<MasonNode *> * _Nonnull)children OBJC_DESIGNATED_INITIALIZER;
 @end
 
 
+SWIFT_CLASS_NAMED("MasonRectCompat")
+@interface MasonRectCompat : NSObject
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull left;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull right;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull top;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull bottom;
+- (nonnull instancetype)init:(MasonDimensionCompat * _Nonnull)left :(MasonDimensionCompat * _Nonnull)right :(MasonDimensionCompat * _Nonnull)top :(MasonDimensionCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MasonSizeCompat")
+@interface MasonSizeCompat : NSObject
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull width;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull height;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum PositionType : NSInteger;
+enum Overflow : NSInteger;
+
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
+@property (nonatomic, readonly) void * _Null_unspecified nativePtr;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic) enum Display display;
+@property (nonatomic) enum PositionType positionType;
+@property (nonatomic) enum Direction direction;
+@property (nonatomic) enum FlexDirection flexDirection;
+@property (nonatomic) enum FlexWrap flexWrap;
+@property (nonatomic) enum Overflow overflow;
+@property (nonatomic) enum AlignItems alignItems;
+@property (nonatomic) enum AlignSelf alignSelf;
+@property (nonatomic) enum AlignContent alignContent;
+@property (nonatomic) enum JustifyContent justifyContent;
+@property (nonatomic, strong) MasonRectCompat * _Nonnull positionCompat;
+- (void)setPositionLeft:(float)value :(NSInteger)type;
+- (void)setPositionRight:(float)value :(NSInteger)type;
+- (void)setPositionTop:(float)value :(NSInteger)type;
+- (void)setPositionBottom:(float)value :(NSInteger)type;
+- (void)setPositionWithValueType:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonRectCompat * _Nonnull marginCompat;
+- (void)setMarginLeft:(float)value :(NSInteger)type;
+- (void)setMarginRight:(float)value :(NSInteger)type;
+- (void)setMarginTop:(float)value :(NSInteger)type;
+- (void)setMarginBottom:(float)value :(NSInteger)type;
+- (void)setMarginWithValueType:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonRectCompat * _Nonnull paddingCompat;
+- (void)setPaddingLeft:(float)value :(NSInteger)type;
+- (void)setPaddingRight:(float)value :(NSInteger)type;
+- (void)setPaddingTop:(float)value :(NSInteger)type;
+- (void)setPaddingBottom:(float)value :(NSInteger)type;
+- (void)setPaddingWithValueType:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonRectCompat * _Nonnull borderCompat;
+- (void)setBorderLeft:(float)value :(NSInteger)type;
+- (void)setBorderRight:(float)value :(NSInteger)type;
+- (void)setBorderTop:(float)value :(NSInteger)type;
+- (void)setBorderBottom:(float)value :(NSInteger)type;
+- (void)setBorderWithValueType:(float)value :(NSInteger)type;
 @property (nonatomic) float flexGrow;
 @property (nonatomic) float flexShrink;
+@property (nonatomic, strong) MasonSizeCompat * _Nonnull minSizeCompat;
+- (void)setMinSizeWidth:(float)value :(NSInteger)type;
+- (void)setMinSizeHeight:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonSizeCompat * _Nonnull sizeCompat;
+- (void)setSizeWidth:(float)value :(NSInteger)type;
+- (void)setSizeHeight:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonSizeCompat * _Nonnull maxSizeCompat;
+- (void)setMaxSizeWidth:(float)value :(NSInteger)type;
+- (void)setMaxSizeHeight:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonSizeCompat * _Nonnull flexGapCompat;
+- (void)setFlexGapWidth:(float)value :(NSInteger)type;
+- (void)setFlexGapHeight:(float)value :(NSInteger)type;
 @end
 
 @class NSCoder;
 
 SWIFT_CLASS_NAMED("MasonView")
 @interface MasonView : UIView
+@property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 - (nonnull instancetype)initWithFrame:(CGRect)frame OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+@property (nonatomic, strong) MasonStyle * _Nonnull style;
+- (void)setPadding:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setBorder:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setMargin:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setPosition:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setMinSize:(float)width :(float)height;
+- (void)setSize:(float)width :(float)height;
+- (void)setMaxSize:(float)width :(float)height;
+- (void)setFlexGap:(float)width :(float)height;
 - (void)layoutSubviews;
+- (MasonNode * _Nonnull)nodeForViewWithView:(UIView * _Nonnull)view SWIFT_WARN_UNUSED_RESULT;
 - (void)addSubview:(UIView * _Nonnull)view;
+- (void)addSubviews:(NSArray<UIView *> * _Nonnull)views;
+- (void)addSubviews:(NSArray<UIView *> * _Nonnull)views at:(NSInteger)index;
 - (void)insertSubview:(UIView * _Nonnull)view atIndex:(NSInteger)index;
 - (void)removeFromSuperview;
 @end
@@ -625,9 +977,21 @@ SWIFT_CLASS_NAMED("MeasureOutput")
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @end
 
+typedef SWIFT_ENUM_NAMED(NSInteger, Overflow, "Overflow", open) {
+  OverflowVisible = 0,
+  OverflowHidden = 1,
+  OverflowScroll = 2,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, PositionType, "PositionType", open) {
+  PositionTypeRelative = 0,
+  PositionTypeAbsolute = 1,
+};
+
 
 SWIFT_CLASS_NAMED("TSCMason")
 @interface Mason : NSObject
+@property (nonatomic, readonly) void * _Null_unspecified nativePtr;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (void)clear;
 @end

@@ -8,9 +8,115 @@
 import UIKit
 import Foundation
 
+struct MasonAssociatedKeys {
+    static var masonEnabled: UInt8 = 1
+}
+
+
+extension UIView {
+    public var mason: MasonNode {
+        guard let mason = objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) as? MasonNode else {
+            let mason = MasonNode()
+            mason.data = self
+            mason.didInitWithView = true
+            mason.setDefaultMeasureFunction()
+               objc_setAssociatedObject(
+                self, &MasonAssociatedKeys.masonEnabled, mason, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            return mason
+            
+        }
+        return mason
+    }
+    
+    public var isMasonEnabled: Bool {
+        return objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) != nil
+    }
+    
+    
+    public var style: MasonStyle {
+        get {
+            return mason.style
+        }
+        
+        set {
+            mason.style = newValue
+        }
+    }
+    
+    
+    public func setPadding(_ left: Float,_ top:Float, _ right: Float,_ bottom: Float) {
+        mason.style.padding = MasonRect(
+            MasonDimension.Points(left),
+            MasonDimension.Points(right),
+            MasonDimension.Points(top),
+            MasonDimension.Points(bottom)
+        )
+    }
+    
+    public func setBorder(_ left: Float,_ top: Float,_ right: Float, _ bottom: Float) {
+        mason.style.border = MasonRect(
+            MasonDimension.Points(left),
+            MasonDimension.Points(right),
+            MasonDimension.Points(top),
+            MasonDimension.Points(bottom)
+        )
+    }
+    
+    public func setMargin(_ left: Float, _ top: Float,_ right: Float,_ bottom: Float) {
+        mason.style.margin = MasonRect(
+            MasonDimension.Points(left),
+            MasonDimension.Points(right),
+            MasonDimension.Points(top),
+            MasonDimension.Points(bottom)
+        )
+    }
+    
+    public func setPosition(_ left: Float,_  top: Float, _ right: Float,_  bottom: Float) {
+        mason.style.position = MasonRect(
+            MasonDimension.Points(left),
+            MasonDimension.Points(right),
+            MasonDimension.Points(top),
+            MasonDimension.Points(bottom)
+        )
+    }
+    
+    public func setMinSize(_ width: Float,_ height: Float) {
+        mason.style.minSize = MasonSize(
+            MasonDimension.Points(width),
+            MasonDimension.Points(height)
+        )
+    }
+    
+    public func setSize(_ width: Float,_  height: Float) {
+        mason.style.size = MasonSize(
+            MasonDimension.Points(width),
+            MasonDimension.Points(height)
+        )
+    }
+    
+    public func setMaxSize(_ width: Float, _ height: Float) {
+        mason.style.maxSize = MasonSize(
+            MasonDimension.Points(width),
+            MasonDimension.Points(height)
+        )
+    }
+    
+    public func setFlexGap(_ width: Float,_ height: Float) {
+        mason.style.flexGap = MasonSize(
+            MasonDimension.Points(width),
+            MasonDimension.Points(height)
+        )
+    }
+}
+
+
+/*
+
+
+@objcMembers
 @objc(MasonView)
 public class MasonView: UIView {
-    let node = MasonNode()
+    public let node = MasonNode()
     
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -30,18 +136,9 @@ public class MasonView: UIView {
     internal var nodes: [UIView: MasonNode] = [:]
     
     static internal var nodesRef: [UIView?: MasonNode?] = [:]
-    
-    public var style: MasonStyle {
-        get{
-            return node.style
-        }
-        set {
-            node.style = newValue
-            node.updateNodeStyle()
-        }
-    }
-    
-    
+
+
+
     public override func layoutSubviews() {
         
         if((superview as? MasonView) == nil){
@@ -216,7 +313,7 @@ public class MasonView: UIView {
                 }
                 
             }
-        
+            
             return knownDimensions
         }
         
@@ -260,12 +357,24 @@ public class MasonView: UIView {
     }
     
     
-    
-    
     public override func addSubview(_ view: UIView) {
         node.removeMeasureFunction()
         super.addSubview(view)
         addChildAt(view, -1)
+    }
+    
+    public func addSubviews(_ views: [UIView]){
+        addSubviews(views, at: -1)
+    }
+    
+    public func addSubviews(_ views: [UIView], at index: Int){
+        views.enumerated().forEach { seq in
+            if (index < 0) {
+                addSubview(seq.element)
+            } else {
+                insertSubview(seq.element, at: index + seq.offset)
+            }
+        }
     }
     
     public override func insertSubview(_ view: UIView, at index: Int) {
@@ -278,3 +387,5 @@ public class MasonView: UIView {
         node.removeChild(child: node)
     }
 }
+
+*/

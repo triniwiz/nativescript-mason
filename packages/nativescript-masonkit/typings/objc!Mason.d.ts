@@ -1,3 +1,45 @@
+declare const enum AlignContent {
+  FlexStart = 0,
+
+  FlexEnd = 1,
+
+  Center = 2,
+
+  Stretch = 3,
+
+  SpaceBetween = 4,
+
+  SpaceAround = 5,
+
+  SpaceEvenly = 6,
+}
+
+declare const enum AlignItems {
+  FlexStart = 0,
+
+  FlexEnd = 1,
+
+  Center = 2,
+
+  Baseline = 3,
+
+  Stretch = 4,
+}
+
+declare const enum AlignSelf {
+  Auto = 0,
+
+  FlexStart = 1,
+
+  FlexEnd = 2,
+
+  Center = 3,
+
+  Baseline = 4,
+
+  Stretch = 5,
+}
+
 declare const enum AvailableSpace_Tag {
   Definite = 0,
 
@@ -6,12 +48,94 @@ declare const enum AvailableSpace_Tag {
   MaxContent = 2,
 }
 
+declare const enum Direction {
+  Inherit = 0,
+
+  LTR = 1,
+
+  RTL = 2,
+}
+
+declare const enum Display {
+  Flex = 0,
+
+  None = 1,
+}
+
+declare const enum FlexDirection {
+  Row = 0,
+
+  Column = 1,
+
+  RowReverse = 2,
+
+  ColumnReverse = 3,
+}
+
+declare const enum FlexWrap {
+  NoWrap = 0,
+
+  Wrap = 1,
+
+  WrapReverse = 2,
+}
+
+declare const enum JustifyContent {
+  FlexStart = 0,
+
+  FlexEnd = 1,
+
+  Center = 2,
+
+  SpaceBetween = 3,
+
+  SpaceAround = 4,
+
+  SpaceEvenly = 5,
+}
+
 declare class Mason extends NSObject {
   static alloc(): Mason; // inherited from NSObject
 
   static new(): Mason; // inherited from NSObject
 
+  readonly nativePtr: interop.Pointer | interop.Reference<any>;
+
   clear(): void;
+}
+
+declare class MasonDimensionCompat extends NSObject {
+  static alloc(): MasonDimensionCompat; // inherited from NSObject
+
+  static new(): MasonDimensionCompat; // inherited from NSObject
+
+  readonly cssValue: string;
+
+  readonly type: MasonDimensionCompatType;
+
+  readonly value: number;
+
+  static readonly Auto: MasonDimensionCompat;
+
+  static readonly Undefined: MasonDimensionCompat;
+
+  constructor(o: { percent: number });
+
+  constructor(o: { points: number });
+
+  initWithPercent(percent: number): this;
+
+  initWithPoints(points: number): this;
+}
+
+declare const enum MasonDimensionCompatType {
+  Points = 0,
+
+  Percent = 1,
+
+  Auto = 2,
+
+  Undefined = 3,
 }
 
 declare class MasonLayout extends NSObject {
@@ -37,6 +161,12 @@ declare class MasonNode extends NSObject {
 
   static new(): MasonNode; // inherited from NSObject
 
+  readonly children: NSArray<MasonNode>;
+
+  readonly nativePtr: interop.Pointer | interop.Reference<any>;
+
+  style: MasonStyle;
+
   constructor(o: { style: MasonStyle });
 
   constructor(o: { style: MasonStyle; children: NSArray<MasonNode> | MasonNode[] });
@@ -46,14 +176,136 @@ declare class MasonNode extends NSObject {
   initWithStyleChildren(style: MasonStyle, children: NSArray<MasonNode> | MasonNode[]): this;
 }
 
+declare class MasonRectCompat extends NSObject {
+  static alloc(): MasonRectCompat; // inherited from NSObject
+
+  static new(): MasonRectCompat; // inherited from NSObject
+
+  bottom: MasonDimensionCompat;
+
+  left: MasonDimensionCompat;
+
+  right: MasonDimensionCompat;
+
+  top: MasonDimensionCompat;
+
+  constructor();
+
+  init(left: MasonDimensionCompat, right: MasonDimensionCompat, top: MasonDimensionCompat, bottom: MasonDimensionCompat): this;
+}
+
+declare class MasonSizeCompat extends NSObject {
+  static alloc(): MasonSizeCompat; // inherited from NSObject
+
+  static new(): MasonSizeCompat; // inherited from NSObject
+
+  height: MasonDimensionCompat;
+
+  width: MasonDimensionCompat;
+}
+
 declare class MasonStyle extends NSObject {
   static alloc(): MasonStyle; // inherited from NSObject
 
   static new(): MasonStyle; // inherited from NSObject
 
+  alignContent: AlignContent;
+
+  alignItems: AlignItems;
+
+  alignSelf: AlignSelf;
+
+  borderCompat: MasonRectCompat;
+
+  direction: Direction;
+
+  display: Display;
+
+  flexDirection: FlexDirection;
+
+  flexGapCompat: MasonSizeCompat;
+
   flexGrow: number;
 
   flexShrink: number;
+
+  flexWrap: FlexWrap;
+
+  justifyContent: JustifyContent;
+
+  marginCompat: MasonRectCompat;
+
+  maxSizeCompat: MasonSizeCompat;
+
+  minSizeCompat: MasonSizeCompat;
+
+  readonly nativePtr: interop.Pointer | interop.Reference<any>;
+
+  overflow: Overflow;
+
+  paddingCompat: MasonRectCompat;
+
+  positionCompat: MasonRectCompat;
+
+  positionType: PositionType;
+
+  sizeCompat: MasonSizeCompat;
+
+  setBorderBottom(value: number, type: number): void;
+
+  setBorderLeft(value: number, type: number): void;
+
+  setBorderRight(value: number, type: number): void;
+
+  setBorderTop(value: number, type: number): void;
+
+  setBorderWithValueType(value: number, type: number): void;
+
+  setFlexGapHeight(value: number, type: number): void;
+
+  setFlexGapWidth(value: number, type: number): void;
+
+  setMarginBottom(value: number, type: number): void;
+
+  setMarginLeft(value: number, type: number): void;
+
+  setMarginRight(value: number, type: number): void;
+
+  setMarginTop(value: number, type: number): void;
+
+  setMarginWithValueType(value: number, type: number): void;
+
+  setMaxSizeHeight(value: number, type: number): void;
+
+  setMaxSizeWidth(value: number, type: number): void;
+
+  setMinSizeHeight(value: number, type: number): void;
+
+  setMinSizeWidth(value: number, type: number): void;
+
+  setPaddingBottom(value: number, type: number): void;
+
+  setPaddingLeft(value: number, type: number): void;
+
+  setPaddingRight(value: number, type: number): void;
+
+  setPaddingTop(value: number, type: number): void;
+
+  setPaddingWithValueType(value: number, type: number): void;
+
+  setPositionBottom(value: number, type: number): void;
+
+  setPositionLeft(value: number, type: number): void;
+
+  setPositionRight(value: number, type: number): void;
+
+  setPositionTop(value: number, type: number): void;
+
+  setPositionWithValueType(value: number, type: number): void;
+
+  setSizeHeight(value: number, type: number): void;
+
+  setSizeWidth(value: number, type: number): void;
 }
 
 declare var MasonVersionNumber: number;
@@ -76,6 +328,32 @@ declare class MasonView extends UIView {
   static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonView; // inherited from UIAppearance
 
   static new(): MasonView; // inherited from NSObject
+
+  readonly node: MasonNode;
+
+  style: MasonStyle;
+
+  addSubviews(views: NSArray<UIView> | UIView[]): void;
+
+  addSubviewsAt(views: NSArray<UIView> | UIView[], index: number): void;
+
+  nodeForViewWithView(view: UIView): MasonNode;
+
+  setBorder(left: number, top: number, right: number, bottom: number): void;
+
+  setFlexGap(width: number, height: number): void;
+
+  setMargin(left: number, top: number, right: number, bottom: number): void;
+
+  setMaxSize(width: number, height: number): void;
+
+  setMinSize(width: number, height: number): void;
+
+  setPadding(left: number, top: number, right: number, bottom: number): void;
+
+  setPosition(left: number, top: number, right: number, bottom: number): void;
+
+  setSize(width: number, height: number): void;
 }
 
 declare class MeasureOutput extends NSObject {
@@ -89,6 +367,20 @@ interface NodeArray {
   length: number;
 }
 declare var NodeArray: interop.StructType<NodeArray>;
+
+declare const enum Overflow {
+  Visible = 0,
+
+  Hidden = 1,
+
+  Scroll = 2,
+}
+
+declare const enum PositionType {
+  Relative = 0,
+
+  Absolute = 1,
+}
 
 declare function mason_clear(mason: interop.Pointer | interop.Reference<any>): void;
 

@@ -11,9 +11,13 @@ import UIKit
 @objc(Mason)
 @objcMembers
 public class TSCMason: NSObject {
-    var nativePtr: UnsafeMutableRawPointer?
+    public internal (set) var nativePtr: UnsafeMutableRawPointer!
     public override init() {
-        nativePtr = mason_init()
+        nativePtr = mason_init_with_capacity(32)
+    }
+    
+    deinit {
+       // mason_destroy(nativePtr)
     }
     
     public func clear(){

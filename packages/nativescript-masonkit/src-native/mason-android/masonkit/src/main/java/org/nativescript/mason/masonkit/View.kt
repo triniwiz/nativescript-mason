@@ -52,7 +52,6 @@ class View @JvmOverloads constructor(
       node.style = value
     }
 
-
   fun setStyleFromString(style: String) {
     try {
       val parsedStyle = gson.fromJson(style, Style::class.java)
@@ -753,6 +752,70 @@ class View @JvmOverloads constructor(
     node.style.maxSize = Size(maxWidth, maxHeight)
 
     node.updateNodeStyle()
+  }
+
+  fun setPadding(left: Float, top: Float, right: Float, bottom: Float) {
+    style.padding = Rect(
+      Dimension.Points(left),
+      Dimension.Points(right),
+      Dimension.Points(top),
+      Dimension.Points(bottom)
+    )
+  }
+
+  fun setBorder(left: Float, top: Float, right: Float, bottom: Float) {
+    style.border = Rect(
+      Dimension.Points(left),
+      Dimension.Points(right),
+      Dimension.Points(top),
+      Dimension.Points(bottom)
+    )
+  }
+
+  fun setMargin(left: Float, top: Float, right: Float, bottom: Float) {
+    style.margin = Rect(
+      Dimension.Points(left),
+      Dimension.Points(right),
+      Dimension.Points(top),
+      Dimension.Points(bottom)
+    )
+  }
+
+  fun setPosition(left: Float, top: Float, right: Float, bottom: Float) {
+    style.position = Rect(
+      Dimension.Points(left),
+      Dimension.Points(right),
+      Dimension.Points(top),
+      Dimension.Points(bottom)
+    )
+  }
+
+  fun setMinSize(width: Float, height: Float) {
+    style.minSize = Size(
+      Dimension.Points(width),
+      Dimension.Points(height),
+    )
+  }
+
+  fun setSize(width: Float, height: Float) {
+    style.size = Size(
+      Dimension.Points(width),
+      Dimension.Points(height),
+    )
+  }
+
+  fun setMaxSize(width: Float, height: Float) {
+    style.maxSize = Size(
+      Dimension.Points(width),
+      Dimension.Points(height),
+    )
+  }
+
+  fun setFlexGap(width: Float, height: Float) {
+    style.flexGap = Size(
+      Dimension.Points(width),
+      Dimension.Points(height),
+    )
   }
 
   override fun generateLayoutParams(attrs: AttributeSet): ViewGroup.LayoutParams {

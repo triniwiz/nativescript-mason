@@ -9,6 +9,12 @@ export class TSCViewBase extends View implements AddChildFromBuilder {
     });
   }
 
+  public eachChildView(callback: (child: View) => boolean): void {
+    this._children.forEach((view, key) => {
+      callback(view as any);
+    });
+  }
+
   _addChildFromBuilder(name: string, value: any): void {
     this._children.push(value);
   }

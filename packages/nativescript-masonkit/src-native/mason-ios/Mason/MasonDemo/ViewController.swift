@@ -16,35 +16,46 @@ class ViewController: UIViewController {
         
         let start = CACurrentMediaTime()
         
-        let masonView = MasonView(frame: view.frame)
-        masonView.style.alignContent = .Stretch
-        masonView.style.alignItems = .Center
-        masonView.style.alignSelf = .Auto
-        masonView.style.flexDirection = .Column
-        masonView.style.justifyContent = .FlexStart
-        
+        let masonView = self.view!
+        masonView.mason.configure { mason in
+            mason.isEnabled = true
+            mason.style.alignContent = .Stretch
+            mason.style.alignItems = .Center
+            mason.style.alignSelf = .Auto
+            mason.style.flexDirection = .Column
+            mason.style.justifyContent = .FlexStart
+        }
+    
         masonView.backgroundColor = .red
         
-        let child1 = MasonView(frame: .zero)
-        child1.backgroundColor = .green
-        child1.style.flexDirection = .Column
-        child1.style.justifyContent = .FlexStart
+        let scale = Float(UIScreen.main.scale)
         
+        let child1 = UIView(frame: .zero)
+        child1.mason.configure { mason in
+            mason.isEnabled = true
+            child1.backgroundColor = .green
+            mason.style.flexDirection = .Column
+            mason.style.justifyContent = .FlexStart
+           // mason.style.size = MasonSize(MasonDimension.Points(100 * scale), MasonDimension.Points(100 * scale))
+        }
+    
         
-        
-        let child2 = MasonView(frame: .zero)
+        let child2 = UIView(frame: .zero)
+        child2.mason.isEnabled = true
         child2.backgroundColor = .blue
         child2.style.flexDirection = .Column
         child2.style.justifyContent = .FlexStart
         
         
-        let child3 = MasonView(frame: .zero)
+        let child3 = UIView(frame: .zero)
+        child3.mason.isEnabled = true
         child3.backgroundColor = .orange
         child3.style.flexDirection = .Column
         child3.style.justifyContent = .FlexStart
         
         
-        let child4 = MasonView(frame: .zero)
+        let child4 = UIView(frame: .zero)
+        child4.mason.isEnabled = true
         child4.backgroundColor = .purple
         
         child4.style.flexDirection = .Column
@@ -58,23 +69,25 @@ class ViewController: UIViewController {
         
         let text1 = UILabel(frame: .zero)
         text1.text = "First Child"
+        text1.mason.isEnabled = true
+    
         
-        child1.addSubview(text1)
+     //   child1.addSubview(text1)
         
         
         let text2 = UILabel(frame: .zero)
         text2.text = "Second Child"
-        child2.addSubview(text2)
+     //   child2.addSubview(text2)
         
         
         let text3 = UILabel(frame: .zero)
         text3.text = "Third Child"
-        child3.addSubview(text3)
+      //  child3.addSubview(text3)
         
         
         let text4 = UILabel(frame: .zero)
         text4.text = "Fourth Child"
-        child4.addSubview(text4)
+     //   child4.addSubview(text4)
         
         
         let image1 = UIImageView(frame: view.frame)
@@ -89,6 +102,7 @@ class ViewController: UIViewController {
         let image4 = UIImageView(frame: view.frame)
         image4.contentMode = .scaleAspectFill
         
+        /*
         DispatchQueue.global(qos: .background).async {
             do {
                 let img1 = UIImage(data:  try Data(contentsOf: URL(string: "https://picsum.photos/200/200")!))
@@ -104,14 +118,18 @@ class ViewController: UIViewController {
                 }
             }catch{}
         }
-        child1.addSubview(image1)
-        child2.addSubview(image2)
-        child3.addSubview(image3)
-        child4.addSubview(image4)
+        */
         
-    
+       // child1.addSubview(image1)
+       // child2.addSubview(image2)
+       // child3.addSubview(image3)
+      //  child4.addSubview(image4)
         
-        view.addSubview(masonView)
+        print("root", masonView)
+        
+        masonView.mason.computeWithViewSize()
+        
+        print("root", masonView)
         
         print("end", CACurrentMediaTime() - start)
         

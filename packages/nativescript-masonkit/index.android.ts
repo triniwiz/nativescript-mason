@@ -1,5 +1,7 @@
 import { TSCViewBase } from './common';
 
+import { paddingLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, Style, Length, widthProperty, heightProperty, View } from '@nativescript/core';
+
 export class TSCView extends TSCViewBase {
   createNativeView() {
     return new org.nativescript.mason.masonkit.View(this._context);
@@ -22,13 +24,12 @@ export class TSCView extends TSCViewBase {
 
   onLoaded(): void {
     super.onLoaded();
-    console.time('onLoaded');
-
     const views = this._children.filter((item) => {
-      if (!item.parent) {
+      const ret = !item.parent;
+      if (ret) {
         this._addView(item);
       }
-      return !item.parent;
+      return ret;
     });
 
     const array = Array.create('android.view.View', views.length);
@@ -36,15 +37,57 @@ export class TSCView extends TSCViewBase {
     views.forEach((item, index) => {
       array[index] = item.nativeView;
     });
-
     this.nativeView.addViews(array);
+  }
 
-    // this._children.forEach((item) => {
-    //   if (!item.parent) {
-    //     this._addView(item);
-    //     this.nativeView.addView(item.nativeView);
-    //   }
-    // });
-    console.timeEnd('onLoaded');
+  [paddingLeftProperty.getDefault]() {
+    return undefined;
+  }
+
+  [paddingLeftProperty.setNative](value) {
+    /*
+     0 -> Points
+      1 -> Percent
+      2 -> Undefined
+      3 -> Auto
+    */
+    const val = Length.toDevicePixels(value, 0) + Length.toDevicePixels(this.style.borderLeftWidth, 0);
+    this.android.getStyle().setPaddingLeft(val, 0);
+  }
+
+  [paddingTopProperty.getDefault]() {
+    return undefined;
+  }
+
+  [paddingTopProperty.setNative](value) {
+    console.log('paddingTopProperty', value, this.effectivePaddingTop);
+    const val = Length.toDevicePixels(value, 0) + Length.toDevicePixels(this.style.borderTopWidth, 0);
+    this.android.getStyle().setPaddingTop(val, 0);
+  }
+
+  [paddingRightProperty.getDefault]() {
+    return undefined;
+  }
+
+  [paddingRightProperty.setNative](value) {
+    const val = Length.toDevicePixels(value, 0) + Length.toDevicePixels(this.style.borderRightWidth, 0);
+    this.android.getStyle().setPaddingRight(val, 0);
+  }
+
+  [paddingBottomProperty.getDefault]() {
+    return undefined;
+  }
+
+  [paddingBottomProperty.setNative](value) {
+    const val = Length.toDevicePixels(value, 0) + Length.toDevicePixels(this.style.borderBottomWidth, 0);
+    this.android.getStyle().setPaddingBottom(val, 0);
+  }
+
+  [widthProperty.setNative](value) {
+    console.log('widthProperty', value);
+  }
+
+  [heightProperty.setNative](value) {
+    console.log('heightProperty', value);
   }
 }
