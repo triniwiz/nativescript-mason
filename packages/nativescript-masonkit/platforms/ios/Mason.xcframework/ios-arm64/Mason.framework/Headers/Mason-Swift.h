@@ -230,7 +230,6 @@ using UInt = size_t;
 #if __has_warning("-Watimport-in-framework-header")
 #pragma clang diagnostic ignored "-Watimport-in-framework-header"
 #endif
-@import CoreFoundation;
 @import Foundation;
 @import ObjectiveC;
 @import UIKit;
@@ -359,10 +358,20 @@ SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
 @property (nonatomic, readonly) void * _Null_unspecified nativePtr;
 @property (nonatomic, strong) MasonStyle * _Nonnull style;
+@property (nonatomic) BOOL isEnabled;
+@property (nonatomic, strong) id _Nullable data;
+@property (nonatomic, readonly, strong) MasonNode * _Nullable owner;
 @property (nonatomic, readonly, copy) NSArray<MasonNode *> * _Nonnull children;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style children:(NSArray<MasonNode *> * _Nonnull)children OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) BOOL isDirty;
+- (void)markDirty;
+- (void)computeWithViewSize;
+- (void)setChildrenWithChildren:(NSArray<MasonNode *> * _Nonnull)children;
+- (void)addChildren:(NSArray<MasonNode *> * _Nonnull)children;
+@property (nonatomic, readonly) BOOL isLeaf;
+- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
 @end
 
 
@@ -432,40 +441,19 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, strong) MasonSizeCompat * _Nonnull minSizeCompat;
 - (void)setMinSizeWidth:(float)value :(NSInteger)type;
 - (void)setMinSizeHeight:(float)value :(NSInteger)type;
+- (void)setMinSizeWidthHeight:(float)value :(NSInteger)type;
 @property (nonatomic, strong) MasonSizeCompat * _Nonnull sizeCompat;
 - (void)setSizeWidth:(float)value :(NSInteger)type;
 - (void)setSizeHeight:(float)value :(NSInteger)type;
+- (void)setSizeWidthHeight:(float)value :(NSInteger)type;
 @property (nonatomic, strong) MasonSizeCompat * _Nonnull maxSizeCompat;
 - (void)setMaxSizeWidth:(float)value :(NSInteger)type;
 - (void)setMaxSizeHeight:(float)value :(NSInteger)type;
+- (void)setMaxSizeWidthHeight:(float)value :(NSInteger)type;
 @property (nonatomic, strong) MasonSizeCompat * _Nonnull flexGapCompat;
 - (void)setFlexGapWidth:(float)value :(NSInteger)type;
 - (void)setFlexGapHeight:(float)value :(NSInteger)type;
-@end
-
-@class NSCoder;
-
-SWIFT_CLASS_NAMED("MasonView")
-@interface MasonView : UIView
-@property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
-- (nonnull instancetype)initWithFrame:(CGRect)frame OBJC_DESIGNATED_INITIALIZER;
-- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
-@property (nonatomic, strong) MasonStyle * _Nonnull style;
-- (void)setPadding:(float)left :(float)top :(float)right :(float)bottom;
-- (void)setBorder:(float)left :(float)top :(float)right :(float)bottom;
-- (void)setMargin:(float)left :(float)top :(float)right :(float)bottom;
-- (void)setPosition:(float)left :(float)top :(float)right :(float)bottom;
-- (void)setMinSize:(float)width :(float)height;
-- (void)setSize:(float)width :(float)height;
-- (void)setMaxSize:(float)width :(float)height;
-- (void)setFlexGap:(float)width :(float)height;
-- (void)layoutSubviews;
-- (MasonNode * _Nonnull)nodeForViewWithView:(UIView * _Nonnull)view SWIFT_WARN_UNUSED_RESULT;
-- (void)addSubview:(UIView * _Nonnull)view;
-- (void)addSubviews:(NSArray<UIView *> * _Nonnull)views;
-- (void)addSubviews:(NSArray<UIView *> * _Nonnull)views at:(NSInteger)index;
-- (void)insertSubview:(UIView * _Nonnull)view atIndex:(NSInteger)index;
-- (void)removeFromSuperview;
+@property (nonatomic, readonly, copy) NSString * _Nonnull description;
 @end
 
 
@@ -487,10 +475,35 @@ typedef SWIFT_ENUM_NAMED(NSInteger, PositionType, "PositionType", open) {
 
 
 SWIFT_CLASS_NAMED("TSCMason")
-@interface Mason : NSObject
+@interface TSCMason : NSObject
 @property (nonatomic, readonly) void * _Null_unspecified nativePtr;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (void)clear;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) TSCMason * _Nonnull instance;)
++ (TSCMason * _Nonnull)instance SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class) BOOL shared;)
++ (BOOL)shared SWIFT_WARN_UNUSED_RESULT;
++ (void)setShared:(BOOL)value;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class) BOOL alwaysEnable;)
++ (BOOL)alwaysEnable SWIFT_WARN_UNUSED_RESULT;
++ (void)setAlwaysEnable:(BOOL)value;
+@end
+
+
+@interface UIView (SWIFT_EXTENSION(Mason))
+@property (nonatomic, readonly, strong) MasonNode * _Nonnull mason;
+@property (nonatomic, readonly) BOOL isMasonEnabled;
+@property (nonatomic, strong) MasonStyle * _Nonnull style;
+- (void)addSubviews:(NSArray<UIView *> * _Nonnull)views;
+- (void)addSubviews:(NSArray<UIView *> * _Nonnull)views at:(NSInteger)index;
+- (void)setPadding:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setBorder:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setMargin:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setPosition:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setMinSize:(float)width :(float)height;
+- (void)setSize:(float)width :(float)height;
+- (void)setMaxSize:(float)width :(float)height;
+- (void)setFlexGap:(float)width :(float)height;
 @end
 
 #endif

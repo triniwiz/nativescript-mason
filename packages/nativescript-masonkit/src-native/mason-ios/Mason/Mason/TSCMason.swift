@@ -8,12 +8,12 @@
 import Foundation
 import UIKit
 
-@objc(Mason)
+@objc(TSCMason)
 @objcMembers
 public class TSCMason: NSObject {
     public internal (set) var nativePtr: UnsafeMutableRawPointer!
     public override init() {
-        nativePtr = mason_init_with_capacity(32)
+        nativePtr = mason_init_with_capacity(512)
     }
     
     deinit {
@@ -24,9 +24,11 @@ public class TSCMason: NSObject {
         mason_clear(nativePtr)
     }
     
-    static let instance = TSCMason()
+    public static let instance = TSCMason()
     
-    static var shared = false
+    public static var shared = false
     
     static let scale = Float(UIScreen.main.scale)
+    
+    public static var alwaysEnable = false
 }

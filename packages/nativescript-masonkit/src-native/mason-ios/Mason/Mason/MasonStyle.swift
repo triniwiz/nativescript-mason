@@ -80,7 +80,7 @@ public class MasonStyle: NSObject {
         }
     }
     
-    public var alignSelf: AlignSelf = AlignSelf.Auto{
+    public var alignSelf: AlignSelf = AlignSelf.Auto {
         didSet {
             isDirty = true
         }
@@ -366,6 +366,10 @@ public class MasonStyle: NSObject {
         minSize = MasonSize(minSize.width, height)
     }
     
+    public func setMinSizeWidthHeight(_ value: Float, _ type: Int) {
+        guard let wh = getDimension(value, type) else {return}
+        minSize = MasonSize(wh, wh)
+    }
     
     public var size: MasonSize<MasonDimension> = MasonSize(MasonDimension.Auto , MasonDimension.Auto) {
         didSet {
@@ -399,6 +403,11 @@ public class MasonStyle: NSObject {
         guard let height = getDimension(value, type) else {return}
         
         size = MasonSize(size.width, height)
+    }
+    
+    public func setSizeWidthHeight(_ value: Float, _ type: Int) {
+        guard let wh = getDimension(value, type) else {return}
+        size = MasonSize(wh, wh)
     }
     
     
@@ -436,6 +445,11 @@ public class MasonStyle: NSObject {
         maxSize = MasonSize(maxSize.width, height)
     }
     
+    
+    public func setMaxSizeWidthHeight(_ value: Float, _ type: Int) {
+        guard let wh = getDimension(value, type) else {return}
+        maxSize = MasonSize(wh, wh)
+    }
     
     public var flexGap: MasonSize<MasonDimension> = MasonSize(MasonDimension.Undefined, MasonDimension.Undefined){
         didSet {
@@ -476,5 +490,34 @@ public class MasonStyle: NSObject {
         didSet {
             isDirty = true
         }
+    }
+    
+    public override var description: String {
+        var ret = "(MasonStyle)("
+        
+        ret += "display: \(display.cssValue), "
+        ret += "positionType: \(positionType.cssValue), "
+        ret += "flexDirection: \(flexDirection.cssValue), "
+        ret += "flexWrap: \(flexWrap.cssValue), "
+        ret += "alignItems: \(alignItems.cssValue), "
+        ret += "alignSelf: \(alignSelf.cssValue), "
+        ret += "alignContent: \(alignContent.cssValue), "
+        ret += "justifyContent: \(justifyContent.cssValue), "
+        ret += "position: \(position.cssValue), "
+        ret += "margin: \(margin.cssValue), "
+        ret += "padding: \(padding.cssValue), "
+        ret += "border: \(border.cssValue), "
+        ret += "flexGap: \(flexGap.cssValue), "
+        ret += "flexGrow: \(flexGrow.description),"
+        ret += "flexShrink: \(flexShrink.description),"
+        ret += "flexBasis: \(flexBasis.cssValue),"
+        ret += "size: \(size.cssValue),"
+        ret += "minSize: \(minSize.cssValue),"
+        ret += "maxSize: \(maxSize.cssValue),"
+        ret += "aspectRatio: \(maxSize.cssValue)"
+        
+        ret += ")"
+        
+        return ret
     }
 }

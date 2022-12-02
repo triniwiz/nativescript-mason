@@ -8,13 +8,16 @@ import Swift
 import UIKit
 import _Concurrency
 import _StringProcessing
-@_inheritsConvenienceInitializers @objc(Mason) @objcMembers public class TSCMason : ObjectiveC.NSObject {
+@_inheritsConvenienceInitializers @objc(TSCMason) @objcMembers public class TSCMason : ObjectiveC.NSObject {
   @objc public var nativePtr: Swift.UnsafeMutableRawPointer! {
     get
   }
   @objc override dynamic public init()
-  @objc public func clear()
   @objc deinit
+  @objc public func clear()
+  @objc public static let instance: Mason.TSCMason
+  @objc public static var shared: Swift.Bool
+  @objc public static var alwaysEnable: Swift.Bool
 }
 @_inheritsConvenienceInitializers @objcMembers @objc(MeasureOutput) public class MeasureOutput : ObjectiveC.NSObject {
   @objc override dynamic public init()
@@ -29,6 +32,14 @@ import _StringProcessing
     @objc get
     @objc set
   }
+  @objc public var isEnabled: Swift.Bool
+  @objc public var data: Swift.AnyObject? {
+    @objc get
+    @objc set
+  }
+  @objc public var owner: Mason.MasonNode? {
+    get
+  }
   @objc public var children: [Mason.MasonNode] {
     get
   }
@@ -37,6 +48,17 @@ import _StringProcessing
   @objc public init(style: Mason.MasonStyle, children: [Mason.MasonNode])
   public init(style: Mason.MasonStyle, measureFunc: @escaping Mason.MasonNode.MeasureFunc)
   @objc deinit
+  @objc public var isDirty: Swift.Bool {
+    @objc get
+  }
+  @objc public func markDirty()
+  @objc public func computeWithViewSize()
+  @objc public func setChildren(children: [Mason.MasonNode])
+  @objc public func addChildren(_ children: [Mason.MasonNode])
+  @objc public var isLeaf: Swift.Bool {
+    @objc get
+  }
+  @objc public func configure(_ block: (Mason.MasonNode) -> Swift.Void)
 }
 @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonLayout) @objcMembers public class MasonLayout : ObjectiveC.NSObject {
   @objc final public let order: Swift.Int
@@ -55,6 +77,7 @@ import _StringProcessing
     get
   }
   @objc override dynamic public init()
+  @objc deinit
   @objc public var display: Mason.Display {
     @objc get
     @objc set
@@ -169,6 +192,7 @@ import _StringProcessing
   }
   @objc public func setMinSizeWidth(_ value: Swift.Float, _ type: Swift.Int)
   @objc public func setMinSizeHeight(_ value: Swift.Float, _ type: Swift.Int)
+  @objc public func setMinSizeWidthHeight(_ value: Swift.Float, _ type: Swift.Int)
   public var size: Mason.MasonSize<Mason.MasonDimension> {
     get
     set
@@ -179,6 +203,7 @@ import _StringProcessing
   }
   @objc public func setSizeWidth(_ value: Swift.Float, _ type: Swift.Int)
   @objc public func setSizeHeight(_ value: Swift.Float, _ type: Swift.Int)
+  @objc public func setSizeWidthHeight(_ value: Swift.Float, _ type: Swift.Int)
   public var maxSize: Mason.MasonSize<Mason.MasonDimension> {
     get
     set
@@ -189,6 +214,7 @@ import _StringProcessing
   }
   @objc public func setMaxSizeWidth(_ value: Swift.Float, _ type: Swift.Int)
   @objc public func setMaxSizeHeight(_ value: Swift.Float, _ type: Swift.Int)
+  @objc public func setMaxSizeWidthHeight(_ value: Swift.Float, _ type: Swift.Int)
   public var flexGap: Mason.MasonSize<Mason.MasonDimension> {
     get
     set
@@ -203,7 +229,9 @@ import _StringProcessing
     get
     set
   }
-  @objc deinit
+  @objc override dynamic public var description: Swift.String {
+    @objc get
+  }
 }
 @objcMembers @objc(MasonRectCompat) public class MasonRectCompat : ObjectiveC.NSObject {
   @objc public var left: Mason.MasonDimensionCompat
@@ -215,6 +243,7 @@ import _StringProcessing
   @objc deinit
 }
 public struct MasonRect<T> {
+  public init(_ left: T, _ right: T, _ top: T, _ bottom: T)
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonSizeCompat) public class MasonSizeCompat : ObjectiveC.NSObject {
   @objc public var width: Mason.MasonDimensionCompat
@@ -223,7 +252,9 @@ public struct MasonRect<T> {
   @objc deinit
 }
 public struct MasonSize<T> {
+  public init(_ width: T, _ height: T)
 }
+public let MasonSizeMaxPercentWH: Mason.MasonSize<Mason.MasonDimension>
 @objc(MasonDimensionCompatType) public enum MasonDimensionCompatType : Swift.Int, Swift.RawRepresentable {
   case Points
   case Percent
@@ -260,6 +291,9 @@ public enum MasonDimension {
   case Percent(Swift.Float)
   case Auto
   case Undefined
+  public var cssValue: Swift.String {
+    get
+  }
 }
 @objc(AlignItems) public enum AlignItems : Swift.Int, Swift.RawRepresentable {
   case FlexStart
@@ -372,29 +406,27 @@ public enum MasonDimension {
   }
   public init?(rawValue: Mason.FlexWrap.RawValue)
 }
-@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objcMembers @objc(MasonView) @_Concurrency.MainActor(unsafe) public class MasonView : UIKit.UIView {
-  @objc @_Concurrency.MainActor(unsafe) final public let node: Mason.MasonNode
-  @_Concurrency.MainActor(unsafe) @objc override dynamic public init(frame: CoreFoundation.CGRect)
-  @objc @_Concurrency.MainActor(unsafe) public var style: Mason.MasonStyle {
+extension UIKit.UIView {
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var mason: Mason.MasonNode {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var isMasonEnabled: Swift.Bool {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var style: Mason.MasonStyle {
     @objc get
     @objc set
   }
-  @objc @_Concurrency.MainActor(unsafe) public func setPadding(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
-  @objc @_Concurrency.MainActor(unsafe) public func setBorder(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
-  @objc @_Concurrency.MainActor(unsafe) public func setMargin(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
-  @objc @_Concurrency.MainActor(unsafe) public func setPosition(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
-  @objc @_Concurrency.MainActor(unsafe) public func setMinSize(_ width: Swift.Float, _ height: Swift.Float)
-  @objc @_Concurrency.MainActor(unsafe) public func setSize(_ width: Swift.Float, _ height: Swift.Float)
-  @objc @_Concurrency.MainActor(unsafe) public func setMaxSize(_ width: Swift.Float, _ height: Swift.Float)
-  @objc @_Concurrency.MainActor(unsafe) public func setFlexGap(_ width: Swift.Float, _ height: Swift.Float)
-  @_Concurrency.MainActor(unsafe) @objc override dynamic public func layoutSubviews()
-  @objc @_Concurrency.MainActor(unsafe) public func nodeForView(view: UIKit.UIView) -> Mason.MasonNode
-  @_Concurrency.MainActor(unsafe) @objc override dynamic public func addSubview(_ view: UIKit.UIView)
-  @objc @_Concurrency.MainActor(unsafe) public func addSubviews(_ views: [UIKit.UIView])
-  @objc @_Concurrency.MainActor(unsafe) public func addSubviews(_ views: [UIKit.UIView], at index: Swift.Int)
-  @_Concurrency.MainActor(unsafe) @objc override dynamic public func insertSubview(_ view: UIKit.UIView, at index: Swift.Int)
-  @_Concurrency.MainActor(unsafe) @objc override dynamic public func removeFromSuperview()
-  @objc deinit
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func addSubviews(_ views: [UIKit.UIView])
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func addSubviews(_ views: [UIKit.UIView], at index: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setPadding(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setBorder(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMargin(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setPosition(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMinSize(_ width: Swift.Float, _ height: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setSize(_ width: Swift.Float, _ height: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMaxSize(_ width: Swift.Float, _ height: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setFlexGap(_ width: Swift.Float, _ height: Swift.Float)
 }
 extension Mason.MasonDimensionCompatType : Swift.Equatable {}
 extension Mason.MasonDimensionCompatType : Swift.Hashable {}

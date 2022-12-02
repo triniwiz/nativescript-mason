@@ -1,4 +1,18 @@
-import { View, AddChildFromBuilder, ViewBase } from '@nativescript/core';
+import { View, AddChildFromBuilder, ViewBase, CssProperty, Style, CoreTypes, Length } from '@nativescript/core';
+
+export const maxWidthProperty = new CssProperty<Style, CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | 'auto'>({
+  name: 'maxWidth',
+  cssName: 'max-width',
+  defaultValue: 'auto',
+  equalityComparer: Length.equals,
+});
+
+export const maxHeightProperty = new CssProperty<Style, CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | 'auto'>({
+  name: 'maxHeight',
+  cssName: 'max-height',
+  defaultValue: 'auto',
+  equalityComparer: Length.equals,
+});
 
 export class TSCViewBase extends View implements AddChildFromBuilder {
   _children: any[] = [];
@@ -19,3 +33,6 @@ export class TSCViewBase extends View implements AddChildFromBuilder {
     this._children.push(value);
   }
 }
+
+maxWidthProperty.register(Style);
+maxHeightProperty.register(Style);

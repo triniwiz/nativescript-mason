@@ -30,6 +30,8 @@ typedef struct AvailableSpace {
 
 void *mason_init(void);
 
+void *mason_init_with_capacity(uintptr_t capacity);
+
 void mason_destroy(void *mason);
 
 void mason_clear(void *mason);
@@ -47,7 +49,7 @@ void *mason_node_new_node_with_measure_func(void *mason,
 
 void *mason_node_new_node_with_children(void *mason,
                                         void *style,
-                                        void *children,
+                                        const void *children,
                                         uintptr_t children_size);
 
 uintptr_t mason_node_get_child_count(void *mason, void *node);
@@ -290,6 +292,16 @@ void *mason_node_update_set_style_compute_with_size_and_layout(void *mason,
 
 void *mason_node_get_child_at(void *mason, void *node, uintptr_t index);
 
+void mason_node_set_children(void *mason,
+                             void *node,
+                             const void *children,
+                             uintptr_t children_size);
+
+void mason_node_add_children(void *mason,
+                             void *node,
+                             const void *children,
+                             uintptr_t children_size);
+
 void mason_node_add_child(void *mason, void *node, void *child);
 
 void *mason_node_replace_child_at(void *mason, void *node, void *child, uintptr_t index);
@@ -303,6 +315,13 @@ void mason_node_insert_child_after(void *mason, void *node, void *child, void *r
 bool mason_node_dirty(void *mason, void *node);
 
 void mason_node_mark_dirty(void *mason, void *node);
+
+bool mason_node_is_children_same(void *mason,
+                                 void *node,
+                                 const void *children,
+                                 uintptr_t children_size);
+
+void mason_node_remove_children(void *mason, void *node);
 
 void *mason_node_remove_child_at(void *mason, void *node, uintptr_t index);
 

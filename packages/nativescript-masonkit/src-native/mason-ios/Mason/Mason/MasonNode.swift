@@ -40,10 +40,18 @@ public class MasonNode: NSObject {
         }
     }
     
-    internal var didInitWithView = false
-    internal var isUIView = false
+    var didInitWithView = false
+    var isUIView = false
     public var isEnabled = false
-    public var data: Any? = nil
+    public var data: AnyObject? = nil {
+        didSet {
+            guard let data = data else {
+                isUIView = false
+                return
+            }
+           isUIView = data.isMember(of: UIView.self)
+        }
+    }
     public internal (set) var owner: MasonNode? = nil
     public internal (set) var children: [MasonNode] = []
     // todo create weakmap
@@ -191,6 +199,14 @@ public class MasonNode: NSObject {
         
         let layout: MasonLayout = Unmanaged.fromOpaque(points!).takeUnretainedValue()
         return layout
+    }
+    
+    public var isDirty: Bool {
+        return mason_node_dirty(TSCMason.instance.nativePtr, nativePtr)
+    }
+    
+    public func markDirty(){
+        mason_node_mark_dirty(TSCMason.instance.nativePtr, nativePtr)
     }
     
     @discardableResult func computeAndLayout(size: MasonSize<Float>? = nil) -> MasonLayout {
@@ -623,12 +639,14 @@ public class MasonNode: NSObject {
         
         let height = CGFloat(layout.height.isNaN ? 0 : layout.height/TSCMason.scale)
         
+        
         let point = CGPoint(x: x, y: y)
         
-        let size = CGSizeMake(width, height)
-    
-        view.frame =  CGRect(origin: point, size: size)
+        let size = CGSizeMake(width + x, height + y)
+
+        view.frame = CGRect(origin: point, size: size)
         
+    
         if (!mason.isLeaf) {
             view.subviews.forEach { subview in
                 MasonNode.applyToView(subview)
@@ -642,22 +660,35 @@ public class MasonNode: NSObject {
         
         var size = CGSize.zero
         
-        let constrainedWidth = node.style.size.width.type == MasonDimension.Undefined.type ? CGFLOAT_MAX : CGFloat(node.style.size.width.value / TSCMason.scale)
+        var widthCalculated = false
+        var heightCalculated = false
         
-        let constrainedHeight = node.style.size.height.type == MasonDimension.Undefined.type ? CGFLOAT_MAX : CGFloat(node.style.size.height.value / TSCMason.scale)
-        
-        
-        if(view.subviews.count < 0){
-            size = view.sizeThatFits(CGSizeMake(constrainedWidth, constrainedHeight))
-            size = CGSize(width: .minimum(size.width, constrainedWidth), height: .minimum(size.height, constrainedHeight))
-        }else {
-            guard let knownDimensions = knownDimensions  else {return size}
-            
-            size.width = knownDimensions.width.isNaN ? 0 : knownDimensions.width / CGFloat(TSCMason.scale)
-            size.height = knownDimensions.height.isNaN ? 0 : knownDimensions.height / CGFloat(TSCMason.scale)
+        // points | percent
+        if(node.style.size.width.type == 0  || node.style.size.width.type == 1){
+            widthCalculated = true
         }
         
-        print(size)
+        if(node.style.size.height.type == 0  || node.style.size.height.type == 1){
+            heightCalculated = true
+        }
+        
+        let scale = CGFloat(TSCMason.scale)
+        
+        let constrainedWidth = !widthCalculated ? CGFLOAT_MAX : CGFloat(node.style.size.width.value / TSCMason.scale)
+        
+        let constrainedHeight = !heightCalculated ? CGFLOAT_MAX : CGFloat(node.style.size.height.value / TSCMason.scale)
+        
+        if(!node.isUIView || view.subviews.count > 0){
+            
+            size = view.sizeThatFits(CGSizeMake(constrainedWidth, constrainedHeight))
+            
+            size = CGSize(width: .minimum(size.width * scale, constrainedWidth), height: .minimum(size.height * scale, constrainedHeight))
+    
+        }else {
+            guard let knownDimensions = knownDimensions  else {return size}
+            size.width = knownDimensions.width.isNaN ? 0 : knownDimensions.width
+            size.height = knownDimensions.height.isNaN ? 0 : knownDimensions.height
+        }
         
         return size
         

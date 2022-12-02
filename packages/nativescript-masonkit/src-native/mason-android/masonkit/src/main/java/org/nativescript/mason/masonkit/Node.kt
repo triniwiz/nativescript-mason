@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.view.View.MeasureSpec
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 
@@ -147,6 +146,11 @@ class Node private constructor(private var nativePtr: Long) {
     } else {
       nativeSetStyle(Mason.instance.nativePtr, nativePtr, style.getNativePtr())
     }
+  }
+
+  fun configure(block: (Node) -> Unit) {
+    block(this)
+    updateNodeStyle()
   }
 
   @JvmOverloads
@@ -893,5 +897,4 @@ class Node private constructor(private var nativePtr: Long) {
 
     aspectRatio: Float
   ): FloatArray
-
 }

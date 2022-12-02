@@ -94,16 +94,6 @@ declare const enum JustifyContent {
   SpaceEvenly = 5,
 }
 
-declare class Mason extends NSObject {
-  static alloc(): Mason; // inherited from NSObject
-
-  static new(): Mason; // inherited from NSObject
-
-  readonly nativePtr: interop.Pointer | interop.Reference<any>;
-
-  clear(): void;
-}
-
 declare class MasonDimensionCompat extends NSObject {
   static alloc(): MasonDimensionCompat; // inherited from NSObject
 
@@ -163,7 +153,17 @@ declare class MasonNode extends NSObject {
 
   readonly children: NSArray<MasonNode>;
 
+  data: any;
+
+  readonly isDirty: boolean;
+
+  isEnabled: boolean;
+
+  readonly isLeaf: boolean;
+
   readonly nativePtr: interop.Pointer | interop.Reference<any>;
+
+  readonly owner: MasonNode;
 
   style: MasonStyle;
 
@@ -171,9 +171,19 @@ declare class MasonNode extends NSObject {
 
   constructor(o: { style: MasonStyle; children: NSArray<MasonNode> | MasonNode[] });
 
+  addChildren(children: NSArray<MasonNode> | MasonNode[]): void;
+
+  computeWithViewSize(): void;
+
+  configure(block: (p1: MasonNode) => void): void;
+
   initWithStyle(style: MasonStyle): this;
 
   initWithStyleChildren(style: MasonStyle, children: NSArray<MasonNode> | MasonNode[]): this;
+
+  markDirty(): void;
+
+  setChildrenWithChildren(children: NSArray<MasonNode> | MasonNode[]): void;
 }
 
 declare class MasonRectCompat extends NSObject {
@@ -279,9 +289,13 @@ declare class MasonStyle extends NSObject {
 
   setMaxSizeWidth(value: number, type: number): void;
 
+  setMaxSizeWidthHeight(value: number, type: number): void;
+
   setMinSizeHeight(value: number, type: number): void;
 
   setMinSizeWidth(value: number, type: number): void;
+
+  setMinSizeWidthHeight(value: number, type: number): void;
 
   setPaddingBottom(value: number, type: number): void;
 
@@ -306,55 +320,13 @@ declare class MasonStyle extends NSObject {
   setSizeHeight(value: number, type: number): void;
 
   setSizeWidth(value: number, type: number): void;
+
+  setSizeWidthHeight(value: number, type: number): void;
 }
 
 declare var MasonVersionNumber: number;
 
 declare var MasonVersionString: interop.Reference<number>;
-
-declare class MasonView extends UIView {
-  static alloc(): MasonView; // inherited from NSObject
-
-  static appearance(): MasonView; // inherited from UIAppearance
-
-  static appearanceForTraitCollection(trait: UITraitCollection): MasonView; // inherited from UIAppearance
-
-  static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonView; // inherited from UIAppearance
-
-  static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonView; // inherited from UIAppearance
-
-  static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonView; // inherited from UIAppearance
-
-  static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonView; // inherited from UIAppearance
-
-  static new(): MasonView; // inherited from NSObject
-
-  readonly node: MasonNode;
-
-  style: MasonStyle;
-
-  addSubviews(views: NSArray<UIView> | UIView[]): void;
-
-  addSubviewsAt(views: NSArray<UIView> | UIView[], index: number): void;
-
-  nodeForViewWithView(view: UIView): MasonNode;
-
-  setBorder(left: number, top: number, right: number, bottom: number): void;
-
-  setFlexGap(width: number, height: number): void;
-
-  setMargin(left: number, top: number, right: number, bottom: number): void;
-
-  setMaxSize(width: number, height: number): void;
-
-  setMinSize(width: number, height: number): void;
-
-  setPadding(left: number, top: number, right: number, bottom: number): void;
-
-  setPosition(left: number, top: number, right: number, bottom: number): void;
-
-  setSize(width: number, height: number): void;
-}
 
 declare class MeasureOutput extends NSObject {
   static alloc(): MeasureOutput; // inherited from NSObject
@@ -382,15 +354,39 @@ declare const enum PositionType {
   Absolute = 1,
 }
 
+declare class TSCMason extends NSObject {
+  static alloc(): TSCMason; // inherited from NSObject
+
+  static new(): TSCMason; // inherited from NSObject
+
+  static setAlwaysEnable(value: boolean): void;
+
+  static setShared(value: boolean): void;
+
+  readonly nativePtr: interop.Pointer | interop.Reference<any>;
+
+  static alwaysEnable: boolean;
+
+  static readonly instance: TSCMason;
+
+  static shared: boolean;
+
+  clear(): void;
+}
+
 declare function mason_clear(mason: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_destroy(mason: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_init(): interop.Pointer | interop.Reference<any>;
 
+declare function mason_init_with_capacity(capacity: number): interop.Pointer | interop.Reference<any>;
+
 declare function mason_node_add_child(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_node_add_child_at(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>, index: number): void;
+
+declare function mason_node_add_children(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, children: interop.Pointer | interop.Reference<any>, children_size: number): void;
 
 declare function mason_node_array_destroy(array: NodeArray): void;
 
@@ -416,6 +412,8 @@ declare function mason_node_insert_child_after(mason: interop.Pointer | interop.
 
 declare function mason_node_insert_child_before(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>, reference: interop.Pointer | interop.Reference<any>): void;
 
+declare function mason_node_is_children_same(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, children: interop.Pointer | interop.Reference<any>, children_size: number): boolean;
+
 declare function mason_node_layout(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, layout: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<number>) => interop.Pointer | interop.Reference<any>>): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_mark_dirty(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
@@ -430,9 +428,13 @@ declare function mason_node_remove_child(mason: interop.Pointer | interop.Refere
 
 declare function mason_node_remove_child_at(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, index: number): interop.Pointer | interop.Reference<any>;
 
+declare function mason_node_remove_children(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
+
 declare function mason_node_remove_measure_func(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_node_replace_child_at(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>, index: number): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_set_children(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, children: interop.Pointer | interop.Reference<any>, children_size: number): void;
 
 declare function mason_node_set_measure_func(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, measure_data: interop.Pointer | interop.Reference<any>, measure: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<any>, p2: number, p3: number, p4: number, p5: number) => number>): void;
 

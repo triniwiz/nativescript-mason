@@ -1,3 +1,7 @@
-import { NativescriptMasonkitCommon } from './common';
-
-export declare class NativescriptMasonkit extends NativescriptMasonkitCommon {}
+import { CoreTypes } from '@nativescript/core';
+declare module '@nativescript/core/ui/styling/style' {
+  interface Style {
+    maxWidth: CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | 'auto';
+    maxHeight: CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | 'auto';
+  }
+}

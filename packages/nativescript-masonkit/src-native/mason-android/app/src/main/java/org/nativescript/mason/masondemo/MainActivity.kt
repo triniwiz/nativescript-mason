@@ -2,7 +2,6 @@ package org.nativescript.mason.masondemo
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -10,8 +9,6 @@ import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.View
 
 class MainActivity : AppCompatActivity() {
@@ -47,6 +44,9 @@ class MainActivity : AppCompatActivity() {
         )
         repeat(100) {
             array.add("https://robohash.org/${it + 1}?set=set4")
+          rootView.node.configure {
+
+          }
 //            val view = TextView(this)
 //            view.text = "Laffy Taffy ${it + 1}"
 //

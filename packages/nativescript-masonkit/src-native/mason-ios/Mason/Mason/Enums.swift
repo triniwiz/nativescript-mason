@@ -48,6 +48,19 @@ public struct MasonRect<T> {
         self.top = top
         self.bottom = bottom
     }
+    
+    var cssValue: String {
+        var ret = "(MasonRect)("
+        
+        ret += "left: \(left), "
+        ret += "right: \(right), "
+        ret += "top: \(top), "
+        ret += "top: \(top) "
+        
+        ret += ")"
+        
+        return ret
+    }
 }
 
 @objcMembers
@@ -82,7 +95,20 @@ public struct MasonSize<T>{
         self.width = width
         self.height = height
     }
+    
+    var cssValue: String {
+        var ret = "(MasonSize)("
+        
+        ret += "width: \(width), "
+        ret += "height: \(height) "
+        
+        ret += ")"
+        
+        return ret
+    }
 }
+
+public let MasonSizeMaxPercentWH = MasonSize<MasonDimension>(MasonDimension.Percent(100), MasonDimension.Percent(100))
 
 
 @objc(MasonDimensionCompatType)
@@ -236,6 +262,22 @@ public enum MasonDimension {
             }
         }
     }
+    
+    
+    public var cssValue: String {
+        get {
+            switch(self){
+            case .Points(let points):
+                return "\(points)px"
+            case .Percent(let percent):
+                return "\(percent)%"
+            case .Auto:
+                return "auto"
+            case .Undefined:
+                return "undefined"
+            }
+        }
+    }
 }
 
 
@@ -279,6 +321,21 @@ public enum AlignItems: Int, RawRepresentable {
             self = .Stretch
         default:
             return nil
+        }
+    }
+    
+    var cssValue: String {
+        switch self {
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-end"
+        case .Center:
+            return "center"
+        case .Baseline:
+            return "baseline"
+        case .Stretch:
+            return "stretch"
         }
     }
 }
@@ -328,6 +385,23 @@ public enum AlignSelf: Int, RawRepresentable {
             self = .Stretch
         default:
             return nil
+        }
+    }
+    
+    var cssValue: String {
+        switch self {
+        case .Auto:
+            return "auto"
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-end"
+        case .Center:
+            return "center"
+        case .Baseline:
+            return "baseline"
+        case .Stretch:
+            return "stretch"
         }
     }
 }
@@ -384,6 +458,25 @@ public enum AlignContent: Int, RawRepresentable  {
             return nil
         }
     }
+    
+    var cssValue: String {
+        switch self {
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-end"
+        case .Center:
+            return "center"
+        case .Stretch:
+            return "stretch"
+        case .SpaceBetween:
+            return "space-between"
+        case .SpaceAround:
+            return "space-around"
+        case .SpaceEvenly:
+            return "space-evenly"
+        }
+    }
 }
 
 @objc(Direction)
@@ -418,6 +511,17 @@ public enum Direction: Int, RawRepresentable {
             return nil
         }
     }
+    
+    var cssValue: String {
+        switch self {
+        case .Inherit:
+            return "inherit"
+        case .LTR:
+            return "ltr"
+        case .RTL:
+            return "rtl"
+        }
+    }
 }
 
 @objc(Display)
@@ -445,6 +549,16 @@ public enum Display: Int, RawRepresentable {
             self = .None
         default:
             return nil
+        }
+    }
+    
+    
+    var cssValue: String {
+        switch self {
+        case .Flex:
+            return "flex"
+        case .None:
+            return "none"
         }
     }
 }
@@ -484,6 +598,19 @@ public enum FlexDirection: Int, RawRepresentable {
             self = .ColumnReverse
         default:
             return nil
+        }
+    }
+    
+    var cssValue: String {
+        switch self {
+        case .Row:
+            return "row"
+        case .Column:
+            return "column"
+        case .RowReverse:
+            return "row-reverse"
+        case .ColumnReverse:
+            return "column-reverse"
         }
     }
 }
@@ -535,6 +662,23 @@ public enum JustifyContent: Int, RawRepresentable {
             return nil
         }
     }
+    
+    var cssValue: String {
+        switch self {
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-end"
+        case .Center:
+            return "center"
+        case .SpaceBetween:
+            return "space-between"
+        case .SpaceAround:
+            return "space-around"
+        case .SpaceEvenly:
+            return "space-evenly"
+        }
+    }
 }
 
 @objc(Overflow)
@@ -569,6 +713,17 @@ public enum Overflow: Int, RawRepresentable {
             return nil
         }
     }
+    
+    var cssValue: String {
+        switch self {
+        case .Visible:
+            return "visible"
+        case .Hidden:
+            return "hidden"
+        case .Scroll:
+            return "scroll"
+        }
+    }
 }
 
 @objc(PositionType)
@@ -598,6 +753,17 @@ public enum PositionType: Int, RawRepresentable {
             return nil
         }
     }
+    
+    
+    var cssValue: String {
+        switch self {
+        case .Relative:
+            return "relative"
+        case .Absolute:
+            return "absolute"
+        }
+    }
+    
 }
 
 @objc(FlexWrap)
@@ -631,6 +797,17 @@ public enum FlexWrap: Int, RawRepresentable {
             self = .WrapReverse
         default:
             return nil
+        }
+    }
+    
+    var cssValue: String {
+        switch self {
+        case .NoWrap:
+            return "no-wrap"
+        case .Wrap:
+            return "wrap"
+        case .WrapReverse:
+            return "wrap-reverse"
         }
     }
 }

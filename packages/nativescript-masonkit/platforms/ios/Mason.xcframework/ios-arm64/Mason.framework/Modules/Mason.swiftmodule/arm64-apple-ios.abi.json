@@ -45,7 +45,7 @@
               }
             ],
             "declKind": "Var",
-            "usr": "c:@M@Mason@objc(cs)Mason(py)nativePtr",
+            "usr": "c:@M@Mason@objc(cs)TSCMason(py)nativePtr",
             "mangledName": "$s5Mason8TSCMasonC9nativePtrSvSgvp",
             "moduleName": "Mason",
             "declAttributes": ["HasInitialValue", "HasStorage", "SetterAccess", "AccessControl", "ObjC"],
@@ -72,7 +72,7 @@
                   }
                 ],
                 "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)Mason(im)nativePtr",
+                "usr": "c:@M@Mason@objc(cs)TSCMason(im)nativePtr",
                 "mangledName": "$s5Mason8TSCMasonC9nativePtrSvSgvg",
                 "moduleName": "Mason",
                 "implicit": true,
@@ -90,11 +90,11 @@
                 "kind": "TypeNominal",
                 "name": "TSCMason",
                 "printedName": "Mason.TSCMason",
-                "usr": "c:@M@Mason@objc(cs)Mason"
+                "usr": "c:@M@Mason@objc(cs)TSCMason"
               }
             ],
             "declKind": "Constructor",
-            "usr": "c:@M@Mason@objc(cs)Mason(im)init",
+            "usr": "c:@M@Mason@objc(cs)TSCMason(im)init",
             "mangledName": "$s5Mason8TSCMasonCACycfc",
             "moduleName": "Mason",
             "overriding": true,
@@ -114,18 +114,240 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)Mason(im)clear",
+            "usr": "c:@M@Mason@objc(cs)TSCMason(im)clear",
             "mangledName": "$s5Mason8TSCMasonC5clearyyF",
             "moduleName": "Mason",
             "declAttributes": ["AccessControl", "ObjC"],
             "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "instance",
+            "printedName": "instance",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "TSCMason",
+                "printedName": "Mason.TSCMason",
+                "usr": "c:@M@Mason@objc(cs)TSCMason"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)TSCMason(cpy)instance",
+            "mangledName": "$s5Mason8TSCMasonC8instanceACvpZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["HasInitialValue", "Final", "HasStorage", "AccessControl", "ObjC"],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "TSCMason",
+                    "printedName": "Mason.TSCMason",
+                    "usr": "c:@M@Mason@objc(cs)TSCMason"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)TSCMason(cm)instance",
+                "mangledName": "$s5Mason8TSCMasonC8instanceACvgZ",
+                "moduleName": "Mason",
+                "static": true,
+                "implicit": true,
+                "declAttributes": ["Final", "ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "shared",
+            "printedName": "shared",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)TSCMason(cpy)shared",
+            "mangledName": "$s5Mason8TSCMasonC6sharedSbvpZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["HasInitialValue", "Final", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)TSCMason(cm)shared",
+                "mangledName": "$s5Mason8TSCMasonC6sharedSbvgZ",
+                "moduleName": "Mason",
+                "static": true,
+                "implicit": true,
+                "declAttributes": ["Final", "ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)TSCMason(cm)setShared:",
+                "mangledName": "$s5Mason8TSCMasonC6sharedSbvsZ",
+                "moduleName": "Mason",
+                "static": true,
+                "implicit": true,
+                "declAttributes": ["Final", "ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason8TSCMasonC6sharedSbvMZ",
+                "mangledName": "$s5Mason8TSCMasonC6sharedSbvMZ",
+                "moduleName": "Mason",
+                "static": true,
+                "implicit": true,
+                "declAttributes": ["Final"],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "alwaysEnable",
+            "printedName": "alwaysEnable",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)TSCMason(cpy)alwaysEnable",
+            "mangledName": "$s5Mason8TSCMasonC12alwaysEnableSbvpZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["HasInitialValue", "Final", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)TSCMason(cm)alwaysEnable",
+                "mangledName": "$s5Mason8TSCMasonC12alwaysEnableSbvgZ",
+                "moduleName": "Mason",
+                "static": true,
+                "implicit": true,
+                "declAttributes": ["Final", "ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)TSCMason(cm)setAlwaysEnable:",
+                "mangledName": "$s5Mason8TSCMasonC12alwaysEnableSbvsZ",
+                "moduleName": "Mason",
+                "static": true,
+                "implicit": true,
+                "declAttributes": ["Final", "ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason8TSCMasonC12alwaysEnableSbvMZ",
+                "mangledName": "$s5Mason8TSCMasonC12alwaysEnableSbvMZ",
+                "moduleName": "Mason",
+                "static": true,
+                "implicit": true,
+                "declAttributes": ["Final"],
+                "accessorKind": "_modify"
+              }
+            ]
           }
         ],
         "declKind": "Class",
-        "usr": "c:@M@Mason@objc(cs)Mason",
+        "usr": "c:@M@Mason@objc(cs)TSCMason",
         "mangledName": "$s5Mason8TSCMasonC",
         "moduleName": "Mason",
-        "objc_name": "Mason",
+        "objc_name": "TSCMason",
         "declAttributes": ["AccessControl", "ObjCMembers", "ObjC"],
         "superclassUsr": "c:objc(cs)NSObject",
         "inheritsConvenienceInitializers": true,
@@ -288,6 +510,13 @@
         "declAttributes": ["RawDocComment"]
       },
       {
+        "kind": "Import",
+        "name": "UIKit",
+        "printedName": "UIKit",
+        "declKind": "Import",
+        "moduleName": "Mason"
+      },
+      {
         "kind": "TypeDecl",
         "name": "MasonNode",
         "printedName": "MasonNode",
@@ -430,6 +659,252 @@
                 "moduleName": "Mason",
                 "implicit": true,
                 "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "isEnabled",
+            "printedName": "isEnabled",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(py)isEnabled",
+            "mangledName": "$s5Mason0A4NodeC9isEnabledSbvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)isEnabled",
+                "mangledName": "$s5Mason0A4NodeC9isEnabledSbvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)setIsEnabled:",
+                "mangledName": "$s5Mason0A4NodeC9isEnabledSbvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A4NodeC9isEnabledSbvM",
+                "mangledName": "$s5Mason0A4NodeC9isEnabledSbvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "data",
+            "printedName": "data",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "AnyObject?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "ProtocolComposition",
+                    "printedName": "AnyObject"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(py)data",
+            "mangledName": "$s5Mason0A4NodeC4datayXlSgvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "AnyObject?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "ProtocolComposition",
+                        "printedName": "AnyObject"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)data",
+                "mangledName": "$s5Mason0A4NodeC4datayXlSgvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "AnyObject?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "ProtocolComposition",
+                        "printedName": "AnyObject"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)setData:",
+                "mangledName": "$s5Mason0A4NodeC4datayXlSgvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A4NodeC4datayXlSgvM",
+                "mangledName": "$s5Mason0A4NodeC4datayXlSgvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "owner",
+            "printedName": "owner",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.MasonNode?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonNode",
+                    "printedName": "Mason.MasonNode",
+                    "usr": "c:@M@Mason@objc(cs)MasonNode"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(py)owner",
+            "mangledName": "$s5Mason0A4NodeC5ownerACSgvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "SetterAccess", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Mason.MasonNode?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "MasonNode",
+                        "printedName": "Mason.MasonNode",
+                        "usr": "c:@M@Mason@objc(cs)MasonNode"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)owner",
+                "mangledName": "$s5Mason0A4NodeC5ownerACSgvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
               }
             ]
           },
@@ -639,6 +1114,221 @@
             "moduleName": "Mason",
             "declAttributes": ["AccessControl"],
             "init_kind": "Designated"
+          },
+          {
+            "kind": "Var",
+            "name": "isDirty",
+            "printedName": "isDirty",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(py)isDirty",
+            "mangledName": "$s5Mason0A4NodeC7isDirtySbvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)isDirty",
+                "mangledName": "$s5Mason0A4NodeC7isDirtySbvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "markDirty",
+            "printedName": "markDirty()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)markDirty",
+            "mangledName": "$s5Mason0A4NodeC9markDirtyyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "computeWithViewSize",
+            "printedName": "computeWithViewSize()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)computeWithViewSize",
+            "mangledName": "$s5Mason0A4NodeC19computeWithViewSizeyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setChildren",
+            "printedName": "setChildren(children:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Mason.MasonNode]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonNode",
+                    "printedName": "Mason.MasonNode",
+                    "usr": "c:@M@Mason@objc(cs)MasonNode"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)setChildrenWithChildren:",
+            "mangledName": "$s5Mason0A4NodeC11setChildren8childrenySayACG_tF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "addChildren",
+            "printedName": "addChildren(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Mason.MasonNode]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonNode",
+                    "printedName": "Mason.MasonNode",
+                    "usr": "c:@M@Mason@objc(cs)MasonNode"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)addChildren:",
+            "mangledName": "$s5Mason0A4NodeC11addChildrenyySayACGF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "isLeaf",
+            "printedName": "isLeaf",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(py)isLeaf",
+            "mangledName": "$s5Mason0A4NodeC6isLeafSbvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)isLeaf",
+                "mangledName": "$s5Mason0A4NodeC6isLeafSbvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "configure",
+            "printedName": "configure(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.MasonNode) -> ()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonNode",
+                    "printedName": "Mason.MasonNode",
+                    "usr": "c:@M@Mason@objc(cs)MasonNode"
+                  }
+                ],
+                "typeAttributes": ["noescape"]
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)configure:",
+            "mangledName": "$s5Mason0A4NodeC9configureyyyACXEF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
           }
         ],
         "declKind": "Class",
@@ -3867,6 +4557,36 @@
             "funcSelfKind": "NonMutating"
           },
           {
+            "kind": "Function",
+            "name": "setMinSizeWidthHeight",
+            "printedName": "setMinSizeWidthHeight(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setMinSizeWidthHeight::",
+            "mangledName": "$s5Mason0A5StyleC21setMinSizeWidthHeightyySf_SitF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
             "kind": "Var",
             "name": "size",
             "printedName": "size",
@@ -4114,6 +4834,36 @@
             "funcSelfKind": "NonMutating"
           },
           {
+            "kind": "Function",
+            "name": "setSizeWidthHeight",
+            "printedName": "setSizeWidthHeight(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setSizeWidthHeight::",
+            "mangledName": "$s5Mason0A5StyleC18setSizeWidthHeightyySf_SitF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
             "kind": "Var",
             "name": "maxSize",
             "printedName": "maxSize",
@@ -4356,6 +5106,36 @@
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setMaxSizeHeight::",
             "mangledName": "$s5Mason0A5StyleC16setMaxSizeHeightyySf_SitF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setMaxSizeWidthHeight",
+            "printedName": "setMaxSizeWidthHeight(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setMaxSizeWidthHeight::",
+            "mangledName": "$s5Mason0A5StyleC21setMaxSizeWidthHeightyySf_SitF",
             "moduleName": "Mason",
             "declAttributes": ["AccessControl", "ObjC"],
             "funcSelfKind": "NonMutating"
@@ -4710,6 +5490,49 @@
                 "moduleName": "Mason",
                 "implicit": true,
                 "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "description",
+            "printedName": "description",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(py)description",
+            "mangledName": "$s5Mason0A5StyleC11descriptionSSvp",
+            "moduleName": "Mason",
+            "overriding": true,
+            "objc_name": "description",
+            "declAttributes": ["Dynamic", "ObjC", "Override", "AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)description",
+                "mangledName": "$s5Mason0A5StyleC11descriptionSSvg",
+                "moduleName": "Mason",
+                "overriding": true,
+                "objc_name": "description",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "accessorKind": "get"
               }
             ]
           }
@@ -5287,6 +6110,56 @@
         "kind": "TypeDecl",
         "name": "MasonRect",
         "printedName": "MasonRect",
+        "children": [
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(_:_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "MasonRect",
+                "printedName": "Mason.MasonRect<τ_0_0>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GenericTypeParam",
+                    "printedName": "τ_0_0"
+                  }
+                ],
+                "usr": "s:5Mason0A4RectV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "GenericTypeParam",
+                "printedName": "τ_0_0"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "GenericTypeParam",
+                "printedName": "τ_0_0"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "GenericTypeParam",
+                "printedName": "τ_0_0"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "GenericTypeParam",
+                "printedName": "τ_0_0"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:5Mason0A4RectVyACyxGx_xxxtcfc",
+            "mangledName": "$s5Mason0A4RectVyACyxGx_xxxtcfc",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0>",
+            "sugared_genericSig": "<T>",
+            "declAttributes": ["AccessControl"],
+            "init_kind": "Designated"
+          }
+        ],
         "declKind": "Struct",
         "usr": "s:5Mason0A4RectV",
         "mangledName": "$s5Mason0A4RectV",
@@ -5589,6 +6462,46 @@
         "kind": "TypeDecl",
         "name": "MasonSize",
         "printedName": "MasonSize",
+        "children": [
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "MasonSize",
+                "printedName": "Mason.MasonSize<τ_0_0>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GenericTypeParam",
+                    "printedName": "τ_0_0"
+                  }
+                ],
+                "usr": "s:5Mason0A4SizeV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "GenericTypeParam",
+                "printedName": "τ_0_0"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "GenericTypeParam",
+                "printedName": "τ_0_0"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:5Mason0A4SizeVyACyxGx_xtcfc",
+            "mangledName": "$s5Mason0A4SizeVyACyxGx_xtcfc",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0>",
+            "sugared_genericSig": "<T>",
+            "declAttributes": ["AccessControl"],
+            "init_kind": "Designated"
+          }
+        ],
         "declKind": "Struct",
         "usr": "s:5Mason0A4SizeV",
         "mangledName": "$s5Mason0A4SizeV",
@@ -5596,6 +6509,63 @@
         "genericSig": "<τ_0_0>",
         "sugared_genericSig": "<T>",
         "declAttributes": ["AccessControl"]
+      },
+      {
+        "kind": "Var",
+        "name": "MasonSizeMaxPercentWH",
+        "printedName": "MasonSizeMaxPercentWH",
+        "children": [
+          {
+            "kind": "TypeNominal",
+            "name": "MasonSize",
+            "printedName": "Mason.MasonSize<Mason.MasonDimension>",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "MasonDimension",
+                "printedName": "Mason.MasonDimension",
+                "usr": "s:5Mason0A9DimensionO"
+              }
+            ],
+            "usr": "s:5Mason0A4SizeV"
+          }
+        ],
+        "declKind": "Var",
+        "usr": "s:5Mason0A16SizeMaxPercentWHAA0aB0VyAA0A9DimensionOGvp",
+        "mangledName": "$s5Mason0A16SizeMaxPercentWHAA0aB0VyAA0A9DimensionOGvp",
+        "moduleName": "Mason",
+        "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl"],
+        "isLet": true,
+        "hasStorage": true,
+        "accessors": [
+          {
+            "kind": "Accessor",
+            "name": "Get",
+            "printedName": "Get()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "MasonSize",
+                "printedName": "Mason.MasonSize<Mason.MasonDimension>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonDimension",
+                    "printedName": "Mason.MasonDimension",
+                    "usr": "s:5Mason0A9DimensionO"
+                  }
+                ],
+                "usr": "s:5Mason0A4SizeV"
+              }
+            ],
+            "declKind": "Accessor",
+            "usr": "s:5Mason0A16SizeMaxPercentWHAA0aB0VyAA0A9DimensionOGvg",
+            "mangledName": "$s5Mason0A16SizeMaxPercentWHAA0aB0VyAA0A9DimensionOGvg",
+            "moduleName": "Mason",
+            "implicit": true,
+            "accessorKind": "get"
+          }
+        ]
       },
       {
         "kind": "TypeDecl",
@@ -6530,6 +7500,44 @@
             "usr": "s:5Mason0A9DimensionO9UndefinedyA2CmF",
             "mangledName": "$s5Mason0A9DimensionO9UndefinedyA2CmF",
             "moduleName": "Mason"
+          },
+          {
+            "kind": "Var",
+            "name": "cssValue",
+            "printedName": "cssValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason0A9DimensionO8cssValueSSvp",
+            "mangledName": "$s5Mason0A9DimensionO8cssValueSSvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A9DimensionO8cssValueSSvg",
+                "mangledName": "$s5Mason0A9DimensionO8cssValueSSvg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              }
+            ]
           }
         ],
         "declKind": "Enum",
@@ -9384,13 +10392,13 @@
       },
       {
         "kind": "TypeDecl",
-        "name": "MasonView",
-        "printedName": "MasonView",
+        "name": "UIView",
+        "printedName": "UIView",
         "children": [
           {
             "kind": "Var",
-            "name": "node",
-            "printedName": "node",
+            "name": "mason",
+            "printedName": "mason",
             "children": [
               {
                 "kind": "TypeNominal",
@@ -9400,12 +10408,11 @@
               }
             ],
             "declKind": "Var",
-            "usr": "c:@M@Mason@objc(cs)MasonView(py)node",
-            "mangledName": "$s5Mason0A4ViewC4nodeAA0A4NodeCvp",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)mason",
+            "mangledName": "$sSo6UIViewC5MasonE5masonAC0B4NodeCvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "Final", "Custom", "HasStorage", "AccessControl", "ObjC"],
-            "isLet": true,
-            "hasStorage": true,
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "accessors": [
               {
                 "kind": "Accessor",
@@ -9420,41 +10427,55 @@
                   }
                 ],
                 "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)MasonView(im)node",
-                "mangledName": "$s5Mason0A4ViewC4nodeAA0A4NodeCvg",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)mason",
+                "mangledName": "$sSo6UIViewC5MasonE5masonAC0B4NodeCvg",
                 "moduleName": "Mason",
-                "implicit": true,
-                "declAttributes": ["Final", "ObjC"],
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
                 "accessorKind": "get"
               }
             ]
           },
           {
-            "kind": "Constructor",
-            "name": "init",
-            "printedName": "init(frame:)",
+            "kind": "Var",
+            "name": "isMasonEnabled",
+            "printedName": "isMasonEnabled",
             "children": [
               {
                 "kind": "TypeNominal",
-                "name": "MasonView",
-                "printedName": "Mason.MasonView",
-                "usr": "c:@M@Mason@objc(cs)MasonView"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "CGRect",
-                "printedName": "CoreFoundation.CGRect",
-                "usr": "c:@S@CGRect"
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
               }
             ],
-            "declKind": "Constructor",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)initWithFrame:",
-            "mangledName": "$s5Mason0A4ViewC5frameACSo6CGRectV_tcfc",
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)isMasonEnabled",
+            "mangledName": "$sSo6UIViewC5MasonE02isB7EnabledSbvp",
             "moduleName": "Mason",
-            "overriding": true,
-            "objc_name": "initWithFrame:",
-            "declAttributes": ["Dynamic", "ObjC", "Custom", "Override", "AccessControl"],
-            "init_kind": "Designated"
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)isMasonEnabled",
+                "mangledName": "$sSo6UIViewC5MasonE02isB7EnabledSbvg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
           },
           {
             "kind": "Var",
@@ -9469,10 +10490,11 @@
               }
             ],
             "declKind": "Var",
-            "usr": "c:@M@Mason@objc(cs)MasonView(py)style",
-            "mangledName": "$s5Mason0A4ViewC5styleAA0A5StyleCvp",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)style",
+            "mangledName": "$sSo6UIViewC5MasonE5styleAC0B5StyleCvp",
             "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "accessors": [
               {
                 "kind": "Accessor",
@@ -9487,10 +10509,11 @@
                   }
                 ],
                 "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)MasonView(im)style",
-                "mangledName": "$s5Mason0A4ViewC5styleAA0A5StyleCvg",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)style",
+                "mangledName": "$sSo6UIViewC5MasonE5styleAC0B5StyleCvg",
                 "moduleName": "Mason",
-                "declAttributes": ["ObjC"],
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
                 "accessorKind": "get"
               },
               {
@@ -9511,31 +10534,86 @@
                   }
                 ],
                 "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)MasonView(im)setStyle:",
-                "mangledName": "$s5Mason0A4ViewC5styleAA0A5StyleCvs",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)setStyle:",
+                "mangledName": "$sSo6UIViewC5MasonE5styleAC0B5StyleCvs",
                 "moduleName": "Mason",
-                "declAttributes": ["ObjC"],
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
                 "accessorKind": "set"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "addSubviews",
+            "printedName": "addSubviews(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
               },
               {
-                "kind": "Accessor",
-                "name": "Modify",
-                "printedName": "Modify()",
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[UIKit.UIView]",
                 "children": [
                   {
                     "kind": "TypeNominal",
-                    "name": "Void",
-                    "printedName": "()"
+                    "name": "UIView",
+                    "printedName": "UIKit.UIView",
+                    "usr": "c:objc(cs)UIView"
                   }
                 ],
-                "declKind": "Accessor",
-                "usr": "s:5Mason0A4ViewC5styleAA0A5StyleCvM",
-                "mangledName": "$s5Mason0A4ViewC5styleAA0A5StyleCvM",
-                "moduleName": "Mason",
-                "implicit": true,
-                "accessorKind": "_modify"
+                "usr": "s:Sa"
               }
-            ]
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)addSubviews:",
+            "mangledName": "$sSo6UIViewC5MasonE11addSubviewsyySayABGF",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "addSubviews",
+            "printedName": "addSubviews(_:at:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[UIKit.UIView]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UIView",
+                    "printedName": "UIKit.UIView",
+                    "usr": "c:objc(cs)UIView"
+                  }
+                ],
+                "usr": "s:Sa"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)addSubviews:at:",
+            "mangledName": "$sSo6UIViewC5MasonE11addSubviews_2atySayABG_SitF",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
           },
           {
             "kind": "Function",
@@ -9573,10 +10651,11 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)setPadding::::",
-            "mangledName": "$s5Mason0A4ViewC10setPaddingyySf_S3ftF",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)setPadding::::",
+            "mangledName": "$sSo6UIViewC5MasonE10setPaddingyySf_S3ftF",
             "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "funcSelfKind": "NonMutating"
           },
           {
@@ -9615,10 +10694,11 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)setBorder::::",
-            "mangledName": "$s5Mason0A4ViewC9setBorderyySf_S3ftF",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)setBorder::::",
+            "mangledName": "$sSo6UIViewC5MasonE9setBorderyySf_S3ftF",
             "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "funcSelfKind": "NonMutating"
           },
           {
@@ -9657,10 +10737,11 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)setMargin::::",
-            "mangledName": "$s5Mason0A4ViewC9setMarginyySf_S3ftF",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)setMargin::::",
+            "mangledName": "$sSo6UIViewC5MasonE9setMarginyySf_S3ftF",
             "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "funcSelfKind": "NonMutating"
           },
           {
@@ -9699,10 +10780,11 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)setPosition::::",
-            "mangledName": "$s5Mason0A4ViewC11setPositionyySf_S3ftF",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)setPosition::::",
+            "mangledName": "$sSo6UIViewC5MasonE11setPositionyySf_S3ftF",
             "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "funcSelfKind": "NonMutating"
           },
           {
@@ -9729,10 +10811,11 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)setMinSize::",
-            "mangledName": "$s5Mason0A4ViewC10setMinSizeyySf_SftF",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)setMinSize::",
+            "mangledName": "$sSo6UIViewC5MasonE10setMinSizeyySf_SftF",
             "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "funcSelfKind": "NonMutating"
           },
           {
@@ -9759,10 +10842,11 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)setSize::",
-            "mangledName": "$s5Mason0A4ViewC7setSizeyySf_SftF",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)setSize::",
+            "mangledName": "$sSo6UIViewC5MasonE7setSizeyySf_SftF",
             "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "funcSelfKind": "NonMutating"
           },
           {
@@ -9789,10 +10873,11 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)setMaxSize::",
-            "mangledName": "$s5Mason0A4ViewC10setMaxSizeyySf_SftF",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)setMaxSize::",
+            "mangledName": "$sSo6UIViewC5MasonE10setMaxSizeyySf_SftF",
             "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "funcSelfKind": "NonMutating"
           },
           {
@@ -9819,216 +10904,25 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)setFlexGap::",
-            "mangledName": "$s5Mason0A4ViewC10setFlexGapyySf_SftF",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(im)setFlexGap::",
+            "mangledName": "$sSo6UIViewC5MasonE10setFlexGapyySf_SftF",
             "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
-            "funcSelfKind": "NonMutating"
-          },
-          {
-            "kind": "Function",
-            "name": "layoutSubviews",
-            "printedName": "layoutSubviews()",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Void",
-                "printedName": "()"
-              }
-            ],
-            "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)layoutSubviews",
-            "mangledName": "$s5Mason0A4ViewC14layoutSubviewsyyF",
-            "moduleName": "Mason",
-            "overriding": true,
-            "objc_name": "layoutSubviews",
-            "declAttributes": ["Dynamic", "ObjC", "Custom", "Override", "AccessControl"],
-            "funcSelfKind": "NonMutating"
-          },
-          {
-            "kind": "Function",
-            "name": "nodeForView",
-            "printedName": "nodeForView(view:)",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "MasonNode",
-                "printedName": "Mason.MasonNode",
-                "usr": "c:@M@Mason@objc(cs)MasonNode"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "UIView",
-                "printedName": "UIKit.UIView",
-                "usr": "c:objc(cs)UIView"
-              }
-            ],
-            "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)nodeForViewWithView:",
-            "mangledName": "$s5Mason0A4ViewC07nodeForB04viewAA0A4NodeCSo6UIViewC_tF",
-            "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
-            "funcSelfKind": "NonMutating"
-          },
-          {
-            "kind": "Function",
-            "name": "addSubview",
-            "printedName": "addSubview(_:)",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Void",
-                "printedName": "()"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "UIView",
-                "printedName": "UIKit.UIView",
-                "usr": "c:objc(cs)UIView"
-              }
-            ],
-            "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)addSubview:",
-            "mangledName": "$s5Mason0A4ViewC10addSubviewyySo6UIViewCF",
-            "moduleName": "Mason",
-            "overriding": true,
-            "objc_name": "addSubview:",
-            "declAttributes": ["Dynamic", "ObjC", "Custom", "Override", "AccessControl"],
-            "funcSelfKind": "NonMutating"
-          },
-          {
-            "kind": "Function",
-            "name": "addSubviews",
-            "printedName": "addSubviews(_:)",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Void",
-                "printedName": "()"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "Array",
-                "printedName": "[UIKit.UIView]",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "UIView",
-                    "printedName": "UIKit.UIView",
-                    "usr": "c:objc(cs)UIView"
-                  }
-                ],
-                "usr": "s:Sa"
-              }
-            ],
-            "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)addSubviews:",
-            "mangledName": "$s5Mason0A4ViewC11addSubviewsyySaySo6UIViewCGF",
-            "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
-            "funcSelfKind": "NonMutating"
-          },
-          {
-            "kind": "Function",
-            "name": "addSubviews",
-            "printedName": "addSubviews(_:at:)",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Void",
-                "printedName": "()"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "Array",
-                "printedName": "[UIKit.UIView]",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "UIView",
-                    "printedName": "UIKit.UIView",
-                    "usr": "c:objc(cs)UIView"
-                  }
-                ],
-                "usr": "s:Sa"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "Int",
-                "printedName": "Swift.Int",
-                "usr": "s:Si"
-              }
-            ],
-            "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)addSubviews:at:",
-            "mangledName": "$s5Mason0A4ViewC11addSubviews_2atySaySo6UIViewCG_SitF",
-            "moduleName": "Mason",
-            "declAttributes": ["Custom", "AccessControl", "ObjC"],
-            "funcSelfKind": "NonMutating"
-          },
-          {
-            "kind": "Function",
-            "name": "insertSubview",
-            "printedName": "insertSubview(_:at:)",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Void",
-                "printedName": "()"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "UIView",
-                "printedName": "UIKit.UIView",
-                "usr": "c:objc(cs)UIView"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "Int",
-                "printedName": "Swift.Int",
-                "usr": "s:Si"
-              }
-            ],
-            "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)insertSubview:atIndex:",
-            "mangledName": "$s5Mason0A4ViewC13insertSubview_2atySo6UIViewC_SitF",
-            "moduleName": "Mason",
-            "overriding": true,
-            "objc_name": "insertSubview:atIndex:",
-            "declAttributes": ["Dynamic", "ObjC", "Custom", "Override", "AccessControl"],
-            "funcSelfKind": "NonMutating"
-          },
-          {
-            "kind": "Function",
-            "name": "removeFromSuperview",
-            "printedName": "removeFromSuperview()",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Void",
-                "printedName": "()"
-              }
-            ],
-            "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonView(im)removeFromSuperview",
-            "mangledName": "$s5Mason0A4ViewC19removeFromSuperviewyyF",
-            "moduleName": "Mason",
-            "overriding": true,
-            "objc_name": "removeFromSuperview",
-            "declAttributes": ["Dynamic", "ObjC", "Custom", "Override", "AccessControl"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
             "funcSelfKind": "NonMutating"
           }
         ],
         "declKind": "Class",
-        "usr": "c:@M@Mason@objc(cs)MasonView",
-        "mangledName": "$s5Mason0A4ViewC",
-        "moduleName": "Mason",
-        "objc_name": "MasonView",
-        "declAttributes": ["Custom", "AccessControl", "ObjC", "ObjCMembers"],
-        "superclassUsr": "c:objc(cs)UIView",
-        "hasMissingDesignatedInitializers": true,
+        "usr": "c:objc(cs)UIView",
+        "moduleName": "UIKit",
+        "isOpen": true,
+        "intro_iOS": "2.0",
+        "objc_name": "UIView",
+        "declAttributes": ["Available", "ObjC", "NonSendable", "Custom", "Dynamic"],
+        "superclassUsr": "c:objc(cs)UIResponder",
+        "isExternal": true,
         "inheritsConvenienceInitializers": true,
-        "superclassNames": ["UIKit.UIView", "UIKit.UIResponder", "ObjectiveC.NSObject"],
+        "superclassNames": ["UIKit.UIResponder", "ObjectiveC.NSObject"],
         "conformances": [
           {
             "kind": "Conformance",
@@ -10095,21 +10989,56 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TSCMason.swift",
       "kind": "BooleanLiteral",
-      "offset": 443,
+      "offset": 536,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TSCMason.swift",
+      "kind": "BooleanLiteral",
+      "offset": 639,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 1385,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 1410,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 1443,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "kind": "BooleanLiteral",
+      "offset": 1574,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "Array",
-      "offset": 1466,
+      "offset": 1794,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "Dictionary",
-      "offset": 1532,
+      "offset": 1887,
       "length": 3,
       "value": "[]"
     },
@@ -10123,168 +11052,168 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 719,
+      "offset": 783,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 851,
+      "offset": 915,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 990,
+      "offset": 1054,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 1120,
+      "offset": 1184,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 1238,
+      "offset": 1302,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 1356,
+      "offset": 1420,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 1481,
+      "offset": 1545,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 1600,
+      "offset": 1665,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 1733,
+      "offset": 1798,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 1872,
+      "offset": 1937,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 2109,
+      "offset": 2174,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 3897,
+      "offset": 3962,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 5627,
+      "offset": 5692,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 7395,
+      "offset": 7460,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 9008,
+      "offset": 9073,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 8965,
+      "offset": 9030,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 9112,
+      "offset": 9177,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 9069,
+      "offset": 9134,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 9226,
+      "offset": 9291,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 9403,
+      "offset": 9468,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 10370,
+      "offset": 10609,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 11305,
+      "offset": 11717,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 12283,
+      "offset": 12874,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 13188,
+      "offset": 13779,
       "length": 4,
       "value": "true"
     },
@@ -10298,268 +11227,275 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "StringLiteral",
-      "offset": 1412,
+      "offset": 1684,
       "length": 15,
       "value": "\"Mason.MasonSizeCompat\""
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 2317,
+      "offset": 2767,
+      "length": 3,
+      "value": "100"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 2796,
+      "length": 3,
+      "value": "100"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 2923,
       "length": 7,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 2334,
+      "offset": 2940,
       "length": 4,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 2348,
+      "offset": 2954,
       "length": 9,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "StringLiteral",
-      "offset": 3016,
+      "offset": 3622,
       "length": 20,
       "value": "\"Mason.MasonDimensionCompat\""
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 5791,
+      "offset": 6781,
       "length": 7,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 5808,
+      "offset": 6798,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 5824,
+      "offset": 6814,
       "length": 8,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 5842,
+      "offset": 6832,
       "length": 7,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 6637,
+      "offset": 7963,
       "length": 9,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 6656,
+      "offset": 7982,
       "length": 7,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 6673,
+      "offset": 7999,
       "length": 6,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 6689,
+      "offset": 8015,
       "length": 8,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 6707,
+      "offset": 8033,
       "length": 7,
       "value": "5"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 7592,
+      "offset": 9300,
       "length": 7,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 7609,
+      "offset": 9317,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 7625,
+      "offset": 9333,
       "length": 7,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 7642,
+      "offset": 9350,
       "length": 12,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 7664,
+      "offset": 9372,
       "length": 11,
       "value": "5"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 7685,
+      "offset": 9393,
       "length": 11,
       "value": "6"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 8683,
+      "offset": 10858,
       "length": 3,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 8696,
+      "offset": 10871,
       "length": 3,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 9283,
+      "offset": 11668,
       "length": 4,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 9798,
+      "offset": 12350,
       "length": 6,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 9814,
+      "offset": 12366,
       "length": 10,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 9834,
+      "offset": 12386,
       "length": 13,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 10562,
+      "offset": 13402,
       "length": 7,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 10579,
+      "offset": 13419,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 10595,
+      "offset": 13435,
       "length": 12,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 10616,
+      "offset": 13456,
       "length": 11,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 10637,
+      "offset": 13477,
       "length": 11,
       "value": "5"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 11541,
+      "offset": 14796,
       "length": 6,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 11557,
+      "offset": 14812,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 12169,
+      "offset": 15646,
       "length": 8,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 12697,
+      "offset": 16362,
       "length": 4,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 12711,
+      "offset": 16376,
       "length": 11,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonView.swift",
-      "kind": "Dictionary",
-      "offset": 735,
-      "length": 3,
-      "value": "[]"
-    },
-    {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonView.swift",
-      "kind": "Dictionary",
-      "offset": 802,
-      "length": 3,
-      "value": "[]"
+      "kind": "IntegerLiteral",
+      "offset": 181,
+      "length": 1,
+      "value": "1"
     }
   ]
 }
