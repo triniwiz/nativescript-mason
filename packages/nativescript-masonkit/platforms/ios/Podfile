@@ -1,0 +1,1 @@
+pod 'NativeScript', path: "../../node_modules/@triniwiz/nativescript-masonkit/pods/NativeScript.podspec"
