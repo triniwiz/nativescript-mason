@@ -410,6 +410,15 @@ extension UIKit.UIView {
   @objc @_Concurrency.MainActor(unsafe) dynamic public var mason: Mason.MasonNode {
     @objc get
   }
+  @objc @_Concurrency.MainActor(unsafe) public static var masonPtr: Swift.Int {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var masonNodePtr: Swift.Int {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var masonStylePtr: Swift.Int {
+    @objc get
+  }
   @objc @_Concurrency.MainActor(unsafe) dynamic public var isMasonEnabled: Swift.Bool {
     @objc get
   }

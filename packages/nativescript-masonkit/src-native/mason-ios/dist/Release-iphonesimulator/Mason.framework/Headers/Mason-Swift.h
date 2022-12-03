@@ -492,6 +492,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class) BOOL alwaysEnable;)
 
 @interface UIView (SWIFT_EXTENSION(Mason))
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull mason;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) NSInteger masonPtr;)
++ (NSInteger)masonPtr SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly) NSInteger masonNodePtr;
+@property (nonatomic, readonly) NSInteger masonStylePtr;
 @property (nonatomic, readonly) BOOL isMasonEnabled;
 @property (nonatomic, strong) MasonStyle * _Nonnull style;
 - (void)addSubviews:(NSArray<UIView *> * _Nonnull)views;
@@ -1008,6 +1012,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class) BOOL alwaysEnable;)
 
 @interface UIView (SWIFT_EXTENSION(Mason))
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull mason;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) NSInteger masonPtr;)
++ (NSInteger)masonPtr SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly) NSInteger masonNodePtr;
+@property (nonatomic, readonly) NSInteger masonStylePtr;
 @property (nonatomic, readonly) BOOL isMasonEnabled;
 @property (nonatomic, strong) MasonStyle * _Nonnull style;
 - (void)addSubviews:(NSArray<UIView *> * _Nonnull)views;

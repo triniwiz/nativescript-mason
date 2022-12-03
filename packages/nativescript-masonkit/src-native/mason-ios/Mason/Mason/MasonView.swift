@@ -29,6 +29,18 @@ extension UIView {
         return mason
     }
     
+    @objc static public var masonPtr: Int {
+        return Int(bitPattern: TSCMason.instance.nativePtr)
+    }
+    
+    @objc public var masonNodePtr: Int {
+        return Int(bitPattern: mason.nativePtr)
+    }
+    
+    @objc public var masonStylePtr: Int {
+        return Int(bitPattern: mason.style.nativePtr)
+    }
+    
     @objc public var isMasonEnabled: Bool {
         return objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) != nil
     }

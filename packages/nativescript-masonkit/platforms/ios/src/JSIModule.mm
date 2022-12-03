@@ -37,7 +37,7 @@ static Value dimensionToJS(Runtime &runtime,CMasonDimension dimension){
 
 
 void install(Runtime &jsiRuntime) {
-  
+    
     
     CREATE_FUNC("__Mason_updateFlexStyleWithValues", 64, [](Runtime &runtime, const Value &thisValue,
                                                             const Value *arguments, size_t count) -> Value {
@@ -141,7 +141,7 @@ void install(Runtime &jsiRuntime) {
         
         auto aspectRatio = (float)arguments[63].asNumber();
         
-        
+
         mason_style_update_with_values(style, display,
                                        positionType,
                                        direction,
@@ -244,7 +244,7 @@ void install(Runtime &jsiRuntime) {
         auto node = reinterpret_cast<void*>((int64_t)arguments[1].asNumber());
         
         
-        mason_node_compute_min_content(mason, node);
+       mason_node_compute_min_content(mason, node);
     
         return Value::undefined();
         

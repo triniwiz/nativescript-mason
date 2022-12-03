@@ -10438,6 +10438,131 @@
           },
           {
             "kind": "Var",
+            "name": "masonPtr",
+            "printedName": "masonPtr",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(cpy)masonPtr",
+            "mangledName": "$sSo6UIViewC5MasonE8masonPtrSivpZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(cm)masonPtr",
+                "mangledName": "$sSo6UIViewC5MasonE8masonPtrSivgZ",
+                "moduleName": "Mason",
+                "static": true,
+                "declAttributes": ["ObjC", "Final"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "masonNodePtr",
+            "printedName": "masonNodePtr",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)masonNodePtr",
+            "mangledName": "$sSo6UIViewC5MasonE12masonNodePtrSivp",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)masonNodePtr",
+                "mangledName": "$sSo6UIViewC5MasonE12masonNodePtrSivg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "masonStylePtr",
+            "printedName": "masonStylePtr",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)masonStylePtr",
+            "mangledName": "$sSo6UIViewC5MasonE13masonStylePtrSivp",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)masonStylePtr",
+                "mangledName": "$sSo6UIViewC5MasonE13masonStylePtrSivg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "isMasonEnabled",
             "printedName": "isMasonEnabled",
             "children": [

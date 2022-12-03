@@ -1,6 +1,9 @@
 interface UIView {
   readonly isMasonEnabled: boolean;
   readonly mason: MasonNode;
+  readonly masonNodePtr: number;
+  readonly masonPtr: number;
+  readonly masonStylePtr: number;
   style: MasonStyle;
 
   addSubviews(views: NSArray<UIView> | UIView[]): void;

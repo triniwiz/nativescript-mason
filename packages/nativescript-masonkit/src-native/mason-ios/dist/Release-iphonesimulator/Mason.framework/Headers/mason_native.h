@@ -79,7 +79,7 @@ void mason_node_compute_max_content(void *mason, void *node);
 
 void mason_node_compute_min_content(void *mason, void *node);
 
-extern void mason_node_compute(void *mason, void *node);
+void mason_node_compute(void *mason, void *node);
 
 void mason_node_set_style(void *mason, void *node, void *style);
 
