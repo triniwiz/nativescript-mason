@@ -8,6 +8,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+typedef enum CMasonDimensionType {
+  Points,
+  Percent,
+  Auto,
+  Undefined,
+} CMasonDimensionType;
+
 typedef struct NodeArray {
   void **array;
   uintptr_t length;
@@ -27,6 +34,11 @@ typedef struct AvailableSpace {
     };
   };
 } AvailableSpace;
+
+typedef struct CMasonDimension {
+  float value;
+  enum CMasonDimensionType value_type;
+} CMasonDimension;
 
 void *mason_init(void);
 
@@ -67,7 +79,7 @@ void mason_node_compute_max_content(void *mason, void *node);
 
 void mason_node_compute_min_content(void *mason, void *node);
 
-void mason_node_compute(void *mason, void *node);
+extern void mason_node_compute(void *mason, void *node);
 
 void mason_node_set_style(void *mason, void *node, void *style);
 
@@ -343,6 +355,194 @@ void mason_style_destroy(void *style);
 int mason_style_get_display(void *style);
 
 void mason_style_set_display(int display, void *style);
+
+void mason_style_set_position_type(int position_type, void *style);
+
+int mason_style_get_position_type(void *style);
+
+void mason_style_set_direction(int _direction, void *_style);
+
+int mason_style_get_direction(void *_style);
+
+void mason_style_set_flex_direction(int direction, void *style);
+
+int mason_style_get_flex_direction(void *style);
+
+void mason_style_set_flex_wrap(int wrap, void *style);
+
+int mason_style_get_flex_wrap(void *style);
+
+void mason_style_set_overflow(int _overflow, void *_style);
+
+int mason_style_get_overflow(void *_style);
+
+void mason_style_set_align_items(int align, void *style);
+
+int mason_style_get_align_items(void *style);
+
+void mason_style_set_align_self(int align, void *style);
+
+int mason_style_get_align_self(void *style);
+
+void mason_style_set_align_content(int align, void *style);
+
+int mason_style_get_align_content(void *style);
+
+void mason_style_set_justify_content(int justify, void *style);
+
+int mason_style_get_justify_content(void *style);
+
+void mason_style_set_position(float left_value,
+                              enum CMasonDimensionType left_value_type,
+                              float right_value,
+                              enum CMasonDimensionType right_value_type,
+                              float top_value,
+                              enum CMasonDimensionType top_value_type,
+                              float bottom_value,
+                              enum CMasonDimensionType bottom_value_type,
+                              void *style);
+
+void mason_style_set_position_left(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_position_left(void *style);
+
+void mason_style_set_position_right(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_position_right(void *style);
+
+void mason_style_set_position_top(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_position_top(void *style);
+
+void mason_style_set_position_bottom(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_position_bottom(void *style);
+
+void mason_style_set_margin(float left_value,
+                            enum CMasonDimensionType left_value_type,
+                            float right_value,
+                            enum CMasonDimensionType right_value_type,
+                            float top_value,
+                            enum CMasonDimensionType top_value_type,
+                            float bottom_value,
+                            enum CMasonDimensionType bottom_value_type,
+                            void *style);
+
+void mason_style_set_margin_left(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_margin_left(void *style);
+
+void mason_style_set_margin_right(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_margin_right(void *style);
+
+void mason_style_set_margin_top(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_margin_top(void *style);
+
+void mason_style_set_margin_bottom(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_margin_bottom(void *style);
+
+void mason_style_set_padding(float left_value,
+                             enum CMasonDimensionType left_value_type,
+                             float right_value,
+                             enum CMasonDimensionType right_value_type,
+                             float top_value,
+                             enum CMasonDimensionType top_value_type,
+                             float bottom_value,
+                             enum CMasonDimensionType bottom_value_type,
+                             void *style);
+
+void mason_style_set_padding_left(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_padding_left(void *style);
+
+void mason_style_set_padding_right(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_padding_right(void *style);
+
+void mason_style_set_padding_top(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_padding_top(void *style);
+
+void mason_style_set_padding_bottom(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_padding_bottom(void *style);
+
+void mason_style_set_border(float left_value,
+                            enum CMasonDimensionType left_value_type,
+                            float right_value,
+                            enum CMasonDimensionType right_value_type,
+                            float top_value,
+                            enum CMasonDimensionType top_value_type,
+                            float bottom_value,
+                            enum CMasonDimensionType bottom_value_type,
+                            void *style);
+
+void mason_style_set_border_left(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_border_left(void *style);
+
+void mason_style_set_border_right(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_border_right(void *style);
+
+void mason_style_set_border_top(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_border_top(void *style);
+
+void mason_style_set_border_bottom(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_border_bottom(void *style);
+
+void mason_style_set_flex_grow(float grow);
+
+float mason_style_get_flex_grow(void *style);
+
+void mason_style_set_flex_shrink(float shrink);
+
+float mason_style_get_flex_shrink(void *style);
+
+void mason_style_set_flex_basis(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_flex_basis(void *style);
+
+void mason_style_set_width(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_width(void *style);
+
+void mason_style_set_height(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_height(void *style);
+
+void mason_style_set_min_width(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_min_width(void *style);
+
+void mason_style_set_min_height(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_min_height(void *style);
+
+void mason_style_set_max_width(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_max_width(void *style);
+
+void mason_style_set_max_height(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_max_height(void *style);
+
+void mason_style_set_gap_width(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_gap_width(void *style);
+
+void mason_style_set_gap_height(float value, enum CMasonDimensionType value_type, void *style);
+
+struct CMasonDimension mason_style_get_gap_height(void *style);
+
+void mason_style_set_aspect_ratio(float ratio, void *style);
+
+float mason_style_get_aspect_ratio(void *style);
 
 void *mason_style_init_with_values(int display,
                                    int position_type,

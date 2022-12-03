@@ -9,6 +9,165 @@ pub use taffy::style::{
     JustifyContent, PositionType,
 };
 
+pub const fn align_content_from_enum(value : i32) -> Option<AlignContent> {
+    match value {
+        0 => Some(AlignContent::FlexStart),
+        1 => Some(AlignContent::FlexEnd),
+        2 => Some(AlignContent::Center),
+        3 => Some(AlignContent::Stretch),
+        4 => Some(AlignContent::SpaceBetween),
+        5 => Some(AlignContent::SpaceAround),
+        6 => Some(AlignContent::SpaceEvenly),
+        _ => None,
+    }
+}
+
+pub const fn align_content_to_enum(value: AlignContent) -> i32 {
+    match value {
+        AlignContent::FlexStart => 0,
+        AlignContent::FlexEnd => 1,
+        AlignContent::Center => 2,
+        AlignContent::Stretch => 3,
+        AlignContent::SpaceBetween => 4,
+        AlignContent::SpaceEvenly => 5,
+        AlignContent::SpaceAround => 6
+    }
+}
+
+pub const fn align_items_from_enum(value : i32) -> Option<AlignItems> {
+    match value {
+        0 => Some(AlignItems::FlexStart),
+        1 => Some(AlignItems::FlexEnd),
+        2 => Some(AlignItems::Center),
+        3 => Some(AlignItems::Baseline),
+        4 => Some(AlignItems::Stretch),
+        _ => None,
+    }
+}
+
+pub const fn align_items_to_enum(value: AlignItems) -> i32 {
+    match value {
+        AlignItems::FlexStart => 0,
+        AlignItems::FlexEnd => 1,
+        AlignItems::Center => 2,
+        AlignItems::Baseline => 3,
+        AlignItems::Stretch => 4
+    }
+}
+
+pub const fn align_self_from_enum(value : i32) -> Option<AlignSelf> {
+    match value {
+        0 => Some(AlignSelf::Auto),
+        1 => Some(AlignSelf::FlexStart),
+        2 => Some(AlignSelf::FlexEnd),
+        3 => Some(AlignSelf::Center),
+        4 => Some(AlignSelf::Baseline),
+        5 => Some(AlignSelf::Stretch),
+        _ => None,
+    }
+}
+
+pub const fn align_self_to_enum(value: AlignSelf) -> i32 {
+    match value {
+        AlignSelf::Auto => 0,
+        AlignSelf::FlexStart => 1,
+        AlignSelf::FlexEnd => 2,
+        AlignSelf::Center => 3,
+        AlignSelf::Baseline => 4,
+        AlignSelf::Stretch => 5
+    }
+}
+
+pub const fn display_from_enum(value : i32) -> Option<Display> {
+    match value {
+        0 => Some(Display::Flex),
+        1 => Some(Display::None),
+        _ => None,
+    }
+}
+
+pub const fn display_to_enum(value: Display) -> i32 {
+    match value {
+        Display::Flex => 0,
+        Display::None => 1,
+    }
+}
+
+pub const fn flex_direction_from_enum(value : i32) -> Option<FlexDirection> {
+    match value {
+        0 => Some(FlexDirection::Row),
+        1 => Some(FlexDirection::Column),
+        2 => Some(FlexDirection::RowReverse),
+        3 => Some(FlexDirection::ColumnReverse),
+        _ => None,
+    }
+}
+
+pub const fn flex_direction_to_enum(value: FlexDirection) -> i32 {
+    match value {
+        FlexDirection::Row => 0,
+        FlexDirection::Column => 1,
+        FlexDirection::RowReverse => 2,
+        FlexDirection::ColumnReverse => 3,
+    }
+}
+
+pub const fn flex_wrap_from_enum(value : i32) -> Option<FlexWrap> {
+    match value {
+        0 => Some(FlexWrap::NoWrap),
+        1 => Some(FlexWrap::Wrap),
+        2 => Some(FlexWrap::WrapReverse),
+        _ => None,
+    }
+}
+
+pub const fn flex_wrap_to_enum(value: FlexWrap) -> i32 {
+    match value {
+        FlexWrap::NoWrap => 0,
+        FlexWrap::Wrap => 1,
+        FlexWrap::WrapReverse => 2,
+    }
+}
+
+pub const fn justify_content_from_enum(value : i32) -> Option<JustifyContent> {
+    match value {
+        0 => Some(JustifyContent::FlexStart),
+        1 => Some(JustifyContent::FlexEnd),
+        2 => Some(JustifyContent::Center),
+        3 => Some(JustifyContent::SpaceBetween),
+        4 => Some(JustifyContent::SpaceAround),
+        5 => Some(JustifyContent::SpaceEvenly),
+        _ => None,
+    }
+}
+
+pub const fn justify_content_to_enum(value: JustifyContent) -> i32 {
+    match value {
+        JustifyContent::FlexStart => 0,
+        JustifyContent::FlexEnd => 1,
+        JustifyContent::Center => 2,
+        JustifyContent::SpaceBetween => 3,
+        JustifyContent::SpaceAround => 4,
+        JustifyContent::SpaceEvenly => 5,
+    }
+}
+
+pub const fn position_type_from_enum(value : i32) -> Option<PositionType> {
+    match value {
+        0 => Some(PositionType::Relative),
+        1 => Some(PositionType::Absolute),
+        _ => None,
+    }
+}
+
+pub const fn position_type_to_enum(value: PositionType) -> i32 {
+    match value {
+        PositionType::Relative => 0,
+        PositionType::Absolute => 1,
+    }
+}
+
+
 use style::Style;
 
 pub mod style;

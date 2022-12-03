@@ -14,6 +14,9 @@ IOS_LIB_ARM_64_PHONE="$IOS_LIB_LIBS/arm64-iphoneos"
 IOS_LIB_ARM_64_MACCATALYST="$IOS_LIB_LIBS/arm64-maccatalyst"
 IOS_LIB_X86_64_MACCATALYST="$IOS_LIB_LIBS/x86_64-maccatalyst"
 
+NS_PACKAGE="$(pwd)/packages/nativescript-masonkit"
+NS_IOS_PACKAGE="$NS_PACKAGE/platforms/ios"
+NS_IOS_PACKAGE_SRC="$NS_IOS_PACKAGE/src"
 
 OUTPUT_LIB_NAME="libmasonnative.a"
 IS_RELEASE=false
@@ -76,7 +79,14 @@ if [[ -f "$IOS_LIB_INCLUDE/mason_native.h" ]]; then
 fi
 
 # TODO fix header generation .... ignore android
-cbindgen --config "$CWD/mason-native/mason-ios/cbindgen.toml"  "$CWD/mason-native/mason-ios/src/lib.rs" -l c >"$IOS_LIB_INCLUDE/mason_native.h"
+cbindgen --config "$CWD/mason-native/mason-ios/cbindgen.toml"  "$CWD/mason-native/mason-ios/src/lib.rs" -l c > "$IOS_LIB_INCLUDE/mason_native.h"
+
+
+if [[ -f "$NS_IOS_PACKAGE_SRC/include/mason_native.h" ]]; then
+  rm "$NS_IOS_PACKAGE_SRC/include/mason_native.h"
+fi
+
+cp "$IOS_LIB_INCLUDE/mason_native.h" "$NS_IOS_PACKAGE_SRC/include/mason_native.h"
 
 
 if [[ -f "$IOS_LIB_ARM_64_PHONE/$OUTPUT_LIB_NAME" ]]; then

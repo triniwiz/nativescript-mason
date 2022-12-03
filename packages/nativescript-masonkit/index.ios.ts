@@ -93,6 +93,8 @@ function _setAlignSelf(value, instance, initial = false) {
   }
 }
 
+export class TSCStyle {}
+
 export class TSCView extends TSCViewBase {
   static {
     TSCMason.alwaysEnable = true;

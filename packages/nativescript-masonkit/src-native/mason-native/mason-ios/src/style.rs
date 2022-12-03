@@ -1,6 +1,105 @@
 use std::ffi::{c_float, c_int, c_void};
-use mason_core::style::Style;
 
+use mason_core::style::Style;
+use mason_core::{
+    align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
+    align_self_from_enum, align_self_to_enum, display_from_enum, display_to_enum,
+    flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum,
+    justify_content_from_enum, justify_content_to_enum, position_type_from_enum,
+    position_type_to_enum, Dimension, Rect,
+};
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CMasonDimensionType {
+    Points,
+    Percent,
+    Auto,
+    Undefined,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonDimension {
+    pub value: f32,
+    pub value_type: CMasonDimensionType,
+}
+
+impl CMasonDimension {
+    pub fn new(value: f32, value_type: CMasonDimensionType) -> Self {
+        Self { value, value_type }
+    }
+
+    pub fn undefined() -> Self {
+        Self {
+            value: 0.,
+            value_type: CMasonDimensionType::Undefined,
+        }
+    }
+    pub fn auto() -> Self {
+        Self {
+            value: 0.,
+            value_type: CMasonDimensionType::Auto,
+        }
+    }
+}
+
+impl From<Dimension> for CMasonDimension {
+    fn from(dimension: Dimension) -> Self {
+        match dimension {
+            Dimension::Undefined => CMasonDimension::undefined(),
+            Dimension::Auto => CMasonDimension::auto(),
+            Dimension::Points(points) => CMasonDimension::new(points, CMasonDimensionType::Points),
+            Dimension::Percent(percent) => {
+                CMasonDimension::new(percent, CMasonDimensionType::Percent)
+            }
+        }
+    }
+}
+
+impl From<&Dimension> for CMasonDimension {
+    fn from(dimension: &Dimension) -> Self {
+        match dimension {
+            Dimension::Undefined => CMasonDimension::undefined(),
+            Dimension::Auto => CMasonDimension::auto(),
+            Dimension::Points(points) => CMasonDimension::new(*points, CMasonDimensionType::Points),
+            Dimension::Percent(percent) => {
+                CMasonDimension::new(*percent, CMasonDimensionType::Percent)
+            }
+        }
+    }
+}
+
+impl From<CMasonDimension> for Dimension {
+    fn from(dimension: CMasonDimension) -> Self {
+        match dimension.value_type {
+            CMasonDimensionType::Undefined => Dimension::Undefined,
+            CMasonDimensionType::Auto => Dimension::Auto,
+            CMasonDimensionType::Points => Dimension::Points(dimension.value),
+            CMasonDimensionType::Percent => Dimension::Percent(dimension.value),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonRect {
+    pub left: CMasonDimension,
+    pub right: CMasonDimension,
+    pub top: CMasonDimension,
+    pub bottom: CMasonDimension,
+}
+
+impl From<Rect<Dimension>> for CMasonRect {
+    fn from(rect: Rect<Dimension>) -> Self {
+        Self {
+            left: rect.left().into(),
+            right: rect.right().into(),
+            top: rect.top().into(),
+            bottom: rect.bottom().into(),
+        }
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn mason_style_init() -> *mut c_void {
@@ -26,10 +125,7 @@ pub extern "C" fn mason_style_get_display(style: *mut c_void) -> c_int {
     unsafe {
         let style = Box::from_raw(style as *mut Style);
 
-        let display = match style.display() {
-            mason_core::Display::Flex => 0,
-            mason_core::Display::None => 1,
-        };
+        let display = display_to_enum(style.display());
 
         Box::leak(style);
 
@@ -44,16 +140,1430 @@ pub extern "C" fn mason_style_set_display(display: c_int, style: *mut c_void) {
     }
 
     unsafe {
+        if let Some(display) = display_from_enum(display) {
+            let mut style = Box::from_raw(style as *mut Style);
+
+            style.set_display(display);
+            Box::leak(style);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_position_type(position_type: c_int, style: *mut c_void) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        if let Some(position_type) = position_type_from_enum(position_type) {
+            let mut style = Box::from_raw(style as *mut Style);
+
+            style.set_position_type(position_type);
+
+            Box::leak(style);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_position_type(style: *mut c_void) -> c_int {
+    if style.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let position = position_type_to_enum(style.position_type());
+
+        Box::leak(style);
+
+        position
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_direction(_direction: c_int, _style: *mut c_void) {
+    // todo
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_direction(_style: *mut c_void) -> c_int {
+    // todo
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_direction(direction: c_int, style: *mut c_void) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        if let Some(value) = flex_direction_from_enum(direction) {
+            let mut style = Box::from_raw(style as *mut Style);
+            style.set_flex_direction(value);
+            Box::leak(style);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_direction(style: *mut c_void) -> c_int {
+    if style.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let position = flex_direction_to_enum(style.flex_direction());
+
+        Box::leak(style);
+
+        position
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_wrap(wrap: c_int, style: *mut c_void) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        if let Some(value) = flex_wrap_from_enum(wrap) {
+            let mut style = Box::from_raw(style as *mut Style);
+            style.set_flex_wrap(value);
+            Box::leak(style);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_wrap(style: *mut c_void) -> c_int {
+    if style.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let position = flex_wrap_to_enum(style.flex_wrap());
+
+        Box::leak(style);
+
+        position
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow(_overflow: c_int, _style: *mut c_void) {
+    // todo
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_overflow(_style: *mut c_void) -> c_int {
+    // todo
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_align_items(align: c_int, style: *mut c_void) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        if let Some(value) = align_items_from_enum(align) {
+            let mut style = Box::from_raw(style as *mut Style);
+            style.set_align_items(value);
+            Box::leak(style);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_align_items(style: *mut c_void) -> c_int {
+    if style.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let align = align_items_to_enum(style.align_items());
+
+        Box::leak(style);
+
+        align
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_align_self(align: c_int, style: *mut c_void) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        if let Some(value) = align_self_from_enum(align) {
+            let mut style = Box::from_raw(style as *mut Style);
+            style.set_align_self(value);
+            Box::leak(style);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_align_self(style: *mut c_void) -> c_int {
+    if style.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let align = align_self_to_enum(style.align_self());
+
+        Box::leak(style);
+
+        align
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_align_content(align: c_int, style: *mut c_void) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        if let Some(value) = align_content_from_enum(align) {
+            let mut style = Box::from_raw(style as *mut Style);
+            style.set_align_content(value);
+            Box::leak(style);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_align_content(style: *mut c_void) -> c_int {
+    if style.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let align = align_content_to_enum(style.align_content());
+
+        Box::leak(style);
+
+        align
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_justify_content(justify: c_int, style: *mut c_void) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        if let Some(value) = justify_content_from_enum(justify) {
+            let mut style = Box::from_raw(style as *mut Style);
+            style.set_justify_content(value);
+            Box::leak(style);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_justify_content(style: *mut c_void) -> c_int {
+    if style.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let justify = justify_content_to_enum(style.justify_content());
+
+        Box::leak(style);
+
+        justify
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_position(
+    left_value: c_float,
+    left_value_type: CMasonDimensionType,
+    right_value: c_float,
+    right_value_type: CMasonDimensionType,
+    top_value: c_float,
+    top_value_type: CMasonDimensionType,
+    bottom_value: c_float,
+    bottom_value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let left = CMasonDimension::new(left_value, left_value_type);
+        let right = CMasonDimension::new(right_value, right_value_type);
+        let top = CMasonDimension::new(top_value, top_value_type);
+        let bottom = CMasonDimension::new(bottom_value, bottom_value_type);
+
         let mut style = Box::from_raw(style as *mut Style);
 
-        let display = match display {
-            0 => mason_core::Display::Flex,
-            1 => mason_core::Display::None,
-            _ => panic!(),
-        };
+        style.set_position_lrtb(left.into(), right.into(), top.into(), bottom.into());
 
-        style.set_display(display);
         Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_position_left(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let left = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_position_left(left.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_position_left(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let left = style.position().left().into();
+
+        Box::leak(style);
+
+        left
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_position_right(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let right = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_position_right(right.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_position_right(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let left = style.position().right().into();
+
+        Box::leak(style);
+
+        left
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_position_top(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let top = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_position_top(top.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_position_top(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let top = style.position().top().into();
+
+        Box::leak(style);
+
+        top
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_position_bottom(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let bottom = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_position_bottom(bottom.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_position_bottom(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let bottom = style.position().bottom().into();
+
+        Box::leak(style);
+
+        bottom
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin(
+    left_value: c_float,
+    left_value_type: CMasonDimensionType,
+    right_value: c_float,
+    right_value_type: CMasonDimensionType,
+    top_value: c_float,
+    top_value_type: CMasonDimensionType,
+    bottom_value: c_float,
+    bottom_value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let left = CMasonDimension::new(left_value, left_value_type);
+        let right = CMasonDimension::new(right_value, right_value_type);
+        let top = CMasonDimension::new(top_value, top_value_type);
+        let bottom = CMasonDimension::new(bottom_value, bottom_value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_margin_lrtb(left.into(), right.into(), top.into(), bottom.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin_left(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let left = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_margin_left(left.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_margin_left(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let left = style.margin().left().into();
+
+        Box::leak(style);
+
+        left
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin_right(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let right = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_margin_right(right.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_margin_right(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let left = style.margin().right().into();
+
+        Box::leak(style);
+
+        left
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin_top(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let top = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_margin_top(top.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_margin_top(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let top = style.margin().top().into();
+
+        Box::leak(style);
+
+        top
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin_bottom(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let bottom = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_margin_bottom(bottom.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_margin_bottom(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let bottom = style.margin().bottom().into();
+
+        Box::leak(style);
+
+        bottom
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding(
+    left_value: c_float,
+    left_value_type: CMasonDimensionType,
+    right_value: c_float,
+    right_value_type: CMasonDimensionType,
+    top_value: c_float,
+    top_value_type: CMasonDimensionType,
+    bottom_value: c_float,
+    bottom_value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let left = CMasonDimension::new(left_value, left_value_type);
+        let right = CMasonDimension::new(right_value, right_value_type);
+        let top = CMasonDimension::new(top_value, top_value_type);
+        let bottom = CMasonDimension::new(bottom_value, bottom_value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_padding_lrtb(left.into(), right.into(), top.into(), bottom.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding_left(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let left = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_padding_left(left.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_padding_left(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let left = style.padding().left().into();
+
+        Box::leak(style);
+
+        left
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding_right(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let right = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_padding_right(right.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_padding_right(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let left = style.padding().right().into();
+
+        Box::leak(style);
+
+        left
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding_top(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let top = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_padding_top(top.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_padding_top(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let top = style.padding().top().into();
+
+        Box::leak(style);
+
+        top
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding_bottom(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let bottom = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_padding_bottom(bottom.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_padding_bottom(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let bottom = style.padding().bottom().into();
+
+        Box::leak(style);
+
+        bottom
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_border(
+    left_value: c_float,
+    left_value_type: CMasonDimensionType,
+    right_value: c_float,
+    right_value_type: CMasonDimensionType,
+    top_value: c_float,
+    top_value_type: CMasonDimensionType,
+    bottom_value: c_float,
+    bottom_value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let left = CMasonDimension::new(left_value, left_value_type);
+        let right = CMasonDimension::new(right_value, right_value_type);
+        let top = CMasonDimension::new(top_value, top_value_type);
+        let bottom = CMasonDimension::new(bottom_value, bottom_value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_border_lrtb(left.into(), right.into(), top.into(), bottom.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_border_left(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let left = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_border_left(left.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_border_left(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let left = style.border().left().into();
+
+        Box::leak(style);
+
+        left
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_border_right(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let right = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_border_right(right.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_border_right(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let left = style.border().right().into();
+
+        Box::leak(style);
+
+        left
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_border_top(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let top = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_border_top(top.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_border_top(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let top = style.border().top().into();
+
+        Box::leak(style);
+
+        top
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_border_bottom(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let bottom = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_border_bottom(bottom.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_border_bottom(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let bottom = style.border().bottom().into();
+
+        Box::leak(style);
+
+        bottom
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_grow(grow: c_float) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_flex_grow(grow);
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_grow(style: *mut c_void) -> c_float {
+    if style.is_null() {
+        return 0.;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let grow = style.flex_grow();
+
+        Box::leak(style);
+
+        grow
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_shrink(shrink: c_float) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_flex_shrink(shrink);
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_shrink(style: *mut c_void) -> c_float {
+    if style.is_null() {
+        return 0.;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let shrink = style.flex_shrink();
+
+        Box::leak(style);
+
+        shrink
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_basis(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let basis = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_flex_basis(basis.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_basis(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let basis = style.flex_basis().into();
+
+        Box::leak(style);
+
+        basis
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_width(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let width = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_size_width(width.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_width(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let width = style.get_size_width().into();
+
+        Box::leak(style);
+
+        width
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_height(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let height = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_size_height(height.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_height(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let height = style.get_size_height().into();
+
+        Box::leak(style);
+
+        height
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_min_width(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let width = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_min_size_width(width.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_min_width(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let width = style.get_min_size_width().into();
+
+        Box::leak(style);
+
+        width
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_min_height(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let height = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_min_size_height(height.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_min_height(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let height = style.get_min_size_height().into();
+
+        Box::leak(style);
+
+        height
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_max_width(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let width = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_max_size_width(width.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_max_width(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let width = style.get_max_size_width().into();
+
+        Box::leak(style);
+
+        width
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_max_height(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let height = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_max_size_height(height.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_max_height(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let height = style.get_max_size_height().into();
+
+        Box::leak(style);
+
+        height
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_gap_width(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let width = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_gap_width(width.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_gap_width(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let width = style.get_gap_width().into();
+
+        Box::leak(style);
+
+        width
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_gap_height(
+    value: c_float,
+    value_type: CMasonDimensionType,
+    style: *mut c_void,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let height = CMasonDimension::new(value, value_type);
+
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_gap_height(height.into());
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_gap_height(style: *mut c_void) -> CMasonDimension {
+    if style.is_null() {
+        return CMasonDimension::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let height = style.get_gap_height().into();
+
+        Box::leak(style);
+
+        height
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_aspect_ratio(ratio: c_float, style: *mut c_void) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        if ratio.is_nan() {
+            style.set_aspect_ratio(None);
+        } else {
+            style.set_aspect_ratio(Some(ratio));
+        }
+
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_aspect_ratio(style: *mut c_void) -> c_float {
+    if style.is_null() {
+        return f32::NAN;
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ratio = style.aspect_ratio().unwrap_or(f32::NAN);
+
+        Box::leak(style);
+
+        ratio
     }
 }
 

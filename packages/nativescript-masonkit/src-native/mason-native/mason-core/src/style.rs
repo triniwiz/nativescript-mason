@@ -3,7 +3,11 @@ use taffy::style::{
     JustifyContent, PositionType,
 };
 
-use crate::{Rect, Size};
+use crate::{
+    align_content_from_enum, align_items_from_enum, align_self_from_enum, display_from_enum,
+    flex_direction_from_enum, flex_wrap_from_enum, justify_content_from_enum,
+    position_type_from_enum, Rect, Size,
+};
 
 #[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub struct Style {
@@ -296,17 +300,10 @@ impl Style {
         flex_gap_height_value: f32,
         aspect_ratio: f32,
     ) {
-        style.style.display = match display {
-            0 => Display::Flex,
-            1 => Display::None,
-            _ => panic!(),
-        };
+        style.style.display = display_from_enum(display).unwrap_or_else(|| panic!());
 
-        style.style.position_type = match position_type {
-            0 => PositionType::Relative,
-            1 => PositionType::Absolute,
-            _ => panic!(),
-        };
+        style.style.position_type =
+            position_type_from_enum(position_type).unwrap_or_else(|| panic!());
 
         /* direction: match direction {
             0 => Direction::Inherit,
@@ -315,20 +312,10 @@ impl Style {
             _ => panic!(),
         }, */
 
-        style.style.flex_direction = match flex_direction {
-            0 => FlexDirection::Row,
-            1 => FlexDirection::Column,
-            2 => FlexDirection::RowReverse,
-            3 => FlexDirection::ColumnReverse,
-            _ => panic!(),
-        };
+        style.style.flex_direction =
+            flex_direction_from_enum(flex_direction).unwrap_or_else(|| panic!());
 
-        style.style.flex_wrap = match flex_wrap {
-            0 => FlexWrap::NoWrap,
-            1 => FlexWrap::Wrap,
-            2 => FlexWrap::WrapReverse,
-            _ => panic!(),
-        };
+        style.style.flex_wrap = flex_wrap_from_enum(flex_wrap).unwrap_or_else(|| panic!());
 
         /*
         overflow: match overflow {
@@ -339,45 +326,15 @@ impl Style {
         },
         */
 
-        style.style.align_items = match align_items {
-            0 => AlignItems::FlexStart,
-            1 => AlignItems::FlexEnd,
-            2 => AlignItems::Center,
-            3 => AlignItems::Baseline,
-            4 => AlignItems::Stretch,
-            _ => panic!(),
-        };
+        style.style.align_items = align_items_from_enum(align_items).unwrap_or_else(|| panic!());
 
-        style.style.align_self = match align_self {
-            0 => AlignSelf::Auto,
-            1 => AlignSelf::FlexStart,
-            2 => AlignSelf::FlexEnd,
-            3 => AlignSelf::Center,
-            4 => AlignSelf::Baseline,
-            5 => AlignSelf::Stretch,
-            _ => panic!(),
-        };
+        style.style.align_self = align_self_from_enum(align_self).unwrap_or_else(|| panic!());
 
-        style.style.align_content = match align_content {
-            0 => AlignContent::FlexStart,
-            1 => AlignContent::FlexEnd,
-            2 => AlignContent::Center,
-            3 => AlignContent::Stretch,
-            4 => AlignContent::SpaceBetween,
-            5 => AlignContent::SpaceAround,
-            6 => AlignContent::SpaceEvenly,
-            _ => panic!(),
-        };
+        style.style.align_content =
+            align_content_from_enum(align_content).unwrap_or_else(|| panic!());
 
-        style.style.justify_content = match justify_content {
-            0 => JustifyContent::FlexStart,
-            1 => JustifyContent::FlexEnd,
-            2 => JustifyContent::Center,
-            3 => JustifyContent::SpaceBetween,
-            4 => JustifyContent::SpaceAround,
-            5 => JustifyContent::SpaceEvenly,
-            _ => panic!(),
-        };
+        style.style.justify_content =
+            justify_content_from_enum(justify_content).unwrap_or_else(|| panic!());
 
         style.style.position = taffy::geometry::Rect {
             left: dimension(position_left_type, position_left_value),
@@ -518,12 +475,90 @@ impl Style {
         self.style.position = position.rect
     }
 
+    pub fn set_position_lrtb(&mut self, left: Dimension, right: Dimension, top: Dimension, bottom: Dimension) {
+        self.style.position.left = left;
+        self.style.position.right = right;
+        self.style.position.top = top;
+        self.style.position.bottom = bottom;
+    }
+
+    pub fn set_position_left(&mut self, left: Dimension) {
+        self.style.position.left = left;
+    }
+
+    pub fn get_position_left(&self) -> Dimension {
+        self.style.position.left
+    }
+
+    pub fn set_position_right(&mut self, right: Dimension) {
+        self.style.position.right = right;
+    }
+
+    pub fn get_position_right(&self) -> Dimension {
+        self.style.position.right
+    }
+
+    pub fn set_position_top(&mut self, top: Dimension) {
+        self.style.position.top = top;
+    }
+
+    pub fn get_position_top(&self) -> Dimension {
+        self.style.position.top
+    }
+
+    pub fn set_position_bottom(&mut self, bottom: Dimension) {
+        self.style.position.bottom = bottom;
+    }
+
+    pub fn get_position_bottom(&self) -> Dimension {
+        self.style.position.bottom
+    }
+
     pub fn margin(&self) -> Rect<Dimension> {
         Rect::from_taffy(self.style.margin)
     }
 
     pub fn set_margin(&mut self, margin: Rect<Dimension>) {
         self.style.margin = margin.rect;
+    }
+
+    pub fn set_margin_lrtb(&mut self, left: Dimension, right: Dimension, top: Dimension, bottom: Dimension) {
+        self.style.margin.left = left;
+        self.style.margin.right = right;
+        self.style.margin.top = top;
+        self.style.margin.bottom = bottom;
+    }
+
+    pub fn set_margin_left(&mut self, left: Dimension) {
+        self.style.margin.left = left;
+    }
+
+    pub fn get_margin_left(&self) -> Dimension {
+        self.style.margin.left
+    }
+
+    pub fn set_margin_right(&mut self, right: Dimension) {
+        self.style.margin.right = right;
+    }
+
+    pub fn get_margin_right(&self) -> Dimension {
+        self.style.margin.right
+    }
+
+    pub fn set_margin_top(&mut self, top: Dimension) {
+        self.style.margin.top = top;
+    }
+
+    pub fn get_margin_top(&self) -> Dimension {
+        self.style.margin.top
+    }
+
+    pub fn set_margin_bottom(&mut self, bottom: Dimension) {
+        self.style.margin.bottom = bottom;
+    }
+
+    pub fn get_margin_bottom(&self) -> Dimension {
+        self.style.margin.bottom
     }
 
     pub fn padding(&self) -> Rect<Dimension> {
@@ -534,12 +569,90 @@ impl Style {
         self.style.padding = padding.rect;
     }
 
+    pub fn set_padding_lrtb(&mut self, left: Dimension, right: Dimension, top: Dimension, bottom: Dimension) {
+        self.style.padding.left = left;
+        self.style.padding.right = right;
+        self.style.padding.top = top;
+        self.style.padding.bottom = bottom;
+    }
+
+    pub fn set_padding_left(&mut self, left: Dimension) {
+        self.style.padding.left = left;
+    }
+
+    pub fn get_padding_left(&self) -> Dimension {
+        self.style.padding.left
+    }
+
+    pub fn set_padding_right(&mut self, right: Dimension) {
+        self.style.padding.right = right;
+    }
+
+    pub fn get_padding_right(&self) -> Dimension {
+        self.style.padding.right
+    }
+
+    pub fn set_padding_top(&mut self, top: Dimension) {
+        self.style.padding.top = top;
+    }
+
+    pub fn get_padding_top(&self) -> Dimension {
+        self.style.padding.top
+    }
+
+    pub fn set_padding_bottom(&mut self, bottom: Dimension) {
+        self.style.padding.bottom = bottom;
+    }
+
+    pub fn get_padding_bottom(&self) -> Dimension {
+        self.style.padding.bottom
+    }
+
     pub fn border(&self) -> Rect<Dimension> {
         Rect::from_taffy(self.style.border)
     }
 
     pub fn set_border(&mut self, border: Rect<Dimension>) {
         self.style.border = border.rect;
+    }
+
+    pub fn set_border_lrtb(&mut self, left: Dimension, right: Dimension, top: Dimension, bottom: Dimension) {
+        self.style.border.left = left;
+        self.style.border.right = right;
+        self.style.border.top = top;
+        self.style.border.bottom = bottom;
+    }
+
+    pub fn set_border_left(&mut self, left: Dimension) {
+        self.style.border.left = left;
+    }
+
+    pub fn get_border_left(&self) -> Dimension {
+        self.style.border.left
+    }
+
+    pub fn set_border_right(&mut self, right: Dimension) {
+        self.style.border.right = right;
+    }
+
+    pub fn get_border_right(&self) -> Dimension {
+        self.style.border.right
+    }
+
+    pub fn set_border_top(&mut self, top: Dimension) {
+        self.style.border.top = top;
+    }
+
+    pub fn get_border_top(&self) -> Dimension {
+        self.style.border.top
+    }
+
+    pub fn set_border_bottom(&mut self, bottom: Dimension) {
+        self.style.border.bottom = bottom;
+    }
+
+    pub fn get_border_bottom(&self) -> Dimension {
+        self.style.border.bottom
     }
 
     pub fn flex_grow(&self) -> f32 {
@@ -574,6 +687,22 @@ impl Style {
         self.style.size = size.size
     }
 
+    pub fn set_size_width(&mut self, width: Dimension) {
+        self.style.size.width = width;
+    }
+
+    pub fn get_size_width(&self) -> Dimension {
+        self.style.size.width
+    }
+
+    pub fn set_size_height(&mut self, height: Dimension) {
+        self.style.size.height = height;
+    }
+
+    pub fn get_size_height(&self) -> Dimension {
+        self.style.size.height
+    }
+
     pub fn min_size(&self) -> Size<Dimension> {
         Size::from_taffy(self.style.min_size)
     }
@@ -582,12 +711,68 @@ impl Style {
         self.style.min_size = min.size
     }
 
+    pub fn set_min_size_width(&mut self, width: Dimension) {
+        self.style.min_size.width = width;
+    }
+
+    pub fn get_min_size_width(&self) -> Dimension {
+        self.style.min_size.width
+    }
+
+    pub fn set_min_size_height(&mut self, height: Dimension) {
+        self.style.min_size.height = height;
+    }
+
+    pub fn get_min_size_height(&self) -> Dimension {
+        self.style.min_size.height
+    }
+
     pub fn max_size(&self) -> Size<Dimension> {
         Size::from_taffy(self.style.max_size)
     }
 
     pub fn set_max_size(&mut self, size: Size<Dimension>) {
         self.style.max_size = size.size;
+    }
+
+    pub fn set_max_size_width(&mut self, width: Dimension) {
+        self.style.max_size.width = width;
+    }
+
+    pub fn get_max_size_width(&self) -> Dimension {
+        self.style.max_size.width
+    }
+
+    pub fn set_max_size_height(&mut self, height: Dimension) {
+        self.style.max_size.height = height;
+    }
+
+    pub fn get_max_size_height(&self) -> Dimension {
+        self.style.max_size.height
+    }
+
+    pub fn gap(&self) -> Size<Dimension> {
+        Size::from_taffy(self.style.gap)
+    }
+
+    pub fn set_gap(&mut self, size: Size<Dimension>) {
+        self.style.gap = size.size;
+    }
+
+    pub fn set_gap_width(&mut self, width: Dimension) {
+        self.style.gap.width = width;
+    }
+
+    pub fn get_gap_width(&self) -> Dimension {
+        self.style.gap.width
+    }
+
+    pub fn set_gap_height(&mut self, height: Dimension) {
+        self.style.gap.height = height;
+    }
+
+    pub fn get_gap_height(&self) -> Dimension {
+        self.style.gap.height
     }
 
     pub fn aspect_ratio(&self) -> Option<f32> {

@@ -47,12 +47,18 @@ Pod::Spec.new do |s|
       ss.header_dir = "inspector"
     end
   
-    s.subspec 'libffi' do |ss|
-      ss.xcconfig = { 'USER_HEADER_SEARCH_PATHS' => '"${PODS_SRC_ROOT}/Headers/include/libffi/*.{h}' }
-      ss.source_files               = "Headers/include/libffi/*.h"
-      ss.header_dir = "libffi"
+    s.subspec 'libffix86' do |ss|
+      ss.xcconfig = { 'USER_HEADER_SEARCH_PATHS' => '"${PODS_SRC_ROOT}/Headers/include/libffi/x86_64/*.{h}' }
+      ss.source_files               = "Headers/include/libffi/x86_64/*.h"
+      ss.header_dir = "libffi/x86_64"
     end
-  
+
+    s.subspec 'libffiarm' do |ss|
+      ss.xcconfig = { 'USER_HEADER_SEARCH_PATHS' => '"${PODS_SRC_ROOT}/Headers/include/libffi/arm64/*.{h}' }
+      ss.source_files               = "Headers/include/libffi/arm64/*.h"
+      ss.header_dir = "libffi/arm64"
+    end
+
     s.subspec 'libplatform' do |ss|
       ss.xcconfig = { 'USER_HEADER_SEARCH_PATHS' => '"${PODS_SRC_ROOT}/Headers/include/libplatform/*.{h}' }
       ss.source_files               = "Headers/include/libplatform/*.h"
