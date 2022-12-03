@@ -134,7 +134,7 @@ pub extern "C" fn mason_style_get_display(style: *mut c_void) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_display(display: c_int, style: *mut c_void) {
+pub extern "C" fn mason_style_set_display(style: *mut c_void, display: c_int) {
     if style.is_null() {
         return;
     }
@@ -150,7 +150,7 @@ pub extern "C" fn mason_style_set_display(display: c_int, style: *mut c_void) {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_position_type(position_type: c_int, style: *mut c_void) {
+pub extern "C" fn mason_style_set_position_type(style: *mut c_void, position_type: c_int) {
     if style.is_null() {
         return;
     }
@@ -184,7 +184,7 @@ pub extern "C" fn mason_style_get_position_type(style: *mut c_void) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_direction(_direction: c_int, _style: *mut c_void) {
+pub extern "C" fn mason_style_set_direction(_style: *mut c_void, _direction: c_int) {
     // todo
 }
 
@@ -195,7 +195,7 @@ pub extern "C" fn mason_style_get_direction(_style: *mut c_void) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_flex_direction(direction: c_int, style: *mut c_void) {
+pub extern "C" fn mason_style_set_flex_direction(style: *mut c_void, direction: c_int) {
     if style.is_null() {
         return;
     }
@@ -227,7 +227,7 @@ pub extern "C" fn mason_style_get_flex_direction(style: *mut c_void) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_flex_wrap(wrap: c_int, style: *mut c_void) {
+pub extern "C" fn mason_style_set_flex_wrap(style: *mut c_void, wrap: c_int) {
     if style.is_null() {
         return;
     }
@@ -259,7 +259,7 @@ pub extern "C" fn mason_style_get_flex_wrap(style: *mut c_void) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_overflow(_overflow: c_int, _style: *mut c_void) {
+pub extern "C" fn mason_style_set_overflow(_style: *mut c_void, _overflow: c_int) {
     // todo
 }
 
@@ -270,7 +270,7 @@ pub extern "C" fn mason_style_get_overflow(_style: *mut c_void) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_align_items(align: c_int, style: *mut c_void) {
+pub extern "C" fn mason_style_set_align_items(style: *mut c_void, align: c_int) {
     if style.is_null() {
         return;
     }
@@ -302,7 +302,7 @@ pub extern "C" fn mason_style_get_align_items(style: *mut c_void) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_align_self(align: c_int, style: *mut c_void) {
+pub extern "C" fn mason_style_set_align_self(style: *mut c_void, align: c_int) {
     if style.is_null() {
         return;
     }
@@ -334,7 +334,7 @@ pub extern "C" fn mason_style_get_align_self(style: *mut c_void) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_align_content(align: c_int, style: *mut c_void) {
+pub extern "C" fn mason_style_set_align_content(style: *mut c_void, align: c_int) {
     if style.is_null() {
         return;
     }
@@ -366,7 +366,7 @@ pub extern "C" fn mason_style_get_align_content(style: *mut c_void) -> c_int {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_justify_content(justify: c_int, style: *mut c_void) {
+pub extern "C" fn mason_style_set_justify_content(style: *mut c_void, justify: c_int) {
     if style.is_null() {
         return;
     }
@@ -399,6 +399,7 @@ pub extern "C" fn mason_style_get_justify_content(style: *mut c_void) -> c_int {
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_position(
+    style: *mut c_void,
     left_value: c_float,
     left_value_type: CMasonDimensionType,
     right_value: c_float,
@@ -407,7 +408,6 @@ pub extern "C" fn mason_style_set_position(
     top_value_type: CMasonDimensionType,
     bottom_value: c_float,
     bottom_value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -429,9 +429,9 @@ pub extern "C" fn mason_style_set_position(
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_position_left(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -467,9 +467,9 @@ pub extern "C" fn mason_style_get_position_left(style: *mut c_void) -> CMasonDim
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_position_right(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -505,9 +505,9 @@ pub extern "C" fn mason_style_get_position_right(style: *mut c_void) -> CMasonDi
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_position_top(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -543,9 +543,9 @@ pub extern "C" fn mason_style_get_position_top(style: *mut c_void) -> CMasonDime
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_position_bottom(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -581,6 +581,7 @@ pub extern "C" fn mason_style_get_position_bottom(style: *mut c_void) -> CMasonD
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin(
+    style: *mut c_void,
     left_value: c_float,
     left_value_type: CMasonDimensionType,
     right_value: c_float,
@@ -589,7 +590,6 @@ pub extern "C" fn mason_style_set_margin(
     top_value_type: CMasonDimensionType,
     bottom_value: c_float,
     bottom_value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -611,9 +611,9 @@ pub extern "C" fn mason_style_set_margin(
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin_left(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -649,9 +649,9 @@ pub extern "C" fn mason_style_get_margin_left(style: *mut c_void) -> CMasonDimen
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin_right(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -687,9 +687,9 @@ pub extern "C" fn mason_style_get_margin_right(style: *mut c_void) -> CMasonDime
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin_top(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -725,9 +725,9 @@ pub extern "C" fn mason_style_get_margin_top(style: *mut c_void) -> CMasonDimens
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin_bottom(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -763,6 +763,7 @@ pub extern "C" fn mason_style_get_margin_bottom(style: *mut c_void) -> CMasonDim
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding(
+    style: *mut c_void,
     left_value: c_float,
     left_value_type: CMasonDimensionType,
     right_value: c_float,
@@ -771,7 +772,6 @@ pub extern "C" fn mason_style_set_padding(
     top_value_type: CMasonDimensionType,
     bottom_value: c_float,
     bottom_value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -793,9 +793,9 @@ pub extern "C" fn mason_style_set_padding(
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding_left(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -831,9 +831,9 @@ pub extern "C" fn mason_style_get_padding_left(style: *mut c_void) -> CMasonDime
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding_right(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -869,9 +869,9 @@ pub extern "C" fn mason_style_get_padding_right(style: *mut c_void) -> CMasonDim
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding_top(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -907,9 +907,9 @@ pub extern "C" fn mason_style_get_padding_top(style: *mut c_void) -> CMasonDimen
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding_bottom(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -945,6 +945,7 @@ pub extern "C" fn mason_style_get_padding_bottom(style: *mut c_void) -> CMasonDi
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border(
+    style: *mut c_void,
     left_value: c_float,
     left_value_type: CMasonDimensionType,
     right_value: c_float,
@@ -953,7 +954,6 @@ pub extern "C" fn mason_style_set_border(
     top_value_type: CMasonDimensionType,
     bottom_value: c_float,
     bottom_value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -975,9 +975,9 @@ pub extern "C" fn mason_style_set_border(
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border_left(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1013,9 +1013,9 @@ pub extern "C" fn mason_style_get_border_left(style: *mut c_void) -> CMasonDimen
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border_right(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1051,9 +1051,9 @@ pub extern "C" fn mason_style_get_border_right(style: *mut c_void) -> CMasonDime
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border_top(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1089,9 +1089,9 @@ pub extern "C" fn mason_style_get_border_top(style: *mut c_void) -> CMasonDimens
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border_bottom(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1191,9 +1191,9 @@ pub extern "C" fn mason_style_get_flex_shrink(style: *mut c_void) -> c_float {
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_flex_basis(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1229,9 +1229,9 @@ pub extern "C" fn mason_style_get_flex_basis(style: *mut c_void) -> CMasonDimens
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_width(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1267,9 +1267,9 @@ pub extern "C" fn mason_style_get_width(style: *mut c_void) -> CMasonDimension {
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_height(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1305,9 +1305,9 @@ pub extern "C" fn mason_style_get_height(style: *mut c_void) -> CMasonDimension 
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_min_width(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1343,9 +1343,9 @@ pub extern "C" fn mason_style_get_min_width(style: *mut c_void) -> CMasonDimensi
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_min_height(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1381,9 +1381,9 @@ pub extern "C" fn mason_style_get_min_height(style: *mut c_void) -> CMasonDimens
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_max_width(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1419,9 +1419,9 @@ pub extern "C" fn mason_style_get_max_width(style: *mut c_void) -> CMasonDimensi
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_max_height(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1457,9 +1457,9 @@ pub extern "C" fn mason_style_get_max_height(style: *mut c_void) -> CMasonDimens
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_gap_width(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1495,9 +1495,9 @@ pub extern "C" fn mason_style_get_gap_width(style: *mut c_void) -> CMasonDimensi
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_gap_height(
+    style: *mut c_void,
     value: c_float,
     value_type: CMasonDimensionType,
-    style: *mut c_void,
 ) {
     if style.is_null() {
         return;
@@ -1532,7 +1532,7 @@ pub extern "C" fn mason_style_get_gap_height(style: *mut c_void) -> CMasonDimens
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_aspect_ratio(ratio: c_float, style: *mut c_void) {
+pub extern "C" fn mason_style_set_aspect_ratio(style: *mut c_void, ratio: c_float) {
     if style.is_null() {
         return;
     }

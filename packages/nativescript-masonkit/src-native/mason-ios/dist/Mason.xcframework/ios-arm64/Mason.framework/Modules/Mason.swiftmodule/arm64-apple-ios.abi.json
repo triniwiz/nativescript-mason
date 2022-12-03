@@ -1821,7 +1821,7 @@
             "mangledName": "$s5Mason0A9ReexportsC12node_computeyySv_SvtFZ",
             "moduleName": "Mason",
             "static": true,
-            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "declAttributes": ["Final", "AccessControl", "ObjC", "RawDocComment"],
             "funcSelfKind": "NonMutating"
           },
           {
@@ -1931,6 +1931,1761 @@
           },
           {
             "kind": "Function",
+            "name": "style_get_display",
+            "printedName": "style_get_display(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_display:",
+            "mangledName": "$s5Mason0A9ReexportsC17style_get_displayys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_display",
+            "printedName": "style_set_display(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_display::",
+            "mangledName": "$s5Mason0A9ReexportsC17style_set_displayyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_position_type",
+            "printedName": "style_get_position_type(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_position_type:",
+            "mangledName": "$s5Mason0A9ReexportsC23style_get_position_typeys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_position_type",
+            "printedName": "style_set_position_type(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_position_type::",
+            "mangledName": "$s5Mason0A9ReexportsC23style_set_position_typeyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_direction",
+            "printedName": "style_get_direction(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_direction:",
+            "mangledName": "$s5Mason0A9ReexportsC19style_get_directionys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_direction",
+            "printedName": "style_set_direction(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_direction::",
+            "mangledName": "$s5Mason0A9ReexportsC19style_set_directionyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_flex_direction",
+            "printedName": "style_get_flex_direction(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_flex_direction:",
+            "mangledName": "$s5Mason0A9ReexportsC24style_get_flex_directionys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_flex_direction",
+            "printedName": "style_set_flex_direction(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_flex_direction::",
+            "mangledName": "$s5Mason0A9ReexportsC24style_set_flex_directionyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_flex_wrap",
+            "printedName": "style_get_flex_wrap(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_flex_wrap:",
+            "mangledName": "$s5Mason0A9ReexportsC19style_get_flex_wrapys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_flex_wrap",
+            "printedName": "style_set_flex_wrap(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_flex_wrap::",
+            "mangledName": "$s5Mason0A9ReexportsC19style_set_flex_wrapyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_overflow",
+            "printedName": "style_get_overflow(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_overflow:",
+            "mangledName": "$s5Mason0A9ReexportsC18style_get_overflowys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_overflow",
+            "printedName": "style_set_overflow(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_overflow::",
+            "mangledName": "$s5Mason0A9ReexportsC18style_set_overflowyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_align_items",
+            "printedName": "style_get_align_items(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_align_items:",
+            "mangledName": "$s5Mason0A9ReexportsC21style_get_align_itemsys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_align_items",
+            "printedName": "style_set_align_items(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_align_items::",
+            "mangledName": "$s5Mason0A9ReexportsC21style_set_align_itemsyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_align_self",
+            "printedName": "style_get_align_self(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_align_self:",
+            "mangledName": "$s5Mason0A9ReexportsC20style_get_align_selfys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_align_self",
+            "printedName": "style_set_align_self(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_align_self::",
+            "mangledName": "$s5Mason0A9ReexportsC20style_set_align_selfyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_align_content",
+            "printedName": "style_get_align_content(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_align_content:",
+            "mangledName": "$s5Mason0A9ReexportsC23style_get_align_contentys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_align_content",
+            "printedName": "style_set_align_content(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_align_content::",
+            "mangledName": "$s5Mason0A9ReexportsC23style_set_align_contentyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_justify_content",
+            "printedName": "style_get_justify_content(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_justify_content:",
+            "mangledName": "$s5Mason0A9ReexportsC25style_get_justify_contentys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_justify_content",
+            "printedName": "style_set_justify_content(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_justify_content::",
+            "mangledName": "$s5Mason0A9ReexportsC25style_set_justify_contentyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_position_left",
+            "printedName": "style_get_position_left(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_position_left:",
+            "mangledName": "$s5Mason0A9ReexportsC23style_get_position_leftySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_position_left",
+            "printedName": "style_set_position_left(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_position_left:::",
+            "mangledName": "$s5Mason0A9ReexportsC23style_set_position_leftyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_position_right",
+            "printedName": "style_get_position_right(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_position_right:",
+            "mangledName": "$s5Mason0A9ReexportsC24style_get_position_rightySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_position_right",
+            "printedName": "style_set_position_right(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_position_right:::",
+            "mangledName": "$s5Mason0A9ReexportsC24style_set_position_rightyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_position_top",
+            "printedName": "style_get_position_top(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_position_top:",
+            "mangledName": "$s5Mason0A9ReexportsC22style_get_position_topySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_position_top",
+            "printedName": "style_set_position_top(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_position_top:::",
+            "mangledName": "$s5Mason0A9ReexportsC22style_set_position_topyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_position_bottom",
+            "printedName": "style_get_position_bottom(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_position_bottom:",
+            "mangledName": "$s5Mason0A9ReexportsC25style_get_position_bottomySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_position_bottom",
+            "printedName": "style_set_position_bottom(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_position_bottom:::",
+            "mangledName": "$s5Mason0A9ReexportsC25style_set_position_bottomyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_margin_left",
+            "printedName": "style_get_margin_left(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_margin_left:",
+            "mangledName": "$s5Mason0A9ReexportsC21style_get_margin_leftySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_margin_left",
+            "printedName": "style_set_margin_left(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_margin_left:::",
+            "mangledName": "$s5Mason0A9ReexportsC21style_set_margin_leftyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_margin_right",
+            "printedName": "style_get_margin_right(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_margin_right:",
+            "mangledName": "$s5Mason0A9ReexportsC22style_get_margin_rightySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_margin_right",
+            "printedName": "style_set_margin_right(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_margin_right:::",
+            "mangledName": "$s5Mason0A9ReexportsC22style_set_margin_rightyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_margin_top",
+            "printedName": "style_get_margin_top(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_margin_top:",
+            "mangledName": "$s5Mason0A9ReexportsC20style_get_margin_topySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_margin_top",
+            "printedName": "style_set_margin_top(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_margin_top:::",
+            "mangledName": "$s5Mason0A9ReexportsC20style_set_margin_topyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_margin_bottom",
+            "printedName": "style_get_margin_bottom(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_margin_bottom:",
+            "mangledName": "$s5Mason0A9ReexportsC23style_get_margin_bottomySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_margin_bottom",
+            "printedName": "style_set_margin_bottom(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_margin_bottom:::",
+            "mangledName": "$s5Mason0A9ReexportsC23style_set_margin_bottomyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_padding_left",
+            "printedName": "style_get_padding_left(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_padding_left:",
+            "mangledName": "$s5Mason0A9ReexportsC22style_get_padding_leftySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_padding_left",
+            "printedName": "style_set_padding_left(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_padding_left:::",
+            "mangledName": "$s5Mason0A9ReexportsC22style_set_padding_leftyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_padding_right",
+            "printedName": "style_get_padding_right(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_padding_right:",
+            "mangledName": "$s5Mason0A9ReexportsC23style_get_padding_rightySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_padding_right",
+            "printedName": "style_set_padding_right(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_padding_right:::",
+            "mangledName": "$s5Mason0A9ReexportsC23style_set_padding_rightyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_padding_top",
+            "printedName": "style_get_padding_top(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_padding_top:",
+            "mangledName": "$s5Mason0A9ReexportsC21style_get_padding_topySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_padding_top",
+            "printedName": "style_set_padding_top(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_padding_top:::",
+            "mangledName": "$s5Mason0A9ReexportsC21style_set_padding_topyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_padding_bottom",
+            "printedName": "style_get_padding_bottom(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_padding_bottom:",
+            "mangledName": "$s5Mason0A9ReexportsC24style_get_padding_bottomySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_padding_bottom",
+            "printedName": "style_set_padding_bottom(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_padding_bottom:::",
+            "mangledName": "$s5Mason0A9ReexportsC24style_set_padding_bottomyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_border_left",
+            "printedName": "style_get_border_left(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_border_left:",
+            "mangledName": "$s5Mason0A9ReexportsC21style_get_border_leftySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_border_left",
+            "printedName": "style_set_border_left(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_border_left:::",
+            "mangledName": "$s5Mason0A9ReexportsC21style_set_border_leftyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_border_right",
+            "printedName": "style_get_border_right(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_border_right:",
+            "mangledName": "$s5Mason0A9ReexportsC22style_get_border_rightySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_border_right",
+            "printedName": "style_set_border_right(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_border_right:::",
+            "mangledName": "$s5Mason0A9ReexportsC22style_set_border_rightyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_border_top",
+            "printedName": "style_get_border_top(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_border_top:",
+            "mangledName": "$s5Mason0A9ReexportsC20style_get_border_topySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_border_top",
+            "printedName": "style_set_border_top(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_border_top:::",
+            "mangledName": "$s5Mason0A9ReexportsC20style_set_border_topyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_border_bottom",
+            "printedName": "style_get_border_bottom(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_border_bottom:",
+            "mangledName": "$s5Mason0A9ReexportsC23style_get_border_bottomySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_border_bottom",
+            "printedName": "style_set_border_bottom(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_border_bottom:::",
+            "mangledName": "$s5Mason0A9ReexportsC23style_set_border_bottomyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_flex_grow",
+            "printedName": "style_get_flex_grow(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_flex_grow:",
+            "mangledName": "$s5Mason0A9ReexportsC19style_get_flex_growySfSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_border_bottom",
+            "printedName": "style_set_border_bottom(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_border_bottom::",
+            "mangledName": "$s5Mason0A9ReexportsC23style_set_border_bottomyySv_SftFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_flex_shrink",
+            "printedName": "style_get_flex_shrink(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_flex_shrink:",
+            "mangledName": "$s5Mason0A9ReexportsC21style_get_flex_shrinkySfSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_flex_shrink",
+            "printedName": "style_set_flex_shrink(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_flex_shrink::",
+            "mangledName": "$s5Mason0A9ReexportsC21style_set_flex_shrinkyySv_SftFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_flex_basis",
+            "printedName": "style_set_flex_basis(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_flex_basis:::",
+            "mangledName": "$s5Mason0A9ReexportsC20style_set_flex_basisyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_flex_basis",
+            "printedName": "style_get_flex_basis(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_flex_basis:",
+            "mangledName": "$s5Mason0A9ReexportsC20style_get_flex_basisySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "style_get_width",
             "printedName": "style_get_width(_:)",
             "children": [
@@ -1957,6 +3712,43 @@
           },
           {
             "kind": "Function",
+            "name": "style_set_width",
+            "printedName": "style_set_width(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_width:::",
+            "mangledName": "$s5Mason0A9ReexportsC15style_set_widthyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "style_get_height",
             "printedName": "style_get_height(_:)",
             "children": [
@@ -1976,6 +3768,478 @@
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_height:",
             "mangledName": "$s5Mason0A9ReexportsC16style_get_heightySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_height",
+            "printedName": "style_set_height(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_height:::",
+            "mangledName": "$s5Mason0A9ReexportsC16style_set_heightyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_min_width",
+            "printedName": "style_get_min_width(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_min_width:",
+            "mangledName": "$s5Mason0A9ReexportsC19style_get_min_widthySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_min_width",
+            "printedName": "style_set_min_width(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_min_width:::",
+            "mangledName": "$s5Mason0A9ReexportsC19style_set_min_widthyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_min_height",
+            "printedName": "style_get_min_height(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_min_height:",
+            "mangledName": "$s5Mason0A9ReexportsC20style_get_min_heightySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_min_height",
+            "printedName": "style_set_min_height(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_min_height:::",
+            "mangledName": "$s5Mason0A9ReexportsC20style_set_min_heightyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_max_width",
+            "printedName": "style_get_max_width(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_max_width:",
+            "mangledName": "$s5Mason0A9ReexportsC19style_get_max_widthySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_max_width",
+            "printedName": "style_set_max_width(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_max_width:::",
+            "mangledName": "$s5Mason0A9ReexportsC19style_set_max_widthyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_max_height",
+            "printedName": "style_get_max_height(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_max_height:",
+            "mangledName": "$s5Mason0A9ReexportsC20style_get_max_heightySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_max_height",
+            "printedName": "style_set_max_height(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_max_height:::",
+            "mangledName": "$s5Mason0A9ReexportsC20style_set_max_heightyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_gap_width",
+            "printedName": "style_get_gap_width(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_gap_width:",
+            "mangledName": "$s5Mason0A9ReexportsC19style_get_gap_widthySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_gap_width",
+            "printedName": "style_set_gap_width(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_gap_width:::",
+            "mangledName": "$s5Mason0A9ReexportsC19style_set_gap_widthyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_gap_height",
+            "printedName": "style_get_gap_height(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimension",
+                "printedName": "Mason.CMasonDimension",
+                "usr": "c:@S@CMasonDimension"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_gap_height:",
+            "mangledName": "$s5Mason0A9ReexportsC20style_get_gap_heightySo15CMasonDimensionVSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_gap_height",
+            "printedName": "style_set_gap_height(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonDimensionType",
+                "printedName": "Mason.CMasonDimensionType",
+                "usr": "c:@E@CMasonDimensionType"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_gap_height:::",
+            "mangledName": "$s5Mason0A9ReexportsC20style_set_gap_heightyySv_SfSo19CMasonDimensionTypeVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_aspect_ratio",
+            "printedName": "style_get_aspect_ratio(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_aspect_ratio:",
+            "mangledName": "$s5Mason0A9ReexportsC22style_get_aspect_ratioySfSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_aspect_ratio",
+            "printedName": "style_set_aspect_ratio(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_aspect_ratio::",
+            "mangledName": "$s5Mason0A9ReexportsC22style_set_aspect_ratioyySv_SftFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -2412,7 +4676,7 @@
         "mangledName": "$s5Mason0A9ReexportsC",
         "moduleName": "Mason",
         "objc_name": "MasonReexports",
-        "declAttributes": ["AccessControl", "ObjC", "ObjCMembers"],
+        "declAttributes": ["AccessControl", "ObjC", "ObjCMembers", "RawDocComment"],
         "superclassUsr": "c:objc(cs)NSObject",
         "inheritsConvenienceInitializers": true,
         "superclassNames": ["ObjectiveC.NSObject"],

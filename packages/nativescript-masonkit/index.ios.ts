@@ -1,6 +1,8 @@
 import { heightProperty, Length, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, Utils, widthProperty } from '@nativescript/core';
 import { alignSelfProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
-import { TSCViewBase } from './common';
+import { Display, displayProperty, TSCViewBase } from './common';
+
+let JSIEnabled = false;
 
 function _parseLength(value): { value: number; type: 'auto' | 'points' | 'percent' | 'undefined' } {
   if (value === undefined || value === null) {
@@ -9,7 +11,6 @@ function _parseLength(value): { value: number; type: 'auto' | 'points' | 'percen
   if (value === 'auto') {
     return { value: 0, type: 'auto' };
   }
-
   if (typeof value === 'object') {
     switch (value?.unit) {
       case '%':
@@ -18,8 +19,6 @@ function _parseLength(value): { value: number; type: 'auto' | 'points' | 'percen
         return { value: value.value, type: 'points' };
       case 'dip':
         return { value: Utils.layout.toDevicePixels(value.value), type: 'points' };
-      default:
-        break;
     }
   }
 
@@ -93,23 +92,143 @@ function _setAlignSelf(value, instance, initial = false) {
   }
 }
 
+function _setDisplay(value, instance: TSCView, initial = false) {
+  if (initial && value === 'flex') {
+    return;
+  }
+
+  if (instance._hasNativeView) {
+    if (JSIEnabled) {
+      switch (value) {
+        case 'flex':
+          global.__Mason_setDisplay(instance._masonStylePtr, 0);
+          break;
+        case 'none':
+          global.__Mason_setDisplay(instance._masonStylePtr, 1);
+          break;
+      }
+    } else {
+      switch (value) {
+        case 'flex':
+          (instance.ios as UIView).mason.style.display = 1;
+          break;
+        case 'none':
+          (instance.ios as UIView).mason.style.display = 0;
+          break;
+      }
+    }
+  }
+}
+
+function _setWidth(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+  const val = _parseLength(value);
+  switch (val.type) {
+    case 'auto':
+      if (JSIEnabled) {
+        global.__Mason_setWidth(instance._masonStylePtr, 0, MasonDimensionCompatType.Auto);
+      } else {
+        instance.ios.style.setSizeWidth(0, MasonDimensionCompatType.Auto);
+      }
+      break;
+    case 'undefined':
+      if (JSIEnabled) {
+        global.__Mason_setWidth(instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined);
+      } else {
+        instance.ios.style.setSizeWidth(0, MasonDimensionCompatType.Undefined);
+      }
+
+      break;
+    case 'percent':
+      if (JSIEnabled) {
+        global.__Mason_setWidth(instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent);
+      } else {
+        instance.ios.style.setSizeWidth(val.value, MasonDimensionCompatType.Percent);
+      }
+      break;
+    case 'points':
+      if (JSIEnabled) {
+        global.__Mason_setWidth(instance._masonStylePtr, val.value, MasonDimensionCompatType.Points);
+      } else {
+        instance.ios.style.setSizeWidth(val.value, MasonDimensionCompatType.Points);
+      }
+      break;
+  }
+}
+
+function _setHeight(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+  const val = _parseLength(value);
+
+  switch (val.type) {
+    case 'auto':
+      if (JSIEnabled) {
+        global.__Mason_setHeight(instance._masonStylePtr, 0, MasonDimensionCompatType.Auto);
+      } else {
+        instance.ios.style.setSizeHeight(0, MasonDimensionCompatType.Auto);
+      }
+      break;
+    case 'undefined':
+      if (JSIEnabled) {
+        global.__Mason_setHeight(instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined);
+      } else {
+        instance.ios.style.setSizeHeight(0, MasonDimensionCompatType.Undefined);
+      }
+
+      break;
+    case 'percent':
+      if (JSIEnabled) {
+        global.__Mason_setHeight(instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent);
+      } else {
+        instance.ios.style.setSizeHeight(val.value, MasonDimensionCompatType.Percent);
+      }
+      break;
+    case 'points':
+      if (JSIEnabled) {
+        global.__Mason_setHeight(instance._masonStylePtr, val.value, MasonDimensionCompatType.Points);
+      } else {
+        instance.ios.style.setSizeHeight(val.value, MasonDimensionCompatType.Points);
+      }
+      break;
+  }
+}
+
 export class TSCView extends TSCViewBase {
   static {
     TSCMason.alwaysEnable = true;
-    if (!global.__Mason_getWidth) {
+    if (!JSIEnabled) {
       //@ts-ignore
       const module = new JSIModule();
       console.log(module.install());
       console.log('creating module');
+      JSIEnabled = true;
     }
   }
+
+  _masonStylePtr = 0;
+  _masonNodePtr = 0;
+  _masonPtr = 0;
+  _hasNativeView = false;
 
   createNativeView() {
     const view = UIView.alloc().initWithFrame(CGRectZero);
     view.mason.isEnabled = true;
     this.style.minWidth = undefined;
     this.style.minHeight = undefined;
+    this._masonStylePtr = view.masonStylePtr;
+    this._masonNodePtr = view.masonNodePtr;
+    this._masonPtr = view.masonPtr;
+    this._hasNativeView = true;
     return view;
+  }
+
+  disposeNativeView(): void {
+    this._hasNativeView = false;
+    super.disposeNativeView();
   }
 
   //@ts-ignore
@@ -169,17 +288,17 @@ export class TSCView extends TSCViewBase {
       this.ios.mason.computeWithViewSize();
 
       /*
-      console.log('JSI method', global.__Mason_getWidth);
+      console.log('JSI method', JSIEnabled);
 
       // cache the ptr value since it's not going to change
       const masonStylePtr = this.ios.masonStylePtr;
       console.time('JSI: getWidth');
       for (let i = 0; i < 1000000; i++) {
-        global.__Mason_getWidth(masonStylePtr);
+        JSIEnabled(masonStylePtr);
       }
       console.timeEnd('JSI: getWidth');
 
-      console.log('JSI', 'width', global.__Mason_getWidth(this.ios.masonStylePtr));
+      console.log('JSI', 'width', JSIEnabled(this.ios.masonStylePtr));
 
       console.time('runtime: getWidth');
       for (let i = 0; i < 1000000; i++) {
@@ -221,6 +340,35 @@ export class TSCView extends TSCViewBase {
     // });
 
     console.timeEnd('onLoaded');
+  }
+
+  //@ts-ignore
+  get display() {
+    if (!this.ios) {
+      return 'flex';
+    }
+
+    if (JSIEnabled) {
+      const value = global.__Mason_getDisplay(this._masonStylePtr);
+      switch (value) {
+        case 0:
+          return 'flex';
+        case 1:
+          return 'none';
+      }
+    } else {
+      switch (this.ios.mason.style.display) {
+        case 0:
+          return 'flex';
+        case 1:
+          return 'none';
+      }
+    }
+  }
+
+  //@ts-ignore
+  set display(value) {
+    _setDisplay(value, this);
   }
 
   [paddingLeftProperty.getDefault]() {
@@ -346,46 +494,36 @@ export class TSCView extends TSCViewBase {
   //@ts-ignore
   set width(value) {
     this.style.width = value;
+    _setWidth(value, this);
+  }
+
+  //@ts-ignore
+  get width() {
     if (!this.ios) {
-      return;
+      return this.style.width;
     }
-    const val = _parseLength(value);
-    switch (val.type) {
-      case 'auto':
-        this.ios.style.setSizeWidth(0, MasonDimensionCompatType.Auto);
-        break;
-      case 'undefined':
-        this.ios.style.setSizeWidth(0, MasonDimensionCompatType.Undefined);
-        break;
-      case 'percent':
-        this.ios.style.setSizeWidth(val.value, MasonDimensionCompatType.Percent);
-        break;
-      case 'points':
-        this.ios.style.setSizeWidth(val.value, MasonDimensionCompatType.Points);
-        break;
+    if (JSIEnabled) {
+      return global.__Mason_getWidth(this._masonStylePtr);
+    } else {
+      return this.ios.mason.style.sizeCompatWidth.cssValue;
     }
   }
 
   //@ts-ignore
   set height(value) {
     this.style.height = value;
+    _setHeight(value, this);
+  }
+
+  //@ts-ignore
+  get height() {
     if (!this.ios) {
-      return;
+      return this.style.height;
     }
-    const val = _parseLength(value);
-    switch (val.type) {
-      case 'auto':
-        this.ios.style.setSizeHeight(0, MasonDimensionCompatType.Auto);
-        break;
-      case 'undefined':
-        this.ios.style.setSizeHeight(0, MasonDimensionCompatType.Undefined);
-        break;
-      case 'percent':
-        this.ios.style.setSizeHeight(val.value, MasonDimensionCompatType.Percent);
-        break;
-      case 'points':
-        this.ios.style.setSizeHeight(val.value, MasonDimensionCompatType.Points);
-        break;
+    if (JSIEnabled) {
+      return global.__Mason_getHeight(this._masonStylePtr);
+    } else {
+      return this.ios.mason.style.sizeCompatHeight.cssValue;
     }
   }
 

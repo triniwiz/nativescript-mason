@@ -36,6 +36,36 @@ static Value dimensionToJS(Runtime &runtime,CMasonDimension dimension){
     }
 }
 
+static CMasonDimension jsToDimension(float value, int value_type){
+    switch (value_type) {
+        case CMasonDimensionType::Auto:
+            return CMasonDimension {value, CMasonDimensionType::Auto};
+        case CMasonDimensionType::Percent: {
+            return CMasonDimension {value, CMasonDimensionType::Percent};
+        }
+        case CMasonDimensionType::Points: {
+            return CMasonDimension {value, CMasonDimensionType::Points};
+        }
+        default:
+            return CMasonDimension {value, CMasonDimensionType::Undefined};
+    }
+}
+
+static CMasonDimensionType jsToDimensionType(int value_type){
+    switch (value_type) {
+        case CMasonDimensionType::Auto:
+            return CMasonDimensionType::Auto;
+        case CMasonDimensionType::Percent: {
+            return CMasonDimensionType::Percent;
+        }
+        case CMasonDimensionType::Points: {
+            return CMasonDimensionType::Points;
+        }
+        default:
+            return CMasonDimensionType::Undefined;
+    }
+}
+
 
 void install(Runtime &jsiRuntime) {
     
@@ -270,14 +300,73 @@ void install(Runtime &jsiRuntime) {
     */
     
     
-    CREATE_FUNC("__Mason_getWidth", 2, [](Runtime &runtime, const Value &thisValue,
+//    CREATE_FUNC("__Mason_getComputedLayout", 2, [](Runtime &runtime, const Value &thisValue,
+//                                          const Value *arguments, size_t count) -> Value {
+//
+//        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
+//
+//        auto layout = Object(runtime);
+//
+//        auto layoutPtr = &layout;
+//
+//
+//        auto width = [MasonReexports style_get_width:style];
+//
+//        return dimensionToJS(runtime, width);
+//
+//    });
+    
+    
+    CREATE_FUNC("__Mason_getDisplay", 1, [](Runtime &runtime, const Value &thisValue,
+                                          const Value *arguments, size_t count) -> Value {
+        
+        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
+
+        auto value = [MasonReexports style_get_display:style];
+        
+        return Value(value);
+        
+    });
+    
+    
+    CREATE_FUNC("__Mason_setDisplay", 2, [](Runtime &runtime, const Value &thisValue,
+                                          const Value *arguments, size_t count) -> Value {
+        
+        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
+        auto display = (int)arguments[1].asNumber();
+
+        [MasonReexports style_set_display:style :display];
+        
+        return Value::undefined();
+        
+    });
+    
+    
+//
+    
+    CREATE_FUNC("__Mason_getWidth", 1, [](Runtime &runtime, const Value &thisValue,
                                           const Value *arguments, size_t count) -> Value {
         
         auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
 
         auto width = [MasonReexports style_get_width:style];
         
-        return dimensionToJS(runtime, width);
+        return Value((double)width.value);//dimensionToJS(runtime, width);
+        
+    });
+    
+    CREATE_FUNC("__Mason_setWidth", 3, [](Runtime &runtime, const Value &thisValue,
+                                          const Value *arguments, size_t count) -> Value {
+        
+        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
+        
+        auto value = (float)arguments[1].asNumber();
+        auto value_type = (int)arguments[2].asNumber();
+
+      
+        [MasonReexports style_set_width:style :value :jsToDimensionType(value_type)];
+        
+        return Value::undefined();
         
     });
     
@@ -289,7 +378,23 @@ void install(Runtime &jsiRuntime) {
 
         auto height = [MasonReexports style_get_height:style];
 
-        return dimensionToJS(runtime, height);
+       // return dimensionToJS(runtime, height);
+        
+        return Value((double)height.value);
+    });
+    
+    CREATE_FUNC("__Mason_setHeight", 3, [](Runtime &runtime, const Value &thisValue,
+                                          const Value *arguments, size_t count) -> Value {
+        
+        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
+        
+        auto value = (float)arguments[1].asNumber();
+        auto value_type = (int)arguments[2].asNumber();
+
+      
+        [MasonReexports style_set_height:style :value :jsToDimensionType(value_type)];
+        
+        return Value::undefined();
         
     });
     
