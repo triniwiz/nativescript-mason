@@ -1,0 +1,160 @@
+//
+//  Reexports.swift
+//  Mason
+//
+//  Created by Osei Fortune on 03/12/2022.
+//
+
+import Foundation
+
+@objcMembers
+@objc(MasonReexports)
+public class MasonReexports: NSObject {
+    @objc public static func node_compute(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer){
+        mason_node_compute(mason, node)
+    }
+    
+    public static func node_compute_wh(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer, width: Float, height: Float){
+        mason_node_compute_wh(mason, node, width, height)
+    }
+    
+    public static func node_compute_max_content(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer){
+        mason_node_compute_max_content(mason, node)
+    }
+    
+    public static func node_compute_min_content(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer){
+        mason_node_compute_min_content(mason, node)
+    }
+    
+    public static func style_get_width(_ node: UnsafeMutableRawPointer) -> CMasonDimension {
+        return mason_style_get_width(node)
+    }
+    
+    public static func style_get_height(_ node: UnsafeMutableRawPointer) -> CMasonDimension {
+        return mason_style_get_height(node)
+    }
+    
+    public static func style_update_with_values(_ style: UnsafeMutableRawPointer,
+                                                _ display: Int32,
+                                                _ positionType: Int32,
+                                                _ direction: Int32,
+                                                _ flexDirection: Int32,
+                                                _ flexWrap: Int32,
+                                                _ overflow: Int32,
+                                                _ alignItems: Int32,
+                                                _ alignSelf: Int32,
+                                                _ alignContent: Int32,
+                                                _ justifyContent: Int32,
+                                                
+                                                _ positionLeftType: Int32,
+                                                _ positionLeftValue: Float,
+                                                _ positionRightType: Int32,
+                                                _ positionRightValue: Float,
+                                                _ positionTopType: Int32,
+                                                _ positionTopValue: Float,
+                                                _ positionBottomType: Int32,
+                                                _ positionBottomValue: Float,
+                                                
+                                                _ marginLeftType: Int32,
+                                                _ marginLeftValue: Float,
+                                                _ marginRightType: Int32,
+                                                _ marginRightValue: Float,
+                                                _ marginTopType: Int32,
+                                                _ marginTopValue: Float,
+                                                _ marginBottomType: Int32,
+                                                _ marginBottomValue: Float,
+                                                
+                                                _ paddingLeftType: Int32,
+                                                _ paddingLeftValue: Float,
+                                                _ paddingRightType: Int32,
+                                                _ paddingRightValue: Float,
+                                                _ paddingTopType: Int32,
+                                                _ paddingTopValue: Float,
+                                                _ paddingBottomType: Int32,
+                                                _ paddingBottomValue: Float,
+                                                
+                                                _ borderLeftType: Int32,
+                                                _ borderLeftValue: Float,
+                                                _ borderRightType: Int32,
+                                                _ borderRightValue: Float,
+                                                _ borderTopType: Int32,
+                                                _ borderTopValue: Float,
+                                                _ borderBottomType: Int32,
+                                                _ borderBottomValue: Float,
+                                                
+                                                _ flexGrow: Float,
+                                                _ flexShrink: Float,
+                                                
+                                                _ flexBasisType: Int32,
+                                                _ flexBasisValue: Float,
+                                                
+                                                _ widthType: Int32,
+                                                _ widthValue: Float,
+                                                _ heightType: Int32,
+                                                _ heightValue: Float,
+                                                
+                                                _ minWidthType: Int32,
+                                                _ minWidthValue: Float,
+                                                _ minHeightType: Int32,
+                                                _ minHeightValue: Float,
+                                                
+                                                _ maxWidthType: Int32,
+                                                _ maxWidthValue: Float,
+                                                _ maxHeightType: Int32,
+                                                _ maxHeightValue: Float,
+                                                
+                                                _ flexGapWidthType: Int32,
+                                                _ flexGapWidthValue: Float,
+                                                _ flexGapHeightType: Int32,
+                                                _ flexGapHeightValue: Float,
+                                                
+                                                aspectRatio: Float){
+        mason_style_update_with_values(style, display,
+                                       positionType,
+                                       direction,
+                                       flexDirection,
+                                       flexWrap,
+                                       overflow,
+                                       alignItems,
+                                       alignSelf,
+                                       alignContent,
+                                       justifyContent,
+                                       
+                                       positionLeftType, positionLeftValue,
+                                       positionRightType, positionRightValue,
+                                       positionTopType, positionTopValue,
+                                       positionBottomType, positionBottomValue,
+                                       
+                                       marginLeftType, marginLeftValue,
+                                       marginRightType, marginRightValue,
+                                       marginTopType, marginTopValue,
+                                       marginBottomType, marginBottomValue,
+                                       
+                                       paddingLeftType, paddingLeftValue,
+                                       paddingRightType, paddingRightValue,
+                                       paddingTopType, paddingTopValue,
+                                       paddingBottomType, paddingBottomValue,
+                                       
+                                       borderLeftType, borderLeftValue,
+                                       borderRightType, borderRightValue,
+                                       borderTopType, borderTopValue,
+                                       borderBottomType, borderBottomValue,
+                                       
+                                       flexGrow, flexShrink,
+                                       flexBasisType, flexBasisValue,
+                                       
+                                       widthType, widthValue,
+                                       heightType, heightValue,
+                                       
+                                       minWidthType, minWidthValue,
+                                       minHeightType, minHeightValue,
+                                       
+                                       maxWidthType, maxWidthValue,
+                                       maxHeightType, maxHeightValue,
+                                       
+                                       flexGapWidthType, flexGapWidthValue,
+                                       flexGapHeightType, flexGapHeightValue,
+                                       aspectRatio)
+    }
+}
+

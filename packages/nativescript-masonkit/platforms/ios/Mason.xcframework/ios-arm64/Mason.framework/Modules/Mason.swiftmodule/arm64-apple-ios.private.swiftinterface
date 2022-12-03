@@ -72,6 +72,17 @@ import _StringProcessing
   }
   @objc deinit
 }
+@_inheritsConvenienceInitializers @objcMembers @objc(MasonReexports) public class MasonReexports : ObjectiveC.NSObject {
+  @objc public static func node_compute(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer)
+  @objc public static func node_compute_wh(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer, width: Swift.Float, height: Swift.Float)
+  @objc public static func node_compute_max_content(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer)
+  @objc public static func node_compute_min_content(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer)
+  @objc public static func style_get_width(_ node: Swift.UnsafeMutableRawPointer) -> Mason.CMasonDimension
+  @objc public static func style_get_height(_ node: Swift.UnsafeMutableRawPointer) -> Mason.CMasonDimension
+  @objc public static func style_update_with_values(_ style: Swift.UnsafeMutableRawPointer, _ display: Swift.Int32, _ positionType: Swift.Int32, _ direction: Swift.Int32, _ flexDirection: Swift.Int32, _ flexWrap: Swift.Int32, _ overflow: Swift.Int32, _ alignItems: Swift.Int32, _ alignSelf: Swift.Int32, _ alignContent: Swift.Int32, _ justifyContent: Swift.Int32, _ positionLeftType: Swift.Int32, _ positionLeftValue: Swift.Float, _ positionRightType: Swift.Int32, _ positionRightValue: Swift.Float, _ positionTopType: Swift.Int32, _ positionTopValue: Swift.Float, _ positionBottomType: Swift.Int32, _ positionBottomValue: Swift.Float, _ marginLeftType: Swift.Int32, _ marginLeftValue: Swift.Float, _ marginRightType: Swift.Int32, _ marginRightValue: Swift.Float, _ marginTopType: Swift.Int32, _ marginTopValue: Swift.Float, _ marginBottomType: Swift.Int32, _ marginBottomValue: Swift.Float, _ paddingLeftType: Swift.Int32, _ paddingLeftValue: Swift.Float, _ paddingRightType: Swift.Int32, _ paddingRightValue: Swift.Float, _ paddingTopType: Swift.Int32, _ paddingTopValue: Swift.Float, _ paddingBottomType: Swift.Int32, _ paddingBottomValue: Swift.Float, _ borderLeftType: Swift.Int32, _ borderLeftValue: Swift.Float, _ borderRightType: Swift.Int32, _ borderRightValue: Swift.Float, _ borderTopType: Swift.Int32, _ borderTopValue: Swift.Float, _ borderBottomType: Swift.Int32, _ borderBottomValue: Swift.Float, _ flexGrow: Swift.Float, _ flexShrink: Swift.Float, _ flexBasisType: Swift.Int32, _ flexBasisValue: Swift.Float, _ widthType: Swift.Int32, _ widthValue: Swift.Float, _ heightType: Swift.Int32, _ heightValue: Swift.Float, _ minWidthType: Swift.Int32, _ minWidthValue: Swift.Float, _ minHeightType: Swift.Int32, _ minHeightValue: Swift.Float, _ maxWidthType: Swift.Int32, _ maxWidthValue: Swift.Float, _ maxHeightType: Swift.Int32, _ maxHeightValue: Swift.Float, _ flexGapWidthType: Swift.Int32, _ flexGapWidthValue: Swift.Float, _ flexGapHeightType: Swift.Int32, _ flexGapHeightValue: Swift.Float, aspectRatio: Swift.Float)
+  @objc override dynamic public init()
+  @objc deinit
+}
 @_inheritsConvenienceInitializers @objc(MasonStyle) @objcMembers public class MasonStyle : ObjectiveC.NSObject {
   @objc public var nativePtr: Swift.UnsafeMutableRawPointer! {
     get
@@ -198,6 +209,14 @@ import _StringProcessing
     set
   }
   @objc public var sizeCompat: Mason.MasonSizeCompat {
+    @objc get
+    @objc set
+  }
+  @objc public var sizeCompatWidth: Mason.MasonDimensionCompat {
+    @objc get
+    @objc set
+  }
+  @objc public var sizeCompatHeight: Mason.MasonDimensionCompat {
     @objc get
     @objc set
   }

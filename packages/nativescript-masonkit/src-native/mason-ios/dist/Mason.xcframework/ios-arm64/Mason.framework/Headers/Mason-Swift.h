@@ -235,6 +235,8 @@ using UInt = size_t;
 @import UIKit;
 #endif
 
+#import <Mason/Mason.h>
+
 #endif
 #pragma clang diagnostic ignored "-Wproperty-attribute-mismatch"
 #pragma clang diagnostic ignored "-Wduplicate-method-arg"
@@ -387,6 +389,19 @@ SWIFT_CLASS_NAMED("MasonRectCompat")
 @end
 
 
+SWIFT_CLASS_NAMED("MasonReexports")
+@interface MasonReexports : NSObject
++ (void)node_compute:(void * _Nonnull)mason :(void * _Nonnull)node;
++ (void)node_compute_wh:(void * _Nonnull)mason :(void * _Nonnull)node width:(float)width height:(float)height;
++ (void)node_compute_max_content:(void * _Nonnull)mason :(void * _Nonnull)node;
++ (void)node_compute_min_content:(void * _Nonnull)mason :(void * _Nonnull)node;
++ (CMasonDimension)style_get_width:(void * _Nonnull)node SWIFT_WARN_UNUSED_RESULT;
++ (CMasonDimension)style_get_height:(void * _Nonnull)node SWIFT_WARN_UNUSED_RESULT;
++ (void)style_update_with_values:(void * _Nonnull)style :(int32_t)display :(int32_t)positionType :(int32_t)direction :(int32_t)flexDirection :(int32_t)flexWrap :(int32_t)overflow :(int32_t)alignItems :(int32_t)alignSelf :(int32_t)alignContent :(int32_t)justifyContent :(int32_t)positionLeftType :(float)positionLeftValue :(int32_t)positionRightType :(float)positionRightValue :(int32_t)positionTopType :(float)positionTopValue :(int32_t)positionBottomType :(float)positionBottomValue :(int32_t)marginLeftType :(float)marginLeftValue :(int32_t)marginRightType :(float)marginRightValue :(int32_t)marginTopType :(float)marginTopValue :(int32_t)marginBottomType :(float)marginBottomValue :(int32_t)paddingLeftType :(float)paddingLeftValue :(int32_t)paddingRightType :(float)paddingRightValue :(int32_t)paddingTopType :(float)paddingTopValue :(int32_t)paddingBottomType :(float)paddingBottomValue :(int32_t)borderLeftType :(float)borderLeftValue :(int32_t)borderRightType :(float)borderRightValue :(int32_t)borderTopType :(float)borderTopValue :(int32_t)borderBottomType :(float)borderBottomValue :(float)flexGrow :(float)flexShrink :(int32_t)flexBasisType :(float)flexBasisValue :(int32_t)widthType :(float)widthValue :(int32_t)heightType :(float)heightValue :(int32_t)minWidthType :(float)minWidthValue :(int32_t)minHeightType :(float)minHeightValue :(int32_t)maxWidthType :(float)maxWidthValue :(int32_t)maxHeightType :(float)maxHeightValue :(int32_t)flexGapWidthType :(float)flexGapWidthValue :(int32_t)flexGapHeightType :(float)flexGapHeightValue aspectRatio:(float)aspectRatio;
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+@end
+
+
 SWIFT_CLASS_NAMED("MasonSizeCompat")
 @interface MasonSizeCompat : NSObject
 @property (nonatomic, strong) MasonDimensionCompat * _Nonnull width;
@@ -443,6 +458,8 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setMinSizeHeight:(float)value :(NSInteger)type;
 - (void)setMinSizeWidthHeight:(float)value :(NSInteger)type;
 @property (nonatomic, strong) MasonSizeCompat * _Nonnull sizeCompat;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull sizeCompatWidth;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull sizeCompatHeight;
 - (void)setSizeWidth:(float)value :(NSInteger)type;
 - (void)setSizeHeight:(float)value :(NSInteger)type;
 - (void)setSizeWidthHeight:(float)value :(NSInteger)type;

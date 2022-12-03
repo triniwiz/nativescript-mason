@@ -93,11 +93,15 @@ function _setAlignSelf(value, instance, initial = false) {
   }
 }
 
-export class TSCStyle {}
-
 export class TSCView extends TSCViewBase {
   static {
     TSCMason.alwaysEnable = true;
+    if (!global.__Mason_getWidth) {
+      //@ts-ignore
+      const module = new JSIModule();
+      console.log(module.install());
+      console.log('creating module');
+    }
   }
 
   createNativeView() {
@@ -163,6 +167,28 @@ export class TSCView extends TSCViewBase {
       this.setMeasuredDimension(width, height);
 
       this.ios.mason.computeWithViewSize();
+
+      /*
+      console.log('JSI method', global.__Mason_getWidth);
+
+      // cache the ptr value since it's not going to change
+      const masonStylePtr = this.ios.masonStylePtr;
+      console.time('JSI: getWidth');
+      for (let i = 0; i < 1000000; i++) {
+        global.__Mason_getWidth(masonStylePtr);
+      }
+      console.timeEnd('JSI: getWidth');
+
+      console.log('JSI', 'width', global.__Mason_getWidth(this.ios.masonStylePtr));
+
+      console.time('runtime: getWidth');
+      for (let i = 0; i < 1000000; i++) {
+        this.ios.mason.style.sizeCompatWidth.cssValue;
+      }
+      console.timeEnd('runtime: getWidth');
+      console.log('runtime', 'width', this.ios.mason.style.sizeCompatWidth.cssValue);
+
+      */
     }
   }
 

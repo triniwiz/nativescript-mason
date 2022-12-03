@@ -393,6 +393,26 @@ public class MasonStyle: NSObject {
         }
     }
     
+    public var sizeCompatWidth: MasonDimensionCompat {
+        get {
+            return MasonDimensionCompat(value: size.width)
+        }
+        
+        set {
+            size.width = newValue.dimension
+        }
+    }
+    
+    public var sizeCompatHeight: MasonDimensionCompat {
+        get {
+            return MasonDimensionCompat(value: size.height)
+        }
+        
+        set {
+            size.height = newValue.dimension
+        }
+    }
+    
     public func setSizeWidth(_ value: Float, _ type: Int) {
         guard let width = getDimension(value, type) else {return}
         

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F14AA651293B650900B1510E /* Reexports.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14AA650293B650900B1510E /* Reexports.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		F184839C293534D800EC35F4 /* MasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F184839B293534D800EC35F4 /* MasonTests.swift */; };
@@ -62,6 +63,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F14AA650293B650900B1510E /* Reexports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reexports.swift; sourceTree = "<group>"; };
 		F184838C293534D800EC35F4 /* Mason.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mason.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184838F293534D800EC35F4 /* Mason.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mason.h; sourceTree = "<group>"; };
 		F1848390293534D800EC35F4 /* Mason.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Mason.docc; sourceTree = "<group>"; };
@@ -167,6 +169,7 @@
 				F18483E229357AC900EC35F4 /* TSCMason.swift */,
 				F18483E62935935600EC35F4 /* MasonLayout.swift */,
 				F18483E82935A19500EC35F4 /* MeasureOutput.swift */,
+				F14AA650293B650900B1510E /* Reexports.swift */,
 			);
 			path = Mason;
 			sourceTree = "<group>";
@@ -417,6 +420,7 @@
 				F1848391293534D800EC35F4 /* Mason.docc in Sources */,
 				F18483E129356CD400EC35F4 /* MasonNode.swift in Sources */,
 				F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */,
+				F14AA651293B650900B1510E /* Reexports.swift in Sources */,
 				F18483DD29356C7800EC35F4 /* MasonStyle.swift in Sources */,
 				F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */,
 				F18483DB29356C3A00EC35F4 /* MasonView.swift in Sources */,

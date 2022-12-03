@@ -496,11 +496,11 @@ void mason_style_set_border_bottom(float value, enum CMasonDimensionType value_t
 
 struct CMasonDimension mason_style_get_border_bottom(void *style);
 
-void mason_style_set_flex_grow(float grow);
+void mason_style_set_flex_grow(void *style, float grow);
 
 float mason_style_get_flex_grow(void *style);
 
-void mason_style_set_flex_shrink(float shrink);
+void mason_style_set_flex_shrink(void *style, float shrink);
 
 float mason_style_get_flex_shrink(void *style);
 

@@ -1126,7 +1126,7 @@ pub extern "C" fn mason_style_get_border_bottom(style: *mut c_void) -> CMasonDim
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_flex_grow(grow: c_float) {
+pub extern "C" fn mason_style_set_flex_grow(style: *mut c_void, grow: c_float) {
     if style.is_null() {
         return;
     }
@@ -1158,7 +1158,7 @@ pub extern "C" fn mason_style_get_flex_grow(style: *mut c_void) -> c_float {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_flex_shrink(shrink: c_float) {
+pub extern "C" fn mason_style_set_flex_shrink(style: *mut c_void, shrink: c_float) {
     if style.is_null() {
         return;
     }

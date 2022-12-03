@@ -1,5 +1,6 @@
 #import "JSIModule.h"
 #import "NativeScript/JSIRuntime.h"
+#import "Mason/Mason-Swift.h"
 
 using namespace facebook::jsi;
 using namespace std;
@@ -141,53 +142,53 @@ void install(Runtime &jsiRuntime) {
         
         auto aspectRatio = (float)arguments[63].asNumber();
         
-
-        mason_style_update_with_values(style, display,
-                                       positionType,
-                                       direction,
-                                       flexDirection,
-                                       flexWrap,
-                                       overflow,
-                                       alignItems,
-                                       alignSelf,
-                                       alignContent,
-                                       justifyContent,
+       
+        
+        [MasonReexports style_update_with_values:style :display
+                                       :positionType
+                                       :direction
+                                       :flexDirection
+                                       :flexWrap
+                                       :overflow
+                                       :alignItems
+                                       :alignSelf
+                                       :alignContent
+                                       :justifyContent
                                        
-                                       positionLeftType, positionLeftValue,
-                                       positionRightType, positionRightValue,
-                                       positionTopType, positionTopValue,
-                                       positionBottomType, positionBottomValue,
+                                       :positionLeftType :positionLeftValue
+                                       :positionRightType :positionRightValue
+                                       :positionTopType :positionTopValue
+                                       :positionBottomType :positionBottomValue
                                        
-                                       marginLeftType, marginLeftValue,
-                                       marginRightType, marginRightValue,
-                                       marginTopType, marginTopValue,
-                                       marginBottomType, marginBottomValue,
+                                       :marginLeftType :marginLeftValue
+                                       :marginRightType :marginRightValue
+                                       :marginTopType :marginTopValue
+                                       :marginBottomType :marginBottomValue
                                        
-                                       paddingLeftType, paddingLeftValue,
-                                       paddingRightType, paddingRightValue,
-                                       paddingTopType, paddingTopValue,
-                                       paddingBottomType, paddingBottomValue,
+                                       :paddingLeftType :paddingLeftValue
+                                       :paddingRightType :paddingRightValue
+                                       :paddingTopType :paddingTopValue
+                                       :paddingBottomType :paddingBottomValue
                                        
-                                       borderLeftType, borderLeftValue,
-                                       borderRightType, borderRightValue,
-                                       borderTopType, borderTopValue,
-                                       borderBottomType, borderBottomValue,
+                                       :borderLeftType :borderLeftValue
+                                       :borderRightType :borderRightValue
+                                       :borderTopType :borderTopValue
+                                       :borderBottomType :borderBottomValue
                                        
-                                       flexGrow, flexShrink,
-                                       flexBasisType, flexBasisValue,
+                                       :flexGrow: flexShrink
+                                       :flexBasisType: flexBasisValue
                                        
-                                       widthType, widthValue,
-                                       heightType, heightValue,
+                                       :widthType: widthValue
+                                       :heightType: heightValue
                                        
-                                       minWidthType, minWidthValue,
-                                       minHeightType, minHeightValue,
+                                       :minWidthType :minWidthValue
+                                       :minHeightType :minHeightValue
                                        
-                                       maxWidthType, maxWidthValue,
-                                       maxHeightType, maxHeightValue,
+                                       :maxWidthType :maxWidthValue
+                                       :maxHeightType :maxHeightValue
                                        
-                                       flexGapWidthType, flexGapWidthValue,
-                                       flexGapHeightType, flexGapHeightValue,
-                                       aspectRatio);
+                                       :flexGapWidthType :flexGapWidthValue
+                                       :flexGapHeightType :flexGapHeightValue aspectRatio: aspectRatio];
                               
                               return Value::undefined();
     });
@@ -200,8 +201,8 @@ void install(Runtime &jsiRuntime) {
         auto mason = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
         auto node = reinterpret_cast<void*>((int64_t)arguments[1].asNumber());
         
-        mason_node_compute(mason,node);
-    
+        [MasonReexports node_compute:mason :node];
+        
         return Value::undefined();
         
     });
@@ -217,7 +218,8 @@ void install(Runtime &jsiRuntime) {
         auto width = (float)arguments[2].asNumber();
         auto height = (float)arguments[3].asNumber();
         
-        mason_node_compute_wh(mason, node, width, height);
+        [MasonReexports node_compute_wh:mason :node width:width height:height];
+    
     
         return Value::undefined();
         
@@ -229,8 +231,8 @@ void install(Runtime &jsiRuntime) {
         auto mason = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
         auto node = reinterpret_cast<void*>((int64_t)arguments[1].asNumber());
         
+        [MasonReexports node_compute_max_content:mason :node];
         
-        mason_node_compute_max_content(mason, node);
     
         return Value::undefined();
         
@@ -243,8 +245,8 @@ void install(Runtime &jsiRuntime) {
         auto mason = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
         auto node = reinterpret_cast<void*>((int64_t)arguments[1].asNumber());
         
-        
-       mason_node_compute_min_content(mason, node);
+        [MasonReexports node_compute_min_content:mason :node];
+    
     
         return Value::undefined();
         
@@ -273,8 +275,9 @@ void install(Runtime &jsiRuntime) {
         
         auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
 
-
-        return dimensionToJS(runtime, mason_style_get_width(style));
+        auto width = [MasonReexports style_get_width:style];
+        
+        return dimensionToJS(runtime, width);
         
     });
     
@@ -284,8 +287,9 @@ void install(Runtime &jsiRuntime) {
         
         auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
 
+        auto height = [MasonReexports style_get_height:style];
 
-        return dimensionToJS(runtime, mason_style_get_width(style));
+        return dimensionToJS(runtime, height);
         
     });
     
