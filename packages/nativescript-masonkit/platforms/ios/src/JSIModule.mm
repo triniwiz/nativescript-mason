@@ -351,7 +351,7 @@ void install(Runtime &jsiRuntime) {
 
         auto width = [MasonReexports style_get_width:style];
         
-        return Value((double)width.value);//dimensionToJS(runtime, width);
+        return dimensionToJS(runtime, width);
         
     });
     
@@ -378,9 +378,7 @@ void install(Runtime &jsiRuntime) {
 
         auto height = [MasonReexports style_get_height:style];
 
-       // return dimensionToJS(runtime, height);
-        
-        return Value((double)height.value);
+        return dimensionToJS(runtime, height);
     });
     
     CREATE_FUNC("__Mason_setHeight", 3, [](Runtime &runtime, const Value &thisValue,
