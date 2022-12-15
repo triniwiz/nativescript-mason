@@ -176,6 +176,9 @@ impl Into<mason_core::AvailableSpace> for AvailableSpace {
             AvailableSpaceType::Definite => mason_core::AvailableSpace::Definite(self.value),
             AvailableSpaceType::MinContent => mason_core::AvailableSpace::MinContent,
             AvailableSpaceType::MaxContent => mason_core::AvailableSpace::MaxContent,
+
+            // making cpp happy
+            _ => mason_core::AvailableSpace::MinContent
         }
     }
 }
@@ -232,6 +235,8 @@ impl From<CMasonDimension> for Dimension {
             CMasonDimensionType::Auto => Dimension::Auto,
             CMasonDimensionType::Points => Dimension::Points(dimension.value),
             CMasonDimensionType::Percent => Dimension::Percent(dimension.value),
+            // making cpp happy
+            _ => Dimension::Undefined,
         }
     }
 }
@@ -248,7 +253,7 @@ impl From<Rect<Dimension>> for CMasonRect {
 }
 
 pub fn mason_style_set_width(style: i64, value: f32, value_type: CMasonDimensionType) {
-    if style.is_null() {
+    if style == 0 {
         return;
     }
 
@@ -264,7 +269,7 @@ pub fn mason_style_set_width(style: i64, value: f32, value_type: CMasonDimension
 }
 
 pub fn mason_style_get_width(style: i64) -> CMasonDimension {
-    if style.is_null() {
+    if style == 0 {
         return CMasonDimension::undefined();
     }
 
@@ -280,7 +285,7 @@ pub fn mason_style_get_width(style: i64) -> CMasonDimension {
 }
 
 pub fn mason_style_set_height(style: i64, value: f32, value_type: CMasonDimensionType) {
-    if style.is_null() {
+    if style == 0 {
         return;
     }
 
@@ -296,7 +301,7 @@ pub fn mason_style_set_height(style: i64, value: f32, value_type: CMasonDimensio
 }
 
 pub fn mason_style_get_height(style: i64) -> CMasonDimension {
-    if style.is_null() {
+    if style == 0 {
         return CMasonDimension::undefined();
     }
 
@@ -312,7 +317,7 @@ pub fn mason_style_get_height(style: i64) -> CMasonDimension {
 }
 
 pub fn mason_style_set_display(style: i64, display: i32) {
-    if style.is_null() {
+    if style == 0 {
         return;
     }
 
@@ -327,7 +332,7 @@ pub fn mason_style_set_display(style: i64, display: i32) {
 }
 
 pub fn mason_style_get_display(style: i64) -> i32 {
-    if style.is_null() {
+    if style == 0 {
         return 0;
     }
 
@@ -343,7 +348,7 @@ pub fn mason_style_get_display(style: i64) -> i32 {
 }
 
 pub fn mason_node_compute(mason: i64, node: i64) {
-    if mason.is_null() || node.is_null() {
+    if mason == 0 || node == 0 {
         return;
     }
     unsafe {
@@ -356,7 +361,7 @@ pub fn mason_node_compute(mason: i64, node: i64) {
 }
 
 pub fn mason_node_compute_min_content(mason: i64, node: i64) {
-    if mason.is_null() || node.is_null() {
+    if mason == 0 || node == 0 {
         return;
     }
     unsafe {
@@ -370,7 +375,7 @@ pub fn mason_node_compute_min_content(mason: i64, node: i64) {
 }
 
 pub fn mason_node_compute_max_content(mason: i64, node: i64) {
-    if mason.is_null() || node.is_null() {
+    if mason == 0 || node == 0 {
         return;
     }
     unsafe {
@@ -384,7 +389,7 @@ pub fn mason_node_compute_max_content(mason: i64, node: i64) {
 }
 
 pub fn mason_node_compute_wh(mason: i64, node: i64, width: f32, height: f32) {
-    if mason.is_null() || node.is_null() {
+    if mason == 0 || node == 0 {
         return;
     }
     unsafe {
@@ -463,8 +468,8 @@ pub unsafe fn mason_style_update_with_values(
     aspect_ratio: f32,
 ) {
     unsafe {
-        let mut style = Box::from_raw(style as *mut mason_core::Style);
-        mason_core::Style::update_from_ffi(
+        let mut style = Box::from_raw(style as *mut Style);
+        Style::update_from_ffi(
             &mut style,
             display,
             position_type,

@@ -25,7 +25,7 @@ static void createFunc(Runtime &jsiRuntime, const char *prop, int paramCount, Na
     createFunc(jsiRuntime, prop, paramCount, func)
 
 inline static Value dimensionToJS(Runtime &runtime,CMasonDimension dimension){
-    switch (dimension.value_type) {
+    switch ((CMasonDimensionType)dimension.value_type) {
         case CMasonDimensionType::Auto:
             return facebook::jsi::String::createFromUtf8(runtime, "auto");
         case CMasonDimensionType::Percent: {
@@ -42,7 +42,7 @@ inline static Value dimensionToJS(Runtime &runtime,CMasonDimension dimension){
 }
 
 inline static CMasonDimension jsToDimension(float value, int value_type){
-    switch (value_type) {
+    switch ((CMasonDimensionType)value_type) {
         case CMasonDimensionType::Auto:
             return CMasonDimension {value, CMasonDimensionType::Auto};
         case CMasonDimensionType::Percent: {
@@ -57,7 +57,7 @@ inline static CMasonDimension jsToDimension(float value, int value_type){
 }
 
 inline static CMasonDimensionType jsToDimensionType(int value_type){
-    switch (value_type) {
+    switch ((CMasonDimensionType)value_type) {
         case CMasonDimensionType::Auto:
             return CMasonDimensionType::Auto;
         case CMasonDimensionType::Percent: {

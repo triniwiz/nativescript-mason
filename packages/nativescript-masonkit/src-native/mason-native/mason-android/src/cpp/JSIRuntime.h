@@ -11,6 +11,6 @@ class JSIRuntime {
 
 };
 
-static void setup_jsi_runtime(int64_t isolate);
+void setup_jsi_runtime(int64_t isolate);
 
 #endif //MASON_NATIVE_JSIRUNTIME_H

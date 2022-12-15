@@ -20,5 +20,6 @@ fn main() {
         .file("src/cpp/MasonJSIModule.cpp")
         .file("src/cpp/JSIRuntime.cpp")
         .flag_if_supported("-std=c++14")
+        .extra_warnings(false)
         .compile("mason-cxx");
 }
