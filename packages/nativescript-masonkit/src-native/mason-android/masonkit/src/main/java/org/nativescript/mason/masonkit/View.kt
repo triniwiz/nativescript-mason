@@ -106,36 +106,29 @@ class View @JvmOverloads constructor(
       val measureWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
       val measureHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
 
-      val widthSpec = if (widthIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
-      val heightSpec = if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+      if (!node.isViewGroup && widthIsNaN or heightIsNaN) {
+        val widthSpec = if (widthIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+        val heightSpec = if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
 
-      view.measure(
-        MeasureSpec.makeMeasureSpec(
-          measureWidth,
-          widthSpec
-        ), MeasureSpec.makeMeasureSpec(
-          measureHeight,
-          heightSpec
+        view.measure(
+          MeasureSpec.makeMeasureSpec(
+            measureWidth,
+            widthSpec
+          ), MeasureSpec.makeMeasureSpec(
+            measureHeight,
+            heightSpec
+          )
         )
-      )
+      }
+
 
       val left = (xOffset + if (layout.x.isNaN()) 0F else layout.x).roundToInt()
       val top = (yOffset + if (layout.y.isNaN()) 0F else layout.y).roundToInt()
 
-      var right =
-        left + if (widthIsNaN) view.measuredWidth else layout.width.roundToInt()
-      var bottom =
-        top + if (heightIsNaN) view.measuredHeight else layout.height.roundToInt()
-
-      if (widthIsNaN && view.layoutParams.width == ViewGroup.LayoutParams.MATCH_PARENT) {
-        val parentView = parent as android.view.View
-        right = left + parentView.width
-      }
-
-      if (heightIsNaN && view.layoutParams.height == ViewGroup.LayoutParams.MATCH_PARENT) {
-        val parentView = parent as android.view.View
-        bottom = top + parentView.height
-      }
+      val right =
+        left + if (widthIsNaN && !node.isViewGroup) view.measuredWidth else layout.width.roundToInt()
+      val bottom =
+        top + if (heightIsNaN && !node.isViewGroup) view.measuredHeight else layout.height.roundToInt()
 
       view.layout(left, top, right, bottom)
     }

@@ -1,10 +1,19 @@
 package org.nativescript.mason.masonkit
 
+import android.view.ViewGroup
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 
 class Node private constructor(private var nativePtr: Long) {
+  var isViewGroup: Boolean = false
+    private set
+
   var data: Any? = null
+    set(value) {
+      field = value
+      isViewGroup = value is ViewGroup
+    }
+
   var owner: Node? = null
     internal set
   private var children = mutableListOf<Node>()
