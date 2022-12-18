@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "masonnative"
+name = "masonandroid"
 crate-type = ["cdylib"]
 
 [dependencies]
@@ -12,7 +12,7 @@ mason-core = { path = "../mason-core" }
 jni = "0.20.0"
 log = "0.4.17"
 android_logger = "0.11.1"
-cxx = "1.0"
+cxx = "1.0.83"
 
 [build-dependencies]
-cxx-build = "1.0"
+cxx-build = "1.0.83"

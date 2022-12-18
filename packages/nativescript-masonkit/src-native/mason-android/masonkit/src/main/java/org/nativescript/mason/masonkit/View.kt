@@ -44,6 +44,22 @@ class View @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : ViewGroup(context, attrs, defStyleAttr) {
 
+
+  val masonPtr: Long
+    get() {
+      return Mason.instance.nativePtr
+    }
+
+  val masonNodePtr: Long
+    get() {
+      return node.getNativePtr()
+    }
+
+  val masonStylePtr: Long
+    get() {
+      return style.getNativePtr()
+    }
+
   var style: Style
     get() {
       return node.style

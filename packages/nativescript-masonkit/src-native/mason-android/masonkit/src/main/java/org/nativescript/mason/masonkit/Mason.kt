@@ -26,7 +26,7 @@ class Mason private constructor() {
             if (didInit) {
                 return
             }
-            System.loadLibrary("masonnative")
+            System.loadLibrary("masonandroid")
             didInit = true
         }
 

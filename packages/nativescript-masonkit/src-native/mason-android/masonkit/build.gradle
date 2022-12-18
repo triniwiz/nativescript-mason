@@ -1,20 +1,54 @@
 plugins {
   id 'com.android.library'
   id 'org.jetbrains.kotlin.android'
-  id 'org.mozilla.rust-android-gradle.rust-android'
+ // id 'org.mozilla.rust-android-gradle.rust-android'
 }
 import org.apache.tools.ant.taskdefs.condition.Os
+
+
+
+def NDK_PATH = ""
+def hasNdkDirectory = project.hasProperty("ndkDirectory")
+if(!hasNdkDirectory){
+  println "No ndkDirectory set, checking environment \$ANDROID_NDK..."
+
+  NDK_PATH = "$System.env.ANDROID_NDK"
+  if (NDK_PATH == null || NDK_PATH == "null"){
+    println "No ndkDirectory set, checking environment \$ANDROID_NDK_ROOT..."
+    NDK_PATH = "$System.env.ANDROID_NDK_ROOT"
+  }
+
+  if (NDK_PATH == null || NDK_PATH == "null"){
+    println "No ndkDirectory set, checking environment \$ANDROID_NDK_HOME..."
+    NDK_PATH = "$System.env.ANDROID_NDK_HOME"
+  }
+} else {
+  NDK_PATH = ndkDirectory
+}
+println "Runtime using NDK_PATH: " + NDK_PATH
+
+
 
 android {
   namespace 'org.nativescript.mason.masonkit'
   compileSdk 33
-
   defaultConfig {
     minSdk 17
     targetSdk 33
 
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     consumerProguardFiles "consumer-rules.pro"
+
+    externalNativeBuild {
+      cmake {
+        arguments "-DANDROID_TOOLCHAIN=clang",
+          "-DANDROID_STL=c++_shared",
+          "-DANDROID_NDK_ROOT=${System.getenv("ANDROID_NDK_ROOT")}"
+      }
+    }
+    ndk {
+      abiFilters 'x86','x86_64', 'armeabi-v7a', 'arm64-v8a'
+    }
   }
 
   buildTypes {
@@ -31,7 +65,13 @@ android {
     jvmTarget = '1.8'
   }
 
-  ndkVersion '22.1.7171670'
+  externalNativeBuild {
+    cmake {
+      path "CMakeLists.txt"
+    }
+  }
+
+  ndkVersion '21.1.6352462'
 }
 
 dependencies {
@@ -46,6 +86,8 @@ dependencies {
 
 }
 
+
+/*
 cargo {
   module = "../../mason-native"
   libname = "masonnative"
@@ -62,20 +104,23 @@ cargo {
   extraCargoBuildArguments = ['-Z', "build-std=std,panic_abort", '-Z', 'build-std-features=panic_immediate_abort', '-p', 'mason-android']
   rustupChannel = "nightly"
 }
+*/
 
+
+def targets = ["arm", "arm64", "x86", "x86_64"]
 tasks.whenTaskAdded { task ->
-  if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
-    task.dependsOn 'cargoBuild'
-  }
+//  if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
+//    task.dependsOn 'cargoBuild'
+//  }
 
-  for (target in cargo.targets) {
+  for (target in targets) {
     if (task.name == "cargoBuild${target.capitalize()}") {
       task.dependsOn "copy_libc++_shared${target.capitalize()}"
     }
   }
 }
 
-for (target in cargo.targets) {
+for (target in targets) {
   tasks.register("copy_libc++_shared${target.capitalize()}", Copy) {
     def ndkDir = android.ndkDirectory
     // hostTag, abi and archTriple from: https://developer.android.com/ndk/guides/other_build_systems
@@ -109,3 +154,5 @@ for (target in cargo.targets) {
     into into_path
   }
 }
+
+

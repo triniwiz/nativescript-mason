@@ -16,13 +16,6 @@ use crate::ffi::AvailableSpaceType;
 mod node;
 pub mod style;
 
-#[no_mangle]
-pub extern "C" fn NSMain(args: *const c_void) {
-    unsafe {
-        ffi::setup_jsi_runtime(args as i64);
-    }
-}
-
 #[cxx::bridge]
 pub(crate) mod ffi {
 
@@ -61,12 +54,6 @@ pub(crate) mod ffi {
         pub bottom: CMasonDimension,
     }
 
-    unsafe extern "C++" {
-        include!("mason-android/src/cpp/JSIRuntime.h");
-
-        unsafe fn setup_jsi_runtime(isolate: i64);
-    }
-
     extern "Rust" {
 
         unsafe fn mason_style_set_display(style: i64, display: i32);
@@ -101,6 +88,8 @@ pub(crate) mod ffi {
             width: f32,
             height: f32,
         );
+
+        #[allow(clippy::too_many_arguments)]
         unsafe fn mason_style_update_with_values(
             style: i64,
             display: i32,

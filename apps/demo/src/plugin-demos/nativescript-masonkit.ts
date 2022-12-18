@@ -10,6 +10,12 @@ export function navigatingTo(args: EventData) {
 export function loaded(args) {
   const view = args.object;
   setTimeout(() => {
+    console.log('display value:', view.display);
+
+    console.log('width value:', view.width);
+
+    console.log('height value:', view.height);
+
     console.time('set values');
 
     for (let i = 0; i < 1000; i++) {
@@ -28,6 +34,12 @@ export function loaded(args) {
     }
 
     console.timeEnd('set values');
+
+    console.log('display updated value:', view.display);
+
+    console.log('width updated value:', view.width);
+
+    console.log('height updated value:', view.height);
   }, 300);
 }
 

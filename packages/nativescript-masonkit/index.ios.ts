@@ -209,9 +209,30 @@ export class TSCView extends TSCViewBase {
     }
   }
 
-  _masonStylePtr = 0;
-  _masonNodePtr = 0;
-  _masonPtr = 0;
+  __masonStylePtr = 0;
+  get _masonStylePtr() {
+    if (this.__masonStylePtr === 0) {
+      this.__masonStylePtr = this.ios?.masonStylePtr ?? 0;
+    }
+    return this.__masonStylePtr;
+  }
+
+  __masonNodePtr = 0;
+  get _masonNodePtr() {
+    if (this.__masonNodePtr === 0) {
+      this.__masonNodePtr = this.ios?.masonNodePtr ?? 0;
+    }
+    return this.__masonNodePtr;
+  }
+
+  __masonPtr = 0;
+  get _masonPtr() {
+    if (this.__masonPtr === 0) {
+      this.__masonPtr = this.ios?.masonPtr ?? 0;
+    }
+    return this.__masonPtr;
+  }
+
   _hasNativeView = false;
 
   createNativeView() {
@@ -219,9 +240,9 @@ export class TSCView extends TSCViewBase {
     view.mason.isEnabled = true;
     this.style.minWidth = undefined;
     this.style.minHeight = undefined;
-    this._masonStylePtr = view.masonStylePtr;
-    this._masonNodePtr = view.masonNodePtr;
-    this._masonPtr = view.masonPtr;
+    // this._masonStylePtr = view.masonStylePtr;
+    // this._masonNodePtr = view.masonNodePtr;
+    // this._masonPtr = view.masonPtr;
     this._hasNativeView = true;
     return view;
   }
