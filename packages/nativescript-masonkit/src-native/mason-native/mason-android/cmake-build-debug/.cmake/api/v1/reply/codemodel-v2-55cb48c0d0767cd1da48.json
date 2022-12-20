@@ -1,0 +1,31 @@
+{
+  "configurations": [
+    {
+      "directories": [
+        {
+          "build": ".",
+          "jsonFile": "directory-.-Debug-f5ebdc15457944623624.json",
+          "projectIndex": 0,
+          "source": "."
+        }
+      ],
+      "name": "Debug",
+      "projects": [
+        {
+          "directoryIndexes": [0],
+          "name": "Project"
+        }
+      ],
+      "targets": []
+    }
+  ],
+  "kind": "codemodel",
+  "paths": {
+    "build": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-native/mason-android/cmake-build-debug",
+    "source": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-native/mason-android"
+  },
+  "version": {
+    "major": 2,
+    "minor": 4
+  }
+}

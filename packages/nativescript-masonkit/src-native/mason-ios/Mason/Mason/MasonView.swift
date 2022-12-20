@@ -70,6 +70,10 @@ extension UIView {
         }
     }
     
+    public func configure(_ block :(MasonNode) -> Void) {
+        mason.configure(block)
+    }
+    
     
     @objc public func setPadding(_ left: Float,_ top:Float, _ right: Float,_ bottom: Float) {
         mason.style.padding = MasonRect(

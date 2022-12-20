@@ -1,5 +1,3 @@
-/// <reference path="android-declarations.d.ts"/>
-
 declare module org {
   export module nativescript {
     export module mason {
@@ -138,9 +136,11 @@ declare module org {
       export module masonkit {
         export abstract class Dimension {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.Dimension>;
+          public getCssValue(): string;
           public updateValue$masonkit_release(param0: number): void;
           public getValue$masonkit_release(): number;
           public getType$masonkit_release(): number;
+          public getJsonValue(): string;
         }
         export module Dimension {
           export class Auto extends org.nativescript.mason.masonkit.Dimension {
@@ -177,6 +177,20 @@ declare module org {
             public static class: java.lang.Class<org.nativescript.mason.masonkit.Dimension.Undefined>;
             public static INSTANCE: org.nativescript.mason.masonkit.Dimension.Undefined;
           }
+        }
+      }
+    }
+  }
+}
+
+declare module org {
+  export module nativescript {
+    export module mason {
+      export module masonkit {
+        export class DimensionSerializer extends com.google.gson.JsonSerializer<org.nativescript.mason.masonkit.Dimension> {
+          public static class: java.lang.Class<org.nativescript.mason.masonkit.DimensionSerializer>;
+          public constructor();
+          public serialize(param0: org.nativescript.mason.masonkit.Dimension, param1: java.lang.reflect.Type, param2: com.google.gson.JsonSerializationContext): com.google.gson.JsonElement;
         }
       }
     }
@@ -328,7 +342,7 @@ declare module org {
         export module Layout {
           export class Companion {
             public static class: java.lang.Class<org.nativescript.mason.masonkit.Layout.Companion>;
-            public fromFloatArray$masonkit_release(param0: androidNative.Array<number>, param1: number): android.util.Pair<java.lang.Integer, org.nativescript.mason.masonkit.Layout>;
+            //public fromFloatArray$masonkit_release(param0: androidNative.Array<number>, param1: number): any<java.lang.Integer,org.nativescript.mason.masonkit.Layout>;
           }
         }
       }
@@ -356,6 +370,7 @@ declare module org {
             public initLib$masonkit_release(): void;
             public getInstance(): org.nativescript.mason.masonkit.Mason;
             public getShared(): boolean;
+            public getGson$masonkit_release(): com.google.gson.Gson;
             public setShared(param0: boolean): void;
           }
         }
@@ -418,6 +433,7 @@ declare module org {
       export module masonkit {
         export class Node {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.Node>;
+          public configure(param0: kotlin.jvm.functions.Function1<org.nativescript.mason.masonkit.Node, kotlin.Unit>): void;
           public computeMaxContent(): void;
           public addChild(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Node;
           public getData(): any;
@@ -444,16 +460,21 @@ declare module org {
           public addChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
           public computeAndLayout(): org.nativescript.mason.masonkit.Layout;
           public compute(): void;
+          public isViewGroup(): boolean;
+          public removeChildren(): void;
           public compute(param0: number, param1: number): void;
+          public static getNodes$masonkit_release(): java.util.WeakHashMap<java.lang.Long, org.nativescript.mason.masonkit.Node>;
           public setData(param0: any): void;
           public setStyle(param0: org.nativescript.mason.masonkit.Style): void;
           public dirty(): void;
           public constructor(param0: org.nativescript.mason.masonkit.Style);
           public constructor(param0: org.nativescript.mason.masonkit.Style, param1: org.nativescript.mason.masonkit.MeasureFunc);
+          public getNativePtr(): number;
         }
         export module Node {
           export class Companion {
             public static class: java.lang.Class<org.nativescript.mason.masonkit.Node.Companion>;
+            public getNodes$masonkit_release(): java.util.WeakHashMap<java.lang.Long, org.nativescript.mason.masonkit.Node>;
           }
         }
       }
@@ -560,8 +581,12 @@ declare module org {
         export class Style {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.Style>;
           public getAlignSelf(): org.nativescript.mason.masonkit.AlignSelf;
+          public setMarginTop(param0: number, param1: number): void;
           public getAlignItems(): org.nativescript.mason.masonkit.AlignItems;
+          public setPositionLeft(param0: number, param1: number): void;
+          public setPositionWithValueType(param0: number, param1: number): void;
           public finalize(): void;
+          public setMarginBottom(param0: number, param1: number): void;
           public setPaddingRight(param0: number, param1: number): void;
           public setAlignItems(param0: org.nativescript.mason.masonkit.AlignItems): void;
           public setDisplay(param0: org.nativescript.mason.masonkit.Display): void;
@@ -630,18 +655,31 @@ declare module org {
             param61: number,
             param62: number
           ): void;
+          public setFlexGapWidth(param0: number, param1: number): void;
+          public setFlexHeight(param0: number, param1: number): void;
           public constructor();
+          public setMarginRight(param0: number, param1: number): void;
+          public setMaxSizeHeight(param0: number, param1: number): void;
           public getFlexDirection(): org.nativescript.mason.masonkit.FlexDirection;
+          public setMinSizeWidth(param0: number, param1: number): void;
           public setPositionType(param0: org.nativescript.mason.masonkit.PositionType): void;
           public setFlexShrink(param0: number): void;
           public getFlexBasis(): org.nativescript.mason.masonkit.Dimension;
+          public setMinSizeHeight(param0: number, param1: number): void;
+          public setFlexBasis(param0: number, param1: number): void;
+          public setBorderRight(param0: number, param1: number): void;
           public getPadding(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>;
+          public setBorderWithValueType(param0: number, param1: number): void;
           public getDisplay(): org.nativescript.mason.masonkit.Display;
           public setJustifyContent(param0: org.nativescript.mason.masonkit.JustifyContent): void;
           public setPadding(param0: org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>): void;
           public getMinSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+          public setSizeWidth(param0: number, param1: number): void;
+          public setBorderBottom(param0: number, param1: number): void;
           public setDirection(param0: org.nativescript.mason.masonkit.Direction): void;
           public setPaddingWithValueType(param0: number, param1: number): void;
+          public setBorderTop(param0: number, param1: number): void;
+          public setMarginLeft(param0: number, param1: number): void;
           public getOverflow(): org.nativescript.mason.masonkit.Overflow;
           public getBorder(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>;
           public getMaxSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
@@ -650,6 +688,8 @@ declare module org {
           public setSize(param0: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>): void;
           public getJustifyContent(): org.nativescript.mason.masonkit.JustifyContent;
           public getPositionType(): org.nativescript.mason.masonkit.PositionType;
+          public setPositionBottom(param0: number, param1: number): void;
+          public setPositionTop(param0: number, param1: number): void;
           public getDirection(): org.nativescript.mason.masonkit.Direction;
           public setPaddingLeft(param0: number, param1: number): void;
           public setPaddingBottom(param0: number, param1: number): void;
@@ -658,25 +698,31 @@ declare module org {
           public setFlexGap(param0: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>): void;
           public getFlexWrap(): org.nativescript.mason.masonkit.FlexWrap;
           public setFlexWrap(param0: org.nativescript.mason.masonkit.FlexWrap): void;
+          public setMarginWithValueType(param0: number, param1: number): void;
           public setMinSize(param0: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>): void;
           public setAlignContent(param0: org.nativescript.mason.masonkit.AlignContent): void;
           public setAlignSelf(param0: org.nativescript.mason.masonkit.AlignSelf): void;
           public getAspectRatio(): java.lang.Float;
           public setOverflow(param0: org.nativescript.mason.masonkit.Overflow): void;
           public setPaddingTop(param0: number, param1: number): void;
+          public setFlexGap(param0: number, param1: number, param2: number, param3: number): void;
           public getAlignContent(): org.nativescript.mason.masonkit.AlignContent;
           public setMaxSize(param0: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>): void;
+          public setSizeHeight(param0: number, param1: number): void;
+          public setPositionRight(param0: number, param1: number): void;
           public setDirty$masonkit_release(param0: boolean): void;
           public setMargin(param0: org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>): void;
           public setAspectRatio(param0: java.lang.Float): void;
           public setBorder(param0: org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>): void;
           public getFlexShrink(): number;
           public getMargin(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>;
-          public getNativePtr$masonkit_release(): number;
           public setFlexBasis(param0: org.nativescript.mason.masonkit.Dimension): void;
+          public setMaxSizeWidth(param0: number, param1: number): void;
+          public getNativePtr(): number;
           public setFlexGrow(param0: number): void;
           public getSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
           public setPosition(param0: org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>): void;
+          public setBorderLeft(param0: number, param1: number): void;
           public setFlexDirection(param0: org.nativescript.mason.masonkit.FlexDirection): void;
         }
         export module Style {
@@ -695,33 +741,164 @@ declare module org {
       export module masonkit {
         export class View {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.View>;
-          public removeViewsInLayout(param0: number, param1: number): void;
+          public setPosition(param0: org.nativescript.mason.masonkit.Dimension, param1: org.nativescript.mason.masonkit.Dimension, param2: org.nativescript.mason.masonkit.Dimension, param3: org.nativescript.mason.masonkit.Dimension): void;
+          public setMarginTop(param0: number, param1: number): void;
           public nodeForView(param0: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
-          public removeAllViewsInLayout(): void;
-          public getStyle(): org.nativescript.mason.masonkit.Style;
-          public generateLayoutParams(param0: globalAndroid.view.ViewGroup.LayoutParams): globalAndroid.view.ViewGroup.LayoutParams;
-          public addView(param0: globalAndroid.view.View, param1: org.nativescript.mason.masonkit.Node): void;
+          public getAlignItems(): org.nativescript.mason.masonkit.AlignItems;
+          public setPositionLeft(param0: number, param1: number): void;
+          public getStylePaddingTop(): org.nativescript.mason.masonkit.Dimension;
+          public setMargin(param0: number, param1: number, param2: number, param3: number): void;
           public constructor(param0: globalAndroid.content.Context, param1: globalAndroid.util.AttributeSet);
-          public removeViewInLayout(param0: globalAndroid.view.View): void;
-          public addViews(param0: androidNative.Array<globalAndroid.view.View>, param1: number): void;
-          public generateDefaultLayoutParams(): globalAndroid.view.ViewGroup.LayoutParams;
+          public setMarginRight(param0: number, param1: number): void;
+          public setMaxSizeHeight(param0: number, param1: number): void;
           public addView(param0: globalAndroid.view.View, param1: number, param2: globalAndroid.view.ViewGroup.LayoutParams): void;
-          public checkLayoutParams(param0: globalAndroid.view.ViewGroup.LayoutParams): boolean;
-          public removeViews(param0: number, param1: number): void;
+          public setPadding(param0: number, param1: number, param2: number, param3: number): void;
+          public setPositionType(param0: org.nativescript.mason.masonkit.PositionType): void;
+          public setMargin(param0: org.nativescript.mason.masonkit.Dimension, param1: org.nativescript.mason.masonkit.Dimension, param2: org.nativescript.mason.masonkit.Dimension, param3: org.nativescript.mason.masonkit.Dimension): void;
+          public getFlexBasis(): org.nativescript.mason.masonkit.Dimension;
+          public setMinSizeHeight(param0: number, param1: number): void;
+          public getFlexGapHeight(): org.nativescript.mason.masonkit.Dimension;
+          public getBorderTop(): org.nativescript.mason.masonkit.Dimension;
+          public setBorderRight(param0: number, param1: number): void;
+          public getFlexGapWidth(): org.nativescript.mason.masonkit.Dimension;
+          public setJustifyContent(param0: org.nativescript.mason.masonkit.JustifyContent): void;
+          public setSizeWidth(param0: number, param1: number): void;
+          public getBorderCssValue(): string;
+          public setBorderBottom(param0: number, param1: number): void;
+          public setDirection(param0: org.nativescript.mason.masonkit.Direction): void;
+          public setBorder(param0: number, param1: number, param2: number, param3: number, param4: number, param5: number, param6: number, param7: number): void;
+          public getStylePaddingBottom(): org.nativescript.mason.masonkit.Dimension;
+          public getMinSizeCssValue(): string;
+          public getOverflow(): org.nativescript.mason.masonkit.Overflow;
+          public getMaxSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+          public addViews(param0: androidNative.Array<globalAndroid.view.View>): void;
+          public getFlexGrow(): number;
+          public applyLayoutParams(param0: org.nativescript.mason.masonkit.View.LayoutParams, param1: org.nativescript.mason.masonkit.Node, param2: globalAndroid.view.View): void;
+          public getPosition(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>;
+          public setMinSize(param0: number, param1: number): void;
+          public setSize(param0: number, param1: number): void;
+          public setStyleFromString(param0: string): void;
+          public setMinSize(param0: org.nativescript.mason.masonkit.Dimension, param1: org.nativescript.mason.masonkit.Dimension): void;
+          public getStylePaddingRight(): org.nativescript.mason.masonkit.Dimension;
+          public setPositionTop(param0: number, param1: number): void;
+          public getDirection(): org.nativescript.mason.masonkit.Direction;
+          public setPaddingLeft(param0: number, param1: number): void;
+          public setPaddingBottom(param0: number, param1: number): void;
+          public setFlexGap(param0: org.nativescript.mason.masonkit.Dimension, param1: org.nativescript.mason.masonkit.Dimension): void;
+          public removeAllViewsInLayout(): void;
+          public getMaxSizeHeight(): org.nativescript.mason.masonkit.Dimension;
+          public getFlexWrap(): org.nativescript.mason.masonkit.FlexWrap;
+          public removeViewInLayout(param0: globalAndroid.view.View): void;
+          public setMarginWithValueType(param0: number, param1: number): void;
+          public setMaxSize(param0: number, param1: number): void;
+          public getSizeWidth(): org.nativescript.mason.masonkit.Dimension;
+          public addViews(param0: androidNative.Array<globalAndroid.view.View>, param1: number): void;
+          public setAlignContent(param0: org.nativescript.mason.masonkit.AlignContent): void;
+          public generateDefaultLayoutParams(): globalAndroid.view.ViewGroup.LayoutParams;
+          public getMarginJsonValue(): string;
+          public setOverflow(param0: org.nativescript.mason.masonkit.Overflow): void;
           public onMeasure(param0: number, param1: number): void;
           public invalidate(param0: globalAndroid.view.View): void;
+          public getAlignContent(): org.nativescript.mason.masonkit.AlignContent;
+          public setSizeHeight(param0: number, param1: number): void;
+          public getPositionJsonValue(): string;
+          public setPositionRight(param0: number, param1: number): void;
           public generateLayoutParams(param0: globalAndroid.util.AttributeSet): globalAndroid.view.ViewGroup.LayoutParams;
-          public constructor(param0: globalAndroid.content.Context, param1: globalAndroid.util.AttributeSet, param2: number);
-          public removeView(param0: globalAndroid.view.View): void;
-          public setStyle(param0: org.nativescript.mason.masonkit.Style): void;
+          public getMarginBottom(): org.nativescript.mason.masonkit.Dimension;
+          public setAspectRatio(param0: java.lang.Float): void;
           public constructor(param0: globalAndroid.content.Context);
           public removeViewAt(param0: number): void;
+          public getMargin(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>;
+          public getBorderLeft(): org.nativescript.mason.masonkit.Dimension;
+          public setFlexBasis(param0: org.nativescript.mason.masonkit.Dimension): void;
+          public setFlexGrow(param0: number): void;
+          public getPositionLeft(): org.nativescript.mason.masonkit.Dimension;
+          public getSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+          public setBorderLeft(param0: number, param1: number): void;
+          public setFlexDirection(param0: org.nativescript.mason.masonkit.FlexDirection): void;
+          public configure(param0: kotlin.jvm.functions.Function1<org.nativescript.mason.masonkit.Node, kotlin.Unit>): void;
+          public getAlignSelf(): org.nativescript.mason.masonkit.AlignSelf;
+          public setPositionWithValueType(param0: number, param1: number): void;
+          public setMarginBottom(param0: number, param1: number): void;
+          public getMasonNodePtr(): number;
+          public getMasonStylePtr(): number;
+          public getStyle(): org.nativescript.mason.masonkit.Style;
+          public setPaddingRight(param0: number, param1: number): void;
+          public setAlignItems(param0: org.nativescript.mason.masonkit.AlignItems): void;
+          public generateLayoutParams(param0: globalAndroid.view.ViewGroup.LayoutParams): globalAndroid.view.ViewGroup.LayoutParams;
+          public setDisplay(param0: org.nativescript.mason.masonkit.Display): void;
+          public getMaxSizeJsonValue(): string;
+          public addView(param0: globalAndroid.view.View, param1: org.nativescript.mason.masonkit.Node): void;
+          public setPosition(param0: number, param1: number, param2: number, param3: number): void;
+          public getMarginRight(): org.nativescript.mason.masonkit.Dimension;
+          public setMaxSize(param0: org.nativescript.mason.masonkit.Dimension, param1: org.nativescript.mason.masonkit.Dimension): void;
+          public setFlexGapWidth(param0: number, param1: number): void;
+          public setFlexHeight(param0: number, param1: number): void;
+          public getFlexDirection(): org.nativescript.mason.masonkit.FlexDirection;
+          public getMarginLeft(): org.nativescript.mason.masonkit.Dimension;
+          public getMinSizeHeight(): org.nativescript.mason.masonkit.Dimension;
+          public setMinSizeWidth(param0: number, param1: number): void;
+          public setFlexShrink(param0: number): void;
+          public checkLayoutParams(param0: globalAndroid.view.ViewGroup.LayoutParams): boolean;
+          public getBorderRight(): org.nativescript.mason.masonkit.Dimension;
+          public removeViews(param0: number, param1: number): void;
+          public setFlexBasis(param0: number, param1: number): void;
+          public setSize(param0: number, param1: number, param2: number, param3: number): void;
+          public getPadding(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>;
+          public setBorderWithValueType(param0: number, param1: number): void;
+          public getDisplay(): org.nativescript.mason.masonkit.Display;
+          public setPosition(param0: number, param1: number, param2: number, param3: number, param4: number, param5: number, param6: number, param7: number): void;
+          public getMinSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+          public getBorderBottom(): org.nativescript.mason.masonkit.Dimension;
+          public setFlexGap(param0: number, param1: number): void;
+          public setPaddingWithValueType(param0: number, param1: number): void;
+          public setBorderTop(param0: number, param1: number): void;
+          public getMarginCssValue(): string;
+          public setMarginLeft(param0: number, param1: number): void;
+          public getBorder(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.Dimension>;
+          public getPaddingCssValue(): string;
+          public getJustifyContent(): org.nativescript.mason.masonkit.JustifyContent;
+          public getPositionType(): org.nativescript.mason.masonkit.PositionType;
+          public setPositionBottom(param0: number, param1: number): void;
+          public getMinSizeWidth(): org.nativescript.mason.masonkit.Dimension;
+          public getPositionRight(): org.nativescript.mason.masonkit.Dimension;
+          public removeViewsInLayout(param0: number, param1: number): void;
+          public getBorderJsonValue(): string;
+          public getFlexGap(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+          public getMaxSizeCssValue(): string;
+          public setFlexWrap(param0: org.nativescript.mason.masonkit.FlexWrap): void;
+          public getSizeCssValue(): string;
+          public setMaxSize(param0: number, param1: number, param2: number, param3: number): void;
+          public setMargin(param0: number, param1: number, param2: number, param3: number, param4: number, param5: number, param6: number, param7: number): void;
+          public setPadding(param0: org.nativescript.mason.masonkit.Dimension, param1: org.nativescript.mason.masonkit.Dimension, param2: org.nativescript.mason.masonkit.Dimension, param3: org.nativescript.mason.masonkit.Dimension): void;
+          public setPadding(param0: number, param1: number, param2: number, param3: number, param4: number, param5: number, param6: number, param7: number): void;
+          public setAlignSelf(param0: org.nativescript.mason.masonkit.AlignSelf): void;
+          public getAspectRatio(): java.lang.Float;
+          public setPaddingTop(param0: number, param1: number): void;
+          public setBorder(param0: number, param1: number, param2: number, param3: number): void;
+          public setBorder(param0: org.nativescript.mason.masonkit.Dimension, param1: org.nativescript.mason.masonkit.Dimension, param2: org.nativescript.mason.masonkit.Dimension, param3: org.nativescript.mason.masonkit.Dimension): void;
+          public setFlexGap(param0: number, param1: number, param2: number, param3: number): void;
+          public getPositionCssValue(): string;
+          public setSize(param0: org.nativescript.mason.masonkit.Dimension, param1: org.nativescript.mason.masonkit.Dimension): void;
+          public getMaxSizeWidth(): org.nativescript.mason.masonkit.Dimension;
+          public constructor(param0: globalAndroid.content.Context, param1: globalAndroid.util.AttributeSet, param2: number);
+          public removeView(param0: globalAndroid.view.View): void;
+          public getPaddingJsonValue(): string;
+          public getFlexShrink(): number;
+          public getMarginTop(): org.nativescript.mason.masonkit.Dimension;
+          public setStyle(param0: org.nativescript.mason.masonkit.Style): void;
           public removeAllViews(): void;
-          public addViews(param0: androidNative.Array<globalAndroid.view.View>): void;
-          public applyLayoutParams(param0: org.nativescript.mason.masonkit.View.LayoutParams, param1: org.nativescript.mason.masonkit.Node, param2: globalAndroid.view.View): void;
+          public getMasonPtr(): number;
+          public setMinSize(param0: number, param1: number, param2: number, param3: number): void;
+          public getPositionBottom(): org.nativescript.mason.masonkit.Dimension;
+          public getSizeJsonValue(): string;
           public getNode(): org.nativescript.mason.masonkit.Node;
+          public getStylePaddingLeft(): org.nativescript.mason.masonkit.Dimension;
           public onLayout(param0: boolean, param1: number, param2: number, param3: number, param4: number): void;
-          public setStyleFromString(param0: string): void;
+          public setMaxSizeWidth(param0: number, param1: number): void;
+          public getPositionTop(): org.nativescript.mason.masonkit.Dimension;
+          public getMinSizeJsonValue(): string;
+          public getSizeHeight(): org.nativescript.mason.masonkit.Dimension;
           public getStyleAsString(): string;
         }
         export module View {

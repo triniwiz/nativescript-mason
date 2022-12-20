@@ -1,10 +1,19 @@
 package org.nativescript.mason.masonkit
 
+import android.view.ViewGroup
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 
 class Node private constructor(private var nativePtr: Long) {
+  var isViewGroup: Boolean = false
+    private set
+
   var data: Any? = null
+    set(value) {
+      field = value
+      isViewGroup = value is ViewGroup
+    }
+
   var owner: Node? = null
     internal set
   private var children = mutableListOf<Node>()
@@ -22,7 +31,7 @@ class Node private constructor(private var nativePtr: Long) {
   }
 
   constructor(style: Style) : this(
-    nativeNewNode(
+    nativePtr = nativeNewNode(
       Mason.instance.nativePtr,
       style.getNativePtr()
     )
@@ -34,7 +43,7 @@ class Node private constructor(private var nativePtr: Long) {
     style: Style,
     children: Array<Node>
   ) : this(
-    nativeNewNodeWithChildren(
+    nativePtr = nativeNewNodeWithChildren(
       Mason.instance.nativePtr,
       style.getNativePtr(),
       children.map { it.nativePtr }.toLongArray()
@@ -49,7 +58,7 @@ class Node private constructor(private var nativePtr: Long) {
   }
 
   constructor(style: Style, measure: MeasureFunc) : this(
-    nativeNewNodeWithMeasureFunc(
+    nativePtr = nativeNewNodeWithMeasureFunc(
       Mason.instance.nativePtr, style.getNativePtr(), MeasureFuncImpl(
         WeakReference(measure)
       )
@@ -143,14 +152,24 @@ class Node private constructor(private var nativePtr: Long) {
 
         style.aspectRatio ?: Float.NaN
       )
+      style.isDirty = false
     } else {
       nativeSetStyle(Mason.instance.nativePtr, nativePtr, style.getNativePtr())
     }
   }
 
+  var inBatch = false
+    set(value) {
+      if (field && !value){
+        updateNodeStyle()
+      }
+      field = value
+    }
+
   fun configure(block: (Node) -> Unit) {
+    inBatch = true
     block(this)
-    updateNodeStyle()
+    inBatch = false
   }
 
   @JvmOverloads

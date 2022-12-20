@@ -584,6 +584,19 @@ class Style internal constructor() {
       field = value
       isDirty = true
     }
+
+  fun setFlexBasis(value: Float, type: Int) {
+    when (type) {
+      0 -> Dimension.Points(value)
+      1 -> Dimension.Percent(value)
+      2 -> Dimension.Undefined
+      3 -> Dimension.Auto
+      else -> null
+    }?.let {
+      flexBasis = it
+    }
+  }
+
   var minSize: Size<Dimension> = autoSize
     set(value) {
       field = value
@@ -691,6 +704,29 @@ class Style internal constructor() {
       field = value
       isDirty = true
     }
+
+  fun setFlexGap(width_value: Float, width_type: Int, height_value: Float, height_type: Int) {
+    val width = when (width_type) {
+      0 -> Dimension.Points(width_value)
+      1 -> Dimension.Percent(width_value)
+      2 -> Dimension.Undefined
+      3 -> Dimension.Auto
+      else -> null
+    }
+
+    val height = when (height_type) {
+      0 -> Dimension.Points(height_value)
+      1 -> Dimension.Percent(height_value)
+      2 -> Dimension.Undefined
+      3 -> Dimension.Auto
+      else -> null
+    }
+
+    if (width != null && height != null) {
+      flexGap = Size(width, height)
+    }
+  }
+
 
   fun setFlexGapWidth(value: Float, type: Int) {
     val width = when (type) {
