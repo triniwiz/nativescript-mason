@@ -47,7 +47,7 @@ class View @JvmOverloads constructor(
 
   val masonPtr: Long
     get() {
-      return Mason.instance.nativePtr
+      return Mason.instance.getNativePtr()
     }
 
   val masonNodePtr: Long

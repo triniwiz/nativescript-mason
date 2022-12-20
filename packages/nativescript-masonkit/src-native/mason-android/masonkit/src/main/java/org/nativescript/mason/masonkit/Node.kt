@@ -31,7 +31,7 @@ class Node private constructor(private var nativePtr: Long) {
   }
 
   constructor(style: Style) : this(
-    nativeNewNode(
+    nativePtr = nativeNewNode(
       Mason.instance.nativePtr,
       style.getNativePtr()
     )
@@ -43,7 +43,7 @@ class Node private constructor(private var nativePtr: Long) {
     style: Style,
     children: Array<Node>
   ) : this(
-    nativeNewNodeWithChildren(
+    nativePtr = nativeNewNodeWithChildren(
       Mason.instance.nativePtr,
       style.getNativePtr(),
       children.map { it.nativePtr }.toLongArray()
@@ -58,7 +58,7 @@ class Node private constructor(private var nativePtr: Long) {
   }
 
   constructor(style: Style, measure: MeasureFunc) : this(
-    nativeNewNodeWithMeasureFunc(
+    nativePtr = nativeNewNodeWithMeasureFunc(
       Mason.instance.nativePtr, style.getNativePtr(), MeasureFuncImpl(
         WeakReference(measure)
       )

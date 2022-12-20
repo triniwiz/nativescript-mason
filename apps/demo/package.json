@@ -8,7 +8,7 @@
     "@triniwiz/nativescript-masonkit": "file:../../packages/nativescript-masonkit"
   },
   "devDependencies": {
-    "@nativescript/android": "dev",
-    "@nativescript/ios": "dev"
+    "@nativescript/android": "beta",
+    "@nativescript/ios": "beta"
   }
 }

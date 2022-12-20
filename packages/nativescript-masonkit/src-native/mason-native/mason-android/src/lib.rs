@@ -1646,13 +1646,15 @@ fn mason_style_set_max_height(style: i64, value: f32, value_type: CMasonDimensio
     }
 }
 
-fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64) {
+pub fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64) {
     if mason == 0 || node == 0 || style == 0 {
         return;
     }
     unsafe {
         let mut mason = Box::from_raw(mason as *mut Mason);
+
         let node = Box::from_raw(node as *mut Node);
+        
         let style = Box::from_raw(style as *mut Style);
 
         mason.set_style(*node, *style);
