@@ -1,5 +1,7 @@
 package org.nativescript.mason.masonkit
 
+import com.google.gson.Gson
+
 
 class Mason private constructor() {
 
@@ -36,6 +38,8 @@ class Mason private constructor() {
         // enable when using along external bindings
         @JvmStatic
         var shared = false
+
+        internal val gson = Gson().newBuilder().registerTypeAdapter(Dimension::class.java, DimensionSerializer()).create()
     }
 
     private external fun nativeInit(): Long

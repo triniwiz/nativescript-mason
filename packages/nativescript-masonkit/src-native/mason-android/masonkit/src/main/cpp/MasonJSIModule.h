@@ -24,40 +24,44 @@ static void createFunc(Runtime &jsiRuntime, const char *prop, int paramCount, Na
 #define CREATE_FUNC(prop, paramCount, func) \
     createFunc(jsiRuntime, prop, paramCount, func)
 
-inline static Value dimensionToJS(Runtime &runtime,CMasonDimension dimension){
-    switch ((CMasonDimensionType)dimension.value_type) {
+inline static Value dimensionToJS(Runtime &runtime, CMasonDimension dimension) {
+    switch ((CMasonDimensionType) dimension.value_type) {
         case CMasonDimensionType::Auto:
             return facebook::jsi::String::createFromUtf8(runtime, "auto");
         case CMasonDimensionType::Percent: {
-            auto ret = std::to_string(dimension.value) + "%";
-            return facebook::jsi::String::createFromUtf8(runtime, ret.c_str());
+            auto ret = facebook::jsi::Object(runtime);
+            ret.setProperty(runtime, "value", dimension.value / 100);
+            ret.setProperty(runtime, "unit", "%");
+            return ret;
         }
         case CMasonDimensionType::Points: {
-            auto ret = std::to_string(dimension.value) + "px";
-            return facebook::jsi::String::createFromUtf8(runtime, ret.c_str());
+            auto ret = facebook::jsi::Object(runtime);
+            ret.setProperty(runtime, "value", dimension.value);
+            ret.setProperty(runtime, "unit", "px");
+            return ret;
         }
         default:
             return Value::undefined();
     }
 }
 
-inline static CMasonDimension jsToDimension(float value, int value_type){
-    switch ((CMasonDimensionType)value_type) {
+inline static CMasonDimension jsToDimension(float value, int value_type) {
+    switch ((CMasonDimensionType) value_type) {
         case CMasonDimensionType::Auto:
-            return CMasonDimension {value, CMasonDimensionType::Auto};
+            return CMasonDimension{value, CMasonDimensionType::Auto};
         case CMasonDimensionType::Percent: {
-            return CMasonDimension {value, CMasonDimensionType::Percent};
+            return CMasonDimension{value, CMasonDimensionType::Percent};
         }
         case CMasonDimensionType::Points: {
-            return CMasonDimension {value, CMasonDimensionType::Points};
+            return CMasonDimension{value, CMasonDimensionType::Points};
         }
         default:
-            return CMasonDimension {value, CMasonDimensionType::Undefined};
+            return CMasonDimension{value, CMasonDimensionType::Undefined};
     }
 }
 
-inline static CMasonDimensionType jsToDimensionType(int value_type){
-    switch ((CMasonDimensionType)value_type) {
+inline static CMasonDimensionType jsToDimensionType(int value_type) {
+    switch ((CMasonDimensionType) value_type) {
         case CMasonDimensionType::Auto:
             return CMasonDimensionType::Auto;
         case CMasonDimensionType::Percent: {
@@ -70,6 +74,14 @@ inline static CMasonDimensionType jsToDimensionType(int value_type){
             return CMasonDimensionType::Undefined;
     }
 }
+
+inline static Value sizeToJS(Runtime &runtime, CMasonSize size) {
+    auto ret = facebook::jsi::Object(runtime);
+    ret.setProperty(runtime, "width", dimensionToJS(runtime, size.width));
+    ret.setProperty(runtime, "height", dimensionToJS(runtime, size.height));
+    return ret;
+}
+
 
 class MasonJSIModule {
 public:

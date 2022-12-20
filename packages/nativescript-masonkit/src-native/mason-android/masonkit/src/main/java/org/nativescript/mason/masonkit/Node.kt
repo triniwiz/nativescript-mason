@@ -152,14 +152,24 @@ class Node private constructor(private var nativePtr: Long) {
 
         style.aspectRatio ?: Float.NaN
       )
+      style.isDirty = false
     } else {
       nativeSetStyle(Mason.instance.nativePtr, nativePtr, style.getNativePtr())
     }
   }
 
+  var inBatch = false
+    set(value) {
+      if (field && !value){
+        updateNodeStyle()
+      }
+      field = value
+    }
+
   fun configure(block: (Node) -> Unit) {
+    inBatch = true
     block(this)
-    updateNodeStyle()
+    inBatch = false
   }
 
   @JvmOverloads

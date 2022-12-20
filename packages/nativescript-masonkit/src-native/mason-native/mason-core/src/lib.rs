@@ -9,7 +9,9 @@ pub use taffy::style::{
     JustifyContent, PositionType,
 };
 
-pub const fn align_content_from_enum(value : i32) -> Option<AlignContent> {
+use style::Style;
+
+pub const fn align_content_from_enum(value: i32) -> Option<AlignContent> {
     match value {
         0 => Some(AlignContent::FlexStart),
         1 => Some(AlignContent::FlexEnd),
@@ -30,11 +32,11 @@ pub const fn align_content_to_enum(value: AlignContent) -> i32 {
         AlignContent::Stretch => 3,
         AlignContent::SpaceBetween => 4,
         AlignContent::SpaceEvenly => 5,
-        AlignContent::SpaceAround => 6
+        AlignContent::SpaceAround => 6,
     }
 }
 
-pub const fn align_items_from_enum(value : i32) -> Option<AlignItems> {
+pub const fn align_items_from_enum(value: i32) -> Option<AlignItems> {
     match value {
         0 => Some(AlignItems::FlexStart),
         1 => Some(AlignItems::FlexEnd),
@@ -51,11 +53,11 @@ pub const fn align_items_to_enum(value: AlignItems) -> i32 {
         AlignItems::FlexEnd => 1,
         AlignItems::Center => 2,
         AlignItems::Baseline => 3,
-        AlignItems::Stretch => 4
+        AlignItems::Stretch => 4,
     }
 }
 
-pub const fn align_self_from_enum(value : i32) -> Option<AlignSelf> {
+pub const fn align_self_from_enum(value: i32) -> Option<AlignSelf> {
     match value {
         0 => Some(AlignSelf::Auto),
         1 => Some(AlignSelf::FlexStart),
@@ -74,11 +76,11 @@ pub const fn align_self_to_enum(value: AlignSelf) -> i32 {
         AlignSelf::FlexEnd => 2,
         AlignSelf::Center => 3,
         AlignSelf::Baseline => 4,
-        AlignSelf::Stretch => 5
+        AlignSelf::Stretch => 5,
     }
 }
 
-pub const fn display_from_enum(value : i32) -> Option<Display> {
+pub const fn display_from_enum(value: i32) -> Option<Display> {
     match value {
         0 => Some(Display::Flex),
         1 => Some(Display::None),
@@ -93,7 +95,7 @@ pub const fn display_to_enum(value: Display) -> i32 {
     }
 }
 
-pub const fn flex_direction_from_enum(value : i32) -> Option<FlexDirection> {
+pub const fn flex_direction_from_enum(value: i32) -> Option<FlexDirection> {
     match value {
         0 => Some(FlexDirection::Row),
         1 => Some(FlexDirection::Column),
@@ -112,7 +114,7 @@ pub const fn flex_direction_to_enum(value: FlexDirection) -> i32 {
     }
 }
 
-pub const fn flex_wrap_from_enum(value : i32) -> Option<FlexWrap> {
+pub const fn flex_wrap_from_enum(value: i32) -> Option<FlexWrap> {
     match value {
         0 => Some(FlexWrap::NoWrap),
         1 => Some(FlexWrap::Wrap),
@@ -129,7 +131,7 @@ pub const fn flex_wrap_to_enum(value: FlexWrap) -> i32 {
     }
 }
 
-pub const fn justify_content_from_enum(value : i32) -> Option<JustifyContent> {
+pub const fn justify_content_from_enum(value: i32) -> Option<JustifyContent> {
     match value {
         0 => Some(JustifyContent::FlexStart),
         1 => Some(JustifyContent::FlexEnd),
@@ -152,7 +154,7 @@ pub const fn justify_content_to_enum(value: JustifyContent) -> i32 {
     }
 }
 
-pub const fn position_type_from_enum(value : i32) -> Option<PositionType> {
+pub const fn position_type_from_enum(value: i32) -> Option<PositionType> {
     match value {
         0 => Some(PositionType::Relative),
         1 => Some(PositionType::Absolute),
@@ -166,9 +168,6 @@ pub const fn position_type_to_enum(value: PositionType) -> i32 {
         PositionType::Absolute => 1,
     }
 }
-
-
-use style::Style;
 
 pub mod style;
 
@@ -366,7 +365,10 @@ impl Mason {
         if self.taffy.child_count(node.node).unwrap_or_default() == 0 {
             return;
         }
-        println!("has {}" , self.taffy.child_count(node.node).unwrap_or_default());
+        println!(
+            "has {}",
+            self.taffy.child_count(node.node).unwrap_or_default()
+        );
         let _ = self.taffy.remove(node.node);
     }
 
@@ -453,6 +455,10 @@ impl<T> Size<T> {
     }
 
     pub fn new(width: f32, height: f32) -> Size<f32> {
+        Size::from_taffy(taffy::geometry::Size { width, height })
+    }
+
+    pub fn new_with_dim(width: Dimension, height: Dimension) -> Size<Dimension> {
         Size::from_taffy(taffy::geometry::Size { width, height })
     }
 
@@ -549,6 +555,17 @@ pub struct Rect<T> {
 }
 
 impl<T> Rect<T> {
+    pub fn from_dim(value: Dimension) -> Rect<Dimension> {
+        Rect {
+            rect: taffy::geometry::Rect {
+                left: value,
+                right: value,
+                top: value,
+                bottom: value,
+            },
+        }
+    }
+
     pub fn from_taffy(rect: taffy::geometry::Rect<T>) -> Self {
         Self { rect }
     }

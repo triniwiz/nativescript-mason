@@ -10,6 +10,18 @@ using namespace std;
 
 
 void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
+    CREATE_FUNC("__Mason_updateNodeAndStyle", 3,
+                [](Runtime &runtime, const Value &thisValue,
+                   const Value *arguments, size_t count) -> Value {
+
+                    auto mason = (int64_t) arguments[0].asNumber();
+                    auto node = (int64_t) arguments[1].asNumber();
+                    auto style = (int64_t) arguments[2].asNumber();
+
+                    mason_node_update_and_set_style(mason, node, style);
+
+                    return Value::undefined();
+                });
 
 
     CREATE_FUNC("__Mason_updateFlexStyleWithValues", 64,
@@ -261,15 +273,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getDisplay", 1, [](Runtime &runtime, const Value &thisValue,
                                             const Value *arguments, size_t count) -> Value {
 
-
-        __android_log_print(ANDROID_LOG_DEBUG, "JS", "%s",
-                            "__Mason_getDisplay");
-
-
         auto style = (int64_t) arguments[0].asNumber();
-
-        __android_log_print(ANDROID_LOG_DEBUG, "JS", "%s",
-                            (std::string("__Mason_getDisplay") + std::to_string(style)).c_str());
 
         auto value = mason_style_get_display(style);
 
@@ -294,7 +298,862 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     });
 
 
-//
+    CREATE_FUNC("__Mason_getPositionType", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto position = mason_style_get_position_type(style);
+
+        return Value(position);
+
+    });
+
+
+    CREATE_FUNC("__Mason_setPositionType", 2, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto position = (int) arguments[1].asNumber();
+
+        mason_style_set_position_type(style, position);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getFlexWrap", 1, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_flex_wrap(style);
+
+        return Value(ret);
+
+    });
+
+
+    CREATE_FUNC("__Mason_setFlexWrap", 2, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto new_value = (int) arguments[1].asNumber();
+
+        mason_style_set_flex_wrap(style, new_value);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getAlignItems", 1, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_align_items(style);
+
+        return Value(ret);
+
+    });
+
+
+    CREATE_FUNC("__Mason_setAlignItems", 2, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto new_value = (int) arguments[1].asNumber();
+
+        mason_style_set_align_items(style, new_value);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getAlignContent", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_align_content(style);
+
+        return Value(ret);
+
+    });
+
+
+    CREATE_FUNC("__Mason_setAlignContent", 2, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto new_value = (int) arguments[1].asNumber();
+
+        mason_style_set_align_content(style, new_value);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getAlignSelf", 1, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_align_self(style);
+
+        return Value(ret);
+
+    });
+
+
+    CREATE_FUNC("__Mason_setAlignSelf", 2, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto new_value = (int) arguments[1].asNumber();
+
+        mason_style_set_align_self(style, new_value);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getJustifyContent", 1, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_justify_content(style);
+
+        return Value(ret);
+
+    });
+
+
+    CREATE_FUNC("__Mason_setJustifyContent", 2, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto new_value = (int) arguments[1].asNumber();
+
+        mason_style_set_justify_content(style, new_value);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_setPosition", 3, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_position(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getPositionLeft", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_position_left(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setPositionLeft", 3, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_position_left(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getPositionRight", 1, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_position_right(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setPositionRight", 3, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_position_right(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getPositionTop", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_position_top(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setPositionTop", 3, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_position_top(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getPositionBottom", 1, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_position_bottom(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setPositionBottom", 3, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_position_bottom(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_setMargin", 3, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_margin(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getMarginLeft", 1, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_margin_left(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setMarginLeft", 3, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_margin_left(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getMarginRight", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_margin_right(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setMarginRight", 3, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_margin_right(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getMarginTop", 1, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_margin_top(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setMarginTop", 3, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_margin_top(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getMarginBottom", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_margin_bottom(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setMarginBottom", 3, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_margin_bottom(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_setPadding", 3, [](Runtime &runtime, const Value &thisValue,
+                                            const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_padding(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getPaddingLeft", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_padding_left(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setPaddingLeft", 3, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_padding_left(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getPaddingRight", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_padding_right(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setPaddingRight", 3, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_padding_right(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getPaddingTop", 1, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_padding_top(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setPaddingTop", 3, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_padding_top(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getPaddingBottom", 1, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_padding_bottom(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setPaddingBottom", 3, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_padding_bottom(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_setBorder", 3, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_border(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getBorderLeft", 1, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_border_left(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setBorderLeft", 3, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_border_left(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getBorderRight", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_border_right(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setBorderRight", 3, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_border_right(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getBorderTop", 1, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_border_top(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setBorderTop", 3, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_border_top(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getBorderBottom", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_border_bottom(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setBorderBottom", 3, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_border_bottom(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getFlexGrow", 1, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = (double) mason_style_get_flex_grow(style);
+
+        return Value(ret);
+
+    }
+
+    );
+
+
+    CREATE_FUNC("__Mason_setFlexGrow", 2, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto new_value = (float) arguments[1].asNumber();
+
+        mason_style_set_flex_grow(style, new_value);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getFlexShrink", 1, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = (double) mason_style_get_flex_shrink(style);
+
+        return Value(ret);
+
+    }
+
+    );
+
+
+    CREATE_FUNC("__Mason_setFlexShrink", 2, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto new_value = (float) arguments[1].asNumber();
+
+        mason_style_set_flex_shrink(style, new_value);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getFlexBasis", 1, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = mason_style_get_flex_basis(style);
+
+        return dimensionToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setFlexBasis", 3, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_flex_basis(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getGap", 1, [](Runtime &runtime, const Value &thisValue,
+                                        const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto size = mason_style_get_gap(style);
+
+        return sizeToJS(runtime, size);
+
+    });
+
+    CREATE_FUNC("__Mason_setGap", 5, [](Runtime &runtime, const Value &thisValue,
+                                        const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto width_value = (float) arguments[1].asNumber();
+        auto width_type = (int) arguments[2].asNumber();
+
+        auto height_value = (float) arguments[3].asNumber();
+        auto height_type = (int) arguments[4].asNumber();
+
+
+        mason_style_set_gap(style, width_value, jsToDimensionType(width_type), height_value,
+                            jsToDimensionType(height_type));
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getAspectRatio", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto ret = (double) mason_style_get_aspect_ratio(style);
+
+        return Value(ret);
+
+    }
+
+    );
+
+
+    CREATE_FUNC("__Mason_setAspectRatio", 2, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto new_value = (float) arguments[1].asNumber();
+
+        mason_style_set_aspect_ratio(style, new_value);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getFlexDirection", 1, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = mason_style_get_flex_direction(style);
+
+        return Value(value);
+
+    }
+
+    );
+
+
+    CREATE_FUNC("__Mason_setFlexDirection", 2, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+
+        auto style = (int64_t) arguments[0].asNumber();
+        auto display = (int) arguments[1].asNumber();
+
+        mason_style_set_flex_direction(style, display);
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getMinWidth", 1, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto width = mason_style_get_min_width(style);
+
+        return dimensionToJS(runtime, width);
+
+    });
+
+    CREATE_FUNC("__Mason_setMinWidth", 3, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_min_width(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getMinHeight", 2, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto height = mason_style_get_min_height(style);
+
+        return dimensionToJS(runtime, height);
+    });
+
+    CREATE_FUNC("__Mason_setMinHeight", 3, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_min_height(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    }
+
+    );
 
     CREATE_FUNC("__Mason_getWidth", 1, [](Runtime &runtime, const Value &thisValue,
                                           const Value *arguments, size_t count) -> Value {
@@ -350,9 +1209,56 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
 
     );
 
-    auto array = Array(jsiRuntime, 10);
-    for (int i = 0; i < 5; i++) {
-        array.setValueAtIndex(jsiRuntime, i, i);
+    CREATE_FUNC("__Mason_getMaxWidth", 1, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto width = mason_style_get_max_width(style);
+
+        return dimensionToJS(runtime, width);
+
+    });
+
+    CREATE_FUNC("__Mason_setMaxWidth", 3, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_max_width(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
+    });
+
+    CREATE_FUNC("__Mason_getMaxHeight", 2, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto height = mason_style_get_max_height(style);
+
+        return dimensionToJS(runtime, height);
+    });
+
+    CREATE_FUNC("__Mason_setMaxHeight", 3, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = (int64_t) arguments[0].asNumber();
+
+        auto value = (float) arguments[1].asNumber();
+        auto value_type = (int) arguments[2].asNumber();
+
+
+        mason_style_set_max_height(style, value, jsToDimensionType(value_type));
+
+        return Value::undefined();
+
     }
 
+    );
 }

@@ -237,8 +237,8 @@ public let MasonDimensionUndefined = MasonDimension.Undefined
 public enum MasonDimension {
     case Points(Float)
     case Percent(Float)
-    case Auto
     case Undefined
+    case Auto
     
     internal var type: Int32 {
         get {

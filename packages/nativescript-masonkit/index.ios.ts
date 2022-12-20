@@ -1,6 +1,6 @@
 import { heightProperty, Length, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, Utils, widthProperty } from '@nativescript/core';
 import { alignSelfProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
-import { Display, displayProperty, TSCViewBase } from './common';
+import { displayProperty, TSCViewBase } from './common';
 
 let JSIEnabled = false;
 
@@ -450,6 +450,7 @@ export class TSCView extends TSCViewBase {
     return undefined;
   }
 
+  //@ts-ignore
   set flexDirection(value) {
     this.style.flexDirection = value;
     _setFlexDirection(value, this.ios);
@@ -548,6 +549,7 @@ export class TSCView extends TSCViewBase {
     }
   }
 
+  //@ts-ignore
   set maxWidth(value) {
     this.style.maxWidth = value;
     if (!this.ios) {
@@ -570,6 +572,7 @@ export class TSCView extends TSCViewBase {
     }
   }
 
+  //@ts-ignore
   set maxHeight(value) {
     this.style.maxHeight = value;
     if (!this.ios) {
