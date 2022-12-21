@@ -90,6 +90,10 @@ pub(crate) mod ffi {
 
         fn mason_node_compute_wh(mason: i64, node: i64, width: f32, height: f32);
 
+        fn mason_node_mark_dirty(mason: i64, node: i64);
+
+        fn mason_node_dirty(mason: i64, node: i64) -> bool;
+
         fn mason_style_get_position_type(style: i64) -> i32;
 
         fn mason_style_set_position_type(style: i64, value: i32);
@@ -331,6 +335,7 @@ impl CMasonSize {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<mason_core::AvailableSpace> for AvailableSpace {
     fn into(self) -> mason_core::AvailableSpace {
         match self.space_type {
@@ -422,6 +427,7 @@ impl From<Size<Dimension>> for CMasonSize {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<Size<Dimension>> for CMasonSize {
     fn into(self) -> Size<Dimension> {
         Size::<Dimension>::new_with_dim(self.width.into(), self.height.into())
@@ -489,6 +495,40 @@ pub fn mason_style_get_height(style: i64) -> CMasonDimension {
         Box::leak(style);
 
         height
+    }
+}
+
+pub fn mason_node_mark_dirty(mason: i64, node: i64) {
+    if mason == 0 || node == 0 {
+        return;
+    }
+
+    unsafe {
+        let mut mason = Box::from_raw(mason as *mut Mason);
+
+        let node = Box::from_raw(node as *mut Node);
+
+        mason.mark_dirty(*node);
+
+        Box::leak(mason);
+        Box::leak(node);
+    }
+}
+
+pub fn mason_node_dirty(mason: i64, node: i64) -> bool {
+    if mason == 0 || node == 0 {
+        return false;
+    }
+    unsafe {
+        let mason = Box::from_raw(mason as *mut Mason);
+
+        let node = Box::from_raw(node as *mut Node);
+
+        let dirty = mason.dirty(*node);
+
+        Box::leak(mason);
+        Box::leak(node);
+        dirty
     }
 }
 
@@ -1654,7 +1694,7 @@ pub fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64) {
         let mut mason = Box::from_raw(mason as *mut Mason);
 
         let node = Box::from_raw(node as *mut Node);
-        
+
         let style = Box::from_raw(style as *mut Style);
 
         mason.set_style(*node, *style);

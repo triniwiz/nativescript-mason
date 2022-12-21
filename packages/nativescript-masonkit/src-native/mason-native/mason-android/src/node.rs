@@ -1,6 +1,6 @@
+use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JValue, ReleaseMode};
 use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, JNI_FALSE, JNI_TRUE};
-use jni::JNIEnv;
 
 use mason_core::{AvailableSpace, Mason, MeasureFunc, MeasureOutput, Node, Size};
 
@@ -158,7 +158,13 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeGetChildC
     unsafe {
         let mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
-        mason.child_count(*node) as jint
+
+        let count = mason.child_count(*node) as jint;
+
+        Box::leak(mason);
+        Box::leak(node);
+
+        count
     }
 }
 
@@ -845,7 +851,6 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetChildr
         }
     }
 }
-
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChildren(

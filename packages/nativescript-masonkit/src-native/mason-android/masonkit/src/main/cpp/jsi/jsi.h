@@ -305,6 +305,7 @@ class JSI_EXPORT Runtime {
   virtual void
   setPropertyValue(Object&, const String& name, const Value& value) = 0;
 
+  virtual bool isBigInt(const facebook::jsi::Value &value) const = 0;
   virtual bool isArray(const Object&) const = 0;
   virtual bool isArrayBuffer(const Object&) const = 0;
   virtual bool isFunction(const Object&) const = 0;
@@ -314,6 +315,9 @@ class JSI_EXPORT Runtime {
 
   virtual WeakObject createWeakObject(const Object&) = 0;
   virtual Value lockWeakObject(WeakObject&) = 0;
+
+  virtual uint64_t uint64Value(const BigInt&, bool *lossless) const = 0;
+  virtual int64_t int64Value(const BigInt&, bool *lossless) const = 0;
 
   virtual Array createArray(size_t length) = 0;
   virtual size_t size(const Array&) = 0;
@@ -493,6 +497,26 @@ class JSI_EXPORT BigInt : public Pointer {
 
   BigInt(BigInt&& other) = default;
   BigInt& operator=(BigInt&& other) = default;
+
+
+    /**
+   * Returns the value of this BigInt as an unsigned 64-bit integer.
+   * If `lossless` is provided, it will reflect whether the return value was
+   * truncated or wrapped around. In particular, it is set to `false` if this
+   * BigInt is negative.
+   */
+    uint64_t Uint64Value(Runtime& runtime, bool* lossless = nullptr) const {
+        return runtime.uint64Value(*this, lossless);
+    }
+
+    /**
+     * Returns the value of this BigInt as a signed 64-bit integer.
+     * If `lossless` is provided, it will reflect whether this BigInt was
+     * truncated or not.
+     */
+    int64_t Int64Value(Runtime& runtime, bool* lossless = nullptr) const {
+        return runtime.int64Value(*this, lossless);
+    }
 
   friend class Runtime;
   friend class Value;
@@ -1090,7 +1114,12 @@ class JSI_EXPORT Value {
     return kind_ == BigIntKind;
   }
 
-  bool isSymbol() const {
+  bool isBigInt(Runtime& runtime) const {
+      return runtime.isBigInt(*this);
+  }
+
+
+    bool isSymbol() const {
     return kind_ == SymbolKind;
   }
 
@@ -1140,14 +1169,14 @@ class JSI_EXPORT Value {
 
   /// \return the BigInt value, or asserts if not a bigint.
   BigInt getBigInt(Runtime& runtime) const& {
-    assert(isBigInt());
+    assert(isBigInt() || isBigInt(runtime));
     return BigInt(runtime.cloneBigInt(data_.pointer.ptr_));
   }
 
   /// \return the BigInt value, or asserts if not a bigint.
   /// Can be used on rvalue references to avoid cloning more bigints.
-  BigInt getBigInt(Runtime&) && {
-    assert(isBigInt());
+  BigInt getBigInt(Runtime& runtime) && {
+    assert(isBigInt() || isBigInt(runtime));
     auto ptr = data_.pointer.ptr_;
     data_.pointer.ptr_ = nullptr;
     return static_cast<BigInt>(ptr);

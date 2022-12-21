@@ -11,7 +11,7 @@ try {
   __non_webpack_require__('system_lib://libmasonnativev8.so');
   JSIEnabled = true;
 } catch (error) {
-  console.warn('Failed to turn on JSI');
+  console.warn('Failed to enable on FastAPI');
 }
 
 const enum FlexDirection {
@@ -1641,38 +1641,67 @@ function _getAspectRatio(instance: TSCView) {
   }
 }
 
+const BigIntZero = BigInt(0);
+
 export class TSCView extends TSCViewBase {
-  __masonStylePtr = 0;
+  static {
+    org.nativescript.mason.masonkit.Mason.setShared(true);
+  }
+  __masonStylePtr = BigIntZero;
   get _masonStylePtr() {
-    if (this.__masonStylePtr === 0) {
-      this.__masonStylePtr = parseInt((this.android as any)?.getMasonStylePtr?.()?.toString?.() ?? '0');
+    if (this.__masonStylePtr === BigIntZero) {
+      this.__masonStylePtr = BigInt((this.android as any)?.getMasonStylePtr?.()?.toString?.() ?? '0');
     }
     return this.__masonStylePtr;
   }
 
-  __masonNodePtr = 0;
+  __masonNodePtr = BigIntZero;
   get _masonNodePtr() {
-    if (this.__masonNodePtr === 0) {
-      this.__masonNodePtr = parseInt((this.android as any)?.getMasonNodePtr?.()?.toString?.() ?? '0');
+    if (this.__masonNodePtr === BigIntZero) {
+      this.__masonNodePtr = BigInt((this.android as any)?.getMasonNodePtr?.()?.toString?.() ?? '0');
     }
     return this.__masonNodePtr;
   }
 
-  __masonPtr = 0;
+  __masonPtr = BigIntZero;
   get _masonPtr() {
-    if (this.__masonPtr === 0) {
-      this.__masonPtr = parseInt((this.android as any)?.getMasonPtr?.()?.toString?.() ?? '0');
+    if (this.__masonPtr === BigIntZero) {
+      this.__masonPtr = BigInt(org.nativescript.mason.masonkit.Mason.getInstance().getNativePtr().toString());
     }
     return this.__masonPtr;
   }
 
   _hasNativeView = false;
-  _inBatch = true; // todo
+  _inBatch = false;
 
   createNativeView() {
     const view = new org.nativescript.mason.masonkit.View(this._context) as any;
     this._hasNativeView = true;
     return view;
+  }
+
+  forceStyleUpdate() {
+    if (JSIEnabled) {
+      global.__Mason_updateNodeAndStyle(this._masonPtr, this._masonNodePtr, this._masonStylePtr);
+    } else {
+      (this.android as any)?.updateNodeAndStyle?.();
+    }
+  }
+
+  markDirty() {
+    if (JSIEnabled) {
+      global.__Mason_markDirty(this._masonPtr, this._masonNodePtr);
+    } else {
+      (this.android as any)?.markNodeDirty?.();
+    }
+  }
+
+  isDirty() {
+    if (JSIEnabled) {
+      return global.__Mason_isDirty(this._masonPtr, this._masonNodePtr);
+    } else {
+      (this.android as any)?.isNodeDirty?.();
+    }
   }
 
   //@ts-ignore
@@ -1682,6 +1711,7 @@ export class TSCView extends TSCViewBase {
 
   onLoaded(): void {
     super.onLoaded();
+
     const views = this._children.filter((item) => {
       const ret = !item.parent;
       if (ret) {

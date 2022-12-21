@@ -24,6 +24,10 @@ static void createFunc(Runtime &jsiRuntime, const char *prop, int paramCount, Na
 #define CREATE_FUNC(prop, paramCount, func) \
     createFunc(jsiRuntime, prop, paramCount, func)
 
+inline static int64_t getPointerValue(const facebook::jsi::Value &value, Runtime &runtime) {
+    return value.asBigInt(runtime).Int64Value(runtime);
+}
+
 inline static Value dimensionToJS(Runtime &runtime, CMasonDimension dimension) {
     switch ((CMasonDimensionType) dimension.value_type) {
         case CMasonDimensionType::Auto:

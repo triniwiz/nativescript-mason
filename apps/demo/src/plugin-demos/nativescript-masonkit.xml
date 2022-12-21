@@ -16,7 +16,7 @@
     </FlexboxLayout> -->
 
 
-     <ui:TSCView gap="50% 50%" class="p-20" backgroundColor="red" flexDirection="column" alignSelf="stretch" loaded="loaded">
+     <ui:TSCView class="p-20" backgroundColor="red" flexDirection="column" alignSelf="stretch" gap="50% 50%" loaded="loaded">
     <Image width="100" height="100" src="https://picsum.photos/200/300"/>
          <Button  text="Test 1" tap="{{ testIt }}" class="btn btn-primary"/>
         <Button  text="Test 2" tap="{{ testIt }}" class="btn btn-primary"/>
@@ -59,7 +59,7 @@
         <Button  text="Test 2.5" tap="{{ testIt }}" class="btn btn-primary"/>
         <Button  text="Test 3.5" tap="{{ testIt }}" class="btn btn-primary"/>
         <Button  text="Test 4.5" tap="{{ testIt }}" class="btn btn-primary"/>
-        </ui:TSCView> -->
+        </ui:TSCView> 
     </ui:TSCView>
 
 

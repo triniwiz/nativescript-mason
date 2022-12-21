@@ -19,11 +19,11 @@ class V8PointerValue;
 class V8Runtime : public facebook::jsi::Runtime {
  public:
   V8Runtime(v8::Isolate* isolate);
-  
+
   //V8Runtime(const V8Runtime *v8Runtime);
-  
+
   ~V8Runtime();
-  
+
   // Calling this function when the platform main runloop is idle
   void OnMainLoopIdle();
 
@@ -130,6 +130,7 @@ class V8Runtime : public facebook::jsi::Runtime {
       const facebook::jsi::String &name,
       const facebook::jsi::Value &value) override;
 
+  bool isBigInt(const facebook::jsi::Value &value) const override;
   bool isArray(const facebook::jsi::Object &) const override;
   bool isArrayBuffer(const facebook::jsi::Object &) const override;
   bool isFunction(const facebook::jsi::Object &) const override;
@@ -184,6 +185,10 @@ class V8Runtime : public facebook::jsi::Runtime {
   bool instanceOf(
       const facebook::jsi::Object &o,
       const facebook::jsi::Function &f) override;
+
+    uint64_t uint64Value(const facebook::jsi::BigInt&, bool* lossless = nullptr) const override;
+
+    int64_t int64Value(const facebook::jsi::BigInt&, bool* lossless = nullptr) const override;
 
  private:
   friend class V8PointerValue;

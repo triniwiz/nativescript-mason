@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
 import android.view.ViewGroup
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
@@ -31,7 +32,7 @@ class Node private constructor(private var nativePtr: Long) {
   }
 
   constructor(style: Style) : this(
-    nativePtr = nativeNewNode(
+    nativeNewNode(
       Mason.instance.nativePtr,
       style.getNativePtr()
     )
@@ -43,7 +44,7 @@ class Node private constructor(private var nativePtr: Long) {
     style: Style,
     children: Array<Node>
   ) : this(
-    nativePtr = nativeNewNodeWithChildren(
+    nativeNewNodeWithChildren(
       Mason.instance.nativePtr,
       style.getNativePtr(),
       children.map { it.nativePtr }.toLongArray()
@@ -52,13 +53,14 @@ class Node private constructor(private var nativePtr: Long) {
     children.forEach {
       it.owner = this
     }
+
     this.children.addAll(children)
 
     this.style = style
   }
 
   constructor(style: Style, measure: MeasureFunc) : this(
-    nativePtr = nativeNewNodeWithMeasureFunc(
+   nativeNewNodeWithMeasureFunc(
       Mason.instance.nativePtr, style.getNativePtr(), MeasureFuncImpl(
         WeakReference(measure)
       )
@@ -258,6 +260,7 @@ class Node private constructor(private var nativePtr: Long) {
         ), 0
       ).second
     }
+
     return Layout.fromFloatArray(
       nativeUpdateSetStyleComputeAndLayout(
         Mason.instance.nativePtr, nativePtr, style.getNativePtr(),
@@ -525,7 +528,9 @@ class Node private constructor(private var nativePtr: Long) {
 
   fun getChildren(): Array<Node> {
     if (Mason.shared) {
+      Log.d("com.test", "nativeGetChildren ${Mason.instance.nativePtr} $nativePtr")
       val children = nativeGetChildren(Mason.instance.nativePtr, nativePtr)
+      Log.d("com.test", "children ${children.size}")
       val ret = arrayOfNulls<Node>(children.size)
       for (i in children.indices) {
         val child = Node(children[i])

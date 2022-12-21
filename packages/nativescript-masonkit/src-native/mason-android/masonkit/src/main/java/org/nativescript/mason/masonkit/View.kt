@@ -68,6 +68,18 @@ class View @JvmOverloads constructor(
       node.style = value
     }
 
+  fun markNodeDirty(){
+    node.dirty()
+  }
+
+  fun isNodeDirty(): Boolean {
+    return node.isDirty()
+  }
+
+  fun updateNodeAndStyle() {
+    node.updateNodeStyle()
+  }
+
   fun setStyleFromString(style: String) {
     try {
       val parsedStyle = gson.fromJson(style, Style::class.java)

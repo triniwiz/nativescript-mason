@@ -4,6 +4,7 @@
 
 #include "MasonJSIModule.h"
 #include <android/log.h>
+#include "v8runtime/JSIV8ValueConverter.h"
 
 using namespace facebook::jsi;
 using namespace std;
@@ -14,21 +15,25 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                 [](Runtime &runtime, const Value &thisValue,
                    const Value *arguments, size_t count) -> Value {
 
-                    auto mason = (int64_t) arguments[0].asNumber();
-                    auto node = (int64_t) arguments[1].asNumber();
-                    auto style = (int64_t) arguments[2].asNumber();
+                    auto mason = getPointerValue(arguments[0], runtime);
+
+                    auto node = getPointerValue(arguments[1], runtime);
+
+                    auto style = getPointerValue(arguments[2], runtime);
 
                     mason_node_update_and_set_style(mason, node, style);
 
                     return Value::undefined();
-                });
+                }
+
+    );
 
 
     CREATE_FUNC("__Mason_updateFlexStyleWithValues", 64,
                 [](Runtime &runtime, const Value &thisValue,
                    const Value *arguments, size_t count) -> Value {
 
-                    auto style = (int64_t) arguments[0].asNumber();
+                    auto style = getPointerValue(arguments[0], runtime);
                     auto display = (int) arguments[1].asNumber();
                     auto positionType = (int) arguments[2].asNumber();
                     auto direction = (int) arguments[3].asNumber();
@@ -183,8 +188,9 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_compute", 2, [](Runtime &runtime, const Value &thisValue,
                                          const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
 
         mason_node_compute(mason, node);
 
@@ -196,8 +202,9 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_computeWH", 4, [](Runtime &runtime, const Value &thisValue,
                                            const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
 
         auto width = (float) arguments[2].asNumber();
         auto height = (float) arguments[3].asNumber();
@@ -209,16 +216,24 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
 
     });
 
-    createFunc(jsiRuntime, "__Mason_computeMaxContent", 2,
-               [](Runtime &runtime, const Value &thisValue,
-                  const Value *arguments, size_t count) -> Value {
+    createFunc(jsiRuntime,
+               "__Mason_computeMaxContent", 2,
+               [](
+                       Runtime &runtime,
+                       const Value &thisValue,
+                       const Value *arguments, size_t
+                       count) -> Value {
 
-                   auto mason = (int64_t) arguments[0].asNumber();
-                   auto node = (int64_t) arguments[1].asNumber();
+                   auto mason = getPointerValue(arguments[0], runtime);
 
-                   mason_node_compute_max_content(mason, node);
+                   auto node = getPointerValue(arguments[1], runtime);
 
-                   return Value::undefined();
+                   mason_node_compute_max_content(mason, node
+                   );
+
+                   return
+
+                           Value::undefined();
 
                });
 
@@ -226,8 +241,9 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_computeMinContent", 2, [](Runtime &runtime, const Value &thisValue,
                                                    const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
 
         mason_node_compute_min_content(mason, node);
 
@@ -236,21 +252,21 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     });
 
 
-    /* todo */
-    /*
-    createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &thisValue,
-                                                            const Value *arguments,
-                                                                      const Value *, size_t) -> Value {
+/* todo */
+/*
+createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &thisValue,
+                                                        const Value *arguments,
+                                                                  const Value *, size_t) -> Value {
 
-        auto mason = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
-        auto node = reinterpret_cast<void*>((int64_t)arguments[1].asNumber());
+    auto mason = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
+    auto node = reinterpret_cast<void*>((int64_t)arguments[1].asNumber());
 
 
 
-        return Value::undefined();
+    return Value::undefined();
 
-    });
-    */
+});
+*/
 
 
 //    CREATE_FUNC("__Mason_getComputedLayout", 2, [](Runtime &runtime, const Value &thisValue,
@@ -270,10 +286,40 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
 //    });
 
 
+
+    CREATE_FUNC("__Mason_isDirty", 2, [](Runtime &runtime, const Value &thisValue,
+                                         const Value *arguments, size_t count) -> Value {
+
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto value = mason_node_dirty(mason, node);
+
+        return Value(value);
+
+    }
+    );
+
+
+    CREATE_FUNC("__Mason_markDirty", 2, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+
+
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        mason_node_mark_dirty(mason, node);
+
+        return Value::undefined();
+    });
+
+
     CREATE_FUNC("__Mason_getDisplay", 1, [](Runtime &runtime, const Value &thisValue,
                                             const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto value = mason_style_get_display(style);
 
@@ -287,9 +333,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                             const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto display = (int) arguments[3].asNumber();
@@ -310,7 +358,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getPositionType", 1, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto position = mason_style_get_position_type(style);
 
@@ -323,9 +371,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                                  const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto position = (int) arguments[3].asNumber();
@@ -344,7 +394,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getFlexWrap", 1, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_flex_wrap(style);
 
@@ -357,9 +407,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                              const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto new_value = (int) arguments[3].asNumber();
@@ -378,7 +430,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getAlignItems", 1, [](Runtime &runtime, const Value &thisValue,
                                                const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_align_items(style);
 
@@ -391,9 +443,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                                const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto new_value = (int) arguments[3].asNumber();
@@ -412,7 +466,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getAlignContent", 1, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_align_content(style);
 
@@ -425,9 +479,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                                  const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto new_value = (int) arguments[3].asNumber();
@@ -446,7 +502,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getAlignSelf", 1, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_align_self(style);
 
@@ -459,9 +515,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                               const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto new_value = (int) arguments[3].asNumber();
@@ -480,7 +538,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getJustifyContent", 1, [](Runtime &runtime, const Value &thisValue,
                                                    const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_justify_content(style);
 
@@ -493,9 +551,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                                    const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto new_value = (int) arguments[3].asNumber();
@@ -514,9 +574,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setPosition", 6, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -536,7 +598,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getPositionLeft", 1, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_position_left(style);
 
@@ -546,9 +608,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
 
     CREATE_FUNC("__Mason_setPositionLeft", 6, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -568,7 +632,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getPositionRight", 1, [](Runtime &runtime, const Value &thisValue,
                                                   const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_position_right(style);
 
@@ -579,9 +643,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setPositionRight", 6, [](Runtime &runtime, const Value &thisValue,
                                                   const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -601,7 +667,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getPositionTop", 1, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_position_top(style);
 
@@ -612,9 +678,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setPositionTop", 6, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -634,7 +702,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getPositionBottom", 1, [](Runtime &runtime, const Value &thisValue,
                                                    const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_position_bottom(style);
 
@@ -645,9 +713,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setPositionBottom", 6, [](Runtime &runtime, const Value &thisValue,
                                                    const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -667,9 +737,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setMargin", 6, [](Runtime &runtime, const Value &thisValue,
                                            const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -689,7 +761,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getMarginLeft", 1, [](Runtime &runtime, const Value &thisValue,
                                                const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_margin_left(style);
 
@@ -700,9 +772,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setMarginLeft", 6, [](Runtime &runtime, const Value &thisValue,
                                                const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -722,7 +796,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getMarginRight", 1, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_margin_right(style);
 
@@ -733,9 +807,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setMarginRight", 6, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -755,7 +831,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getMarginTop", 1, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_margin_top(style);
 
@@ -766,9 +842,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setMarginTop", 6, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -788,7 +866,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getMarginBottom", 1, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_margin_bottom(style);
 
@@ -799,9 +877,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setMarginBottom", 6, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -821,9 +901,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setPadding", 6, [](Runtime &runtime, const Value &thisValue,
                                             const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -843,7 +925,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getPaddingLeft", 1, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_padding_left(style);
 
@@ -854,9 +936,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setPaddingLeft", 6, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -876,7 +960,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getPaddingRight", 1, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_padding_right(style);
 
@@ -887,9 +971,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setPaddingRight", 6, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -909,7 +995,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getPaddingTop", 1, [](Runtime &runtime, const Value &thisValue,
                                                const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_padding_top(style);
 
@@ -920,9 +1006,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setPaddingTop", 6, [](Runtime &runtime, const Value &thisValue,
                                                const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -942,7 +1030,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getPaddingBottom", 1, [](Runtime &runtime, const Value &thisValue,
                                                   const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_padding_bottom(style);
 
@@ -953,9 +1041,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setPaddingBottom", 6, [](Runtime &runtime, const Value &thisValue,
                                                   const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -976,9 +1066,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setBorder", 6, [](Runtime &runtime, const Value &thisValue,
                                            const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -998,7 +1090,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getBorderLeft", 1, [](Runtime &runtime, const Value &thisValue,
                                                const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_border_left(style);
 
@@ -1009,9 +1101,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setBorderLeft", 6, [](Runtime &runtime, const Value &thisValue,
                                                const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1031,7 +1125,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getBorderRight", 1, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_border_right(style);
 
@@ -1042,9 +1136,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setBorderRight", 6, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1064,7 +1160,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getBorderTop", 1, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_border_top(style);
 
@@ -1075,9 +1171,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setBorderTop", 6, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1097,7 +1195,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getBorderBottom", 1, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_border_bottom(style);
 
@@ -1108,9 +1206,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setBorderBottom", 6, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1131,7 +1231,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getFlexGrow", 1, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = (double) mason_style_get_flex_grow(style);
 
@@ -1146,9 +1246,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                              const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto new_value = (float) arguments[3].asNumber();
@@ -1167,7 +1269,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getFlexShrink", 1, [](Runtime &runtime, const Value &thisValue,
                                                const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = (double) mason_style_get_flex_shrink(style);
 
@@ -1182,9 +1284,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                                const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto new_value = (float) arguments[3].asNumber();
@@ -1203,7 +1307,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getFlexBasis", 1, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = mason_style_get_flex_basis(style);
 
@@ -1214,9 +1318,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setFlexBasis", 6, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1237,7 +1343,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getGap", 1, [](Runtime &runtime, const Value &thisValue,
                                         const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto size = mason_style_get_gap(style);
 
@@ -1248,9 +1354,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setGap", 8, [](Runtime &runtime, const Value &thisValue,
                                         const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
 
         auto update = arguments[7].asBool();
 
@@ -1277,7 +1385,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getAspectRatio", 1, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto ret = (double) mason_style_get_aspect_ratio(style);
 
@@ -1292,9 +1400,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                                 const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto new_value = (float) arguments[3].asNumber();
@@ -1313,7 +1423,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getFlexDirection", 1, [](Runtime &runtime, const Value &thisValue,
                                                   const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto value = mason_style_get_flex_direction(style);
 
@@ -1328,9 +1438,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
                                                   const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
         auto display = (int) arguments[3].asNumber();
@@ -1349,7 +1461,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getMinWidth", 1, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto width = mason_style_get_min_width(style);
 
@@ -1360,9 +1472,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setMinWidth", 6, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1382,7 +1496,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getMinHeight", 2, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto height = mason_style_get_min_height(style);
 
@@ -1392,9 +1506,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setMinHeight", 6, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1416,7 +1532,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getWidth", 1, [](Runtime &runtime, const Value &thisValue,
                                           const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto width = mason_style_get_width(style);
 
@@ -1427,9 +1543,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setWidth", 6, [](Runtime &runtime, const Value &thisValue,
                                           const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1450,7 +1568,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getHeight", 2, [](Runtime &runtime, const Value &thisValue,
                                            const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto height = mason_style_get_height(style);
 
@@ -1460,9 +1578,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setHeight", 6, [](Runtime &runtime, const Value &thisValue,
                                            const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1484,7 +1604,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getMaxWidth", 1, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto width = mason_style_get_max_width(style);
 
@@ -1495,9 +1615,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setMaxWidth", 6, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();
@@ -1517,7 +1639,7 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_getMaxHeight", 2, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto style = (int64_t) arguments[0].asNumber();
+        auto style = getPointerValue(arguments[0], runtime);
 
         auto height = mason_style_get_max_height(style);
 
@@ -1527,9 +1649,11 @@ void MasonJSIModule::install(facebook::jsi::Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_setMaxHeight", 6, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto mason = (int64_t) arguments[0].asNumber();
-        auto node = (int64_t) arguments[1].asNumber();
-        auto style = (int64_t) arguments[2].asNumber();
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[5].asBool();
 
         auto value = (float) arguments[3].asNumber();

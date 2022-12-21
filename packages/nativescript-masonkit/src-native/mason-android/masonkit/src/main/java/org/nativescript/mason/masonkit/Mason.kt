@@ -5,44 +5,44 @@ import com.google.gson.Gson
 
 class Mason private constructor() {
 
-    internal var nativePtr: Long = 0L
+  internal var nativePtr = nativeInit()
+
+  fun clear() {
+    nativeClear(nativePtr)
+  }
+
+  fun getNativePtr(): Long {
+    return nativePtr
+  }
+
+  companion object {
+
+    private var didInit = false
+
+    internal fun initLib() {
+      if (didInit) {
+        return
+      }
+      System.loadLibrary("masonandroid")
+      didInit = true
+    }
 
     init {
-        initLib()
-        nativePtr = nativeInit()
+      initLib()
     }
 
-    fun clear() {
-        nativeClear(nativePtr)
-    }
+    @JvmStatic
+    val instance = Mason()
 
-    fun getNativePtr(): Long {
-        return nativePtr
-    }
+    // enable when using along external bindings
+    @JvmStatic
+    var shared = false
 
-    companion object {
+    internal val gson =
+      Gson().newBuilder().registerTypeAdapter(Dimension::class.java, DimensionSerializer()).create()
+  }
 
-        private var didInit = false
+  private external fun nativeInit(): Long
 
-        internal fun initLib() {
-            if (didInit) {
-                return
-            }
-            System.loadLibrary("masonandroid")
-            didInit = true
-        }
-
-        @JvmStatic
-        val instance = Mason()
-
-        // enable when using along external bindings
-        @JvmStatic
-        var shared = false
-
-        internal val gson = Gson().newBuilder().registerTypeAdapter(Dimension::class.java, DimensionSerializer()).create()
-    }
-
-    private external fun nativeInit(): Long
-
-    private external fun nativeClear(mason: Long)
+  private external fun nativeClear(mason: Long)
 }
