@@ -60,7 +60,7 @@ class Node private constructor(private var nativePtr: Long) {
   }
 
   constructor(style: Style, measure: MeasureFunc) : this(
-   nativeNewNodeWithMeasureFunc(
+    nativeNewNodeWithMeasureFunc(
       Mason.instance.nativePtr, style.getNativePtr(), MeasureFuncImpl(
         WeakReference(measure)
       )
@@ -162,7 +162,7 @@ class Node private constructor(private var nativePtr: Long) {
 
   var inBatch = false
     set(value) {
-      if (field && !value){
+      if (field && !value) {
         updateNodeStyle()
       }
       field = value
@@ -372,7 +372,10 @@ class Node private constructor(private var nativePtr: Long) {
       if (child == 0L) {
         return null
       }
-      return Node(child)
+      val parent = this
+      return Node(child).apply {
+        owner = parent
+      }
     }
     return children[index]
   }
@@ -385,7 +388,8 @@ class Node private constructor(private var nativePtr: Long) {
     nativeAddChild(Mason.instance.nativePtr, nativePtr, child.nativePtr)
 
     if (nodes.containsKey(child.nativePtr)) {
-      return nodes[child.nativePtr]?.apply { owner = this }
+      val parent = this
+      return nodes[child.nativePtr]?.apply { owner = parent }
     }
 
     child.owner = this
@@ -404,13 +408,19 @@ class Node private constructor(private var nativePtr: Long) {
 
     if (index == -1) {
       nativeAddChild(Mason.instance.nativePtr, nativePtr, child.nativePtr)
+
+      child.owner = this
+
+      children.add(child)
+      nodes[child.nativePtr] = child
       return
     }
 
     nativeAddChildAt(Mason.instance.nativePtr, nativePtr, child.nativePtr, index)
 
     if (nodes.containsKey(child.nativePtr)) {
-      nodes[child.nativePtr]?.apply { owner = this }
+      val parent = this
+      nodes[child.nativePtr]?.apply { owner = parent }
       return
     }
 
@@ -429,7 +439,6 @@ class Node private constructor(private var nativePtr: Long) {
       throw IllegalStateException("Child already has a parent, it must be removed first.");
     }
 
-
     nativeInsertChildBefore(
       Mason.instance.nativePtr,
       nativePtr,
@@ -438,7 +447,8 @@ class Node private constructor(private var nativePtr: Long) {
     )
 
     if (nodes.containsKey(child.nativePtr)) {
-      nodes[child.nativePtr]?.apply { owner = this }
+      val parent = this
+      nodes[child.nativePtr]?.apply { owner = parent }
       return
     }
     child.owner = this
@@ -463,7 +473,8 @@ class Node private constructor(private var nativePtr: Long) {
     )
 
     if (nodes.containsKey(child.nativePtr)) {
-      nodes[child.nativePtr]?.apply { owner = this }
+      val parent = this
+      nodes[child.nativePtr]?.apply { owner = parent }
       return
     }
     child.owner = this
@@ -487,12 +498,15 @@ class Node private constructor(private var nativePtr: Long) {
 
   fun removeChild(child: Node): Node? {
     val removedNode = nativeRemoveChild(Mason.instance.nativePtr, nativePtr, child.nativePtr)
+
     if (removedNode == 0L) {
       return null
     }
-    assert(child.nativePtr == removedNode)
+
     child.owner = null
+
     children.remove(child)
+
     nodes.remove(child.nativePtr)
 
     return child
@@ -528,13 +542,13 @@ class Node private constructor(private var nativePtr: Long) {
 
   fun getChildren(): Array<Node> {
     if (Mason.shared) {
-      Log.d("com.test", "nativeGetChildren ${Mason.instance.nativePtr} $nativePtr")
       val children = nativeGetChildren(Mason.instance.nativePtr, nativePtr)
-      Log.d("com.test", "children ${children.size}")
       val ret = arrayOfNulls<Node>(children.size)
+      val parent = this
       for (i in children.indices) {
-        val child = Node(children[i])
-        child.owner = this
+        val child = Node(children[i]).apply {
+          owner = parent
+        }
         ret[i] = child
       }
       return ret.requireNoNulls()
@@ -557,9 +571,11 @@ class Node private constructor(private var nativePtr: Long) {
   @Synchronized
   @Throws(Throwable::class)
   protected fun finalize() {
-    owner?.removeChild(this)
-    nativeDestroy(nativePtr)
-    nativePtr = 0L
+    if (nativePtr != 0L){
+    //  owner?.removeChild(this)
+  //    nativeDestroy(nativePtr)
+    }
+
   }
 
   companion object {

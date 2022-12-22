@@ -305,7 +305,6 @@ class JSI_EXPORT Runtime {
   virtual void
   setPropertyValue(Object&, const String& name, const Value& value) = 0;
 
-  virtual bool isBigInt(const facebook::jsi::Value &value) const = 0;
   virtual bool isArray(const Object&) const = 0;
   virtual bool isArrayBuffer(const Object&) const = 0;
   virtual bool isFunction(const Object&) const = 0;
@@ -1114,11 +1113,6 @@ class JSI_EXPORT Value {
     return kind_ == BigIntKind;
   }
 
-  bool isBigInt(Runtime& runtime) const {
-      return runtime.isBigInt(*this);
-  }
-
-
     bool isSymbol() const {
     return kind_ == SymbolKind;
   }
@@ -1169,14 +1163,14 @@ class JSI_EXPORT Value {
 
   /// \return the BigInt value, or asserts if not a bigint.
   BigInt getBigInt(Runtime& runtime) const& {
-    assert(isBigInt() || isBigInt(runtime));
+    assert(isBigInt());
     return BigInt(runtime.cloneBigInt(data_.pointer.ptr_));
   }
 
   /// \return the BigInt value, or asserts if not a bigint.
   /// Can be used on rvalue references to avoid cloning more bigints.
   BigInt getBigInt(Runtime& runtime) && {
-    assert(isBigInt() || isBigInt(runtime));
+    assert(isBigInt());
     auto ptr = data_.pointer.ptr_;
     data_.pointer.ptr_ = nullptr;
     return static_cast<BigInt>(ptr);

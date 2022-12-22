@@ -1,13 +1,7 @@
 use std::ffi::{c_float, c_int, c_void};
 
 use mason_core::style::Style;
-use mason_core::{
-    align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
-    align_self_from_enum, align_self_to_enum, display_from_enum, display_to_enum,
-    flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum,
-    justify_content_from_enum, justify_content_to_enum, position_type_from_enum,
-    position_type_to_enum, Dimension, Rect,
-};
+use mason_core::{align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum, align_self_from_enum, align_self_to_enum, display_from_enum, display_to_enum, flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum, justify_content_from_enum, justify_content_to_enum, position_type_from_enum, position_type_to_enum, Dimension, Rect, Size};
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -98,6 +92,57 @@ impl From<Rect<Dimension>> for CMasonRect {
             top: rect.top().into(),
             bottom: rect.bottom().into(),
         }
+    }
+}
+
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonSize {
+    pub width: CMasonDimension,
+    pub height: CMasonDimension,
+}
+
+impl CMasonSize {
+    pub fn new(
+        width_value: f32,
+        width_type: CMasonDimensionType,
+        height_value: f32,
+        height_type: CMasonDimensionType,
+    ) -> Self {
+        Self {
+            width: CMasonDimension::new(width_value, width_type),
+            height: CMasonDimension::new(height_value, height_type),
+        }
+    }
+
+    pub fn undefined() -> Self {
+        Self {
+            width: CMasonDimension::undefined(),
+            height: CMasonDimension::undefined(),
+        }
+    }
+    pub fn auto() -> Self {
+        Self {
+            width: CMasonDimension::auto(),
+            height: CMasonDimension::auto(),
+        }
+    }
+}
+
+impl From<Size<Dimension>> for CMasonSize {
+    fn from(size: Size<Dimension>) -> Self {
+        Self {
+            width: size.width().into(),
+            height: size.height().into(),
+        }
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<Size<Dimension>> for CMasonSize {
+    fn into(self) -> Size<Dimension> {
+        Size::<Dimension>::new_with_dim(self.width.into(), self.height.into())
     }
 }
 
@@ -1452,6 +1497,47 @@ pub extern "C" fn mason_style_get_max_height(style: *mut c_void) -> CMasonDimens
         Box::leak(style);
 
         height
+    }
+}
+
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_gap(style: *mut c_void) -> CMasonSize {
+    if style.is_null() {
+        return CMasonSize::undefined();
+    }
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = style.gap().into();
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_gap(
+    style: *mut c_void,
+    width_value: f32,
+    width_type: CMasonDimensionType,
+    height_value: f32,
+    height_type: CMasonDimensionType,
+) {
+    if style.is_null() {
+        return;
+    }
+
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        let size = CMasonSize::new(width_value, width_type, height_value, height_type);
+
+        style.set_gap(size.into());
+
+        Box::leak(style);
     }
 }
 

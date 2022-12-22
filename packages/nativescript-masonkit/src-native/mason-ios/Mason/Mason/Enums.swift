@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 @objcMembers
 @objc(MasonRectCompat)
@@ -202,17 +203,14 @@ public class MasonDimensionCompat: NSObject {
     
     public var cssValue: String {
         get {
-            switch(dimension){
-            case .Points(let points):
-                return "\(points)px"
-            case .Percent(let percent):
-                return "\(percent)%"
-            case .Auto:
-                return "auto"
-            case .Undefined:
-                return "undefined"
-            }
+            return dimension.cssValue
         }
+    }
+    
+    
+    
+    public var jsonValue: String? {
+        return dimension.jsonValue
     }
     
     public static let Undefined = MasonDimensionCompat(value: .Undefined)
@@ -220,6 +218,7 @@ public class MasonDimensionCompat: NSObject {
     public static let Auto = MasonDimensionCompat(value: .Auto)
 }
 
+private let encoder = JSONEncoder()
 
 public func MasonDimensionFromPoints(value: Float) -> MasonDimension {
     return .Points(value)
@@ -234,7 +233,7 @@ public let MasonDimensionAuto = MasonDimension.Auto
 public let MasonDimensionUndefined = MasonDimension.Undefined
 
 
-public enum MasonDimension {
+public enum MasonDimension: Codable {
     case Points(Float)
     case Percent(Float)
     case Undefined
@@ -277,6 +276,81 @@ public enum MasonDimension {
                 return "undefined"
             }
         }
+    }
+    
+    public var jsonValue: String? {
+        do {
+            return try String(data: encoder.encode(self), encoding: .utf8)
+        }catch {return nil}
+    }
+    
+    
+    public init(from decoder: Decoder) throws {
+        do {
+            let container = try decoder.singleValueContainer()
+            let value = try container.decode(String.self)
+            switch(value){
+            case "auto":
+                self = .Auto
+                break
+            case "undefined":
+                self = .Undefined
+                break
+            default:
+                // throw invaild ??
+                self = .Undefined
+                break
+            }
+        }catch {
+            // should be an object
+            
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            let value = try values.decode(Float.self, forKey: .value)
+            let type = try values.decode(String.self, forKey: .unit)
+            
+            switch(type){
+            case "px":
+                self = .Points(value)
+                break
+            case "dip":
+                self = .Points(value * Float(UIScreen.main.scale))
+                break
+            case "%", "percent":
+                self = .Percent(value * 100)
+                break
+                
+            default:
+                // throw ???
+                self = .Undefined
+                break
+            }
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        switch(self){
+        case .Points:
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(value, forKey: .value)
+            try container.encode("px", forKey: .unit)
+        case .Percent:
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(value / 100, forKey: .value)
+            try container.encode("%", forKey: .unit)
+        case .Auto:
+            var container = encoder.singleValueContainer()
+            try container.encode("auto")
+            break
+        case .Undefined:
+            var container = encoder.singleValueContainer()
+            try container.encode("undefined")
+            break
+        }
+    }
+    
+    enum CodingKeys: String, CodingKey {
+           case value
+           case unit
     }
 }
 

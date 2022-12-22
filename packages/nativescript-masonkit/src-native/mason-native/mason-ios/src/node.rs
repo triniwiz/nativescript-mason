@@ -12,6 +12,7 @@ pub enum AvailableSpace {
     MaxContent,
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<mason_core::AvailableSpace> for AvailableSpace {
     fn into(self) -> mason_core::AvailableSpace {
         match self {

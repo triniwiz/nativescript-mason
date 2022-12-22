@@ -1,5 +1,4 @@
 #import "JSIModule.h"
-#import "NativeScript/JSIRuntime.h"
 #import "Mason/Mason-Swift.h"
 
 using namespace facebook::jsi;
@@ -19,17 +18,28 @@ static void createFunc(Runtime &jsiRuntime, const char *prop, int paramCount, Na
     createFunc(jsiRuntime, prop, paramCount, func)
 
 
+static void* getPointerValue(const facebook::jsi::Value &value, facebook::jsi::Runtime &runtime) {
+    // todo switch to bigint
+    return reinterpret_cast<void*>(value.asBigInt(runtime).Int64Value(runtime));
+   // return reinterpret_cast<void*>((int64_t)value.asNumber());
+}
+
+
 static Value dimensionToJS(Runtime &runtime,CMasonDimension dimension){
     switch (dimension.value_type) {
         case CMasonDimensionType::Auto:
             return facebook::jsi::String::createFromUtf8(runtime, "auto");
         case CMasonDimensionType::Percent: {
-            auto ret = std::to_string(dimension.value) + "%";
-            return facebook::jsi::String::createFromUtf8(runtime, ret.c_str());
+            auto ret = facebook::jsi::Object(runtime);
+            ret.setProperty(runtime, "value", dimension.value / 100);
+            ret.setProperty(runtime, "unit", "%");
+            return ret;
         }
         case CMasonDimensionType::Points: {
-            auto ret = std::to_string(dimension.value) + "px";
-            return facebook::jsi::String::createFromUtf8(runtime, ret.c_str());
+            auto ret = facebook::jsi::Object(runtime);
+            ret.setProperty(runtime, "value", dimension.value);
+            ret.setProperty(runtime, "unit", "px");
+            return ret;
         }
         default:
             return Value::undefined();
@@ -67,13 +77,23 @@ static CMasonDimensionType jsToDimensionType(int value_type){
 }
 
 
+static facebook::jsi::Value sizeToJS(facebook::jsi::Runtime &runtime, CMasonSize size) {
+    auto ret = facebook::jsi::Object(runtime);
+    ret.setProperty(runtime, "width", dimensionToJS(runtime, size.width));
+    ret.setProperty(runtime, "height", dimensionToJS(runtime, size.height));
+    return ret;
+}
+
+
+
+
 void install(Runtime &jsiRuntime) {
     
     
     CREATE_FUNC("__Mason_updateFlexStyleWithValues", 64, [](Runtime &runtime, const Value &thisValue,
                                                             const Value *arguments, size_t count) -> Value {
         
-        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
+        auto style = getPointerValue(arguments[0], runtime);
         auto display = (int)arguments[1].asNumber();
         auto positionType = (int)arguments[2].asNumber();
         auto direction = (int)arguments[3].asNumber();
@@ -317,87 +337,1381 @@ void install(Runtime &jsiRuntime) {
 //    });
     
     
-    CREATE_FUNC("__Mason_getDisplay", 1, [](Runtime &runtime, const Value &thisValue,
-                                          const Value *arguments, size_t count) -> Value {
-        
-        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
+    CREATE_FUNC("__Mason_isDirty", 2, [](Runtime &runtime, const Value &thisValue,
+                                            const Value *arguments, size_t count) -> Value {
 
-        auto value = [MasonReexports style_get_display:style];
-        
-        return Value(value);
-        
-    });
-    
-    
-    CREATE_FUNC("__Mason_setDisplay", 2, [](Runtime &runtime, const Value &thisValue,
-                                          const Value *arguments, size_t count) -> Value {
-        
-        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
-        auto display = (int)arguments[1].asNumber();
+           auto mason = getPointerValue(arguments[0], runtime);
 
-        [MasonReexports style_set_display:style :display];
+           auto node = getPointerValue(arguments[1], runtime);
         
-        return Value::undefined();
+        auto value  = [MasonReexports node_dirty:mason :node];
         
-    });
-    
-    
-//
-    
-    CREATE_FUNC("__Mason_getWidth", 1, [](Runtime &runtime, const Value &thisValue,
-                                          const Value *arguments, size_t count) -> Value {
-        
-        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
+           return Value(value);
 
-        auto width = [MasonReexports style_get_width:style];
-        
-        return dimensionToJS(runtime, width);
-        
-    });
-    
-    CREATE_FUNC("__Mason_setWidth", 3, [](Runtime &runtime, const Value &thisValue,
-                                          const Value *arguments, size_t count) -> Value {
-        
-        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
-        
-        auto value = (float)arguments[1].asNumber();
-        auto value_type = (int)arguments[2].asNumber();
+       }
+       );
 
-      
-        [MasonReexports style_set_width:style :value :jsToDimensionType(value_type)];
-        
-        return Value::undefined();
-        
-    });
-    
-    
-    CREATE_FUNC("__Mason_getHeight", 2, [](Runtime &runtime, const Value &thisValue,
+
+       CREATE_FUNC("__Mason_markDirty", 2, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+           
+           [MasonReexports node_mark_dirty:mason :node];
+
+           return Value::undefined();
+       });
+
+
+       CREATE_FUNC("__Mason_getDisplay", 1, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto value = [MasonReexports style_get_display: style];
+
+           return Value(value);
+
+       }
+       );
+
+
+       CREATE_FUNC("__Mason_setDisplay", 5, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto display = (int) arguments[3].asNumber();
+
+           [MasonReexports style_set_display:style :display];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+       }
+
+       );
+
+
+       CREATE_FUNC("__Mason_getPositionType", 1, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto position = [MasonReexports style_get_position_type:style];
+
+           return Value(position);
+
+       });
+
+
+       CREATE_FUNC("__Mason_setPositionType", 5, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto position = (int) arguments[3].asNumber();
+
+           [MasonReexports style_set_position_type:mason :position];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getFlexWrap", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_flex_wrap:style];
+
+           return Value(ret);
+
+       });
+
+
+       CREATE_FUNC("__Mason_setFlexWrap", 5, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto new_value = (int) arguments[3].asNumber();
+           
+           [MasonReexports style_set_flex_wrap:style :new_value];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getAlignItems", 1, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_align_items:style];
+
+           return Value(ret);
+
+       });
+
+
+       CREATE_FUNC("__Mason_setAlignItems", 5, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto new_value = (int) arguments[3].asNumber();
+
+           [MasonReexports style_set_align_items:style :new_value];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getAlignContent", 1, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_align_content:style];
+
+           return Value(ret);
+
+       });
+
+
+       CREATE_FUNC("__Mason_setAlignContent", 5, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto new_value = (int) arguments[3].asNumber();
+           
+           [MasonReexports style_set_align_content:style :new_value];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getAlignSelf", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_align_self:style];
+
+           return Value(ret);
+
+       });
+
+
+       CREATE_FUNC("__Mason_setAlignSelf", 5, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto new_value = (int) arguments[3].asNumber();
+
+           
+           [MasonReexports style_set_align_self:style :new_value];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getJustifyContent", 1, [](Runtime &runtime, const Value &thisValue,
+                                                      const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_justify_content:style];
+
+           return Value(ret);
+
+       });
+
+
+       CREATE_FUNC("__Mason_setJustifyContent", 5, [](Runtime &runtime, const Value &thisValue,
+                                                      const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto new_value = (int) arguments[3].asNumber();
+
+           [MasonReexports style_set_justify_content:style :new_value];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_setPosition", 6, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_position:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getPositionLeft", 1, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_position_left:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setPositionLeft", 6, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+           [MasonReexports style_set_position_left:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getPositionRight", 1, [](Runtime &runtime, const Value &thisValue,
+                                                     const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret =  [MasonReexports style_get_position_right:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setPositionRight", 6, [](Runtime &runtime, const Value &thisValue,
+                                                     const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+           [MasonReexports style_set_position_right:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getPositionTop", 1, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret =  [MasonReexports style_get_position_top:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setPositionTop", 6, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+           [MasonReexports style_set_position_top:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getPositionBottom", 1, [](Runtime &runtime, const Value &thisValue,
+                                                      const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret =  [MasonReexports style_get_position_bottom:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setPositionBottom", 6, [](Runtime &runtime, const Value &thisValue,
+                                                      const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_position_bottom:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_setMargin", 6, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+           
+           [MasonReexports style_set_margin:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getMarginLeft", 1, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_margin_left:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setMarginLeft", 6, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_margin_left:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getMarginRight", 1, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_margin_right:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setMarginRight", 6, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_margin_right:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getMarginTop", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_margin_top:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setMarginTop", 6, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_margin_top:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getMarginBottom", 1, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_margin_bottom:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setMarginBottom", 6, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_margin_bottom:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_setPadding", 6, [](Runtime &runtime, const Value &thisValue,
+                                               const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_padding:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getPaddingLeft", 1, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_padding_left:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setPaddingLeft", 6, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_padding_left:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getPaddingRight", 1, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_padding_right:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setPaddingRight", 6, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_padding_right:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getPaddingTop", 1, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_padding_top:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setPaddingTop", 6, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_padding_top:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getPaddingBottom", 1, [](Runtime &runtime, const Value &thisValue,
+                                                     const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_padding_bottom:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setPaddingBottom", 6, [](Runtime &runtime, const Value &thisValue,
+                                                     const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_padding_bottom:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_setBorder", 6, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_border:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getBorderLeft", 1, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_border_left:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setBorderLeft", 6, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_border_left:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getBorderRight", 1, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_border_right:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setBorderRight", 6, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_border_right:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getBorderTop", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_border_top:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setBorderTop", 6, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_border_top:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getBorderBottom", 1, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_border_bottom:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setBorderBottom", 6, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_border_bottom:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getFlexGrow", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = (double) [MasonReexports style_get_flex_grow:style];
+
+           return Value(ret);
+
+       }
+
+       );
+
+
+       CREATE_FUNC("__Mason_setFlexGrow", 5, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto new_value = (float) arguments[3].asNumber();
+
+           [MasonReexports style_set_flex_grow:style :new_value];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getFlexShrink", 1, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = (double) [MasonReexports style_get_flex_shrink:style];
+
+           return Value(ret);
+
+       }
+
+       );
+
+
+       CREATE_FUNC("__Mason_setFlexShrink", 5, [](Runtime &runtime, const Value &thisValue,
+                                                  const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto new_value = (float) arguments[3].asNumber();
+           
+           [MasonReexports style_set_flex_shrink:style : new_value];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getFlexBasis", 1, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = [MasonReexports style_get_flex_basis:style];
+
+           return dimensionToJS(runtime, ret);
+
+       });
+
+       CREATE_FUNC("__Mason_setFlexBasis", 6, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+           [MasonReexports style_set_flex_basis:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getGap", 1, [](Runtime &runtime, const Value &thisValue,
                                            const Value *arguments, size_t count) -> Value {
-        
-        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
 
-        auto height = [MasonReexports style_get_height:style];
+           auto style = getPointerValue(arguments[0], runtime);
 
-        return dimensionToJS(runtime, height);
-    });
-    
-    CREATE_FUNC("__Mason_setHeight", 3, [](Runtime &runtime, const Value &thisValue,
-                                          const Value *arguments, size_t count) -> Value {
-        
-        auto style = reinterpret_cast<void*>((int64_t)arguments[0].asNumber());
-        
-        auto value = (float)arguments[1].asNumber();
-        auto value_type = (int)arguments[2].asNumber();
+           auto size = [MasonReexports style_get_gap: style];
 
-      
-        [MasonReexports style_set_height:style :value :jsToDimensionType(value_type)];
-        
-        return Value::undefined();
-        
-    });
-    
-        
-    
+           return sizeToJS(runtime, size);
+
+       });
+
+       CREATE_FUNC("__Mason_setGap", 8, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+
+           auto update = arguments[7].asBool();
+
+           auto width_value = (float) arguments[3].asNumber();
+           auto width_type = (int) arguments[4].asNumber();
+
+           auto height_value = (float) arguments[5].asNumber();
+           auto height_type = (int) arguments[6].asNumber();
+
+           [MasonReexports style_set_gap:style :width_value :jsToDimensionType(width_type) :height_value :jsToDimensionType(height_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getAspectRatio", 1, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto ret = (double)  [MasonReexports style_get_aspect_ratio:style];
+
+           return Value(ret);
+
+       }
+
+       );
+
+
+       CREATE_FUNC("__Mason_setAspectRatio", 5, [](Runtime &runtime, const Value &thisValue,
+                                                   const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto new_value = (float) arguments[3].asNumber();
+
+           [MasonReexports style_set_aspect_ratio:style :new_value];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getFlexDirection", 1, [](Runtime &runtime, const Value &thisValue,
+                                                     const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto value = [MasonReexports style_get_flex_direction:style];
+
+           return Value(value);
+
+       }
+
+       );
+
+
+       CREATE_FUNC("__Mason_setFlexDirection", 5, [](Runtime &runtime, const Value &thisValue,
+                                                     const Value *arguments, size_t count) -> Value {
+
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[4].asBool();
+
+           auto direction = (int) arguments[3].asNumber();
+
+           [MasonReexports style_set_flex_direction:style :direction];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getMinWidth", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto width = [MasonReexports style_get_min_width:style];
+
+           return dimensionToJS(runtime, width);
+
+       });
+
+       CREATE_FUNC("__Mason_setMinWidth", 6, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+           [MasonReexports style_set_min_width:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getMinHeight", 2, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto height = [MasonReexports style_get_min_height:style];
+
+           return dimensionToJS(runtime, height);
+       });
+
+       CREATE_FUNC("__Mason_setMinHeight", 6, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_min_height:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       }
+
+       );
+
+       CREATE_FUNC("__Mason_getWidth", 1, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto width = [MasonReexports style_get_width:style];
+
+           return dimensionToJS(runtime, width);
+
+       });
+
+       CREATE_FUNC("__Mason_setWidth", 6, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_width:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+
+       CREATE_FUNC("__Mason_getHeight", 2, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto height = [MasonReexports style_get_min_height:style];
+
+           return dimensionToJS(runtime, height);
+       });
+
+       CREATE_FUNC("__Mason_setHeight", 6, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_height:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       }
+
+       );
+
+       CREATE_FUNC("__Mason_getMaxWidth", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto width = [MasonReexports style_get_max_width:style];
+
+           return dimensionToJS(runtime, width);
+
+       });
+
+       CREATE_FUNC("__Mason_setMaxWidth", 6, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_max_width:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       });
+
+       CREATE_FUNC("__Mason_getMaxHeight", 2, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto style = getPointerValue(arguments[0], runtime);
+
+           auto height = [MasonReexports style_get_max_height:style];
+
+           return dimensionToJS(runtime, height);
+       });
+
+       CREATE_FUNC("__Mason_setMaxHeight", 6, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+
+           auto mason = getPointerValue(arguments[0], runtime);
+
+           auto node = getPointerValue(arguments[1], runtime);
+
+           auto style = getPointerValue(arguments[2], runtime);
+           auto update = arguments[5].asBool();
+
+           auto value = (float) arguments[3].asNumber();
+           auto value_type = (int) arguments[4].asNumber();
+
+
+           [MasonReexports style_set_max_width:style :value :jsToDimensionType(value_type)];
+
+           if (update) {
+               [MasonReexports node_set_style:mason :node :style];
+           }
+
+           return Value::undefined();
+
+       }
+
+       );
 }
 
 

@@ -40,6 +40,11 @@ typedef struct CMasonDimension {
   enum CMasonDimensionType value_type;
 } CMasonDimension;
 
+typedef struct CMasonSize {
+  struct CMasonDimension width;
+  struct CMasonDimension height;
+} CMasonSize;
+
 void *mason_init(void);
 
 void *mason_init_with_capacity(uintptr_t capacity);
@@ -531,6 +536,14 @@ struct CMasonDimension mason_style_get_max_width(void *style);
 void mason_style_set_max_height(void *style, float value, enum CMasonDimensionType value_type);
 
 struct CMasonDimension mason_style_get_max_height(void *style);
+
+struct CMasonSize mason_style_get_gap(void *style);
+
+void mason_style_set_gap(void *style,
+                         float width_value,
+                         enum CMasonDimensionType width_type,
+                         float height_value,
+                         enum CMasonDimensionType height_type);
 
 void mason_style_set_gap_width(void *style, float value, enum CMasonDimensionType value_type);
 
