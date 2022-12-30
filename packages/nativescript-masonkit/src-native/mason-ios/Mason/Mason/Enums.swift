@@ -117,7 +117,6 @@ public enum MasonDimensionCompatType: Int, RawRepresentable {
     case Points
     case Percent
     case Auto
-    case Undefined
     
     public typealias RawValue = Int32
     
@@ -129,8 +128,6 @@ public enum MasonDimensionCompatType: Int, RawRepresentable {
             return 1
         case .Auto:
             return 2
-        case .Undefined:
-            return 3
         }
     }
     
@@ -143,8 +140,6 @@ public enum MasonDimensionCompatType: Int, RawRepresentable {
             self = .Percent
         case 2:
             self = .Auto
-        case 3:
-            self = .Undefined
         default:
             return nil
         }
@@ -175,8 +170,6 @@ public class MasonDimensionCompat: NSObject {
             dimensionType = .Percent
         case .Auto:
             dimensionType = .Auto
-        case .Undefined:
-            dimensionType = .Undefined
         }
     }
     
@@ -195,8 +188,6 @@ public class MasonDimensionCompat: NSObject {
                 return percent
             case .Auto:
                 return 0
-            case .Undefined:
-                return 0
             }
         }
     }
@@ -208,14 +199,13 @@ public class MasonDimensionCompat: NSObject {
     }
     
     
-    
     public var jsonValue: String? {
         return dimension.jsonValue
     }
     
-    public static let Undefined = MasonDimensionCompat(value: .Undefined)
-    
     public static let Auto = MasonDimensionCompat(value: .Auto)
+    
+    public static let Zero = MasonDimensionCompat(value: .Points(0))
 }
 
 private let encoder = JSONEncoder()
@@ -230,13 +220,10 @@ public func MasonDimensionFromPercent(value: Float) -> MasonDimension {
 
 public let MasonDimensionAuto = MasonDimension.Auto
 
-public let MasonDimensionUndefined = MasonDimension.Undefined
-
 
 public enum MasonDimension: Codable {
     case Points(Float)
     case Percent(Float)
-    case Undefined
     case Auto
     
     internal var type: Int32 {
@@ -244,8 +231,7 @@ public enum MasonDimension: Codable {
             switch (self) {
             case .Points: return 0
             case .Percent: return 1
-            case .Undefined: return 2
-            case .Auto: return 3
+            case .Auto: return 2
             }
         }
     }
@@ -256,7 +242,6 @@ public enum MasonDimension: Codable {
             switch (self) {
             case .Points(let points): return points
             case .Percent(let percent): return percent
-            case .Undefined: return 0
             case .Auto: return 0
             }
         }
@@ -272,8 +257,6 @@ public enum MasonDimension: Codable {
                 return "\(percent)%"
             case .Auto:
                 return "auto"
-            case .Undefined:
-                return "undefined"
             }
         }
     }
@@ -293,12 +276,10 @@ public enum MasonDimension: Codable {
             case "auto":
                 self = .Auto
                 break
-            case "undefined":
-                self = .Undefined
                 break
             default:
                 // throw invaild ??
-                self = .Undefined
+
                 break
             }
         }catch {
@@ -321,7 +302,7 @@ public enum MasonDimension: Codable {
                 
             default:
                 // throw ???
-                self = .Undefined
+
                 break
             }
         }
@@ -340,10 +321,6 @@ public enum MasonDimension: Codable {
         case .Auto:
             var container = encoder.singleValueContainer()
             try container.encode("auto")
-            break
-        case .Undefined:
-            var container = encoder.singleValueContainer()
-            try container.encode("undefined")
             break
         }
     }
@@ -695,7 +672,7 @@ public enum JustifyContent: Int, RawRepresentable {
     case FlexEnd
     case Center
     case SpaceBetween
-   case SpaceAround
+    case SpaceAround
     case SpaceEvenly
 
     public typealias RawValue = Int32

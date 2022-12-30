@@ -1,20 +1,21 @@
 extern crate core;
 
-pub use taffy::layout::AvailableSpace;
 pub use taffy::node::Measurable;
 pub use taffy::node::MeasureFunc;
 pub use taffy::prelude::*;
 pub use taffy::style::{
     AlignContent, AlignItems, AlignSelf, Dimension, Display, FlexDirection, FlexWrap,
-    JustifyContent, PositionType,
+    JustifyContent, MaxTrackSizingFunction, MinTrackSizingFunction, Position, GridAutoFlow, GridPlacement
 };
+
+pub use taffy::geometry::Line;
 
 use style::Style;
 
 pub const fn align_content_from_enum(value: i32) -> Option<AlignContent> {
     match value {
-        0 => Some(AlignContent::FlexStart),
-        1 => Some(AlignContent::FlexEnd),
+        0 => Some(AlignContent::Start),
+        1 => Some(AlignContent::End),
         2 => Some(AlignContent::Center),
         3 => Some(AlignContent::Stretch),
         4 => Some(AlignContent::SpaceBetween),
@@ -26,8 +27,8 @@ pub const fn align_content_from_enum(value: i32) -> Option<AlignContent> {
 
 pub const fn align_content_to_enum(value: AlignContent) -> i32 {
     match value {
-        AlignContent::FlexStart => 0,
-        AlignContent::FlexEnd => 1,
+        AlignContent::Start => 0,
+        AlignContent::End => 1,
         AlignContent::Center => 2,
         AlignContent::Stretch => 3,
         AlignContent::SpaceBetween => 4,
@@ -38,8 +39,8 @@ pub const fn align_content_to_enum(value: AlignContent) -> i32 {
 
 pub const fn align_items_from_enum(value: i32) -> Option<AlignItems> {
     match value {
-        0 => Some(AlignItems::FlexStart),
-        1 => Some(AlignItems::FlexEnd),
+        0 => Some(AlignItems::Start),
+        1 => Some(AlignItems::End),
         2 => Some(AlignItems::Center),
         3 => Some(AlignItems::Baseline),
         4 => Some(AlignItems::Stretch),
@@ -49,8 +50,8 @@ pub const fn align_items_from_enum(value: i32) -> Option<AlignItems> {
 
 pub const fn align_items_to_enum(value: AlignItems) -> i32 {
     match value {
-        AlignItems::FlexStart => 0,
-        AlignItems::FlexEnd => 1,
+        AlignItems::Start => 0,
+        AlignItems::End => 1,
         AlignItems::Center => 2,
         AlignItems::Baseline => 3,
         AlignItems::Stretch => 4,
@@ -59,24 +60,22 @@ pub const fn align_items_to_enum(value: AlignItems) -> i32 {
 
 pub const fn align_self_from_enum(value: i32) -> Option<AlignSelf> {
     match value {
-        0 => Some(AlignSelf::Auto),
-        1 => Some(AlignSelf::FlexStart),
-        2 => Some(AlignSelf::FlexEnd),
-        3 => Some(AlignSelf::Center),
-        4 => Some(AlignSelf::Baseline),
-        5 => Some(AlignSelf::Stretch),
+        0 => Some(AlignSelf::Start),
+        1 => Some(AlignSelf::End),
+        2 => Some(AlignSelf::Center),
+        3 => Some(AlignSelf::Baseline),
+        4 => Some(AlignSelf::Stretch),
         _ => None,
     }
 }
 
 pub const fn align_self_to_enum(value: AlignSelf) -> i32 {
     match value {
-        AlignSelf::Auto => 0,
-        AlignSelf::FlexStart => 1,
-        AlignSelf::FlexEnd => 2,
-        AlignSelf::Center => 3,
-        AlignSelf::Baseline => 4,
-        AlignSelf::Stretch => 5,
+        AlignSelf::Start => 0,
+        AlignSelf::End => 1,
+        AlignSelf::Center => 2,
+        AlignSelf::Baseline => 3,
+        AlignSelf::Stretch => 4,
     }
 }
 
@@ -84,6 +83,7 @@ pub const fn display_from_enum(value: i32) -> Option<Display> {
     match value {
         0 => Some(Display::Flex),
         1 => Some(Display::None),
+        2 => Some(Display::Grid),
         _ => None,
     }
 }
@@ -92,6 +92,7 @@ pub const fn display_to_enum(value: Display) -> i32 {
     match value {
         Display::Flex => 0,
         Display::None => 1,
+        Display::Grid => 2,
     }
 }
 
@@ -133,8 +134,8 @@ pub const fn flex_wrap_to_enum(value: FlexWrap) -> i32 {
 
 pub const fn justify_content_from_enum(value: i32) -> Option<JustifyContent> {
     match value {
-        0 => Some(JustifyContent::FlexStart),
-        1 => Some(JustifyContent::FlexEnd),
+        0 => Some(JustifyContent::Start),
+        1 => Some(JustifyContent::End),
         2 => Some(JustifyContent::Center),
         3 => Some(JustifyContent::SpaceBetween),
         4 => Some(JustifyContent::SpaceAround),
@@ -145,27 +146,47 @@ pub const fn justify_content_from_enum(value: i32) -> Option<JustifyContent> {
 
 pub const fn justify_content_to_enum(value: JustifyContent) -> i32 {
     match value {
-        JustifyContent::FlexStart => 0,
-        JustifyContent::FlexEnd => 1,
+        JustifyContent::Start => 0,
+        JustifyContent::End => 1,
         JustifyContent::Center => 2,
         JustifyContent::SpaceBetween => 3,
         JustifyContent::SpaceAround => 4,
         JustifyContent::SpaceEvenly => 5,
+        JustifyContent::Stretch => 6,
     }
 }
 
-pub const fn position_type_from_enum(value: i32) -> Option<PositionType> {
+pub const fn position_from_enum(value: i32) -> Option<Position> {
     match value {
-        0 => Some(PositionType::Relative),
-        1 => Some(PositionType::Absolute),
+        0 => Some(Position::Relative),
+        1 => Some(Position::Absolute),
         _ => None,
     }
 }
 
-pub const fn position_type_to_enum(value: PositionType) -> i32 {
+pub const fn position_to_enum(value: Position) -> i32 {
     match value {
-        PositionType::Relative => 0,
-        PositionType::Absolute => 1,
+        Position::Relative => 0,
+        Position::Absolute => 1,
+    }
+}
+
+pub const fn grid_auto_flow_from_enum(value: i32) -> Option<GridAutoFlow>{
+    match value {
+        0 => Some(GridAutoFlow::Row),
+        1 => Some(GridAutoFlow::Column),
+        2 => Some(GridAutoFlow::RowDense),
+        3 => Some(GridAutoFlow::ColumnDense),
+        _ => None
+    }
+}
+
+pub const fn grid_auto_flow_to_enum(value: GridAutoFlow) -> i32 {
+    match value {
+        GridAutoFlow::Row => 0,
+        GridAutoFlow::Column => 1,
+        GridAutoFlow::RowDense => 2,
+        GridAutoFlow::ColumnDense => 3
     }
 }
 
@@ -455,17 +476,19 @@ impl<T> Size<T> {
         Size::from_taffy(taffy::geometry::Size { width, height })
     }
 
+    pub fn new_with_len(width: LengthPercentage, height: LengthPercentage) -> Size<LengthPercentage> {
+        Size::from_taffy(taffy::geometry::Size { width, height })
+    }
+
+    pub fn new_with_len_auto(width: LengthPercentageAuto, height: LengthPercentageAuto) -> Size<LengthPercentageAuto> {
+        Size::from_taffy(taffy::geometry::Size { width, height })
+    }
+
     pub fn new_available_space(width: f32, height: f32) -> Size<AvailableSpace> {
         Size::from_taffy(taffy::geometry::Size {
             width: AvailableSpace::Definite(width),
             height: AvailableSpace::Definite(height),
         })
-    }
-
-    pub fn undefined_dimension() -> Size<Dimension> {
-        Size {
-            size: taffy::geometry::Size::UNDEFINED,
-        }
     }
 
     pub fn min_content() -> Size<AvailableSpace> {
@@ -549,6 +572,28 @@ pub struct Rect<T> {
 
 impl<T> Rect<T> {
     pub fn from_dim(value: Dimension) -> Rect<Dimension> {
+        Rect {
+            rect: taffy::geometry::Rect {
+                left: value,
+                right: value,
+                top: value,
+                bottom: value,
+            },
+        }
+    }
+
+    pub fn from_len(value: LengthPercentage) -> Rect<LengthPercentage> {
+        Rect {
+            rect: taffy::geometry::Rect {
+                left: value,
+                right: value,
+                top: value,
+                bottom: value,
+            },
+        }
+    }
+
+    pub fn from_len_auto(value: LengthPercentageAuto) -> Rect<LengthPercentageAuto> {
         Rect {
             rect: taffy::geometry::Rect {
                 left: value,

@@ -80,7 +80,7 @@ class Node private constructor(private var nativePtr: Long) {
       nativeUpdateAndSetStyle(
         Mason.instance.nativePtr, nativePtr, style.getNativePtr(),
         style.display.ordinal,
-        style.positionType.ordinal,
+        style.position.ordinal,
         style.direction.ordinal,
         style.flexDirection.ordinal,
         style.flexWrap.ordinal,
@@ -90,14 +90,14 @@ class Node private constructor(private var nativePtr: Long) {
         style.alignContent.ordinal,
         style.justifyContent.ordinal,
 
-        style.position.left.type,
-        style.position.left.value,
-        style.position.right.type,
-        style.position.right.value,
-        style.position.top.type,
-        style.position.top.value,
-        style.position.bottom.type,
-        style.position.bottom.value,
+        style.inset.left.type,
+        style.inset.left.value,
+        style.inset.right.type,
+        style.inset.right.value,
+        style.inset.top.type,
+        style.inset.top.value,
+        style.inset.bottom.type,
+        style.inset.bottom.value,
 
         style.margin.left.type,
         style.margin.left.value,
@@ -147,12 +147,26 @@ class Node private constructor(private var nativePtr: Long) {
         style.maxSize.height.type,
         style.maxSize.height.value,
 
-        style.flexGap.width.type,
-        style.flexGap.width.value,
-        style.flexGap.height.type,
-        style.flexGap.height.value,
+        style.gap.width.type,
+        style.gap.width.value,
+        style.gap.height.type,
+        style.gap.height.value,
 
-        style.aspectRatio ?: Float.NaN
+        style.aspectRatio ?: Float.NaN,
+
+        style.gridAutoRows,
+        style.gridAutoColumns,
+        style.gridAutoFlow.ordinal,
+        style.gridColumn.start.type,
+        style.gridColumn.start.placementValue,
+        style.gridColumn.end.type,
+        style.gridColumn.end.placementValue,
+        style.gridRow.start.type,
+        style.gridRow.start.placementValue,
+        style.gridRow.end.type,
+        style.gridRow.end.placementValue,
+        style.gridTemplateRows,
+        style.gridTemplateColumns
       )
       style.isDirty = false
     } else {
@@ -184,7 +198,7 @@ class Node private constructor(private var nativePtr: Long) {
           style.getNativePtr(),
           size.width, size.height,
           style.display.ordinal,
-          style.positionType.ordinal,
+          style.position.ordinal,
           style.direction.ordinal,
           style.flexDirection.ordinal,
           style.flexWrap.ordinal,
@@ -194,14 +208,14 @@ class Node private constructor(private var nativePtr: Long) {
           style.alignContent.ordinal,
           style.justifyContent.ordinal,
 
-          style.position.left.type,
-          style.position.left.value,
-          style.position.right.type,
-          style.position.right.value,
-          style.position.top.type,
-          style.position.top.value,
-          style.position.bottom.type,
-          style.position.bottom.value,
+          style.inset.left.type,
+          style.inset.left.value,
+          style.inset.right.type,
+          style.inset.right.value,
+          style.inset.top.type,
+          style.inset.top.value,
+          style.inset.bottom.type,
+          style.inset.bottom.value,
 
           style.margin.left.type,
           style.margin.left.value,
@@ -251,12 +265,25 @@ class Node private constructor(private var nativePtr: Long) {
           style.maxSize.height.type,
           style.maxSize.height.value,
 
-          style.flexGap.width.type,
-          style.flexGap.width.value,
-          style.flexGap.height.type,
-          style.flexGap.height.value,
+          style.gap.width.type,
+          style.gap.width.value,
+          style.gap.height.type,
+          style.gap.height.value,
 
-          style.aspectRatio ?: Float.NaN
+          style.aspectRatio ?: Float.NaN,
+          style.gridAutoRows,
+          style.gridAutoColumns,
+          style.gridAutoFlow.ordinal,
+          style.gridColumn.start.type,
+          style.gridColumn.start.placementValue,
+          style.gridColumn.end.type,
+          style.gridColumn.end.placementValue,
+          style.gridRow.start.type,
+          style.gridRow.start.placementValue,
+          style.gridRow.end.type,
+          style.gridRow.end.placementValue,
+          style.gridTemplateRows,
+          style.gridTemplateColumns
         ), 0
       ).second
     }
@@ -265,7 +292,7 @@ class Node private constructor(private var nativePtr: Long) {
       nativeUpdateSetStyleComputeAndLayout(
         Mason.instance.nativePtr, nativePtr, style.getNativePtr(),
         style.display.ordinal,
-        style.positionType.ordinal,
+        style.position.ordinal,
         style.direction.ordinal,
         style.flexDirection.ordinal,
         style.flexWrap.ordinal,
@@ -275,14 +302,14 @@ class Node private constructor(private var nativePtr: Long) {
         style.alignContent.ordinal,
         style.justifyContent.ordinal,
 
-        style.position.left.type,
-        style.position.left.value,
-        style.position.right.type,
-        style.position.right.value,
-        style.position.top.type,
-        style.position.top.value,
-        style.position.bottom.type,
-        style.position.bottom.value,
+        style.inset.left.type,
+        style.inset.left.value,
+        style.inset.right.type,
+        style.inset.right.value,
+        style.inset.top.type,
+        style.inset.top.value,
+        style.inset.bottom.type,
+        style.inset.bottom.value,
 
         style.margin.left.type,
         style.margin.left.value,
@@ -332,12 +359,26 @@ class Node private constructor(private var nativePtr: Long) {
         style.maxSize.height.type,
         style.maxSize.height.value,
 
-        style.flexGap.width.type,
-        style.flexGap.width.value,
-        style.flexGap.height.type,
-        style.flexGap.height.value,
+        style.gap.width.type,
+        style.gap.width.value,
+        style.gap.height.type,
+        style.gap.height.value,
 
-        style.aspectRatio ?: Float.NaN
+        style.aspectRatio ?: Float.NaN,
+
+        style.gridAutoRows,
+        style.gridAutoColumns,
+        style.gridAutoFlow.ordinal,
+        style.gridColumn.start.type,
+        style.gridColumn.start.placementValue,
+        style.gridColumn.end.type,
+        style.gridColumn.end.placementValue,
+        style.gridRow.start.type,
+        style.gridRow.start.placementValue,
+        style.gridRow.end.type,
+        style.gridRow.end.placementValue,
+        style.gridTemplateRows,
+        style.gridTemplateColumns
       ), 0
     ).second
   }
@@ -775,7 +816,21 @@ class Node private constructor(private var nativePtr: Long) {
     flexGapHeightType: Int,
     flexGapHeightValue: Float,
 
-    aspectRatio: Float
+    aspectRatio: Float,
+
+    gridAutoRows: Array<MinMax>,
+    gridAutoColumns: Array<MinMax>,
+    gridAutoFlow: Int,
+    gridColumnStartType: Int,
+    gridColumnStartValue: Short,
+    gridColumnEndType: Int,
+    gridColumnEndValue: Short,
+    gridRowStartType: Int,
+    gridRowStartValue: Short,
+    gridRowEndType: Int,
+    gridRowEndValue: Short,
+    gridTemplateRows: Array<TrackSizingFunction>,
+    gridTemplateColumns: Array<TrackSizingFunction>
   )
 
 
@@ -853,7 +908,22 @@ class Node private constructor(private var nativePtr: Long) {
     flexGapHeightType: Int,
     flexGapHeightValue: Float,
 
-    aspectRatio: Float
+    aspectRatio: Float,
+
+    gridAutoRows: Array<MinMax>,
+    gridAutoColumns: Array<MinMax>,
+    gridAutoFlow: Int,
+    gridColumnStartType: Int,
+    gridColumnStartValue: Short,
+    gridColumnEndType: Int,
+    gridColumnEndValue: Short,
+    gridRowStartType: Int,
+    gridRowStartValue: Short,
+    gridRowEndType: Int,
+    gridRowEndValue: Short,
+    gridTemplateRows: Array<TrackSizingFunction>,
+    gridTemplateColumns: Array<TrackSizingFunction>
+
   ): FloatArray
 
   private external fun nativeUpdateSetStyleComputeWithSizeAndLayout(
@@ -935,6 +1005,20 @@ class Node private constructor(private var nativePtr: Long) {
     flexGapHeightType: Int,
     flexGapHeightValue: Float,
 
-    aspectRatio: Float
+    aspectRatio: Float,
+
+    gridAutoRows: Array<MinMax>,
+    gridAutoColumns: Array<MinMax>,
+    gridAutoFlow: Int,
+    gridColumnStartType: Int,
+    gridColumnStartValue: Short,
+    gridColumnEndType: Int,
+    gridColumnEndValue: Short,
+    gridRowStartType: Int,
+    gridRowStartValue: Short,
+    gridRowEndType: Int,
+    gridRowEndValue: Short,
+    gridTemplateRows: Array<TrackSizingFunction>,
+    gridTemplateColumns: Array<TrackSizingFunction>
   ): FloatArray
 }

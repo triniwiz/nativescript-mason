@@ -1,6 +1,6 @@
 import { aspectRatioProperty, bottomProperty, displayProperty, flexBasisProperty, flexDirectionProperty, gapProperty, leftProperty, positionProperty, rightProperty, topProperty, TSCViewBase } from './common';
 
-import { paddingLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, Style, Length, widthProperty, heightProperty, View, Utils, Size, marginProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty } from '@nativescript/core';
+import { paddingLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, Style, Length, widthProperty, heightProperty, View, Utils, Size, marginProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, Application } from '@nativescript/core';
 import { alignSelfProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 
 declare const __non_webpack_require__;

@@ -1,20 +1,16 @@
 package org.nativescript.mason.masonkit
 
+sealed class LengthPercentageAuto {
+  data class Points(var points: Float) : LengthPercentageAuto()
+  data class Percent(var percentage: Float) : LengthPercentageAuto()
+  object Auto : LengthPercentageAuto()
+  object Zero : LengthPercentageAuto() {
+    const val points: Float = 0f
+  }
 
-internal const val AutoValue = "auto"
-
-internal const val PxUnit = "px"
-
-internal const val PercentUnit = "%"
-
-
-sealed class Dimension {
-  data class Points(var points: Float) : Dimension()
-  data class Percent(var percentage: Float) : Dimension()
-  object Auto : Dimension()
 
   companion object {
-    fun fromTypeValue(type: Int, value: Float): Dimension? {
+    fun fromTypeValue(type: Int, value: Float): LengthPercentageAuto? {
       return when (type) {
         0 -> Auto
         1 -> Points(value)
@@ -29,6 +25,7 @@ sealed class Dimension {
       is Auto -> 0
       is Points -> 1
       is Percent -> 2
+      is Zero -> 1
     }
 
   internal val value: Float
@@ -36,6 +33,7 @@ sealed class Dimension {
       is Points -> this.points
       is Percent -> this.percentage
       is Auto -> 0f
+      is Zero -> this.points
     }
 
   internal fun updateValue(value: Float) {
@@ -67,38 +65,42 @@ sealed class Dimension {
         is Auto -> {
           AutoValue
         }
+        is Zero -> {
+          "$points$PxUnit"
+        }
       }
     }
 }
 
-fun Rect<Dimension>.jsonValue(): String {
+
+fun Rect<LengthPercentageAuto>.jsonValue(): String {
   return Mason.gson.toJson(this)
 }
 
-fun Rect<Dimension>.cssValue(): String {
+fun Rect<LengthPercentageAuto>.cssValue(): String {
   return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
 }
 
-fun Size<Dimension>.jsonValue(): String {
+fun Size<LengthPercentageAuto>.jsonValue(): String {
   return Mason.gson.toJson(this)
 }
 
-fun Size<Dimension>.cssValue(): String {
+fun Size<LengthPercentageAuto>.cssValue(): String {
   return "{\"width\":${width.cssValue},\"height\":${height.cssValue}}"
 }
 
-fun Size<Dimension>.widthCssValue(): String {
+fun Size<LengthPercentageAuto>.widthCssValue(): String {
   return width.cssValue
 }
 
-fun Size<Dimension>.heightCssValue(): String {
+fun Size<LengthPercentageAuto>.heightCssValue(): String {
   return height.cssValue
 }
 
-fun Size<Dimension>.widthJsonValue(): String {
+fun Size<LengthPercentageAuto>.widthJsonValue(): String {
   return width.jsonValue
 }
 
-fun Size<Dimension>.heightJsonValue(): String {
+fun Size<LengthPercentageAuto>.heightJsonValue(): String {
   return height.jsonValue
 }

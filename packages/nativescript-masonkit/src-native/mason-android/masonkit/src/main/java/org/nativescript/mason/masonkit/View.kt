@@ -202,7 +202,7 @@ class View @JvmOverloads constructor(
     val paramsHeight = layoutParams.height
 
     if (widthSize == 0 && paramsWidth == ViewGroup.LayoutParams.WRAP_CONTENT) {
-      width = Dimension.Undefined
+      width = Dimension.Auto
     }
 
     if (heightSize == 0 && paramsHeight == ViewGroup.LayoutParams.WRAP_CONTENT) {
@@ -390,31 +390,31 @@ class View @JvmOverloads constructor(
       val backgroundPadding = android.graphics.Rect()
       if (background.getPadding(backgroundPadding)) {
         node.style.padding = Rect(
-          Dimension.Points(backgroundPadding.left.toFloat()),
-          Dimension.Points(backgroundPadding.right.toFloat()),
-          Dimension.Points(backgroundPadding.top.toFloat()),
-          Dimension.Points(backgroundPadding.bottom.toFloat())
+          LengthPercentage.Points(backgroundPadding.left.toFloat()),
+          LengthPercentage.Points(backgroundPadding.right.toFloat()),
+          LengthPercentage.Points(backgroundPadding.top.toFloat()),
+          LengthPercentage.Points(backgroundPadding.bottom.toFloat())
         )
       }
     }
 
-    var borderLeft: Dimension = Dimension.Undefined
-    var borderRight: Dimension = Dimension.Undefined
-    var borderTop: Dimension = Dimension.Undefined
-    var borderBottom: Dimension = Dimension.Undefined
+    var borderLeft: LengthPercentage = LengthPercentage.Zero
+    var borderRight: LengthPercentage = LengthPercentage.Zero
+    var borderTop: LengthPercentage = LengthPercentage.Zero
+    var borderBottom: LengthPercentage = LengthPercentage.Zero
 
     var width: Dimension = Dimension.Auto
     var height: Dimension = Dimension.Auto
 
-    var paddingLeft: Dimension = Dimension.Undefined
-    var paddingRight: Dimension = Dimension.Undefined
-    var paddingTop: Dimension = Dimension.Undefined
-    var paddingBottom: Dimension = Dimension.Undefined
+    var paddingLeft: LengthPercentage = LengthPercentage.Zero
+    var paddingRight: LengthPercentage = LengthPercentage.Zero
+    var paddingTop: LengthPercentage = LengthPercentage.Zero
+    var paddingBottom: LengthPercentage = LengthPercentage.Zero
 
-    var marginLeft: Dimension = Dimension.Undefined
-    var marginRight: Dimension = Dimension.Undefined
-    var marginTop: Dimension = Dimension.Undefined
-    var marginBottom: Dimension = Dimension.Undefined
+    var marginLeft: LengthPercentageAuto = LengthPercentageAuto.Zero
+    var marginRight: LengthPercentageAuto = LengthPercentageAuto.Zero
+    var marginTop: LengthPercentageAuto = LengthPercentageAuto.Zero
+    var marginBottom: LengthPercentageAuto = LengthPercentageAuto.Zero
 
     var minWidth: Dimension = Dimension.Auto
     var minHeight: Dimension = Dimension.Auto
@@ -422,49 +422,49 @@ class View @JvmOverloads constructor(
     var maxWidth: Dimension = Dimension.Auto
     var maxHeight: Dimension = Dimension.Auto
 
-    var positionLeft: Dimension = Dimension.Undefined
-    var positionRight: Dimension = Dimension.Undefined
-    var positionTop: Dimension = Dimension.Undefined
-    var positionBottom: Dimension = Dimension.Undefined
+    var insetLeft: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var insetRight: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var insetTop: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var insetBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
 
     for (i in 0 until layoutParameters.numericAttributes.size()) {
       val attribute: Int = layoutParameters.numericAttributes.keyAt(i)
       val value: Float = layoutParameters.numericAttributes.valueAt(i)
 
       when (attribute) {
-        R.styleable.mason_flex_alignContent -> {
+        R.styleable.mason_alignContent -> {
           node.style.alignContent = AlignContent.fromInt(value.roundToInt())
         }
-        R.styleable.mason_flex_alignItems -> {
+        R.styleable.mason_alignItems -> {
           node.style.alignItems = AlignItems.fromInt(value.roundToInt())
         }
-        R.styleable.mason_flex_alignSelf -> {
+        R.styleable.mason_alignSelf -> {
           node.style.alignSelf = AlignSelf.fromInt(value.roundToInt())
         }
-        R.styleable.mason_flex_aspectRatio -> {
+        R.styleable.mason_aspectRatio -> {
           node.style.aspectRatio = value
         }
         R.styleable.mason_mason_borderLeft -> {
           // TODO handle direction
-          borderLeft = Dimension.Points(value)
+          borderLeft = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_borderTop -> {
-          borderTop = Dimension.Points(value)
+          borderTop = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_borderRight -> {
-          borderRight = Dimension.Points(value)
+          borderRight = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_borderBottom -> {
-          borderBottom = Dimension.Points(value)
+          borderBottom = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_borderStart -> {
-          borderLeft = Dimension.Points(value)
+          borderLeft = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_borderEnd -> {
-          borderRight = Dimension.Points(value)
+          borderRight = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_borderAll -> {
-          val points = Dimension.Points(value)
+          val points = LengthPercentage.Points(value)
           borderLeft = points
           borderRight = points
           borderTop = points
@@ -492,28 +492,28 @@ class View @JvmOverloads constructor(
           height = Dimension.Points(value)
         }
         R.styleable.mason_mason_marginLeft -> {
-          marginLeft = Dimension.Points(value)
+          marginLeft = LengthPercentageAuto.Points(value)
         }
         R.styleable.mason_flex_justifyContent -> {
           node.style.justifyContent = JustifyContent.fromInt(value.roundToInt())
         }
         R.styleable.mason_mason_marginTop -> {
-          marginTop = Dimension.Points(value)
+          marginTop = LengthPercentageAuto.Points(value)
         }
         R.styleable.mason_mason_marginRight -> {
-          marginRight = Dimension.Points(value)
+          marginRight = LengthPercentageAuto.Points(value)
         }
         R.styleable.mason_mason_marginBottom -> {
-          marginBottom = Dimension.Points(value)
+          marginBottom = LengthPercentageAuto.Points(value)
         }
         R.styleable.mason_mason_marginStart -> {
-          marginLeft = Dimension.Points(value)
+          marginLeft = LengthPercentageAuto.Points(value)
         }
         R.styleable.mason_mason_marginEnd -> {
-          marginRight = Dimension.Points(value)
+          marginRight = LengthPercentageAuto.Points(value)
         }
         R.styleable.mason_mason_marginAll -> {
-          val points = Dimension.Points(value)
+          val points = LengthPercentageAuto.Points(value)
           marginLeft = points
           marginRight = points
           marginTop = points
@@ -535,57 +535,57 @@ class View @JvmOverloads constructor(
           node.style.overflow = Overflow.fromInt(value.roundToInt())
         }
         R.styleable.mason_mason_paddingLeft -> {
-          paddingLeft = Dimension.Points(value)
+          paddingLeft = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_paddingTop -> {
-          paddingTop = Dimension.Points(value)
+          paddingTop = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_paddingRight -> {
-          paddingRight = Dimension.Points(value)
+          paddingRight = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_paddingBottom -> {
-          paddingBottom = Dimension.Points(value)
+          paddingBottom = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_paddingStart -> {
-          paddingLeft = Dimension.Points(value)
+          paddingLeft = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_paddingEnd -> {
-          paddingRight = Dimension.Points(value)
+          paddingRight = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_paddingAll -> {
-          val points = Dimension.Points(value)
+          val points = LengthPercentage.Points(value)
           paddingLeft = points
           paddingRight = points
           paddingTop = points
           paddingBottom = points
         }
-        R.styleable.mason_mason_positionLeft -> {
-          positionLeft = Dimension.Points(value)
+        R.styleable.mason_mason_insetLeft -> {
+          insetLeft = LengthPercentageAuto.Points(value)
         }
-        R.styleable.mason_mason_positionTop -> {
-          positionTop = Dimension.Points(value)
+        R.styleable.mason_mason_insetTop -> {
+          insetTop = LengthPercentageAuto.Points(value)
         }
-        R.styleable.mason_mason_positionRight -> {
-          positionRight = Dimension.Points(value)
+        R.styleable.mason_mason_insetRight -> {
+          insetRight = LengthPercentageAuto.Points(value)
         }
-        R.styleable.mason_mason_positionBottom -> {
-          positionBottom = Dimension.Points(value)
+        R.styleable.mason_mason_insetBottom -> {
+          insetBottom = LengthPercentageAuto.Points(value)
         }
-        R.styleable.mason_mason_positionStart -> {
-          positionLeft = Dimension.Points(value)
+        R.styleable.mason_mason_insetStart -> {
+          insetLeft = LengthPercentageAuto.Points(value)
         }
-        R.styleable.mason_mason_positionEnd -> {
-          positionRight = Dimension.Points(value)
+        R.styleable.mason_mason_insetEnd -> {
+          insetRight = LengthPercentageAuto.Points(value)
         }
-        R.styleable.mason_mason_positionAll -> {
-          val points = Dimension.Points(value)
-          positionLeft = points
-          positionRight = points
-          positionBottom = points
-          positionTop = points
+        R.styleable.mason_mason_insetAll -> {
+          val points = LengthPercentageAuto.Points(value)
+          insetLeft = points
+          insetRight = points
+          insetBottom = points
+          insetTop = points
         }
-        R.styleable.mason_mason_positionType -> {
-          node.style.positionType = PositionType.fromInt(value.roundToInt())
+        R.styleable.mason_mason_position -> {
+          node.style.position = Position.fromInt(value.roundToInt())
         }
         R.styleable.mason_mason_width -> {
           width = Dimension.Points(value)
@@ -603,28 +603,53 @@ class View @JvmOverloads constructor(
       if (value == "auto") {
         when (attribute) {
           R.styleable.mason_mason_marginLeft -> {
-            marginLeft = Dimension.Auto
+            marginLeft = LengthPercentageAuto.Auto
           }
           R.styleable.mason_mason_marginTop -> {
-            marginTop = Dimension.Auto
+            marginTop = LengthPercentageAuto.Auto
           }
           R.styleable.mason_mason_marginRight -> {
-            marginRight = Dimension.Auto
+            marginRight = LengthPercentageAuto.Auto
           }
           R.styleable.mason_mason_marginBottom -> {
-            marginBottom = Dimension.Auto
+            marginBottom = LengthPercentageAuto.Auto
           }
           R.styleable.mason_mason_marginStart -> {
-            marginLeft = Dimension.Auto
+            marginLeft = LengthPercentageAuto.Auto
           }
           R.styleable.mason_mason_marginEnd -> {
-            marginRight = Dimension.Auto
+            marginRight = LengthPercentageAuto.Auto
           }
           R.styleable.mason_mason_marginAll -> {
-            marginLeft = Dimension.Auto
-            marginRight = Dimension.Auto
-            marginTop = Dimension.Auto
-            marginBottom = Dimension.Auto
+            marginLeft = LengthPercentageAuto.Auto
+            marginRight = LengthPercentageAuto.Auto
+            marginTop = LengthPercentageAuto.Auto
+            marginBottom = LengthPercentageAuto.Auto
+          }
+          R.styleable.mason_mason_insetLeft -> {
+            insetLeft = LengthPercentageAuto.Auto
+          }
+          R.styleable.mason_mason_insetTop -> {
+            insetTop = LengthPercentageAuto.Auto
+          }
+          R.styleable.mason_mason_insetRight -> {
+            insetRight = LengthPercentageAuto.Auto
+          }
+          R.styleable.mason_mason_insetBottom -> {
+            insetBottom = LengthPercentageAuto.Auto
+          }
+          R.styleable.mason_mason_insetStart -> {
+            insetLeft = LengthPercentageAuto.Auto
+          }
+          R.styleable.mason_mason_insetEnd -> {
+            insetRight = LengthPercentageAuto.Auto
+          }
+          R.styleable.mason_mason_insetAll -> {
+            val points = LengthPercentageAuto.Auto
+            insetLeft = points
+            insetRight = points
+            insetBottom = points
+            insetTop = points
           }
         }
       }
@@ -638,28 +663,29 @@ class View @JvmOverloads constructor(
             height = Dimension.Percent(numericValue)
           }
           R.styleable.mason_mason_marginLeft -> {
-            marginLeft = Dimension.Percent(numericValue)
+            marginLeft = LengthPercentageAuto.Percent(numericValue)
           }
           R.styleable.mason_mason_marginTop -> {
-            marginTop = Dimension.Percent(numericValue)
+            marginTop = LengthPercentageAuto.Percent(numericValue)
           }
           R.styleable.mason_mason_marginRight -> {
-            marginRight = Dimension.Percent(numericValue)
+            marginRight = LengthPercentageAuto.Percent(numericValue)
           }
           R.styleable.mason_mason_marginBottom -> {
-            marginBottom = Dimension.Percent(numericValue)
+            marginBottom = LengthPercentageAuto.Percent(numericValue)
           }
           R.styleable.mason_mason_marginStart -> {
-            marginLeft = Dimension.Percent(numericValue)
+            marginLeft = LengthPercentageAuto.Percent(numericValue)
           }
           R.styleable.mason_mason_marginEnd -> {
-            marginRight = Dimension.Percent(numericValue)
+            marginRight = LengthPercentageAuto.Percent(numericValue)
           }
           R.styleable.mason_mason_marginAll -> {
-            marginLeft = Dimension.Percent(numericValue)
-            marginRight = Dimension.Percent(numericValue)
-            marginTop = Dimension.Percent(numericValue)
-            marginBottom = Dimension.Percent(numericValue)
+            val percent = LengthPercentageAuto.Percent(numericValue)
+            marginLeft = percent
+            marginRight = percent
+            marginTop = percent
+            marginBottom = percent
           }
           R.styleable.mason_mason_maxHeight -> {
             maxHeight = Dimension.Percent(numericValue)
@@ -674,91 +700,57 @@ class View @JvmOverloads constructor(
             minWidth = Dimension.Percent(numericValue)
           }
           R.styleable.mason_mason_paddingLeft -> {
-            paddingLeft = Dimension.Percent(numericValue)
+            paddingLeft = LengthPercentage.Percent(numericValue)
           }
           R.styleable.mason_mason_paddingTop -> {
-            paddingTop = Dimension.Percent(numericValue)
+            paddingTop = LengthPercentage.Percent(numericValue)
           }
           R.styleable.mason_mason_paddingRight -> {
-            paddingRight = Dimension.Percent(numericValue)
+            paddingRight = LengthPercentage.Percent(numericValue)
           }
           R.styleable.mason_mason_paddingBottom -> {
-            paddingBottom = Dimension.Percent(numericValue)
+            paddingBottom = LengthPercentage.Percent(numericValue)
           }
           R.styleable.mason_mason_paddingStart -> {
-            paddingLeft = Dimension.Percent(numericValue)
+            paddingLeft = LengthPercentage.Percent(numericValue)
           }
           R.styleable.mason_mason_paddingEnd -> {
-            paddingRight = Dimension.Percent(numericValue)
+            paddingRight = LengthPercentage.Percent(numericValue)
           }
           R.styleable.mason_mason_paddingAll -> {
-            val percent = Dimension.Percent(numericValue)
+            val percent = LengthPercentage.Percent(numericValue)
             paddingLeft = percent
             paddingRight = percent
             paddingTop = percent
             paddingBottom = percent
           }
-          R.styleable.mason_mason_positionLeft -> {
-            positionLeft = Dimension.Percent(numericValue)
+          R.styleable.mason_mason_insetLeft -> {
+            insetLeft = LengthPercentageAuto.Percent(numericValue)
           }
-          R.styleable.mason_mason_positionTop -> {
-            positionTop = Dimension.Percent(numericValue)
+          R.styleable.mason_mason_insetTop -> {
+            insetTop = LengthPercentageAuto.Percent(numericValue)
           }
-          R.styleable.mason_mason_positionRight -> {
-            positionRight = Dimension.Percent(numericValue)
+          R.styleable.mason_mason_insetRight -> {
+            insetRight = LengthPercentageAuto.Percent(numericValue)
           }
-          R.styleable.mason_mason_positionBottom -> {
-            positionBottom = Dimension.Percent(numericValue)
+          R.styleable.mason_mason_insetBottom -> {
+            insetBottom = LengthPercentageAuto.Percent(numericValue)
           }
-          R.styleable.mason_mason_positionStart -> {
-            positionLeft = Dimension.Percent(numericValue)
+          R.styleable.mason_mason_insetStart -> {
+            insetLeft = LengthPercentageAuto.Percent(numericValue)
           }
-          R.styleable.mason_mason_positionEnd -> {
-            positionRight = Dimension.Percent(numericValue)
+          R.styleable.mason_mason_insetEnd -> {
+            insetRight = LengthPercentageAuto.Percent(numericValue)
           }
-          R.styleable.mason_mason_positionAll -> {
-            val percent = Dimension.Percent(numericValue)
-            positionLeft = percent
-            positionRight = percent
-            positionTop = percent
-            positionBottom = percent
+          R.styleable.mason_mason_insetAll -> {
+            val percent = LengthPercentageAuto.Percent(numericValue)
+            insetLeft = percent
+            insetRight = percent
+            insetTop = percent
+            insetBottom = percent
           }
           R.styleable.mason_mason_width -> {
             width = Dimension.Percent(numericValue)
-          }
-        }
-      }
-      if (value == "undefined") {
-        when (attribute) {
-          R.styleable.mason_mason_width -> {
-            width = Dimension.Undefined
-          }
-          R.styleable.mason_mason_height -> {
-            width = Dimension.Undefined
-          }
-          R.styleable.mason_mason_marginLeft -> {
-            marginLeft = Dimension.Undefined
-          }
-          R.styleable.mason_mason_marginTop -> {
-            marginTop = Dimension.Undefined
-          }
-          R.styleable.mason_mason_marginRight -> {
-            marginRight = Dimension.Undefined
-          }
-          R.styleable.mason_mason_marginBottom -> {
-            marginBottom = Dimension.Undefined
-          }
-          R.styleable.mason_mason_marginStart -> {
-            marginLeft = Dimension.Undefined
-          }
-          R.styleable.mason_mason_marginEnd -> {
-            marginRight = Dimension.Undefined
-          }
-          R.styleable.mason_mason_marginAll -> {
-            marginLeft = Dimension.Undefined
-            marginRight = Dimension.Undefined
-            marginTop = Dimension.Undefined
-            marginBottom = Dimension.Undefined
           }
         }
       }
@@ -767,7 +759,7 @@ class View @JvmOverloads constructor(
     node.style.border = Rect(borderLeft, borderRight, borderTop, borderBottom)
     node.style.margin = Rect(marginLeft, marginRight, marginTop, marginBottom)
     node.style.padding = Rect(paddingLeft, paddingRight, paddingTop, paddingBottom)
-    node.style.position = Rect(positionLeft, positionRight, positionTop, positionBottom)
+    node.style.inset = Rect(insetLeft, insetRight, insetTop, insetBottom)
 
     node.style.size = Size(width, height)
     node.style.minSize = Size(minWidth, minHeight)
@@ -804,12 +796,12 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var positionType: PositionType
+  var position: Position
     get() {
-      return style.positionType
+      return style.position
     }
     set(value) {
-      style.positionType = value
+      style.position = value
       checkAndUpdateStyle()
     }
 
@@ -917,23 +909,23 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  fun getPadding(): Rect<Dimension> {
+  fun getPadding(): Rect<LengthPercentage> {
     return style.padding
   }
 
-  fun getStylePaddingLeft(): Dimension {
+  fun getStylePaddingLeft(): LengthPercentage {
     return style.padding.left
   }
 
-  fun getStylePaddingRight(): Dimension {
+  fun getStylePaddingRight(): LengthPercentage {
     return style.padding.right
   }
 
-  fun getStylePaddingTop(): Dimension {
+  fun getStylePaddingTop(): LengthPercentage {
     return style.padding.top
   }
 
-  fun getStylePaddingBottom(): Dimension {
+  fun getStylePaddingBottom(): LengthPercentage {
     return style.padding.bottom
   }
 
@@ -947,15 +939,15 @@ class View @JvmOverloads constructor(
 
   fun setPadding(left: Float, top: Float, right: Float, bottom: Float) {
     style.padding = Rect(
-      Dimension.Points(left),
-      Dimension.Points(right),
-      Dimension.Points(top),
-      Dimension.Points(bottom)
+      LengthPercentage.Points(left),
+      LengthPercentage.Points(right),
+      LengthPercentage.Points(top),
+      LengthPercentage.Points(bottom)
     )
     checkAndUpdateStyle()
   }
 
-  fun setPadding(left: Dimension, top: Dimension, right: Dimension, bottom: Dimension) {
+  fun setPadding(left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage) {
     style.padding = Rect(
       left,
       right,
@@ -976,10 +968,10 @@ class View @JvmOverloads constructor(
     bottom_type: Int
   ) {
     style.padding = Rect(
-      Dimension.fromTypeValue(left_type, left) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(right_type, right) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(top_type, top) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(bottom_type, bottom) ?: Dimension.Undefined
+      LengthPercentage.fromTypeValue(left_type, left) ?: style.padding.left,
+      LengthPercentage.fromTypeValue(right_type, right) ?: style.padding.right,
+      LengthPercentage.fromTypeValue(top_type, top) ?: style.padding.top,
+      LengthPercentage.fromTypeValue(bottom_type, bottom) ?: style.padding.bottom
     )
     checkAndUpdateStyle()
   }
@@ -1010,23 +1002,23 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun getBorder(): Rect<Dimension> {
+  fun getBorder(): Rect<LengthPercentage> {
     return style.border
   }
 
-  fun getBorderLeft(): Dimension {
+  fun getBorderLeft(): LengthPercentage {
     return style.border.left
   }
 
-  fun getBorderRight(): Dimension {
+  fun getBorderRight(): LengthPercentage {
     return style.border.right
   }
 
-  fun getBorderTop(): Dimension {
+  fun getBorderTop(): LengthPercentage {
     return style.border.top
   }
 
-  fun getBorderBottom(): Dimension {
+  fun getBorderBottom(): LengthPercentage {
     return style.border.bottom
   }
 
@@ -1040,15 +1032,15 @@ class View @JvmOverloads constructor(
 
   fun setBorder(left: Float, top: Float, right: Float, bottom: Float) {
     style.border = Rect(
-      Dimension.Points(left),
-      Dimension.Points(right),
-      Dimension.Points(top),
-      Dimension.Points(bottom)
+      LengthPercentage.Points(left),
+      LengthPercentage.Points(right),
+      LengthPercentage.Points(top),
+      LengthPercentage.Points(bottom)
     )
     checkAndUpdateStyle()
   }
 
-  fun setBorder(left: Dimension, top: Dimension, right: Dimension, bottom: Dimension) {
+  fun setBorder(left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage) {
     style.border = Rect(
       left,
       right,
@@ -1069,10 +1061,10 @@ class View @JvmOverloads constructor(
     bottom_type: Int
   ) {
     style.border = Rect(
-      Dimension.fromTypeValue(left_type, left) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(right_type, right) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(top_type, top) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(bottom_type, bottom) ?: Dimension.Undefined
+      LengthPercentage.fromTypeValue(left_type, left) ?: style.border.left,
+      LengthPercentage.fromTypeValue(right_type, right) ?: style.border.right,
+      LengthPercentage.fromTypeValue(top_type, top) ?: style.border.top,
+      LengthPercentage.fromTypeValue(bottom_type, bottom) ?: style.border.bottom
     )
     checkAndUpdateStyle()
   }
@@ -1102,23 +1094,23 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun getMargin(): Rect<Dimension> {
+  fun getMargin(): Rect<LengthPercentageAuto> {
     return style.margin
   }
 
-  fun getMarginLeft(): Dimension {
+  fun getMarginLeft(): LengthPercentageAuto {
     return style.margin.left
   }
 
-  fun getMarginRight(): Dimension {
+  fun getMarginRight(): LengthPercentageAuto {
     return style.margin.right
   }
 
-  fun getMarginTop(): Dimension {
+  fun getMarginTop(): LengthPercentageAuto {
     return style.margin.top
   }
 
-  fun getMarginBottom(): Dimension {
+  fun getMarginBottom(): LengthPercentageAuto {
     return style.margin.bottom
   }
 
@@ -1132,15 +1124,15 @@ class View @JvmOverloads constructor(
 
   fun setMargin(left: Float, top: Float, right: Float, bottom: Float) {
     style.margin = Rect(
-      Dimension.Points(left),
-      Dimension.Points(right),
-      Dimension.Points(top),
-      Dimension.Points(bottom)
+      LengthPercentageAuto.Points(left),
+      LengthPercentageAuto.Points(right),
+      LengthPercentageAuto.Points(top),
+      LengthPercentageAuto.Points(bottom)
     )
     checkAndUpdateStyle()
   }
 
-  fun setMargin(left: Dimension, top: Dimension, right: Dimension, bottom: Dimension) {
+  fun setMargin(left: LengthPercentageAuto, top: LengthPercentageAuto, right: LengthPercentageAuto, bottom: LengthPercentageAuto) {
     style.margin = Rect(
       left,
       right,
@@ -1161,10 +1153,10 @@ class View @JvmOverloads constructor(
     bottom_type: Int
   ) {
     style.margin = Rect(
-      Dimension.fromTypeValue(left_type, left) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(right_type, right) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(top_type, top) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(bottom_type, bottom) ?: Dimension.Undefined
+      LengthPercentageAuto.fromTypeValue(left_type, left) ?: style.margin.left,
+      LengthPercentageAuto.fromTypeValue(right_type, right) ?: style.margin.right,
+      LengthPercentageAuto.fromTypeValue(top_type, top) ?: style.margin.top,
+      LengthPercentageAuto.fromTypeValue(bottom_type, bottom) ?: style.margin.bottom
     )
     checkAndUpdateStyle()
   }
@@ -1194,47 +1186,47 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun getPosition(): Rect<Dimension> {
-    return style.position
+  fun getInset(): Rect<LengthPercentageAuto> {
+    return style.inset
   }
 
-  fun getPositionLeft(): Dimension {
-    return style.margin.left
+  fun getInsetLeft(): LengthPercentageAuto {
+    return style.inset.left
   }
 
-  fun getPositionRight(): Dimension {
-    return style.position.right
+  fun getInsetRight(): LengthPercentageAuto {
+    return style.inset.right
   }
 
-  fun getPositionTop(): Dimension {
-    return style.position.top
+  fun getInsetTop(): LengthPercentageAuto {
+    return style.inset.top
   }
 
-  fun getPositionBottom(): Dimension {
-    return style.position.bottom
+  fun getInsetBottom(): LengthPercentageAuto {
+    return style.inset.bottom
   }
 
 
-  fun getPositionCssValue(): String {
-    return style.position.cssValue()
+  fun getInsetCssValue(): String {
+    return style.inset.cssValue()
   }
 
-  fun getPositionJsonValue(): String {
-    return style.position.jsonValue()
+  fun getInsetJsonValue(): String {
+    return style.inset.jsonValue()
   }
 
   fun setPosition(left: Float, top: Float, right: Float, bottom: Float) {
-    style.position = Rect(
-      Dimension.Points(left),
-      Dimension.Points(right),
-      Dimension.Points(top),
-      Dimension.Points(bottom)
+    style.inset = Rect(
+      LengthPercentageAuto.Points(left),
+      LengthPercentageAuto.Points(right),
+      LengthPercentageAuto.Points(top),
+      LengthPercentageAuto.Points(bottom)
     )
     checkAndUpdateStyle()
   }
 
-  fun setPosition(left: Dimension, top: Dimension, right: Dimension, bottom: Dimension) {
-    style.position = Rect(
+  fun setPosition(left: LengthPercentageAuto, top: LengthPercentageAuto, right: LengthPercentageAuto, bottom: LengthPercentageAuto) {
+    style.inset = Rect(
       left,
       right,
       top,
@@ -1243,7 +1235,7 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setPosition(
+  fun setInset(
     left: Float,
     left_type: Int,
     top: Float,
@@ -1253,37 +1245,37 @@ class View @JvmOverloads constructor(
     bottom: Float,
     bottom_type: Int
   ) {
-    style.position = Rect(
-      Dimension.fromTypeValue(left_type, left) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(right_type, right) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(top_type, top) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(bottom_type, bottom) ?: Dimension.Undefined
+    style.inset = Rect(
+      LengthPercentageAuto.fromTypeValue(left_type, left) ?: style.inset.left,
+      LengthPercentageAuto.fromTypeValue(right_type, right) ?: style.inset.right,
+      LengthPercentageAuto.fromTypeValue(top_type, top) ?: style.inset.top,
+      LengthPercentageAuto.fromTypeValue(bottom_type, bottom) ?: style.inset.bottom
     )
     checkAndUpdateStyle()
   }
 
-  fun setPositionLeft(value: Float, type: Int) {
-    style.setPositionLeft(value, type)
+  fun setInsetLeft(value: Float, type: Int) {
+    style.setInsetLeft(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setPositionRight(value: Float, type: Int) {
-    style.setPositionRight(value, type)
+  fun setInsetRight(value: Float, type: Int) {
+    style.setInsetRight(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setPositionTop(value: Float, type: Int) {
-    style.setPositionTop(value, type)
+  fun setInsetTop(value: Float, type: Int) {
+    style.setInsetTop(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setPositionBottom(value: Float, type: Int) {
-    style.setPositionBottom(value, type)
+  fun setInsetBottom(value: Float, type: Int) {
+    style.setInsetBottom(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setPositionWithValueType(value: Float, type: Int) {
-    style.setPositionWithValueType(value, type)
+  fun setInsetWithValueType(value: Float, type: Int) {
+    style.setInsetWithValueType(value, type)
     checkAndUpdateStyle()
   }
 
@@ -1330,8 +1322,8 @@ class View @JvmOverloads constructor(
     height_type: Int,
   ) {
     style.minSize = Size(
-      Dimension.fromTypeValue(width_type, width) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(height_type, height) ?: Dimension.Undefined
+      Dimension.fromTypeValue(width_type, width) ?: style.minSize.width,
+      Dimension.fromTypeValue(height_type, height) ?: style.minSize.height
     )
     checkAndUpdateStyle()
   }
@@ -1389,8 +1381,8 @@ class View @JvmOverloads constructor(
     height_type: Int,
   ) {
     style.size = Size(
-      Dimension.fromTypeValue(width_type, width) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(height_type, height) ?: Dimension.Undefined
+      Dimension.fromTypeValue(width_type, width) ?: style.size.width,
+      Dimension.fromTypeValue(height_type, height) ?: style.size.height
     )
     checkAndUpdateStyle()
   }
@@ -1448,8 +1440,8 @@ class View @JvmOverloads constructor(
     height_type: Int,
   ) {
     style.maxSize = Size(
-      Dimension.fromTypeValue(width_type, width) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(height_type, height) ?: Dimension.Undefined
+      Dimension.fromTypeValue(width_type, width) ?: style.size.width,
+      Dimension.fromTypeValue(height_type, height) ?: style.size.height
     )
     checkAndUpdateStyle()
   }
@@ -1464,55 +1456,55 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setFlexGap(width: Float, height: Float) {
-    style.flexGap = Size(
-      Dimension.Points(width),
-      Dimension.Points(height),
+  fun setGap(width: Float, height: Float) {
+    style.gap = Size(
+      LengthPercentage.Points(width),
+      LengthPercentage.Points(height),
     )
     checkAndUpdateStyle()
   }
 
-  fun getFlexGap(): Size<Dimension> {
-    return style.flexGap
+  fun getGap(): Size<LengthPercentage> {
+    return style.gap
   }
 
-  fun getFlexGapWidth(): Dimension {
-    return style.flexGap.width
+  fun getGapRow(): LengthPercentage {
+    return style.gap.width
   }
 
-  fun getFlexGapHeight(): Dimension {
-    return style.flexGap.height
+  fun getGapColumn(): LengthPercentage {
+    return style.gap.height
   }
 
 
-  fun setFlexGap(width: Dimension, height: Dimension) {
-    style.flexGap = Size(
-      width,
-      height,
+  fun setGap(row: LengthPercentage, column: LengthPercentage) {
+    style.gap = Size(
+      row,
+      column,
     )
     checkAndUpdateStyle()
   }
 
-  fun setFlexGap(
+  fun setGap(
     width: Float,
     width_type: Int,
     height: Float,
     height_type: Int,
   ) {
-    style.flexGap = Size(
-      Dimension.fromTypeValue(width_type, width) ?: Dimension.Undefined,
-      Dimension.fromTypeValue(height_type, height) ?: Dimension.Undefined
+    style.gap = Size(
+      LengthPercentage.fromTypeValue(width_type, width) ?: style.gap.width,
+      LengthPercentage.fromTypeValue(height_type, height) ?: style.gap.height
     )
     checkAndUpdateStyle()
   }
 
-  fun setFlexGapWidth(value: Float, type: Int) {
-    style.setFlexGapWidth(value, type)
+  fun setGapRow(value: Float, type: Int) {
+    style.setGapRow(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setFlexHeight(value: Float, type: Int) {
-    style.setFlexHeight(value, type)
+  fun setGapColumn(value: Float, type: Int) {
+    style.setGapColumn(value, type)
     checkAndUpdateStyle()
   }
 
@@ -1523,6 +1515,63 @@ class View @JvmOverloads constructor(
     set(value) {
       style.aspectRatio = value
       checkAndUpdateStyle()
+    }
+
+
+  var gridAutoRows: Array<MinMax>
+    get() {
+      return style.gridAutoRows
+    }
+    set(value) {
+      style.gridAutoRows = value
+    }
+
+  var gridAutoColumns: Array<MinMax>
+    get() {
+      return style.gridAutoColumns
+    }
+    set(value) {
+      style.gridAutoColumns = value
+    }
+
+  var gridAutoFlow: GridAutoFlow
+    get() {
+      return style.gridAutoFlow
+    }
+    set(value) {
+      style.gridAutoFlow = value
+    }
+
+  var gridColumn: Line<GridPlacement>
+    get() {
+      return style.gridColumn
+    }
+    set(value) {
+      style.gridColumn = value
+    }
+
+  var gridRow: Line<GridPlacement>
+    get() {
+      return style.gridRow
+    }
+    set(value) {
+      style.gridRow = value
+    }
+
+  var gridTemplateRows: Array<TrackSizingFunction>
+    get() {
+      return style.gridTemplateRows
+    }
+    set(value) {
+      style.gridTemplateRows = value
+    }
+
+  var gridTemplateColumns: Array<TrackSizingFunction>
+    get() {
+      return style.gridTemplateColumns
+    }
+    set(value) {
+      style.gridTemplateColumns = value
     }
 
   override fun generateLayoutParams(attrs: AttributeSet): ViewGroup.LayoutParams {

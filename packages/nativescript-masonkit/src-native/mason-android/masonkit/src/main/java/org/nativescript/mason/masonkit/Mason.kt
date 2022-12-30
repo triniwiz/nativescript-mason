@@ -39,7 +39,11 @@ class Mason private constructor() {
     var shared = false
 
     internal val gson =
-      Gson().newBuilder().registerTypeAdapter(Dimension::class.java, DimensionSerializer()).create()
+      Gson().newBuilder()
+        .registerTypeAdapter(Dimension::class.java, DimensionSerializer())
+        .registerTypeAdapter(LengthPercentageSerializer::class.java, LengthPercentageSerializer())
+        .registerTypeAdapter(LengthPercentageAutoSerializer::class.java, LengthPercentageAutoSerializer())
+        .create()
   }
 
   private external fun nativeInit(): Long
