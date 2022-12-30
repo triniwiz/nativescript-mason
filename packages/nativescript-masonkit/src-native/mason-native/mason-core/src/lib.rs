@@ -347,10 +347,7 @@ impl Mason {
     pub fn remove_child(&mut self, node: Node, child: Node) -> Option<Node> {
         self.taffy
             .remove_child(node.node, child.node)
-            .map(|v| {
-                assert_eq!(v, child.node);
-                child
-            })
+            .map(Node::from_taffy)
             .ok()
     }
 
@@ -365,10 +362,6 @@ impl Mason {
         if self.taffy.child_count(node.node).unwrap_or_default() == 0 {
             return;
         }
-        println!(
-            "has {}",
-            self.taffy.child_count(node.node).unwrap_or_default()
-        );
         let _ = self.taffy.remove(node.node);
     }
 

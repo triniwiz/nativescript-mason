@@ -1445,9 +1445,9 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
         auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
 
-        auto display = (int) arguments[3].asNumber();
+        auto direction = (int) arguments[3].asNumber();
 
-        mason_style_set_flex_direction(style, display);
+        mason_style_set_flex_direction(style, direction);
 
         if (update) {
             mason_node_update_and_set_style(mason, node, style);

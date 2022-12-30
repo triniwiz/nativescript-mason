@@ -361,7 +361,8 @@ class View @JvmOverloads constructor(
   private fun removeViewFromMasonTree(view: android.view.View, inLayout: Boolean) {
     nodes[view]?.let { node ->
       val owner = node.owner as Node
-      for (i in 0 until owner.getChildCount()) {
+      val count = owner.getChildCount()
+      for (i in 0 until count) {
         owner.getChildAt(i)?.let {
           if (it == node) {
             owner.removeChildAt(i)

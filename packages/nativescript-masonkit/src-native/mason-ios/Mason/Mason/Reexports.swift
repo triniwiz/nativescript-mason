@@ -16,6 +16,11 @@ import Foundation
 @objc(MasonReexports)
 public class MasonReexports: NSObject {
     
+    
+    public static func node_set_style(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer, _  style: UnsafeMutableRawPointer){
+        mason_node_set_style(mason, node, style)
+    }
+    
 //    @objc public static func computed_layout(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer, _ layout: @escaping ((UnsafePointer<Float>?)-> UnsafeMutableRawPointer?)){
 //        mason_node_layout(mason, node) { ptr in
 //            return layout(ptr)
@@ -43,6 +48,14 @@ public class MasonReexports: NSObject {
     
     public static func node_compute_min_content(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer){
         mason_node_compute_min_content(mason, node)
+    }
+    
+    public static func node_dirty(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer) -> Bool {
+        return mason_node_dirty(mason, node)
+    }
+    
+    public static func node_mark_dirty(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer) {
+         mason_node_mark_dirty(mason, node)
     }
     
     public static func style_get_display(_  style: UnsafeMutableRawPointer) -> Int32 {
@@ -125,6 +138,10 @@ public class MasonReexports: NSObject {
         return mason_style_set_justify_content( style, justify_content)
     }
     
+    public static func style_set_position(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+        return mason_style_set_position(style, value, value_type, value, value_type,value, value_type, value, value_type)
+    }
+    
     public static func style_get_position_left(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
         return mason_style_get_position_left( style)
     }
@@ -160,6 +177,10 @@ public class MasonReexports: NSObject {
         return mason_style_set_position_bottom(style, value, value_type)
     }
     
+    public static func style_set_margin(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+        return mason_style_set_margin(style, value, value_type,value, value_type,value, value_type,value, value_type)
+    }
+    
     public static func style_get_margin_left(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
         return mason_style_get_margin_left( style)
     }
@@ -192,6 +213,10 @@ public class MasonReexports: NSObject {
         return mason_style_set_margin_bottom(style, value, value_type)
     }
     
+    public static func style_set_padding(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+        return mason_style_set_padding(style, value, value_type,value, value_type,value, value_type,value, value_type)
+    }
+    
     public static func style_get_padding_left(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
         return mason_style_get_padding_left( style)
     }
@@ -222,6 +247,10 @@ public class MasonReexports: NSObject {
     
     public static func style_set_padding_bottom(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
         return mason_style_set_padding_bottom(style, value, value_type)
+    }
+    
+    public static func style_set_border(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+        return mason_style_set_border(style, value, value_type,value, value_type,value, value_type,value, value_type)
     }
     
     public static func style_get_border_left(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
@@ -258,6 +287,10 @@ public class MasonReexports: NSObject {
     
     public static func style_get_flex_grow(_  style: UnsafeMutableRawPointer) -> Float {
         return mason_style_get_flex_grow(style)
+    }
+    
+    public static func style_set_flex_grow(_  style: UnsafeMutableRawPointer,_ value: Float) {
+        return mason_style_set_flex_grow(style, value)
     }
     
     public static func style_set_border_bottom(_  style: UnsafeMutableRawPointer,_ value: Float) {
@@ -327,6 +360,14 @@ public class MasonReexports: NSObject {
     
     public static func style_set_max_height(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
         return mason_style_set_max_height(style, value, value_type)
+    }
+    
+    public static func style_get_gap(_ style: UnsafeMutableRawPointer) -> CMasonSize {
+        return mason_style_get_gap( style)
+    }
+    
+    public static func style_set_gap(_  style: UnsafeMutableRawPointer,_ width_value: Float, _ width_type: CMasonDimensionType, _ height_value: Float, _ height_type: CMasonDimensionType) {
+        return mason_style_set_gap(style, width_value, width_type, height_value, height_type)
     }
     
     public static func style_get_gap_width(_  style: UnsafeMutableRawPointer) -> CMasonDimension {

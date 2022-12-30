@@ -32,7 +32,7 @@ std::string kindToString(const Value& v, Runtime* rt = nullptr) {
     return "a string";
   } else if (v.isSymbol()) {
     return "a symbol";
-  } else if (v.isBigInt() || v.isBigInt(*rt)) {
+  } else if (v.isBigInt()) {
     return "a bigint";
   } else {
     assert(v.isObject() && "Expecting object.");
@@ -339,7 +339,7 @@ Symbol Value::asSymbol(Runtime& rt) && {
 }
 
 BigInt Value::asBigInt(Runtime& rt) const& {
-  if (!(isBigInt() || isBigInt(rt))) {
+  if (!isBigInt()) {
     throw JSError(
         rt, "Value is " + kindToString(*this, &rt) + ", expected a BigInt");
   }
@@ -348,7 +348,7 @@ BigInt Value::asBigInt(Runtime& rt) const& {
 }
 
 BigInt Value::asBigInt(Runtime& rt) && {
-  if (!(isBigInt() || isBigInt(rt))) {
+  if (!isBigInt()) {
     throw JSError(
         rt, "Value is " + kindToString(*this, &rt) + ", expected a BigInt");
   }

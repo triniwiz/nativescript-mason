@@ -325,6 +325,7 @@ SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @property (nonatomic, readonly) enum MasonDimensionCompatType type;
 @property (nonatomic, readonly) float value;
 @property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Undefined;)
 + (MasonDimensionCompat * _Nonnull)Undefined SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Auto;)
@@ -391,10 +392,13 @@ SWIFT_CLASS_NAMED("MasonRectCompat")
 
 SWIFT_CLASS_NAMED("MasonReexports")
 @interface MasonReexports : NSObject
++ (void)node_set_style:(void * _Nonnull)mason :(void * _Nonnull)node :(void * _Nonnull)style;
 + (void)node_compute:(void * _Nonnull)mason :(void * _Nonnull)node;
 + (void)node_compute_wh:(void * _Nonnull)mason :(void * _Nonnull)node width:(float)width height:(float)height;
 + (void)node_compute_max_content:(void * _Nonnull)mason :(void * _Nonnull)node;
 + (void)node_compute_min_content:(void * _Nonnull)mason :(void * _Nonnull)node;
++ (BOOL)node_dirty:(void * _Nonnull)mason :(void * _Nonnull)node SWIFT_WARN_UNUSED_RESULT;
++ (void)node_mark_dirty:(void * _Nonnull)mason :(void * _Nonnull)node;
 + (int32_t)style_get_display:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_display:(void * _Nonnull)style :(int32_t)display;
 + (int32_t)style_get_position_type:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -415,6 +419,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_align_content:(void * _Nonnull)style :(int32_t)align_content;
 + (int32_t)style_get_justify_content:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_justify_content:(void * _Nonnull)style :(int32_t)justify_content;
++ (void)style_set_position:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_position_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_position_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_position_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -423,6 +428,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_position_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_position_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_position_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (void)style_set_margin:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_margin_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_margin_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_margin_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -431,6 +437,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_margin_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_margin_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_margin_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (void)style_set_padding:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_padding_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_padding_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_padding_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -439,6 +446,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_padding_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_padding_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_padding_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (void)style_set_border:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_border_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_border_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_border_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -448,6 +456,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (CMasonDimension)style_get_border_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_border_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (float)style_get_flex_grow:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_flex_grow:(void * _Nonnull)style :(float)value;
 + (void)style_set_border_bottom:(void * _Nonnull)style :(float)value;
 + (float)style_get_flex_shrink:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_flex_shrink:(void * _Nonnull)style :(float)value;
@@ -465,6 +474,8 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_max_width:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_max_height:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_max_height:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (CMasonSize)style_get_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_gap:(void * _Nonnull)style :(float)width_value :(CMasonDimensionType)width_type :(float)height_value :(CMasonDimensionType)height_type;
 + (CMasonDimension)style_get_gap_width:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_gap_width:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_gap_height:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -936,6 +947,7 @@ SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @property (nonatomic, readonly) enum MasonDimensionCompatType type;
 @property (nonatomic, readonly) float value;
 @property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Undefined;)
 + (MasonDimensionCompat * _Nonnull)Undefined SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Auto;)
@@ -1002,10 +1014,13 @@ SWIFT_CLASS_NAMED("MasonRectCompat")
 
 SWIFT_CLASS_NAMED("MasonReexports")
 @interface MasonReexports : NSObject
++ (void)node_set_style:(void * _Nonnull)mason :(void * _Nonnull)node :(void * _Nonnull)style;
 + (void)node_compute:(void * _Nonnull)mason :(void * _Nonnull)node;
 + (void)node_compute_wh:(void * _Nonnull)mason :(void * _Nonnull)node width:(float)width height:(float)height;
 + (void)node_compute_max_content:(void * _Nonnull)mason :(void * _Nonnull)node;
 + (void)node_compute_min_content:(void * _Nonnull)mason :(void * _Nonnull)node;
++ (BOOL)node_dirty:(void * _Nonnull)mason :(void * _Nonnull)node SWIFT_WARN_UNUSED_RESULT;
++ (void)node_mark_dirty:(void * _Nonnull)mason :(void * _Nonnull)node;
 + (int32_t)style_get_display:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_display:(void * _Nonnull)style :(int32_t)display;
 + (int32_t)style_get_position_type:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -1026,6 +1041,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_align_content:(void * _Nonnull)style :(int32_t)align_content;
 + (int32_t)style_get_justify_content:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_justify_content:(void * _Nonnull)style :(int32_t)justify_content;
++ (void)style_set_position:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_position_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_position_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_position_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -1034,6 +1050,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_position_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_position_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_position_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (void)style_set_margin:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_margin_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_margin_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_margin_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -1042,6 +1059,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_margin_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_margin_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_margin_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (void)style_set_padding:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_padding_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_padding_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_padding_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -1050,6 +1068,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_padding_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_padding_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_padding_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (void)style_set_border:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_border_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_border_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_border_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -1059,6 +1078,7 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (CMasonDimension)style_get_border_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_border_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (float)style_get_flex_grow:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_flex_grow:(void * _Nonnull)style :(float)value;
 + (void)style_set_border_bottom:(void * _Nonnull)style :(float)value;
 + (float)style_get_flex_shrink:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_flex_shrink:(void * _Nonnull)style :(float)value;
@@ -1076,6 +1096,8 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_max_width:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_max_height:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_max_height:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (CMasonSize)style_get_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_gap:(void * _Nonnull)style :(float)width_value :(CMasonDimensionType)width_type :(float)height_value :(CMasonDimensionType)height_type;
 + (CMasonDimension)style_get_gap_width:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_gap_width:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_gap_height:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;

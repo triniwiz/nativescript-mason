@@ -657,20 +657,6 @@ namespace rnv8 {
         return v8ObjectA->Int64Value(lossless);
     }
 
-    bool V8Runtime::isBigInt(const jsi::Value &value) const {
-        v8::Locker locker(isolate_);
-        v8::Isolate::Scope scopedIsolate(isolate_);
-        v8::HandleScope scopedHandle(isolate_);
-        v8::Context::Scope scopedContext(context_.Get(isolate_));
-
-        v8::Local<v8::Value> v8Object =
-                JSIV8ValueConverter::ToV8Value(*this, value);
-
-        auto detail = v8Object->ToDetailString(context_.Get(isolate_)).ToLocalChecked();
-
-        return v8Object->IsBigInt();
-    }
-
 
     bool V8Runtime::isArray(const jsi::Object &object) const {
         v8::Locker locker(isolate_);

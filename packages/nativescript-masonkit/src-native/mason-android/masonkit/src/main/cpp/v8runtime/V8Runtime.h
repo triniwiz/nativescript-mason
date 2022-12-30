@@ -130,7 +130,6 @@ class V8Runtime : public facebook::jsi::Runtime {
       const facebook::jsi::String &name,
       const facebook::jsi::Value &value) override;
 
-  bool isBigInt(const facebook::jsi::Value &value) const override;
   bool isArray(const facebook::jsi::Object &) const override;
   bool isArrayBuffer(const facebook::jsi::Object &) const override;
   bool isFunction(const facebook::jsi::Object &) const override;

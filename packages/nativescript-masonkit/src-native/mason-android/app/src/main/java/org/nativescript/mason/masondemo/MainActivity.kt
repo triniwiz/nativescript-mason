@@ -9,6 +9,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.View
 
 class MainActivity : AppCompatActivity() {
@@ -21,6 +22,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        Mason.shared = true
         adapter = CustomAdapter(array, resources.displayMetrics.density)
         rootView = findViewById(R.id.rootView)
        // container = findViewById(R.id.container)
@@ -42,7 +44,7 @@ class MainActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        repeat(100) {
+        repeat(1000) {
             array.add("https://robohash.org/${it + 1}?set=set4")
           rootView.node.configure {
 

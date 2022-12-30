@@ -1,6 +1,6 @@
-use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JValue, ReleaseMode};
 use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, JNI_FALSE, JNI_TRUE};
+use jni::JNIEnv;
 
 use mason_core::{AvailableSpace, Mason, MeasureFunc, MeasureOutput, Node, Size};
 
@@ -8,13 +8,13 @@ use mason_core::{AvailableSpace, Mason, MeasureFunc, MeasureOutput, Node, Size};
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeDestroy(
     _: JNIEnv,
     _: JObject,
-    taffy: jlong,
+    node: jlong,
 ) {
-    if taffy == 0 {
+    if node == 0 {
         return;
     }
     unsafe {
-        let _ = Box::from_raw(taffy as *mut Mason);
+        let _ = Box::from_raw(node as *mut Node);
     }
 }
 
@@ -1136,10 +1136,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeRemoveChi
         return 0;
     }
     unsafe {
-        let mason = taffy as *mut Mason;
-        let mut mason = Box::from_raw(mason);
-        let node = node as *mut Node;
-        let node = Box::from_raw(node);
+        let mut mason = Box::from_raw(taffy as *mut Mason);
+        let node = Box::from_raw(node as *mut Node);
 
         let ret = mason
             .remove_child_at_index(*node, index as usize)
@@ -1169,16 +1167,21 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeRemoveChi
         let node = Box::from_raw(node as *mut Node);
         let child = Box::from_raw(child as *mut Node);
 
-        let ret = mason
-            .remove_child(*node, *child)
-            .map(|v| Box::into_raw(Box::new(v)) as jlong)
-            .unwrap_or_default();
+        match mason.remove_child(*node, *child) {
+            None => {
+                Box::leak(mason);
+                Box::leak(node);
+                Box::leak(child);
 
-        Box::leak(mason);
-        Box::leak(node);
-        Box::leak(child);
+                0
+            }
+            Some(child) => {
+                Box::leak(mason);
+                Box::leak(node);
 
-        ret
+                Box::into_raw(Box::new(child)) as jlong
+            }
+        }
     }
 }
 
