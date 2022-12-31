@@ -1,14 +1,14 @@
 extern crate core;
 
+pub use taffy::geometry::Line;
 pub use taffy::node::Measurable;
 pub use taffy::node::MeasureFunc;
 pub use taffy::prelude::*;
 pub use taffy::style::{
-    AlignContent, AlignItems, AlignSelf, Dimension, Display, FlexDirection, FlexWrap,
-    JustifyContent, MaxTrackSizingFunction, MinTrackSizingFunction, Position, GridAutoFlow, GridPlacement
+    AlignContent, AlignItems, AlignSelf, Dimension, Display, FlexDirection, FlexWrap, GridAutoFlow,
+    GridPlacement, JustifyContent, MaxTrackSizingFunction, MinTrackSizingFunction, Position,
 };
-
-pub use taffy::geometry::Line;
+pub use taffy::style_helpers::{auto, max_content, min_content, minmax, percent, points};
 
 use style::Style;
 
@@ -81,8 +81,8 @@ pub const fn align_self_to_enum(value: AlignSelf) -> i32 {
 
 pub const fn display_from_enum(value: i32) -> Option<Display> {
     match value {
-        0 => Some(Display::Flex),
-        1 => Some(Display::None),
+        0 => Some(Display::None),
+        1 => Some(Display::Flex),
         2 => Some(Display::Grid),
         _ => None,
     }
@@ -90,8 +90,8 @@ pub const fn display_from_enum(value: i32) -> Option<Display> {
 
 pub const fn display_to_enum(value: Display) -> i32 {
     match value {
-        Display::Flex => 0,
-        Display::None => 1,
+        Display::None => 0,
+        Display::Flex => 1,
         Display::Grid => 2,
     }
 }
@@ -137,9 +137,10 @@ pub const fn justify_content_from_enum(value: i32) -> Option<JustifyContent> {
         0 => Some(JustifyContent::Start),
         1 => Some(JustifyContent::End),
         2 => Some(JustifyContent::Center),
-        3 => Some(JustifyContent::SpaceBetween),
-        4 => Some(JustifyContent::SpaceAround),
-        5 => Some(JustifyContent::SpaceEvenly),
+        3 => Some(JustifyContent::Stretch),
+        4 => Some(JustifyContent::SpaceBetween),
+        5 => Some(JustifyContent::SpaceAround),
+        6 => Some(JustifyContent::SpaceEvenly),
         _ => None,
     }
 }
@@ -149,10 +150,10 @@ pub const fn justify_content_to_enum(value: JustifyContent) -> i32 {
         JustifyContent::Start => 0,
         JustifyContent::End => 1,
         JustifyContent::Center => 2,
-        JustifyContent::SpaceBetween => 3,
-        JustifyContent::SpaceAround => 4,
-        JustifyContent::SpaceEvenly => 5,
-        JustifyContent::Stretch => 6,
+        JustifyContent::Stretch => 3,
+        JustifyContent::SpaceBetween => 4,
+        JustifyContent::SpaceAround => 5,
+        JustifyContent::SpaceEvenly => 6
     }
 }
 
@@ -171,13 +172,13 @@ pub const fn position_to_enum(value: Position) -> i32 {
     }
 }
 
-pub const fn grid_auto_flow_from_enum(value: i32) -> Option<GridAutoFlow>{
+pub const fn grid_auto_flow_from_enum(value: i32) -> Option<GridAutoFlow> {
     match value {
         0 => Some(GridAutoFlow::Row),
         1 => Some(GridAutoFlow::Column),
         2 => Some(GridAutoFlow::RowDense),
         3 => Some(GridAutoFlow::ColumnDense),
-        _ => None
+        _ => None,
     }
 }
 
@@ -186,7 +187,7 @@ pub const fn grid_auto_flow_to_enum(value: GridAutoFlow) -> i32 {
         GridAutoFlow::Row => 0,
         GridAutoFlow::Column => 1,
         GridAutoFlow::RowDense => 2,
-        GridAutoFlow::ColumnDense => 3
+        GridAutoFlow::ColumnDense => 3,
     }
 }
 
@@ -267,6 +268,10 @@ impl Mason {
 
     pub fn set_style(&mut self, node: Node, style: Style) {
         self.taffy.set_style(node.node, style.style).unwrap()
+    }
+
+    pub fn style(&mut self, node: Node) -> Option<Style> {
+        self.taffy.style(node.node).map(|v| Style::from_taffy(v.clone())).ok()
     }
 
     pub fn clear(&mut self) {
@@ -476,11 +481,17 @@ impl<T> Size<T> {
         Size::from_taffy(taffy::geometry::Size { width, height })
     }
 
-    pub fn new_with_len(width: LengthPercentage, height: LengthPercentage) -> Size<LengthPercentage> {
+    pub fn new_with_len(
+        width: LengthPercentage,
+        height: LengthPercentage,
+    ) -> Size<LengthPercentage> {
         Size::from_taffy(taffy::geometry::Size { width, height })
     }
 
-    pub fn new_with_len_auto(width: LengthPercentageAuto, height: LengthPercentageAuto) -> Size<LengthPercentageAuto> {
+    pub fn new_with_len_auto(
+        width: LengthPercentageAuto,
+        height: LengthPercentageAuto,
+    ) -> Size<LengthPercentageAuto> {
         Size::from_taffy(taffy::geometry::Size { width, height })
     }
 

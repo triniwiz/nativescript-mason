@@ -1,5 +1,7 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
+
 val LengthPercentageZeroSize =
   Size<LengthPercentage>(LengthPercentage.Zero, LengthPercentage.Zero)
 val LengthPercentageAutoZeroSize =
@@ -11,6 +13,15 @@ val nanSize = Size(Float.NaN, Float.NaN)
 
 val autoSize: Size<Dimension> = Size(Dimension.Auto, Dimension.Auto)
 
+
+fun logArgs(vararg args: Any){
+  val builder = StringBuilder()
+  args.forEach {
+    builder.append("$it\n")
+  }
+
+  Log.d("Mason: Log", builder.toString())
+}
 
 val LengthPercentageZeroRect =
   Rect<LengthPercentage>(

@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+
 enum class AlignItems {
   Start,
   End,
@@ -22,9 +23,8 @@ enum class AlignItems {
 }
 
 enum class AlignSelf {
-  Auto,
-  FlexStart,
-  FlexEnd,
+  Start,
+  End,
   Center,
   Baseline,
   Stretch;
@@ -32,12 +32,11 @@ enum class AlignSelf {
   companion object {
     fun fromInt(value: Int): AlignSelf {
       return when (value) {
-        0 -> Auto
-        1 -> FlexStart
-        2 -> FlexEnd
-        3 -> Center
-        4 -> Baseline
-        5 -> Stretch
+        0 -> Start
+        1 -> End
+        2 -> Center
+        3 -> Baseline
+        4 -> Stretch
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -141,6 +140,48 @@ enum class JustifyContent {
         4 -> SpaceBetween
         5 -> SpaceAround
         6 -> SpaceEvenly
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+enum class JustifySelf {
+  Start,
+  End,
+  Center,
+  Baseline,
+  Stretch;
+
+  companion object {
+    fun fromInt(value: Int): JustifySelf {
+      return when (value) {
+        0 -> Start
+        1 -> End
+        2 -> Center
+        3 -> Baseline
+        4 -> Stretch
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+enum class JustifyItems {
+  Start,
+  End,
+  Center,
+  Baseline,
+  Stretch;
+
+  companion object {
+    fun fromInt(value: Int): JustifyItems {
+      return when (value) {
+        0 -> Start
+        1 -> End
+        2 -> Center
+        3 -> Baseline
+        4 -> Stretch
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -338,13 +379,27 @@ class Style internal constructor() {
       isDirty = true
     }
 
-  var alignSelf: AlignSelf = AlignSelf.Auto
+  var alignSelf: AlignSelf = AlignSelf.Stretch
     set(value) {
       field = value
       isDirty = true
     }
 
   var alignContent: AlignContent = AlignContent.Start
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+
+  var justifyItems: JustifyItems = JustifyItems.Stretch
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+
+  var justifySelf: JustifySelf = JustifySelf.Stretch
     set(value) {
       field = value
       isDirty = true
@@ -812,13 +867,13 @@ class Style internal constructor() {
     }
 
 
-  var gridAutoRows: Array<MinMax> = arrayOf()
+  var gridAutoRows: Array<MinMax> = emptyArray()
     set(value) {
       field = value
       isDirty = true
     }
 
-  var gridAutoColumns: Array<MinMax> = arrayOf()
+  var gridAutoColumns: Array<MinMax> = emptyArray()
     set(value) {
       field = value
       isDirty = true
@@ -842,13 +897,13 @@ class Style internal constructor() {
       isDirty = true
     }
 
-  var gridTemplateRows: Array<TrackSizingFunction> = arrayOf()
+  var gridTemplateRows: Array<TrackSizingFunction> = emptyArray()
     set(value) {
       field = value
       isDirty = true
     }
 
-  var gridTemplateColumns: Array<TrackSizingFunction> = arrayOf()
+  var gridTemplateColumns: Array<TrackSizingFunction> = emptyArray()
     set(value) {
       field = value
       isDirty = true
@@ -1152,6 +1207,8 @@ class Style internal constructor() {
         alignItems.ordinal,
         alignSelf.ordinal,
         alignContent.ordinal,
+        justifyItems.ordinal,
+        justifySelf.ordinal,
         justifyContent.ordinal,
 
         inset.left.type,
@@ -1217,6 +1274,7 @@ class Style internal constructor() {
         gap.height.value,
 
         aspectRatio ?: Float.NaN,
+
         gridAutoRows,
         gridAutoColumns,
         gridAutoFlow.ordinal,
@@ -1251,7 +1309,7 @@ class Style internal constructor() {
 
   private external fun nativeInitWithValues(
     display: Int,
-    positionType: Int,
+    position: Int,
     direction: Int,
     flexDirection: Int,
     flexWrap: Int,
@@ -1259,16 +1317,18 @@ class Style internal constructor() {
     alignItems: Int,
     alignSelf: Int,
     alignContent: Int,
+    justifyItems: Int,
+    justifySelf: Int,
     justifyContent: Int,
 
-    positionLeftType: Int,
-    positionLeftValue: Float,
-    positionRightType: Int,
-    positionRightValue: Float,
-    positionTopType: Int,
-    positionTopValue: Float,
-    positionBottomType: Int,
-    positionBottomValue: Float,
+    insetLeftType: Int,
+    insetLeftValue: Float,
+    insetRightType: Int,
+    insetRightValue: Float,
+    insetTopType: Int,
+    insetTopValue: Float,
+    insetBottomType: Int,
+    insetBottomValue: Float,
 
     marginLeftType: Int,
     marginLeftValue: Float,
@@ -1344,7 +1404,7 @@ class Style internal constructor() {
   private external fun nativeUpdateWithValues(
     style: Long,
     display: Int,
-    positionType: Int,
+    position: Int,
     direction: Int,
     flexDirection: Int,
     flexWrap: Int,
@@ -1352,16 +1412,18 @@ class Style internal constructor() {
     alignItems: Int,
     alignSelf: Int,
     alignContent: Int,
+    justifyItems: Int,
+    justifySelf: Int,
     justifyContent: Int,
 
-    positionLeftType: Int,
-    positionLeftValue: Float,
-    positionRightType: Int,
-    positionRightValue: Float,
-    positionTopType: Int,
-    positionTopValue: Float,
-    positionBottomType: Int,
-    positionBottomValue: Float,
+    insetLeftType: Int,
+    insetLeftValue: Float,
+    insetRightType: Int,
+    insetRightValue: Float,
+    insetTopType: Int,
+    insetTopValue: Float,
+    insetBottomType: Int,
+    insetBottomValue: Float,
 
     marginLeftType: Int,
     marginLeftValue: Float,

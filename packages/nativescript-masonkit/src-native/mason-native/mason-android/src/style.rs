@@ -240,6 +240,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
     inset_left_type: jint,
     inset_left_value: jfloat,
@@ -308,10 +310,12 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     grid_template_rows: jobjectArray,
     grid_template_columns: jobjectArray,
 ) -> jlong {
+
     let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
     let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
     let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
     let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
+
 
     Box::into_raw(Box::new(Style::from_ffi(
         display,
@@ -323,6 +327,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
         align_items,
         align_self,
         align_content,
+        justify_items,
+        justify_self,
         justify_content,
         inset_left_type,
         inset_left_value,
@@ -407,6 +413,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
     inset_left_type: jint,
     inset_left_value: jfloat,
@@ -493,6 +501,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
             inset_left_type,
             inset_left_value,

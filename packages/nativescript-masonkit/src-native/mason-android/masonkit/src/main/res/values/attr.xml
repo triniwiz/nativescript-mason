@@ -64,9 +64,9 @@
 
         <attr name="mason_height" format="dimension|string" />
 
-        <attr name="flex_justifyContent" format="enum">
-            <enum name="flex_start" value="0" />
-            <enum name="flex_end" value="1" />
+        <attr name="justifyContent" format="enum">
+            <enum name="start" value="0" />
+            <enum name="end" value="1" />
             <enum name="center" value="2" />
             <enum name="space_between" value="3" />
             <enum name="space_around" value="4" />
@@ -123,5 +123,6 @@
             <enum name="wrap" value="1" />
             <enum name="wrap_reverse" value="2" />
         </attr>
+      
     </declare-styleable>
 </resources>

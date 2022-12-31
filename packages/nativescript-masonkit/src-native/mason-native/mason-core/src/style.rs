@@ -18,9 +18,9 @@ pub struct Style {
 
 const fn dimension_with_auto(t: i32, v: f32) -> LengthPercentageAuto {
     match t {
-        0 => LengthPercentageAuto::Points(v),
-        1 => LengthPercentageAuto::Percent(v),
-        2 => LengthPercentageAuto::Auto,
+        0 => LengthPercentageAuto::Auto,
+        1 => LengthPercentageAuto::Points(v),
+        2 => LengthPercentageAuto::Percent(v),
         _ => panic!(),
     }
 }
@@ -218,11 +218,19 @@ impl Style {
         self.style.gap.height
     }
 
+    pub fn get_grid_auto_rows(&self) -> &[NonRepeatedTrackSizingFunction] {
+        self.style.grid_auto_rows.as_slice()
+    }
+
+    pub fn set_grid_auto_rows(&mut self, columns: Vec<NonRepeatedTrackSizingFunction>) {
+        self.style.grid_auto_rows = columns.to_vec();
+    }
+
     pub fn get_grid_auto_columns(&self) -> &[NonRepeatedTrackSizingFunction] {
         self.style.grid_auto_columns.as_slice()
     }
 
-    pub fn set_grid_auto_columns(&mut self, columns: &[NonRepeatedTrackSizingFunction]) {
+    pub fn set_grid_auto_columns(&mut self, columns: Vec<NonRepeatedTrackSizingFunction>) {
         self.style.grid_auto_columns = columns.to_vec();
     }
 
@@ -282,7 +290,7 @@ impl Style {
         self.style.grid_row.end = end
     }
 
-    pub fn set_grid_template_rows(&mut self, rows: &[TrackSizingFunction]) {
+    pub fn set_grid_template_rows(&mut self, rows: Vec<TrackSizingFunction>) {
         self.style.grid_template_rows = rows.to_vec();
     }
 
@@ -290,7 +298,7 @@ impl Style {
         self.style.grid_template_rows.as_slice()
     }
 
-    pub fn set_grid_template_columns(&mut self, columns: &[TrackSizingFunction]) {
+    pub fn set_grid_template_columns(&mut self, columns: Vec<TrackSizingFunction>) {
         self.style.grid_template_columns = columns.to_vec();
     }
 
@@ -625,13 +633,15 @@ impl Style {
     pub fn from_ffi(
         display: i32,
         position: i32,
-        direction: i32,
+        _direction: i32,
         flex_direction: i32,
         flex_wrap: i32,
-        overflow: i32,
+        _overflow: i32,
         align_items: i32,
         align_self: i32,
         align_content: i32,
+        justify_items: i32,
+        justify_self: i32,
         justify_content: i32,
         inset_left_type: i32,
         inset_left_value: f32,
@@ -702,8 +712,9 @@ impl Style {
     ) -> Self {
         Style::from_taffy(taffy::style::Style {
             display: match display {
-                0 => Display::Flex,
-                1 => Display::None,
+                0 => Display::None,
+                1 => Display::Flex,
+                2 => Display::Grid,
                 _ => panic!(),
             },
 
@@ -762,7 +773,7 @@ impl Style {
                 _ => panic!(),
             },
 
-            justify_items: match align_items {
+            justify_items: match justify_items {
                 -1 => None,
                 0 => Some(AlignItems::Start),
                 1 => Some(AlignItems::End),
@@ -771,7 +782,7 @@ impl Style {
                 4 => Some(AlignItems::Stretch),
                 _ => panic!(),
             },
-            justify_self: match align_self {
+            justify_self: match justify_self {
                 -1 => None,
                 0 => Some(AlignSelf::Start),
                 1 => Some(AlignSelf::End),
@@ -789,7 +800,6 @@ impl Style {
                 4 => Some(AlignContent::SpaceBetween),
                 5 => Some(AlignContent::SpaceAround),
                 6 => Some(AlignContent::SpaceEvenly),
-                7 => Some(AlignContent::Stretch),
                 _ => panic!(),
             },
 
@@ -855,18 +865,18 @@ impl Style {
             flex_basis: dimension(flex_basis_type, flex_basis_value).into(),
 
             size: taffy::geometry::Size {
-                width: dimension(width_type, width_value).into(),
-                height: dimension(height_type, height_value).into(),
+                width: dimension_with_auto(width_type, width_value).into(),
+                height: dimension_with_auto(height_type, height_value).into(),
             },
 
             min_size: taffy::geometry::Size {
-                width: dimension(min_width_type, min_width_value).into(),
-                height: dimension(min_height_type, min_height_value).into(),
+                width: dimension_with_auto(min_width_type, min_width_value).into(),
+                height: dimension_with_auto(min_height_type, min_height_value).into(),
             },
 
             max_size: taffy::geometry::Size {
-                width: dimension(max_width_type, max_width_value).into(),
-                height: dimension(max_height_type, max_height_value).into(),
+                width: dimension_with_auto(max_width_type, max_width_value).into(),
+                height: dimension_with_auto(max_height_type, max_height_value).into(),
             },
 
             aspect_ratio: if f32::is_nan(aspect_ratio) {
@@ -893,6 +903,8 @@ impl Style {
         align_items: i32,
         align_self: i32,
         align_content: i32,
+        justify_items: i32,
+        justify_self: i32,
         justify_content: i32,
         inset_left_type: i32,
         inset_left_value: f32,
@@ -994,6 +1006,14 @@ impl Style {
         style.style.align_content =
             Some(align_content_from_enum(align_content).unwrap_or_else(|| panic!()));
 
+
+        style.style.justify_items =
+            Some(align_items_from_enum(justify_items).unwrap_or_else(|| panic!()));
+
+        style.style.justify_self =
+            Some(align_items_from_enum(justify_self).unwrap_or_else(|| panic!()));
+
+
         style.style.justify_content =
             Some(justify_content_from_enum(justify_content).unwrap_or_else(|| panic!()));
 
@@ -1035,18 +1055,18 @@ impl Style {
         style.style.flex_basis = dimension(flex_basis_type, flex_basis_value).into();
 
         style.style.size = taffy::geometry::Size {
-            width: dimension(width_type, width_value).into(),
-            height: dimension(height_type, height_value).into(),
+            width: dimension_with_auto(width_type, width_value).into(),
+            height: dimension_with_auto(height_type, height_value).into(),
         };
 
         style.style.min_size = taffy::geometry::Size {
-            width: dimension(min_width_type, min_width_value).into(),
-            height: dimension(min_height_type, min_height_value).into(),
+            width: dimension_with_auto(min_width_type, min_width_value).into(),
+            height: dimension_with_auto(min_height_type, min_height_value).into(),
         };
 
         style.style.max_size = taffy::geometry::Size {
-            width: dimension(max_width_type, max_width_value).into(),
-            height: dimension(max_height_type, max_height_value).into(),
+            width: dimension_with_auto(max_width_type, max_width_value).into(),
+            height: dimension_with_auto(max_height_type, max_height_value).into(),
         };
 
         style.style.aspect_ratio = if f32::is_nan(aspect_ratio) {

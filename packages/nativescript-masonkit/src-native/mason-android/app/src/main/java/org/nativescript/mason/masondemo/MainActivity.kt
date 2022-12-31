@@ -22,20 +22,21 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        Mason.shared = true
+        Mason.shared = false
         adapter = CustomAdapter(array, resources.displayMetrics.density)
         rootView = findViewById(R.id.rootView)
        // container = findViewById(R.id.container)
-        imageView = findViewById(R.id.imageView)
-        recyclerView = findViewById(R.id.recyclerView)
+     //   imageView = findViewById(R.id.imageView)
+      //  recyclerView = findViewById(R.id.recyclerView)
 
 
-
+/*
         Glide.with(this)
             .load("https://hips.hearstapps.com/digitalspyuk.cdnds.net/17/19/1494434353-deadpool.jpg")
             .fitCenter()
             .override(500, 500)
             .into(imageView)
+      */
 
 
         val start = System.currentTimeMillis()
@@ -58,9 +59,9 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-        recyclerView.adapter = adapter
+  //      recyclerView.adapter = adapter
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
+    //    recyclerView.layoutManager = LinearLayoutManager(this)
 
     }
 

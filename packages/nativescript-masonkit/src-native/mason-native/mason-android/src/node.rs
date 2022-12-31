@@ -335,6 +335,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
     inset_left_type: jint,
     inset_left_value: jfloat,
@@ -427,6 +429,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
             inset_left_type,
             inset_left_value,
@@ -496,6 +500,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
             grid_template_columns,
         );
         mason.set_style(*node, *style.clone());
+
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
@@ -518,6 +523,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
     inset_left_type: jint,
     inset_left_value: jfloat,
@@ -611,6 +618,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
             inset_left_type,
             inset_left_value,
@@ -679,6 +688,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             grid_template_rows,
             grid_template_columns,
         );
+
         mason.set_style(*node, *style.clone());
 
         mason.compute(*node);
@@ -714,6 +724,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
     inset_left_type: jint,
     inset_left_value: jfloat,
@@ -807,6 +819,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
             inset_left_type,
             inset_left_value,

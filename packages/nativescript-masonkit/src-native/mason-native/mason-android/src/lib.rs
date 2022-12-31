@@ -1,10 +1,11 @@
 extern crate core;
+
 use std::ffi::c_void;
 
+use jni::JavaVM;
+use jni::JNIEnv;
 use jni::objects::{GlobalRef, JClass, JMethodID, JObject};
 use jni::sys::{jint, jlong};
-use jni::JNIEnv;
-use jni::JavaVM;
 use once_cell::sync::OnceCell;
 
 use ffi::AvailableSpace;
@@ -12,6 +13,8 @@ use ffi::CMasonDimension;
 use ffi::CMasonDimensionRect;
 use ffi::CMasonDimensionSize;
 use ffi::CMasonDimensionType;
+use ffi::CMasonGridPlacement;
+use ffi::CMasonGridPlacementType;
 use ffi::CMasonLengthPercentage;
 use ffi::CMasonLengthPercentageAuto;
 use ffi::CMasonLengthPercentageAutoRect;
@@ -21,15 +24,18 @@ use ffi::CMasonLengthPercentageRect;
 use ffi::CMasonLengthPercentageSize;
 use ffi::CMasonLengthPercentageType;
 use ffi::CMasonMinMax;
-use mason_core::style::{min_max_from_values, Style};
 use mason_core::{
     align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
-    align_self_from_enum, align_self_to_enum, display_from_enum, display_to_enum,
-    flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum,
-    justify_content_from_enum, justify_content_to_enum, position_from_enum, position_to_enum,
-    GridTrackRepetition, Mason, Node, NonRepeatedTrackSizingFunction, Size, TrackSizingFunction,
+    align_self_from_enum, align_self_to_enum, auto, display_from_enum, display_to_enum,
+    fit_content, flex, flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum,
+    flex_wrap_to_enum, grid_auto_flow_from_enum, grid_auto_flow_to_enum, GridPlacement,
+    GridTrackRepetition, justify_content_from_enum, justify_content_to_enum, Mason, max_content, MaxTrackSizingFunction,
+    min_content, MinTrackSizingFunction, Node, NonRepeatedTrackSizingFunction, percent,
+    points, position_from_enum, position_to_enum, Size, TaffyAuto,
+    TrackSizingFunction,
 };
 use mason_core::{Dimension, LengthPercentage, LengthPercentageAuto, Rect};
+use mason_core::style::{min_max_from_values, Style};
 
 use crate::ffi::AvailableSpaceType;
 
@@ -125,7 +131,7 @@ pub static MIN_MAX: OnceCell<MinMaxCacheItem> = OnceCell::new();
 pub static TRACK_SIZING_FUNCTION: OnceCell<TrackSizingFunctionCacheItem> = OnceCell::new();
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub struct CMasonNonRepeatedTrackSizingFunction(mason_core::NonRepeatedTrackSizingFunction);
+pub struct CMasonNonRepeatedTrackSizingFunction(NonRepeatedTrackSizingFunction);
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct CMasonTrackSizingFunction(TrackSizingFunction);
@@ -245,10 +251,39 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeClear(
     }
 }
 
+fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
+    track_type: i32,
+    track_value_type: i32,
+    track_value: f32,
+    index: isize,
+    store: &mut Vec<CMasonNonRepeatedTrackSizingFunction>,
+) {
+    let value = CMasonNonRepeatedTrackSizingFunction(match track_type {
+        0 => auto(),
+        1 => min_content(),
+        2 => max_content(),
+        3 => fit_content(match track_value_type {
+            0 => LengthPercentage::Points(track_value),
+            1 => LengthPercentage::Points(track_value),
+            _ => panic!(),
+        }),
+        4 => flex(track_value),
+        5 => points(track_value),
+        6 => percent(track_value),
+        _ => panic!(),
+    });
+
+    if index < 0 {
+        store.push(value);
+    } else {
+        store[index as usize] = value;
+    }
+}
+
 fn mason_util_create_non_repeated_track_sizing_function(
     min_max: CMasonMinMax,
     index: isize,
-    mut store: Vec<CMasonNonRepeatedTrackSizingFunction>,
+    store: &mut Vec<CMasonNonRepeatedTrackSizingFunction>,
 ) {
     let value = CMasonNonRepeatedTrackSizingFunction(min_max_from_values(
         min_max.min_type,
@@ -266,7 +301,7 @@ fn mason_util_create_non_repeated_track_sizing_function(
 fn mason_util_create_single_track_sizing_function(
     min_max: CMasonMinMax,
     index: isize,
-    mut store: Vec<CMasonTrackSizingFunction>,
+    store: &mut Vec<CMasonTrackSizingFunction>,
 ) {
     let value = CMasonTrackSizingFunction(TrackSizingFunction::Single(min_max_from_values(
         min_max.min_type,
@@ -284,9 +319,9 @@ fn mason_util_create_single_track_sizing_function(
 
 fn mason_util_create_auto_repeating_track_sizing_function(
     grid_track_repetition: i32,
-    mut values: Vec<CMasonMinMax>,
+    values: Vec<CMasonMinMax>,
     index: isize,
-    mut store: Vec<CMasonTrackSizingFunction>,
+    store: &mut Vec<CMasonTrackSizingFunction>,
 ) {
     let value = CMasonTrackSizingFunction(TrackSizingFunction::AutoRepeat(
         match grid_track_repetition {
@@ -418,29 +453,58 @@ pub(crate) mod ffi {
         pub height: CMasonLengthPercentage,
     }
 
+    #[derive(Copy, Clone, PartialEq, Debug)]
+    pub enum CMasonGridPlacementType {
+        Auto,
+        Line,
+        Span,
+    }
+
+    #[derive(Copy, Clone, PartialEq, Debug)]
+    pub struct CMasonGridPlacement {
+        pub value: i16,
+        pub value_type: CMasonGridPlacementType,
+    }
+
     extern "Rust" {
 
         type CMasonNonRepeatedTrackSizingFunction;
 
         type CMasonTrackSizingFunction;
 
+        fn mason_util_parse_non_repeated_track_sizing_function_value(
+            value: &Vec<CMasonNonRepeatedTrackSizingFunction>,
+        ) -> String;
+
+        fn mason_util_parse_auto_repeating_track_sizing_function(
+            value: &Vec<CMasonTrackSizingFunction>,
+        ) -> String;
+
         fn mason_util_create_non_repeated_track_sizing_function(
             min_max: CMasonMinMax,
             index: isize,
-            mut store: Vec<CMasonNonRepeatedTrackSizingFunction>,
+            store: &mut Vec<CMasonNonRepeatedTrackSizingFunction>,
+        );
+
+        fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
+            track_type: i32,
+            track_value_type: i32,
+            track_value: f32,
+            index: isize,
+            store: &mut Vec<CMasonNonRepeatedTrackSizingFunction>,
         );
 
         fn mason_util_create_single_track_sizing_function(
             min_max: CMasonMinMax,
             index: isize,
-            mut store: Vec<CMasonTrackSizingFunction>,
+            store: &mut Vec<CMasonTrackSizingFunction>,
         );
 
         fn mason_util_create_auto_repeating_track_sizing_function(
             grid_track_repetition: i32,
-            mut values: Vec<CMasonMinMax>,
+            values: Vec<CMasonMinMax>,
             index: isize,
-            mut store: Vec<CMasonTrackSizingFunction>,
+            store: &mut Vec<CMasonTrackSizingFunction>,
         );
 
         fn mason_style_set_display(style: i64, display: i32);
@@ -683,11 +747,55 @@ pub(crate) mod ffi {
 
         fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64);
 
+        fn mason_style_get_grid_auto_rows(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction>;
+
+        fn mason_style_set_grid_auto_rows(
+            style: i64,
+            value: Vec<CMasonNonRepeatedTrackSizingFunction>,
+        );
+
+        fn mason_style_get_grid_auto_columns(
+            style: i64,
+        ) -> Vec<CMasonNonRepeatedTrackSizingFunction>;
+
+        fn mason_style_set_grid_auto_columns(
+            style: i64,
+            value: Vec<CMasonNonRepeatedTrackSizingFunction>,
+        );
+
+        fn mason_style_get_grid_auto_flow(style: i64) -> i32;
+
+        fn mason_style_set_grid_auto_flow(style: i64, value: i32);
+
+        fn mason_style_get_grid_column_start(style: i64) -> CMasonGridPlacement;
+
+        fn mason_style_set_grid_column_start(style: i64, value: CMasonGridPlacement);
+
+        fn mason_style_get_grid_column_end(style: i64) -> CMasonGridPlacement;
+
+        fn mason_style_set_grid_column_end(style: i64, value: CMasonGridPlacement);
+
+        fn mason_style_get_grid_row_start(style: i64) -> CMasonGridPlacement;
+
+        fn mason_style_set_grid_row_start(style: i64, value: CMasonGridPlacement);
+
+        fn mason_style_get_grid_row_end(style: i64) -> CMasonGridPlacement;
+
+        fn mason_style_set_grid_row_end(style: i64, value: CMasonGridPlacement);
+
+        fn mason_style_get_grid_template_rows(style: i64) -> Vec<CMasonTrackSizingFunction>;
+
+        fn mason_style_set_grid_template_rows(style: i64, value: Vec<CMasonTrackSizingFunction>);
+
+        fn mason_style_get_grid_template_columns(style: i64) -> Vec<CMasonTrackSizingFunction>;
+
+        fn mason_style_set_grid_template_columns(style: i64, value: Vec<CMasonTrackSizingFunction>);
+
         #[allow(clippy::too_many_arguments)]
         fn mason_style_update_with_values(
             style: i64,
             display: i32,
-            position_type: i32,
+            position: i32,
             direction: i32,
             flex_direction: i32,
             flex_wrap: i32,
@@ -695,15 +803,17 @@ pub(crate) mod ffi {
             align_items: i32,
             align_self: i32,
             align_content: i32,
+            justify_items: i32,
+            justify_self: i32,
             justify_content: i32,
-            position_left_type: i32,
-            position_left_value: f32,
-            position_right_type: i32,
-            position_right_value: f32,
-            position_top_type: i32,
-            position_top_value: f32,
-            position_bottom_type: i32,
-            position_bottom_value: f32,
+            inset_left_type: i32,
+            inset_left_value: f32,
+            inset_right_type: i32,
+            inset_right_value: f32,
+            inset_top_type: i32,
+            inset_top_value: f32,
+            inset_bottom_type: i32,
+            inset_bottom_value: f32,
             margin_left_type: i32,
             margin_left_value: f32,
             margin_right_type: i32,
@@ -744,10 +854,10 @@ pub(crate) mod ffi {
             max_width_value: f32,
             max_height_type: i32,
             max_height_value: f32,
-            flex_gap_width_type: i32,
-            flex_gap_width_value: f32,
-            flex_gap_height_type: i32,
-            flex_gap_height_value: f32,
+            gap_row_type: i32,
+            gap_row_value: f32,
+            gap_column_type: i32,
+            gap_column_value: f32,
             aspect_ratio: f32,
             mut grid_auto_rows: Vec<CMasonNonRepeatedTrackSizingFunction>,
             mut grid_auto_columns: Vec<CMasonNonRepeatedTrackSizingFunction>,
@@ -1073,8 +1183,386 @@ impl Into<Size<LengthPercentage>> for CMasonLengthPercentageSize {
     }
 }
 
+impl From<GridPlacement> for CMasonGridPlacement {
+    fn from(value: GridPlacement) -> Self {
+        match value {
+            GridPlacement::Auto => CMasonGridPlacement {
+                value: 0,
+                value_type: CMasonGridPlacementType::Auto,
+            },
+            GridPlacement::Line(value) => CMasonGridPlacement {
+                value,
+                value_type: CMasonGridPlacementType::Line,
+            },
+            GridPlacement::Span(value) => CMasonGridPlacement {
+                value: value as i16,
+                value_type: CMasonGridPlacementType::Span,
+            },
+        }
+    }
+}
+
+impl Into<GridPlacement> for CMasonGridPlacement {
+    fn into(self) -> GridPlacement {
+        match self.value_type {
+            CMasonGridPlacementType::Auto => GridPlacement::Auto,
+            CMasonGridPlacementType::Line => GridPlacement::Line(self.value),
+            CMasonGridPlacementType::Span => GridPlacement::Span(self.value.try_into().unwrap()),
+            // making cxx happy
+            _ => GridPlacement::Auto,
+        }
+    }
+}
+
 pub fn assert_pointer_address(pointer: i64, pointer_type: &str) {
     assert_ne!(pointer, 0, "Invalid {:} pointer address", pointer_type);
+}
+
+fn parse_non_repeated_track_sizing_function_value(value: NonRepeatedTrackSizingFunction) -> String {
+    let mut string = String::new();
+
+    match (value.min, value.max) {
+        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Auto) => string.push_str("auto"),
+        (MinTrackSizingFunction::MinContent, MaxTrackSizingFunction::MinContent) => {
+            string.push_str("min-content")
+        }
+        (MinTrackSizingFunction::MaxContent, MaxTrackSizingFunction::MaxContent) => {
+            string.push_str("max-content")
+        }
+        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::FitContent(value)) => string
+            .push_str(&match value {
+                LengthPercentage::Points(value) => format!("fit-content({}px)", value),
+                LengthPercentage::Percent(value) => format!("fit-content({}%)", value),
+            }),
+        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Flex(value)) => {
+            string.push_str(&format!("{}fr", value))
+        }
+        (min, max) => {
+            string.push_str(&format!(
+                "minmax({}, {})",
+                match min {
+                    MinTrackSizingFunction::Fixed(value) => {
+                        match value {
+                            LengthPercentage::Points(value) => format!("{}px", value),
+                            LengthPercentage::Percent(value) => format!("{}%", value),
+                        }
+                    }
+                    MinTrackSizingFunction::MinContent => "min-content".to_string(),
+                    MinTrackSizingFunction::MaxContent => "max-content".to_string(),
+                    MinTrackSizingFunction::Auto => "auto".to_string(),
+                },
+                match max {
+                    MaxTrackSizingFunction::Fixed(value) => {
+                        match value {
+                            LengthPercentage::Points(value) => format!("{}px", value),
+                            LengthPercentage::Percent(value) => format!("{}%", value),
+                        }
+                    }
+                    MaxTrackSizingFunction::MinContent => "min-content".to_string(),
+                    MaxTrackSizingFunction::MaxContent => "max-content".to_string(),
+                    MaxTrackSizingFunction::FitContent(_) => panic!(), // invalid should not hit here
+                    MaxTrackSizingFunction::Auto => "auto".to_string(),
+                    MaxTrackSizingFunction::Flex(value) => format!("{}px", value),
+                }
+            ));
+        }
+    }
+
+    string
+}
+
+fn mason_util_parse_non_repeated_track_sizing_function_value(
+    value: &Vec<CMasonNonRepeatedTrackSizingFunction>,
+) -> String {
+    let mut ret = String::new();
+
+    for (i, val) in value.into_iter().enumerate() {
+        let parsed = parse_non_repeated_track_sizing_function_value(val.0);
+        if i != 0 {
+            ret.push_str(" ");
+        }
+        ret.push_str(parsed.as_str())
+    }
+    ret
+}
+
+fn mason_util_parse_auto_repeating_track_sizing_function(
+    value: &Vec<CMasonTrackSizingFunction>,
+) -> String {
+    let mut ret = String::new();
+    for (i,val) in value.into_iter().enumerate() {
+        if i != 0 {
+            ret.push_str(" ");
+        }
+        match &val.0 {
+            TrackSizingFunction::Single(value) => {
+                let parsed = parse_non_repeated_track_sizing_function_value(*value);
+                ret.push_str(parsed.as_str())
+            }
+            TrackSizingFunction::AutoRepeat(grid_track_repetition, values) => {
+                ret.push_str("repeat(");
+                match *grid_track_repetition  {
+                    GridTrackRepetition::AutoFill => {
+                        ret.push_str("auto-fill");
+                    }
+                    GridTrackRepetition::AutoFit => {
+                        ret.push_str("auto-fit");
+                    }
+                }
+
+                for (j, inner_val) in values.iter().enumerate() {
+                    let parsed = parse_non_repeated_track_sizing_function_value(*inner_val);
+
+                    if j != 0 {
+                        ret.push(' ');
+                    }
+
+                    ret.push_str(parsed.as_str())
+                }
+
+                ret.push(')');
+            }
+        }
+    }
+    ret
+}
+
+fn mason_style_get_grid_auto_rows(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction> {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = style
+            .get_grid_auto_rows()
+            .to_vec()
+            .into_iter()
+            .map(|v| CMasonNonRepeatedTrackSizingFunction(v))
+            .collect();
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+fn mason_style_set_grid_auto_rows(style: i64, value: Vec<CMasonNonRepeatedTrackSizingFunction>) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_auto_rows(value.into_iter().map(|v| v.0).collect());
+
+        Box::leak(style);
+    }
+}
+
+fn mason_style_get_grid_auto_columns(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction> {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = style
+            .get_grid_auto_columns()
+            .to_vec()
+            .into_iter()
+            .map(|v| CMasonNonRepeatedTrackSizingFunction(v))
+            .collect();
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+fn mason_style_set_grid_auto_columns(style: i64, value: Vec<CMasonNonRepeatedTrackSizingFunction>) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_auto_columns(value.into_iter().map(|v| v.0).collect());
+
+        Box::leak(style);
+    }
+}
+
+fn mason_style_get_grid_auto_flow(style: i64) -> i32 {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = grid_auto_flow_to_enum(style.get_grid_auto_flow());
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+fn mason_style_set_grid_auto_flow(style: i64, value: i32) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        if let Some(value) = grid_auto_flow_from_enum(value) {
+            let mut style = Box::from_raw(style as *mut Style);
+
+            style.set_grid_auto_flow(value);
+
+            Box::leak(style);
+        }
+    }
+}
+
+fn mason_style_get_grid_column_start(style: i64) -> CMasonGridPlacement {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = style.get_grid_column_start().into();
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+fn mason_style_set_grid_column_start(style: i64, value: CMasonGridPlacement) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_column_start(value.into());
+
+        Box::leak(style);
+    }
+}
+
+fn mason_style_get_grid_column_end(style: i64) -> CMasonGridPlacement {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = style.get_grid_column_end().into();
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+fn mason_style_set_grid_column_end(style: i64, value: CMasonGridPlacement) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_column_end(value.into());
+
+        Box::leak(style);
+    }
+}
+
+fn mason_style_get_grid_row_start(style: i64) -> CMasonGridPlacement {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = style.get_grid_row_start().into();
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+fn mason_style_set_grid_row_start(style: i64, value: CMasonGridPlacement) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_row_start(value.into());
+
+        Box::leak(style);
+    }
+}
+
+fn mason_style_get_grid_row_end(style: i64) -> CMasonGridPlacement {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = style.get_grid_row_end().into();
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+fn mason_style_set_grid_row_end(style: i64, value: CMasonGridPlacement) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_row_end(value.into());
+
+        Box::leak(style);
+    }
+}
+
+fn mason_style_get_grid_template_rows(style: i64) -> Vec<CMasonTrackSizingFunction> {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = style
+            .get_grid_template_rows()
+            .to_vec()
+            .into_iter()
+            .map(|v| CMasonTrackSizingFunction(v))
+            .collect();
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+fn mason_style_set_grid_template_rows(style: i64, value: Vec<CMasonTrackSizingFunction>) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_template_rows(value.into_iter().map(|v| v.0).collect());
+
+        Box::leak(style);
+    }
+}
+
+fn mason_style_get_grid_template_columns(style: i64) -> Vec<CMasonTrackSizingFunction> {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let ret = style
+            .get_grid_template_columns()
+            .to_vec()
+            .into_iter()
+            .map(|v| CMasonTrackSizingFunction(v))
+            .collect();
+
+        Box::leak(style);
+
+        ret
+    }
+}
+
+fn mason_style_set_grid_template_columns(style: i64, value: Vec<CMasonTrackSizingFunction>) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_template_columns(value.into_iter().map(|v| v.0).collect());
+
+        Box::leak(style);
+    }
 }
 
 pub fn mason_style_set_width(style: i64, value: f32, value_type: CMasonDimensionType) {
@@ -1451,11 +1939,7 @@ fn mason_style_get_inset_left(style: i64) -> CMasonLengthPercentageAuto {
     }
 }
 
-fn mason_style_set_inset_left(
-    style: i64,
-    value: f32,
-    value_type: CMasonLengthPercentageAutoType,
-) {
+fn mason_style_set_inset_left(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     assert_pointer_address(style, "style");
 
     unsafe {
@@ -1483,11 +1967,7 @@ fn mason_style_get_inset_right(style: i64) -> CMasonLengthPercentageAuto {
     }
 }
 
-fn mason_style_set_inset_right(
-    style: i64,
-    value: f32,
-    value_type: CMasonLengthPercentageAutoType,
-) {
+fn mason_style_set_inset_right(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     assert_pointer_address(style, "style");
 
     unsafe {
@@ -1515,11 +1995,7 @@ fn mason_style_get_inset_top(style: i64) -> CMasonLengthPercentageAuto {
     }
 }
 
-fn mason_style_set_inset_top(
-    style: i64,
-    value: f32,
-    value_type: CMasonLengthPercentageAutoType,
-) {
+fn mason_style_set_inset_top(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     assert_pointer_address(style, "style");
 
     unsafe {
@@ -2246,7 +2722,7 @@ pub fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64) {
 pub fn mason_style_update_with_values(
     style: i64,
     display: i32,
-    position_type: i32,
+    position: i32,
     direction: i32,
     flex_direction: i32,
     flex_wrap: i32,
@@ -2254,15 +2730,17 @@ pub fn mason_style_update_with_values(
     align_items: i32,
     align_self: i32,
     align_content: i32,
+    justify_items: i32,
+    justify_self: i32,
     justify_content: i32,
-    position_left_type: i32,
-    position_left_value: f32,
-    position_right_type: i32,
-    position_right_value: f32,
-    position_top_type: i32,
-    position_top_value: f32,
-    position_bottom_type: i32,
-    position_bottom_value: f32,
+    inset_left_type: i32,
+    inset_left_value: f32,
+    inset_right_type: i32,
+    inset_right_value: f32,
+    inset_top_type: i32,
+    inset_top_value: f32,
+    inset_bottom_type: i32,
+    inset_bottom_value: f32,
     margin_left_type: i32,
     margin_left_value: f32,
     margin_right_type: i32,
@@ -2303,10 +2781,10 @@ pub fn mason_style_update_with_values(
     max_width_value: f32,
     max_height_type: i32,
     max_height_value: f32,
-    flex_gap_width_type: i32,
-    flex_gap_width_value: f32,
-    flex_gap_height_type: i32,
-    flex_gap_height_value: f32,
+    gap_row_type: i32,
+    gap_row_value: f32,
+    gap_column_type: i32,
+    gap_column_value: f32,
     aspect_ratio: f32,
     mut grid_auto_rows: Vec<CMasonNonRepeatedTrackSizingFunction>,
     mut grid_auto_columns: Vec<CMasonNonRepeatedTrackSizingFunction>,
@@ -2327,7 +2805,7 @@ pub fn mason_style_update_with_values(
         Style::update_from_ffi(
             &mut style,
             display,
-            position_type,
+            position,
             direction,
             flex_direction,
             flex_wrap,
@@ -2335,15 +2813,17 @@ pub fn mason_style_update_with_values(
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
-            position_left_type,
-            position_left_value,
-            position_right_type,
-            position_right_value,
-            position_top_type,
-            position_top_value,
-            position_bottom_type,
-            position_bottom_value,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
             margin_left_type,
             margin_left_value,
             margin_right_type,
@@ -2384,10 +2864,10 @@ pub fn mason_style_update_with_values(
             max_width_value,
             max_height_type,
             max_height_value,
-            flex_gap_width_type,
-            flex_gap_width_value,
-            flex_gap_height_type,
-            flex_gap_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
             aspect_ratio,
             grid_auto_rows.into_iter().map(|v| v.0).collect(),
             grid_auto_columns.into_iter().map(|v| v.0).collect(),

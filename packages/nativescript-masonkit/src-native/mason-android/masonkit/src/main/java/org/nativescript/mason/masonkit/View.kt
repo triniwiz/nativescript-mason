@@ -2,7 +2,6 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
@@ -230,7 +229,7 @@ class View @JvmOverloads constructor(
     val layout = if (parent !is View) {
       if ((parent as? android.view.View)?.id == android.R.id.content) {
         setSizeFromMeasureSpec(widthMeasureSpec, heightMeasureSpec)
-        //   node.updateNodeStyle()
+         node.updateNodeStyle()
       }
       // node.computeMaxContent()
       // node.layout()
@@ -240,6 +239,7 @@ class View @JvmOverloads constructor(
     }
 
     setMeasuredDimension(layout.width.roundToInt(), layout.height.roundToInt())
+
   }
 
   override fun addView(child: android.view.View, index: Int, params: ViewGroup.LayoutParams) {
@@ -257,10 +257,10 @@ class View @JvmOverloads constructor(
         nodes[child]!!
       } else {
         Node()
-      }.apply {
-        data = child
-        setMeasureFunction(ViewMeasureFunc(WeakReference(this)))
       }
+    }.apply {
+      data = child
+      setMeasureFunction(ViewMeasureFunc(WeakReference(this)))
     }
 
     val lp = child.layoutParams as? LayoutParams ?: run {
@@ -494,7 +494,7 @@ class View @JvmOverloads constructor(
         R.styleable.mason_mason_marginLeft -> {
           marginLeft = LengthPercentageAuto.Points(value)
         }
-        R.styleable.mason_flex_justifyContent -> {
+        R.styleable.mason_justifyContent -> {
           node.style.justifyContent = JustifyContent.fromInt(value.roundToInt())
         }
         R.styleable.mason_mason_marginTop -> {
@@ -1697,42 +1697,6 @@ class View @JvmOverloads constructor(
 
         var heightSpec = if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
 
-/*
-
-                if (widthIsNaN && view.layoutParams.width == ViewGroup.LayoutParams.MATCH_PARENT) {
-                    if (!availableWidth.isNaN()){
-                        measureWidth = availableWidth.roundToInt()
-                        widthSpec = MeasureSpec.EXACTLY
-                    }
-                }
-
-                if (heightIsNaN && view.layoutParams.height == ViewGroup.LayoutParams.MATCH_PARENT) {
-                    if(!availableHeight.isNaN()) {
-                        measureHeight = availableHeight.roundToInt()
-                        heightSpec = MeasureSpec.EXACTLY
-                    }
-                }
-
-                */
-
-//                if (widthIsNaN && availableWidth.isNaN() && heightIsNaN && availableHeight.isNaN()){
-//
-//                }
-
-//                if (view.layoutParams.width == ViewGroup.LayoutParams.MATCH_PARENT && view.layoutParams.height == ViewGroup.LayoutParams.MATCH_PARENT) {
-//                    retWidth = availableWidth
-//                    retHeight = availableHeight
-//                    return@let
-//                }
-
-
-        if (view.layoutParams.width == ViewGroup.LayoutParams.WRAP_CONTENT && measureWidth == 0) {
-          widthSpec = MeasureSpec.UNSPECIFIED
-        }
-
-        if (view.layoutParams.height == ViewGroup.LayoutParams.WRAP_CONTENT && measureHeight == 0) {
-          heightSpec = MeasureSpec.UNSPECIFIED
-        }
 
         view.measure(
           MeasureSpec.makeMeasureSpec(
@@ -1756,7 +1720,6 @@ class View @JvmOverloads constructor(
           }
         }
       }
-
 
       return Size(retWidth, retHeight)
 

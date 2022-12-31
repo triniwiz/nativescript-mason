@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
 import android.view.ViewGroup
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
@@ -88,6 +87,8 @@ class Node private constructor(private var nativePtr: Long) {
         style.alignItems.ordinal,
         style.alignSelf.ordinal,
         style.alignContent.ordinal,
+        style.justifyItems.ordinal,
+        style.justifySelf.ordinal,
         style.justifyContent.ordinal,
 
         style.inset.left.type,
@@ -206,6 +207,8 @@ class Node private constructor(private var nativePtr: Long) {
           style.alignItems.ordinal,
           style.alignSelf.ordinal,
           style.alignContent.ordinal,
+          style.justifyItems.ordinal,
+          style.justifySelf.ordinal,
           style.justifyContent.ordinal,
 
           style.inset.left.type,
@@ -300,6 +303,8 @@ class Node private constructor(private var nativePtr: Long) {
         style.alignItems.ordinal,
         style.alignSelf.ordinal,
         style.alignContent.ordinal,
+        style.justifyItems.ordinal,
+        style.justifySelf.ordinal,
         style.justifyContent.ordinal,
 
         style.inset.left.type,
@@ -752,6 +757,8 @@ class Node private constructor(private var nativePtr: Long) {
     alignItems: Int,
     alignSelf: Int,
     alignContent: Int,
+    justifyItems: Int,
+    justifySelf: Int,
     justifyContent: Int,
 
     positionLeftType: Int,
@@ -844,6 +851,8 @@ class Node private constructor(private var nativePtr: Long) {
     alignItems: Int,
     alignSelf: Int,
     alignContent: Int,
+    justifyItems: Int,
+    justifySelf: Int,
     justifyContent: Int,
 
     positionLeftType: Int,
@@ -941,6 +950,8 @@ class Node private constructor(private var nativePtr: Long) {
     alignItems: Int,
     alignSelf: Int,
     alignContent: Int,
+    justifyItems: Int,
+    justifySelf: Int,
     justifyContent: Int,
 
     positionLeftType: Int,
