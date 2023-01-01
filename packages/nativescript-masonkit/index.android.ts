@@ -9,7 +9,7 @@ let JSIEnabled = false;
 
 try {
   __non_webpack_require__('system_lib://libmasonnativev8.so');
-  JSIEnabled = true;
+  JSIEnabled = false;
 } catch (error) {
   console.warn('Failed to enable on FastAPI');
 }
@@ -25,13 +25,11 @@ const enum FlexDirection {
 }
 
 const enum MasonDimensionCompatType {
-  Points = 0,
+  Auto = 0,
 
-  Percent = 1,
+  Points = 1,
 
-  Undefined = 2,
-
-  Auto = 3,
+  Percent = 2,
 }
 
 const enum PositionType {
@@ -49,9 +47,9 @@ const enum FlexWrap {
 }
 
 const enum AlignContent {
-  FlexStart = 0,
+  Start = 0,
 
-  FlexEnd = 1,
+  End = 1,
 
   Center = 2,
 
@@ -65,9 +63,9 @@ const enum AlignContent {
 }
 
 const enum AlignItems {
-  FlexStart = 0,
+  Start = 0,
 
-  FlexEnd = 1,
+  End = 1,
 
   Center = 2,
 
@@ -77,17 +75,55 @@ const enum AlignItems {
 }
 
 const enum AlignSelf {
-  Auto = 0,
+  Start = 0,
 
-  FlexStart = 1,
+  End = 1,
 
-  FlexEnd = 2,
+  Center = 2,
 
-  Center = 3,
+  Baseline = 3,
 
-  Baseline = 4,
+  Stretch = 4,
+}
 
-  Stretch = 5,
+declare const enum JustifyContent {
+  Start = 0,
+
+  End = 1,
+
+  Center = 2,
+
+  Stretch = 3,
+
+  SpaceBetween = 4,
+
+  SpaceAround = 5,
+
+  SpaceEvenly = 6,
+}
+
+const enum JustifyItems {
+  Start = 0,
+
+  End = 1,
+
+  Center = 2,
+
+  Baseline = 3,
+
+  Stretch = 4,
+}
+
+const enum JustifySelf {
+  Start = 0,
+
+  End = 1,
+
+  Center = 2,
+
+  Baseline = 3,
+
+  Stretch = 4,
 }
 
 function _parseDimension(dim: org.nativescript.mason.masonkit.Dimension) {
@@ -99,14 +135,12 @@ function _parseDimension(dim: org.nativescript.mason.masonkit.Dimension) {
       return { value: (dim as org.nativescript.mason.masonkit.Dimension.Percent).getPercentage(), unit: '%' };
     case 'org.nativescript.mason.masonkit.Dimension$Auto':
       return 'auto';
-    case 'org.nativescript.mason.masonkit.Dimension$Undefined':
-      return undefined;
   }
 }
 
-function _parseLength(value): { value: number; type: 'auto' | 'points' | 'percent' | 'undefined'; native_type: MasonDimensionCompatType } {
+function _parseLength(value): { value: number; type: 'auto' | 'points' | 'percent'; native_type: MasonDimensionCompatType } {
   if (value === undefined || value === null) {
-    return { value: 0, type: 'undefined', native_type: MasonDimensionCompatType.Undefined };
+    return value;
   }
   if (value === 'auto') {
     return { value: 0, type: 'auto', native_type: MasonDimensionCompatType.Auto };
@@ -139,17 +173,23 @@ function _setDisplay(value, instance: TSCView, initial = false) {
   if (instance._hasNativeView) {
     if (JSIEnabled) {
       switch (value) {
-        case 'flex':
+        case 'none':
           global.__Mason_setDisplay(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, !instance._inBatch);
           break;
-        case 'none':
+        case 'flex':
           global.__Mason_setDisplay(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 1, !instance._inBatch);
+          break;
+        case 'grid':
+          global.__Mason_setDisplay(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 2, !instance._inBatch);
           break;
       }
     } else {
       switch (value) {
         case 'flex':
           instance.android.setDisplay(org.nativescript.mason.masonkit.Display.Flex);
+          break;
+        case 'grid':
+          instance.android.setDisplay(org.nativescript.mason.masonkit.Display.Grid);
           break;
         case 'none':
           instance.android.setDisplay(org.nativescript.mason.masonkit.Display.None);
@@ -171,14 +211,6 @@ function _setMinWidth(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setMinSizeWidth(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setMinWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setMinSizeWidth(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -211,14 +243,6 @@ function _setMinHeight(value, instance: TSCView, initial = false) {
         instance.android.setMinSizeHeight(0, MasonDimensionCompatType.Auto);
       }
       break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setMinHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setMinSizeHeight(0, MasonDimensionCompatType.Undefined);
-      }
-
-      break;
     case 'percent':
       if (JSIEnabled) {
         global.__Mason_setMinHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
@@ -248,14 +272,6 @@ function _setWidth(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setSizeWidth(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setSizeWidth(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -288,14 +304,6 @@ function _setHeight(value, instance: TSCView, initial = false) {
         instance.android.setSizeHeight(0, MasonDimensionCompatType.Auto);
       }
       break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setSizeHeight(0, MasonDimensionCompatType.Undefined);
-      }
-
-      break;
     case 'percent':
       if (JSIEnabled) {
         global.__Mason_setHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
@@ -325,14 +333,6 @@ function _setMaxWidth(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setMaxSizeWidth(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setMaxWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setMaxSizeWidth(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -364,14 +364,6 @@ function _setMaxHeight(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setMaxSizeHeight(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setMaxHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setMaxSizeHeight(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -435,14 +427,6 @@ function _setAlignSelf(value, instance: TSCView, initial = false) {
 
   if (instance._hasNativeView) {
     switch (value) {
-      case 'auto':
-        if (JSIEnabled) {
-          global.__Mason_setAlignSelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignSelf.Auto, !instance._inBatch);
-        } else {
-          instance.android.setAlignSelf(org.nativescript.mason.masonkit.AlignSelf.Auto);
-        }
-
-        break;
       case 'baseline':
         if (JSIEnabled) {
           global.__Mason_setAlignSelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignSelf.Baseline, !instance._inBatch);
@@ -450,18 +434,18 @@ function _setAlignSelf(value, instance: TSCView, initial = false) {
           instance.android.setAlignSelf(org.nativescript.mason.masonkit.AlignSelf.Baseline);
         }
         break;
-      case 'flex-start':
+      case 'start':
         if (JSIEnabled) {
-          global.__Mason_setAlignSelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignSelf.FlexStart, !instance._inBatch);
+          global.__Mason_setAlignSelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignSelf.Start, !instance._inBatch);
         } else {
-          instance.android.setAlignSelf(org.nativescript.mason.masonkit.AlignSelf.FlexStart);
+          instance.android.setAlignSelf(org.nativescript.mason.masonkit.AlignSelf.Start);
         }
         break;
-      case 'flex-end':
+      case 'end':
         if (JSIEnabled) {
-          global.__Mason_setAlignSelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignSelf.FlexEnd, !instance._inBatch);
+          global.__Mason_setAlignSelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignSelf.End, !instance._inBatch);
         } else {
-          instance.android.setAlignSelf(org.nativescript.mason.masonkit.AlignSelf.FlexEnd);
+          instance.android.setAlignSelf(org.nativescript.mason.masonkit.AlignSelf.End);
         }
         break;
       case 'center':
@@ -492,14 +476,12 @@ function _getAlignSelf(instance: TSCView) {
           return 'baseline';
         case AlignSelf.Center:
           return 'center';
-        case AlignSelf.FlexEnd:
-          return 'flex-end';
-        case AlignSelf.FlexStart:
-          return 'flex-start';
+        case AlignSelf.End:
+          return 'end';
+        case AlignSelf.Start:
+          return 'start';
         case AlignSelf.Stretch:
           return 'stretch';
-        case AlignSelf.Auto:
-          return 'auto';
       }
     } else {
       const value = instance.android.getAlignSelf();
@@ -508,21 +490,19 @@ function _getAlignSelf(instance: TSCView) {
           return 'baseline';
         case org.nativescript.mason.masonkit.AlignSelf.Center:
           return 'center';
-        case org.nativescript.mason.masonkit.AlignSelf.FlexEnd:
-          return 'flex-end';
-        case org.nativescript.mason.masonkit.AlignSelf.FlexStart:
-          return 'flex-start';
+        case org.nativescript.mason.masonkit.AlignSelf.End:
+          return 'end';
+        case org.nativescript.mason.masonkit.AlignSelf.Start:
+          return 'start';
         case org.nativescript.mason.masonkit.AlignSelf.Stretch:
           return 'stretch';
-        case org.nativescript.mason.masonkit.AlignSelf.Auto:
-          return 'auto';
       }
     }
   }
   return instance.style.alignSelf;
 }
 
-function _setPositionType(value, instance: TSCView, initial = false) {
+function _setPosition(value, instance: TSCView, initial = false) {
   if (initial && value === 'relative') {
     return;
   }
@@ -531,17 +511,17 @@ function _setPositionType(value, instance: TSCView, initial = false) {
     switch (value) {
       case 'absolute':
         if (JSIEnabled) {
-          global.__Mason_setPositionType(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, PositionType.Absolute, !instance._inBatch);
+          global.__Mason_setPosition(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, PositionType.Absolute, !instance._inBatch);
         } else {
-          instance.android.setPositionType(org.nativescript.mason.masonkit.PositionType.Absolute);
+          instance.android.setPosition(org.nativescript.mason.masonkit.Position.Absolute);
         }
 
         break;
       case 'relative':
         if (JSIEnabled) {
-          global.__Mason_setPositionType(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, PositionType.Relative, !instance._inBatch);
+          global.__Mason_setPosition(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, PositionType.Relative, !instance._inBatch);
         } else {
-          instance.android.setPositionType(org.nativescript.mason.masonkit.PositionType.Relative);
+          instance.android.setPosition(org.nativescript.mason.masonkit.Position.Relative);
         }
 
         break;
@@ -631,18 +611,20 @@ function _setAlignItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'flex-end':
+      case 'end':
         if (JSIEnabled) {
-          global.__Mason_setAlignItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignItems.FlexEnd, !instance._inBatch);
+          global.__Mason_setAlignItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignItems.End, !instance._inBatch);
         } else {
-          instance.android.setAlignItems(org.nativescript.mason.masonkit.AlignItems.FlexEnd);
+          instance.android.setAlignItems(org.nativescript.mason.masonkit.AlignItems.End);
         }
 
         break;
       case 'flex-start':
+      case 'start':
         if (JSIEnabled) {
-          global.__Mason_setAlignItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignItems.FlexStart, !instance._inBatch);
+          global.__Mason_setAlignItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignItems.Start, !instance._inBatch);
         } else {
-          instance.android.setAlignItems(org.nativescript.mason.masonkit.AlignItems.FlexStart);
+          instance.android.setAlignItems(org.nativescript.mason.masonkit.AlignItems.Start);
         }
 
         break;
@@ -667,10 +649,10 @@ function _getAlignItems(instance: TSCView) {
           return 'baseline';
         case AlignItems.Center:
           return 'center';
-        case AlignItems.FlexEnd:
-          return 'flex-end';
-        case AlignItems.FlexStart:
-          return 'flex-start';
+        case AlignItems.End:
+          return 'end';
+        case AlignItems.Start:
+          return 'start';
         case AlignItems.Stretch:
           return 'stretch';
       }
@@ -681,10 +663,10 @@ function _getAlignItems(instance: TSCView) {
           return 'baseline';
         case org.nativescript.mason.masonkit.AlignItems.Center:
           return 'center';
-        case org.nativescript.mason.masonkit.AlignItems.FlexEnd:
-          return 'flex-end';
-        case org.nativescript.mason.masonkit.AlignItems.FlexStart:
-          return 'flex-start';
+        case org.nativescript.mason.masonkit.AlignItems.End:
+          return 'end';
+        case org.nativescript.mason.masonkit.AlignItems.Start:
+          return 'start';
         case org.nativescript.mason.masonkit.AlignItems.Stretch:
           return 'stretch';
       }
@@ -729,17 +711,19 @@ function _setAlignContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'flex-end':
+      case 'end':
         if (JSIEnabled) {
-          global.__Mason_setAlignContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignContent.FlexEnd, !instance._inBatch);
+          global.__Mason_setAlignContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignContent.End, !instance._inBatch);
         } else {
-          instance.android.setAlignContent(org.nativescript.mason.masonkit.AlignContent.FlexEnd);
+          instance.android.setAlignContent(org.nativescript.mason.masonkit.AlignContent.End);
         }
         break;
       case 'flex-start':
+      case 'start':
         if (JSIEnabled) {
-          global.__Mason_setAlignContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignContent.FlexStart, !instance._inBatch);
+          global.__Mason_setAlignContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignContent.Start, !instance._inBatch);
         } else {
-          instance.android.setAlignContent(org.nativescript.mason.masonkit.AlignContent.FlexStart);
+          instance.android.setAlignContent(org.nativescript.mason.masonkit.AlignContent.Start);
         }
         break;
       case 'stretch':
@@ -766,10 +750,10 @@ function _getAlignContent(instance: TSCView) {
           return 'space-evenly';
         case AlignContent.Center:
           return 'center';
-        case AlignContent.FlexEnd:
-          return 'flex-end';
-        case AlignContent.FlexStart:
-          return 'flex-start';
+        case AlignContent.End:
+          return 'end';
+        case AlignContent.Start:
+          return 'start';
         case AlignContent.Stretch:
           return 'stretch';
       }
@@ -784,10 +768,10 @@ function _getAlignContent(instance: TSCView) {
           return 'space-evenly';
         case org.nativescript.mason.masonkit.AlignContent.Center:
           return 'center';
-        case org.nativescript.mason.masonkit.AlignContent.FlexEnd:
-          return 'flex-end';
-        case org.nativescript.mason.masonkit.AlignContent.FlexStart:
-          return 'flex-start';
+        case org.nativescript.mason.masonkit.AlignContent.End:
+          return 'end';
+        case org.nativescript.mason.masonkit.AlignContent.Start:
+          return 'start';
         case org.nativescript.mason.masonkit.AlignContent.Stretch:
           return 'stretch';
       }
@@ -831,17 +815,19 @@ function _setJustifyContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'flex-end':
+      case 'end':
         if (JSIEnabled) {
-          global.__Mason_setJustifyContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignContent.FlexEnd, !instance._inBatch);
+          global.__Mason_setJustifyContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignContent.End, !instance._inBatch);
         } else {
-          instance.android.setJustifyContent(org.nativescript.mason.masonkit.JustifyContent.FlexEnd);
+          instance.android.setJustifyContent(org.nativescript.mason.masonkit.JustifyContent.End);
         }
         break;
       case 'flex-start':
+      case 'start':
         if (JSIEnabled) {
-          global.__Mason_setJustifyContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignContent.FlexStart, !instance._inBatch);
+          global.__Mason_setJustifyContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, AlignContent.Start, !instance._inBatch);
         } else {
-          instance.android.setJustifyContent(org.nativescript.mason.masonkit.JustifyContent.FlexStart);
+          instance.android.setJustifyContent(org.nativescript.mason.masonkit.JustifyContent.Start);
         }
         break;
     }
@@ -861,10 +847,10 @@ function _getJustifyContent(instance: TSCView) {
           return 'space-evenly';
         case JustifyContent.Center:
           return 'center';
-        case JustifyContent.FlexEnd:
-          return 'flex-end';
-        case JustifyContent.FlexStart:
-          return 'flex-start';
+        case JustifyContent.End:
+          return 'end';
+        case JustifyContent.Start:
+          return 'start';
       }
     } else {
       const value = instance.android.getJustifyContent();
@@ -877,10 +863,10 @@ function _getJustifyContent(instance: TSCView) {
           return 'space-evenly';
         case org.nativescript.mason.masonkit.JustifyContent.Center:
           return 'center';
-        case org.nativescript.mason.masonkit.JustifyContent.FlexEnd:
-          return 'flex-end';
-        case org.nativescript.mason.masonkit.JustifyContent.FlexStart:
-          return 'flex-start';
+        case org.nativescript.mason.masonkit.JustifyContent.End:
+          return 'end';
+        case org.nativescript.mason.masonkit.JustifyContent.Start:
+          return 'start';
       }
     }
   }
@@ -895,31 +881,23 @@ function _setLeft(value, instance: TSCView, initial = false) {
   switch (val.type) {
     case 'auto':
       if (JSIEnabled) {
-        global.__Mason_setPositionLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Auto, !instance._inBatch);
+        global.__Mason_setInsetLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Auto, !instance._inBatch);
       } else {
-        instance.android.setPositionLeft(0, MasonDimensionCompatType.Auto);
+        instance.android.setInsetLeft(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setPositionLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setPositionLeft(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
-        global.__Mason_setPositionLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
+        global.__Mason_setInsetLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
       } else {
-        instance.android.setPositionLeft(val.value, MasonDimensionCompatType.Percent);
+        instance.android.setInsetLeft(val.value, MasonDimensionCompatType.Percent);
       }
       break;
     case 'points':
       if (JSIEnabled) {
-        global.__Mason_setPositionLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Points, !instance._inBatch);
+        global.__Mason_setInsetLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Points, !instance._inBatch);
       } else {
-        instance.android.setPositionLeft(val.value, MasonDimensionCompatType.Points);
+        instance.android.setInsetLeft(val.value, MasonDimensionCompatType.Points);
       }
       break;
   }
@@ -933,31 +911,23 @@ function _setRight(value, instance: TSCView, initial = false) {
   switch (val.type) {
     case 'auto':
       if (JSIEnabled) {
-        global.__Mason_setPositionRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Auto, !instance._inBatch);
+        global.__Mason_setInsetRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Auto, !instance._inBatch);
       } else {
-        instance.android.setPositionRight(0, MasonDimensionCompatType.Auto);
+        instance.android.setInsetRight(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setPositionRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setPositionRight(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
-        global.__Mason_setPositionRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
+        global.__Mason_setInsetRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
       } else {
-        instance.android.setPositionRight(val.value, MasonDimensionCompatType.Percent);
+        instance.android.setInsetRight(val.value, MasonDimensionCompatType.Percent);
       }
       break;
     case 'points':
       if (JSIEnabled) {
-        global.__Mason_setPositionRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Points, !instance._inBatch);
+        global.__Mason_setInsetRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Points, !instance._inBatch);
       } else {
-        instance.android.setPositionRight(val.value, MasonDimensionCompatType.Points);
+        instance.android.setInsetRight(val.value, MasonDimensionCompatType.Points);
       }
       break;
   }
@@ -971,31 +941,23 @@ function _setTop(value, instance: TSCView, initial = false) {
   switch (val.type) {
     case 'auto':
       if (JSIEnabled) {
-        global.__Mason_setPositionTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Auto, !instance._inBatch);
+        global.__Mason_setInsetTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Auto, !instance._inBatch);
       } else {
-        instance.android.setPositionTop(0, MasonDimensionCompatType.Auto);
+        instance.android.setInsetTop(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setPositionTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setPositionTop(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
-        global.__Mason_setPositionTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
+        global.__Mason_setInsetTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
       } else {
-        instance.android.setPositionTop(val.value, MasonDimensionCompatType.Percent);
+        instance.android.setInsetTop(val.value, MasonDimensionCompatType.Percent);
       }
       break;
     case 'points':
       if (JSIEnabled) {
-        global.__Mason_setPositionTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Points, !instance._inBatch);
+        global.__Mason_setInsetTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Points, !instance._inBatch);
       } else {
-        instance.android.setPositionTop(val.value, MasonDimensionCompatType.Points);
+        instance.android.setInsetTop(val.value, MasonDimensionCompatType.Points);
       }
       break;
   }
@@ -1009,31 +971,23 @@ function _setBottom(value, instance: TSCView, initial = false) {
   switch (val.type) {
     case 'auto':
       if (JSIEnabled) {
-        global.__Mason_setPositionBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Auto, !instance._inBatch);
+        global.__Mason_setInsetBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Auto, !instance._inBatch);
       } else {
-        instance.android.setPositionBottom(0, MasonDimensionCompatType.Auto);
+        instance.android.setInsetBottom(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setPositionBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setPositionBottom(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
-        global.__Mason_setPositionBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
+        global.__Mason_setInsetBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
       } else {
-        instance.android.setPositionBottom(val.value, MasonDimensionCompatType.Percent);
+        instance.android.setInsetBottom(val.value, MasonDimensionCompatType.Percent);
       }
       break;
     case 'points':
       if (JSIEnabled) {
-        global.__Mason_setPositionBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Points), !instance._inBatch;
+        global.__Mason_setInsetBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Points), !instance._inBatch;
       } else {
-        instance.android.setPositionBottom(val.value, MasonDimensionCompatType.Points);
+        instance.android.setInsetBottom(val.value, MasonDimensionCompatType.Points);
       }
       break;
   }
@@ -1051,14 +1005,6 @@ function _setMarginLeft(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setMarginLeft(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setMarginLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setMarginLeft(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -1090,14 +1036,6 @@ function _setMarginRight(value, instance: TSCView, initial = false) {
         instance.android.setMarginRight(0, MasonDimensionCompatType.Auto);
       }
       break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setMarginRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setMarginRight(0, MasonDimensionCompatType.Undefined);
-      }
-
-      break;
     case 'percent':
       if (JSIEnabled) {
         global.__Mason_setMarginRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
@@ -1127,14 +1065,6 @@ function _setMarginTop(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setMarginTop(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setMarginTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setMarginTop(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -1166,14 +1096,6 @@ function _setMarginBottom(value, instance: TSCView, initial = false) {
         instance.android.setMarginBottom(0, MasonDimensionCompatType.Auto);
       }
       break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setMarginBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setMarginBottom(0, MasonDimensionCompatType.Undefined);
-      }
-
-      break;
     case 'percent':
       if (JSIEnabled) {
         global.__Mason_setMarginBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
@@ -1203,14 +1125,6 @@ function _setPaddingLeft(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setPaddingLeft(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setPaddingLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setPaddingLeft(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -1242,14 +1156,6 @@ function _setPaddingRight(value, instance: TSCView, initial = false) {
         instance.android.setPaddingRight(0, MasonDimensionCompatType.Auto);
       }
       break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setPaddingRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setPaddingRight(0, MasonDimensionCompatType.Undefined);
-      }
-
-      break;
     case 'percent':
       if (JSIEnabled) {
         global.__Mason_setPaddingRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
@@ -1279,14 +1185,6 @@ function _setPaddingTop(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setPaddingTop(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setPaddingTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setPaddingTop(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -1318,14 +1216,6 @@ function _setPaddingBottom(value, instance: TSCView, initial = false) {
         instance.android.setPaddingBottom(0, MasonDimensionCompatType.Auto);
       }
       break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setPaddingBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setPaddingBottom(0, MasonDimensionCompatType.Undefined);
-      }
-
-      break;
     case 'percent':
       if (JSIEnabled) {
         global.__Mason_setPaddingBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
@@ -1355,14 +1245,6 @@ function _setBorderLeft(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setBorderLeft(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setBorderLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setBorderLeft(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -1394,14 +1276,6 @@ function _setBorderRight(value, instance: TSCView, initial = false) {
         instance.android.setBorderRight(0, MasonDimensionCompatType.Auto);
       }
       break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setBorderRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setBorderRight(0, MasonDimensionCompatType.Undefined);
-      }
-
-      break;
     case 'percent':
       if (JSIEnabled) {
         global.__Mason_setBorderRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
@@ -1431,14 +1305,6 @@ function _setBorderTop(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setBorderTop(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setBorderTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined);
-      } else {
-        instance.android.setBorderTop(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -1470,14 +1336,6 @@ function _setBorderBottom(value, instance: TSCView, initial = false) {
         instance.android.setBorderBottom(0, MasonDimensionCompatType.Auto);
       }
       break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setBorderBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setBorderBottom(0, MasonDimensionCompatType.Undefined);
-      }
-
-      break;
     case 'percent':
       if (JSIEnabled) {
         global.__Mason_setBorderBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, MasonDimensionCompatType.Percent, !instance._inBatch);
@@ -1507,14 +1365,6 @@ function _setFlexBasis(value, instance: TSCView, initial = false) {
       } else {
         instance.android.setFlexBasis(0, MasonDimensionCompatType.Auto);
       }
-      break;
-    case 'undefined':
-      if (JSIEnabled) {
-        global.__Mason_setFlexBasis(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, 0, MasonDimensionCompatType.Undefined, !instance._inBatch);
-      } else {
-        instance.android.setFlexBasis(0, MasonDimensionCompatType.Undefined);
-      }
-
       break;
     case 'percent':
       if (JSIEnabled) {
@@ -1556,7 +1406,7 @@ function _setGap(value, instance: TSCView, initial = false) {
   if (JSIEnabled) {
     global.__Mason_setGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, width.value, width.native_type, height.value, height.native_type, !instance._inBatch);
   } else {
-    instance.android.setFlexGap(width.value, width.native_type, height.value, height.native_type);
+    instance.android.setGap(width.value, width.native_type, height.value, height.native_type);
   }
 }
 
@@ -1567,7 +1417,7 @@ function _getGap(instance: TSCView) {
   if (JSIEnabled) {
     return global.__Mason_getGap(this._masonStylePtr);
   } else {
-    const gap = instance.android.getFlexGap();
+    const gap = instance.android.getGap();
     const width = _parseDimension(gap.getWidth());
     const height = _parseDimension(gap.getHeight());
     return { width, height };
@@ -1738,9 +1588,11 @@ export class TSCView extends TSCViewBase {
       const value = global.__Mason_getDisplay(this._masonStylePtr);
       switch (value) {
         case 0:
-          return 'flex';
-        case 1:
           return 'none';
+        case 1:
+          return 'flex';
+        case 2:
+          return 'grid';
       }
     } else {
       switch (this.android.getDisplay()) {
@@ -1754,7 +1606,7 @@ export class TSCView extends TSCViewBase {
 
   //@ts-ignore
   set display(value) {
-    this.style.display = value;
+    this.style.display = value as any;
   }
 
   [displayProperty.setNative](value) {
@@ -1781,17 +1633,17 @@ export class TSCView extends TSCViewBase {
           return 'absolute';
       }
     } else {
-      switch (this.android.getPositionType()) {
-        case org.nativescript.mason.masonkit.PositionType.Absolute:
+      switch (this.android.getPosition()) {
+        case org.nativescript.mason.masonkit.Position.Absolute:
           return 'absolute';
-        case org.nativescript.mason.masonkit.PositionType.Relative:
+        case org.nativescript.mason.masonkit.Position.Relative:
           return 'relative';
       }
     }
   }
 
   [positionProperty.setNative](value) {
-    _setPositionType(value, this);
+    _setPosition(value, this);
   }
 
   //@ts-ignore
@@ -1807,7 +1659,7 @@ export class TSCView extends TSCViewBase {
 
   //@ts-ignore
   set alignItems(value) {
-    this.style.alignItems = value;
+    this.style.alignItems = value as any;
     _setAlignItems(value, this);
   }
 
@@ -1818,7 +1670,7 @@ export class TSCView extends TSCViewBase {
 
   //@ts-ignore
   set alignSelf(value) {
-    this.style.alignSelf = value;
+    this.style.alignSelf = value as any;
     _setAlignSelf(value, this);
   }
 

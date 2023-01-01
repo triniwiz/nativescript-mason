@@ -5,13 +5,11 @@
     android:id="@+id/rootView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    mason:alignContent="stretch"
-    mason:alignItems="center"
-    mason:alignSelf="auto"
-    mason:flex_direction="column"
-    mason:justifyContent="start"
-    mason:mason_display="grid"
-    mason:
+    mason:mason_alignContent="stretch"
+    mason:mason_alignItems="center"
+    mason:mason_flexDirection="column"
+    mason:mason_justifyContent="start"
+    mason:mason_display="flex"
     tools:context=".MainActivity">
 
     <!--
@@ -44,18 +42,19 @@
 
 -->
 
+  <!--
+
   <TextView
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:textColor="@color/white"
     android:text="Test"/>
 
-
   <TextView
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="Top Left"
-    mason:mason_position="absolute"
+    mason:mason_position="relative"
     mason:mason_insetTop="0dp"
     mason:mason_insetLeft="0dp"
     android:background="@color/blue"
@@ -66,7 +65,7 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="Top Right"
-    mason:mason_position="absolute"
+    mason:mason_position="relative"
     mason:mason_insetRight="0dp"
     mason:mason_insetTop="0dp"
     android:background="@color/blue"
@@ -77,15 +76,16 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="Bottom Left"
-    mason:mason_position="absolute"
+    mason:mason_position="relative"
     mason:mason_insetLeft="0dp"
     mason:mason_insetBottom="0dp"
     android:background="@color/blue"
     android:textColor="@color/white"
-    />
+    /> -->
 
 
-  <!--
+
+
 
     <TextView
         android:layout_width="match_parent"
@@ -223,7 +223,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
-  -->
+
 
 
 </org.nativescript.mason.masonkit.View>

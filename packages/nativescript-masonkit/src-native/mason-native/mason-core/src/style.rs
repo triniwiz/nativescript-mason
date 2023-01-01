@@ -54,6 +54,9 @@ pub fn min_max_from_values(
             2 => MaxTrackSizingFunction::MAX_CONTENT,
             3 => MaxTrackSizingFunction::from_percent(max_value),
             4 => MaxTrackSizingFunction::from_points(max_value),
+            5 => MaxTrackSizingFunction::from_flex(max_value),
+            6 => MaxTrackSizingFunction::fit_content(LengthPercentage::Points(max_value)),
+            7 => MaxTrackSizingFunction::fit_content(LengthPercentage::Percent(max_value)),
             _ => panic!(),
         },
     }
@@ -222,8 +225,8 @@ impl Style {
         self.style.grid_auto_rows.as_slice()
     }
 
-    pub fn set_grid_auto_rows(&mut self, columns: Vec<NonRepeatedTrackSizingFunction>) {
-        self.style.grid_auto_rows = columns.to_vec();
+    pub fn set_grid_auto_rows(&mut self, rows: Vec<NonRepeatedTrackSizingFunction>) {
+        self.style.grid_auto_rows = rows
     }
 
     pub fn get_grid_auto_columns(&self) -> &[NonRepeatedTrackSizingFunction] {
@@ -231,7 +234,7 @@ impl Style {
     }
 
     pub fn set_grid_auto_columns(&mut self, columns: Vec<NonRepeatedTrackSizingFunction>) {
-        self.style.grid_auto_columns = columns.to_vec();
+        self.style.grid_auto_columns = columns
     }
 
     pub fn get_grid_auto_flow(&self) -> GridAutoFlow {
@@ -291,7 +294,7 @@ impl Style {
     }
 
     pub fn set_grid_template_rows(&mut self, rows: Vec<TrackSizingFunction>) {
-        self.style.grid_template_rows = rows.to_vec();
+        self.style.grid_template_rows = rows;
     }
 
     pub fn get_grid_template_rows(&self) -> &[TrackSizingFunction] {
@@ -299,7 +302,7 @@ impl Style {
     }
 
     pub fn set_grid_template_columns(&mut self, columns: Vec<TrackSizingFunction>) {
-        self.style.grid_template_columns = columns.to_vec();
+        self.style.grid_template_columns = columns;
     }
 
     pub fn get_grid_template_columns(&self) -> &[TrackSizingFunction] {
@@ -808,9 +811,10 @@ impl Style {
                 0 => Some(JustifyContent::Start),
                 1 => Some(JustifyContent::End),
                 2 => Some(JustifyContent::Center),
-                3 => Some(JustifyContent::SpaceBetween),
-                4 => Some(JustifyContent::SpaceAround),
-                5 => Some(JustifyContent::SpaceEvenly),
+                3 => Some(JustifyContent::Stretch),
+                4 => Some(JustifyContent::SpaceBetween),
+                5 => Some(JustifyContent::SpaceAround),
+                6 => Some(JustifyContent::SpaceEvenly),
                 _ => panic!(),
             },
 
@@ -1007,6 +1011,7 @@ impl Style {
             Some(align_content_from_enum(align_content).unwrap_or_else(|| panic!()));
 
 
+
         style.style.justify_items =
             Some(align_items_from_enum(justify_items).unwrap_or_else(|| panic!()));
 
@@ -1016,6 +1021,7 @@ impl Style {
 
         style.style.justify_content =
             Some(justify_content_from_enum(justify_content).unwrap_or_else(|| panic!()));
+
 
         style.style.inset = taffy::geometry::Rect {
             left: dimension_with_auto(inset_left_type, inset_left_value),
@@ -1095,5 +1101,7 @@ impl Style {
             start: grid_placement(grid_column_start_type, grid_column_start_value),
             end: grid_placement(grid_column_end_type, grid_column_end_value),
         };
+
+
     }
 }

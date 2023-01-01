@@ -6,7 +6,7 @@ export type SizeLengthType = { width: LengthType; height: LengthType };
 
 export type PositionType = 'absolute' | 'relative';
 
-export type DisplayType = 'flex' | 'none';
+export type DisplayType = 'none' | 'flex' | 'grid';
 
 export type FlexWrapType = 'no-wrap' | 'wrap' | 'wrap-reverse';
 

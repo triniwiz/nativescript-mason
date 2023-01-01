@@ -67,7 +67,7 @@ class View @JvmOverloads constructor(
       node.style = value
     }
 
-  fun markNodeDirty(){
+  fun markNodeDirty() {
     node.dirty()
   }
 
@@ -229,7 +229,7 @@ class View @JvmOverloads constructor(
     val layout = if (parent !is View) {
       if ((parent as? android.view.View)?.id == android.R.id.content) {
         setSizeFromMeasureSpec(widthMeasureSpec, heightMeasureSpec)
-         node.updateNodeStyle()
+        node.updateNodeStyle()
       }
       // node.computeMaxContent()
       // node.layout()
@@ -432,16 +432,16 @@ class View @JvmOverloads constructor(
       val value: Float = layoutParameters.numericAttributes.valueAt(i)
 
       when (attribute) {
-        R.styleable.mason_alignContent -> {
+        R.styleable.mason_mason_alignContent -> {
           node.style.alignContent = AlignContent.fromInt(value.roundToInt())
         }
-        R.styleable.mason_alignItems -> {
+        R.styleable.mason_mason_alignItems -> {
           node.style.alignItems = AlignItems.fromInt(value.roundToInt())
         }
-        R.styleable.mason_alignSelf -> {
+        R.styleable.mason_mason_alignSelf -> {
           node.style.alignSelf = AlignSelf.fromInt(value.roundToInt())
         }
-        R.styleable.mason_aspectRatio -> {
+        R.styleable.mason_mason_aspectRatio -> {
           node.style.aspectRatio = value
         }
         R.styleable.mason_mason_borderLeft -> {
@@ -476,16 +476,16 @@ class View @JvmOverloads constructor(
         R.styleable.mason_mason_display -> {
           node.style.display = Display.fromInt(value.roundToInt())
         }
-        R.styleable.mason_flex_basis -> {
+        R.styleable.mason_mason_flexBasis -> {
           node.style.flexBasis = Dimension.Points(value)
         }
-        R.styleable.mason_flex_direction -> {
+        R.styleable.mason_mason_flexDirection -> {
           node.style.flexDirection = FlexDirection.fromInt(value.roundToInt())
         }
-        R.styleable.mason_flex_grow -> {
+        R.styleable.mason_mason_flexGrow -> {
           node.style.flexGrow = value
         }
-        R.styleable.mason_flex_shrink -> {
+        R.styleable.mason_mason_flexShrink -> {
           node.style.flexShrink = value
         }
         R.styleable.mason_mason_height -> {
@@ -494,8 +494,14 @@ class View @JvmOverloads constructor(
         R.styleable.mason_mason_marginLeft -> {
           marginLeft = LengthPercentageAuto.Points(value)
         }
-        R.styleable.mason_justifyContent -> {
+        R.styleable.mason_mason_justifyContent -> {
           node.style.justifyContent = JustifyContent.fromInt(value.roundToInt())
+        }
+        R.styleable.mason_mason_justifyItems -> {
+          node.style.justifyItems = JustifyItems.fromInt(value.roundToInt())
+        }
+        R.styleable.mason_mason_justifySelf -> {
+          node.style.justifySelf = JustifySelf.fromInt(value.roundToInt())
         }
         R.styleable.mason_mason_marginTop -> {
           marginTop = LengthPercentageAuto.Points(value)
@@ -590,7 +596,7 @@ class View @JvmOverloads constructor(
         R.styleable.mason_mason_width -> {
           width = Dimension.Points(value)
         }
-        R.styleable.mason_flex_wrap -> {
+        R.styleable.mason_mason_flexWrap -> {
           node.style.flexWrap = FlexWrap.fromInt(value.roundToInt())
         }
       }
@@ -656,7 +662,7 @@ class View @JvmOverloads constructor(
       if (value.endsWith("%")) {
         val numericValue = value.replace("%", "").toFloat()
         when (attribute) {
-          R.styleable.mason_flex_basis -> {
+          R.styleable.mason_mason_flexBasis -> {
             node.style.flexBasis = Dimension.Percent(numericValue)
           }
           R.styleable.mason_mason_height -> {
@@ -868,6 +874,25 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
+
+  var justifyItems: JustifyItems
+    get() {
+      return style.justifyItems
+    }
+    set(value) {
+      style.justifyItems = value
+      checkAndUpdateStyle()
+    }
+
+  var justifySelf: JustifySelf
+    get() {
+      return style.justifySelf
+    }
+    set(value) {
+      style.justifySelf = value
+      checkAndUpdateStyle()
+    }
+
   var justifyContent: JustifyContent
     get() {
       return style.justifyContent
@@ -947,7 +972,12 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setPadding(left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage) {
+  fun setPadding(
+    left: LengthPercentage,
+    top: LengthPercentage,
+    right: LengthPercentage,
+    bottom: LengthPercentage
+  ) {
     style.padding = Rect(
       left,
       right,
@@ -1040,7 +1070,12 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setBorder(left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage) {
+  fun setBorder(
+    left: LengthPercentage,
+    top: LengthPercentage,
+    right: LengthPercentage,
+    bottom: LengthPercentage
+  ) {
     style.border = Rect(
       left,
       right,
@@ -1132,7 +1167,12 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setMargin(left: LengthPercentageAuto, top: LengthPercentageAuto, right: LengthPercentageAuto, bottom: LengthPercentageAuto) {
+  fun setMargin(
+    left: LengthPercentageAuto,
+    top: LengthPercentageAuto,
+    right: LengthPercentageAuto,
+    bottom: LengthPercentageAuto
+  ) {
     style.margin = Rect(
       left,
       right,
@@ -1225,7 +1265,12 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setPosition(left: LengthPercentageAuto, top: LengthPercentageAuto, right: LengthPercentageAuto, bottom: LengthPercentageAuto) {
+  fun setPosition(
+    left: LengthPercentageAuto,
+    top: LengthPercentageAuto,
+    right: LengthPercentageAuto,
+    bottom: LengthPercentageAuto
+  ) {
     style.inset = Rect(
       left,
       right,
@@ -1524,6 +1569,7 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.gridAutoRows = value
+      checkAndUpdateStyle()
     }
 
   var gridAutoColumns: Array<MinMax>
@@ -1532,6 +1578,7 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.gridAutoColumns = value
+      checkAndUpdateStyle()
     }
 
   var gridAutoFlow: GridAutoFlow
@@ -1540,6 +1587,7 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.gridAutoFlow = value
+      checkAndUpdateStyle()
     }
 
   var gridColumn: Line<GridPlacement>
@@ -1548,6 +1596,7 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.gridColumn = value
+      checkAndUpdateStyle()
     }
 
   var gridRow: Line<GridPlacement>
@@ -1556,6 +1605,7 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.gridRow = value
+      checkAndUpdateStyle()
     }
 
   var gridTemplateRows: Array<TrackSizingFunction>
@@ -1564,6 +1614,7 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.gridTemplateRows = value
+      checkAndUpdateStyle()
     }
 
   var gridTemplateColumns: Array<TrackSizingFunction>
@@ -1572,6 +1623,7 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.gridTemplateColumns = value
+      checkAndUpdateStyle()
     }
 
   override fun generateLayoutParams(attrs: AttributeSet): ViewGroup.LayoutParams {

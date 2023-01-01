@@ -126,6 +126,7 @@ const TRACK_SIZING_FUNCTION_SINGLE_CLASS: &str =
 const TRACK_SIZING_FUNCTION_AUTO_REPEAT_CLASS: &str =
     "org/nativescript/mason/masonkit/TrackSizingFunction$AutoRepeat";
 
+
 pub static MIN_MAX: OnceCell<MinMaxCacheItem> = OnceCell::new();
 
 pub static TRACK_SIZING_FUNCTION: OnceCell<TrackSizingFunctionCacheItem> = OnceCell::new();
@@ -1292,7 +1293,7 @@ fn mason_util_parse_auto_repeating_track_sizing_function(
     let mut ret = String::new();
     for (i,val) in value.into_iter().enumerate() {
         if i != 0 {
-            ret.push_str(" ");
+            ret.push(' ');
         }
         match &val.0 {
             TrackSizingFunction::Single(value) => {

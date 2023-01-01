@@ -1,40 +1,47 @@
 package org.nativescript.mason.masonkit;
 
 sealed class MinMax(
-  val min: MinMaxSizing,
-  val max: MinMaxSizing
+  val min: MinSizing,
+  val max: MaxSizing
 ) {
-  data class Points(val minPoints: Float, val maxPoints: Float) :
-    MinMax(MinMaxSizing.Points(minPoints), MinMaxSizing.Points(maxPoints))
+  data class Points(val points: Float) :
+    MinMax(MinSizing.Points(points), MaxSizing.Points(points))
 
-  data class Percent(var minPercentage: Float, var maxPercentage: Float) :
-    MinMax(MinMaxSizing.Percent(minPercentage), MinMaxSizing.Percent(maxPercentage))
+  data class Percent(var percentage: Float) :
+    MinMax(MinSizing.Percent(percentage), MaxSizing.Percent(percentage))
 
-  object Auto : MinMax(MinMaxSizing.Auto, MinMaxSizing.Auto)
-  object MinContent : MinMax(MinMaxSizing.MinContent, MinMaxSizing.MinContent)
-  object MaxContent : MinMax(MinMaxSizing.MaxContent, MinMaxSizing.MaxContent)
+  data class Flex(var flex: Float) :
+    MinMax(MinSizing.Auto, MaxSizing.Flex(flex))
+
+  object Auto : MinMax(MinSizing.Auto, MaxSizing.Auto)
+  object MinContent : MinMax(MinSizing.MinContent, MaxSizing.MinContent)
+  object MaxContent : MinMax(MinSizing.MaxContent, MaxSizing.MaxContent)
+
   data class Values(
-    val minVal: MinMaxSizing,
-    val maxVal: MinMaxSizing
+    val minVal: MinSizing,
+    val maxVal: MaxSizing
   ) : MinMax(minVal, maxVal)
 
   companion object {
     fun fromTypeValue(minType: Int, minValue: Float, maxType: Int, maxValue: Float): MinMax? {
       val min = when (minType) {
-        0 -> MinMaxSizing.Auto
-        1 -> MinMaxSizing.MinContent
-        2 -> MinMaxSizing.MaxContent
-        3 -> MinMaxSizing.Percent(minValue)
-        4 -> MinMaxSizing.Points(minValue)
+        0 -> MinSizing.Auto
+        1 -> MinSizing.MinContent
+        2 -> MinSizing.MaxContent
+        3 -> MinSizing.Percent(minValue)
+        4 -> MinSizing.Points(minValue)
         else -> null
       }
 
       val max = when (maxType) {
-        0 -> MinMaxSizing.Auto
-        1 -> MinMaxSizing.MinContent
-        2 -> MinMaxSizing.MaxContent
-        3 -> MinMaxSizing.Percent(maxValue)
-        4 -> MinMaxSizing.Points(maxValue)
+        0 -> MaxSizing.Auto
+        1 -> MaxSizing.MinContent
+        2 -> MaxSizing.MaxContent
+        3 -> MaxSizing.Percent(maxValue)
+        4 -> MaxSizing.Points(maxValue)
+        5 -> MaxSizing.Flex(maxValue)
+        6 -> MaxSizing.FitContent(maxValue)
+        7 -> MaxSizing.FitContentPercent(maxValue)
         else -> null
       }
 

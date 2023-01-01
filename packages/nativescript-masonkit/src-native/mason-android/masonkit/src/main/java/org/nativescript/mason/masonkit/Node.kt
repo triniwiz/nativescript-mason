@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
 import android.view.ViewGroup
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
@@ -293,7 +294,9 @@ class Node private constructor(private var nativePtr: Long) {
 
     return Layout.fromFloatArray(
       nativeUpdateSetStyleComputeAndLayout(
-        Mason.instance.nativePtr, nativePtr, style.getNativePtr(),
+        Mason.instance.nativePtr,
+        nativePtr,
+        style.getNativePtr(),
         style.display.ordinal,
         style.position.ordinal,
         style.direction.ordinal,
@@ -749,7 +752,7 @@ class Node private constructor(private var nativePtr: Long) {
 
   private external fun nativeUpdateAndSetStyle(
     mason: Long, node: Long, style: Long, display: Int,
-    positionType: Int,
+    position: Int,
     direction: Int,
     flexDirection: Int,
     flexWrap: Int,
@@ -761,14 +764,14 @@ class Node private constructor(private var nativePtr: Long) {
     justifySelf: Int,
     justifyContent: Int,
 
-    positionLeftType: Int,
-    positionLeftValue: Float,
-    positionRightType: Int,
-    positionRightValue: Float,
-    positionTopType: Int,
-    positionTopValue: Float,
-    positionBottomType: Int,
-    positionBottomValue: Float,
+    insetLeftType: Int,
+    insetLeftValue: Float,
+    insetRightType: Int,
+    insetRightValue: Float,
+    insetTopType: Int,
+    insetTopValue: Float,
+    insetBottomType: Int,
+    insetBottomValue: Float,
 
     marginLeftType: Int,
     marginLeftValue: Float,
@@ -818,10 +821,10 @@ class Node private constructor(private var nativePtr: Long) {
     maxHeightType: Int,
     maxHeightValue: Float,
 
-    flexGapWidthType: Int,
-    flexGapWidthValue: Float,
-    flexGapHeightType: Int,
-    flexGapHeightValue: Float,
+    gapRowType: Int,
+    gapRowValue: Float,
+    gapColumnType: Int,
+    gapColumnValue: Float,
 
     aspectRatio: Float,
 
@@ -842,8 +845,11 @@ class Node private constructor(private var nativePtr: Long) {
 
 
   private external fun nativeUpdateSetStyleComputeAndLayout(
-    mason: Long, node: Long, style: Long, display: Int,
-    positionType: Int,
+    mason: Long,
+    node: Long,
+    style: Long,
+    display: Int,
+    position: Int,
     direction: Int,
     flexDirection: Int,
     flexWrap: Int,
@@ -855,14 +861,14 @@ class Node private constructor(private var nativePtr: Long) {
     justifySelf: Int,
     justifyContent: Int,
 
-    positionLeftType: Int,
-    positionLeftValue: Float,
-    positionRightType: Int,
-    positionRightValue: Float,
-    positionTopType: Int,
-    positionTopValue: Float,
-    positionBottomType: Int,
-    positionBottomValue: Float,
+    insetLeftType: Int,
+    insetLeftValue: Float,
+    insetRightType: Int,
+    insetRightValue: Float,
+    insetTopType: Int,
+    insetTopValue: Float,
+    insetBottomType: Int,
+    insetBottomValue: Float,
 
     marginLeftType: Int,
     marginLeftValue: Float,
@@ -912,10 +918,10 @@ class Node private constructor(private var nativePtr: Long) {
     maxHeightType: Int,
     maxHeightValue: Float,
 
-    flexGapWidthType: Int,
-    flexGapWidthValue: Float,
-    flexGapHeightType: Int,
-    flexGapHeightValue: Float,
+    gapRowType: Int,
+    gapRowValue: Float,
+    gapColumnType: Int,
+    gapColumnValue: Float,
 
     aspectRatio: Float,
 
@@ -942,7 +948,7 @@ class Node private constructor(private var nativePtr: Long) {
     width: Float,
     height: Float,
     display: Int,
-    positionType: Int,
+    position: Int,
     direction: Int,
     flexDirection: Int,
     flexWrap: Int,
@@ -954,14 +960,14 @@ class Node private constructor(private var nativePtr: Long) {
     justifySelf: Int,
     justifyContent: Int,
 
-    positionLeftType: Int,
-    positionLeftValue: Float,
-    positionRightType: Int,
-    positionRightValue: Float,
-    positionTopType: Int,
-    positionTopValue: Float,
-    positionBottomType: Int,
-    positionBottomValue: Float,
+    insetLeftType: Int,
+    insetLeftValue: Float,
+    insetRightType: Int,
+    insetRightValue: Float,
+    insetTopType: Int,
+    insetTopValue: Float,
+    insetBottomType: Int,
+    insetBottomValue: Float,
 
     marginLeftType: Int,
     marginLeftValue: Float,
@@ -1011,10 +1017,10 @@ class Node private constructor(private var nativePtr: Long) {
     maxHeightType: Int,
     maxHeightValue: Float,
 
-    flexGapWidthType: Int,
-    flexGapWidthValue: Float,
-    flexGapHeightType: Int,
-    flexGapHeightValue: Float,
+    gapRowType: Int,
+    gapRowValue: Float,
+    gapColumnType: Int,
+    gapColumnValue: Float,
 
     aspectRatio: Float,
 

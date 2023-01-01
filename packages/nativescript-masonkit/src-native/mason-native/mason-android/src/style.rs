@@ -1,4 +1,4 @@
-use jni::objects::JObject;
+use jni::objects::{JObject, ReleaseMode};
 use jni::signature::ReturnType;
 use jni::sys::{jfloat, jint, jlong, jobjectArray, jshort};
 use jni::JNIEnv;
@@ -55,9 +55,10 @@ pub(crate) fn to_vec_non_repeated_track_sizing_function(
 
         let mut ret = Vec::with_capacity(len as usize);
 
+        let min_max = crate::MIN_MAX.get().unwrap();
+
         for i in 0..len {
             let object = env.get_object_array_element(array, i).unwrap();
-            let min_max = crate::MIN_MAX.get().unwrap();
             let min_type = env
                 .call_method_unchecked(object, min_max.min_type_id, JAVA_INT_TYPE, &[])
                 .unwrap();
@@ -93,7 +94,10 @@ pub(crate) fn to_vec_track_sizing_function(
         }
 
         let mut ret = Vec::with_capacity(len as usize);
+
         let track_sizing = TRACK_SIZING_FUNCTION.get().unwrap();
+
+        let min_max = crate::MIN_MAX.get().unwrap();
 
         for i in 0..len {
             let object = env.get_object_array_element(array, i).unwrap();
@@ -119,7 +123,6 @@ pub(crate) fn to_vec_track_sizing_function(
                 let auto_repeat_value = env
                     .call_method_unchecked(
                         object,
-
                         track_sizing.auto_repeat_value_id,
                         JAVA_ARRAY_TYPE,
                         &[],
@@ -127,17 +130,18 @@ pub(crate) fn to_vec_track_sizing_function(
                     .unwrap();
 
                 let auto_repeat_value_array = auto_repeat_value.l().unwrap().into_raw();
+
                 let repeating_len = env
                     .get_array_length(auto_repeat_value_array)
                     .unwrap_or_default();
 
                 let mut repeat_ret = Vec::with_capacity(repeating_len as usize);
+
                 for j in 0..repeating_len {
                     let repeat_object = env
                         .get_object_array_element(auto_repeat_value_array, j)
                         .unwrap();
 
-                    let min_max = crate::MIN_MAX.get().unwrap();
                     let min_type = env
                         .call_method_unchecked(
                             repeat_object,
@@ -186,7 +190,7 @@ pub(crate) fn to_vec_track_sizing_function(
                         _ => panic!(),
                     },
                     repeat_ret,
-                ))
+                ));
             } else {
                 let single_value = env
                     .call_method_unchecked(
@@ -198,7 +202,7 @@ pub(crate) fn to_vec_track_sizing_function(
                     .unwrap()
                     .l()
                     .unwrap();
-                let min_max = crate::MIN_MAX.get().unwrap();
+
                 let min_type = env
                     .call_method_unchecked(single_value, min_max.min_type_id, JAVA_INT_TYPE, &[])
                     .unwrap();
@@ -310,12 +314,10 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     grid_template_rows: jobjectArray,
     grid_template_columns: jobjectArray,
 ) -> jlong {
-
     let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
     let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
     let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
     let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
-
 
     Box::into_raw(Box::new(Style::from_ffi(
         display,

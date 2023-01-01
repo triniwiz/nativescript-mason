@@ -271,7 +271,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeMi
     unsafe {
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
-        let size = Size::<AvailableSpace>::max_content();
+        let size = Size::<AvailableSpace>::min_content();
         mason.compute_size(*node, size);
         Box::leak(mason);
         Box::leak(node);
@@ -607,6 +607,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
         let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
 
+
         mason_core::style::Style::update_from_ffi(
             &mut style,
             display,
@@ -689,13 +690,14 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             grid_template_columns,
         );
 
-        mason.set_style(*node, *style.clone());
+        mason.set_style(*node, *(style.clone()));
 
         mason.compute(*node);
 
         let output = mason.layout(*node);
 
         let result = env.new_float_array(output.len() as i32).unwrap();
+
         env.set_float_array_region(result, 0, &output).unwrap();
 
         Box::leak(mason);
@@ -961,6 +963,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetChildr
                 .collect();
             mason.set_children(*node, data.as_slice());
         }
+
+        Box::leak(mason);
+        Box::leak(node);
     }
 }
 
@@ -993,6 +998,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChildr
                 .collect();
             mason.add_children(*node, data.as_slice());
         }
+
+        Box::leak(mason);
+        Box::leak(node);
     }
 }
 
@@ -1191,7 +1199,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeIsChildre
         let mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
 
-        match env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+        let ret = match env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
             Ok(array) => {
                 let size = array.size().unwrap_or_default() as usize;
                 if mason.child_count(*node) != size {
@@ -1211,7 +1219,12 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeIsChildre
                 JNI_FALSE
             }
             Err(_) => JNI_FALSE,
-        }
+        };
+
+        Box::leak(mason);
+        Box::leak(node);
+
+        ret
     }
 }
 
@@ -1287,11 +1300,11 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeRemoveChi
 
                 0
             }
-            Some(child) => {
+            Some(_) => {
                 Box::leak(mason);
                 Box::leak(node);
 
-                Box::into_raw(Box::new(child)) as jlong
+                Box::into_raw(child) as jlong
             }
         }
     }
