@@ -562,6 +562,18 @@ pub(crate) mod ffi {
             value_type: CMasonLengthPercentageAutoType,
         );
 
+        fn mason_style_set_inset_lrtb(
+            style: i64,
+            left_value: f32,
+            left_value_type: CMasonLengthPercentageAutoType,
+            right_value: f32,
+            right_value_type: CMasonLengthPercentageAutoType,
+            top_value: f32,
+            top_value_type: CMasonLengthPercentageAutoType,
+            bottom_value: f32,
+            bottom_value_type: CMasonLengthPercentageAutoType,
+        );
+
         fn mason_style_get_inset_left(style: i64) -> CMasonLengthPercentageAuto;
 
         fn mason_style_set_inset_left(
@@ -1219,68 +1231,15 @@ pub fn assert_pointer_address(pointer: i64, pointer_type: &str) {
     assert_ne!(pointer, 0, "Invalid {:} pointer address", pointer_type);
 }
 
-fn parse_non_repeated_track_sizing_function_value(value: NonRepeatedTrackSizingFunction) -> String {
-    let mut string = String::new();
-
-    match (value.min, value.max) {
-        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Auto) => string.push_str("auto"),
-        (MinTrackSizingFunction::MinContent, MaxTrackSizingFunction::MinContent) => {
-            string.push_str("min-content")
-        }
-        (MinTrackSizingFunction::MaxContent, MaxTrackSizingFunction::MaxContent) => {
-            string.push_str("max-content")
-        }
-        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::FitContent(value)) => string
-            .push_str(&match value {
-                LengthPercentage::Points(value) => format!("fit-content({}px)", value),
-                LengthPercentage::Percent(value) => format!("fit-content({}%)", value),
-            }),
-        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Flex(value)) => {
-            string.push_str(&format!("{}fr", value))
-        }
-        (min, max) => {
-            string.push_str(&format!(
-                "minmax({}, {})",
-                match min {
-                    MinTrackSizingFunction::Fixed(value) => {
-                        match value {
-                            LengthPercentage::Points(value) => format!("{}px", value),
-                            LengthPercentage::Percent(value) => format!("{}%", value),
-                        }
-                    }
-                    MinTrackSizingFunction::MinContent => "min-content".to_string(),
-                    MinTrackSizingFunction::MaxContent => "max-content".to_string(),
-                    MinTrackSizingFunction::Auto => "auto".to_string(),
-                },
-                match max {
-                    MaxTrackSizingFunction::Fixed(value) => {
-                        match value {
-                            LengthPercentage::Points(value) => format!("{}px", value),
-                            LengthPercentage::Percent(value) => format!("{}%", value),
-                        }
-                    }
-                    MaxTrackSizingFunction::MinContent => "min-content".to_string(),
-                    MaxTrackSizingFunction::MaxContent => "max-content".to_string(),
-                    MaxTrackSizingFunction::FitContent(_) => panic!(), // invalid should not hit here
-                    MaxTrackSizingFunction::Auto => "auto".to_string(),
-                    MaxTrackSizingFunction::Flex(value) => format!("{}px", value),
-                }
-            ));
-        }
-    }
-
-    string
-}
-
 fn mason_util_parse_non_repeated_track_sizing_function_value(
-    value: &Vec<CMasonNonRepeatedTrackSizingFunction>,
+    value: &[CMasonNonRepeatedTrackSizingFunction],
 ) -> String {
     let mut ret = String::new();
 
-    for (i, val) in value.into_iter().enumerate() {
-        let parsed = parse_non_repeated_track_sizing_function_value(val.0);
+    for (i, val) in value.iter().enumerate() {
+        let parsed = mason_core::ffi::parse_non_repeated_track_sizing_function_value(val.0);
         if i != 0 {
-            ret.push_str(" ");
+            ret.push(' ');
         }
         ret.push_str(parsed.as_str())
     }
@@ -1288,368 +1247,128 @@ fn mason_util_parse_non_repeated_track_sizing_function_value(
 }
 
 fn mason_util_parse_auto_repeating_track_sizing_function(
-    value: &Vec<CMasonTrackSizingFunction>,
+    value: &[CMasonTrackSizingFunction],
 ) -> String {
     let mut ret = String::new();
-    for (i,val) in value.into_iter().enumerate() {
+    for (i,val) in value.iter().enumerate() {
         if i != 0 {
             ret.push(' ');
         }
-        match &val.0 {
-            TrackSizingFunction::Single(value) => {
-                let parsed = parse_non_repeated_track_sizing_function_value(*value);
-                ret.push_str(parsed.as_str())
-            }
-            TrackSizingFunction::AutoRepeat(grid_track_repetition, values) => {
-                ret.push_str("repeat(");
-                match *grid_track_repetition  {
-                    GridTrackRepetition::AutoFill => {
-                        ret.push_str("auto-fill");
-                    }
-                    GridTrackRepetition::AutoFit => {
-                        ret.push_str("auto-fit");
-                    }
-                }
-
-                for (j, inner_val) in values.iter().enumerate() {
-                    let parsed = parse_non_repeated_track_sizing_function_value(*inner_val);
-
-                    if j != 0 {
-                        ret.push(' ');
-                    }
-
-                    ret.push_str(parsed.as_str())
-                }
-
-                ret.push(')');
-            }
-        }
+        let string = mason_core::ffi::parse_track_sizing_function_value(&val.0);
+        ret.push_str(string.as_str());
     }
     ret
 }
 
 fn mason_style_get_grid_auto_rows(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction> {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style
-            .get_grid_auto_rows()
-            .to_vec()
-            .into_iter()
-            .map(|v| CMasonNonRepeatedTrackSizingFunction(v))
-            .collect();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_grid_auto_rows(style as _)
+        .into_iter()
+        .map(CMasonNonRepeatedTrackSizingFunction)
+        .collect()
 }
 
 fn mason_style_set_grid_auto_rows(style: i64, value: Vec<CMasonNonRepeatedTrackSizingFunction>) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_grid_auto_rows(value.into_iter().map(|v| v.0).collect());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_grid_auto_rows(style as _ , value.into_iter().map(|v| v.0).collect())
 }
 
 fn mason_style_get_grid_auto_columns(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction> {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style
-            .get_grid_auto_columns()
-            .to_vec()
-            .into_iter()
-            .map(|v| CMasonNonRepeatedTrackSizingFunction(v))
-            .collect();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_grid_auto_columns(style as _)
+        .into_iter()
+        .map(CMasonNonRepeatedTrackSizingFunction)
+        .collect()
 }
 
 fn mason_style_set_grid_auto_columns(style: i64, value: Vec<CMasonNonRepeatedTrackSizingFunction>) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_grid_auto_columns(value.into_iter().map(|v| v.0).collect());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_grid_auto_columns(style as _, value.into_iter().map(|v| v.0).collect())
 }
 
 fn mason_style_get_grid_auto_flow(style: i64) -> i32 {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = grid_auto_flow_to_enum(style.get_grid_auto_flow());
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_grid_auto_flow(style as _)
 }
 
 fn mason_style_set_grid_auto_flow(style: i64, value: i32) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        if let Some(value) = grid_auto_flow_from_enum(value) {
-            let mut style = Box::from_raw(style as *mut Style);
-
-            style.set_grid_auto_flow(value);
-
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_grid_auto_flow(style as _, value)
 }
 
 fn mason_style_get_grid_column_start(style: i64) -> CMasonGridPlacement {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_grid_column_start().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_grid_column_start(style as _).into()
 }
 
 fn mason_style_set_grid_column_start(style: i64, value: CMasonGridPlacement) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_grid_column_start(value.into());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_grid_column_start(style as  _, value.into())
 }
 
 fn mason_style_get_grid_column_end(style: i64) -> CMasonGridPlacement {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_grid_column_end().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_grid_column_end(style as _).into()
 }
 
 fn mason_style_set_grid_column_end(style: i64, value: CMasonGridPlacement) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_grid_column_end(value.into());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_grid_column_end(style as  _, value.into())
 }
 
 fn mason_style_get_grid_row_start(style: i64) -> CMasonGridPlacement {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_grid_row_start().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_grid_row_start(style as _).into()
 }
 
 fn mason_style_set_grid_row_start(style: i64, value: CMasonGridPlacement) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_grid_row_start(value.into());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_grid_row_start(style as  _, value.into())
 }
 
 fn mason_style_get_grid_row_end(style: i64) -> CMasonGridPlacement {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_grid_row_end().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_grid_row_end(style as _).into()
 }
 
 fn mason_style_set_grid_row_end(style: i64, value: CMasonGridPlacement) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_grid_row_end(value.into());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_grid_row_end(style as  _, value.into())
 }
 
 fn mason_style_get_grid_template_rows(style: i64) -> Vec<CMasonTrackSizingFunction> {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style
-            .get_grid_template_rows()
-            .to_vec()
-            .into_iter()
-            .map(|v| CMasonTrackSizingFunction(v))
-            .collect();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_grid_template_rows(style as _)
+        .into_iter()
+        .map(CMasonTrackSizingFunction)
+        .collect()
 }
 
 fn mason_style_set_grid_template_rows(style: i64, value: Vec<CMasonTrackSizingFunction>) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_grid_template_rows(value.into_iter().map(|v| v.0).collect());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_grid_template_rows(style as _, value.into_iter().map(|v| v.0).collect())
 }
 
 fn mason_style_get_grid_template_columns(style: i64) -> Vec<CMasonTrackSizingFunction> {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style
-            .get_grid_template_columns()
-            .to_vec()
-            .into_iter()
-            .map(|v| CMasonTrackSizingFunction(v))
-            .collect();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_grid_template_columns(style as _)
+        .into_iter()
+        .map(CMasonTrackSizingFunction)
+        .collect()
 }
 
 fn mason_style_set_grid_template_columns(style: i64, value: Vec<CMasonTrackSizingFunction>) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_grid_template_columns(value.into_iter().map(|v| v.0).collect());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_grid_template_columns(style as _, value.into_iter().map(|v| v.0).collect())
 }
 
 pub fn mason_style_set_width(style: i64, value: f32, value_type: CMasonDimensionType) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let width = CMasonDimension::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_size_width(width.into());
-
-        Box::leak(style);
-    }
+    let width = CMasonDimension::new(value, value_type);
+    mason_core::ffi::style_set_width(style as _, width.into())
 }
 
 pub fn mason_style_get_width(style: i64) -> CMasonDimension {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let width = style.get_size_width().into();
-
-        Box::leak(style);
-
-        width
-    }
+    mason_core::ffi::style_get_width(style as _).into()
 }
 
 pub fn mason_style_set_height(style: i64, value: f32, value_type: CMasonDimensionType) {
-    assert_pointer_address(style, "style");
+    let height = CMasonDimension::new(value, value_type);
 
-    unsafe {
-        let height = CMasonDimension::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_size_height(height.into());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_height(style as _, height.into())
 }
 
 pub fn mason_style_get_height(style: i64) -> CMasonDimension {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let height = style.get_size_height().into();
-
-        Box::leak(style);
-
-        height
-    }
+    mason_core::ffi::style_get_height(style as _).into()
 }
 
 pub fn mason_node_mark_dirty(mason: i64, node: i64) {
-    assert_pointer_address(mason, "mason");
-    assert_pointer_address(node, "node");
-
-    unsafe {
-        let mut mason = Box::from_raw(mason as *mut Mason);
-
-        let node = Box::from_raw(node as *mut Node);
-
-        mason.mark_dirty(*node);
-
-        Box::leak(mason);
-        Box::leak(node);
-    }
+    mason_core::ffi::node_mark_dirty(mason as _, node as _)
 }
 
 pub fn mason_node_dirty(mason: i64, node: i64) -> bool {
-    assert_pointer_address(mason, "mason");
-    assert_pointer_address(node, "node");
-    unsafe {
-        let mason = Box::from_raw(mason as *mut Mason);
-
-        let node = Box::from_raw(node as *mut Node);
-
-        let dirty = mason.dirty(*node);
-
-        Box::leak(mason);
-        Box::leak(node);
-        dirty
-    }
+    mason_core::ffi::node_dirty(mason as _, node as _)
 }
 
 pub fn mason_style_set_display(style: i64, display: i32) {
@@ -1741,107 +1460,59 @@ fn mason_style_set_justify_content(style: i64, value: i32) {
 }
 
 fn mason_style_set_inset(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
-    let position = CMasonLengthPercentageAuto::new(value, value_type);
-    let rect = Rect::<LengthPercentageAuto>::from_len_auto(position.into());
-    mason_core::ffi::style_set_inset(style as _, rect);
+    let inset = CMasonLengthPercentageAuto::new(value, value_type);
+    mason_core::ffi::style_set_inset(style as _, inset.into());
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mason_style_set_inset_lrtb(
+    style: i64,
+    left_value: f32,
+    left_value_type: CMasonLengthPercentageAutoType,
+    right_value: f32,
+    right_value_type: CMasonLengthPercentageAutoType,
+    top_value: f32,
+    top_value_type: CMasonLengthPercentageAutoType,
+    bottom_value: f32,
+    bottom_value_type: CMasonLengthPercentageAutoType,
+) {
+    let left: LengthPercentageAuto = CMasonLengthPercentageAuto::new(left_value, left_value_type).into();
+    let right: LengthPercentageAuto = CMasonLengthPercentageAuto::new(right_value, right_value_type).into();
+    let top: LengthPercentageAuto = CMasonLengthPercentageAuto::new(top_value, top_value_type).into();
+    let bottom: LengthPercentageAuto = CMasonLengthPercentageAuto::new(bottom_value, bottom_value_type).into();
+
+    mason_core::ffi::style_set_inset_lrtb(style as _, left, right, top, bottom);
 }
 
 fn mason_style_get_inset_left(style: i64) -> CMasonLengthPercentageAuto {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_inset_left().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_inset_left(style as _).into()
 }
 
 fn mason_style_set_inset_left(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentageAuto::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_inset_left(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentageAuto::new(value, value_type);
+    mason_core::ffi::style_set_inset_left(style as _, val.into())
 }
 
 fn mason_style_get_inset_right(style: i64) -> CMasonLengthPercentageAuto {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_inset_right().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_inset_right(style as  _).into()
 }
 
 fn mason_style_set_inset_right(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentageAuto::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_inset_right(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentageAuto::new(value, value_type);
+    mason_core::ffi::style_set_inset_right(style as _, val.into())
 }
 
 fn mason_style_get_inset_top(style: i64) -> CMasonLengthPercentageAuto {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_inset_top().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_inset_top(style as  _).into()
 }
 
 fn mason_style_set_inset_top(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentageAuto::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_inset_top(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentageAuto::new(value, value_type);
+    mason_core::ffi::style_set_inset_top(style as _, val.into())
 }
 
 fn mason_style_get_inset_bottom(style: i64) -> CMasonLengthPercentageAuto {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_inset_bottom().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_inset_bottom(style as  _).into()
 }
 
 fn mason_style_set_inset_bottom(
@@ -1849,70 +1520,26 @@ fn mason_style_set_inset_bottom(
     value: f32,
     value_type: CMasonLengthPercentageAutoType,
 ) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentageAuto::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_inset_bottom(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentageAuto::new(value, value_type);
+    mason_core::ffi::style_set_inset_bottom(style as _, val.into())
 }
 
 fn mason_style_set_margin(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
-    assert_pointer_address(style, "style");
-
     let margin = CMasonLengthPercentageAuto::new(value, value_type);
-
-    let mut style = unsafe { Box::from_raw(style as *mut Style) };
-    let rect = Rect::<CMasonLengthPercentageAuto>::from_len_auto(margin.into());
-    style.set_margin(rect);
-    Box::leak(style);
+    mason_core::ffi::style_set_margin(style as _, margin.into())
 }
 
 fn mason_style_get_margin_left(style: i64) -> CMasonLengthPercentageAuto {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_margin_left().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_margin_left(style as _).into()
 }
 
 fn mason_style_set_margin_left(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentageAuto::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_margin_left(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentageAuto::new(value, value_type);
+    mason_core::ffi::style_set_margin_left(style as _, val.into())
 }
 
 fn mason_style_get_margin_right(style: i64) -> CMasonLengthPercentageAuto {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_margin_right().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_margin_right(style as _).into()
 }
 
 fn mason_style_set_margin_right(
@@ -1920,59 +1547,21 @@ fn mason_style_set_margin_right(
     value: f32,
     value_type: CMasonLengthPercentageAutoType,
 ) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentageAuto::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_margin_right(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentageAuto::new(value, value_type);
+    mason_core::ffi::style_set_margin_right(style as _, val.into())
 }
 
 fn mason_style_get_margin_top(style: i64) -> CMasonLengthPercentageAuto {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_margin_top().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_margin_top(style as _).into()
 }
 
 fn mason_style_set_margin_top(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentageAuto::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_margin_top(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentageAuto::new(value, value_type);
+    mason_core::ffi::style_set_margin_top(style as _, val.into())
 }
 
 fn mason_style_get_margin_bottom(style: i64) -> CMasonLengthPercentageAuto {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_margin_bottom().into();
-
-        Box::leak(style);
-
-        ret
-    }
+   mason_core::ffi::style_get_margin_bottom(style as _).into()
 }
 
 fn mason_style_set_margin_bottom(
@@ -1980,234 +1569,78 @@ fn mason_style_set_margin_bottom(
     value: f32,
     value_type: CMasonLengthPercentageAutoType,
 ) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentageAuto::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_margin_bottom(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentageAuto::new(value, value_type);
+    mason_core::ffi::style_set_margin_bottom(style as _, val.into())
 }
 
 fn mason_style_set_border(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
     let border = CMasonLengthPercentage::new(value, value_type);
-
-    let mut style = unsafe { Box::from_raw(style as *mut Style) };
-    let rect = Rect::<LengthPercentage>::from_len(border.into());
-    style.set_border(rect);
-    Box::leak(style);
+    mason_core::ffi::style_set_border(style as _, border.into())
 }
 
 fn mason_style_get_border_left(style: i64) -> CMasonLengthPercentage {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_border_left().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_border_left(style as _).into()
 }
 
 fn mason_style_set_border_left(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentage::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_border_left(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_border_left(style as _, val.into())
 }
 
 fn mason_style_get_border_right(style: i64) -> CMasonLengthPercentage {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_border_right().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_border_right(style as _).into()
 }
 
 fn mason_style_set_border_right(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentage::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_border_right(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_border_right(style as _, val.into())
 }
 
 fn mason_style_get_border_top(style: i64) -> CMasonLengthPercentage {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_border_top().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_border_top(style as _).into()
 }
 
 fn mason_style_set_border_top(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentage::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_border_top(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_border_top(style as _, val.into())
 }
 
 fn mason_style_get_border_bottom(style: i64) -> CMasonLengthPercentage {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_border_bottom().into();
-
-        Box::leak(style);
-
-        ret
-    }
+   mason_core::ffi::style_get_border_bottom(style as _).into()
 }
 
 fn mason_style_set_border_bottom(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentage::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_border_bottom(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_border_bottom(style as _, val.into())
 }
 
 fn mason_style_set_flex_grow(style: i64, grow: f32) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_flex_grow(grow);
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_flex_grow(style as _, grow)
 }
 
 fn mason_style_get_flex_grow(style: i64) -> f32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.flex_grow();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_flex_grow(style as _)
 }
 
 fn mason_style_set_flex_shrink(style: i64, shrink: f32) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_flex_shrink(shrink);
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_flex_shrink(style as _, shrink)
 }
 
 fn mason_style_get_flex_shrink(style: i64) -> f32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.flex_shrink();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_flex_shrink(style as _)
 }
 
 fn mason_style_get_flex_basis(style: i64) -> CMasonDimension {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.flex_basis().into();
-
-        Box::leak(style);
-
-        ret
-    }
+   mason_core::ffi::style_get_flex_basis(style as _).into()
 }
 
 fn mason_style_set_flex_basis(style: i64, value: f32, value_type: CMasonDimensionType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonDimension::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_flex_basis(val.into());
-
-        Box::leak(style);
-    }
+    let basis =  CMasonDimension::new(value, value_type);
+    mason_core::ffi::style_set_flex_basis(style as  _, basis.into())
 }
 
 fn mason_style_get_gap(style: i64) -> CMasonLengthPercentageSize {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.gap().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_gap(style as _).into()
 }
 
 fn mason_style_set_gap(
@@ -2217,326 +1650,106 @@ fn mason_style_set_gap(
     height_value: f32,
     height_type: CMasonLengthPercentageType,
 ) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        let size =
-            CMasonLengthPercentageSize::new(width_value, width_type, height_value, height_type);
-
-        style.set_gap(size.into());
-
-        Box::leak(style);
-    }
+    let width =  CMasonLengthPercentage::new(width_value, width_type);
+    let height =  CMasonLengthPercentage::new(height_value, height_type);
+    mason_core::ffi::style_set_gap(style as  _, width.into(), height.into())
 }
 
 fn mason_style_set_aspect_ratio(style: i64, ratio: f32) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_aspect_ratio(Some(ratio));
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_aspect_ratio(style as _, ratio)
 }
 
 fn mason_style_get_aspect_ratio(style: i64) -> f32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.aspect_ratio().unwrap_or(f32::NAN);
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_aspect_ratio(style as _)
 }
 
 fn mason_style_set_padding(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
     let padding = CMasonLengthPercentage::new(value, value_type);
-
-    let mut style = unsafe { Box::from_raw(style as *mut Style) };
-    let rect = Rect::<LengthPercentage>::from_len(padding.into());
-    style.set_padding(rect);
-    Box::leak(style);
+    mason_core::ffi::style_set_padding(style as  _, padding.into());
 }
 
 fn mason_style_get_padding_left(style: i64) -> CMasonLengthPercentage {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_padding_left().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_padding_left(style as  _).into()
 }
 
 fn mason_style_set_padding_left(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentage::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_padding_left(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_padding_left(style as  _, val.into())
 }
 
 fn mason_style_get_padding_right(style: i64) -> CMasonLengthPercentage {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_padding_right().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_padding_right(style as  _).into()
 }
 
 fn mason_style_set_padding_right(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentage::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_padding_right(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_padding_right(style as  _, val.into())
 }
 
 fn mason_style_get_padding_top(style: i64) -> CMasonLengthPercentage {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_padding_top().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_padding_top(style as  _).into()
 }
 
 fn mason_style_set_padding_top(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentage::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_padding_top(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_padding_top(style as  _, val.into())
 }
 
 fn mason_style_get_padding_bottom(style: i64) -> CMasonLengthPercentage {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_padding_bottom().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_padding_bottom(style as  _).into()
 }
 
 fn mason_style_set_padding_bottom(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonLengthPercentage::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_padding_bottom(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_padding_bottom(style as  _, val.into())
 }
 
 fn mason_style_get_flex_direction(style: i64) -> i32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = flex_direction_to_enum(style.flex_direction());
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_flex_direction(style as  _)
 }
 
 fn mason_style_set_flex_direction(style: i64, value: i32) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        if let Some(enum_value) = flex_direction_from_enum(value) {
-            let mut style = Box::from_raw(style as *mut Style);
-
-            style.set_flex_direction(enum_value);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_flex_direction(style as _, value)
 }
 
 fn mason_style_get_min_width(style: i64) -> CMasonDimension {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_min_size_width().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_min_width(style as _).into()
 }
 
 fn mason_style_set_min_width(style: i64, value: f32, value_type: CMasonDimensionType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonDimension::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_min_size_width(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonDimension::new(value, value_type);
+    mason_core::ffi::style_set_min_width(style as _, val.into())
 }
 
 fn mason_style_get_min_height(style: i64) -> CMasonDimension {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_min_size_height().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_min_height(style as _).into()
 }
 
 fn mason_style_set_min_height(style: i64, value: f32, value_type: CMasonDimensionType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonDimension::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_min_size_height(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonDimension::new(value, value_type);
+    mason_core::ffi::style_set_min_height(style as _, val.into())
 }
 
 fn mason_style_get_max_width(style: i64) -> CMasonDimension {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_max_size_width().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_max_width(style as _).into()
 }
 
 fn mason_style_set_max_width(style: i64, value: f32, value_type: CMasonDimensionType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonDimension::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_max_size_width(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonDimension::new(value, value_type);
+    mason_core::ffi::style_set_max_width(style as _, val.into())
 }
 
 fn mason_style_get_max_height(style: i64) -> CMasonDimension {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = style.get_max_size_height().into();
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_max_height(style as _).into()
 }
 
 fn mason_style_set_max_height(style: i64, value: f32, value_type: CMasonDimensionType) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let val = CMasonDimension::new(value, value_type);
-
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_max_size_height(val.into());
-
-        Box::leak(style);
-    }
+    let val = CMasonDimension::new(value, value_type);
+    mason_core::ffi::style_set_max_height(style as _, val.into())
 }
 
 pub fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64) {
-    assert_pointer_address(mason, "mason");
-    assert_pointer_address(node, "node");
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let mut mason = Box::from_raw(mason as *mut Mason);
-
-        let node = Box::from_raw(node as *mut Node);
-
-        let style = Box::from_raw(style as *mut Style);
-
-        mason.set_style(*node, *style.clone());
-
-        Box::leak(mason);
-        Box::leak(node);
-        Box::leak(style);
-    }
+    mason_core::ffi::node_update_and_set_style(mason as _, node as _ , style as _)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2607,8 +1820,8 @@ pub fn mason_style_update_with_values(
     gap_column_type: i32,
     gap_column_value: f32,
     aspect_ratio: f32,
-    mut grid_auto_rows: Vec<CMasonNonRepeatedTrackSizingFunction>,
-    mut grid_auto_columns: Vec<CMasonNonRepeatedTrackSizingFunction>,
+    grid_auto_rows: Vec<CMasonNonRepeatedTrackSizingFunction>,
+    grid_auto_columns: Vec<CMasonNonRepeatedTrackSizingFunction>,
     grid_auto_flow: i32,
     grid_column_start_type: i32,
     grid_column_start_value: i16,
@@ -2618,8 +1831,8 @@ pub fn mason_style_update_with_values(
     grid_row_start_value: i16,
     grid_row_end_type: i32,
     grid_row_end_value: i16,
-    mut grid_template_rows: Vec<CMasonTrackSizingFunction>,
-    mut grid_template_columns: Vec<CMasonTrackSizingFunction>,
+    grid_template_rows: Vec<CMasonTrackSizingFunction>,
+    grid_template_columns: Vec<CMasonTrackSizingFunction>,
 ) {
     unsafe {
         let mut style = Box::from_raw(style as *mut Style);
