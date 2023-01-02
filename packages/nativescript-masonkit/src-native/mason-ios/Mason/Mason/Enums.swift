@@ -8,115 +8,82 @@
 import Foundation
 import UIKit
 
-@objcMembers
-@objc(MasonRectCompat)
-public class MasonRectCompat: NSObject {
-    public var left: MasonDimensionCompat
-    public var right: MasonDimensionCompat
-    public var top: MasonDimensionCompat
-    public var bottom: MasonDimensionCompat
-    
-    public init(_ left: MasonDimensionCompat, _ right: MasonDimensionCompat, _ top: MasonDimensionCompat, _ bottom: MasonDimensionCompat) {
-        self.left = left
-        self.right = right
-        self.top = top
-        self.bottom = bottom
-    }
-    
-    public init(_ rect: MasonRect<MasonDimension>) {
-        left = MasonDimensionCompat(value: rect.left)
-        right = MasonDimensionCompat(value: rect.right)
-        top = MasonDimensionCompat(value: rect.top)
-        bottom = MasonDimensionCompat(value: rect.bottom)
-    }
-    
-    func intoMasonRect()-> MasonRect<MasonDimension> {
-        return MasonRect(left.dimension, right.dimension, top.dimension, bottom.dimension)
-    }
-}
-
-
-public struct MasonRect<T> {
-    var left: T
-    var right: T
-    var top: T
-    var bottom: T
-    internal var compat: MasonRectCompat? = nil
-    
-    public init(_ left: T, _ right: T, _ top: T, _ bottom: T) {
-        self.left = left
-        self.right = right
-        self.top = top
-        self.bottom = bottom
-    }
-    
-    var cssValue: String {
-        var ret = "(MasonRect)("
-        
-        ret += "left: \(left), "
-        ret += "right: \(right), "
-        ret += "top: \(top), "
-        ret += "top: \(top) "
-        
-        ret += ")"
-        
-        return ret
-    }
-}
-
-@objcMembers
-@objc(MasonSizeCompat)
-public class MasonSizeCompat: NSObject{
-    public var width: MasonDimensionCompat
-    public var height: MasonDimensionCompat
-    
-    init(_ width: MasonDimensionCompat, _ height: MasonDimensionCompat) {
-        self.width = width
-        self.height = height
-    }
-    
-    func intoMasonSize()-> MasonSize<MasonDimension> {
-        return MasonSize(width.dimension, height.dimension)
-    }
-    
-    public init(_ size: MasonSize<MasonDimension>) {
-        width = MasonDimensionCompat(value: size.width)
-        height = MasonDimensionCompat(value: size.height)
-    }
-}
-
-
-public struct MasonSize<T>{
-    var width: T
-    var height: T
-    
-    internal var compat: MasonSizeCompat? = nil
-    
-    public init(_ width: T, _ height: T) {
-        self.width = width
-        self.height = height
-    }
-    
-    var cssValue: String {
-        var ret = "(MasonSize)("
-        
-        ret += "width: \(width), "
-        ret += "height: \(height) "
-        
-        ret += ")"
-        
-        return ret
-    }
-}
-
-public let MasonSizeMaxPercentWH = MasonSize<MasonDimension>(MasonDimension.Percent(100), MasonDimension.Percent(100))
-
 
 @objc(MasonDimensionCompatType)
 public enum MasonDimensionCompatType: Int, RawRepresentable {
+    case Auto
     case Points
     case Percent
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Auto:
+            return 0
+        case .Points:
+            return 1
+        case .Percent:
+            return 2
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+            self = .Auto
+        case 1:
+            self = .Points
+        case 2:
+            self = .Percent
+        default:
+            return nil
+        }
+    }
+}
+
+
+
+@objc(MasonLengthPercentageAutoCompatType)
+public enum MasonLengthPercentageAutoCompatType: Int, RawRepresentable {
     case Auto
+    case Points
+    case Percent
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Auto:
+            return 0
+        case .Points:
+            return 1
+        case .Percent:
+            return 2
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+            self = .Auto
+        case 1:
+            self = .Points
+        case 2:
+            self = .Percent
+        default:
+            return nil
+        }
+    }
+}
+
+
+@objc(MasonLengthPercentageCompatType)
+public enum MasonLengthPercentageCompatType: Int, RawRepresentable {
+    case Points
+    case Percent
     
     public typealias RawValue = Int32
     
@@ -126,8 +93,6 @@ public enum MasonDimensionCompatType: Int, RawRepresentable {
             return 0
         case .Percent:
             return 1
-        case .Auto:
-            return 2
         }
     }
     
@@ -138,77 +103,14 @@ public enum MasonDimensionCompatType: Int, RawRepresentable {
             self = .Points
         case 1:
             self = .Percent
-        case 2:
-            self = .Auto
         default:
             return nil
         }
     }
 }
 
-@objcMembers
-@objc(MasonDimensionCompat)
-public class MasonDimensionCompat: NSObject {
-    internal let dimension: MasonDimension
-    internal let dimensionType: MasonDimensionCompatType
-    public init(points: Float) {
-        dimension = .Points(points)
-        dimensionType = .Points
-    }
-    
-    public init(percent: Float) {
-        dimension = .Percent(percent)
-        dimensionType = .Percent
-    }
-    
-    internal init(value: MasonDimension) {
-        dimension = value
-        switch(value){
-        case .Points(_):
-            dimensionType = .Points
-        case .Percent(_):
-            dimensionType = .Percent
-        case .Auto:
-            dimensionType = .Auto
-        }
-    }
-    
-    public var type: MasonDimensionCompatType {
-        get {
-            return dimensionType
-        }
-    }
-    
-    public var value: Float {
-        get {
-            switch(dimension){
-            case .Points(let points):
-                return points
-            case .Percent(let percent):
-                return percent
-            case .Auto:
-                return 0
-            }
-        }
-    }
-    
-    public var cssValue: String {
-        get {
-            return dimension.cssValue
-        }
-    }
-    
-    
-    public var jsonValue: String? {
-        return dimension.jsonValue
-    }
-    
-    public static let Auto = MasonDimensionCompat(value: .Auto)
-    
-    public static let Zero = MasonDimensionCompat(value: .Points(0))
-}
-
-private let encoder = JSONEncoder()
+let decoder = JSONDecoder()
+let encoder = JSONEncoder()
 
 public func MasonDimensionFromPoints(value: Float) -> MasonDimension {
     return .Points(value)
@@ -222,23 +124,23 @@ public let MasonDimensionAuto = MasonDimension.Auto
 
 
 public enum MasonDimension: Codable {
+    case Auto
     case Points(Float)
     case Percent(Float)
-    case Auto
     
     internal var type: Int32 {
         get {
             switch (self) {
-            case .Points: return 0
-            case .Percent: return 1
-            case .Auto: return 2
+            case .Auto: return 0
+            case .Points: return 1
+            case .Percent: return 2
             }
         }
     }
-
+    
     internal var value: Float {
         get {
-
+            
             switch (self) {
             case .Points(let points): return points
             case .Percent(let percent): return percent
@@ -276,10 +178,10 @@ public enum MasonDimension: Codable {
             case "auto":
                 self = .Auto
                 break
-                break
             default:
+                // todo
                 // throw invaild ??
-
+                self = .Percent(0)
                 break
             }
         }catch {
@@ -301,8 +203,9 @@ public enum MasonDimension: Codable {
                 break
                 
             default:
+                // todo
                 // throw ???
-
+                self = .Percent(0)
                 break
             }
         }
@@ -326,16 +229,241 @@ public enum MasonDimension: Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-           case value
-           case unit
+        case value
+        case unit
+    }
+}
+
+
+public func MasonLengthPercentageFromPoints(value: Float) -> MasonLengthPercentage {
+    return .Points(value)
+}
+
+public func MasonLengthPercentageFromPercent(value: Float) -> MasonLengthPercentage {
+    return .Percent(value)
+}
+
+public let MasonLengthPercentageZero = MasonLengthPercentage.Points(0)
+
+
+public enum MasonLengthPercentage: Codable {
+    case Points(Float)
+    case Percent(Float)
+    
+    internal var type: Int32 {
+        get {
+            switch (self) {
+            case .Points: return 0
+            case .Percent: return 1
+            }
+        }
+    }
+    
+    internal var value: Float {
+        get {
+            
+            switch (self) {
+            case .Points(let points): return points
+            case .Percent(let percent): return percent
+            }
+        }
+    }
+    
+    
+    public var cssValue: String {
+        get {
+            switch(self){
+            case .Points(let points):
+                return "\(points)px"
+            case .Percent(let percent):
+                return "\(percent)%"
+            }
+        }
+    }
+    
+    public var jsonValue: String? {
+        do {
+            return try String(data: encoder.encode(self), encoding: .utf8)
+        }catch {return nil}
+    }
+    
+    
+    public init(from decoder: Decoder) throws {
+        // should be an object
+        
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let value = try values.decode(Float.self, forKey: .value)
+        let type = try values.decode(String.self, forKey: .unit)
+        
+        switch(type){
+        case "px":
+            self = .Points(value)
+            break
+        case "dip":
+            self = .Points(value * Float(UIScreen.main.scale))
+            break
+        case "%", "percent":
+            self = .Percent(value * 100)
+            break
+            
+        default:
+            // todo
+            // throw ???
+            self = .Percent(0)
+            break
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        switch(self){
+        case .Points:
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(value, forKey: .value)
+            try container.encode("px", forKey: .unit)
+        case .Percent:
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(value / 100, forKey: .value)
+            try container.encode("%", forKey: .unit)
+        }
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case value
+        case unit
+    }
+}
+
+
+public func MasonLengthPercentageAutoFromPoints(value: Float) -> MasonLengthPercentageAuto {
+    return .Points(value)
+}
+
+public func MasonLengthPercentageAutoFromPercent(value: Float) -> MasonLengthPercentageAuto {
+    return .Percent(value)
+}
+
+public let MasonLengthPercentageAutoAuto = MasonLengthPercentageAuto.Auto
+
+public let MasonLengthPercentageAutoZero = MasonLengthPercentageAuto.Points(0)
+
+
+public enum MasonLengthPercentageAuto: Codable {
+    case Auto
+    case Points(Float)
+    case Percent(Float)
+    
+    internal var type: Int32 {
+        get {
+            switch (self) {
+            case .Auto: return 0
+            case .Points: return 1
+            case .Percent: return 2
+            }
+        }
+    }
+    
+    internal var value: Float {
+        get {
+            
+            switch (self) {
+            case .Points(let points): return points
+            case .Percent(let percent): return percent
+            case .Auto: return 0
+            }
+        }
+    }
+    
+    
+    public var cssValue: String {
+        get {
+            switch(self){
+            case .Points(let points):
+                return "\(points)px"
+            case .Percent(let percent):
+                return "\(percent)%"
+            case .Auto:
+                return "auto"
+            }
+        }
+    }
+    
+    public var jsonValue: String? {
+        do {
+            return try String(data: encoder.encode(self), encoding: .utf8)
+        }catch {return nil}
+    }
+    
+    
+    public init(from decoder: Decoder) throws {
+        do {
+            let container = try decoder.singleValueContainer()
+            let value = try container.decode(String.self)
+            switch(value){
+            case "auto":
+                self = .Auto
+                break
+            default:
+                // todo
+                // throw invaild ??
+                self = .Percent(0)
+                break
+            }
+        }catch {
+            // should be an object
+            
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            let value = try values.decode(Float.self, forKey: .value)
+            let type = try values.decode(String.self, forKey: .unit)
+            
+            switch(type){
+            case "px":
+                self = .Points(value)
+                break
+            case "dip":
+                self = .Points(value * Float(UIScreen.main.scale))
+                break
+            case "%", "percent":
+                self = .Percent(value * 100)
+                break
+                
+            default:
+                // todo
+                // throw ???
+                self = .Percent(0)
+                break
+            }
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        switch(self){
+        case .Points:
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(value, forKey: .value)
+            try container.encode("px", forKey: .unit)
+        case .Percent:
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(value / 100, forKey: .value)
+            try container.encode("%", forKey: .unit)
+        case .Auto:
+            var container = encoder.singleValueContainer()
+            try container.encode("auto")
+            break
+        }
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case value
+        case unit
     }
 }
 
 
 @objc(AlignItems)
 public enum AlignItems: Int, RawRepresentable {
-    case FlexStart
-    case FlexEnd
+    case Normal
+    case Start
+    case End
     case Center
     case Baseline
     case Stretch
@@ -344,9 +472,11 @@ public enum AlignItems: Int, RawRepresentable {
     
     public var rawValue: RawValue {
         switch self {
-        case .FlexStart:
+        case .Normal:
+            return -1
+        case .Start:
             return 0
-        case .FlexEnd:
+        case .End:
             return 1
         case .Center:
             return 2
@@ -360,10 +490,12 @@ public enum AlignItems: Int, RawRepresentable {
     
     public init?(rawValue: RawValue) {
         switch rawValue {
+        case -1:
+            self = .Normal
         case 0:
-            self = .FlexStart
+            self = .Start
         case 1:
-            self = .FlexEnd
+            self = .End
         case 2:
             self = .Center
         case 3:
@@ -377,10 +509,12 @@ public enum AlignItems: Int, RawRepresentable {
     
     var cssValue: String {
         switch self {
-        case .FlexStart:
-            return "flex-start"
-        case .FlexEnd:
-            return "flex-end"
+        case .Normal:
+            return "normal"
+        case .Start:
+            return "start"
+        case .End:
+            return "end"
         case .Center:
             return "center"
         case .Baseline:
@@ -393,46 +527,46 @@ public enum AlignItems: Int, RawRepresentable {
 
 @objc(AlignSelf)
 public enum AlignSelf: Int, RawRepresentable {
-    case Auto
-    case FlexStart
-    case FlexEnd
+    case Normal
+    case Start
+    case End
     case Center
     case Baseline
     case Stretch
     
     public typealias RawValue = Int32
-
+    
     public var rawValue: RawValue {
         switch self {
-        case .Auto:
+        case .Normal:
+            return -1
+        case .Start:
             return 0
-        case .FlexStart:
+        case .End:
             return 1
-        case .FlexEnd:
-            return 2
         case .Center:
-            return 3
+            return 2
         case .Baseline:
-            return 4
+            return 3
         case .Stretch:
-            return 5
+            return 4
         }
     }
     
     
     public init?(rawValue: RawValue) {
         switch rawValue {
+        case -1:
+            self = .Normal
         case 0:
-            self = .Auto
+            self = .Start
         case 1:
-            self = .FlexStart
+            self = .End
         case 2:
-            self = .FlexEnd
-        case 3:
             self = .Center
-        case 4:
+        case 3:
             self = .Baseline
-        case 5:
+        case 4:
             self = .Stretch
         default:
             return nil
@@ -441,12 +575,12 @@ public enum AlignSelf: Int, RawRepresentable {
     
     var cssValue: String {
         switch self {
-        case .Auto:
-            return "auto"
-        case .FlexStart:
-            return "flex-start"
-        case .FlexEnd:
-            return "flex-end"
+        case .Normal:
+            return "normal"
+        case .Start:
+            return "start"
+        case .End:
+            return "end"
         case .Center:
             return "center"
         case .Baseline:
@@ -459,8 +593,9 @@ public enum AlignSelf: Int, RawRepresentable {
 
 @objc(AlignContent)
 public enum AlignContent: Int, RawRepresentable  {
-    case FlexStart
-    case FlexEnd
+    case Normal
+    case Start
+    case End
     case Center
     case Stretch
     case SpaceBetween
@@ -468,12 +603,14 @@ public enum AlignContent: Int, RawRepresentable  {
     case SpaceEvenly
     
     public typealias RawValue = Int32
-
+    
     public var rawValue: RawValue {
         switch self {
-        case .FlexStart:
+        case .Normal:
+            return -1
+        case .Start:
             return 0
-        case .FlexEnd:
+        case .End:
             return 1
         case .Center:
             return 2
@@ -491,10 +628,12 @@ public enum AlignContent: Int, RawRepresentable  {
     
     public init?(rawValue: RawValue) {
         switch rawValue {
+        case -1:
+            self = .Normal
         case 0:
-            self = .FlexStart
+            self = .Start
         case 1:
-            self = .FlexEnd
+            self = .End
         case 2:
             self = .Center
         case 3:
@@ -512,10 +651,12 @@ public enum AlignContent: Int, RawRepresentable  {
     
     var cssValue: String {
         switch self {
-        case .FlexStart:
-            return "flex-start"
-        case .FlexEnd:
-            return "flex-end"
+        case .Normal:
+            return "normal"
+        case .Start:
+            return "start"
+        case .End:
+            return "end"
         case .Center:
             return "center"
         case .Stretch:
@@ -537,7 +678,7 @@ public enum Direction: Int, RawRepresentable {
     case RTL
     
     public typealias RawValue = Int32
-
+    
     public var rawValue: RawValue {
         switch self {
         case .Inherit:
@@ -577,17 +718,20 @@ public enum Direction: Int, RawRepresentable {
 
 @objc(Display)
 public enum Display: Int, RawRepresentable {
-    case Flex
     case None
+    case Flex
+    case Grid
     
     public typealias RawValue = Int32
-
+    
     public var rawValue: RawValue {
         switch self {
-        case .Flex:
-            return 0
         case .None:
+            return 0
+        case .Flex:
             return 1
+        case .Grid:
+            return 2
         }
     }
     
@@ -595,9 +739,11 @@ public enum Display: Int, RawRepresentable {
     public init?(rawValue: RawValue) {
         switch rawValue {
         case 0:
-            self = .Flex
-        case 1:
             self = .None
+        case 1:
+            self = .Flex
+        case 2:
+            self = .Grid
         default:
             return nil
         }
@@ -606,10 +752,12 @@ public enum Display: Int, RawRepresentable {
     
     var cssValue: String {
         switch self {
-        case .Flex:
-            return "flex"
         case .None:
             return "none"
+        case .Flex:
+            return "flex"
+        case .Grid:
+            return "grid"
         }
     }
 }
@@ -622,7 +770,7 @@ public enum FlexDirection: Int, RawRepresentable {
     case ColumnReverse
     
     public typealias RawValue = Int32
-
+    
     public var rawValue: RawValue {
         switch self {
         case .Row:
@@ -666,48 +814,192 @@ public enum FlexDirection: Int, RawRepresentable {
     }
 }
 
-@objc(JustifyContent)
-public enum JustifyContent: Int, RawRepresentable {
-    case FlexStart
-    case FlexEnd
+
+
+@objc(JustifyItems)
+public enum JustifyItems: Int, RawRepresentable {
+    case Normal = -1
+    case Start
+    case End
     case Center
-    case SpaceBetween
-    case SpaceAround
-    case SpaceEvenly
-
+    case Baseline
+    case Stretch
+    
     public typealias RawValue = Int32
-
+    
     public var rawValue: RawValue {
         switch self {
-        case .FlexStart:
+        case .Normal:
+            return -1
+        case .Start:
             return 0
-        case .FlexEnd:
+        case .End:
             return 1
         case .Center:
             return 2
-        case .SpaceBetween:
+        case .Baseline:
             return 3
-        case .SpaceAround:
+        case .Stretch:
             return 4
-        case .SpaceEvenly:
-            return 5
         }
     }
     
     
     public init?(rawValue: RawValue) {
         switch rawValue {
+        case -1:
+            self = .Normal
         case 0:
-            self = .FlexStart
+            self = .Start
         case 1:
-            self = .FlexEnd
+            self = .End
         case 2:
             self = .Center
         case 3:
-            self = .SpaceBetween
+            self = .Baseline
         case 4:
-            self = .SpaceAround
+            self = .Stretch
+        default:
+            return nil
+        }
+    }
+    
+    var cssValue: String {
+        switch self {
+        case .Normal:
+            return "normal"
+        case .Start:
+            return "start"
+        case .End:
+            return "end"
+        case .Center:
+            return "center"
+        case .Baseline:
+            return "baseline"
+        case .Stretch:
+            return "stretch"
+        }
+    }
+}
+
+@objc(JustifySelf)
+public enum JustifySelf: Int, RawRepresentable {
+    case Normal = -1
+    case Start
+    case End
+    case Center
+    case Baseline
+    case Stretch
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Normal:
+            return -1
+        case .Start:
+            return 0
+        case .End:
+            return 1
+        case .Center:
+            return 2
+        case .Baseline:
+            return 3
+        case .Stretch:
+            return 4
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case -1:
+            self = .Normal
+        case 0:
+            self = .Start
+        case 1:
+            self = .End
+        case 2:
+            self = .Center
+        case 3:
+            self = .Baseline
+        case 4:
+            self = .Stretch
+        default:
+            return nil
+        }
+    }
+    
+    var cssValue: String {
+        switch self {
+        case .Normal:
+            return "normal"
+        case .Start:
+            return "start"
+        case .End:
+            return "end"
+        case .Center:
+            return "center"
+        case .Baseline:
+            return "baseline"
+        case .Stretch:
+            return "stretch"
+        }
+    }
+}
+
+@objc(JustifyContent)
+public enum JustifyContent: Int, RawRepresentable {
+    case Normal
+    case Start
+    case End
+    case Center
+    case Stretch
+    case SpaceBetween
+    case SpaceAround
+    case SpaceEvenly
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Normal:
+            return -1
+        case .Start:
+            return 0
+        case .End:
+            return 1
+        case .Center:
+            return 2
+        case .Stretch:
+            return 3
+        case .SpaceBetween:
+            return 4
+        case .SpaceAround:
+            return 5
+        case .SpaceEvenly:
+            return 6
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case -1:
+            self = .Normal
+        case 0:
+            self = .Start
+        case 1:
+            self = .End
+        case 2:
+            self = .Center
+        case 3:
+            self = .Stretch
+        case 4:
+            self = .SpaceBetween
         case 5:
+            self = .SpaceAround
+        case 6:
             self = .SpaceEvenly
         default:
             return nil
@@ -716,12 +1008,16 @@ public enum JustifyContent: Int, RawRepresentable {
     
     var cssValue: String {
         switch self {
-        case .FlexStart:
-            return "flex-start"
-        case .FlexEnd:
-            return "flex-end"
+        case .Normal:
+            return "normal"
+        case .Start:
+            return "start"
+        case .End:
+            return "end"
         case .Center:
             return "center"
+        case .Stretch:
+            return "stretch"
         case .SpaceBetween:
             return "space-between"
         case .SpaceAround:
@@ -737,9 +1033,9 @@ public enum Overflow: Int, RawRepresentable {
     case Visible
     case Hidden
     case Scroll
-
+    
     public typealias RawValue = Int32
-
+    
     public var rawValue: RawValue {
         switch self {
         case .Visible:
@@ -777,13 +1073,13 @@ public enum Overflow: Int, RawRepresentable {
     }
 }
 
-@objc(PositionType)
-public enum PositionType: Int, RawRepresentable {
+@objc(Position)
+public enum Position: Int, RawRepresentable {
     case Relative
     case Absolute
     
     public typealias RawValue = Int32
-
+    
     public var rawValue: RawValue {
         switch self {
         case .Relative:
@@ -825,7 +1121,7 @@ public enum FlexWrap: Int, RawRepresentable {
     
     
     public typealias RawValue = Int32
-
+    
     public var rawValue: RawValue {
         switch self {
         case .NoWrap:
@@ -859,6 +1155,195 @@ public enum FlexWrap: Int, RawRepresentable {
             return "wrap"
         case .WrapReverse:
             return "wrap-reverse"
+        }
+    }
+}
+
+@objc(FlexGridAutoFlowWrap)
+public enum GridAutoFlow: Int, RawRepresentable {
+    case Row
+    case Column
+    case RowDense
+    case ColumnDense
+    
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Row:
+            return 0
+        case .Column:
+            return 1
+        case .RowDense:
+            return 2
+        case .ColumnDense:
+            return 2
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+            self = .Row
+        case 1:
+            self = .Column
+        case 2:
+            self = .RowDense
+        case 3:
+            self = .ColumnDense
+        default:
+            return nil
+        }
+    }
+    
+    var cssValue: String {
+        switch self {
+        case .Row:
+            return "row"
+        case .Column:
+            return "column"
+        case .RowDense:
+            return "row-dense"
+        case .ColumnDense:
+            return "column-dense"
+        }
+    }
+}
+
+
+public enum GridPlacement: Codable {
+  case Auto
+  case Line(Int16)
+  case Span(Int16)
+
+
+    internal var type: Int{
+        get{
+            switch (self) {
+            case .Auto: return 0
+            case .Line: return 1
+            case .Span: return 2
+            }
+        }
+        
+    }
+
+    internal var placementValue: Int16{
+        get{
+            switch (self) {
+            case .Auto: return 0
+            case .Line(let value): return value
+            case .Span(let value): return value
+            }
+        }
+        
+    }
+    
+    var cssValue: String {
+        switch self {
+        case .Auto:
+            return "auto"
+        case .Line(let line):
+            return "\(line)"
+        case .Span(let span):
+            return "span \(span)"
+        }
+    }
+    
+    public var jsonValue: String? {
+        do {
+            return try String(data: encoder.encode(self), encoding: .utf8)
+        }catch {return nil}
+    }
+    
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        switch(value){
+        case "auto":
+            self = .Auto
+            break
+        default:
+            let val = value.split(separator: " ")
+            if(value.contains("span")){
+                self = .Span(Int16(String(val.last!))!)
+            }else {
+                self = .Line(Int16(String(val.first!))!)
+            }
+            break
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(cssValue)
+    }
+}
+
+
+@objc(GridPlacementCompatType)
+public enum GridPlacementCompatType: Int, RawRepresentable {
+    case Auto
+    case Line
+    case Span
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Auto:
+            return 0
+        case .Line:
+            return 1
+        case .Span:
+            return 2
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+            self = .Auto
+        case 1:
+            self = .Line
+        case 2:
+            self = .Span
+        default:
+            return nil
+        }
+    }
+}
+
+
+@objc(GridTrackRepetition)
+public enum GridTrackRepetition: Int, RawRepresentable {
+    case AutoFill
+    case AutoFit
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .AutoFill:
+            return 0
+        case .AutoFit:
+            return 1
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+            self = .AutoFill
+        case 1:
+            self = .AutoFit
+        default:
+            return nil
         }
     }
 }
