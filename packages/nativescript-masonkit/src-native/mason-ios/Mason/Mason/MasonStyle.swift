@@ -10,14 +10,33 @@ import Foundation
 
 private func getDimension(_ value: Float,_ type: Int) -> MasonDimension? {
     switch (type) {
-    case 0: return .Points(value)
-    case 1: return .Percent(value)
-    case 2: return .Undefined
-    case 3: return .Auto
+    case 0: return .Auto
+    case 1: return .Points(value)
+    case 2: return .Percent(value)
     default:
         return nil
     }
 }
+
+private func getLengthPercentageAuto(_ value: Float,_ type: Int) -> MasonLengthPercentageAuto? {
+    switch (type) {
+    case 0: return .Auto
+    case 1: return .Points(value)
+    case 2: return .Percent(value)
+    default:
+        return nil
+    }
+}
+
+private func getLengthPercentage(_ value: Float,_ type: Int) -> MasonLengthPercentage? {
+    switch (type) {
+    case 0: return .Points(value)
+    case 1: return .Percent(value)
+    default:
+        return nil
+    }
+}
+
 
 @objc(MasonStyle)
 @objcMembers
@@ -36,13 +55,13 @@ public class MasonStyle: NSObject {
     }
     
     
-    public var display: Display =  Display.Flex {
+    public var display =  Display.Flex {
         didSet {
             isDirty = true
         }
     }
     
-    public var positionType: PositionType = PositionType.Relative{
+    public var position = Position.Relative {
         didSet {
             isDirty = true
         }
@@ -50,120 +69,130 @@ public class MasonStyle: NSObject {
     
     
     // TODO
-    public var direction: Direction = Direction.Inherit{
+    public var direction = Direction.Inherit{
         didSet {
             isDirty = true
         }
     }
     
-    public var flexDirection: FlexDirection = FlexDirection.Row{
+    public var flexDirection = FlexDirection.Row{
         didSet {
             isDirty = true
         }
     }
     
-    public var flexWrap: FlexWrap = FlexWrap.NoWrap{
+    public var flexWrap = FlexWrap.NoWrap{
         didSet {
             isDirty = true
         }
     }
     
-    public var overflow: Overflow = Overflow.Hidden{
+    public var overflow = Overflow.Hidden{
         didSet {
             isDirty = true
         }
     }
     
-    public var alignItems: AlignItems = AlignItems.Stretch{
+    public var alignItems = AlignItems.Normal {
         didSet {
             isDirty = true
         }
     }
     
-    public var alignSelf: AlignSelf = AlignSelf.Auto {
+    public var alignSelf = AlignSelf.Normal {
         didSet {
             isDirty = true
         }
     }
     
-    public var alignContent: AlignContent = AlignContent.FlexStart{
+    public var alignContent = AlignContent.Start{
         didSet {
             isDirty = true
         }
     }
     
-    public var justifyContent: JustifyContent = JustifyContent.FlexStart{
+    public var justifyItems = JustifyItems.Normal {
         didSet {
             isDirty = true
         }
     }
     
-    public var position: MasonRect<MasonDimension> =
-    MasonRect(MasonDimension.Undefined, MasonDimension.Undefined, MasonDimension.Undefined, MasonDimension.Undefined){
+    public var justifySelf = JustifySelf.Normal {
         didSet {
             isDirty = true
         }
     }
     
-    public var positionCompat: MasonRectCompat {
+    public var justifyContent = JustifyContent.Start {
+        didSet {
+            isDirty = true
+        }
+    }
+    
+    public var inset = MasonLengthPercentageAutoRectAuto {
+        didSet {
+            isDirty = true
+        }
+    }
+    
+    public var insetCompat: MasonLengthPercentageAutoRectCompat {
         get {
-            guard let position = position.compat else {
-                let compat = MasonRectCompat(position)
-                position.compat = compat
+            guard let inset = inset.compatLengthAuto else {
+                let compat = MasonLengthPercentageAutoRectCompat(inset)
+                inset.compatLengthAuto = compat
                 return compat
             }
             
-            return position
+            return inset
         }
         set {
-            position = newValue.intoMasonRect()
+            inset = newValue.intoMasonRect()
         }
     }
     
     
-    public func setPositionLeft(_ value: Float, _ type: Int) {
-        guard let left = getDimension(value, type) else {return}
+    public func setInsetLeft(_ value: Float, _ type: Int) {
+        guard let left = getLengthPercentageAuto(value, type) else {return}
         
-        position = MasonRect(left, position.right, position.top, position.bottom)
+        inset = MasonRect(left, inset.right, inset.top, inset.bottom)
     }
     
-    public func setPositionRight(_ value: Float, _ type: Int) {
-        guard let right = getDimension(value, type) else {return}
+    public func setInsetRight(_ value: Float, _ type: Int) {
+        guard let right = getLengthPercentageAuto(value, type) else {return}
         
-        position = MasonRect(position.left, right, position.top, position.bottom)
+        inset = MasonRect(inset.left, right, inset.top, inset.bottom)
     }
     
-    public func setPositionTop(_ value: Float, _ type: Int) {
-        guard let top = getDimension(value, type) else {return}
+    public func setInsetTop(_ value: Float, _ type: Int) {
+        guard let top = getLengthPercentageAuto(value, type) else {return}
         
-        position = MasonRect(position.left, position.right, top, position.bottom)
+        inset = MasonRect(inset.left, inset.right, top, inset.bottom)
     }
     
-    public func setPositionBottom(_ value: Float, _ type: Int) {
-        guard let bottom = getDimension(value, type) else {return}
-        position = MasonRect(position.left, position.right, position.top, bottom)
+    public func setInsetBottom(_ value: Float, _ type: Int) {
+        guard let bottom = getLengthPercentageAuto(value, type) else {return}
+        inset = MasonRect(inset.left, inset.right, inset.top, bottom)
     }
     
-    public func setPositionWithValueType(_ value: Float, _ type: Int) {
-        guard let position = getDimension(value, type) else {return}
+    public func setInsetWithValueType(_ value: Float, _ type: Int) {
+        guard let inset = getLengthPercentageAuto(value, type) else {return}
         
-        self.position = MasonRect(position, position, position, position)
+        self.inset = MasonRect(inset, inset, inset, inset)
     }
     
     
-    public var margin: MasonRect<MasonDimension> =
-    MasonRect(MasonDimension.Undefined, MasonDimension.Undefined, MasonDimension.Undefined, MasonDimension.Undefined){
+    public var margin =  MasonLengthPercentageAutoRectAuto {
         didSet {
             isDirty = true
         }
     }
     
     
-    public var marginCompat: MasonRectCompat {
+    public var marginCompat: MasonLengthPercentageAutoRectCompat {
         get {
-            guard let margin = margin.compat else {
-                let compat = MasonRectCompat(margin)
-                margin.compat = compat
+            guard let margin = margin.compatLengthAuto else {
+                let compat = MasonLengthPercentageAutoRectCompat(margin)
+                margin.compatLengthAuto = compat
                 return compat
             }
             
@@ -176,48 +205,47 @@ public class MasonStyle: NSObject {
     }
     
     public func setMarginLeft(_ value: Float, _ type: Int) {
-        guard let left = getDimension(value, type) else {return}
+        guard let left = getLengthPercentageAuto(value, type) else {return}
         
         margin = MasonRect(left, margin.right, margin.top, margin.bottom)
     }
     
     public func setMarginRight(_ value: Float, _ type: Int) {
-        guard let right = getDimension(value, type) else {return}
+        guard let right = getLengthPercentageAuto(value, type) else {return}
         
         margin = MasonRect(margin.left, right, margin.top, margin.bottom)
     }
     
     public func setMarginTop(_ value: Float, _ type: Int) {
-        guard let top = getDimension(value, type) else {return}
+        guard let top = getLengthPercentageAuto(value, type) else {return}
         
         margin = MasonRect(margin.left, margin.right, top, margin.bottom)
     }
     
     public func setMarginBottom(_ value: Float, _ type: Int) {
-        guard let bottom = getDimension(value, type) else {return}
+        guard let bottom = getLengthPercentageAuto(value, type) else {return}
         margin = MasonRect(margin.left, margin.right, margin.top, bottom)
     }
     
     public func setMarginWithValueType(_ value: Float, _ type: Int) {
-        guard let margin = getDimension(value, type) else {return}
+        guard let margin = getLengthPercentageAuto(value, type) else {return}
         
         self.margin = MasonRect(margin, margin, margin, margin)
     }
     
     
-    public var padding: MasonRect<MasonDimension> =
-    MasonRect(MasonDimension.Undefined, MasonDimension.Undefined, MasonDimension.Undefined, MasonDimension.Undefined){
+    public var padding = MasonLengthPercentageRectZero {
         didSet {
             isDirty = true
         }
     }
     
     
-    public var paddingCompat: MasonRectCompat {
+    public var paddingCompat: MasonLengthPercentageRectCompat {
         get {
-            guard let padding = padding.compat else {
-                let compat = MasonRectCompat(padding)
-                padding.compat = compat
+            guard let padding = padding.compatLength else {
+                let compat = MasonLengthPercentageRectCompat(padding)
+                padding.compatLength = compat
                 return compat
             }
             
@@ -231,47 +259,46 @@ public class MasonStyle: NSObject {
     
     
     public func setPaddingLeft(_ value: Float, _ type: Int) {
-        guard let left = getDimension(value, type) else {return}
+        guard let left = getLengthPercentage(value, type) else {return}
         
         padding = MasonRect(left, padding.right, padding.top, padding.bottom)
     }
     
     public func setPaddingRight(_ value: Float, _ type: Int) {
-        guard let right = getDimension(value, type) else {return}
+        guard let right = getLengthPercentage(value, type) else {return}
         
         padding = MasonRect(padding.left, right, padding.top, padding.bottom)
     }
     
     public func setPaddingTop(_ value: Float, _ type: Int) {
-        guard let top = getDimension(value, type) else {return}
+        guard let top = getLengthPercentage(value, type) else {return}
         
         padding = MasonRect(padding.left, padding.right, top, padding.bottom)
     }
     
     public func setPaddingBottom(_ value: Float, _ type: Int) {
-        guard let bottom = getDimension(value, type) else {return}
+        guard let bottom = getLengthPercentage(value, type) else {return}
         padding = MasonRect(padding.left, padding.right, padding.top, bottom)
     }
     
     public func setPaddingWithValueType(_ value: Float, _ type: Int) {
-        guard let padding = getDimension(value, type) else {return}
+        guard let padding = getLengthPercentage(value, type) else {return}
         
         self.padding = MasonRect(padding, padding, padding, padding)
     }
     
     
-    public var border: MasonRect<MasonDimension> =
-    MasonRect(MasonDimension.Undefined, MasonDimension.Undefined, MasonDimension.Undefined, MasonDimension.Undefined){
+    public var border = MasonLengthPercentageRectZero {
         didSet {
             isDirty = true
         }
     }
     
-    public var borderCompat: MasonRectCompat {
+    public var borderCompat: MasonLengthPercentageRectCompat {
         get {
-            guard let border = border.compat else {
-                let compat = MasonRectCompat(border)
-                border.compat = compat
+            guard let border = border.compatLength else {
+                let compat = MasonLengthPercentageRectCompat(border)
+                border.compatLength = compat
                 return compat
             }
             
@@ -284,30 +311,30 @@ public class MasonStyle: NSObject {
     }
     
     public func setBorderLeft(_ value: Float, _ type: Int) {
-        guard let left = getDimension(value, type) else {return}
+        guard let left = getLengthPercentage(value, type) else {return}
         
         padding = MasonRect(left, padding.right, padding.top, padding.bottom)
     }
     
     public func setBorderRight(_ value: Float, _ type: Int) {
-        guard let right = getDimension(value, type) else {return}
+        guard let right = getLengthPercentage(value, type) else {return}
         
         padding = MasonRect(padding.left, right, padding.top, padding.bottom)
     }
     
     public func setBorderTop(_ value: Float, _ type: Int) {
-        guard let top = getDimension(value, type) else {return}
+        guard let top = getLengthPercentage(value, type) else {return}
         
         padding = MasonRect(padding.left, padding.right, top, padding.bottom)
     }
     
     public func setBorderBottom(_ value: Float, _ type: Int) {
-        guard let bottom = getDimension(value, type) else {return}
+        guard let bottom = getLengthPercentage(value, type) else {return}
         padding = MasonRect(padding.left, padding.right, padding.top, bottom)
     }
     
     public func setBorderWithValueType(_ value: Float, _ type: Int) {
-        guard let padding = getDimension(value, type) else {return}
+        guard let padding = getLengthPercentage(value, type) else {return}
         
         self.padding = MasonRect(padding, padding, padding, padding)
     }
@@ -332,18 +359,18 @@ public class MasonStyle: NSObject {
     }
     
     
-    public var minSize: MasonSize<MasonDimension> = MasonSize(MasonDimension.Auto , MasonDimension.Auto) {
+    public var minSize = MasonDimensionSizeAuto {
         didSet {
             isDirty = true
         }
     }
     
     
-    public var minSizeCompat: MasonSizeCompat {
+    public var minSizeCompat: MasonDimensionSizeCompat {
         get {
-            guard let minSize = minSize.compat else {
-                let compat = MasonSizeCompat(minSize)
-                minSize.compat = compat
+            guard let minSize = minSize.compatDimension else {
+                let compat = MasonDimensionSizeCompat(minSize)
+                minSize.compatDimension = compat
                 return compat
             }
             
@@ -371,17 +398,17 @@ public class MasonStyle: NSObject {
         minSize = MasonSize(wh, wh)
     }
     
-    public var size: MasonSize<MasonDimension> = MasonSize(MasonDimension.Auto , MasonDimension.Auto) {
+    public var size = MasonDimensionSizeAuto {
         didSet {
             isDirty = true
         }
     }
     
-    public var sizeCompat: MasonSizeCompat {
+    public var sizeCompat: MasonDimensionSizeCompat {
         get {
-            guard let size = size.compat else {
-                let compat = MasonSizeCompat(size)
-                size.compat = compat
+            guard let size = size.compatDimension else {
+                let compat = MasonDimensionSizeCompat(size)
+                size.compatDimension = compat
                 return compat
             }
             
@@ -431,17 +458,17 @@ public class MasonStyle: NSObject {
     }
     
     
-    public var maxSize: MasonSize<MasonDimension> = MasonSize(MasonDimension.Auto , MasonDimension.Auto) {
+    public var maxSize = MasonDimensionSizeAuto {
         didSet {
             isDirty = true
         }
     }
     
-    public var maxSizeCompat: MasonSizeCompat {
+    public var maxSizeCompat: MasonDimensionSizeCompat {
         get {
-            guard let maxSize = maxSize.compat else {
-                let compat = MasonSizeCompat(maxSize)
-                maxSize.compat = compat
+            guard let maxSize = maxSize.compatDimension else {
+                let compat = MasonDimensionSizeCompat(maxSize)
+                maxSize.compatDimension = compat
                 return compat
             }
             
@@ -471,38 +498,46 @@ public class MasonStyle: NSObject {
         maxSize = MasonSize(wh, wh)
     }
     
-    public var flexGap: MasonSize<MasonDimension> = MasonSize(MasonDimension.Undefined, MasonDimension.Undefined){
+    public var gap = MasonLengthPercentageSizeZero {
         didSet {
             isDirty = true
         }
     }
     
     
-    public var flexGapCompat: MasonSizeCompat {
+    public var gapCompat: MasonLengthPercentageSizeCompat {
         get {
-            guard let flexGap = flexGap.compat else {
-                let compat = MasonSizeCompat(flexGap)
-                flexGap.compat = compat
+            guard let gap = gap.compatLength else {
+                let compat = MasonLengthPercentageSizeCompat(gap)
+                gap.compatLength = compat
                 return compat
             }
             
-            return flexGap
+            return gap
         }
         
         set {
-            flexGap = newValue.intoMasonSize()
+            gap = newValue.intoMasonSize()
         }
     }
     
-    public func setFlexGapWidth(_ value: Float, _ type: Int) {
-        guard let width = getDimension(value, type) else {return}
-        
-        flexGap = MasonSize(width, flexGap.height)
+    public func setGapRow(_ value: Float, _ type: Int) {
+        setRowGap(value, type)
     }
     
-    public func setFlexGapHeight(_ value: Float, _ type: Int) {
-        guard let height = getDimension(value, type) else {return}
-        flexGap = MasonSize(flexGap.width, height)
+    public func setGapColumn(_ value: Float, _ type: Int) {
+        setColumnGap(value, type)
+    }
+    
+    public func setRowGap(_ value: Float, _ type: Int) {
+        guard let width = getLengthPercentage(value, type) else {return}
+        
+        gap = MasonSize(width, gap.height)
+    }
+    
+    public func setColumnGap(_ value: Float, _ type: Int) {
+        guard let height = getLengthPercentage(value, type) else {return}
+        gap = MasonSize(gap.width, height)
     }
     
     
@@ -512,22 +547,68 @@ public class MasonStyle: NSObject {
         }
     }
     
+    
+    var gridAutoRows: Array<MinMax> = []{
+        didSet{
+          isDirty = true
+        }
+    }
+
+      var gridAutoColumns: Array<MinMax> = []{
+          didSet{
+            isDirty = true
+          }
+      }
+
+      var gridAutoFlow: GridAutoFlow = GridAutoFlow.Row{
+          didSet{
+            isDirty = true
+          }
+      }
+
+      var gridColumn = LineGridPlacementAuto {
+          didSet{
+            isDirty = true
+          }
+      }
+
+      var gridRow =  LineGridPlacementAuto{
+          didSet{
+            isDirty = true
+          }
+      }
+
+      var gridTemplateRows: Array<TrackSizingFunction> = []{
+          didSet{
+            isDirty = true
+          }
+      }
+
+      var gridTemplateColumns: Array<TrackSizingFunction> = []{
+          didSet{
+            isDirty = true
+          }
+      }
+    
+    
     public override var description: String {
         var ret = "(MasonStyle)("
         
         ret += "display: \(display.cssValue), "
-        ret += "positionType: \(positionType.cssValue), "
+        ret += "position: \(position.cssValue), "
         ret += "flexDirection: \(flexDirection.cssValue), "
         ret += "flexWrap: \(flexWrap.cssValue), "
         ret += "alignItems: \(alignItems.cssValue), "
         ret += "alignSelf: \(alignSelf.cssValue), "
         ret += "alignContent: \(alignContent.cssValue), "
+        ret += "justifyItems: \(justifyItems.cssValue), "
+        ret += "justifySelf: \(justifySelf.cssValue), "
         ret += "justifyContent: \(justifyContent.cssValue), "
         ret += "position: \(position.cssValue), "
         ret += "margin: \(margin.cssValue), "
         ret += "padding: \(padding.cssValue), "
         ret += "border: \(border.cssValue), "
-        ret += "flexGap: \(flexGap.cssValue), "
+        ret += "gap: \(gap.cssValue), "
         ret += "flexGrow: \(flexGrow.description),"
         ret += "flexShrink: \(flexShrink.description),"
         ret += "flexBasis: \(flexBasis.cssValue),"
