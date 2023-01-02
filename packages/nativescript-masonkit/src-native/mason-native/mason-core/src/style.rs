@@ -135,6 +135,24 @@ impl Style {
         self.style.flex_wrap = wrap;
     }
 
+
+    pub fn justify_items(&self) -> Option<AlignItems> {
+        self.style.justify_items
+    }
+
+    pub fn set_justify_items(&mut self, align: Option<AlignItems>) {
+        self.style.justify_items = align
+    }
+
+    pub fn justify_self(&self) -> Option<AlignSelf> {
+        self.style.justify_self
+    }
+
+    pub fn set_justify_self(&mut self, align: Option<AlignSelf>) {
+        self.style.justify_self = align
+    }
+    
+
     pub fn justify_content(&self) -> Option<JustifyContent> {
         self.style.justify_content
     }
