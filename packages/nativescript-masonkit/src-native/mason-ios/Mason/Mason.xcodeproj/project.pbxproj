@@ -29,6 +29,14 @@
 		F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E62935935600EC35F4 /* MasonLayout.swift */; };
 		F18483E92935A19500EC35F4 /* MeasureOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E82935A19500EC35F4 /* MeasureOutput.swift */; };
 		F18483EB2937047C00EC35F4 /* mason_native.h in Headers */ = {isa = PBXBuildFile; fileRef = F18483EA2937047C00EC35F4 /* mason_native.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		F1E4F95229622AD60091913B /* MasonRect.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95129622AD60091913B /* MasonRect.swift */; };
+		F1E4F95429622ADF0091913B /* MasonSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95329622ADF0091913B /* MasonSize.swift */; };
+		F1E4F956296231A50091913B /* MasonCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F955296231A50091913B /* MasonCompat.swift */; };
+		F1E4F958296241FD0091913B /* MinMax.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F957296241FD0091913B /* MinMax.swift */; };
+		F1E4F95A296242660091913B /* MinSizing.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F959296242660091913B /* MinSizing.swift */; };
+		F1E4F95C296242700091913B /* MaxSizing.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95B296242700091913B /* MaxSizing.swift */; };
+		F1E4F95E296266A60091913B /* MasonLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95D296266A60091913B /* MasonLine.swift */; };
+		F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,6 +98,14 @@
 		F18483E62935935600EC35F4 /* MasonLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonLayout.swift; sourceTree = "<group>"; };
 		F18483E82935A19500EC35F4 /* MeasureOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasureOutput.swift; sourceTree = "<group>"; };
 		F18483EA2937047C00EC35F4 /* mason_native.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mason_native.h; path = include/mason_native.h; sourceTree = "<group>"; };
+		F1E4F95129622AD60091913B /* MasonRect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonRect.swift; sourceTree = "<group>"; };
+		F1E4F95329622ADF0091913B /* MasonSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonSize.swift; sourceTree = "<group>"; };
+		F1E4F955296231A50091913B /* MasonCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonCompat.swift; sourceTree = "<group>"; };
+		F1E4F957296241FD0091913B /* MinMax.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinMax.swift; sourceTree = "<group>"; };
+		F1E4F959296242660091913B /* MinSizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinSizing.swift; sourceTree = "<group>"; };
+		F1E4F95B296242700091913B /* MaxSizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxSizing.swift; sourceTree = "<group>"; };
+		F1E4F95D296266A60091913B /* MasonLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonLine.swift; sourceTree = "<group>"; };
+		F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSizingFunction.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -170,6 +186,14 @@
 				F18483E62935935600EC35F4 /* MasonLayout.swift */,
 				F18483E82935A19500EC35F4 /* MeasureOutput.swift */,
 				F14AA650293B650900B1510E /* Reexports.swift */,
+				F1E4F95129622AD60091913B /* MasonRect.swift */,
+				F1E4F95329622ADF0091913B /* MasonSize.swift */,
+				F1E4F955296231A50091913B /* MasonCompat.swift */,
+				F1E4F957296241FD0091913B /* MinMax.swift */,
+				F1E4F959296242660091913B /* MinSizing.swift */,
+				F1E4F95B296242700091913B /* MaxSizing.swift */,
+				F1E4F95D296266A60091913B /* MasonLine.swift */,
+				F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */,
 			);
 			path = Mason;
 			sourceTree = "<group>";
@@ -415,12 +439,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F1E4F95E296266A60091913B /* MasonLine.swift in Sources */,
+				F1E4F958296241FD0091913B /* MinMax.swift in Sources */,
 				F18483E329357AC900EC35F4 /* TSCMason.swift in Sources */,
 				F18483E92935A19500EC35F4 /* MeasureOutput.swift in Sources */,
 				F1848391293534D800EC35F4 /* Mason.docc in Sources */,
+				F1E4F95C296242700091913B /* MaxSizing.swift in Sources */,
+				F1E4F95429622ADF0091913B /* MasonSize.swift in Sources */,
 				F18483E129356CD400EC35F4 /* MasonNode.swift in Sources */,
+				F1E4F95A296242660091913B /* MinSizing.swift in Sources */,
 				F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */,
 				F14AA651293B650900B1510E /* Reexports.swift in Sources */,
+				F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */,
+				F1E4F956296231A50091913B /* MasonCompat.swift in Sources */,
+				F1E4F95229622AD60091913B /* MasonRect.swift in Sources */,
 				F18483DD29356C7800EC35F4 /* MasonStyle.swift in Sources */,
 				F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */,
 				F18483DB29356C3A00EC35F4 /* MasonView.swift in Sources */,

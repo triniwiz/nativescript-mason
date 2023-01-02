@@ -1653,277 +1653,97 @@ pub fn mason_node_dirty(mason: i64, node: i64) -> bool {
 }
 
 pub fn mason_style_set_display(style: i64, display: i32) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        if let Some(display) = display_from_enum(display) {
-            let mut style = Box::from_raw(style as *mut Style);
-
-            style.set_display(display);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_display(style as _, display)
 }
 
 pub fn mason_style_get_display(style: i64) -> i32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let display = display_to_enum(style.display());
-
-        Box::leak(style);
-
-        display
-    }
+    mason_core::ffi::style_get_display(style as _)
 }
 
 pub fn mason_node_compute(mason: i64, node: i64) {
-    assert_pointer_address(mason, "mason");
-    assert_pointer_address(node, "node");
-    unsafe {
-        let mut mason = Box::from_raw(mason as *mut Mason);
-        let node = Box::from_raw(node as *mut Node);
-        mason.compute(*node);
-        Box::leak(mason);
-        Box::leak(node);
-    }
+    mason_core::ffi::node_compute(mason as _ , node as _);
 }
 
 pub fn mason_node_compute_min_content(mason: i64, node: i64) {
-    assert_pointer_address(mason, "mason");
-    assert_pointer_address(node, "node");
-    unsafe {
-        let mut mason = Box::from_raw(mason as *mut Mason);
-        let node = Box::from_raw(node as *mut Node);
-        let size = Size::<AvailableSpace>::max_content();
-        mason.compute_size(*node, size);
-        Box::leak(mason);
-        Box::leak(node);
-    }
+    mason_core::ffi::node_compute_min_content(mason as _, node as _)
 }
 
 pub fn mason_node_compute_max_content(mason: i64, node: i64) {
-    assert_pointer_address(mason, "mason");
-    assert_pointer_address(node, "node");
-    unsafe {
-        let mut mason = Box::from_raw(mason as *mut Mason);
-        let node = Box::from_raw(node as *mut Node);
-        let size = Size::<AvailableSpace>::max_content();
-        mason.compute_size(*node, size);
-        Box::leak(mason);
-        Box::leak(node);
-    }
+    mason_core::ffi::node_compute_max_content(mason as _ , node as _)
 }
 
 pub fn mason_node_compute_wh(mason: i64, node: i64, width: f32, height: f32) {
-    assert_pointer_address(mason, "mason");
-    assert_pointer_address(node, "node");
-    unsafe {
-        let mut mason = Box::from_raw(mason as *mut Mason);
-        let node = Box::from_raw(node as *mut Node);
-        mason.compute_wh(*node, width, height);
-        Box::leak(mason);
-        Box::leak(node);
-    }
+   mason_core::ffi::node_compute_wh(mason as _ , node as _, width, height)
 }
 
 pub fn mason_style_get_position(style: i64) -> i32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let position = position_to_enum(style.position());
-
-        Box::leak(style);
-
-        position
-    }
+    mason_core::ffi::style_get_position(style as _)
 }
 
 pub fn mason_style_set_position(style: i64, value: i32) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        if let Some(position) = position_from_enum(value) {
-            let mut style = Box::from_raw(style as *mut Style);
-            style.set_position(position);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_position(style as _ , value)
 }
 
 pub fn mason_style_get_flex_wrap(style: i64) -> i32 {
-    assert_pointer_address(style, "style");
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let wrap = flex_wrap_to_enum(style.flex_wrap());
-
-        Box::leak(style);
-
-        wrap
-    }
+    mason_core::ffi::style_get_flex_wrap(style as _)
 }
 
 pub fn mason_style_set_flex_wrap(style: i64, value: i32) {
-    assert_pointer_address(style, "style");
-    unsafe {
-        if let Some(flex_wrap) = flex_wrap_from_enum(value) {
-            let mut style = Box::from_raw(style as *mut Style);
-
-            style.set_flex_wrap(flex_wrap);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_flex_wrap(style as _, value)
 }
 
 fn mason_style_get_align_items(style: i64) -> i32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = if let Some(value) = style.align_items() {
-            align_items_to_enum(value)
-        } else {
-            -1
-        };
-
-        Box::leak(style);
-
-        ret
-    }
+   mason_core::ffi::style_get_align_items(style as _)
 }
 
 fn mason_style_set_align_items(style: i64, value: i32) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-        if value == -1 {
-            style.set_align_items(None);
-        } else {
-            if let Some(enum_value) = align_items_from_enum(value) {
-                style.set_align_items(Some(enum_value));
-            }
-        }
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_align_items(style as _, value);
 }
 
 fn mason_style_get_align_self(style: i64) -> i32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = if let Some(value) = style.align_self() {
-            align_self_to_enum(value)
-        } else {
-            -1
-        };
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_align_self(style as _)
 }
 
 fn mason_style_set_align_self(style: i64, value: i32) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-        if value == -1 {
-            style.set_align_self(None);
-        } else {
-            if let Some(enum_value) = align_self_from_enum(value) {
-                style.set_align_self(Some(enum_value));
-            }
-        }
-        Box::leak(style);
-    }
+   mason_core::ffi::style_set_align_self(style as _, value)
 }
 
 fn mason_style_get_align_content(style: i64) -> i32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = if let Some(value) = style.align_content() {
-            align_content_to_enum(value)
-        } else {
-            -1
-        };
-
-        Box::leak(style);
-
-        ret
-    }
+    mason_core::ffi::style_get_align_content(style as _)
 }
 
 fn mason_style_set_align_content(style: i64, value: i32) {
-    assert_pointer_address(style, "style");
+   mason_core::ffi::style_set_align_content(style as _ , value)
+}
 
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-        if value == -1 {
-            style.set_align_content(None);
-        } else {
-            if let Some(enum_value) = align_content_from_enum(value) {
-                style.set_align_content(Some(enum_value));
-            }
-        }
+fn mason_style_get_justify_items(style: i64) -> i32 {
+    mason_core::ffi::style_get_justify_items(style as _)
+}
 
-        Box::leak(style);
-    }
+fn mason_style_set_justify_items(style: i64, value: i32) {
+    mason_core::ffi::style_set_justify_items(style as _, value);
+}
+
+fn mason_style_get_justify_self(style: i64) -> i32 {
+    mason_core::ffi::style_get_justify_self(style as _)
+}
+
+fn mason_style_set_justify_self(style: i64, value: i32) {
+    mason_core::ffi::style_set_justify_self(style as _, value)
 }
 
 fn mason_style_get_justify_content(style: i64) -> i32 {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let ret = if let Some(value) = style.justify_content() {
-            justify_content_to_enum(value)
-        } else {
-            -1
-        };
-
-        Box::leak(style);
-
-        ret
-    }
+   mason_core::ffi::style_get_justify_content(style as _)
 }
 
 fn mason_style_set_justify_content(style: i64, value: i32) {
-    assert_pointer_address(style, "style");
-
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-        if value == -1 {
-            style.set_justify_content(None);
-        } else if let Some(enum_value) = justify_content_from_enum(value) {
-            style.set_justify_content(Some(enum_value));
-        }
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_position(style as _, value)
 }
 
 fn mason_style_set_inset(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
-    assert_pointer_address(style, "style");
-
     let position = CMasonLengthPercentageAuto::new(value, value_type);
-
-    let mut style = unsafe { Box::from_raw(style as *mut Style) };
     let rect = Rect::<LengthPercentageAuto>::from_len_auto(position.into());
-    style.set_inset(rect);
-    Box::leak(style);
+    mason_core::ffi::style_set_inset(style as _, rect);
 }
 
 fn mason_style_get_inset_left(style: i64) -> CMasonLengthPercentageAuto {

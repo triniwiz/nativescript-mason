@@ -192,6 +192,7 @@ pub const fn grid_auto_flow_to_enum(value: GridAutoFlow) -> i32 {
 }
 
 pub mod style;
+pub mod ffi;
 
 pub struct MeasureOutput {}
 

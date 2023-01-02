@@ -651,9 +651,9 @@
             filePath = "Mason/MasonStyle.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "143"
-            endingLineNumber = "143"
-            landmarkName = "setPositionBottom(_:_:)"
+            startingLineNumber = "173"
+            endingLineNumber = "173"
+            landmarkName = "setInsetBottom(_:_:)"
             landmarkType = "7">
             <Locations>
                <Location

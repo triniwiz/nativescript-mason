@@ -1,7 +1,31 @@
 use std::ffi::{c_float, c_int, c_void};
 
 use mason_core::style::Style;
-use mason_core::{align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum, align_self_from_enum, align_self_to_enum, display_from_enum, display_to_enum, flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum, justify_content_from_enum, justify_content_to_enum, position_type_from_enum, position_type_to_enum, Dimension, Rect, Size};
+use mason_core::{align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum, align_self_from_enum, align_self_to_enum, display_from_enum, display_to_enum, flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum, justify_content_from_enum, justify_content_to_enum, position_from_enum, position_to_enum, Dimension, Rect, Size, LengthPercentageAuto, LengthPercentage, GridPlacement};
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonMinMax {
+    pub min_type: i32,
+    pub min_value: f32,
+    pub max_type: i32,
+    pub max_value: f32,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum AvailableSpaceType {
+    Definite,
+    MinContent,
+    MaxContent,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct AvailableSpace {
+    pub(crate) value: f32,
+    pub(crate) space_type: AvailableSpaceType,
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -9,7 +33,6 @@ pub enum CMasonDimensionType {
     Points,
     Percent,
     Auto,
-    Undefined,
 }
 
 #[repr(C)]
@@ -19,91 +42,115 @@ pub struct CMasonDimension {
     pub value_type: CMasonDimensionType,
 }
 
-impl CMasonDimension {
-    pub fn new(value: f32, value_type: CMasonDimensionType) -> Self {
-        Self { value, value_type }
-    }
-
-    pub fn undefined() -> Self {
-        Self {
-            value: 0.,
-            value_type: CMasonDimensionType::Undefined,
-        }
-    }
-    pub fn auto() -> Self {
-        Self {
-            value: 0.,
-            value_type: CMasonDimensionType::Auto,
-        }
-    }
-}
-
-impl From<Dimension> for CMasonDimension {
-    fn from(dimension: Dimension) -> Self {
-        match dimension {
-            Dimension::Undefined => CMasonDimension::undefined(),
-            Dimension::Auto => CMasonDimension::auto(),
-            Dimension::Points(points) => CMasonDimension::new(points, CMasonDimensionType::Points),
-            Dimension::Percent(percent) => {
-                CMasonDimension::new(percent, CMasonDimensionType::Percent)
-            }
-        }
-    }
-}
-
-impl From<&Dimension> for CMasonDimension {
-    fn from(dimension: &Dimension) -> Self {
-        match dimension {
-            Dimension::Undefined => CMasonDimension::undefined(),
-            Dimension::Auto => CMasonDimension::auto(),
-            Dimension::Points(points) => CMasonDimension::new(*points, CMasonDimensionType::Points),
-            Dimension::Percent(percent) => {
-                CMasonDimension::new(*percent, CMasonDimensionType::Percent)
-            }
-        }
-    }
-}
-
-impl From<CMasonDimension> for Dimension {
-    fn from(dimension: CMasonDimension) -> Self {
-        match dimension.value_type {
-            CMasonDimensionType::Undefined => Dimension::Undefined,
-            CMasonDimensionType::Auto => Dimension::Auto,
-            CMasonDimensionType::Points => Dimension::Points(dimension.value),
-            CMasonDimensionType::Percent => Dimension::Percent(dimension.value),
-        }
-    }
-}
-
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub struct CMasonRect {
+pub struct CMasonDimensionRect {
     pub left: CMasonDimension,
     pub right: CMasonDimension,
     pub top: CMasonDimension,
     pub bottom: CMasonDimension,
 }
 
-impl From<Rect<Dimension>> for CMasonRect {
-    fn from(rect: Rect<Dimension>) -> Self {
-        Self {
-            left: rect.left().into(),
-            right: rect.right().into(),
-            top: rect.top().into(),
-            bottom: rect.bottom().into(),
-        }
-    }
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonDimensionSize {
+    pub width: CMasonDimension,
+    pub height: CMasonDimension,
 }
 
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub struct CMasonSize {
-    pub width: CMasonDimension,
-    pub height: CMasonDimension,
+pub enum CMasonLengthPercentageAutoType {
+    Points,
+    Percent,
+    Auto,
 }
 
-impl CMasonSize {
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageAuto {
+    pub value: f32,
+    pub value_type: CMasonLengthPercentageAutoType,
+}
+
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageAutoRect {
+    pub left: CMasonLengthPercentageAuto,
+    pub right: CMasonLengthPercentageAuto,
+    pub top: CMasonLengthPercentageAuto,
+    pub bottom: CMasonLengthPercentageAuto,
+}
+
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageAutoSize {
+    pub width: CMasonLengthPercentageAuto,
+    pub height: CMasonLengthPercentageAuto,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CMasonLengthPercentageType {
+    Points,
+    Percent,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentage {
+    pub value: f32,
+    pub value_type: CMasonLengthPercentageType,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageRect {
+    pub left: CMasonLengthPercentage,
+    pub right: CMasonLengthPercentage,
+    pub top: CMasonLengthPercentage,
+    pub bottom: CMasonLengthPercentage,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageSize {
+    pub width: CMasonLengthPercentage,
+    pub height: CMasonLengthPercentage,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CMasonGridPlacementType {
+    Auto,
+    Line,
+    Span,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonGridPlacement {
+    pub value: i16,
+    pub value_type: CMasonGridPlacementType,
+}
+
+
+
+impl CMasonMinMax {
+    pub fn new(min_type: i32, min_value: f32, max_type: i32, max_value: f32) -> Self {
+        Self {
+            min_type,
+            min_value,
+            max_type,
+            max_value,
+        }
+    }
+}
+
+impl CMasonDimensionSize {
     pub fn new(
         width_value: f32,
         width_type: CMasonDimensionType,
@@ -116,12 +163,6 @@ impl CMasonSize {
         }
     }
 
-    pub fn undefined() -> Self {
-        Self {
-            width: CMasonDimension::undefined(),
-            height: CMasonDimension::undefined(),
-        }
-    }
     pub fn auto() -> Self {
         Self {
             width: CMasonDimension::auto(),
@@ -130,7 +171,81 @@ impl CMasonSize {
     }
 }
 
-impl From<Size<Dimension>> for CMasonSize {
+#[allow(clippy::from_over_into)]
+impl Into<mason_core::AvailableSpace> for AvailableSpace {
+    fn into(self) -> mason_core::AvailableSpace {
+        match self.space_type {
+            AvailableSpaceType::Definite => mason_core::AvailableSpace::Definite(self.value),
+            AvailableSpaceType::MinContent => mason_core::AvailableSpace::MinContent,
+            AvailableSpaceType::MaxContent => mason_core::AvailableSpace::MaxContent,
+
+            // making cpp happy
+            _ => mason_core::AvailableSpace::MinContent,
+        }
+    }
+}
+
+impl CMasonDimension {
+    pub fn new(value: f32, value_type: CMasonDimensionType) -> Self {
+        Self { value, value_type }
+    }
+
+    pub fn auto() -> Self {
+        Self {
+            value: 0.,
+            value_type: CMasonDimensionType::Auto,
+        }
+    }
+}
+
+impl From<Dimension> for CMasonDimension {
+    fn from(dimension: Dimension) -> Self {
+        match dimension {
+            Dimension::Auto => CMasonDimension::auto(),
+            Dimension::Points(points) => CMasonDimension::new(points, CMasonDimensionType::Points),
+            Dimension::Percent(percent) => {
+                CMasonDimension::new(percent, CMasonDimensionType::Percent)
+            }
+        }
+    }
+}
+
+impl From<&Dimension> for CMasonDimension {
+    fn from(dimension: &Dimension) -> Self {
+        match dimension {
+            Dimension::Auto => CMasonDimension::auto(),
+            Dimension::Points(points) => CMasonDimension::new(*points, CMasonDimensionType::Points),
+            Dimension::Percent(percent) => {
+                CMasonDimension::new(*percent, CMasonDimensionType::Percent)
+            }
+        }
+    }
+}
+
+impl From<CMasonDimension> for Dimension {
+    fn from(dimension: CMasonDimension) -> Self {
+        match dimension.value_type {
+            CMasonDimensionType::Auto => Dimension::Auto,
+            CMasonDimensionType::Points => Dimension::Points(dimension.value),
+            CMasonDimensionType::Percent => Dimension::Percent(dimension.value),
+            // making cpp happy
+            _ => Dimension::Points(0.),
+        }
+    }
+}
+
+impl From<Rect<Dimension>> for CMasonDimensionRect {
+    fn from(rect: Rect<Dimension>) -> Self {
+        Self {
+            left: rect.left().into(),
+            right: rect.right().into(),
+            top: rect.top().into(),
+            bottom: rect.bottom().into(),
+        }
+    }
+}
+
+impl From<Size<Dimension>> for CMasonDimensionSize {
     fn from(size: Size<Dimension>) -> Self {
         Self {
             width: size.width().into(),
@@ -139,12 +254,257 @@ impl From<Size<Dimension>> for CMasonSize {
     }
 }
 
+impl From<LengthPercentageAuto> for CMasonDimension {
+    fn from(value: LengthPercentageAuto) -> Self {
+        match value {
+            LengthPercentageAuto::Auto => CMasonDimension::auto(),
+            LengthPercentageAuto::Points(points) => {
+                CMasonDimension::new(points, CMasonDimensionType::Points)
+            }
+            LengthPercentageAuto::Percent(percent) => {
+                CMasonDimension::new(percent, CMasonDimensionType::Percent)
+            }
+        }
+    }
+}
+
+
 #[allow(clippy::from_over_into)]
-impl Into<Size<Dimension>> for CMasonSize {
+impl Into<LengthPercentageAuto> for CMasonDimension {
+    fn into(self) -> LengthPercentageAuto {
+        match self.value_type {
+            CMasonDimensionType::Auto => LengthPercentageAuto::Auto,
+            CMasonDimensionType::Points=>  LengthPercentageAuto::Points(self.value),
+            CMasonDimensionType::Percent => LengthPercentageAuto::Percent(self.value)
+        }
+    }
+}
+
+
+
+impl CMasonLengthPercentageAutoSize {
+    pub fn new(
+        width_value: f32,
+        width_type: CMasonLengthPercentageAutoType,
+        height_value: f32,
+        height_type: CMasonLengthPercentageAutoType,
+    ) -> Self {
+        Self {
+            width: CMasonLengthPercentageAuto::new(width_value, width_type),
+            height: CMasonLengthPercentageAuto::new(height_value, height_type),
+        }
+    }
+
+    pub fn auto() -> Self {
+        Self {
+            width: CMasonLengthPercentageAuto::auto(),
+            height: CMasonLengthPercentageAuto::auto(),
+        }
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<Size<Dimension>> for CMasonDimensionSize {
     fn into(self) -> Size<Dimension> {
         Size::<Dimension>::new_with_dim(self.width.into(), self.height.into())
     }
 }
+
+impl CMasonLengthPercentageAuto {
+    pub fn new(value: f32, value_type: CMasonLengthPercentageAutoType) -> Self {
+        Self { value, value_type }
+    }
+
+    pub fn auto() -> Self {
+        Self {
+            value: 0.,
+            value_type: CMasonLengthPercentageAutoType::Auto,
+        }
+    }
+}
+
+impl From<LengthPercentageAuto> for CMasonLengthPercentageAuto {
+    fn from(value: LengthPercentageAuto) -> Self {
+        match value {
+            LengthPercentageAuto::Auto => CMasonLengthPercentageAuto::auto(),
+            LengthPercentageAuto::Points(points) => {
+                CMasonLengthPercentageAuto::new(points, CMasonLengthPercentageAutoType::Points)
+            }
+            LengthPercentageAuto::Percent(percent) => {
+                CMasonLengthPercentageAuto::new(percent, CMasonLengthPercentageAutoType::Percent)
+            }
+        }
+    }
+}
+
+impl From<&LengthPercentageAuto> for CMasonLengthPercentageAuto {
+    fn from(value: &LengthPercentageAuto) -> Self {
+        match value {
+            LengthPercentageAuto::Auto => CMasonLengthPercentageAuto::auto(),
+            LengthPercentageAuto::Points(points) => {
+                CMasonLengthPercentageAuto::new(*points, CMasonLengthPercentageAutoType::Points)
+            }
+            LengthPercentageAuto::Percent(percent) => {
+                CMasonLengthPercentageAuto::new(*percent, CMasonLengthPercentageAutoType::Percent)
+            }
+        }
+    }
+}
+
+impl From<CMasonLengthPercentageAuto> for LengthPercentageAuto {
+    fn from(value: CMasonLengthPercentageAuto) -> Self {
+        match value.value_type {
+            CMasonLengthPercentageAutoType::Auto => LengthPercentageAuto::Auto,
+            CMasonLengthPercentageAutoType::Points => LengthPercentageAuto::Points(value.value),
+            CMasonLengthPercentageAutoType::Percent => LengthPercentageAuto::Percent(value.value),
+            // making cpp happy
+            _ => LengthPercentageAuto::Points(0.),
+        }
+    }
+}
+
+impl From<Rect<LengthPercentageAuto>> for CMasonLengthPercentageAutoRect {
+    fn from(rect: Rect<LengthPercentageAuto>) -> Self {
+        Self {
+            left: rect.left().into(),
+            right: rect.right().into(),
+            top: rect.top().into(),
+            bottom: rect.bottom().into(),
+        }
+    }
+}
+
+impl From<Size<LengthPercentageAuto>> for CMasonLengthPercentageAutoSize {
+    fn from(size: Size<LengthPercentageAuto>) -> Self {
+        Self {
+            width: size.width().into(),
+            height: size.height().into(),
+        }
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<Size<LengthPercentageAuto>> for CMasonLengthPercentageAutoSize {
+    fn into(self) -> Size<LengthPercentageAuto> {
+        Size::<LengthPercentageAuto>::new_with_len_auto(self.width.into(), self.height.into())
+    }
+}
+
+impl CMasonLengthPercentageSize {
+    pub fn new(
+        width_value: f32,
+        width_type: CMasonLengthPercentageType,
+        height_value: f32,
+        height_type: CMasonLengthPercentageType,
+    ) -> Self {
+        Self {
+            width: CMasonLengthPercentage::new(width_value, width_type),
+            height: CMasonLengthPercentage::new(height_value, height_type),
+        }
+    }
+}
+
+impl CMasonLengthPercentage {
+    pub fn new(value: f32, value_type: CMasonLengthPercentageType) -> Self {
+        Self { value, value_type }
+    }
+}
+
+impl From<LengthPercentage> for CMasonLengthPercentage {
+    fn from(value: LengthPercentage) -> Self {
+        match value {
+            LengthPercentage::Points(points) => {
+                CMasonLengthPercentage::new(points, CMasonLengthPercentageType::Points)
+            }
+            LengthPercentage::Percent(percent) => {
+                CMasonLengthPercentage::new(percent, CMasonLengthPercentageType::Percent)
+            }
+        }
+    }
+}
+
+impl From<&LengthPercentage> for CMasonLengthPercentage {
+    fn from(value: &LengthPercentage) -> Self {
+        match value {
+            LengthPercentage::Points(points) => {
+                CMasonLengthPercentage::new(*points, CMasonLengthPercentageType::Points)
+            }
+            LengthPercentage::Percent(percent) => {
+                CMasonLengthPercentage::new(*percent, CMasonLengthPercentageType::Percent)
+            }
+        }
+    }
+}
+
+impl From<CMasonLengthPercentage> for LengthPercentage {
+    fn from(value: CMasonLengthPercentage) -> Self {
+        match value.value_type {
+            CMasonLengthPercentageType::Points => LengthPercentage::Points(value.value),
+            CMasonLengthPercentageType::Percent => LengthPercentage::Percent(value.value),
+            // making cpp happy
+            _ => LengthPercentage::Points(0.),
+        }
+    }
+}
+
+impl From<Rect<LengthPercentage>> for CMasonLengthPercentageRect {
+    fn from(rect: Rect<LengthPercentage>) -> Self {
+        Self {
+            left: rect.left().into(),
+            right: rect.right().into(),
+            top: rect.top().into(),
+            bottom: rect.bottom().into(),
+        }
+    }
+}
+
+impl From<Size<LengthPercentage>> for CMasonLengthPercentageSize {
+    fn from(size: Size<LengthPercentage>) -> Self {
+        Self {
+            width: size.width().into(),
+            height: size.height().into(),
+        }
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<Size<LengthPercentage>> for CMasonLengthPercentageSize {
+    fn into(self) -> Size<LengthPercentage> {
+        Size::<LengthPercentage>::new_with_len(self.width.into(), self.height.into())
+    }
+}
+
+impl From<GridPlacement> for CMasonGridPlacement {
+    fn from(value: GridPlacement) -> Self {
+        match value {
+            GridPlacement::Auto => CMasonGridPlacement {
+                value: 0,
+                value_type: CMasonGridPlacementType::Auto,
+            },
+            GridPlacement::Line(value) => CMasonGridPlacement {
+                value,
+                value_type: CMasonGridPlacementType::Line,
+            },
+            GridPlacement::Span(value) => CMasonGridPlacement {
+                value: value as i16,
+                value_type: CMasonGridPlacementType::Span,
+            },
+        }
+    }
+}
+
+impl Into<GridPlacement> for CMasonGridPlacement {
+    fn into(self) -> GridPlacement {
+        match self.value_type {
+            CMasonGridPlacementType::Auto => GridPlacement::Auto,
+            CMasonGridPlacementType::Line => GridPlacement::Line(self.value),
+            CMasonGridPlacementType::Span => GridPlacement::Span(self.value.try_into().unwrap()),
+            // making cxx happy
+            _ => GridPlacement::Auto,
+        }
+    }
+}
+
 
 #[no_mangle]
 pub extern "C" fn mason_style_init() -> *mut c_void {
@@ -163,69 +523,22 @@ pub extern "C" fn mason_style_destroy(style: *mut c_void) {
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_display(style: *mut c_void) -> c_int {
-    if style.is_null() {
-        return 0;
-    }
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let display = display_to_enum(style.display());
-
-        Box::leak(style);
-
-        display
-    }
+    mason_core::ffi::style_get_display(style)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_display(style: *mut c_void, display: c_int) {
-    if style.is_null() {
-        return;
-    }
-
-    unsafe {
-        if let Some(display) = display_from_enum(display) {
-            let mut style = Box::from_raw(style as *mut Style);
-
-            style.set_display(display);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_display(style, display);
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_position_type(style: *mut c_void, position_type: c_int) {
-    if style.is_null() {
-        return;
-    }
-
-    unsafe {
-        if let Some(position_type) = position_type_from_enum(position_type) {
-            let mut style = Box::from_raw(style as *mut Style);
-
-            style.set_position_type(position_type);
-
-            Box::leak(style);
-        }
-    }
+pub extern "C" fn mason_style_set_position(style: *mut c_void, position: c_int) {
+    mason_core::ffi::style_set_position(style, position);
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_position_type(style: *mut c_void) -> c_int {
-    if style.is_null() {
-        return 0;
-    }
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let position = position_type_to_enum(style.position_type());
-
-        Box::leak(style);
-
-        position
-    }
+pub extern "C" fn mason_style_get_position(style: *mut c_void) -> c_int {
+    mason_core::ffi::style_get_position(style)
 }
 
 #[no_mangle]
@@ -241,66 +554,22 @@ pub extern "C" fn mason_style_get_direction(_style: *mut c_void) -> c_int {
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_flex_direction(style: *mut c_void, direction: c_int) {
-    if style.is_null() {
-        return;
-    }
-
-    unsafe {
-        if let Some(value) = flex_direction_from_enum(direction) {
-            let mut style = Box::from_raw(style as *mut Style);
-            style.set_flex_direction(value);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_flex_direction(style, direction)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_flex_direction(style: *mut c_void) -> c_int {
-    if style.is_null() {
-        return 0;
-    }
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let position = flex_direction_to_enum(style.flex_direction());
-
-        Box::leak(style);
-
-        position
-    }
+    mason_core::ffi::style_get_flex_direction(style)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_flex_wrap(style: *mut c_void, wrap: c_int) {
-    if style.is_null() {
-        return;
-    }
-
-    unsafe {
-        if let Some(value) = flex_wrap_from_enum(wrap) {
-            let mut style = Box::from_raw(style as *mut Style);
-            style.set_flex_wrap(value);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_flex_wrap(style, wrap)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_flex_wrap(style: *mut c_void) -> c_int {
-    if style.is_null() {
-        return 0;
-    }
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let position = flex_wrap_to_enum(style.flex_wrap());
-
-        Box::leak(style);
-
-        position
-    }
+    mason_core::ffi::style_get_flex_wrap(style)
 }
 
 #[no_mangle]
@@ -316,134 +585,66 @@ pub extern "C" fn mason_style_get_overflow(_style: *mut c_void) -> c_int {
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_align_items(style: *mut c_void, align: c_int) {
-    if style.is_null() {
-        return;
-    }
-
-    unsafe {
-        if let Some(value) = align_items_from_enum(align) {
-            let mut style = Box::from_raw(style as *mut Style);
-            style.set_align_items(value);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_align_items(style, align)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_align_items(style: *mut c_void) -> c_int {
-    if style.is_null() {
-        return 0;
-    }
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let align = align_items_to_enum(style.align_items());
-
-        Box::leak(style);
-
-        align
-    }
+    mason_core::ffi::style_get_align_items(style)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_align_self(style: *mut c_void, align: c_int) {
-    if style.is_null() {
-        return;
-    }
-
-    unsafe {
-        if let Some(value) = align_self_from_enum(align) {
-            let mut style = Box::from_raw(style as *mut Style);
-            style.set_align_self(value);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_align_self(style, align)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_align_self(style: *mut c_void) -> c_int {
-    if style.is_null() {
-        return 0;
-    }
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let align = align_self_to_enum(style.align_self());
-
-        Box::leak(style);
-
-        align
-    }
+    mason_core::ffi::style_get_align_self(style)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_align_content(style: *mut c_void, align: c_int) {
-    if style.is_null() {
-        return;
-    }
-
-    unsafe {
-        if let Some(value) = align_content_from_enum(align) {
-            let mut style = Box::from_raw(style as *mut Style);
-            style.set_align_content(value);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_align_content(style, align)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_align_content(style: *mut c_void) -> c_int {
-    if style.is_null() {
-        return 0;
-    }
+    mason_core::ffi::style_get_align_content(style)
+}
 
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
+#[no_mangle]
+pub extern "C" fn mason_style_set_justify_items(style: *mut c_void, align: c_int) {
+    mason_core::ffi::style_set_justify_items(style, align)
+}
 
-        let align = align_content_to_enum(style.align_content());
+#[no_mangle]
+pub extern "C" fn mason_style_get_justify_items(style: *mut c_void) -> c_int {
+    mason_core::ffi::style_get_justify_items(style)
+}
 
-        Box::leak(style);
+#[no_mangle]
+pub extern "C" fn mason_style_set_justify_self(style: *mut c_void, align: c_int) {
+    mason_core::ffi::style_set_justify_self(style, align)
+}
 
-        align
-    }
+#[no_mangle]
+pub extern "C" fn mason_style_get_justify_self(style: *mut c_void) -> c_int {
+    mason_core::ffi::style_get_justify_self(style)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_justify_content(style: *mut c_void, justify: c_int) {
-    if style.is_null() {
-        return;
-    }
-
-    unsafe {
-        if let Some(value) = justify_content_from_enum(justify) {
-            let mut style = Box::from_raw(style as *mut Style);
-            style.set_justify_content(value);
-            Box::leak(style);
-        }
-    }
+    mason_core::ffi::style_set_justify_content(style, justify)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_justify_content(style: *mut c_void) -> c_int {
-    if style.is_null() {
-        return 0;
-    }
-
-    unsafe {
-        let style = Box::from_raw(style as *mut Style);
-
-        let justify = justify_content_to_enum(style.justify_content());
-
-        Box::leak(style);
-
-        justify
-    }
+    mason_core::ffi::style_get_justify_content(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_position(
+pub extern "C" fn mason_style_set_inset(
     style: *mut c_void,
     left_value: c_float,
     left_value_type: CMasonDimensionType,
@@ -454,22 +655,13 @@ pub extern "C" fn mason_style_set_position(
     bottom_value: c_float,
     bottom_value_type: CMasonDimensionType,
 ) {
-    if style.is_null() {
-        return;
-    }
+    let left: LengthPercentageAuto = CMasonDimension::new(left_value, left_value_type).into();
+    let right: LengthPercentageAuto = CMasonDimension::new(right_value, right_value_type).into();
+    let top: LengthPercentageAuto = CMasonDimension::new(top_value, top_value_type).into();
+    let bottom: LengthPercentageAuto = CMasonDimension::new(bottom_value, bottom_value_type).into();
 
-    unsafe {
-        let left = CMasonDimension::new(left_value, left_value_type);
-        let right = CMasonDimension::new(right_value, right_value_type);
-        let top = CMasonDimension::new(top_value, top_value_type);
-        let bottom = CMasonDimension::new(bottom_value, bottom_value_type);
 
-        let mut style = Box::from_raw(style as *mut Style);
-
-        style.set_position_lrtb(left.into(), right.into(), top.into(), bottom.into());
-
-        Box::leak(style);
-    }
+    mason_core::ffi::style_set_inset_lrtb(style, left, right, top, bottom);
 }
 
 #[no_mangle]

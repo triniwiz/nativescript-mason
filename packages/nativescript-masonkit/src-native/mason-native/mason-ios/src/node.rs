@@ -103,7 +103,7 @@ pub extern "C" fn mason_node_new_node_with_measure_func(
 
         let ret = mason
             .new_node_with_measure_func(
-                *style,
+                *style.clone(),
                 MeasureFunc::Boxed(Box::new(
                     move |known_dimensions, available_space| match measure {
                         None => known_dimensions.map(|v| v.unwrap_or(0.0)),
@@ -155,7 +155,7 @@ pub extern "C" fn mason_node_new_node_with_children(
         let data: Vec<Node> = data.iter().map(|v| *(*v)).collect();
 
         let ret = mason
-            .new_node_with_children(*style, &data)
+            .new_node_with_children(*style.clone(), &data)
             .map(|v| Box::into_raw(Box::new(v)))
             .unwrap_or_else(std::ptr::null_mut) as *mut c_void;
 
@@ -298,7 +298,7 @@ pub extern "C" fn mason_node_set_style(mason: *mut c_void, node: *mut c_void, st
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
         let style = Box::from_raw(style as *mut Style);
-        mason.set_style(*node, *style);
+        mason.set_style(*node, *style.clone());
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
@@ -319,7 +319,7 @@ pub extern "C" fn mason_node_update_and_set_style(
         let node = Box::from_raw(node as *mut Node);
         let style = Box::from_raw(style as *mut Style);
 
-        mason.set_style(*node, *style);
+        mason.set_style(*node, *style.clone());
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
@@ -332,7 +332,7 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
     node: *mut c_void,
     style: *mut c_void,
     display: c_int,
-    position_type: c_int,
+    position: c_int,
     direction: c_int,
     flex_direction: c_int,
     flex_wrap: c_int,
@@ -340,15 +340,17 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
     align_items: c_int,
     align_self: c_int,
     align_content: c_int,
+    justify_items: c_int,
+    justify_self: c_int,
     justify_content: c_int,
-    position_left_type: c_int,
-    position_left_value: c_float,
-    position_right_type: c_int,
-    position_right_value: c_float,
-    position_top_type: c_int,
-    position_top_value: c_float,
-    position_bottom_type: c_int,
-    position_bottom_value: c_float,
+    inset_left_type: c_int,
+    inset_left_value: c_float,
+    inset_right_type: c_int,
+    inset_right_value: c_float,
+    inset_top_type: c_int,
+    inset_top_value: c_float,
+    inset_bottom_type: c_int,
+    inset_bottom_value: c_float,
     margin_left_type: c_int,
     margin_left_value: c_float,
     margin_right_type: c_int,
@@ -389,11 +391,25 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
     max_width_value: c_float,
     max_height_type: c_int,
     max_height_value: c_float,
-    flex_gap_width_type: c_int,
-    flex_gap_width_value: c_float,
-    flex_gap_height_type: c_int,
-    flex_gap_height_value: c_float,
+    gap_row_type: c_int,
+    gap_row_value: c_float,
+    gap_column_type: c_int,
+    gap_column_value: c_float,
     aspect_ratio: c_float,
+    grid_auto_rows: *const CMinMax,
+    grid_auto_rows_length: usize,
+    grid_auto_columns: jobjectArray,
+    grid_auto_flow: jint,
+    grid_column_start_type: jint,
+    grid_column_start_value: jshort,
+    grid_column_end_type: jint,
+    grid_column_end_value: jshort,
+    grid_row_start_type: jint,
+    grid_row_start_value: jshort,
+    grid_row_end_type: jint,
+    grid_row_end_value: jshort,
+    grid_template_rows: jobjectArray,
+    grid_template_columns: jobjectArray,
 ) {
     if mason.is_null() || node.is_null() || style.is_null() {
         return;
