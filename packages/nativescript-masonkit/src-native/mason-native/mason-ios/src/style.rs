@@ -1,6 +1,10 @@
 use std::ffi::{c_float, c_int, c_void};
 
-use mason_core::{Dimension, GridPlacement, LengthPercentage, LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction, NonRepeatedTrackSizingFunction, points, Rect, Size, TrackSizingFunction};
+use mason_core::{
+    Dimension, GridPlacement, GridTrackRepetition, LengthPercentage, LengthPercentageAuto, MaxTrackSizingFunction,
+    MinTrackSizingFunction, NonRepeatedTrackSizingFunction, points, Rect, Size,
+    TrackSizingFunction,
+};
 use mason_core::style::{min_max_from_values, Style};
 
 #[repr(C)]
@@ -58,7 +62,6 @@ pub struct CMasonDimensionSize {
     pub height: CMasonDimension,
 }
 
-
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum CMasonLengthPercentageAutoType {
@@ -74,7 +77,6 @@ pub struct CMasonLengthPercentageAuto {
     pub value_type: CMasonLengthPercentageAutoType,
 }
 
-
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CMasonLengthPercentageAutoRect {
@@ -83,7 +85,6 @@ pub struct CMasonLengthPercentageAutoRect {
     pub top: CMasonLengthPercentageAuto,
     pub bottom: CMasonLengthPercentageAuto,
 }
-
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -142,13 +143,127 @@ pub struct CMasonGridPlacement {
 pub struct CMasonNonRepeatedTrackSizingFunction(NonRepeatedTrackSizingFunction);
 
 #[repr(C)]
-#[derive(Clone, PartialEq, Debug)]
-pub struct CMasonTrackSizingFunction(TrackSizingFunction);
+#[derive(Debug)]
+pub struct CMasonNonRepeatedTrackSizingFunctionArray {
+    pub array: *mut CMasonMinMax,
+    pub length: usize,
+}
+
+impl From<Vec<CMasonMinMax>> for CMasonNonRepeatedTrackSizingFunctionArray {
+    fn from(value: Vec<CMasonMinMax>) -> Self {
+        let mut box_slice = value.into_boxed_slice();
+        let array = Self {
+            array: box_slice.as_mut_ptr(),
+            length: box_slice.len(),
+        };
+        let _ = Box::into_raw(box_slice);
+        array
+    }
+}
+
+impl Drop for CMasonNonRepeatedTrackSizingFunctionArray {
+    fn drop(&mut self) {
+        let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(self.array, self.length)) };
+    }
+}
 
 #[repr(C)]
+#[derive(Clone, PartialEq, Debug)]
+pub enum CMasonTrackSizingFunction {
+    Single(CMasonMinMax),
+    Repeat(i32, *mut CMasonMinMaxArray),
+}
+
+impl Drop for CMasonTrackSizingFunction {
+    fn drop(&mut self) {
+        match self {
+            CMasonTrackSizingFunction::Repeat(_, array) => {
+                let _ = unsafe { Box::from_raw(array) };
+            }
+            _ => {}
+        }
+    }
+}
+
+impl From<TrackSizingFunction> for CMasonTrackSizingFunction {
+    fn from(value: TrackSizingFunction) -> Self {
+        match value {
+            TrackSizingFunction::Single(value) => CMasonTrackSizingFunction::Single(value.into()),
+            TrackSizingFunction::AutoRepeat(repetition, tracks) => {
+                CMasonTrackSizingFunction::Repeat(
+                    match repetition {
+                        GridTrackRepetition::AutoFill => 0,
+                        GridTrackRepetition::AutoFit => 1,
+                    },
+                    Box::into_raw(Box::new(
+                        tracks
+                            .into_iter()
+                            .map(|v| v.into())
+                            .collect::<Vec<CMasonMinMax>>()
+                            .into(),
+                    )),
+                )
+            }
+        }
+    }
+}
+
+
+impl Into<TrackSizingFunction> for CMasonTrackSizingFunction {
+    fn into(self) -> TrackSizingFunction {
+        match self {
+            CMasonTrackSizingFunction::Single(value) => TrackSizingFunction::Single(min_max_from_values(
+                value.min_type, value.min_value, value.max_type, value.max_value
+            )),
+            CMasonTrackSizingFunction::Repeat(repetition, tracks) => {
+                TrackSizingFunction::AutoRepeat(
+                    match repetition {
+                        0 => GridTrackRepetition::AutoFill,
+                        1 => GridTrackRepetition::AutoFit,
+                        _ => panic!()
+                    },
+                    {
+                        let slice = unsafe { std::slice::from_raw_parts_mut((*tracks).array, (*tracks).length).to_vec() };
+                        slice.into_iter()
+                            .map(|v|v.into())
+                            .collect()
+                    }
+                )
+            }
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct CMasonTrackSizingFunctionArray {
+    pub array: *mut CMasonTrackSizingFunction,
+    pub length: usize,
+}
+
+impl From<Vec<CMasonTrackSizingFunction>> for CMasonTrackSizingFunctionArray {
+    fn from(value: Vec<CMasonTrackSizingFunction>) -> Self {
+        let mut box_slice = value.into_boxed_slice();
+        let array = Self {
+            array: box_slice.as_mut_ptr(),
+            length: box_slice.len(),
+        };
+        let _ = Box::into_raw(box_slice);
+        array
+    }
+}
+
+impl Drop for CMasonTrackSizingFunctionArray {
+    fn drop(&mut self) {
+        let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(self.array, self.length)) };
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
 pub struct CMasonMinMaxArray {
     pub array: *mut CMasonMinMax,
-    pub length: usize
+    pub length: usize,
 }
 
 impl From<Vec<CMasonMinMax>> for CMasonMinMaxArray {
@@ -168,7 +283,6 @@ impl Drop for CMasonMinMaxArray {
         let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(self.array, self.length)) };
     }
 }
-
 
 impl CMasonMinMax {
     pub fn new(min_type: i32, min_value: f32, max_type: i32, max_value: f32) -> Self {
@@ -190,50 +304,44 @@ impl From<NonRepeatedTrackSizingFunction> for CMasonMinMax {
         let mut max_value: f32 = 0.;
 
         match value.min {
-            MinTrackSizingFunction::Fixed(length) => {
-                match length {
-                    LengthPercentage::Points(points) => {
-                        min_type = 4;
-                        min_value = points;
-                    }
-                    LengthPercentage::Percent(percent) => {
-                        min_type = 3;
-                        min_value = percent;
-                    }
+            MinTrackSizingFunction::Fixed(length) => match length {
+                LengthPercentage::Points(points) => {
+                    min_type = 3;
+                    min_value = points;
                 }
-            }
-            MinTrackSizingFunction::MinContent =>  min_type = 1,
+                LengthPercentage::Percent(percent) => {
+                    min_type = 4;
+                    min_value = percent;
+                }
+            },
+            MinTrackSizingFunction::MinContent => min_type = 1,
             MinTrackSizingFunction::MaxContent => min_type = 2,
-            MinTrackSizingFunction::Auto => min_type = 0
+            MinTrackSizingFunction::Auto => min_type = 0,
         }
 
         match value.max {
-            MaxTrackSizingFunction::Fixed(length) => {
-                match length {
-                    LengthPercentage::Points(points) => {
-                        max_type = 4;
-                        max_value = points;
-                    }
-                    LengthPercentage::Percent(percent) => {
-                        max_type = 3;
-                        max_value = percent;
-                    }
+            MaxTrackSizingFunction::Fixed(length) => match length {
+                LengthPercentage::Points(points) => {
+                    max_type = 3;
+                    max_value = points;
                 }
-            }
+                LengthPercentage::Percent(percent) => {
+                    max_type = 4;
+                    max_value = percent;
+                }
+            },
             MaxTrackSizingFunction::MinContent => max_type = 1,
             MaxTrackSizingFunction::MaxContent => max_type = 2,
-            MaxTrackSizingFunction::FitContent(fit) => {
-                match fit {
-                    LengthPercentage::Points(points) => {
-                        max_type = 6;
-                        max_value = points;
-                    }
-                    LengthPercentage::Percent(percent) => {
-                        max_type = 7;
-                        max_value = percent;
-                    }
+            MaxTrackSizingFunction::FitContent(fit) => match fit {
+                LengthPercentage::Points(points) => {
+                    max_type = 6;
+                    max_value = points;
                 }
-            }
+                LengthPercentage::Percent(percent) => {
+                    max_type = 7;
+                    max_value = percent;
+                }
+            },
             MaxTrackSizingFunction::Auto => max_type = 0,
             MaxTrackSizingFunction::Flex(flex) => {
                 max_type = 5;
@@ -242,6 +350,13 @@ impl From<NonRepeatedTrackSizingFunction> for CMasonMinMax {
         }
 
         CMasonMinMax::new(min_type, min_value, max_type, max_value)
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<NonRepeatedTrackSizingFunction> for CMasonMinMax {
+    fn into(self) -> NonRepeatedTrackSizingFunction {
+        min_max_from_values(self.min_type, self.min_value, self.max_type, self.max_value)
     }
 }
 
@@ -298,7 +413,9 @@ impl From<Dimension> for CMasonDimension {
         match dimension {
             Dimension::Auto => CMasonDimension::auto(),
             Dimension::Points(points) => CMasonDimension::new(points, CMasonDimensionType::Points),
-            Dimension::Percent(percent) =>  CMasonDimension::new(percent, CMasonDimensionType::Percent)
+            Dimension::Percent(percent) => {
+                CMasonDimension::new(percent, CMasonDimensionType::Percent)
+            }
         }
     }
 }
@@ -308,7 +425,7 @@ impl Into<Dimension> for CMasonDimension {
         match self.value_type {
             CMasonDimensionType::Points => Dimension::Points(self.value),
             CMasonDimensionType::Percent => Dimension::Percent(self.value),
-            CMasonDimensionType::Auto => Dimension::Auto
+            CMasonDimensionType::Auto => Dimension::Auto,
         }
     }
 }
@@ -318,7 +435,9 @@ impl From<&Dimension> for CMasonDimension {
         match dimension {
             Dimension::Auto => CMasonDimension::auto(),
             Dimension::Points(points) => CMasonDimension::new(*points, CMasonDimensionType::Points),
-            Dimension::Percent(percent) => CMasonDimension::new(*percent, CMasonDimensionType::Percent)
+            Dimension::Percent(percent) => {
+                CMasonDimension::new(*percent, CMasonDimensionType::Percent)
+            }
         }
     }
 }
@@ -359,20 +478,23 @@ impl From<LengthPercentageAuto> for CMasonDimension {
     fn from(value: LengthPercentageAuto) -> Self {
         match value {
             LengthPercentageAuto::Auto => CMasonDimension::auto(),
-            LengthPercentageAuto::Points(points) => CMasonDimension::new(points, CMasonDimensionType::Points),
-            LengthPercentageAuto::Percent(percent) => CMasonDimension::new(percent, CMasonDimensionType::Percent)
+            LengthPercentageAuto::Points(points) => {
+                CMasonDimension::new(points, CMasonDimensionType::Points)
+            }
+            LengthPercentageAuto::Percent(percent) => {
+                CMasonDimension::new(percent, CMasonDimensionType::Percent)
+            }
         }
     }
 }
-
 
 #[allow(clippy::from_over_into)]
 impl Into<LengthPercentageAuto> for CMasonDimension {
     fn into(self) -> LengthPercentageAuto {
         match self.value_type {
             CMasonDimensionType::Auto => LengthPercentageAuto::Auto,
-            CMasonDimensionType::Points=>  LengthPercentageAuto::Points(self.value),
-            CMasonDimensionType::Percent => LengthPercentageAuto::Percent(self.value)
+            CMasonDimensionType::Points => LengthPercentageAuto::Points(self.value),
+            CMasonDimensionType::Percent => LengthPercentageAuto::Percent(self.value),
         }
     }
 }
@@ -600,7 +722,6 @@ impl Into<GridPlacement> for CMasonGridPlacement {
     }
 }
 
-
 #[no_mangle]
 pub extern "C" fn mason_style_init() -> *mut c_void {
     Style::default().into_raw() as _
@@ -761,10 +882,14 @@ pub extern "C" fn mason_style_set_inset_lrtb(
     bottom_value: c_float,
     bottom_value_type: CMasonLengthPercentageAutoType,
 ) {
-    let left: LengthPercentageAuto = CMasonLengthPercentageAuto::new(left_value, left_value_type).into();
-    let right: LengthPercentageAuto = CMasonLengthPercentageAuto::new(right_value, right_value_type).into();
-    let top: LengthPercentageAuto = CMasonLengthPercentageAuto::new(top_value, top_value_type).into();
-    let bottom: LengthPercentageAuto = CMasonLengthPercentageAuto::new(bottom_value, bottom_value_type).into();
+    let left: LengthPercentageAuto =
+        CMasonLengthPercentageAuto::new(left_value, left_value_type).into();
+    let right: LengthPercentageAuto =
+        CMasonLengthPercentageAuto::new(right_value, right_value_type).into();
+    let top: LengthPercentageAuto =
+        CMasonLengthPercentageAuto::new(top_value, top_value_type).into();
+    let bottom: LengthPercentageAuto =
+        CMasonLengthPercentageAuto::new(bottom_value, bottom_value_type).into();
 
     mason_core::ffi::style_set_inset_lrtb(style, left, right, top, bottom);
 }
@@ -776,7 +901,7 @@ pub extern "C" fn mason_style_set_inset_left(
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let left = CMasonLengthPercentageAuto::new(value, value_type);
-    mason_core::ffi::style_set_inset_left(style,left.into());
+    mason_core::ffi::style_set_inset_left(style, left.into());
 }
 
 #[no_mangle]
@@ -846,7 +971,13 @@ pub extern "C" fn mason_style_set_margin(
     let top = CMasonLengthPercentageAuto::new(top_value, top_value_type);
     let bottom = CMasonLengthPercentageAuto::new(bottom_value, bottom_value_type);
 
-    mason_core::ffi::style_set_margin_lrtb(style, left.into(), right.into(), top.into(), bottom.into())
+    mason_core::ffi::style_set_margin_lrtb(
+        style,
+        left.into(),
+        right.into(),
+        top.into(),
+        bottom.into(),
+    )
 }
 
 #[no_mangle]
@@ -861,7 +992,7 @@ pub extern "C" fn mason_style_set_margin_left(
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_margin_left(style: *mut c_void) -> CMasonLengthPercentageAuto {
-   mason_core::ffi::style_get_margin_left(style).into()
+    mason_core::ffi::style_get_margin_left(style).into()
 }
 
 #[no_mangle]
@@ -926,8 +1057,13 @@ pub extern "C" fn mason_style_set_padding(
     let top = CMasonLengthPercentage::new(top_value, top_value_type);
     let bottom = CMasonLengthPercentage::new(bottom_value, bottom_value_type);
 
-    mason_core::ffi::style_set_padding_lrtb(style,left.into(), right.into(), top.into(), bottom.into());
-
+    mason_core::ffi::style_set_padding_lrtb(
+        style,
+        left.into(),
+        right.into(),
+        top.into(),
+        bottom.into(),
+    );
 }
 
 #[no_mangle]
@@ -1006,7 +1142,13 @@ pub extern "C" fn mason_style_set_border(
     let right = CMasonLengthPercentage::new(right_value, right_value_type);
     let top = CMasonLengthPercentage::new(top_value, top_value_type);
     let bottom = CMasonLengthPercentage::new(bottom_value, bottom_value_type);
-    mason_core::ffi::style_set_border_lrtb(style, left.into(), right.into(), top.into(), bottom.into())
+    mason_core::ffi::style_set_border_lrtb(
+        style,
+        left.into(),
+        right.into(),
+        top.into(),
+        bottom.into(),
+    )
 }
 
 #[no_mangle]
@@ -1081,7 +1223,7 @@ pub extern "C" fn mason_style_get_flex_grow(style: *mut c_void) -> c_float {
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_flex_shrink(style: *mut c_void, shrink: c_float) {
-   mason_core::ffi::style_set_flex_shrink(style, shrink)
+    mason_core::ffi::style_set_flex_shrink(style, shrink)
 }
 
 #[no_mangle]
@@ -1224,7 +1366,7 @@ pub extern "C" fn mason_style_set_row_gap(
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_row_gap(style: *mut c_void) -> CMasonLengthPercentage {
-   mason_core::ffi::style_get_row_gap(style).into()
+    mason_core::ffi::style_get_row_gap(style).into()
 }
 
 #[no_mangle]
@@ -1244,7 +1386,7 @@ pub extern "C" fn mason_style_get_column_gap(style: *mut c_void) -> CMasonLength
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_aspect_ratio(style: *mut c_void, ratio: c_float) {
-   mason_core::ffi::style_set_aspect_ratio(style, ratio)
+    mason_core::ffi::style_set_aspect_ratio(style, ratio)
 }
 
 #[no_mangle]
@@ -1259,21 +1401,22 @@ pub extern "C" fn mason_style_get_grid_auto_rows(style: *mut c_void) -> *mut CMa
         .map(|v| v.into())
         .collect();
 
-    Box::into_raw(
-        Box::new(ret.into())
-    )
+    Box::into_raw(Box::new(ret.into()))
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_grid_auto_rows(style: *mut c_void, value: *mut CMasonMinMaxArray) {
-    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length)};
+pub extern "C" fn mason_style_set_grid_auto_rows(
+    style: *mut c_void,
+    value: *mut CMasonMinMaxArray,
+) {
+    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
 
-
-    mason_core::ffi::style_set_grid_auto_rows(style as _,
-                                                 slice.iter()
-                                                     .map(|v| {
-                                                         min_max_from_values((*v).min_type, v.min_value, v.max_type, v.max_value)
-                                                     }).collect()
+    mason_core::ffi::style_set_grid_auto_rows(
+        style as _,
+        slice
+            .iter()
+            .map(|v| min_max_from_values((*v).min_type, v.min_value, v.max_type, v.max_value))
+            .collect(),
     )
 }
 
@@ -1284,22 +1427,22 @@ pub extern "C" fn mason_style_get_grid_auto_columns(style: *mut c_void) -> *mut 
         .map(|v| v.into())
         .collect();
 
-    Box::into_raw(
-        Box::new(ret.into())
-    )
+    Box::into_raw(Box::new(ret.into()))
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_grid_auto_columns(style: *mut c_void, value: *mut CMasonMinMaxArray) {
+pub extern "C" fn mason_style_set_grid_auto_columns(
+    style: *mut c_void,
+    value: *mut CMasonMinMaxArray,
+) {
+    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
 
-    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length)};
-
-
-    mason_core::ffi::style_set_grid_auto_columns(style as _,
-                                                 slice.iter()
-                                                     .map(|v| {
-                                                         min_max_from_values((*v).min_type, v.min_value, v.max_type, v.max_value)
-                                                     }).collect()
+    mason_core::ffi::style_set_grid_auto_columns(
+        style as _,
+        slice
+            .iter()
+            .map(|v| min_max_from_values((*v).min_type, v.min_value, v.max_type, v.max_value))
+            .collect(),
     )
 }
 
@@ -1319,8 +1462,11 @@ pub extern "C" fn mason_style_get_grid_column_start(style: *mut c_void) -> CMaso
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_grid_column_start(style: *mut c_void, value: CMasonGridPlacement) {
-    mason_core::ffi::style_set_grid_column_start(style as  _, value.into())
+pub extern "C" fn mason_style_set_grid_column_start(
+    style: *mut c_void,
+    value: CMasonGridPlacement,
+) {
+    mason_core::ffi::style_set_grid_column_start(style as _, value.into())
 }
 
 #[no_mangle]
@@ -1330,7 +1476,7 @@ pub extern "C" fn mason_style_get_grid_column_end(style: *mut c_void) -> CMasonG
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_column_end(style: *mut c_void, value: CMasonGridPlacement) {
-    mason_core::ffi::style_set_grid_column_end(style as  _, value.into())
+    mason_core::ffi::style_set_grid_column_end(style as _, value.into())
 }
 
 #[no_mangle]
@@ -1340,7 +1486,7 @@ pub extern "C" fn mason_style_get_grid_row_start(style: *mut c_void) -> CMasonGr
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_row_start(style: *mut c_void, value: CMasonGridPlacement) {
-    mason_core::ffi::style_set_grid_row_start(style as  _, value.into())
+    mason_core::ffi::style_set_grid_row_start(style as _, value.into())
 }
 
 #[no_mangle]
@@ -1350,43 +1496,76 @@ pub extern "C" fn mason_style_get_grid_row_end(style: *mut c_void) -> CMasonGrid
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_row_end(style: *mut c_void, value: CMasonGridPlacement) {
-    mason_core::ffi::style_set_grid_row_end(style as  _, value.into())
+    mason_core::ffi::style_set_grid_row_end(style as _, value.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_grid_template_rows(style: *mut c_void) -> Vec<CMasonTrackSizingFunction> {
-    mason_core::ffi::style_get_grid_template_rows(style as _)
-        .into_iter()
-        .map(CMasonTrackSizingFunction)
+pub extern "C" fn mason_style_get_grid_template_rows(
+    style: *mut c_void,
+) -> *mut CMasonTrackSizingFunctionArray {
+    Box::into_raw(Box::new(
+        mason_core::ffi::style_get_grid_template_rows(style as _)
+            .into_iter()
+            .map(|v| v.into())
+            .collect::<Vec<CMasonTrackSizingFunction>>()
+            .into(),
+    ))
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_template_rows(
+    style: *mut c_void,
+    value: *mut CMasonTrackSizingFunctionArray,
+) {
+    mason_core::ffi::style_set_grid_template_rows(
+        style as _,
+        to_vec_track_sizing_function(value),
+    )
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_template_columns(
+    style: *mut c_void,
+) -> *mut CMasonTrackSizingFunctionArray {
+    Box::into_raw(Box::new(
+        mason_core::ffi::style_get_grid_template_columns(style as _)
+            .into_iter()
+            .map(|v| v.into())
+            .collect::<Vec<CMasonTrackSizingFunction>>()
+            .into(),
+    ))
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_template_columns(
+    style: i64,
+    value: *mut CMasonTrackSizingFunctionArray,
+) {
+    mason_core::ffi::style_set_grid_template_columns(
+        style as _,
+        to_vec_track_sizing_function(value),
+    )
+}
+
+pub fn to_vec_non_repeated_track_sizing_function(
+    value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+) -> Vec<NonRepeatedTrackSizingFunction> {
+    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
+
+    slice
+        .iter()
+        .map(|v| min_max_from_values((*v).min_type, v.min_value, v.max_type, v.max_value))
         .collect()
 }
 
+pub fn to_vec_track_sizing_function(
+    value: *mut CMasonTrackSizingFunctionArray,
+) -> Vec<TrackSizingFunction> {
+    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) .to_vec()};
 
-#[no_mangle]
-pub extern "C" fn mason_style_set_grid_template_rows(style: *mut c_void, value: *mut CMasonMinMaxArray) {
-
-    let slice = unsafe { std::slice::from_raw_parts_mut(value.array, value.length)};
-
-    slice.iter()
-        .map(|v| {
-
-        })
-    value.into_iter().map(|v| v.0).collect()
-
-    mason_core::ffi::style_set_grid_template_rows(style as _, )
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_get_grid_template_columns(style: *mut c_void) -> Vec<CMasonTrackSizingFunction> {
-    mason_core::ffi::style_get_grid_template_columns(style as _)
-        .into_iter()
-        .map(CMasonTrackSizingFunction)
-        .collect()
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_set_grid_template_columns(style: i64, value: Vec<CMasonTrackSizingFunction>) {
-    mason_core::ffi::style_set_grid_template_columns(style as _, value.into_iter().map(|v| v.0).collect())
+    slice.into_iter().map(|v| {
+        v.into()
+    }).collect()
 }
 
 #[no_mangle]
@@ -1451,12 +1630,30 @@ pub extern "C" fn mason_style_init_with_values(
     max_width_value: c_float,
     max_height_type: c_int,
     max_height_value: c_float,
-    flex_gap_width_type: c_int,
-    flex_gap_width_value: c_float,
-    flex_gap_height_type: c_int,
-    flex_gap_height_value: c_float,
-    aspect_ratio: c_float,
+    gap_row_type: i32,
+    gap_row_value: f32,
+    gap_column_type: i32,
+    gap_column_value: f32,
+    aspect_ratio: f32,
+    grid_auto_rows: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_columns: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_flow: i32,
+    grid_column_start_type: i32,
+    grid_column_start_value: i16,
+    grid_column_end_type: i32,
+    grid_column_end_value: i16,
+    grid_row_start_type: i32,
+    grid_row_start_value: i16,
+    grid_row_end_type: i32,
+    grid_row_end_value: i16,
+    grid_template_rows: *mut CMasonTrackSizingFunctionArray,
+    grid_template_columns: *mut CMasonTrackSizingFunctionArray,
 ) -> *mut c_void {
+    let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
+    let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
+    let grid_template_rows = to_vec_track_sizing_function(grid_template_rows);
+    let grid_template_columns = to_vec_track_sizing_function(grid_template_columns);
+
     Box::into_raw(Box::new(Style::from_ffi(
         display,
         position_type,
@@ -1518,11 +1715,24 @@ pub extern "C" fn mason_style_init_with_values(
         max_width_value,
         max_height_type,
         max_height_value,
-        flex_gap_width_type,
-        flex_gap_width_value,
-        flex_gap_height_type,
-        flex_gap_height_value,
+        gap_row_type,
+        gap_row_value,
+        gap_column_type,
+        gap_column_value,
         aspect_ratio,
+        grid_auto_rows,
+        grid_auto_columns,
+        grid_auto_flow,
+        grid_column_start_type,
+        grid_column_start_value,
+        grid_column_end_type,
+        grid_column_end_value,
+        grid_row_start_type,
+        grid_row_start_value,
+        grid_row_end_type,
+        grid_row_end_value,
+        grid_template_rows,
+        grid_template_columns
     ))) as *mut c_void
 }
 
@@ -1538,15 +1748,17 @@ pub extern "C" fn mason_style_update_with_values(
     align_items: c_int,
     align_self: c_int,
     align_content: c_int,
+    justify_items: c_int,
+    justify_self: c_int,
     justify_content: c_int,
-    position_left_type: c_int,
-    position_left_value: c_float,
-    position_right_type: c_int,
-    position_right_value: c_float,
-    position_top_type: c_int,
-    position_top_value: c_float,
-    position_bottom_type: c_int,
-    position_bottom_value: c_float,
+    inset_left_type: c_int,
+    inset_left_value: c_float,
+    inset_right_type: c_int,
+    inset_right_value: c_float,
+    inset_top_type: c_int,
+    inset_top_value: c_float,
+    inset_bottom_type: c_int,
+    inset_bottom_value: c_float,
     margin_left_type: c_int,
     margin_left_value: c_float,
     margin_right_type: c_int,
@@ -1587,12 +1799,30 @@ pub extern "C" fn mason_style_update_with_values(
     max_width_value: c_float,
     max_height_type: c_int,
     max_height_value: c_float,
-    flex_gap_width_type: c_int,
-    flex_gap_width_value: c_float,
-    flex_gap_height_type: c_int,
-    flex_gap_height_value: c_float,
-    aspect_ratio: c_float,
+    gap_row_type: i32,
+    gap_row_value: f32,
+    gap_column_type: i32,
+    gap_column_value: f32,
+    aspect_ratio: f32,
+    grid_auto_rows: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_columns: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_flow: i32,
+    grid_column_start_type: i32,
+    grid_column_start_value: i16,
+    grid_column_end_type: i32,
+    grid_column_end_value: i16,
+    grid_row_start_type: i32,
+    grid_row_start_value: i16,
+    grid_row_end_type: i32,
+    grid_row_end_value: i16,
+    grid_template_rows: *mut CMasonTrackSizingFunctionArray,
+    grid_template_columns: *mut CMasonTrackSizingFunctionArray,
 ) {
+    let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
+    let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
+    let grid_template_rows = to_vec_track_sizing_function(grid_template_rows);
+    let grid_template_columns = to_vec_track_sizing_function(grid_template_columns);
+
     unsafe {
         let mut style = Box::from_raw(style as *mut Style);
         Style::update_from_ffi(
@@ -1606,15 +1836,17 @@ pub extern "C" fn mason_style_update_with_values(
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
-            position_left_type,
-            position_left_value,
-            position_right_type,
-            position_right_value,
-            position_top_type,
-            position_top_value,
-            position_bottom_type,
-            position_bottom_value,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
             margin_left_type,
             margin_left_value,
             margin_right_type,
@@ -1655,11 +1887,24 @@ pub extern "C" fn mason_style_update_with_values(
             max_width_value,
             max_height_type,
             max_height_value,
-            flex_gap_width_type,
-            flex_gap_width_value,
-            flex_gap_height_type,
-            flex_gap_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
             aspect_ratio,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_column_start_type,
+            grid_column_start_value,
+            grid_column_end_type,
+            grid_column_end_value,
+            grid_row_start_type,
+            grid_row_start_value,
+            grid_row_end_type,
+            grid_row_end_value,
+            grid_template_rows,
+            grid_template_columns
         );
         Box::leak(style);
     }
