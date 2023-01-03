@@ -616,9 +616,14 @@ public class MasonStyle: NSObject {
         ret += "minSize: \(minSize.cssValue),"
         ret += "maxSize: \(maxSize.cssValue),"
         ret += "aspectRatio: \(maxSize.cssValue)"
-        
+        ret += "gridAutoRows: \(gridAutoRows)"
+        ret += "gridAutoColumns: \(gridAutoColumns)"
+        ret += "gridColumn: \(gridColumn.start.cssValue) \\ \(gridColumn.end.cssValue)"
+        ret += "gridRow: \(gridRow.start.cssValue) \\ \(gridRow.end.cssValue)"
+        ret += "gridTemplateRows: \(gridTemplateRows)"
+        ret += "gridTemplateColumns: \(gridTemplateColumns)"
         ret += ")"
-        
+    
         return ret
     }
 }
