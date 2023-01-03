@@ -44,16 +44,16 @@ pub fn min_max_from_values(
             0 => MinTrackSizingFunction::AUTO,
             1 => MinTrackSizingFunction::MIN_CONTENT,
             2 => MinTrackSizingFunction::MAX_CONTENT,
-            3 => MinTrackSizingFunction::from_percent(min_value),
-            4 => MinTrackSizingFunction::from_points(min_value),
+            3 => MinTrackSizingFunction::from_points(min_value),
+            4 => MinTrackSizingFunction::from_percent(min_value),
             _ => panic!(),
         },
         max: match max_type {
             0 => MaxTrackSizingFunction::AUTO,
             1 => MaxTrackSizingFunction::MIN_CONTENT,
             2 => MaxTrackSizingFunction::MAX_CONTENT,
-            3 => MaxTrackSizingFunction::from_percent(max_value),
-            4 => MaxTrackSizingFunction::from_points(max_value),
+            3 => MaxTrackSizingFunction::from_points(max_value),
+            4 => MaxTrackSizingFunction::from_percent(max_value),
             5 => MaxTrackSizingFunction::from_flex(max_value),
             6 => MaxTrackSizingFunction::fit_content(LengthPercentage::Points(max_value)),
             7 => MaxTrackSizingFunction::fit_content(LengthPercentage::Percent(max_value)),
@@ -151,7 +151,7 @@ impl Style {
     pub fn set_justify_self(&mut self, align: Option<AlignSelf>) {
         self.style.justify_self = align
     }
-    
+
 
     pub fn justify_content(&self) -> Option<JustifyContent> {
         self.style.justify_content
