@@ -77,38 +77,38 @@ extension UIView {
     
     @objc public func setPadding(_ left: Float,_ top:Float, _ right: Float,_ bottom: Float) {
         mason.style.padding = MasonRect(
-            MasonDimension.Points(left),
-            MasonDimension.Points(right),
-            MasonDimension.Points(top),
-            MasonDimension.Points(bottom)
+            MasonLengthPercentage.Points(left),
+            MasonLengthPercentage.Points(right),
+            MasonLengthPercentage.Points(top),
+            MasonLengthPercentage.Points(bottom)
         )
     }
     
     @objc public func setBorder(_ left: Float,_ top: Float,_ right: Float, _ bottom: Float) {
         mason.style.border = MasonRect(
-            MasonDimension.Points(left),
-            MasonDimension.Points(right),
-            MasonDimension.Points(top),
-            MasonDimension.Points(bottom)
+            MasonLengthPercentage.Points(left),
+            MasonLengthPercentage.Points(right),
+            MasonLengthPercentage.Points(top),
+            MasonLengthPercentage.Points(bottom)
         )
     }
     
     @objc public func setMargin(_ left: Float, _ top: Float,_ right: Float,_ bottom: Float) {
         mason.style.margin = MasonRect(
-            MasonDimension.Points(left),
-            MasonDimension.Points(right),
-            MasonDimension.Points(top),
-            MasonDimension.Points(bottom)
+            MasonLengthPercentageAuto.Points(left),
+            MasonLengthPercentageAuto.Points(right),
+            MasonLengthPercentageAuto.Points(top),
+            MasonLengthPercentageAuto.Points(bottom)
         )
         mason.updateNodeStyle()
     }
     
-    @objc public func setPosition(_ left: Float,_  top: Float, _ right: Float,_  bottom: Float) {
-        mason.style.position = MasonRect(
-            MasonDimension.Points(left),
-            MasonDimension.Points(right),
-            MasonDimension.Points(top),
-            MasonDimension.Points(bottom)
+    @objc public func setInset(_ left: Float,_  top: Float, _ right: Float,_  bottom: Float) {
+        mason.style.inset = MasonRect(
+            MasonLengthPercentageAuto.Points(left),
+            MasonLengthPercentageAuto.Points(right),
+            MasonLengthPercentageAuto.Points(top),
+            MasonLengthPercentageAuto.Points(bottom)
         )
         mason.updateNodeStyle()
     }
@@ -137,10 +137,10 @@ extension UIView {
         mason.updateNodeStyle()
     }
     
-    @objc public func setFlexGap(_ width: Float,_ height: Float) {
-        mason.style.flexGap = MasonSize(
-            MasonDimension.Points(width),
-            MasonDimension.Points(height)
+    @objc public func setGap(_ width: Float,_ height: Float) {
+        mason.style.gap = MasonSize(
+            MasonLengthPercentage.Points(width),
+            MasonLengthPercentage.Points(height)
         )
         mason.updateNodeStyle()
     }
