@@ -755,7 +755,7 @@ void mason_style_set_grid_template_rows(void *style, struct CMasonTrackSizingFun
 
 struct CMasonTrackSizingFunctionArray *mason_style_get_grid_template_columns(void *style);
 
-void mason_style_set_grid_template_columns(int64_t style,
+void mason_style_set_grid_template_columns(void *style,
                                            struct CMasonTrackSizingFunctionArray *value);
 
 void *mason_style_init_with_values(int display,
