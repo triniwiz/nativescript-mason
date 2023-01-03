@@ -699,8 +699,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "659"
-            endingLineNumber = "659"
+            startingLineNumber = "779"
+            endingLineNumber = "779"
             landmarkName = "measureFunction(_:_:_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -715,8 +715,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "613"
-            endingLineNumber = "613"
+            startingLineNumber = "733"
+            endingLineNumber = "733"
             landmarkName = "attachNodesFromView(_:)"
             landmarkType = "7">
             <Locations>
@@ -763,8 +763,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "569"
-            endingLineNumber = "569"
+            startingLineNumber = "689"
+            endingLineNumber = "689"
             landmarkName = "isLeaf"
             landmarkType = "24">
             <Locations>
@@ -811,8 +811,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "591"
-            endingLineNumber = "591"
+            startingLineNumber = "711"
+            endingLineNumber = "711"
             landmarkName = "attachNodesFromView(_:)"
             landmarkType = "7">
             <Locations>
@@ -859,8 +859,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "565"
-            endingLineNumber = "565"
+            startingLineNumber = "685"
+            endingLineNumber = "685"
             landmarkName = "isLeaf"
             landmarkType = "24">
             <Locations>
@@ -922,8 +922,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "566"
-            endingLineNumber = "566"
+            startingLineNumber = "686"
+            endingLineNumber = "686"
             landmarkName = "isLeaf"
             landmarkType = "24">
             <Locations>
@@ -970,8 +970,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "615"
-            endingLineNumber = "615"
+            startingLineNumber = "735"
+            endingLineNumber = "735"
             landmarkName = "attachNodesFromView(_:)"
             landmarkType = "7">
             <Locations>
@@ -1033,8 +1033,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "618"
-            endingLineNumber = "618"
+            startingLineNumber = "738"
+            endingLineNumber = "738"
             landmarkName = "attachNodesFromView(_:)"
             landmarkType = "7">
             <Locations>
@@ -1096,8 +1096,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "524"
-            endingLineNumber = "524"
+            startingLineNumber = "644"
+            endingLineNumber = "644"
             landmarkName = "removeAllChildren()"
             landmarkType = "7">
          </BreakpointContent>
@@ -1160,8 +1160,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "681"
-            endingLineNumber = "681"
+            startingLineNumber = "801"
+            endingLineNumber = "801"
             landmarkName = "measureFunction(_:_:_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -1176,8 +1176,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "683"
-            endingLineNumber = "683"
+            startingLineNumber = "803"
+            endingLineNumber = "803"
             landmarkName = "measureFunction(_:_:_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -1192,8 +1192,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "685"
-            endingLineNumber = "685"
+            startingLineNumber = "805"
+            endingLineNumber = "805"
             landmarkName = "measureFunction(_:_:_:)"
             landmarkType = "7">
          </BreakpointContent>
