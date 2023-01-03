@@ -1219,7 +1219,7 @@ public enum GridPlacement: Codable {
   case Span(Int16)
 
 
-    internal var type: Int{
+    internal var type: Int32{
         get{
             switch (self) {
             case .Auto: return 0
