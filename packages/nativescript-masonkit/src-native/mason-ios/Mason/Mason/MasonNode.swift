@@ -107,12 +107,72 @@ public class MasonNode: NSObject {
     }
     
     
+    static func to_vec_min_max( array: Array<MinMax>) -> CMasonMinMaxArray {
+        let length = array.count
+        var cArray = array.map({ minMax in
+            minMax.cValue
+        })
+        return CMasonMinMaxArray(array: cArray.withUnsafeMutableBytes({ ptr in
+            ptr.baseAddress?.assumingMemoryBound(to: CMasonMinMax.self)
+        }), length: UInt(length))
+    }
+    
+    
+    static func to_vec_non_repeated_track_sizing_function(_ array: Array<MinMax>) -> CMasonNonRepeatedTrackSizingFunctionArray {
+        let length = array.count
+        var cArray = array.map({ minMax in
+            minMax.cValue
+        })
+        return CMasonNonRepeatedTrackSizingFunctionArray(array: cArray.withUnsafeMutableBytes({ ptr in
+            ptr.baseAddress?.assumingMemoryBound(to: CMasonMinMax.self)
+        }), length: UInt(length))
+    }
+    
+    
+    static func to_vec_track_sizing_function(_ array: Array<TrackSizingFunction>) -> CMasonTrackSizingFunctionArray {
+        let length = array.count
+        var ret = array.map { trackSizingFunction in
+            var fun = CMasonTrackSizingFunction()
+            switch(trackSizingFunction){
+            case .Single(let value):
+                fun.single = value.cValue
+            case .AutoRepeat(let trackRepetition, let tracks):
+                var rep = -1
+                switch(trackRepetition){
+                case .AutoFill:
+                    rep = 0
+                case .AutoFit:
+                   rep = 1
+                }
+                
+                var value = to_vec_min_max(array: tracks)
+                // todo
+                fun.repeat =  Repeat_Body(_0: Int32(rep), _1: &value)
+            }
+            
+            return fun
+        }
+        
+        return CMasonTrackSizingFunctionArray(array: ret.withUnsafeMutableBytes({ ptr in
+            ptr.baseAddress?.assumingMemoryBound(to: CMasonTrackSizingFunction.self)
+        }), length: UInt(length))
+        
+    }
+    
     internal func updateNodeStyle() {
         if (style.isDirty) {
+            
+            var gridAutoRows = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoRows)
+            var gridAutoColumns = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoColumns)
+            var gridTemplateRows = MasonNode.to_vec_track_sizing_function(style.gridTemplateRows)
+            var gridTemplateColumns = MasonNode.to_vec_track_sizing_function(style.gridTemplateColumns)
+            
+            
+            
             mason_node_update_and_set_style_with_values(
                 TSCMason.instance.nativePtr, nativePtr, style.nativePtr,
                 style.display.rawValue,
-                style.positionType.rawValue,
+                style.position.rawValue,
                 style.direction.rawValue,
                 style.flexDirection.rawValue,
                 style.flexWrap.rawValue,
@@ -120,16 +180,18 @@ public class MasonNode: NSObject {
                 style.alignItems.rawValue,
                 style.alignSelf.rawValue,
                 style.alignContent.rawValue,
+                style.justifyItems.rawValue,
+                style.justifySelf.rawValue,
                 style.justifyContent.rawValue,
                 
-                style.position.left.type,
-                style.position.left.value,
-                style.position.right.type,
-                style.position.right.value,
-                style.position.top.type,
-                style.position.top.value,
-                style.position.bottom.type,
-                style.position.bottom.value,
+                style.inset.left.type,
+                style.inset.left.value,
+                style.inset.right.type,
+                style.inset.right.value,
+                style.inset.top.type,
+                style.inset.top.value,
+                style.inset.bottom.type,
+                style.inset.bottom.value,
                 
                 style.margin.left.type,
                 style.margin.left.value,
@@ -179,12 +241,26 @@ public class MasonNode: NSObject {
                 style.maxSize.height.type,
                 style.maxSize.height.value,
                 
-                style.flexGap.width.type,
-                style.flexGap.width.value,
-                style.flexGap.height.type,
-                style.flexGap.height.value,
+                style.gap.width.type,
+                style.gap.width.value,
+                style.gap.height.type,
+                style.gap.height.value,
                 
-                style.aspectRatio ?? Float.nan
+                style.aspectRatio ?? Float.nan,
+                &gridAutoRows,
+                &gridAutoColumns,
+                style.gridAutoFlow.rawValue,
+                style.gridColumn.start.type,
+                style.gridColumn.start.placementValue,
+                style.gridColumn.end.type,
+                style.gridColumn.end.placementValue,
+                
+                style.gridRow.start.type,
+                style.gridRow.start.placementValue,
+                style.gridRow.end.type,
+                style.gridRow.end.placementValue,
+                &gridTemplateRows,
+                &gridTemplateColumns
             )
             style.isDirty = false
         }
@@ -212,13 +288,19 @@ public class MasonNode: NSObject {
     @discardableResult func computeAndLayout(size: MasonSize<Float>? = nil) -> MasonLayout {
         var points: UnsafeMutableRawPointer? = nil
         if (size != nil) {
+            
+            var gridAutoRows = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoRows)
+            var gridAutoColumns = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoColumns)
+            var gridTemplateRows = MasonNode.to_vec_track_sizing_function(style.gridTemplateRows)
+            var gridTemplateColumns = MasonNode.to_vec_track_sizing_function(style.gridTemplateColumns)
+            
             points = mason_node_update_style_with_values_size_compute_and_layout(
                 TSCMason.instance.nativePtr,
                 nativePtr,
                 style.nativePtr,
                 size!.width, size!.height,
                 style.display.rawValue,
-                style.positionType.rawValue,
+                style.position.rawValue,
                 style.direction.rawValue,
                 style.flexDirection.rawValue,
                 style.flexWrap.rawValue,
@@ -226,16 +308,18 @@ public class MasonNode: NSObject {
                 style.alignItems.rawValue,
                 style.alignSelf.rawValue,
                 style.alignContent.rawValue,
+                style.justifyItems.rawValue,
+                style.justifySelf.rawValue,
                 style.justifyContent.rawValue,
                 
-                style.position.left.type,
-                style.position.left.value,
-                style.position.right.type,
-                style.position.right.value,
-                style.position.top.type,
-                style.position.top.value,
-                style.position.bottom.type,
-                style.position.bottom.value,
+                style.inset.left.type,
+                style.inset.left.value,
+                style.inset.right.type,
+                style.inset.right.value,
+                style.inset.top.type,
+                style.inset.top.value,
+                style.inset.bottom.type,
+                style.inset.bottom.value,
                 
                 style.margin.left.type,
                 style.margin.left.value,
@@ -285,22 +369,42 @@ public class MasonNode: NSObject {
                 style.maxSize.height.type,
                 style.maxSize.height.value,
                 
-                style.flexGap.width.type,
-                style.flexGap.width.value,
-                style.flexGap.height.type,
-                style.flexGap.height.value,
+                style.gap.width.type,
+                style.gap.width.value,
+                style.gap.height.type,
+                style.gap.height.value,
                 
                 style.aspectRatio ?? Float.nan,
+                &gridAutoRows,
+                &gridAutoColumns,
+                style.gridAutoFlow.rawValue,
+                style.gridColumn.start.type,
+                style.gridColumn.start.placementValue,
+                style.gridColumn.end.type,
+                style.gridColumn.end.placementValue,
+                
+                style.gridRow.start.type,
+                style.gridRow.start.placementValue,
+                style.gridRow.end.type,
+                style.gridRow.end.placementValue,
+                &gridTemplateRows,
+                &gridTemplateColumns,
                 create_layout
             )
             
             
             
         }else {
+            
+            var gridAutoRows = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoRows)
+            var gridAutoColumns = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoColumns)
+            var gridTemplateRows = MasonNode.to_vec_track_sizing_function(style.gridTemplateRows)
+            var gridTemplateColumns = MasonNode.to_vec_track_sizing_function(style.gridTemplateColumns)
+            
             points = mason_node_update_style_with_values_compute_and_layout(
                 TSCMason.instance.nativePtr, nativePtr, style.nativePtr,
                 style.display.rawValue,
-                style.positionType.rawValue,
+                style.position.rawValue,
                 style.direction.rawValue,
                 style.flexDirection.rawValue,
                 style.flexWrap.rawValue,
@@ -308,16 +412,18 @@ public class MasonNode: NSObject {
                 style.alignItems.rawValue,
                 style.alignSelf.rawValue,
                 style.alignContent.rawValue,
+                style.justifyItems.rawValue,
+                style.justifySelf.rawValue,
                 style.justifyContent.rawValue,
                 
-                style.position.left.type,
-                style.position.left.value,
-                style.position.right.type,
-                style.position.right.value,
-                style.position.top.type,
-                style.position.top.value,
-                style.position.bottom.type,
-                style.position.bottom.value,
+                style.inset.left.type,
+                style.inset.left.value,
+                style.inset.right.type,
+                style.inset.right.value,
+                style.inset.top.type,
+                style.inset.top.value,
+                style.inset.bottom.type,
+                style.inset.bottom.value,
                 
                 style.margin.left.type,
                 style.margin.left.value,
@@ -367,12 +473,26 @@ public class MasonNode: NSObject {
                 style.maxSize.height.type,
                 style.maxSize.height.value,
                 
-                style.flexGap.width.type,
-                style.flexGap.width.value,
-                style.flexGap.height.type,
-                style.flexGap.height.value,
+                style.gap.width.type,
+                style.gap.width.value,
+                style.gap.height.type,
+                style.gap.height.value,
                 
                 style.aspectRatio ?? Float.nan,
+                &gridAutoRows,
+                &gridAutoColumns,
+                style.gridAutoFlow.rawValue,
+                style.gridColumn.start.type,
+                style.gridColumn.start.placementValue,
+                style.gridColumn.end.type,
+                style.gridColumn.end.placementValue,
+                
+                style.gridRow.start.type,
+                style.gridRow.start.placementValue,
+                style.gridRow.end.type,
+                style.gridRow.end.placementValue,
+                &gridTemplateRows,
+                &gridTemplateColumns,
                 create_layout)
         }
         
