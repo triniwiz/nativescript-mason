@@ -14,8 +14,8 @@ sealed class MinSizing {
         0 -> Auto
         1 -> MinContent
         2 -> MaxContent
-        3 -> Percent(value)
-        4 -> Points(value)
+        3 -> Points(value)
+        4 -> Percent(value)
         else -> null
       }
     }
@@ -56,8 +56,8 @@ sealed class MaxSizing {
         0 -> Auto
         1 -> MinContent
         2 -> MaxContent
-        3 -> Percent(value)
-        4 -> Points(value)
+        3 -> Points(value)
+        4 -> Percent(value)
         5 -> Flex(value)
         6 -> FitContent(value)
         7 -> FitContentPercent(value)
@@ -71,8 +71,8 @@ sealed class MaxSizing {
       is Auto -> 0
       is MinContent -> 1
       is MaxContent -> 2
-      is Percent -> 3
-      is Points -> 4
+      is Points -> 3
+      is Percent -> 4
       is Flex -> 5
       is FitContent -> 6
       is FitContentPercent -> 7
