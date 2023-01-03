@@ -1538,7 +1538,7 @@ pub extern "C" fn mason_style_get_grid_template_columns(
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_template_columns(
-    style: i64,
+    style: *mut c_void,
     value: *mut CMasonTrackSizingFunctionArray,
 ) {
     mason_core::ffi::style_set_grid_template_columns(
