@@ -10,10 +10,12 @@ import Foundation
 public struct MinMax: Codable {
     let min: MinSizing
     let max: MaxSizing
+    let cValue: CMasonMinMax
     
     public init(_ min: MinSizing, _ max: MaxSizing) {
         self.min = min
         self.max = max
+        self.cValue = CMasonMinMax(min_type: min.type, min_value: min.value, max_type: max.type, max_value: max.value)
     }
 
     public static func Points(points: Float) -> MinMax {
@@ -25,6 +27,7 @@ public struct MinMax: Codable {
     }
     
     public static let Auto = MinMax(.Auto, .Auto)
+    
     
     
     var minType: Int32{
