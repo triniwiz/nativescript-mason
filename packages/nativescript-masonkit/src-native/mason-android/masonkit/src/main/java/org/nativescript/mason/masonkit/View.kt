@@ -1741,13 +1741,13 @@ class View @JvmOverloads constructor(
         val widthIsNaN = width.isNaN()
         val heightIsNaN = height.isNaN()
 
-        var measureWidth = if (widthIsNaN) 0 else width.roundToInt()
-        var measureHeight = if (heightIsNaN) 0 else height.roundToInt()
+        val measureWidth = if (widthIsNaN) 0 else width.roundToInt()
+        val measureHeight = if (heightIsNaN) 0 else height.roundToInt()
 
 
-        var widthSpec = if (widthIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+        val widthSpec = if (widthIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
 
-        var heightSpec = if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+        val heightSpec = if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
 
 
         view.measure(

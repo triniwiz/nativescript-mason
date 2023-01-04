@@ -1,16 +1,18 @@
 package org.nativescript.mason.masonkit
 
 
-enum class AlignItems {
-  Start,
-  End,
-  Center,
-  Baseline,
-  Stretch;
+enum class AlignItems(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Baseline(3),
+  Stretch(4);
 
   companion object {
     fun fromInt(value: Int): AlignItems {
       return when (value) {
+        -1 -> Normal
         0 -> Start
         1 -> End
         2 -> Center
@@ -22,16 +24,18 @@ enum class AlignItems {
   }
 }
 
-enum class AlignSelf {
-  Start,
-  End,
-  Center,
-  Baseline,
-  Stretch;
+enum class AlignSelf(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Baseline(3),
+  Stretch(4);
 
   companion object {
     fun fromInt(value: Int): AlignSelf {
       return when (value) {
+        -1 -> Normal
         0 -> Start
         1 -> End
         2 -> Center
@@ -43,18 +47,21 @@ enum class AlignSelf {
   }
 }
 
-enum class AlignContent {
-  Start,
-  End,
-  Center,
-  Stretch,
-  SpaceBetween,
-  SpaceAround,
-  SpaceEvenly;
+enum class AlignContent(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Stretch(3),
+  SpaceBetween(4),
+  SpaceAround(5),
+  SpaceEvenly(6);
+
 
   companion object {
     fun fromInt(value: Int): AlignContent {
       return when (value) {
+        -1 -> Normal
         0 -> Start
         1 -> End
         2 -> Center
@@ -121,18 +128,66 @@ enum class FlexDirection {
   }
 }
 
-enum class JustifyContent {
-  Start,
-  End,
-  Center,
-  Stretch,
-  SpaceBetween,
-  SpaceAround,
-  SpaceEvenly;
+enum class JustifySelf(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Baseline(3),
+  Stretch(4);
+
+  companion object {
+    fun fromInt(value: Int): JustifySelf {
+      return when (value) {
+        -1 -> Normal
+        0 -> Start
+        1 -> End
+        2 -> Center
+        3 -> Baseline
+        4 -> Stretch
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+enum class JustifyItems(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Baseline(3),
+  Stretch(4);
+
+  companion object {
+    fun fromInt(value: Int): JustifyItems {
+      return when (value) {
+        -1 -> Normal
+        0 -> Start
+        1 -> End
+        2 -> Center
+        3 -> Baseline
+        4 -> Stretch
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+enum class JustifyContent(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Stretch(3),
+  SpaceBetween(4),
+  SpaceAround(5),
+  SpaceEvenly(6);
 
   companion object {
     fun fromInt(value: Int): JustifyContent {
       return when (value) {
+        -1 -> Normal
         0 -> Start
         1 -> End
         2 -> Center
@@ -140,48 +195,6 @@ enum class JustifyContent {
         4 -> SpaceBetween
         5 -> SpaceAround
         6 -> SpaceEvenly
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class JustifySelf {
-  Start,
-  End,
-  Center,
-  Baseline,
-  Stretch;
-
-  companion object {
-    fun fromInt(value: Int): JustifySelf {
-      return when (value) {
-        0 -> Start
-        1 -> End
-        2 -> Center
-        3 -> Baseline
-        4 -> Stretch
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class JustifyItems {
-  Start,
-  End,
-  Center,
-  Baseline,
-  Stretch;
-
-  companion object {
-    fun fromInt(value: Int): JustifyItems {
-      return when (value) {
-        0 -> Start
-        1 -> End
-        2 -> Center
-        3 -> Baseline
-        4 -> Stretch
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -373,26 +386,26 @@ class Style internal constructor() {
       isDirty = true
     }
 
-  var alignItems: AlignItems = AlignItems.Stretch
+  var alignItems: AlignItems = AlignItems.Normal
     set(value) {
       field = value
       isDirty = true
     }
 
-  var alignSelf: AlignSelf = AlignSelf.Stretch
+  var alignSelf: AlignSelf = AlignSelf.Normal
     set(value) {
       field = value
       isDirty = true
     }
 
-  var alignContent: AlignContent = AlignContent.Start
+  var alignContent: AlignContent = AlignContent.Normal
     set(value) {
       field = value
       isDirty = true
     }
 
 
-  var justifyItems: JustifyItems = JustifyItems.Stretch
+  var justifyItems: JustifyItems = JustifyItems.Normal
     set(value) {
       field = value
       isDirty = true
@@ -412,7 +425,12 @@ class Style internal constructor() {
     }
 
   var inset: Rect<LengthPercentageAuto> =
-    Rect(LengthPercentageAuto.Auto, LengthPercentageAuto.Auto, LengthPercentageAuto.Auto, LengthPercentageAuto.Auto)
+    Rect(
+      LengthPercentageAuto.Auto,
+      LengthPercentageAuto.Auto,
+      LengthPercentageAuto.Auto,
+      LengthPercentageAuto.Auto
+    )
     set(value) {
       field = value
       isDirty = true
@@ -1170,14 +1188,14 @@ class Style internal constructor() {
     this.gridAutoColumns = gridAutoColumns
     this.gridAutoFlow = GridAutoFlow.fromInt(gridAutoFlow)
 
-   Line.fromStartAndEndValues(
+    Line.fromStartAndEndValues(
       gridColumnStartType,
       gridColumnStartValue,
       gridColumnEndType,
       gridColumnEndValue
     )?.let {
-     gridColumn = it
-   }
+      gridColumn = it
+    }
 
 
     Line.fromStartAndEndValues(
@@ -1204,12 +1222,12 @@ class Style internal constructor() {
         flexDirection.ordinal,
         flexWrap.ordinal,
         overflow.ordinal,
-        alignItems.ordinal,
-        alignSelf.ordinal,
-        alignContent.ordinal,
-        justifyItems.ordinal,
-        justifySelf.ordinal,
-        justifyContent.ordinal,
+        alignItems.value,
+        alignSelf.value,
+        alignContent.value,
+        justifyItems.value,
+        justifySelf.value,
+        justifyContent.value,
 
         inset.left.type,
         inset.left.value,

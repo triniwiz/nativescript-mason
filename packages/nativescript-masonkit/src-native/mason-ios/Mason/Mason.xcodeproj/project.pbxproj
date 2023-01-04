@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 55;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -148,6 +148,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0C9E8EC0DFD2DE1A229D4FBD /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
 		F1848382293534D800EC35F4 = {
 			isa = PBXGroup;
 			children = (
@@ -158,6 +165,7 @@
 				F18483C22935351300EC35F4 /* MasonDemoTests */,
 				F18483CC2935351300EC35F4 /* MasonDemoUITests */,
 				F184838D293534D800EC35F4 /* Products */,
+				0C9E8EC0DFD2DE1A229D4FBD /* Pods */,
 			);
 			sourceTree = "<group>";
 		};
@@ -354,6 +362,7 @@
 				TargetAttributes = {
 					F184838B293534D800EC35F4 = {
 						CreatedOnToolsVersion = 14.0;
+						LastSwiftMigration = 1400;
 					};
 					F1848395293534D800EC35F4 = {
 						CreatedOnToolsVersion = 14.0;
@@ -372,7 +381,7 @@
 				};
 			};
 			buildConfigurationList = F1848386293534D800EC35F4 /* Build configuration list for PBXProject "Mason" */;
-			compatibilityVersion = "Xcode 14.0";
+			compatibilityVersion = "Xcode 13.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -662,6 +671,7 @@
 		F18483A1293534D800EC35F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
@@ -691,6 +701,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				USE_HEADERMAP = YES;
@@ -700,6 +711,7 @@
 		F18483A2293534D800EC35F4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
