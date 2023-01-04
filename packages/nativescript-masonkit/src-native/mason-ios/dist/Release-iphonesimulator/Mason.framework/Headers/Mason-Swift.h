@@ -256,8 +256,9 @@ using UInt = size_t;
 
 #if defined(__OBJC__)
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignContent, "AlignContent", open) {
-  AlignContentFlexStart = 0,
-  AlignContentFlexEnd = 1,
+  AlignContentNormal = -1,
+  AlignContentStart = 0,
+  AlignContentEnd = 1,
   AlignContentCenter = 2,
   AlignContentStretch = 3,
   AlignContentSpaceBetween = 4,
@@ -266,20 +267,21 @@ typedef SWIFT_ENUM_NAMED(NSInteger, AlignContent, "AlignContent", open) {
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignItems, "AlignItems", open) {
-  AlignItemsFlexStart = 0,
-  AlignItemsFlexEnd = 1,
+  AlignItemsNormal = -1,
+  AlignItemsStart = 0,
+  AlignItemsEnd = 1,
   AlignItemsCenter = 2,
   AlignItemsBaseline = 3,
   AlignItemsStretch = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignSelf, "AlignSelf", open) {
-  AlignSelfAuto = 0,
-  AlignSelfFlexStart = 1,
-  AlignSelfFlexEnd = 2,
-  AlignSelfCenter = 3,
-  AlignSelfBaseline = 4,
-  AlignSelfStretch = 5,
+  AlignSelfNormal = -1,
+  AlignSelfStart = 0,
+  AlignSelfEnd = 1,
+  AlignSelfCenter = 2,
+  AlignSelfBaseline = 3,
+  AlignSelfStretch = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, Direction, "Direction", open) {
@@ -289,8 +291,9 @@ typedef SWIFT_ENUM_NAMED(NSInteger, Direction, "Direction", open) {
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, Display, "Display", open) {
-  DisplayFlex = 0,
-  DisplayNone = 1,
+  DisplayNone = 0,
+  DisplayFlex = 1,
+  DisplayGrid = 2,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, FlexDirection, "FlexDirection", open) {
@@ -306,17 +309,80 @@ typedef SWIFT_ENUM_NAMED(NSInteger, FlexWrap, "FlexWrap", open) {
   FlexWrapWrapReverse = 2,
 };
 
-typedef SWIFT_ENUM_NAMED(NSInteger, JustifyContent, "JustifyContent", open) {
-  JustifyContentFlexStart = 0,
-  JustifyContentFlexEnd = 1,
-  JustifyContentCenter = 2,
-  JustifyContentSpaceBetween = 3,
-  JustifyContentSpaceAround = 4,
-  JustifyContentSpaceEvenly = 5,
+typedef SWIFT_ENUM_NAMED(NSInteger, FlexGridAutoFlowWrap, "GridAutoFlow", open) {
+  FlexGridAutoFlowWrapRow = 0,
+  FlexGridAutoFlowWrapColumn = 1,
+  FlexGridAutoFlowWrapRowDense = 2,
+  FlexGridAutoFlowWrapColumnDense = 3,
 };
 
-enum MasonDimensionCompatType : NSInteger;
+enum GridPlacementCompatType : NSInteger;
 @class NSString;
+
+SWIFT_CLASS_NAMED("GridPlacementCompat")
+@interface GridPlacementCompat : NSObject
+- (nonnull instancetype)initWithSpan:(int16_t)span OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithLine:(int16_t)line OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) enum GridPlacementCompatType type;
+@property (nonatomic, readonly) int16_t value;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) GridPlacementCompat * _Nonnull Auto;)
++ (GridPlacementCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, GridPlacementCompatType, "GridPlacementCompatType", open) {
+  GridPlacementCompatTypeAuto = 0,
+  GridPlacementCompatTypeLine = 1,
+  GridPlacementCompatTypeSpan = 2,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, GridTrackRepetition, "GridTrackRepetition", open) {
+  GridTrackRepetitionAutoFill = 0,
+  GridTrackRepetitionAutoFit = 1,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, JustifyContent, "JustifyContent", open) {
+  JustifyContentNormal = -1,
+  JustifyContentStart = 0,
+  JustifyContentEnd = 1,
+  JustifyContentCenter = 2,
+  JustifyContentStretch = 3,
+  JustifyContentSpaceBetween = 4,
+  JustifyContentSpaceAround = 5,
+  JustifyContentSpaceEvenly = 6,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, JustifyItems, "JustifyItems", open) {
+  JustifyItemsNormal = -1,
+  JustifyItemsStart = 0,
+  JustifyItemsEnd = 1,
+  JustifyItemsCenter = 2,
+  JustifyItemsBaseline = 3,
+  JustifyItemsStretch = 4,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, JustifySelf, "JustifySelf", open) {
+  JustifySelfNormal = -1,
+  JustifySelfStart = 0,
+  JustifySelfEnd = 1,
+  JustifySelfCenter = 2,
+  JustifySelfBaseline = 3,
+  JustifySelfStretch = 4,
+};
+
+
+SWIFT_CLASS_NAMED("LineGridPlacementCompat")
+@interface LineGridPlacementCompat : NSObject
+@property (nonatomic, readonly, strong) GridPlacementCompat * _Nonnull start;
+@property (nonatomic, readonly, strong) GridPlacementCompat * _Nonnull end;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum MasonDimensionCompatType : NSInteger;
 
 SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @interface MasonDimensionCompat : NSObject
@@ -326,20 +392,40 @@ SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @property (nonatomic, readonly) float value;
 @property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 @property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
-SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Undefined;)
-+ (MasonDimensionCompat * _Nonnull)Undefined SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Auto;)
 + (MasonDimensionCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Zero;)
++ (MasonDimensionCompat * _Nonnull)Zero SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonDimensionCompatType, "MasonDimensionCompatType", open) {
-  MasonDimensionCompatTypePoints = 0,
-  MasonDimensionCompatTypePercent = 1,
-  MasonDimensionCompatTypeAuto = 2,
-  MasonDimensionCompatTypeUndefined = 3,
+  MasonDimensionCompatTypeAuto = 0,
+  MasonDimensionCompatTypePoints = 1,
+  MasonDimensionCompatTypePercent = 2,
 };
+
+
+SWIFT_CLASS_NAMED("MasonDimensionRectCompat")
+@interface MasonDimensionRectCompat : NSObject
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull left;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull right;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull top;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull bottom;
+- (nonnull instancetype)init:(MasonDimensionCompat * _Nonnull)left :(MasonDimensionCompat * _Nonnull)right :(MasonDimensionCompat * _Nonnull)top :(MasonDimensionCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MasonDimensionSizeCompat")
+@interface MasonDimensionSizeCompat : NSObject
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull width;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull height;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
 
 
 SWIFT_CLASS_NAMED("MasonLayout")
@@ -351,6 +437,93 @@ SWIFT_CLASS_NAMED("MasonLayout")
 @property (nonatomic, readonly) float height;
 @property (nonatomic, readonly, copy) NSArray<MasonLayout *> * _Nonnull children;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum MasonLengthPercentageAutoCompatType : NSInteger;
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageAutoCompat")
+@interface MasonLengthPercentageAutoCompat : NSObject
+- (nonnull instancetype)initWithPoints:(float)points OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithPercent:(float)percent OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) enum MasonLengthPercentageAutoCompatType type;
+@property (nonatomic, readonly) float value;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonLengthPercentageAutoCompat * _Nonnull Auto;)
++ (MasonLengthPercentageAutoCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonLengthPercentageAutoCompat * _Nonnull Zero;)
++ (MasonLengthPercentageAutoCompat * _Nonnull)Zero SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonLengthPercentageAutoCompatType, "MasonLengthPercentageAutoCompatType", open) {
+  MasonLengthPercentageAutoCompatTypeAuto = 0,
+  MasonLengthPercentageAutoCompatTypePoints = 1,
+  MasonLengthPercentageAutoCompatTypePercent = 2,
+};
+
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageAutoRectCompat")
+@interface MasonLengthPercentageAutoRectCompat : NSObject
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull left;
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull right;
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull top;
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull bottom;
+- (nonnull instancetype)init:(MasonLengthPercentageAutoCompat * _Nonnull)left :(MasonLengthPercentageAutoCompat * _Nonnull)right :(MasonLengthPercentageAutoCompat * _Nonnull)top :(MasonLengthPercentageAutoCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageAutoSizeCompat")
+@interface MasonLengthPercentageAutoSizeCompat : NSObject
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull width;
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull height;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum MasonLengthPercentageCompatType : NSInteger;
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageCompat")
+@interface MasonLengthPercentageCompat : NSObject
+- (nonnull instancetype)initWithPoints:(float)points OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithPercent:(float)percent OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) enum MasonLengthPercentageCompatType type;
+@property (nonatomic, readonly) float value;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonLengthPercentageCompat * _Nonnull Zero;)
++ (MasonLengthPercentageCompat * _Nonnull)Zero SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonLengthPercentageCompatType, "MasonLengthPercentageCompatType", open) {
+  MasonLengthPercentageCompatTypePoints = 0,
+  MasonLengthPercentageCompatTypePercent = 1,
+};
+
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageRectCompat")
+@interface MasonLengthPercentageRectCompat : NSObject
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull left;
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull right;
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull top;
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull bottom;
+- (nonnull instancetype)init:(MasonLengthPercentageCompat * _Nonnull)left :(MasonLengthPercentageCompat * _Nonnull)right :(MasonLengthPercentageCompat * _Nonnull)top :(MasonLengthPercentageCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageSizeCompat")
+@interface MasonLengthPercentageSizeCompat : NSObject
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull width;
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull height;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
@@ -368,25 +541,19 @@ SWIFT_CLASS_NAMED("MasonNode")
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style children:(NSArray<MasonNode *> * _Nonnull)children OBJC_DESIGNATED_INITIALIZER;
+- (MasonLayout * _Nonnull)layout;
 @property (nonatomic, readonly) BOOL isDirty;
 - (void)markDirty;
+- (void)compute;
+- (void)compute:(float)width :(float)height;
+- (void)computeMaxContent;
+- (void)computeMinContent;
 - (void)computeWithViewSize;
+- (void)computeWithMaxContent;
 - (void)setChildrenWithChildren:(NSArray<MasonNode *> * _Nonnull)children;
 - (void)addChildren:(NSArray<MasonNode *> * _Nonnull)children;
 @property (nonatomic, readonly) BOOL isLeaf;
 - (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
-@end
-
-
-SWIFT_CLASS_NAMED("MasonRectCompat")
-@interface MasonRectCompat : NSObject
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull left;
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull right;
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull top;
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull bottom;
-- (nonnull instancetype)init:(MasonDimensionCompat * _Nonnull)left :(MasonDimensionCompat * _Nonnull)right :(MasonDimensionCompat * _Nonnull)top :(MasonDimensionCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)init SWIFT_UNAVAILABLE;
-+ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 
@@ -401,8 +568,8 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)node_mark_dirty:(void * _Nonnull)mason :(void * _Nonnull)node;
 + (int32_t)style_get_display:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_display:(void * _Nonnull)style :(int32_t)display;
-+ (int32_t)style_get_position_type:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_type:(void * _Nonnull)style :(int32_t)position;
++ (int32_t)style_get_position:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_position:(void * _Nonnull)style :(int32_t)position;
 + (int32_t)style_get_direction:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_direction:(void * _Nonnull)style :(int32_t)direction;
 + (int32_t)style_get_flex_direction:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -417,44 +584,48 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_align_self:(void * _Nonnull)style :(int32_t)align_self;
 + (int32_t)style_get_align_content:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_align_content:(void * _Nonnull)style :(int32_t)align_content;
++ (int32_t)style_get_justify_items:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_justify_items:(void * _Nonnull)style :(int32_t)align_items;
++ (int32_t)style_get_justify_self:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_justify_self:(void * _Nonnull)style :(int32_t)align_self;
 + (int32_t)style_get_justify_content:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_justify_content:(void * _Nonnull)style :(int32_t)justify_content;
-+ (void)style_set_position:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_position_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_position_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_right:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_position_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_position_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (void)style_set_margin:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_margin_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_margin_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_margin_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_margin_right:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_margin_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_margin_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_margin_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_margin_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (void)style_set_padding:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_padding_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_padding_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_padding_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_padding_right:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_padding_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_padding_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_padding_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_padding_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (void)style_set_border:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_border_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_border_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_border_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_border_right:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_border_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_border_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_border_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_border_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (void)style_set_inset:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_inset_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_inset_left:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_inset_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_inset_right:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_inset_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_inset_top:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_inset_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_inset_bottom:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (void)style_set_margin:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_margin_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_margin_left:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_margin_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_margin_right:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_margin_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_margin_top:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_margin_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_margin_bottom:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (void)style_set_padding:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_padding_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_padding_left:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_padding_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_padding_right:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_padding_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_padding_top:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_padding_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_padding_bottom:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (void)style_set_border:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_border_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_border_left:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_border_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_border_right:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_border_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_border_top:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_border_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_border_bottom:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
 + (float)style_get_flex_grow:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_flex_grow:(void * _Nonnull)style :(float)value;
 + (void)style_set_border_bottom:(void * _Nonnull)style :(float)value;
@@ -474,36 +645,47 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_max_width:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_max_height:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_max_height:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonSize)style_get_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_gap:(void * _Nonnull)style :(float)width_value :(CMasonDimensionType)width_type :(float)height_value :(CMasonDimensionType)height_type;
-+ (CMasonDimension)style_get_gap_width:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_gap_width:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_gap_height:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_gap_height:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (CMasonLengthPercentageSize)style_get_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_gap:(void * _Nonnull)style :(float)width_value :(CMasonLengthPercentageType)width_type :(float)height_value :(CMasonLengthPercentageType)height_type;
++ (CMasonLengthPercentage)style_get_row_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_row_gap:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_column_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_column_gap:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
 + (float)style_get_aspect_ratio:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_aspect_ratio:(void * _Nonnull)style :(float)value;
-+ (void)style_update_with_values:(void * _Nonnull)style :(int32_t)display :(int32_t)positionType :(int32_t)direction :(int32_t)flexDirection :(int32_t)flexWrap :(int32_t)overflow :(int32_t)alignItems :(int32_t)alignSelf :(int32_t)alignContent :(int32_t)justifyContent :(int32_t)positionLeftType :(float)positionLeftValue :(int32_t)positionRightType :(float)positionRightValue :(int32_t)positionTopType :(float)positionTopValue :(int32_t)positionBottomType :(float)positionBottomValue :(int32_t)marginLeftType :(float)marginLeftValue :(int32_t)marginRightType :(float)marginRightValue :(int32_t)marginTopType :(float)marginTopValue :(int32_t)marginBottomType :(float)marginBottomValue :(int32_t)paddingLeftType :(float)paddingLeftValue :(int32_t)paddingRightType :(float)paddingRightValue :(int32_t)paddingTopType :(float)paddingTopValue :(int32_t)paddingBottomType :(float)paddingBottomValue :(int32_t)borderLeftType :(float)borderLeftValue :(int32_t)borderRightType :(float)borderRightValue :(int32_t)borderTopType :(float)borderTopValue :(int32_t)borderBottomType :(float)borderBottomValue :(float)flexGrow :(float)flexShrink :(int32_t)flexBasisType :(float)flexBasisValue :(int32_t)widthType :(float)widthValue :(int32_t)heightType :(float)heightValue :(int32_t)minWidthType :(float)minWidthValue :(int32_t)minHeightType :(float)minHeightValue :(int32_t)maxWidthType :(float)maxWidthValue :(int32_t)maxHeightType :(float)maxHeightValue :(int32_t)flexGapWidthType :(float)flexGapWidthValue :(int32_t)flexGapHeightType :(float)flexGapHeightValue aspectRatio:(float)aspectRatio;
++ (CMasonMinMaxArray * _Nonnull)style_get_grid_auto_rows:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_auto_rows:(void * _Nonnull)style :(CMasonMinMaxArray * _Nonnull)value;
++ (CMasonMinMaxArray * _Nonnull)style_get_grid_auto_columns:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_auto_columns:(void * _Nonnull)style :(CMasonMinMaxArray * _Nonnull)value;
++ (int32_t)style_get_grid_auto_flow:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_auto_flow:(void * _Nonnull)style :(int32_t)value;
++ (CMasonGridPlacement)style_get_grid_column_start:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_column_start:(void * _Nonnull)style :(CMasonGridPlacement)value;
++ (CMasonGridPlacement)style_get_grid_column_end:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_column_end:(void * _Nonnull)style :(CMasonGridPlacement)value;
++ (CMasonGridPlacement)style_get_grid_row_start:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_row_start:(void * _Nonnull)style :(CMasonGridPlacement)value;
++ (CMasonGridPlacement)style_get_grid_row_end:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_row_end:(void * _Nonnull)style :(CMasonGridPlacement)value;
++ (CMasonTrackSizingFunctionArray * _Nonnull)style_get_grid_template_rows:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_template_rows:(void * _Nonnull)style :(CMasonTrackSizingFunctionArray * _Nonnull)value;
++ (CMasonTrackSizingFunctionArray * _Nonnull)style_get_grid_template_columns:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_template_columns:(void * _Nonnull)style :(CMasonTrackSizingFunctionArray * _Nonnull)value;
++ (void)style_update_with_values:(void * _Nonnull)style :(int32_t)display :(int32_t)position :(int32_t)direction :(int32_t)flexDirection :(int32_t)flexWrap :(int32_t)overflow :(int32_t)alignItems :(int32_t)alignSelf :(int32_t)alignContent :(int32_t)justifyItems :(int32_t)justifySelf :(int32_t)justifyContent :(int32_t)insetLeftType :(float)insetLeftValue :(int32_t)insetRightType :(float)insetRightValue :(int32_t)insetTopType :(float)insetTopValue :(int32_t)insetBottomType :(float)insetBottomValue :(int32_t)marginLeftType :(float)marginLeftValue :(int32_t)marginRightType :(float)marginRightValue :(int32_t)marginTopType :(float)marginTopValue :(int32_t)marginBottomType :(float)marginBottomValue :(int32_t)paddingLeftType :(float)paddingLeftValue :(int32_t)paddingRightType :(float)paddingRightValue :(int32_t)paddingTopType :(float)paddingTopValue :(int32_t)paddingBottomType :(float)paddingBottomValue :(int32_t)borderLeftType :(float)borderLeftValue :(int32_t)borderRightType :(float)borderRightValue :(int32_t)borderTopType :(float)borderTopValue :(int32_t)borderBottomType :(float)borderBottomValue :(float)flexGrow :(float)flexShrink :(int32_t)flexBasisType :(float)flexBasisValue :(int32_t)widthType :(float)widthValue :(int32_t)heightType :(float)heightValue :(int32_t)minWidthType :(float)minWidthValue :(int32_t)minHeightType :(float)minHeightValue :(int32_t)maxWidthType :(float)maxWidthValue :(int32_t)maxHeightType :(float)maxHeightValue :(int32_t)gapRowType :(float)gapRowValue :(int32_t)gapColumnType :(float)gapColumnValue :(float)aspectRatio :(CMasonNonRepeatedTrackSizingFunctionArray * _Nonnull)gridAutoRows :(CMasonNonRepeatedTrackSizingFunctionArray * _Nonnull)gridAutoColumns :(int32_t)gridAutoFlow :(int32_t)gridColumnStartType :(int16_t)gridColumnStartValue :(int32_t)gridColumnEndType :(int16_t)gridColumnEndValue :(int32_t)gridRowStartType :(int16_t)gridRowStartValue :(int32_t)gridRowEndType :(int16_t)gridRowEndValue :(CMasonTrackSizingFunctionArray * _Nonnull)gridTemplateRows gridTemplateColumns:(CMasonTrackSizingFunctionArray * _Nonnull)gridTemplateColumns;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @end
 
-
-SWIFT_CLASS_NAMED("MasonSizeCompat")
-@interface MasonSizeCompat : NSObject
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull width;
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull height;
-- (nonnull instancetype)init SWIFT_UNAVAILABLE;
-+ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
-@end
-
-enum PositionType : NSInteger;
+enum Position : NSInteger;
 enum Overflow : NSInteger;
+@class MinMax;
+@class TrackSizingFunction;
 
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
 @property (nonatomic, readonly) void * _Null_unspecified nativePtr;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @property (nonatomic) enum Display display;
-@property (nonatomic) enum PositionType positionType;
+@property (nonatomic) enum Position position;
 @property (nonatomic) enum Direction direction;
 @property (nonatomic) enum FlexDirection flexDirection;
 @property (nonatomic) enum FlexWrap flexWrap;
@@ -511,26 +693,28 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic) enum AlignItems alignItems;
 @property (nonatomic) enum AlignSelf alignSelf;
 @property (nonatomic) enum AlignContent alignContent;
+@property (nonatomic) enum JustifyItems justifyItems;
+@property (nonatomic) enum JustifySelf justifySelf;
 @property (nonatomic) enum JustifyContent justifyContent;
-@property (nonatomic, strong) MasonRectCompat * _Nonnull positionCompat;
-- (void)setPositionLeft:(float)value :(NSInteger)type;
-- (void)setPositionRight:(float)value :(NSInteger)type;
-- (void)setPositionTop:(float)value :(NSInteger)type;
-- (void)setPositionBottom:(float)value :(NSInteger)type;
-- (void)setPositionWithValueType:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonRectCompat * _Nonnull marginCompat;
+@property (nonatomic, strong) MasonLengthPercentageAutoRectCompat * _Nonnull insetCompat;
+- (void)setInsetLeft:(float)value :(NSInteger)type;
+- (void)setInsetRight:(float)value :(NSInteger)type;
+- (void)setInsetTop:(float)value :(NSInteger)type;
+- (void)setInsetBottom:(float)value :(NSInteger)type;
+- (void)setInsetWithValueType:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonLengthPercentageAutoRectCompat * _Nonnull marginCompat;
 - (void)setMarginLeft:(float)value :(NSInteger)type;
 - (void)setMarginRight:(float)value :(NSInteger)type;
 - (void)setMarginTop:(float)value :(NSInteger)type;
 - (void)setMarginBottom:(float)value :(NSInteger)type;
 - (void)setMarginWithValueType:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonRectCompat * _Nonnull paddingCompat;
+@property (nonatomic, strong) MasonLengthPercentageRectCompat * _Nonnull paddingCompat;
 - (void)setPaddingLeft:(float)value :(NSInteger)type;
 - (void)setPaddingRight:(float)value :(NSInteger)type;
 - (void)setPaddingTop:(float)value :(NSInteger)type;
 - (void)setPaddingBottom:(float)value :(NSInteger)type;
 - (void)setPaddingWithValueType:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonRectCompat * _Nonnull borderCompat;
+@property (nonatomic, strong) MasonLengthPercentageRectCompat * _Nonnull borderCompat;
 - (void)setBorderLeft:(float)value :(NSInteger)type;
 - (void)setBorderRight:(float)value :(NSInteger)type;
 - (void)setBorderTop:(float)value :(NSInteger)type;
@@ -538,24 +722,54 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setBorderWithValueType:(float)value :(NSInteger)type;
 @property (nonatomic) float flexGrow;
 @property (nonatomic) float flexShrink;
-@property (nonatomic, strong) MasonSizeCompat * _Nonnull minSizeCompat;
+@property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull minSizeCompat;
 - (void)setMinSizeWidth:(float)value :(NSInteger)type;
 - (void)setMinSizeHeight:(float)value :(NSInteger)type;
 - (void)setMinSizeWidthHeight:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonSizeCompat * _Nonnull sizeCompat;
+@property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull sizeCompat;
 @property (nonatomic, strong) MasonDimensionCompat * _Nonnull sizeCompatWidth;
 @property (nonatomic, strong) MasonDimensionCompat * _Nonnull sizeCompatHeight;
 - (void)setSizeWidth:(float)value :(NSInteger)type;
 - (void)setSizeHeight:(float)value :(NSInteger)type;
 - (void)setSizeWidthHeight:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonSizeCompat * _Nonnull maxSizeCompat;
+@property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull maxSizeCompat;
 - (void)setMaxSizeWidth:(float)value :(NSInteger)type;
 - (void)setMaxSizeHeight:(float)value :(NSInteger)type;
 - (void)setMaxSizeWidthHeight:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonSizeCompat * _Nonnull flexGapCompat;
-- (void)setFlexGapWidth:(float)value :(NSInteger)type;
-- (void)setFlexGapHeight:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonLengthPercentageSizeCompat * _Nonnull gapCompat;
+- (void)setGapRow:(float)value :(NSInteger)type;
+- (void)setGapColumn:(float)value :(NSInteger)type;
+- (void)setRowGap:(float)value :(NSInteger)type;
+- (void)setColumnGap:(float)value :(NSInteger)type;
+@property (nonatomic, copy) NSArray<MinMax *> * _Nonnull gridAutoRows;
+@property (nonatomic, copy) NSArray<MinMax *> * _Nonnull gridAutoColumns;
+@property (nonatomic) enum FlexGridAutoFlowWrap gridAutoFlow;
+@property (nonatomic, readonly, strong) LineGridPlacementCompat * _Nonnull gridColumnCompat;
+@property (nonatomic, readonly, strong) LineGridPlacementCompat * _Nonnull gridRowCompat;
+@property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateRows;
+@property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateColumns;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
+@end
+
+
+SWIFT_CLASS_NAMED("MaxSizing")
+@interface MaxSizing : NSObject
+@property (nonatomic, readonly) float value;
++ (MaxSizing * _Nonnull)Points:(float)points SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)Percent:(float)percent SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)FitContent:(float)fit SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)FitContentPercent:(float)fit SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)Flex:(float)flex SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull Auto;)
++ (MaxSizing * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull MinContent;)
++ (MaxSizing * _Nonnull)MinContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull MaxContent;)
++ (MaxSizing * _Nonnull)MaxContent SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 
@@ -564,15 +778,51 @@ SWIFT_CLASS_NAMED("MeasureOutput")
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @end
 
+@class MinSizing;
+
+SWIFT_CLASS_NAMED("MinMax")
+@interface MinMax : NSObject
+- (nonnull instancetype)init:(MinSizing * _Nonnull)min :(MaxSizing * _Nonnull)max OBJC_DESIGNATED_INITIALIZER;
++ (MinMax * _Nonnull)PointsWithPoints:(float)points SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)PercentWithPercent:(float)percent SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)FlexWithFlex:(float)flex SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)FitContentWithFit:(float)fit SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)FitContentPercentWithFit:(float)fit SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinMax * _Nonnull Auto;)
++ (MinMax * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MinSizing")
+@interface MinSizing : NSObject
+@property (nonatomic, readonly) float value;
++ (MinSizing * _Nonnull)Points:(float)points SWIFT_WARN_UNUSED_RESULT;
++ (MinSizing * _Nonnull)Percent:(float)percent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * _Nonnull Auto;)
++ (MinSizing * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * _Nonnull MinContent;)
++ (MinSizing * _Nonnull)MinContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * _Nonnull MaxContent;)
++ (MinSizing * _Nonnull)MaxContent SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
 typedef SWIFT_ENUM_NAMED(NSInteger, Overflow, "Overflow", open) {
   OverflowVisible = 0,
   OverflowHidden = 1,
   OverflowScroll = 2,
 };
 
-typedef SWIFT_ENUM_NAMED(NSInteger, PositionType, "PositionType", open) {
-  PositionTypeRelative = 0,
-  PositionTypeAbsolute = 1,
+typedef SWIFT_ENUM_NAMED(NSInteger, Position, "Position", open) {
+  PositionRelative = 0,
+  PositionAbsolute = 1,
 };
 
 
@@ -592,8 +842,18 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class) BOOL alwaysEnable;)
 @end
 
 
+SWIFT_CLASS_NAMED("TrackSizingFunction")
+@interface TrackSizingFunction : NSObject
+@property (nonatomic, readonly) BOOL isRepeating;
+@property (nonatomic, readonly) id _Nullable value;
++ (TrackSizingFunction * _Nonnull)Single:(MinMax * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
++ (TrackSizingFunction * _Nonnull)AutoRepeat:(enum GridTrackRepetition)gridTrackRepetition :(NSArray<MinMax *> * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
 @interface UIView (SWIFT_EXTENSION(Mason))
-@property (nonatomic, readonly, strong) MasonNode * _Nonnull mason;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) NSInteger masonPtr;)
 + (NSInteger)masonPtr SWIFT_WARN_UNUSED_RESULT;
 @property (nonatomic, readonly) NSInteger masonNodePtr;
@@ -605,11 +865,11 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) NSInteger masonPtr;)
 - (void)setPadding:(float)left :(float)top :(float)right :(float)bottom;
 - (void)setBorder:(float)left :(float)top :(float)right :(float)bottom;
 - (void)setMargin:(float)left :(float)top :(float)right :(float)bottom;
-- (void)setPosition:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setInset:(float)left :(float)top :(float)right :(float)bottom;
 - (void)setMinSize:(float)width :(float)height;
 - (void)setSize:(float)width :(float)height;
 - (void)setMaxSize:(float)width :(float)height;
-- (void)setFlexGap:(float)width :(float)height;
+- (void)setGap:(float)width :(float)height;
 @end
 
 #endif
@@ -878,8 +1138,9 @@ using UInt = size_t;
 
 #if defined(__OBJC__)
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignContent, "AlignContent", open) {
-  AlignContentFlexStart = 0,
-  AlignContentFlexEnd = 1,
+  AlignContentNormal = -1,
+  AlignContentStart = 0,
+  AlignContentEnd = 1,
   AlignContentCenter = 2,
   AlignContentStretch = 3,
   AlignContentSpaceBetween = 4,
@@ -888,20 +1149,21 @@ typedef SWIFT_ENUM_NAMED(NSInteger, AlignContent, "AlignContent", open) {
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignItems, "AlignItems", open) {
-  AlignItemsFlexStart = 0,
-  AlignItemsFlexEnd = 1,
+  AlignItemsNormal = -1,
+  AlignItemsStart = 0,
+  AlignItemsEnd = 1,
   AlignItemsCenter = 2,
   AlignItemsBaseline = 3,
   AlignItemsStretch = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignSelf, "AlignSelf", open) {
-  AlignSelfAuto = 0,
-  AlignSelfFlexStart = 1,
-  AlignSelfFlexEnd = 2,
-  AlignSelfCenter = 3,
-  AlignSelfBaseline = 4,
-  AlignSelfStretch = 5,
+  AlignSelfNormal = -1,
+  AlignSelfStart = 0,
+  AlignSelfEnd = 1,
+  AlignSelfCenter = 2,
+  AlignSelfBaseline = 3,
+  AlignSelfStretch = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, Direction, "Direction", open) {
@@ -911,8 +1173,9 @@ typedef SWIFT_ENUM_NAMED(NSInteger, Direction, "Direction", open) {
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, Display, "Display", open) {
-  DisplayFlex = 0,
-  DisplayNone = 1,
+  DisplayNone = 0,
+  DisplayFlex = 1,
+  DisplayGrid = 2,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, FlexDirection, "FlexDirection", open) {
@@ -928,17 +1191,80 @@ typedef SWIFT_ENUM_NAMED(NSInteger, FlexWrap, "FlexWrap", open) {
   FlexWrapWrapReverse = 2,
 };
 
-typedef SWIFT_ENUM_NAMED(NSInteger, JustifyContent, "JustifyContent", open) {
-  JustifyContentFlexStart = 0,
-  JustifyContentFlexEnd = 1,
-  JustifyContentCenter = 2,
-  JustifyContentSpaceBetween = 3,
-  JustifyContentSpaceAround = 4,
-  JustifyContentSpaceEvenly = 5,
+typedef SWIFT_ENUM_NAMED(NSInteger, FlexGridAutoFlowWrap, "GridAutoFlow", open) {
+  FlexGridAutoFlowWrapRow = 0,
+  FlexGridAutoFlowWrapColumn = 1,
+  FlexGridAutoFlowWrapRowDense = 2,
+  FlexGridAutoFlowWrapColumnDense = 3,
 };
 
-enum MasonDimensionCompatType : NSInteger;
+enum GridPlacementCompatType : NSInteger;
 @class NSString;
+
+SWIFT_CLASS_NAMED("GridPlacementCompat")
+@interface GridPlacementCompat : NSObject
+- (nonnull instancetype)initWithSpan:(int16_t)span OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithLine:(int16_t)line OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) enum GridPlacementCompatType type;
+@property (nonatomic, readonly) int16_t value;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) GridPlacementCompat * _Nonnull Auto;)
++ (GridPlacementCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, GridPlacementCompatType, "GridPlacementCompatType", open) {
+  GridPlacementCompatTypeAuto = 0,
+  GridPlacementCompatTypeLine = 1,
+  GridPlacementCompatTypeSpan = 2,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, GridTrackRepetition, "GridTrackRepetition", open) {
+  GridTrackRepetitionAutoFill = 0,
+  GridTrackRepetitionAutoFit = 1,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, JustifyContent, "JustifyContent", open) {
+  JustifyContentNormal = -1,
+  JustifyContentStart = 0,
+  JustifyContentEnd = 1,
+  JustifyContentCenter = 2,
+  JustifyContentStretch = 3,
+  JustifyContentSpaceBetween = 4,
+  JustifyContentSpaceAround = 5,
+  JustifyContentSpaceEvenly = 6,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, JustifyItems, "JustifyItems", open) {
+  JustifyItemsNormal = -1,
+  JustifyItemsStart = 0,
+  JustifyItemsEnd = 1,
+  JustifyItemsCenter = 2,
+  JustifyItemsBaseline = 3,
+  JustifyItemsStretch = 4,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, JustifySelf, "JustifySelf", open) {
+  JustifySelfNormal = -1,
+  JustifySelfStart = 0,
+  JustifySelfEnd = 1,
+  JustifySelfCenter = 2,
+  JustifySelfBaseline = 3,
+  JustifySelfStretch = 4,
+};
+
+
+SWIFT_CLASS_NAMED("LineGridPlacementCompat")
+@interface LineGridPlacementCompat : NSObject
+@property (nonatomic, readonly, strong) GridPlacementCompat * _Nonnull start;
+@property (nonatomic, readonly, strong) GridPlacementCompat * _Nonnull end;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum MasonDimensionCompatType : NSInteger;
 
 SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @interface MasonDimensionCompat : NSObject
@@ -948,20 +1274,40 @@ SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @property (nonatomic, readonly) float value;
 @property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 @property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
-SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Undefined;)
-+ (MasonDimensionCompat * _Nonnull)Undefined SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Auto;)
 + (MasonDimensionCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonDimensionCompat * _Nonnull Zero;)
++ (MasonDimensionCompat * _Nonnull)Zero SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonDimensionCompatType, "MasonDimensionCompatType", open) {
-  MasonDimensionCompatTypePoints = 0,
-  MasonDimensionCompatTypePercent = 1,
-  MasonDimensionCompatTypeAuto = 2,
-  MasonDimensionCompatTypeUndefined = 3,
+  MasonDimensionCompatTypeAuto = 0,
+  MasonDimensionCompatTypePoints = 1,
+  MasonDimensionCompatTypePercent = 2,
 };
+
+
+SWIFT_CLASS_NAMED("MasonDimensionRectCompat")
+@interface MasonDimensionRectCompat : NSObject
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull left;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull right;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull top;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull bottom;
+- (nonnull instancetype)init:(MasonDimensionCompat * _Nonnull)left :(MasonDimensionCompat * _Nonnull)right :(MasonDimensionCompat * _Nonnull)top :(MasonDimensionCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MasonDimensionSizeCompat")
+@interface MasonDimensionSizeCompat : NSObject
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull width;
+@property (nonatomic, strong) MasonDimensionCompat * _Nonnull height;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
 
 
 SWIFT_CLASS_NAMED("MasonLayout")
@@ -973,6 +1319,93 @@ SWIFT_CLASS_NAMED("MasonLayout")
 @property (nonatomic, readonly) float height;
 @property (nonatomic, readonly, copy) NSArray<MasonLayout *> * _Nonnull children;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum MasonLengthPercentageAutoCompatType : NSInteger;
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageAutoCompat")
+@interface MasonLengthPercentageAutoCompat : NSObject
+- (nonnull instancetype)initWithPoints:(float)points OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithPercent:(float)percent OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) enum MasonLengthPercentageAutoCompatType type;
+@property (nonatomic, readonly) float value;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonLengthPercentageAutoCompat * _Nonnull Auto;)
++ (MasonLengthPercentageAutoCompat * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonLengthPercentageAutoCompat * _Nonnull Zero;)
++ (MasonLengthPercentageAutoCompat * _Nonnull)Zero SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonLengthPercentageAutoCompatType, "MasonLengthPercentageAutoCompatType", open) {
+  MasonLengthPercentageAutoCompatTypeAuto = 0,
+  MasonLengthPercentageAutoCompatTypePoints = 1,
+  MasonLengthPercentageAutoCompatTypePercent = 2,
+};
+
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageAutoRectCompat")
+@interface MasonLengthPercentageAutoRectCompat : NSObject
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull left;
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull right;
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull top;
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull bottom;
+- (nonnull instancetype)init:(MasonLengthPercentageAutoCompat * _Nonnull)left :(MasonLengthPercentageAutoCompat * _Nonnull)right :(MasonLengthPercentageAutoCompat * _Nonnull)top :(MasonLengthPercentageAutoCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageAutoSizeCompat")
+@interface MasonLengthPercentageAutoSizeCompat : NSObject
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull width;
+@property (nonatomic, strong) MasonLengthPercentageAutoCompat * _Nonnull height;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum MasonLengthPercentageCompatType : NSInteger;
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageCompat")
+@interface MasonLengthPercentageCompat : NSObject
+- (nonnull instancetype)initWithPoints:(float)points OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithPercent:(float)percent OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) enum MasonLengthPercentageCompatType type;
+@property (nonatomic, readonly) float value;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonLengthPercentageCompat * _Nonnull Zero;)
++ (MasonLengthPercentageCompat * _Nonnull)Zero SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonLengthPercentageCompatType, "MasonLengthPercentageCompatType", open) {
+  MasonLengthPercentageCompatTypePoints = 0,
+  MasonLengthPercentageCompatTypePercent = 1,
+};
+
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageRectCompat")
+@interface MasonLengthPercentageRectCompat : NSObject
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull left;
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull right;
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull top;
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull bottom;
+- (nonnull instancetype)init:(MasonLengthPercentageCompat * _Nonnull)left :(MasonLengthPercentageCompat * _Nonnull)right :(MasonLengthPercentageCompat * _Nonnull)top :(MasonLengthPercentageCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MasonLengthPercentageSizeCompat")
+@interface MasonLengthPercentageSizeCompat : NSObject
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull width;
+@property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull height;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
@@ -990,25 +1423,19 @@ SWIFT_CLASS_NAMED("MasonNode")
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style children:(NSArray<MasonNode *> * _Nonnull)children OBJC_DESIGNATED_INITIALIZER;
+- (MasonLayout * _Nonnull)layout;
 @property (nonatomic, readonly) BOOL isDirty;
 - (void)markDirty;
+- (void)compute;
+- (void)compute:(float)width :(float)height;
+- (void)computeMaxContent;
+- (void)computeMinContent;
 - (void)computeWithViewSize;
+- (void)computeWithMaxContent;
 - (void)setChildrenWithChildren:(NSArray<MasonNode *> * _Nonnull)children;
 - (void)addChildren:(NSArray<MasonNode *> * _Nonnull)children;
 @property (nonatomic, readonly) BOOL isLeaf;
 - (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
-@end
-
-
-SWIFT_CLASS_NAMED("MasonRectCompat")
-@interface MasonRectCompat : NSObject
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull left;
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull right;
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull top;
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull bottom;
-- (nonnull instancetype)init:(MasonDimensionCompat * _Nonnull)left :(MasonDimensionCompat * _Nonnull)right :(MasonDimensionCompat * _Nonnull)top :(MasonDimensionCompat * _Nonnull)bottom OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)init SWIFT_UNAVAILABLE;
-+ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 
@@ -1023,8 +1450,8 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)node_mark_dirty:(void * _Nonnull)mason :(void * _Nonnull)node;
 + (int32_t)style_get_display:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_display:(void * _Nonnull)style :(int32_t)display;
-+ (int32_t)style_get_position_type:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_type:(void * _Nonnull)style :(int32_t)position;
++ (int32_t)style_get_position:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_position:(void * _Nonnull)style :(int32_t)position;
 + (int32_t)style_get_direction:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_direction:(void * _Nonnull)style :(int32_t)direction;
 + (int32_t)style_get_flex_direction:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
@@ -1039,44 +1466,48 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_align_self:(void * _Nonnull)style :(int32_t)align_self;
 + (int32_t)style_get_align_content:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_align_content:(void * _Nonnull)style :(int32_t)align_content;
++ (int32_t)style_get_justify_items:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_justify_items:(void * _Nonnull)style :(int32_t)align_items;
++ (int32_t)style_get_justify_self:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_justify_self:(void * _Nonnull)style :(int32_t)align_self;
 + (int32_t)style_get_justify_content:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_justify_content:(void * _Nonnull)style :(int32_t)justify_content;
-+ (void)style_set_position:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_position_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_position_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_right:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_position_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_position_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_position_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (void)style_set_margin:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_margin_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_margin_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_margin_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_margin_right:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_margin_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_margin_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_margin_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_margin_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (void)style_set_padding:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_padding_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_padding_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_padding_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_padding_right:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_padding_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_padding_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_padding_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_padding_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (void)style_set_border:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_border_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_border_left:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_border_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_border_right:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_border_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_border_top:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_border_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_border_bottom:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (void)style_set_inset:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_inset_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_inset_left:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_inset_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_inset_right:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_inset_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_inset_top:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_inset_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_inset_bottom:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (void)style_set_margin:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_margin_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_margin_left:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_margin_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_margin_right:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_margin_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_margin_top:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (CMasonLengthPercentageAuto)style_get_margin_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_margin_bottom:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageAutoType)value_type;
++ (void)style_set_padding:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_padding_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_padding_left:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_padding_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_padding_right:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_padding_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_padding_top:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_padding_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_padding_bottom:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (void)style_set_border:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_border_left:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_border_left:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_border_right:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_border_right:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_border_top:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_border_top:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_border_bottom:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_border_bottom:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
 + (float)style_get_flex_grow:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_flex_grow:(void * _Nonnull)style :(float)value;
 + (void)style_set_border_bottom:(void * _Nonnull)style :(float)value;
@@ -1096,36 +1527,47 @@ SWIFT_CLASS_NAMED("MasonReexports")
 + (void)style_set_max_width:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
 + (CMasonDimension)style_get_max_height:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_max_height:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonSize)style_get_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_gap:(void * _Nonnull)style :(float)width_value :(CMasonDimensionType)width_type :(float)height_value :(CMasonDimensionType)height_type;
-+ (CMasonDimension)style_get_gap_width:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_gap_width:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
-+ (CMasonDimension)style_get_gap_height:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
-+ (void)style_set_gap_height:(void * _Nonnull)style :(float)value :(CMasonDimensionType)value_type;
++ (CMasonLengthPercentageSize)style_get_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_gap:(void * _Nonnull)style :(float)width_value :(CMasonLengthPercentageType)width_type :(float)height_value :(CMasonLengthPercentageType)height_type;
++ (CMasonLengthPercentage)style_get_row_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_row_gap:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
++ (CMasonLengthPercentage)style_get_column_gap:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_column_gap:(void * _Nonnull)style :(float)value :(CMasonLengthPercentageType)value_type;
 + (float)style_get_aspect_ratio:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
 + (void)style_set_aspect_ratio:(void * _Nonnull)style :(float)value;
-+ (void)style_update_with_values:(void * _Nonnull)style :(int32_t)display :(int32_t)positionType :(int32_t)direction :(int32_t)flexDirection :(int32_t)flexWrap :(int32_t)overflow :(int32_t)alignItems :(int32_t)alignSelf :(int32_t)alignContent :(int32_t)justifyContent :(int32_t)positionLeftType :(float)positionLeftValue :(int32_t)positionRightType :(float)positionRightValue :(int32_t)positionTopType :(float)positionTopValue :(int32_t)positionBottomType :(float)positionBottomValue :(int32_t)marginLeftType :(float)marginLeftValue :(int32_t)marginRightType :(float)marginRightValue :(int32_t)marginTopType :(float)marginTopValue :(int32_t)marginBottomType :(float)marginBottomValue :(int32_t)paddingLeftType :(float)paddingLeftValue :(int32_t)paddingRightType :(float)paddingRightValue :(int32_t)paddingTopType :(float)paddingTopValue :(int32_t)paddingBottomType :(float)paddingBottomValue :(int32_t)borderLeftType :(float)borderLeftValue :(int32_t)borderRightType :(float)borderRightValue :(int32_t)borderTopType :(float)borderTopValue :(int32_t)borderBottomType :(float)borderBottomValue :(float)flexGrow :(float)flexShrink :(int32_t)flexBasisType :(float)flexBasisValue :(int32_t)widthType :(float)widthValue :(int32_t)heightType :(float)heightValue :(int32_t)minWidthType :(float)minWidthValue :(int32_t)minHeightType :(float)minHeightValue :(int32_t)maxWidthType :(float)maxWidthValue :(int32_t)maxHeightType :(float)maxHeightValue :(int32_t)flexGapWidthType :(float)flexGapWidthValue :(int32_t)flexGapHeightType :(float)flexGapHeightValue aspectRatio:(float)aspectRatio;
++ (CMasonMinMaxArray * _Nonnull)style_get_grid_auto_rows:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_auto_rows:(void * _Nonnull)style :(CMasonMinMaxArray * _Nonnull)value;
++ (CMasonMinMaxArray * _Nonnull)style_get_grid_auto_columns:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_auto_columns:(void * _Nonnull)style :(CMasonMinMaxArray * _Nonnull)value;
++ (int32_t)style_get_grid_auto_flow:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_auto_flow:(void * _Nonnull)style :(int32_t)value;
++ (CMasonGridPlacement)style_get_grid_column_start:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_column_start:(void * _Nonnull)style :(CMasonGridPlacement)value;
++ (CMasonGridPlacement)style_get_grid_column_end:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_column_end:(void * _Nonnull)style :(CMasonGridPlacement)value;
++ (CMasonGridPlacement)style_get_grid_row_start:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_row_start:(void * _Nonnull)style :(CMasonGridPlacement)value;
++ (CMasonGridPlacement)style_get_grid_row_end:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_row_end:(void * _Nonnull)style :(CMasonGridPlacement)value;
++ (CMasonTrackSizingFunctionArray * _Nonnull)style_get_grid_template_rows:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_template_rows:(void * _Nonnull)style :(CMasonTrackSizingFunctionArray * _Nonnull)value;
++ (CMasonTrackSizingFunctionArray * _Nonnull)style_get_grid_template_columns:(void * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)style_set_grid_template_columns:(void * _Nonnull)style :(CMasonTrackSizingFunctionArray * _Nonnull)value;
++ (void)style_update_with_values:(void * _Nonnull)style :(int32_t)display :(int32_t)position :(int32_t)direction :(int32_t)flexDirection :(int32_t)flexWrap :(int32_t)overflow :(int32_t)alignItems :(int32_t)alignSelf :(int32_t)alignContent :(int32_t)justifyItems :(int32_t)justifySelf :(int32_t)justifyContent :(int32_t)insetLeftType :(float)insetLeftValue :(int32_t)insetRightType :(float)insetRightValue :(int32_t)insetTopType :(float)insetTopValue :(int32_t)insetBottomType :(float)insetBottomValue :(int32_t)marginLeftType :(float)marginLeftValue :(int32_t)marginRightType :(float)marginRightValue :(int32_t)marginTopType :(float)marginTopValue :(int32_t)marginBottomType :(float)marginBottomValue :(int32_t)paddingLeftType :(float)paddingLeftValue :(int32_t)paddingRightType :(float)paddingRightValue :(int32_t)paddingTopType :(float)paddingTopValue :(int32_t)paddingBottomType :(float)paddingBottomValue :(int32_t)borderLeftType :(float)borderLeftValue :(int32_t)borderRightType :(float)borderRightValue :(int32_t)borderTopType :(float)borderTopValue :(int32_t)borderBottomType :(float)borderBottomValue :(float)flexGrow :(float)flexShrink :(int32_t)flexBasisType :(float)flexBasisValue :(int32_t)widthType :(float)widthValue :(int32_t)heightType :(float)heightValue :(int32_t)minWidthType :(float)minWidthValue :(int32_t)minHeightType :(float)minHeightValue :(int32_t)maxWidthType :(float)maxWidthValue :(int32_t)maxHeightType :(float)maxHeightValue :(int32_t)gapRowType :(float)gapRowValue :(int32_t)gapColumnType :(float)gapColumnValue :(float)aspectRatio :(CMasonNonRepeatedTrackSizingFunctionArray * _Nonnull)gridAutoRows :(CMasonNonRepeatedTrackSizingFunctionArray * _Nonnull)gridAutoColumns :(int32_t)gridAutoFlow :(int32_t)gridColumnStartType :(int16_t)gridColumnStartValue :(int32_t)gridColumnEndType :(int16_t)gridColumnEndValue :(int32_t)gridRowStartType :(int16_t)gridRowStartValue :(int32_t)gridRowEndType :(int16_t)gridRowEndValue :(CMasonTrackSizingFunctionArray * _Nonnull)gridTemplateRows gridTemplateColumns:(CMasonTrackSizingFunctionArray * _Nonnull)gridTemplateColumns;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @end
 
-
-SWIFT_CLASS_NAMED("MasonSizeCompat")
-@interface MasonSizeCompat : NSObject
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull width;
-@property (nonatomic, strong) MasonDimensionCompat * _Nonnull height;
-- (nonnull instancetype)init SWIFT_UNAVAILABLE;
-+ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
-@end
-
-enum PositionType : NSInteger;
+enum Position : NSInteger;
 enum Overflow : NSInteger;
+@class MinMax;
+@class TrackSizingFunction;
 
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
 @property (nonatomic, readonly) void * _Null_unspecified nativePtr;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @property (nonatomic) enum Display display;
-@property (nonatomic) enum PositionType positionType;
+@property (nonatomic) enum Position position;
 @property (nonatomic) enum Direction direction;
 @property (nonatomic) enum FlexDirection flexDirection;
 @property (nonatomic) enum FlexWrap flexWrap;
@@ -1133,26 +1575,28 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic) enum AlignItems alignItems;
 @property (nonatomic) enum AlignSelf alignSelf;
 @property (nonatomic) enum AlignContent alignContent;
+@property (nonatomic) enum JustifyItems justifyItems;
+@property (nonatomic) enum JustifySelf justifySelf;
 @property (nonatomic) enum JustifyContent justifyContent;
-@property (nonatomic, strong) MasonRectCompat * _Nonnull positionCompat;
-- (void)setPositionLeft:(float)value :(NSInteger)type;
-- (void)setPositionRight:(float)value :(NSInteger)type;
-- (void)setPositionTop:(float)value :(NSInteger)type;
-- (void)setPositionBottom:(float)value :(NSInteger)type;
-- (void)setPositionWithValueType:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonRectCompat * _Nonnull marginCompat;
+@property (nonatomic, strong) MasonLengthPercentageAutoRectCompat * _Nonnull insetCompat;
+- (void)setInsetLeft:(float)value :(NSInteger)type;
+- (void)setInsetRight:(float)value :(NSInteger)type;
+- (void)setInsetTop:(float)value :(NSInteger)type;
+- (void)setInsetBottom:(float)value :(NSInteger)type;
+- (void)setInsetWithValueType:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonLengthPercentageAutoRectCompat * _Nonnull marginCompat;
 - (void)setMarginLeft:(float)value :(NSInteger)type;
 - (void)setMarginRight:(float)value :(NSInteger)type;
 - (void)setMarginTop:(float)value :(NSInteger)type;
 - (void)setMarginBottom:(float)value :(NSInteger)type;
 - (void)setMarginWithValueType:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonRectCompat * _Nonnull paddingCompat;
+@property (nonatomic, strong) MasonLengthPercentageRectCompat * _Nonnull paddingCompat;
 - (void)setPaddingLeft:(float)value :(NSInteger)type;
 - (void)setPaddingRight:(float)value :(NSInteger)type;
 - (void)setPaddingTop:(float)value :(NSInteger)type;
 - (void)setPaddingBottom:(float)value :(NSInteger)type;
 - (void)setPaddingWithValueType:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonRectCompat * _Nonnull borderCompat;
+@property (nonatomic, strong) MasonLengthPercentageRectCompat * _Nonnull borderCompat;
 - (void)setBorderLeft:(float)value :(NSInteger)type;
 - (void)setBorderRight:(float)value :(NSInteger)type;
 - (void)setBorderTop:(float)value :(NSInteger)type;
@@ -1160,24 +1604,54 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setBorderWithValueType:(float)value :(NSInteger)type;
 @property (nonatomic) float flexGrow;
 @property (nonatomic) float flexShrink;
-@property (nonatomic, strong) MasonSizeCompat * _Nonnull minSizeCompat;
+@property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull minSizeCompat;
 - (void)setMinSizeWidth:(float)value :(NSInteger)type;
 - (void)setMinSizeHeight:(float)value :(NSInteger)type;
 - (void)setMinSizeWidthHeight:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonSizeCompat * _Nonnull sizeCompat;
+@property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull sizeCompat;
 @property (nonatomic, strong) MasonDimensionCompat * _Nonnull sizeCompatWidth;
 @property (nonatomic, strong) MasonDimensionCompat * _Nonnull sizeCompatHeight;
 - (void)setSizeWidth:(float)value :(NSInteger)type;
 - (void)setSizeHeight:(float)value :(NSInteger)type;
 - (void)setSizeWidthHeight:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonSizeCompat * _Nonnull maxSizeCompat;
+@property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull maxSizeCompat;
 - (void)setMaxSizeWidth:(float)value :(NSInteger)type;
 - (void)setMaxSizeHeight:(float)value :(NSInteger)type;
 - (void)setMaxSizeWidthHeight:(float)value :(NSInteger)type;
-@property (nonatomic, strong) MasonSizeCompat * _Nonnull flexGapCompat;
-- (void)setFlexGapWidth:(float)value :(NSInteger)type;
-- (void)setFlexGapHeight:(float)value :(NSInteger)type;
+@property (nonatomic, strong) MasonLengthPercentageSizeCompat * _Nonnull gapCompat;
+- (void)setGapRow:(float)value :(NSInteger)type;
+- (void)setGapColumn:(float)value :(NSInteger)type;
+- (void)setRowGap:(float)value :(NSInteger)type;
+- (void)setColumnGap:(float)value :(NSInteger)type;
+@property (nonatomic, copy) NSArray<MinMax *> * _Nonnull gridAutoRows;
+@property (nonatomic, copy) NSArray<MinMax *> * _Nonnull gridAutoColumns;
+@property (nonatomic) enum FlexGridAutoFlowWrap gridAutoFlow;
+@property (nonatomic, readonly, strong) LineGridPlacementCompat * _Nonnull gridColumnCompat;
+@property (nonatomic, readonly, strong) LineGridPlacementCompat * _Nonnull gridRowCompat;
+@property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateRows;
+@property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateColumns;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
+@end
+
+
+SWIFT_CLASS_NAMED("MaxSizing")
+@interface MaxSizing : NSObject
+@property (nonatomic, readonly) float value;
++ (MaxSizing * _Nonnull)Points:(float)points SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)Percent:(float)percent SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)FitContent:(float)fit SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)FitContentPercent:(float)fit SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)Flex:(float)flex SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull Auto;)
++ (MaxSizing * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull MinContent;)
++ (MaxSizing * _Nonnull)MinContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull MaxContent;)
++ (MaxSizing * _Nonnull)MaxContent SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 
@@ -1186,15 +1660,51 @@ SWIFT_CLASS_NAMED("MeasureOutput")
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @end
 
+@class MinSizing;
+
+SWIFT_CLASS_NAMED("MinMax")
+@interface MinMax : NSObject
+- (nonnull instancetype)init:(MinSizing * _Nonnull)min :(MaxSizing * _Nonnull)max OBJC_DESIGNATED_INITIALIZER;
++ (MinMax * _Nonnull)PointsWithPoints:(float)points SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)PercentWithPercent:(float)percent SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)FlexWithFlex:(float)flex SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)FitContentWithFit:(float)fit SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)FitContentPercentWithFit:(float)fit SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinMax * _Nonnull Auto;)
++ (MinMax * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MinSizing")
+@interface MinSizing : NSObject
+@property (nonatomic, readonly) float value;
++ (MinSizing * _Nonnull)Points:(float)points SWIFT_WARN_UNUSED_RESULT;
++ (MinSizing * _Nonnull)Percent:(float)percent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * _Nonnull Auto;)
++ (MinSizing * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * _Nonnull MinContent;)
++ (MinSizing * _Nonnull)MinContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * _Nonnull MaxContent;)
++ (MinSizing * _Nonnull)MaxContent SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
 typedef SWIFT_ENUM_NAMED(NSInteger, Overflow, "Overflow", open) {
   OverflowVisible = 0,
   OverflowHidden = 1,
   OverflowScroll = 2,
 };
 
-typedef SWIFT_ENUM_NAMED(NSInteger, PositionType, "PositionType", open) {
-  PositionTypeRelative = 0,
-  PositionTypeAbsolute = 1,
+typedef SWIFT_ENUM_NAMED(NSInteger, Position, "Position", open) {
+  PositionRelative = 0,
+  PositionAbsolute = 1,
 };
 
 
@@ -1214,8 +1724,18 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class) BOOL alwaysEnable;)
 @end
 
 
+SWIFT_CLASS_NAMED("TrackSizingFunction")
+@interface TrackSizingFunction : NSObject
+@property (nonatomic, readonly) BOOL isRepeating;
+@property (nonatomic, readonly) id _Nullable value;
++ (TrackSizingFunction * _Nonnull)Single:(MinMax * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
++ (TrackSizingFunction * _Nonnull)AutoRepeat:(enum GridTrackRepetition)gridTrackRepetition :(NSArray<MinMax *> * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
 @interface UIView (SWIFT_EXTENSION(Mason))
-@property (nonatomic, readonly, strong) MasonNode * _Nonnull mason;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) NSInteger masonPtr;)
 + (NSInteger)masonPtr SWIFT_WARN_UNUSED_RESULT;
 @property (nonatomic, readonly) NSInteger masonNodePtr;
@@ -1227,11 +1747,11 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) NSInteger masonPtr;)
 - (void)setPadding:(float)left :(float)top :(float)right :(float)bottom;
 - (void)setBorder:(float)left :(float)top :(float)right :(float)bottom;
 - (void)setMargin:(float)left :(float)top :(float)right :(float)bottom;
-- (void)setPosition:(float)left :(float)top :(float)right :(float)bottom;
+- (void)setInset:(float)left :(float)top :(float)right :(float)bottom;
 - (void)setMinSize:(float)width :(float)height;
 - (void)setSize:(float)width :(float)height;
 - (void)setMaxSize:(float)width :(float)height;
-- (void)setFlexGap:(float)width :(float)height;
+- (void)setGap:(float)width :(float)height;
 @end
 
 #endif

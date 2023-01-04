@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-taffy = "0.2.2"
+taffy = {git = "https://github.com/DioxusLabs/taffy.git", rev = "3811c5c" }

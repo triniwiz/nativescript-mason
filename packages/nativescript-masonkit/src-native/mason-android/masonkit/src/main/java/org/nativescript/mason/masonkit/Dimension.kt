@@ -1,60 +1,24 @@
 package org.nativescript.mason.masonkit
 
-import com.google.gson.*
-import java.lang.reflect.Type
 
-private const val AutoValue = "auto"
+internal const val AutoValue = "auto"
 
-private const val UndefinedValue = "undefined"
+internal const val PxUnit = "px"
 
-private const val PxUnit = "px"
+internal const val PercentUnit = "%"
 
-private const val PercentUnit = "%"
-
-
-class DimensionSerializer: JsonSerializer<Dimension> {
-  override fun serialize(
-    src: Dimension?,
-    typeOfSrc: Type?,
-    context: JsonSerializationContext?
-  ): JsonElement {
-    if (src == null || context == null){
-      return JsonNull.INSTANCE
-    }
-    val json = JsonObject()
-    when (src) {
-      is Dimension.Points -> {
-        json.add("value", JsonPrimitive(src.points))
-        json.add("unit", JsonPrimitive(PxUnit))
-      }
-      is Dimension.Percent -> {
-        json.add("value", JsonPrimitive(src.percentage))
-        json.add("unit", JsonPrimitive(PercentUnit))
-      }
-      is Dimension.Auto -> {
-        return JsonPrimitive(AutoValue)
-      }
-      else -> {
-        return JsonPrimitive(UndefinedValue)
-      }
-    }
-    return json
-  }
-}
 
 sealed class Dimension {
   data class Points(var points: Float) : Dimension()
   data class Percent(var percentage: Float) : Dimension()
-  object Undefined : Dimension()
   object Auto : Dimension()
 
   companion object {
     fun fromTypeValue(type: Int, value: Float): Dimension? {
       return when (type) {
-        0 -> Points(value)
-        1 -> Percent(value)
-        2 -> Undefined
-        3 -> Auto
+        0 -> Auto
+        1 -> Points(value)
+        2 -> Percent(value)
         else -> null
       }
     }
@@ -62,17 +26,15 @@ sealed class Dimension {
 
   internal val type: Int
     get() = when (this) {
-      is Points -> 0
-      is Percent -> 1
-      is Undefined -> 2
-      is Auto -> 3
+      is Auto -> 0
+      is Points -> 1
+      is Percent -> 2
     }
 
   internal val value: Float
     get() = when (this) {
       is Points -> this.points
       is Percent -> this.percentage
-      is Undefined -> 0f
       is Auto -> 0f
     }
 
@@ -105,9 +67,38 @@ sealed class Dimension {
         is Auto -> {
           AutoValue
         }
-        else -> {
-          UndefinedValue
-        }
       }
     }
+}
+
+fun Rect<Dimension>.jsonValue(): String {
+  return Mason.gson.toJson(this)
+}
+
+fun Rect<Dimension>.cssValue(): String {
+  return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
+}
+
+fun Size<Dimension>.jsonValue(): String {
+  return Mason.gson.toJson(this)
+}
+
+fun Size<Dimension>.cssValue(): String {
+  return "{\"width\":${width.cssValue},\"height\":${height.cssValue}}"
+}
+
+fun Size<Dimension>.widthCssValue(): String {
+  return width.cssValue
+}
+
+fun Size<Dimension>.heightCssValue(): String {
+  return height.cssValue
+}
+
+fun Size<Dimension>.widthJsonValue(): String {
+  return width.jsonValue
+}
+
+fun Size<Dimension>.heightJsonValue(): String {
+  return height.jsonValue
 }

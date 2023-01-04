@@ -38,7 +38,7 @@ public class MasonLayout: NSObject {
         self.y = 0
         self.width = 0
         self.height = 0
-        self.children = NSMutableArray(capacity: 0) as! Array<MasonLayout>
+        self.children = []
     }
     
     internal init(_ order: Int, _ x: Float, _ y: Float,_ width: Float,_ height: Float,_ children: Array<MasonLayout>) {
@@ -72,16 +72,17 @@ public class MasonLayout: NSObject {
         offset += 1
         
         
-        let children = NSMutableArray(capacity: count)
+        var children = Array<MasonLayout>()
+        children.reserveCapacity(count)
         
         
         for _ in 0..<count {
             let child = fromFloatArray(args, offset)
             offset = child.0
-            children.add(child.1)
+            children.append(child.1)
         }
         
-        return (offset, MasonLayout(Int(order), x, y, width, height, children as! Array<MasonLayout>))
+        return (offset, MasonLayout(Int(order), x, y, width, height, children))
     }
     
     
@@ -110,15 +111,16 @@ public class MasonLayout: NSObject {
         let childCount = Int(array.pointee)
         array = array.advanced(by: 1)
         
-        let children = NSMutableArray(capacity: childCount)
+        var children = Array<MasonLayout>()
+        children.reserveCapacity(childCount)
         
         
         for _ in 0..<childCount {
             let child = fromFloatPoint(array)
             array = child.0
-            children.add(child.1)
+            children.append(child.1)
         }
       
-        return (array, MasonLayout(Int(order.rounded(.up)), x, y, width, height, children as! Array<MasonLayout>))
+        return (array, MasonLayout(Int(order.rounded(.up)), x, y, width, height, children))
     }
 }

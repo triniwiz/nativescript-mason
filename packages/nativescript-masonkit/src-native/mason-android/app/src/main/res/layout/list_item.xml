@@ -5,7 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    mason:flex_direction="column">
+    mason:mason_alignContent="stretch"
+    mason:mason_alignItems="center"
+    mason:mason_flexDirection="column">
 
     <TextView
         android:id="@+id/listTextView"

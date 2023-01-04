@@ -58,10 +58,6 @@ export function loaded(args) {
 
   //   console.log('height updated value:', view.height);
   // }, 300);
-
-  setTimeout(() => {
-    view.nativeView.requestLayout();
-  }, 5000);
 }
 
 export class DemoModel extends DemoSharedNativescriptMasonkit {}

@@ -1,8 +1,13 @@
 use jni::objects::{JClass, JObject, JValue, ReleaseMode};
-use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, JNI_FALSE, JNI_TRUE};
+use jni::sys::{
+    jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, jobjectArray, jshort, JNI_FALSE,
+    JNI_TRUE,
+};
 use jni::JNIEnv;
 
 use mason_core::{AvailableSpace, Mason, MeasureFunc, MeasureOutput, Node, Size};
+
+use crate::style::{to_vec_non_repeated_track_sizing_function, to_vec_track_sizing_function};
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeDestroy(
@@ -32,7 +37,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNode(
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let style = Box::from_raw(style as *mut mason_core::style::Style);
         let ret = mason
-            .new_node(*style)
+            .new_node(*style.clone())
             .map(|v| Box::into_raw(Box::new(v)) as jlong)
             .unwrap_or_else(|| 0);
 
@@ -63,7 +68,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
 
         let ret = mason
             .new_node_with_measure_func(
-                *style,
+                *style.clone(),
                 MeasureFunc::Boxed(Box::new(move |known_dimensions, available_space| {
                     let vm = jvm.attach_current_thread();
                     let env = vm.unwrap();
@@ -266,7 +271,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeMi
     unsafe {
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
-        let size = Size::<AvailableSpace>::max_content();
+        let size = Size::<AvailableSpace>::min_content();
         mason.compute_size(*node, size);
         Box::leak(mason);
         Box::leak(node);
@@ -307,7 +312,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetStyle(
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
         let style = Box::from_raw(style as *mut mason_core::style::Style);
-        mason.set_style(*node, *style);
+        mason.set_style(*node, *style.clone());
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
@@ -316,13 +321,13 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetStyle(
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAndSetStyle(
-    _: JNIEnv,
+    env: JNIEnv,
     _: JObject,
     taffy: jlong,
     node: jlong,
     style: jlong,
     display: jint,
-    position_type: jint,
+    position: jint,
     direction: jint,
     flex_direction: jint,
     flex_wrap: jint,
@@ -330,15 +335,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
-    position_left_type: jint,
-    position_left_value: jfloat,
-    position_right_type: jint,
-    position_right_value: jfloat,
-    position_top_type: jint,
-    position_top_value: jfloat,
-    position_bottom_type: jint,
-    position_bottom_value: jfloat,
+    inset_left_type: jint,
+    inset_left_value: jfloat,
+    inset_right_type: jint,
+    inset_right_value: jfloat,
+    inset_top_type: jint,
+    inset_top_value: jfloat,
+    inset_bottom_type: jint,
+    inset_bottom_value: jfloat,
     margin_left_type: jint,
     margin_left_value: jfloat,
     margin_right_type: jint,
@@ -379,11 +386,24 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
     max_width_value: jfloat,
     max_height_type: jint,
     max_height_value: jfloat,
-    flex_gap_width_type: jint,
-    flex_gap_width_value: jfloat,
-    flex_gap_height_type: jint,
-    flex_gap_height_value: jfloat,
+    gap_row_type: jint,
+    gap_row_value: jfloat,
+    gap_column_type: jint,
+    gap_column_value: jfloat,
     aspect_ratio: jfloat,
+    grid_auto_rows: jobjectArray,
+    grid_auto_columns: jobjectArray,
+    grid_auto_flow: jint,
+    grid_column_start_type: jint,
+    grid_column_start_value: jshort,
+    grid_column_end_type: jint,
+    grid_column_end_value: jshort,
+    grid_row_start_type: jint,
+    grid_row_start_value: jshort,
+    grid_row_end_type: jint,
+    grid_row_end_value: jshort,
+    grid_template_rows: jobjectArray,
+    grid_template_columns: jobjectArray,
 ) {
     if taffy == 0 || node == 0 || style == 0 {
         return;
@@ -393,10 +413,15 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
         let node = Box::from_raw(node as *mut Node);
         let mut style = Box::from_raw(style as *mut mason_core::style::Style);
 
+        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
+        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
+        let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
+        let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
+
         mason_core::style::Style::update_from_ffi(
             &mut style,
             display,
-            position_type,
+            position,
             direction,
             flex_direction,
             flex_wrap,
@@ -404,15 +429,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
-            position_left_type,
-            position_left_value,
-            position_right_type,
-            position_right_value,
-            position_top_type,
-            position_top_value,
-            position_bottom_type,
-            position_bottom_value,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
             margin_left_type,
             margin_left_value,
             margin_right_type,
@@ -453,13 +480,27 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
             max_width_value,
             max_height_type,
             max_height_value,
-            flex_gap_width_type,
-            flex_gap_width_value,
-            flex_gap_height_type,
-            flex_gap_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
             aspect_ratio,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_column_start_type,
+            grid_column_start_value,
+            grid_column_end_type,
+            grid_column_end_value,
+            grid_row_start_type,
+            grid_row_start_value,
+            grid_row_end_type,
+            grid_row_end_value,
+            grid_template_rows,
+            grid_template_columns,
         );
-        mason.set_style(*node, *style);
+        mason.set_style(*node, *style.clone());
+
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
@@ -474,7 +515,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     node: jlong,
     style: jlong,
     display: jint,
-    position_type: jint,
+    position: jint,
     direction: jint,
     flex_direction: jint,
     flex_wrap: jint,
@@ -482,15 +523,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
-    position_left_type: jint,
-    position_left_value: jfloat,
-    position_right_type: jint,
-    position_right_value: jfloat,
-    position_top_type: jint,
-    position_top_value: jfloat,
-    position_bottom_type: jint,
-    position_bottom_value: jfloat,
+    inset_left_type: jint,
+    inset_left_value: jfloat,
+    inset_right_type: jint,
+    inset_right_value: jfloat,
+    inset_top_type: jint,
+    inset_top_value: jfloat,
+    inset_bottom_type: jint,
+    inset_bottom_value: jfloat,
     margin_left_type: jint,
     margin_left_value: jfloat,
     margin_right_type: jint,
@@ -531,11 +574,24 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     max_width_value: jfloat,
     max_height_type: jint,
     max_height_value: jfloat,
-    flex_gap_width_type: jint,
-    flex_gap_width_value: jfloat,
-    flex_gap_height_type: jint,
-    flex_gap_height_value: jfloat,
+    gap_row_type: jint,
+    gap_row_value: jfloat,
+    gap_column_type: jint,
+    gap_column_value: jfloat,
     aspect_ratio: jfloat,
+    grid_auto_rows: jobjectArray,
+    grid_auto_columns: jobjectArray,
+    grid_auto_flow: jint,
+    grid_column_start_type: jint,
+    grid_column_start_value: jshort,
+    grid_column_end_type: jint,
+    grid_column_end_value: jshort,
+    grid_row_start_type: jint,
+    grid_row_start_value: jshort,
+    grid_row_end_type: jint,
+    grid_row_end_value: jshort,
+    grid_template_rows: jobjectArray,
+    grid_template_columns: jobjectArray,
 ) -> jfloatArray {
     if taffy == 0 || node == 0 || style == 0 {
         return env.new_float_array(0_i32).unwrap();
@@ -546,10 +602,16 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         let node = Box::from_raw(node as *mut Node);
         let mut style = Box::from_raw(style as *mut mason_core::style::Style);
 
+        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
+        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
+        let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
+        let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
+
+
         mason_core::style::Style::update_from_ffi(
             &mut style,
             display,
-            position_type,
+            position,
             direction,
             flex_direction,
             flex_wrap,
@@ -557,15 +619,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
-            position_left_type,
-            position_left_value,
-            position_right_type,
-            position_right_value,
-            position_top_type,
-            position_top_value,
-            position_bottom_type,
-            position_bottom_value,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
             margin_left_type,
             margin_left_value,
             margin_right_type,
@@ -606,19 +670,34 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             max_width_value,
             max_height_type,
             max_height_value,
-            flex_gap_width_type,
-            flex_gap_width_value,
-            flex_gap_height_type,
-            flex_gap_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
             aspect_ratio,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_column_start_type,
+            grid_column_start_value,
+            grid_column_end_type,
+            grid_column_end_value,
+            grid_row_start_type,
+            grid_row_start_value,
+            grid_row_end_type,
+            grid_row_end_value,
+            grid_template_rows,
+            grid_template_columns,
         );
-        mason.set_style(*node, *style);
+
+        mason.set_style(*node, *(style.clone()));
 
         mason.compute(*node);
 
         let output = mason.layout(*node);
 
         let result = env.new_float_array(output.len() as i32).unwrap();
+
         env.set_float_array_region(result, 0, &output).unwrap();
 
         Box::leak(mason);
@@ -639,7 +718,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     width: jfloat,
     height: jfloat,
     display: jint,
-    position_type: jint,
+    position: jint,
     direction: jint,
     flex_direction: jint,
     flex_wrap: jint,
@@ -647,15 +726,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
-    position_left_type: jint,
-    position_left_value: jfloat,
-    position_right_type: jint,
-    position_right_value: jfloat,
-    position_top_type: jint,
-    position_top_value: jfloat,
-    position_bottom_type: jint,
-    position_bottom_value: jfloat,
+    inset_left_type: jint,
+    inset_left_value: jfloat,
+    inset_right_type: jint,
+    inset_right_value: jfloat,
+    inset_top_type: jint,
+    inset_top_value: jfloat,
+    inset_bottom_type: jint,
+    inset_bottom_value: jfloat,
     margin_left_type: jint,
     margin_left_value: jfloat,
     margin_right_type: jint,
@@ -696,11 +777,24 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     max_width_value: jfloat,
     max_height_type: jint,
     max_height_value: jfloat,
-    flex_gap_width_type: jint,
-    flex_gap_width_value: jfloat,
-    flex_gap_height_type: jint,
-    flex_gap_height_value: jfloat,
+    gap_row_type: jint,
+    gap_row_value: jfloat,
+    gap_column_type: jint,
+    gap_column_value: jfloat,
     aspect_ratio: jfloat,
+    grid_auto_rows: jobjectArray,
+    grid_auto_columns: jobjectArray,
+    grid_auto_flow: jint,
+    grid_column_start_type: jint,
+    grid_column_start_value: jshort,
+    grid_column_end_type: jint,
+    grid_column_end_value: jshort,
+    grid_row_start_type: jint,
+    grid_row_start_value: jshort,
+    grid_row_end_type: jint,
+    grid_row_end_value: jshort,
+    grid_template_rows: jobjectArray,
+    grid_template_columns: jobjectArray,
 ) -> jfloatArray {
     if taffy == 0 || node == 0 || style == 0 {
         return env.new_float_array(0_i32).unwrap();
@@ -711,10 +805,15 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         let node = Box::from_raw(node as *mut Node);
         let mut style = Box::from_raw(style as *mut mason_core::style::Style);
 
+        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
+        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
+        let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
+        let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
+
         mason_core::style::Style::update_from_ffi(
             &mut style,
             display,
-            position_type,
+            position,
             direction,
             flex_direction,
             flex_wrap,
@@ -722,15 +821,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
-            position_left_type,
-            position_left_value,
-            position_right_type,
-            position_right_value,
-            position_top_type,
-            position_top_value,
-            position_bottom_type,
-            position_bottom_value,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
             margin_left_type,
             margin_left_value,
             margin_right_type,
@@ -771,14 +872,27 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             max_width_value,
             max_height_type,
             max_height_value,
-            flex_gap_width_type,
-            flex_gap_width_value,
-            flex_gap_height_type,
-            flex_gap_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
             aspect_ratio,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_column_start_type,
+            grid_column_start_value,
+            grid_column_end_type,
+            grid_column_end_value,
+            grid_row_start_type,
+            grid_row_start_value,
+            grid_row_end_type,
+            grid_row_end_value,
+            grid_template_rows,
+            grid_template_columns,
         );
 
-        mason.set_style(*node, *style);
+        mason.set_style(*node, *style.clone());
 
         mason.compute_wh(*node, width, height);
 
@@ -849,6 +963,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetChildr
                 .collect();
             mason.set_children(*node, data.as_slice());
         }
+
+        Box::leak(mason);
+        Box::leak(node);
     }
 }
 
@@ -881,6 +998,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChildr
                 .collect();
             mason.add_children(*node, data.as_slice());
         }
+
+        Box::leak(mason);
+        Box::leak(node);
     }
 }
 
@@ -1079,7 +1199,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeIsChildre
         let mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
 
-        match env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+        let ret = match env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
             Ok(array) => {
                 let size = array.size().unwrap_or_default() as usize;
                 if mason.child_count(*node) != size {
@@ -1099,7 +1219,12 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeIsChildre
                 JNI_FALSE
             }
             Err(_) => JNI_FALSE,
-        }
+        };
+
+        Box::leak(mason);
+        Box::leak(node);
+
+        ret
     }
 }
 
@@ -1175,11 +1300,11 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeRemoveChi
 
                 0
             }
-            Some(child) => {
+            Some(_) => {
                 Box::leak(mason);
                 Box::leak(node);
 
-                Box::into_raw(Box::new(child)) as jlong
+                Box::into_raw(child) as jlong
             }
         }
     }

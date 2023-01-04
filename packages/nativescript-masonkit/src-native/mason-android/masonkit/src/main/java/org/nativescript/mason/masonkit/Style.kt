@@ -1,17 +1,20 @@
 package org.nativescript.mason.masonkit
 
-enum class AlignItems {
-  FlexStart,
-  FlexEnd,
-  Center,
-  Baseline,
-  Stretch;
+
+enum class AlignItems(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Baseline(3),
+  Stretch(4);
 
   companion object {
     fun fromInt(value: Int): AlignItems {
       return when (value) {
-        0 -> FlexStart
-        1 -> FlexEnd
+        -1 -> Normal
+        0 -> Start
+        1 -> End
         2 -> Center
         3 -> Baseline
         4 -> Stretch
@@ -21,43 +24,46 @@ enum class AlignItems {
   }
 }
 
-enum class AlignSelf {
-  Auto,
-  FlexStart,
-  FlexEnd,
-  Center,
-  Baseline,
-  Stretch;
+enum class AlignSelf(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Baseline(3),
+  Stretch(4);
 
   companion object {
     fun fromInt(value: Int): AlignSelf {
       return when (value) {
-        0 -> Auto
-        1 -> FlexStart
-        2 -> FlexEnd
-        3 -> Center
-        4 -> Baseline
-        5 -> Stretch
+        -1 -> Normal
+        0 -> Start
+        1 -> End
+        2 -> Center
+        3 -> Baseline
+        4 -> Stretch
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
   }
 }
 
-enum class AlignContent {
-  FlexStart,
-  FlexEnd,
-  Center,
-  Stretch,
-  SpaceBetween,
-  SpaceAround,
-  SpaceEvenly;
+enum class AlignContent(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Stretch(3),
+  SpaceBetween(4),
+  SpaceAround(5),
+  SpaceEvenly(6);
+
 
   companion object {
     fun fromInt(value: Int): AlignContent {
       return when (value) {
-        0 -> FlexStart
-        1 -> FlexEnd
+        -1 -> Normal
+        0 -> Start
+        1 -> End
         2 -> Center
         3 -> Stretch
         4 -> SpaceBetween
@@ -87,14 +93,16 @@ enum class Direction {
 }
 
 enum class Display {
+  None,
   Flex,
-  None;
+  Grid;
 
   companion object {
     fun fromInt(value: Int): Display {
       return when (value) {
-        0 -> Flex
-        1 -> None
+        0 -> None
+        1 -> Flex
+        2 -> Grid
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -120,23 +128,73 @@ enum class FlexDirection {
   }
 }
 
-enum class JustifyContent {
-  FlexStart,
-  FlexEnd,
-  Center,
-  SpaceBetween,
-  SpaceAround,
-  SpaceEvenly;
+enum class JustifySelf(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Baseline(3),
+  Stretch(4);
+
+  companion object {
+    fun fromInt(value: Int): JustifySelf {
+      return when (value) {
+        -1 -> Normal
+        0 -> Start
+        1 -> End
+        2 -> Center
+        3 -> Baseline
+        4 -> Stretch
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+enum class JustifyItems(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Baseline(3),
+  Stretch(4);
+
+  companion object {
+    fun fromInt(value: Int): JustifyItems {
+      return when (value) {
+        -1 -> Normal
+        0 -> Start
+        1 -> End
+        2 -> Center
+        3 -> Baseline
+        4 -> Stretch
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+enum class JustifyContent(val value: Int) {
+  Normal(-1),
+  Start(0),
+  End(1),
+  Center(2),
+  Stretch(3),
+  SpaceBetween(4),
+  SpaceAround(5),
+  SpaceEvenly(6);
 
   companion object {
     fun fromInt(value: Int): JustifyContent {
       return when (value) {
-        0 -> FlexStart
-        1 -> FlexEnd
+        -1 -> Normal
+        0 -> Start
+        1 -> End
         2 -> Center
-        3 -> SpaceBetween
-        4 -> SpaceAround
-        5 -> SpaceEvenly
+        3 -> Stretch
+        4 -> SpaceBetween
+        5 -> SpaceAround
+        6 -> SpaceEvenly
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -160,12 +218,12 @@ enum class Overflow {
   }
 }
 
-enum class PositionType {
+enum class Position {
   Relative,
   Absolute;
 
   companion object {
-    fun fromInt(value: Int): PositionType {
+    fun fromInt(value: Int): Position {
       return when (value) {
         0 -> Relative
         1 -> Absolute
@@ -192,6 +250,99 @@ enum class FlexWrap {
   }
 }
 
+enum class GridAutoFlow {
+  Row,
+  Column,
+  RowDense,
+  ColumnDense;
+
+  companion object {
+    fun fromInt(value: Int): GridAutoFlow {
+      return when (value) {
+        0 -> Row
+        1 -> Column
+        2 -> RowDense
+        3 -> ColumnDense
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+sealed class GridPlacement {
+  object Auto : GridPlacement()
+  data class Line(var value: Short) : GridPlacement()
+  data class Span(var value: Short) : GridPlacement()
+
+
+  internal val type: Int
+    get() = when (this) {
+      is Auto -> 0
+      is Line -> 1
+      is Span -> 2
+    }
+
+  internal val placementValue: Short
+    get() = when (this) {
+      is Auto -> 0
+      is Line -> value
+      is Span -> value
+    }
+}
+
+enum class GridTrackRepetition {
+  AutoFill,
+  AutoFit;
+
+  fun toInt(): Int {
+    return when (this) {
+      AutoFill -> 0
+      AutoFit -> 1
+    }
+  }
+
+  companion object {
+    fun fromInt(value: Int): GridTrackRepetition {
+      return when (value) {
+        0 -> AutoFill
+        1 -> AutoFit
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+sealed class TrackSizingFunction(val isRepeating: Boolean = false) {
+
+  data class Single(val value: MinMax) : TrackSizingFunction()
+
+  data class AutoRepeat(val gridTrackRepetition: GridTrackRepetition, val value: Array<MinMax>) :
+    TrackSizingFunction(true) {
+
+    fun gridTrackRepetitionNativeValue(): Int {
+      return gridTrackRepetition.toInt()
+    }
+
+    override fun equals(other: Any?): Boolean {
+      if (this === other) return true
+      if (javaClass != other?.javaClass) return false
+
+      other as AutoRepeat
+
+      if (gridTrackRepetition != other.gridTrackRepetition) return false
+      if (!value.contentEquals(other.value)) return false
+
+      return true
+    }
+
+    override fun hashCode(): Int {
+      var result = gridTrackRepetition.hashCode()
+      result = 31 * result + value.contentHashCode()
+      return result
+    }
+  }
+}
+
 class Style internal constructor() {
 
   private var nativePtr = 0L
@@ -204,7 +355,7 @@ class Style internal constructor() {
       isDirty = true
     }
 
-  var positionType: PositionType = PositionType.Relative
+  var position = Position.Relative
     set(value) {
       field = value
       isDirty = true
@@ -235,109 +386,122 @@ class Style internal constructor() {
       isDirty = true
     }
 
-  var alignItems: AlignItems = AlignItems.Stretch
+  var alignItems: AlignItems = AlignItems.Normal
     set(value) {
       field = value
       isDirty = true
     }
 
-  var alignSelf: AlignSelf = AlignSelf.Auto
+  var alignSelf: AlignSelf = AlignSelf.Normal
     set(value) {
       field = value
       isDirty = true
     }
 
-  var alignContent: AlignContent = AlignContent.FlexStart
+  var alignContent: AlignContent = AlignContent.Normal
     set(value) {
       field = value
       isDirty = true
     }
 
-  var justifyContent: JustifyContent = JustifyContent.FlexStart
+
+  var justifyItems: JustifyItems = JustifyItems.Normal
     set(value) {
       field = value
       isDirty = true
     }
 
-  var position: Rect<Dimension> =
-    Rect(Dimension.Undefined, Dimension.Undefined, Dimension.Undefined, Dimension.Undefined)
+
+  var justifySelf: JustifySelf = JustifySelf.Stretch
     set(value) {
       field = value
       isDirty = true
     }
 
-  fun setPositionLeft(value: Float, type: Int) {
+  var justifyContent: JustifyContent = JustifyContent.Start
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var inset: Rect<LengthPercentageAuto> =
+    Rect(
+      LengthPercentageAuto.Auto,
+      LengthPercentageAuto.Auto,
+      LengthPercentageAuto.Auto,
+      LengthPercentageAuto.Auto
+    )
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  fun setInsetLeft(value: Float, type: Int) {
     val left = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
     left?.let {
-      position = Rect(left, position.right, position.top, position.bottom)
+      inset = Rect(left, inset.right, inset.top, inset.bottom)
     }
   }
 
-  fun setPositionRight(value: Float, type: Int) {
+  fun setInsetRight(value: Float, type: Int) {
     val right = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
     right?.let {
-      position = Rect(position.left, right, position.top, position.bottom)
+      inset = Rect(inset.left, right, inset.top, inset.bottom)
     }
   }
 
-  fun setPositionTop(value: Float, type: Int) {
+  fun setInsetTop(value: Float, type: Int) {
     val top = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
     top?.let {
-      position = Rect(position.left, position.right, top, position.bottom)
+      inset = Rect(inset.left, inset.right, top, inset.bottom)
     }
   }
 
-  fun setPositionBottom(value: Float, type: Int) {
+  fun setInsetBottom(value: Float, type: Int) {
     val bottom = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
     bottom?.let {
-      position = Rect(position.left, position.right, position.top, bottom)
+      inset = Rect(inset.left, inset.right, inset.top, bottom)
     }
   }
 
-  fun setPositionWithValueType(value: Float, type: Int) {
-    val position = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+  fun setInsetWithValueType(value: Float, type: Int) {
+    val inset = when (type) {
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
-    position?.let {
-      this.position = Rect(it, it, it, it)
+    inset?.let {
+      this.inset = Rect(it, it, it, it)
     }
   }
 
-  var margin: Rect<Dimension> =
-    Rect(Dimension.Undefined, Dimension.Undefined, Dimension.Undefined, Dimension.Undefined)
+  var margin: Rect<LengthPercentageAuto> = LengthPercentageAutoZeroRect
     set(value) {
       field = value
       isDirty = true
@@ -345,10 +509,9 @@ class Style internal constructor() {
 
   fun setMarginLeft(value: Float, type: Int) {
     val left = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
@@ -359,10 +522,9 @@ class Style internal constructor() {
 
   fun setMarginRight(value: Float, type: Int) {
     val right = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
@@ -373,10 +535,9 @@ class Style internal constructor() {
 
   fun setMarginTop(value: Float, type: Int) {
     val top = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
@@ -387,10 +548,9 @@ class Style internal constructor() {
 
   fun setMarginBottom(value: Float, type: Int) {
     val bottom = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
@@ -401,10 +561,9 @@ class Style internal constructor() {
 
   fun setMarginWithValueType(value: Float, type: Int) {
     val margin = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentageAuto.Auto
+      1 -> LengthPercentageAuto.Points(value)
+      2 -> LengthPercentageAuto.Percent(value)
       else -> null
     }
 
@@ -413,8 +572,7 @@ class Style internal constructor() {
     }
   }
 
-  var padding: Rect<Dimension> =
-    Rect(Dimension.Undefined, Dimension.Undefined, Dimension.Undefined, Dimension.Undefined)
+  var padding: Rect<LengthPercentage> = LengthPercentageZeroRect
     set(value) {
       field = value
       isDirty = true
@@ -422,10 +580,8 @@ class Style internal constructor() {
 
   fun setPaddingLeft(value: Float, type: Int) {
     val left = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -436,10 +592,8 @@ class Style internal constructor() {
 
   fun setPaddingRight(value: Float, type: Int) {
     val right = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -450,10 +604,8 @@ class Style internal constructor() {
 
   fun setPaddingTop(value: Float, type: Int) {
     val top = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -464,10 +616,8 @@ class Style internal constructor() {
 
   fun setPaddingBottom(value: Float, type: Int) {
     val bottom = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -478,10 +628,8 @@ class Style internal constructor() {
 
   fun setPaddingWithValueType(value: Float, type: Int) {
     val padding = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -490,8 +638,7 @@ class Style internal constructor() {
     }
   }
 
-  var border: Rect<Dimension> =
-    Rect(Dimension.Undefined, Dimension.Undefined, Dimension.Undefined, Dimension.Undefined)
+  var border: Rect<LengthPercentage> = LengthPercentageZeroRect
     set(value) {
       field = value
       isDirty = true
@@ -499,10 +646,8 @@ class Style internal constructor() {
 
   fun setBorderLeft(value: Float, type: Int) {
     val left = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -513,10 +658,8 @@ class Style internal constructor() {
 
   fun setBorderRight(value: Float, type: Int) {
     val right = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -527,10 +670,8 @@ class Style internal constructor() {
 
   fun setBorderTop(value: Float, type: Int) {
     val top = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -541,10 +682,8 @@ class Style internal constructor() {
 
   fun setBorderBottom(value: Float, type: Int) {
     val bottom = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -555,10 +694,8 @@ class Style internal constructor() {
 
   fun setBorderWithValueType(value: Float, type: Int) {
     val border = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
@@ -587,10 +724,9 @@ class Style internal constructor() {
 
   fun setFlexBasis(value: Float, type: Int) {
     when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> Dimension.Auto
+      1 -> Dimension.Points(value)
+      2 -> Dimension.Percent(value)
       else -> null
     }?.let {
       flexBasis = it
@@ -605,10 +741,9 @@ class Style internal constructor() {
 
   fun setMinSizeWidth(value: Float, type: Int) {
     val width = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> Dimension.Auto
+      1 -> Dimension.Points(value)
+      2 -> Dimension.Percent(value)
       else -> null
     }
 
@@ -619,10 +754,9 @@ class Style internal constructor() {
 
   fun setMinSizeHeight(value: Float, type: Int) {
     val height = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> Dimension.Auto
+      1 -> Dimension.Points(value)
+      2 -> Dimension.Percent(value)
       else -> null
     }
 
@@ -639,10 +773,9 @@ class Style internal constructor() {
 
   fun setSizeWidth(value: Float, type: Int) {
     val width = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> Dimension.Auto
+      1 -> Dimension.Points(value)
+      2 -> Dimension.Percent(value)
       else -> null
     }
 
@@ -653,10 +786,9 @@ class Style internal constructor() {
 
   fun setSizeHeight(value: Float, type: Int) {
     val height = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> Dimension.Auto
+      1 -> Dimension.Points(value)
+      2 -> Dimension.Percent(value)
       else -> null
     }
 
@@ -673,10 +805,9 @@ class Style internal constructor() {
 
   fun setMaxSizeWidth(value: Float, type: Int) {
     val width = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> Dimension.Auto
+      1 -> Dimension.Points(value)
+      2 -> Dimension.Percent(value)
       else -> null
     }
 
@@ -687,10 +818,9 @@ class Style internal constructor() {
 
   fun setMaxSizeHeight(value: Float, type: Int) {
     val height = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> Dimension.Auto
+      1 -> Dimension.Points(value)
+      2 -> Dimension.Percent(value)
       else -> null
     }
 
@@ -699,64 +829,99 @@ class Style internal constructor() {
     }
   }
 
-  var flexGap: Size<Dimension> = Size(Dimension.Undefined, Dimension.Undefined)
+  var gap: Size<LengthPercentage> = LengthPercentageZeroSize
     set(value) {
       field = value
       isDirty = true
     }
 
-  fun setFlexGap(width_value: Float, width_type: Int, height_value: Float, height_type: Int) {
+  fun setGap(width_value: Float, width_type: Int, height_value: Float, height_type: Int) {
     val width = when (width_type) {
-      0 -> Dimension.Points(width_value)
-      1 -> Dimension.Percent(width_value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(width_value)
+      1 -> LengthPercentage.Percent(width_value)
       else -> null
     }
 
     val height = when (height_type) {
-      0 -> Dimension.Points(height_value)
-      1 -> Dimension.Percent(height_value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(height_value)
+      1 -> LengthPercentage.Percent(height_value)
       else -> null
     }
 
     if (width != null && height != null) {
-      flexGap = Size(width, height)
+      gap = Size(width, height)
     }
   }
 
 
-  fun setFlexGapWidth(value: Float, type: Int) {
+  fun setGapRow(value: Float, type: Int) {
     val width = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
     width?.let {
-      flexGap = Size(it, size.height)
+      gap = Size(it, gap.height)
     }
   }
 
-  fun setFlexHeight(value: Float, type: Int) {
+  fun setGapColumn(value: Float, type: Int) {
     val height = when (type) {
-      0 -> Dimension.Points(value)
-      1 -> Dimension.Percent(value)
-      2 -> Dimension.Undefined
-      3 -> Dimension.Auto
+      0 -> LengthPercentage.Points(value)
+      1 -> LengthPercentage.Percent(value)
       else -> null
     }
 
     height?.let {
-      flexGap = Size(size.width, it)
+      gap = Size(gap.width, it)
     }
   }
 
   var aspectRatio: Float? = null
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+
+  var gridAutoRows: Array<MinMax> = emptyArray()
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var gridAutoColumns: Array<MinMax> = emptyArray()
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var gridAutoFlow: GridAutoFlow = GridAutoFlow.Row
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var gridColumn: Line<GridPlacement> = autoLine
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var gridRow: Line<GridPlacement> = autoLine
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var gridTemplateRows: Array<TrackSizingFunction> = emptyArray()
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var gridTemplateColumns: Array<TrackSizingFunction> = emptyArray()
     set(value) {
       field = value
       isDirty = true
@@ -770,7 +935,7 @@ class Style internal constructor() {
 
   internal fun updateStyle(
     display: Int,
-    positionType: Int,
+    position: Int,
     direction: Int,
     flexDirection: Int,
     flexWrap: Int,
@@ -779,14 +944,14 @@ class Style internal constructor() {
     alignSelf: Int,
     alignContent: Int,
     justifyContent: Int,
-    positionLeftType: Int,
-    positionLeftValue: Float,
-    positionEndType: Int,
-    positionEndValue: Float,
-    positionTopType: Int,
-    positionTopValue: Float,
-    positionBottomType: Int,
-    positionBottomValue: Float,
+    insetLeftType: Int,
+    insetLeftValue: Float,
+    insetEndType: Int,
+    insetEndValue: Float,
+    insetTopType: Int,
+    insetTopValue: Float,
+    insetBottomType: Int,
+    insetBottomValue: Float,
     marginLeftType: Int,
     marginLeftValue: Float,
     marginEndType: Int,
@@ -827,109 +992,122 @@ class Style internal constructor() {
     maxSizeWidthValue: Float,
     maxSizeHeightType: Int,
     maxSizeHeightValue: Float,
-    flexGapWidthType: Int,
-    flexGapWidthValue: Float,
-    flexGapHeightType: Int,
-    flexGapHeightValue: Float,
-    aspectRatio: Float
+    gapRowType: Int,
+    gapRowValue: Float,
+    gapColumnType: Int,
+    gapColumnValue: Float,
+    aspectRatio: Float,
+    gridAutoRows: Array<MinMax>,
+    gridAutoColumns: Array<MinMax>,
+    gridAutoFlow: Int,
+    gridColumnStartType: Int,
+    gridColumnStartValue: Short,
+    gridColumnEndType: Int,
+    gridColumnEndValue: Short,
+    gridRowStartType: Int,
+    gridRowStartValue: Short,
+    gridRowEndType: Int,
+    gridRowEndValue: Short,
+    gridTemplateRows: Array<TrackSizingFunction>,
+    gridTemplateColumns: Array<TrackSizingFunction>,
   ) {
-    this.display = Display.values()[display]
-    this.positionType = PositionType.values()[positionType]
-    this.flexDirection = FlexDirection.values()[flexDirection]
-    this.flexWrap = FlexWrap.values()[flexWrap]
-    this.overflow = Overflow.values()[overflow]
-    this.alignItems = AlignItems.values()[alignItems]
-    this.alignSelf = AlignSelf.values()[alignSelf]
-    this.alignContent = AlignContent.values()[alignContent]
-    this.justifyContent = JustifyContent.values()[justifyContent]
+    this.display = Display.fromInt(display)
+    this.position = Position.fromInt(position)
+    this.flexDirection = FlexDirection.fromInt(flexDirection)
+    this.flexWrap = FlexWrap.fromInt(flexWrap)
+    this.overflow = Overflow.fromInt(overflow)
+    this.alignItems = AlignItems.fromInt(alignItems)
+    this.alignSelf = AlignSelf.fromInt(alignSelf)
+    this.alignContent = AlignContent.fromInt(alignContent)
+    this.justifyContent = JustifyContent.fromInt(justifyContent)
 
-    var positionLeft: Dimension = Dimension.Undefined
-    var positionEnd: Dimension = Dimension.Undefined
-    var positionTop: Dimension = Dimension.Undefined
-    var positionBottom: Dimension = Dimension.Undefined
+    var insetLeft: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var insetEnd: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var insetTop: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var insetBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
 
-    Dimension.fromTypeValue(positionLeftType, positionLeftValue)?.let {
-      positionLeft = it
+    LengthPercentageAuto.fromTypeValue(insetLeftType, insetLeftValue)?.let {
+      insetLeft = it
     }
 
-    Dimension.fromTypeValue(positionEndType, positionEndValue)?.let {
-      positionEnd = it
+    LengthPercentageAuto.fromTypeValue(insetEndType, insetEndValue)?.let {
+      insetEnd = it
     }
 
-    Dimension.fromTypeValue(positionTopType, positionTopValue)?.let {
-      positionTop = it
+    LengthPercentageAuto.fromTypeValue(insetTopType, insetTopValue)?.let {
+      insetTop = it
     }
 
-    Dimension.fromTypeValue(positionBottomType, positionBottomValue)?.let {
-      positionBottom = it
+    LengthPercentageAuto.fromTypeValue(insetBottomType, insetBottomValue)?.let {
+      insetBottom = it
     }
 
-    position = Rect(positionLeft, positionEnd, positionTop, positionBottom)
+    inset = Rect(insetLeft, insetEnd, insetTop, insetBottom)
 
-    var marginLeft: Dimension = Dimension.Undefined
-    var marginEnd: Dimension = Dimension.Undefined
-    var marginTop: Dimension = Dimension.Undefined
-    var marginBottom: Dimension = Dimension.Undefined
+    var marginLeft: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginEnd: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginTop: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
 
-    Dimension.fromTypeValue(marginLeftType, marginLeftValue)?.let {
+    LengthPercentageAuto.fromTypeValue(marginLeftType, marginLeftValue)?.let {
       marginLeft = it
     }
 
-    Dimension.fromTypeValue(marginEndType, marginEndValue)?.let {
+    LengthPercentageAuto.fromTypeValue(marginEndType, marginEndValue)?.let {
       marginEnd = it
     }
 
-    Dimension.fromTypeValue(marginTopType, marginTopValue)?.let {
+    LengthPercentageAuto.fromTypeValue(marginTopType, marginTopValue)?.let {
       marginTop = it
     }
 
-    Dimension.fromTypeValue(marginBottomType, marginBottomValue)?.let {
+    LengthPercentageAuto.fromTypeValue(marginBottomType, marginBottomValue)?.let {
       marginBottom = it
     }
 
     margin = Rect(marginLeft, marginEnd, marginTop, marginBottom)
 
-    var paddingLeft: Dimension = Dimension.Undefined
-    var paddingEnd: Dimension = Dimension.Undefined
-    var paddingTop: Dimension = Dimension.Undefined
-    var paddingBottom: Dimension = Dimension.Undefined
+    var paddingLeft: LengthPercentage = LengthPercentage.Zero
+    var paddingEnd: LengthPercentage = LengthPercentage.Zero
+    var paddingTop: LengthPercentage = LengthPercentage.Zero
+    var paddingBottom: LengthPercentage = LengthPercentage.Zero
 
-    Dimension.fromTypeValue(paddingLeftType, paddingLeftValue)?.let {
+    LengthPercentage.fromTypeValue(paddingLeftType, paddingLeftValue)?.let {
       paddingLeft = it
     }
 
-    Dimension.fromTypeValue(paddingEndType, paddingEndValue)?.let {
+    LengthPercentage.fromTypeValue(paddingEndType, paddingEndValue)?.let {
       paddingEnd = it
     }
 
-    Dimension.fromTypeValue(paddingTopType, paddingTopValue)?.let {
+    LengthPercentage.fromTypeValue(paddingTopType, paddingTopValue)?.let {
       paddingTop = it
     }
 
-    Dimension.fromTypeValue(paddingBottomType, paddingBottomValue)?.let {
+    LengthPercentage.fromTypeValue(paddingBottomType, paddingBottomValue)?.let {
       paddingBottom = it
     }
 
     padding = Rect(paddingLeft, paddingEnd, paddingTop, paddingBottom)
 
-    var borderLeft: Dimension = Dimension.Undefined
-    var borderEnd: Dimension = Dimension.Undefined
-    var borderTop: Dimension = Dimension.Undefined
-    var borderBottom: Dimension = Dimension.Undefined
+    var borderLeft: LengthPercentage = LengthPercentage.Zero
+    var borderEnd: LengthPercentage = LengthPercentage.Zero
+    var borderTop: LengthPercentage = LengthPercentage.Zero
+    var borderBottom: LengthPercentage = LengthPercentage.Zero
 
-    Dimension.fromTypeValue(borderLeftType, borderLeftValue)?.let {
+    LengthPercentage.fromTypeValue(borderLeftType, borderLeftValue)?.let {
       borderLeft = it
     }
 
-    Dimension.fromTypeValue(borderEndType, borderEndValue)?.let {
+    LengthPercentage.fromTypeValue(borderEndType, borderEndValue)?.let {
       borderEnd = it
     }
 
-    Dimension.fromTypeValue(borderTopType, borderTopValue)?.let {
+    LengthPercentage.fromTypeValue(borderTopType, borderTopValue)?.let {
       borderTop = it
     }
 
-    Dimension.fromTypeValue(borderBottomType, borderBottomValue)?.let {
+    LengthPercentage.fromTypeValue(borderBottomType, borderBottomValue)?.let {
       borderBottom = it
     }
 
@@ -944,8 +1122,8 @@ class Style internal constructor() {
     }
 
 
-    var sizeWidth: Dimension = Dimension.Undefined
-    var sizeHeight: Dimension = Dimension.Undefined
+    var sizeWidth: Dimension = Dimension.Auto
+    var sizeHeight: Dimension = Dimension.Auto
 
     Dimension.fromTypeValue(sizeWidthType, sizeWidthValue)?.let {
       sizeWidth = it
@@ -956,7 +1134,6 @@ class Style internal constructor() {
     }
 
     this.size = Size(sizeWidth, sizeHeight)
-
 
     var minSizeWidth: Dimension = Dimension.Auto
     var minSizeHeight: Dimension = Dimension.Auto
@@ -985,26 +1162,53 @@ class Style internal constructor() {
 
     this.maxSize = Size(maxSizeWidth, maxSizeHeight)
 
-    var flexGapWidth: Dimension = Dimension.Undefined
-    var flexGapHeight: Dimension = Dimension.Undefined
+    var gapRow: LengthPercentage = LengthPercentage.Zero
+    var gapColumn: LengthPercentage = LengthPercentage.Zero
 
 
 
-    Dimension.fromTypeValue(flexGapWidthType, flexGapWidthValue)?.let {
-      flexGapWidth = it
+    LengthPercentage.fromTypeValue(gapRowType, gapRowValue)?.let {
+      gapRow = it
     }
 
-    Dimension.fromTypeValue(flexGapHeightType, flexGapHeightValue)?.let {
-      flexGapHeight = it
+    LengthPercentage.fromTypeValue(gapColumnType, gapColumnValue)?.let {
+      gapColumn = it
     }
 
-    this.flexGap = Size(flexGapWidth, flexGapHeight)
+    this.gap = Size(gapRow, gapColumn)
 
     if (!aspectRatio.isNaN()) {
       this.aspectRatio = null
     } else {
       this.aspectRatio = aspectRatio
     }
+
+
+    this.gridAutoRows = gridAutoRows
+    this.gridAutoColumns = gridAutoColumns
+    this.gridAutoFlow = GridAutoFlow.fromInt(gridAutoFlow)
+
+    Line.fromStartAndEndValues(
+      gridColumnStartType,
+      gridColumnStartValue,
+      gridColumnEndType,
+      gridColumnEndValue
+    )?.let {
+      gridColumn = it
+    }
+
+
+    Line.fromStartAndEndValues(
+      gridRowStartType,
+      gridRowStartValue,
+      gridRowEndType,
+      gridRowEndValue
+    )?.let {
+      gridRow = it
+    }
+
+    this.gridTemplateRows = gridTemplateRows
+    this.gridTemplateColumns = gridTemplateColumns
 
   }
 
@@ -1013,24 +1217,26 @@ class Style internal constructor() {
     if (nativePtr == 0L) {
       nativePtr = nativeInitWithValues(
         display.ordinal,
-        positionType.ordinal,
+        position.ordinal,
         direction.ordinal,
         flexDirection.ordinal,
         flexWrap.ordinal,
         overflow.ordinal,
-        alignItems.ordinal,
-        alignSelf.ordinal,
-        alignContent.ordinal,
-        justifyContent.ordinal,
+        alignItems.value,
+        alignSelf.value,
+        alignContent.value,
+        justifyItems.value,
+        justifySelf.value,
+        justifyContent.value,
 
-        position.left.type,
-        position.left.value,
-        position.right.type,
-        position.right.value,
-        position.top.type,
-        position.top.value,
-        position.bottom.type,
-        position.bottom.value,
+        inset.left.type,
+        inset.left.value,
+        inset.right.type,
+        inset.right.value,
+        inset.top.type,
+        inset.top.value,
+        inset.bottom.type,
+        inset.bottom.value,
 
         margin.left.type,
         margin.left.value,
@@ -1080,12 +1286,26 @@ class Style internal constructor() {
         maxSize.height.type,
         maxSize.height.value,
 
-        flexGap.width.type,
-        flexGap.width.value,
-        flexGap.height.type,
-        flexGap.height.value,
+        gap.width.type,
+        gap.width.value,
+        gap.height.type,
+        gap.height.value,
 
-        aspectRatio ?: Float.NaN
+        aspectRatio ?: Float.NaN,
+
+        gridAutoRows,
+        gridAutoColumns,
+        gridAutoFlow.ordinal,
+        gridColumn.start.type,
+        gridColumn.start.placementValue,
+        gridColumn.end.type,
+        gridColumn.end.placementValue,
+        gridRow.start.type,
+        gridRow.start.placementValue,
+        gridRow.end.type,
+        gridRow.end.placementValue,
+        gridTemplateRows,
+        gridTemplateColumns
       )
       isDirty = false
     }
@@ -1107,7 +1327,7 @@ class Style internal constructor() {
 
   private external fun nativeInitWithValues(
     display: Int,
-    positionType: Int,
+    position: Int,
     direction: Int,
     flexDirection: Int,
     flexWrap: Int,
@@ -1115,16 +1335,18 @@ class Style internal constructor() {
     alignItems: Int,
     alignSelf: Int,
     alignContent: Int,
+    justifyItems: Int,
+    justifySelf: Int,
     justifyContent: Int,
 
-    positionLeftType: Int,
-    positionLeftValue: Float,
-    positionRightType: Int,
-    positionRightValue: Float,
-    positionTopType: Int,
-    positionTopValue: Float,
-    positionBottomType: Int,
-    positionBottomValue: Float,
+    insetLeftType: Int,
+    insetLeftValue: Float,
+    insetRightType: Int,
+    insetRightValue: Float,
+    insetTopType: Int,
+    insetTopValue: Float,
+    insetBottomType: Int,
+    insetBottomValue: Float,
 
     marginLeftType: Int,
     marginLeftValue: Float,
@@ -1174,19 +1396,33 @@ class Style internal constructor() {
     maxHeightType: Int,
     maxHeightValue: Float,
 
-    flexGapWidthType: Int,
-    flexGapWidthValue: Float,
-    flexGapHeightType: Int,
-    flexGapHeightValue: Float,
+    gapRowType: Int,
+    gapRowValue: Float,
+    gapColumnType: Int,
+    gapColumnValue: Float,
 
-    aspectRatio: Float
+    aspectRatio: Float,
+
+    gridAutoRows: Array<MinMax>,
+    gridAutoColumns: Array<MinMax>,
+    gridAutoFlow: Int,
+    gridColumnStartType: Int,
+    gridColumnStartValue: Short,
+    gridColumnEndType: Int,
+    gridColumnEndValue: Short,
+    gridRowStartType: Int,
+    gridRowStartValue: Short,
+    gridRowEndType: Int,
+    gridRowEndValue: Short,
+    gridTemplateRows: Array<TrackSizingFunction>,
+    gridTemplateColumns: Array<TrackSizingFunction>
   ): Long
 
 
   private external fun nativeUpdateWithValues(
     style: Long,
     display: Int,
-    positionType: Int,
+    position: Int,
     direction: Int,
     flexDirection: Int,
     flexWrap: Int,
@@ -1194,16 +1430,18 @@ class Style internal constructor() {
     alignItems: Int,
     alignSelf: Int,
     alignContent: Int,
+    justifyItems: Int,
+    justifySelf: Int,
     justifyContent: Int,
 
-    positionLeftType: Int,
-    positionLeftValue: Float,
-    positionRightType: Int,
-    positionRightValue: Float,
-    positionTopType: Int,
-    positionTopValue: Float,
-    positionBottomType: Int,
-    positionBottomValue: Float,
+    insetLeftType: Int,
+    insetLeftValue: Float,
+    insetRightType: Int,
+    insetRightValue: Float,
+    insetTopType: Int,
+    insetTopValue: Float,
+    insetBottomType: Int,
+    insetBottomValue: Float,
 
     marginLeftType: Int,
     marginLeftValue: Float,
@@ -1253,12 +1491,26 @@ class Style internal constructor() {
     maxHeightType: Int,
     maxHeightValue: Float,
 
-    flexGapWidthType: Int,
-    flexGapWidthValue: Float,
-    flexGapHeightType: Int,
-    flexGapHeightValue: Float,
+    gapRowType: Int,
+    gapRowValue: Float,
+    gapColumnType: Int,
+    gapColumnValue: Float,
 
-    aspectRatio: Float
+    aspectRatio: Float,
+
+    gridAutoRows: Array<MinMax>,
+    gridAutoColumns: Array<MinMax>,
+    gridAutoFlow: Int,
+    gridColumnStartType: Int,
+    gridColumnStartValue: Short,
+    gridColumnEndType: Int,
+    gridColumnEndValue: Short,
+    gridRowStartType: Int,
+    gridRowStartValue: Short,
+    gridRowEndType: Int,
+    gridRowEndValue: Short,
+    gridTemplateRows: Array<TrackSizingFunction>,
+    gridTemplateColumns: Array<TrackSizingFunction>
   )
 
 }

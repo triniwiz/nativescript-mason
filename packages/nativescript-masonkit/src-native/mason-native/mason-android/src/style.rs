@@ -1,8 +1,15 @@
+use jni::objects::{JObject, ReleaseMode};
+use jni::signature::ReturnType;
+use jni::sys::{jfloat, jint, jlong, jobjectArray, jshort};
 use jni::JNIEnv;
-use jni::objects::JObject;
-use jni::sys::{jfloat, jint, jlong};
 
-use mason_core::style::Style;
+use mason_core::style::{min_max_from_values, Style};
+use mason_core::{
+    grid_auto_flow_from_enum, GridTrackRepetition, NonRepeatedTrackSizingFunction,
+    TrackSizingFunction,
+};
+
+use crate::TRACK_SIZING_FUNCTION;
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeDestroy(
@@ -26,12 +33,210 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInit(
     Style::default().into_raw() as jlong
 }
 
+pub(crate) const JAVA_INT_TYPE: ReturnType = ReturnType::Primitive(jni::signature::Primitive::Int);
+pub(crate) const JAVA_FLOAT_TYPE: ReturnType =
+    ReturnType::Primitive(jni::signature::Primitive::Float);
+pub(crate) const JAVA_BOOLEAN_TYPE: ReturnType =
+    ReturnType::Primitive(jni::signature::Primitive::Boolean);
+pub(crate) const JAVA_OBJECT_TYPE: ReturnType = ReturnType::Object;
+pub(crate) const JAVA_ARRAY_TYPE: ReturnType = ReturnType::Array;
+
+pub(crate) fn to_vec_non_repeated_track_sizing_function(
+    env: JNIEnv,
+    array: jobjectArray,
+) -> Vec<NonRepeatedTrackSizingFunction> {
+    return if array.is_null() {
+        vec![]
+    } else {
+        let len = env.get_array_length(array).unwrap_or_default();
+        if len == 0 {
+            return vec![];
+        }
+
+        let mut ret = Vec::with_capacity(len as usize);
+
+        let min_max = crate::MIN_MAX.get().unwrap();
+
+        for i in 0..len {
+            let object = env.get_object_array_element(array, i).unwrap();
+            let min_type = env
+                .call_method_unchecked(object, min_max.min_type_id, JAVA_INT_TYPE, &[])
+                .unwrap();
+            let min_value = env
+                .call_method_unchecked(object, min_max.min_value_id, JAVA_FLOAT_TYPE, &[])
+                .unwrap();
+            let max_type = env
+                .call_method_unchecked(object, min_max.max_type_id, JAVA_INT_TYPE, &[])
+                .unwrap();
+            let max_value = env
+                .call_method_unchecked(object, min_max.max_value_id, JAVA_FLOAT_TYPE, &[])
+                .unwrap();
+            ret.push(min_max_from_values(
+                min_type.i().unwrap(),
+                min_value.f().unwrap(),
+                max_type.i().unwrap(),
+                max_value.f().unwrap(),
+            ));
+        }
+        ret
+    };
+}
+
+pub(crate) fn to_vec_track_sizing_function(
+    env: JNIEnv,
+    array: jobjectArray,
+) -> Vec<TrackSizingFunction> {
+    if !array.is_null() {
+        let len = env.get_array_length(array).unwrap_or_default();
+
+        if len == 0 {
+            return vec![];
+        }
+
+        let mut ret = Vec::with_capacity(len as usize);
+
+        let track_sizing = TRACK_SIZING_FUNCTION.get().unwrap();
+
+        let min_max = crate::MIN_MAX.get().unwrap();
+
+        for i in 0..len {
+            let object = env.get_object_array_element(array, i).unwrap();
+
+            let is_repeating = env
+                .call_method_unchecked(object, track_sizing.is_repeating, JAVA_BOOLEAN_TYPE, &[])
+                .unwrap()
+                .z()
+                .unwrap();
+
+            if is_repeating {
+                let auto_repeat_grid_track_repetition = env
+                    .call_method_unchecked(
+                        object,
+                        track_sizing.auto_repeat_grid_track_repetition_id,
+                        JAVA_INT_TYPE,
+                        &[],
+                    )
+                    .unwrap()
+                    .i()
+                    .unwrap();
+
+                let auto_repeat_value = env
+                    .call_method_unchecked(
+                        object,
+                        track_sizing.auto_repeat_value_id,
+                        JAVA_ARRAY_TYPE,
+                        &[],
+                    )
+                    .unwrap();
+
+                let auto_repeat_value_array = auto_repeat_value.l().unwrap().into_raw();
+
+                let repeating_len = env
+                    .get_array_length(auto_repeat_value_array)
+                    .unwrap_or_default();
+
+                let mut repeat_ret = Vec::with_capacity(repeating_len as usize);
+
+                for j in 0..repeating_len {
+                    let repeat_object = env
+                        .get_object_array_element(auto_repeat_value_array, j)
+                        .unwrap();
+
+                    let min_type = env
+                        .call_method_unchecked(
+                            repeat_object,
+                            min_max.min_type_id,
+                            JAVA_INT_TYPE,
+                            &[],
+                        )
+                        .unwrap();
+                    let min_value = env
+                        .call_method_unchecked(
+                            repeat_object,
+                            min_max.min_value_id,
+                            JAVA_FLOAT_TYPE,
+                            &[],
+                        )
+                        .unwrap();
+                    let max_type = env
+                        .call_method_unchecked(
+                            repeat_object,
+                            min_max.max_type_id,
+                            JAVA_INT_TYPE,
+                            &[],
+                        )
+                        .unwrap();
+                    let max_value = env
+                        .call_method_unchecked(
+                            repeat_object,
+                            min_max.max_value_id,
+                            JAVA_FLOAT_TYPE,
+                            &[],
+                        )
+                        .unwrap();
+
+                    repeat_ret.push(min_max_from_values(
+                        min_type.i().unwrap(),
+                        min_value.f().unwrap(),
+                        max_type.i().unwrap(),
+                        max_value.f().unwrap(),
+                    ));
+                }
+
+                ret.push(TrackSizingFunction::AutoRepeat(
+                    match auto_repeat_grid_track_repetition {
+                        0 => GridTrackRepetition::AutoFill,
+                        1 => GridTrackRepetition::AutoFit,
+                        _ => panic!(),
+                    },
+                    repeat_ret,
+                ));
+            } else {
+                let single_value = env
+                    .call_method_unchecked(
+                        object,
+                        track_sizing.single_value_id,
+                        JAVA_OBJECT_TYPE,
+                        &[],
+                    )
+                    .unwrap()
+                    .l()
+                    .unwrap();
+
+                let min_type = env
+                    .call_method_unchecked(single_value, min_max.min_type_id, JAVA_INT_TYPE, &[])
+                    .unwrap();
+                let min_value = env
+                    .call_method_unchecked(single_value, min_max.min_value_id, JAVA_FLOAT_TYPE, &[])
+                    .unwrap();
+                let max_type = env
+                    .call_method_unchecked(single_value, min_max.max_type_id, JAVA_INT_TYPE, &[])
+                    .unwrap();
+                let max_value = env
+                    .call_method_unchecked(single_value, min_max.max_value_id, JAVA_FLOAT_TYPE, &[])
+                    .unwrap();
+
+                ret.push(TrackSizingFunction::Single(min_max_from_values(
+                    min_type.i().unwrap(),
+                    min_value.f().unwrap(),
+                    max_type.i().unwrap(),
+                    max_value.f().unwrap(),
+                )));
+            }
+        }
+
+        return ret;
+    }
+
+    vec![]
+}
+
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWithValues(
-    _: JNIEnv,
+    env: JNIEnv,
     _: JObject,
     display: jint,
-    position_type: jint,
+    position: jint,
     direction: jint,
     flex_direction: jint,
     flex_wrap: jint,
@@ -39,15 +244,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
-    position_left_type: jint,
-    position_left_value: jfloat,
-    position_right_type: jint,
-    position_right_value: jfloat,
-    position_top_type: jint,
-    position_top_value: jfloat,
-    position_bottom_type: jint,
-    position_bottom_value: jfloat,
+    inset_left_type: jint,
+    inset_left_value: jfloat,
+    inset_right_type: jint,
+    inset_right_value: jfloat,
+    inset_top_type: jint,
+    inset_top_value: jfloat,
+    inset_bottom_type: jint,
+    inset_bottom_value: jfloat,
     margin_left_type: jint,
     margin_left_value: jfloat,
     margin_right_type: jint,
@@ -88,15 +295,33 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     max_width_value: jfloat,
     max_height_type: jint,
     max_height_value: jfloat,
-    flex_gap_width_type: jint,
-    flex_gap_width_value: jfloat,
-    flex_gap_height_type: jint,
-    flex_gap_height_value: jfloat,
+    gap_row_type: jint,
+    gap_row_value: jfloat,
+    gap_column_type: jint,
+    gap_column_value: jfloat,
     aspect_ratio: jfloat,
+    grid_auto_rows: jobjectArray,
+    grid_auto_columns: jobjectArray,
+    grid_auto_flow: jint,
+    grid_column_start_type: jint,
+    grid_column_start_value: jshort,
+    grid_column_end_type: jint,
+    grid_column_end_value: jshort,
+    grid_row_start_type: jint,
+    grid_row_start_value: jshort,
+    grid_row_end_type: jint,
+    grid_row_end_value: jshort,
+    grid_template_rows: jobjectArray,
+    grid_template_columns: jobjectArray,
 ) -> jlong {
+    let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
+    let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
+    let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
+    let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
+
     Box::into_raw(Box::new(Style::from_ffi(
         display,
-        position_type,
+        position,
         direction,
         flex_direction,
         flex_wrap,
@@ -104,15 +329,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
         align_items,
         align_self,
         align_content,
+        justify_items,
+        justify_self,
         justify_content,
-        position_left_type,
-        position_left_value,
-        position_right_type,
-        position_right_value,
-        position_top_type,
-        position_top_value,
-        position_bottom_type,
-        position_bottom_value,
+        inset_left_type,
+        inset_left_value,
+        inset_right_type,
+        inset_right_value,
+        inset_top_type,
+        inset_top_value,
+        inset_bottom_type,
+        inset_bottom_value,
         margin_left_type,
         margin_left_value,
         margin_right_type,
@@ -153,21 +380,34 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
         max_width_value,
         max_height_type,
         max_height_value,
-        flex_gap_width_type,
-        flex_gap_width_value,
-        flex_gap_height_type,
-        flex_gap_height_value,
+        gap_row_type,
+        gap_row_value,
+        gap_column_type,
+        gap_column_value,
         aspect_ratio,
+        grid_auto_rows,
+        grid_auto_columns,
+        grid_auto_flow,
+        grid_column_start_type,
+        grid_column_start_value,
+        grid_column_end_type,
+        grid_column_end_value,
+        grid_row_start_type,
+        grid_row_start_value,
+        grid_row_end_type,
+        grid_row_end_value,
+        grid_template_rows,
+        grid_template_columns,
     ))) as jlong
 }
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWithValues(
-    _: JNIEnv,
+    env: JNIEnv,
     _: JObject,
     style: jlong,
     display: jint,
-    position_type: jint,
+    position: jint,
     direction: jint,
     flex_direction: jint,
     flex_wrap: jint,
@@ -175,15 +415,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     align_items: jint,
     align_self: jint,
     align_content: jint,
+    justify_items: jint,
+    justify_self: jint,
     justify_content: jint,
-    position_left_type: jint,
-    position_left_value: jfloat,
-    position_right_type: jint,
-    position_right_value: jfloat,
-    position_top_type: jint,
-    position_top_value: jfloat,
-    position_bottom_type: jint,
-    position_bottom_value: jfloat,
+    inset_left_type: jint,
+    inset_left_value: jfloat,
+    inset_right_type: jint,
+    inset_right_value: jfloat,
+    inset_top_type: jint,
+    inset_top_value: jfloat,
+    inset_bottom_type: jint,
+    inset_bottom_value: jfloat,
     margin_left_type: jint,
     margin_left_value: jfloat,
     margin_right_type: jint,
@@ -224,18 +466,36 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     max_width_value: jfloat,
     max_height_type: jint,
     max_height_value: jfloat,
-    flex_gap_width_type: jint,
-    flex_gap_width_value: jfloat,
-    flex_gap_height_type: jint,
-    flex_gap_height_value: jfloat,
+    gap_row_type: jint,
+    gap_row_value: jfloat,
+    gap_column_type: jint,
+    gap_column_value: jfloat,
     aspect_ratio: jfloat,
+    grid_auto_rows: jobjectArray,
+    grid_auto_columns: jobjectArray,
+    grid_auto_flow: jint,
+    grid_column_start_type: jint,
+    grid_column_start_value: jshort,
+    grid_column_end_type: jint,
+    grid_column_end_value: jshort,
+    grid_row_start_type: jint,
+    grid_row_start_value: jshort,
+    grid_row_end_type: jint,
+    grid_row_end_value: jshort,
+    grid_template_rows: jobjectArray,
+    grid_template_columns: jobjectArray,
 ) {
+    let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
+    let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
+    let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
+    let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
+
     unsafe {
         let mut style = Box::from_raw(style as *mut Style);
         Style::update_from_ffi(
             &mut style,
             display,
-            position_type,
+            position,
             direction,
             flex_direction,
             flex_wrap,
@@ -243,15 +503,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
-            position_left_type,
-            position_left_value,
-            position_right_type,
-            position_right_value,
-            position_top_type,
-            position_top_value,
-            position_bottom_type,
-            position_bottom_value,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
             margin_left_type,
             margin_left_value,
             margin_right_type,
@@ -292,13 +554,25 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
             max_width_value,
             max_height_type,
             max_height_value,
-            flex_gap_width_type,
-            flex_gap_width_value,
-            flex_gap_height_type,
-            flex_gap_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
             aspect_ratio,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_column_start_type,
+            grid_column_start_value,
+            grid_column_end_type,
+            grid_column_end_value,
+            grid_row_start_type,
+            grid_row_start_value,
+            grid_row_end_type,
+            grid_row_end_value,
+            grid_template_rows,
+            grid_template_columns,
         );
         Box::leak(style);
     }
 }
-

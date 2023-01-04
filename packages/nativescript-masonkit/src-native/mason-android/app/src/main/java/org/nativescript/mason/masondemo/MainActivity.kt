@@ -2,6 +2,8 @@ package org.nativescript.mason.masondemo
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.DisplayMetrics
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -9,8 +11,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.View
+import org.nativescript.mason.masonkit.*
 
 class MainActivity : AppCompatActivity() {
     lateinit var imageView: ImageView
@@ -19,15 +20,27 @@ class MainActivity : AppCompatActivity() {
     lateinit var recyclerView: RecyclerView
     val array = ArrayList<String>()
     lateinit var adapter: CustomAdapter
+    lateinit var metrics: DisplayMetrics
+
+    fun dipToPx(value: Float): Float{
+      return value * metrics.density
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        Mason.shared = true
+        Mason.shared = false
+        metrics = resources.displayMetrics
         adapter = CustomAdapter(array, resources.displayMetrics.density)
         rootView = findViewById(R.id.rootView)
        // container = findViewById(R.id.container)
         imageView = findViewById(R.id.imageView)
         recyclerView = findViewById(R.id.recyclerView)
+
+//      rootView.setGap(dipToPx(10f), dipToPx(10f))
+//
+//      rootView.gridTemplateColumns = arrayOf(TrackSizingFunction.AutoRepeat(GridTrackRepetition.AutoFill,
+//        arrayOf(MinMax.Values(MinSizing.Points(dipToPx(200f)), MaxSizing.Flex(1f)))))
 
 
 
@@ -36,6 +49,7 @@ class MainActivity : AppCompatActivity() {
             .fitCenter()
             .override(500, 500)
             .into(imageView)
+
 
 
         val start = System.currentTimeMillis()
@@ -60,7 +74,7 @@ class MainActivity : AppCompatActivity() {
 
         recyclerView.adapter = adapter
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
+       recyclerView.layoutManager = LinearLayoutManager(this)
 
     }
 

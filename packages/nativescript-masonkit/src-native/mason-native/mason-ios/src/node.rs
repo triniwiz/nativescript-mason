@@ -1,9 +1,14 @@
 extern crate mason_core;
 
-use std::ffi::{c_float, c_int, c_longlong, c_void};
+use std::ffi::{c_float, c_int, c_longlong, c_short, c_void};
 
 use mason_core::style::Style;
 use mason_core::{Mason, MeasureFunc, MeasureOutput, Node, Size};
+
+use crate::style::{
+    to_vec_non_repeated_track_sizing_function, to_vec_track_sizing_function,
+    CMasonNonRepeatedTrackSizingFunctionArray, CMasonTrackSizingFunctionArray,
+};
 
 #[repr(C)]
 pub enum AvailableSpace {
@@ -73,7 +78,7 @@ pub extern "C" fn mason_node_new_node(mason: *mut c_void, style: *mut c_void) ->
         let mut mason = Box::from_raw(mason as *mut Mason);
         let style = Box::from_raw(style as *mut Style);
         let ret = mason
-            .new_node(*style)
+            .new_node(*style.clone())
             .map(|v| Box::into_raw(Box::new(v)))
             .unwrap_or_else(std::ptr::null_mut) as *mut c_void;
 
@@ -103,19 +108,29 @@ pub extern "C" fn mason_node_new_node_with_measure_func(
 
         let ret = mason
             .new_node_with_measure_func(
-                *style,
+                *style.clone(),
                 MeasureFunc::Boxed(Box::new(
                     move |known_dimensions, available_space| match measure {
                         None => known_dimensions.map(|v| v.unwrap_or(0.0)),
                         Some(measure) => {
                             let measure_data = measure_data as *mut c_void;
 
+                            let available_space_width = match available_space.width {
+                                mason_core::AvailableSpace::Definite(width) => width,
+                                _ => f32::NAN
+                            };
+
+                            let available_space_height = match available_space.height {
+                                mason_core::AvailableSpace::Definite(height) => height,
+                                _ => f32::NAN
+                            };
+
                             let size = measure(
                                 measure_data,
                                 known_dimensions.width.unwrap_or(f32::NAN),
                                 known_dimensions.height.unwrap_or(f32::NAN),
-                                available_space.width.unwrap_or(f32::NAN),
-                                available_space.height.unwrap_or(f32::NAN),
+                                available_space_width,
+                                available_space_height
                             );
 
                             let width = MeasureOutput::get_width(size);
@@ -155,7 +170,7 @@ pub extern "C" fn mason_node_new_node_with_children(
         let data: Vec<Node> = data.iter().map(|v| *(*v)).collect();
 
         let ret = mason
-            .new_node_with_children(*style, &data)
+            .new_node_with_children(*style.clone(), &data)
             .map(|v| Box::into_raw(Box::new(v)))
             .unwrap_or_else(std::ptr::null_mut) as *mut c_void;
 
@@ -298,7 +313,7 @@ pub extern "C" fn mason_node_set_style(mason: *mut c_void, node: *mut c_void, st
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
         let style = Box::from_raw(style as *mut Style);
-        mason.set_style(*node, *style);
+        mason.set_style(*node, *style.clone());
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
@@ -319,7 +334,7 @@ pub extern "C" fn mason_node_update_and_set_style(
         let node = Box::from_raw(node as *mut Node);
         let style = Box::from_raw(style as *mut Style);
 
-        mason.set_style(*node, *style);
+        mason.set_style(*node, *style.clone());
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
@@ -332,7 +347,7 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
     node: *mut c_void,
     style: *mut c_void,
     display: c_int,
-    position_type: c_int,
+    position: c_int,
     direction: c_int,
     flex_direction: c_int,
     flex_wrap: c_int,
@@ -340,15 +355,17 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
     align_items: c_int,
     align_self: c_int,
     align_content: c_int,
+    justify_items: c_int,
+    justify_self: c_int,
     justify_content: c_int,
-    position_left_type: c_int,
-    position_left_value: c_float,
-    position_right_type: c_int,
-    position_right_value: c_float,
-    position_top_type: c_int,
-    position_top_value: c_float,
-    position_bottom_type: c_int,
-    position_bottom_value: c_float,
+    inset_left_type: c_int,
+    inset_left_value: c_float,
+    inset_right_type: c_int,
+    inset_right_value: c_float,
+    inset_top_type: c_int,
+    inset_top_value: c_float,
+    inset_bottom_type: c_int,
+    inset_bottom_value: c_float,
     margin_left_type: c_int,
     margin_left_value: c_float,
     margin_right_type: c_int,
@@ -389,24 +406,43 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
     max_width_value: c_float,
     max_height_type: c_int,
     max_height_value: c_float,
-    flex_gap_width_type: c_int,
-    flex_gap_width_value: c_float,
-    flex_gap_height_type: c_int,
-    flex_gap_height_value: c_float,
+    gap_row_type: c_int,
+    gap_row_value: c_float,
+    gap_column_type: c_int,
+    gap_column_value: c_float,
     aspect_ratio: c_float,
+    grid_auto_rows: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_columns: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_flow: c_int,
+    grid_column_start_type: c_int,
+    grid_column_start_value: c_short,
+    grid_column_end_type: c_int,
+    grid_column_end_value: c_short,
+    grid_row_start_type: c_int,
+    grid_row_start_value: c_short,
+    grid_row_end_type: c_int,
+    grid_row_end_value: c_short,
+    grid_template_rows: *mut CMasonTrackSizingFunctionArray,
+    grid_template_columns: *mut CMasonTrackSizingFunctionArray,
 ) {
     if mason.is_null() || node.is_null() || style.is_null() {
         return;
     }
+
     unsafe {
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
         let mut style = Box::from_raw(style as *mut Style);
 
+        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
+        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
+        let grid_template_rows = to_vec_track_sizing_function(grid_template_rows);
+        let grid_template_columns = to_vec_track_sizing_function(grid_template_columns);
+
         Style::update_from_ffi(
-            &mut *style,
+            &mut style,
             display,
-            position_type,
+            position,
             direction,
             flex_direction,
             flex_wrap,
@@ -414,15 +450,17 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
-            position_left_type,
-            position_left_value,
-            position_right_type,
-            position_right_value,
-            position_top_type,
-            position_top_value,
-            position_bottom_type,
-            position_bottom_value,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
             margin_left_type,
             margin_left_value,
             margin_right_type,
@@ -463,13 +501,27 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
             max_width_value,
             max_height_type,
             max_height_value,
-            flex_gap_width_type,
-            flex_gap_width_value,
-            flex_gap_height_type,
-            flex_gap_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
             aspect_ratio,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_column_start_type,
+            grid_column_start_value,
+            grid_column_end_type,
+            grid_column_end_value,
+            grid_row_start_type,
+            grid_row_start_value,
+            grid_row_end_type,
+            grid_row_end_value,
+            grid_template_rows,
+            grid_template_columns,
         );
-        mason.set_style(*node, *style);
+        mason.set_style(*node, *style.clone());
+
 
         Box::leak(mason);
         Box::leak(node);
@@ -491,15 +543,17 @@ pub extern "C" fn mason_node_update_style_with_values_compute_and_layout(
     align_items: c_int,
     align_self: c_int,
     align_content: c_int,
+    justify_items: c_int,
+    justify_self: c_int,
     justify_content: c_int,
-    position_left_type: c_int,
-    position_left_value: c_float,
-    position_right_type: c_int,
-    position_right_value: c_float,
-    position_top_type: c_int,
-    position_top_value: c_float,
-    position_bottom_type: c_int,
-    position_bottom_value: c_float,
+    inset_left_type: c_int,
+    inset_left_value: c_float,
+    inset_right_type: c_int,
+    inset_right_value: c_float,
+    inset_top_type: c_int,
+    inset_top_value: c_float,
+    inset_bottom_type: c_int,
+    inset_bottom_value: c_float,
     margin_left_type: c_int,
     margin_left_value: c_float,
     margin_right_type: c_int,
@@ -540,11 +594,24 @@ pub extern "C" fn mason_node_update_style_with_values_compute_and_layout(
     max_width_value: c_float,
     max_height_type: c_int,
     max_height_value: c_float,
-    flex_gap_width_type: c_int,
-    flex_gap_width_value: c_float,
-    flex_gap_height_type: c_int,
-    flex_gap_height_value: c_float,
-    aspect_ratio: c_float,
+    gap_row_type: i32,
+    gap_row_value: f32,
+    gap_column_type: i32,
+    gap_column_value: f32,
+    aspect_ratio: f32,
+    grid_auto_rows: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_columns: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_flow: i32,
+    grid_column_start_type: i32,
+    grid_column_start_value: i16,
+    grid_column_end_type: i32,
+    grid_column_end_value: i16,
+    grid_row_start_type: i32,
+    grid_row_start_value: i16,
+    grid_row_end_type: i32,
+    grid_row_end_value: i16,
+    grid_template_rows: *mut CMasonTrackSizingFunctionArray,
+    grid_template_columns: *mut CMasonTrackSizingFunctionArray,
     layout: extern "C" fn(*const c_float) -> *mut c_void,
 ) -> *mut c_void {
     if mason.is_null() || node.is_null() || style.is_null() {
@@ -555,6 +622,11 @@ pub extern "C" fn mason_node_update_style_with_values_compute_and_layout(
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
         let mut style = Box::from_raw(style as *mut Style);
+
+        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
+        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
+        let grid_template_rows = to_vec_track_sizing_function(grid_template_rows);
+        let grid_template_columns = to_vec_track_sizing_function(grid_template_columns);
 
         Style::update_from_ffi(
             &mut style,
@@ -567,15 +639,17 @@ pub extern "C" fn mason_node_update_style_with_values_compute_and_layout(
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
-            position_left_type,
-            position_left_value,
-            position_right_type,
-            position_right_value,
-            position_top_type,
-            position_top_value,
-            position_bottom_type,
-            position_bottom_value,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
             margin_left_type,
             margin_left_value,
             margin_right_type,
@@ -616,16 +690,29 @@ pub extern "C" fn mason_node_update_style_with_values_compute_and_layout(
             max_width_value,
             max_height_type,
             max_height_value,
-            flex_gap_width_type,
-            flex_gap_width_value,
-            flex_gap_height_type,
-            flex_gap_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
             aspect_ratio,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_column_start_type,
+            grid_column_start_value,
+            grid_column_end_type,
+            grid_column_end_value,
+            grid_row_start_type,
+            grid_row_start_value,
+            grid_row_end_type,
+            grid_row_end_value,
+            grid_template_rows,
+            grid_template_columns,
         );
 
         let n = *node;
 
-        mason.set_style(n, *style);
+        mason.set_style(n, *style.clone());
 
         mason.compute(n);
 
@@ -649,7 +736,7 @@ pub extern "C" fn mason_node_update_style_with_values_size_compute_and_layout(
     width: c_float,
     height: c_float,
     display: c_int,
-    position_type: c_int,
+    position: c_int,
     direction: c_int,
     flex_direction: c_int,
     flex_wrap: c_int,
@@ -657,15 +744,17 @@ pub extern "C" fn mason_node_update_style_with_values_size_compute_and_layout(
     align_items: c_int,
     align_self: c_int,
     align_content: c_int,
+    justify_items: c_int,
+    justify_self: c_int,
     justify_content: c_int,
-    position_left_type: c_int,
-    position_left_value: c_float,
-    position_right_type: c_int,
-    position_right_value: c_float,
-    position_top_type: c_int,
-    position_top_value: c_float,
-    position_bottom_type: c_int,
-    position_bottom_value: c_float,
+    inset_left_type: c_int,
+    inset_left_value: c_float,
+    inset_right_type: c_int,
+    inset_right_value: c_float,
+    inset_top_type: c_int,
+    inset_top_value: c_float,
+    inset_bottom_type: c_int,
+    inset_bottom_value: c_float,
     margin_left_type: c_int,
     margin_left_value: c_float,
     margin_right_type: c_int,
@@ -706,11 +795,24 @@ pub extern "C" fn mason_node_update_style_with_values_size_compute_and_layout(
     max_width_value: c_float,
     max_height_type: c_int,
     max_height_value: c_float,
-    flex_gap_width_type: c_int,
-    flex_gap_width_value: c_float,
-    flex_gap_height_type: c_int,
-    flex_gap_height_value: c_float,
-    aspect_ratio: c_float,
+    gap_row_type: i32,
+    gap_row_value: f32,
+    gap_column_type: i32,
+    gap_column_value: f32,
+    aspect_ratio: f32,
+    grid_auto_rows: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_columns: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_flow: i32,
+    grid_column_start_type: i32,
+    grid_column_start_value: i16,
+    grid_column_end_type: i32,
+    grid_column_end_value: i16,
+    grid_row_start_type: i32,
+    grid_row_start_value: i16,
+    grid_row_end_type: i32,
+    grid_row_end_value: i16,
+    grid_template_rows: *mut CMasonTrackSizingFunctionArray,
+    grid_template_columns: *mut CMasonTrackSizingFunctionArray,
     layout: extern "C" fn(*const c_float) -> *mut c_void,
 ) -> *mut c_void {
     if mason.is_null() || node.is_null() || style.is_null() {
@@ -722,10 +824,15 @@ pub extern "C" fn mason_node_update_style_with_values_size_compute_and_layout(
         let node = Box::from_raw(node as *mut Node);
         let mut style = Box::from_raw(style as *mut Style);
 
+        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
+        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
+        let grid_template_rows = to_vec_track_sizing_function(grid_template_rows);
+        let grid_template_columns = to_vec_track_sizing_function(grid_template_columns);
+
         Style::update_from_ffi(
             &mut style,
             display,
-            position_type,
+            position,
             direction,
             flex_direction,
             flex_wrap,
@@ -733,15 +840,17 @@ pub extern "C" fn mason_node_update_style_with_values_size_compute_and_layout(
             align_items,
             align_self,
             align_content,
+            justify_items,
+            justify_self,
             justify_content,
-            position_left_type,
-            position_left_value,
-            position_right_type,
-            position_right_value,
-            position_top_type,
-            position_top_value,
-            position_bottom_type,
-            position_bottom_value,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
             margin_left_type,
             margin_left_value,
             margin_right_type,
@@ -782,16 +891,29 @@ pub extern "C" fn mason_node_update_style_with_values_size_compute_and_layout(
             max_width_value,
             max_height_type,
             max_height_value,
-            flex_gap_width_type,
-            flex_gap_width_value,
-            flex_gap_height_type,
-            flex_gap_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
             aspect_ratio,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_column_start_type,
+            grid_column_start_value,
+            grid_column_end_type,
+            grid_column_end_value,
+            grid_row_start_type,
+            grid_row_start_value,
+            grid_row_end_type,
+            grid_row_end_value,
+            grid_template_rows,
+            grid_template_columns,
         );
 
         let n = *node;
 
-        mason.set_style(n, *style);
+        mason.set_style(n, *style.clone());
 
         mason.compute_wh(n, width, height);
 
@@ -825,7 +947,7 @@ pub extern "C" fn mason_node_update_set_style_compute_and_layout(
 
         let n = *node;
 
-        mason.set_style(n, *style);
+        mason.set_style(n, *style.clone());
 
         mason.compute(n);
 
@@ -861,7 +983,7 @@ pub extern "C" fn mason_node_update_set_style_compute_with_size_and_layout(
 
         let n = *node;
 
-        mason.set_style(n, *style);
+        mason.set_style(n, *style.clone());
 
         mason.compute_wh(n, width, height);
 
@@ -1254,14 +1376,25 @@ pub extern "C" fn mason_node_set_measure_func(
                 move |known_dimensions, available_space| match measure.as_ref() {
                     None => known_dimensions.map(|v| v.unwrap_or(0.0)),
                     Some(measure) => {
+
                         let measure_data = measure_data as *mut c_void;
+
+                        let available_space_width = match available_space.width {
+                            mason_core::AvailableSpace::Definite(width) => width,
+                            _ => f32::NAN
+                        };
+
+                        let available_space_height = match available_space.height {
+                            mason_core::AvailableSpace::Definite(height) => height,
+                            _ => f32::NAN
+                        };
 
                         let size = measure(
                             measure_data,
                             known_dimensions.width.unwrap_or(f32::NAN),
                             known_dimensions.height.unwrap_or(f32::NAN),
-                            available_space.width.unwrap_or(f32::NAN),
-                            available_space.height.unwrap_or(f32::NAN),
+                            available_space_width,
+                            available_space_height,
                         );
 
                         let width = MeasureOutput::get_width(size);
