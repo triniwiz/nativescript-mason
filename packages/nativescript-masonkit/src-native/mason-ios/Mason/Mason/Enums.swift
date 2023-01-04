@@ -199,7 +199,7 @@ public enum MasonDimension: Codable {
                 self = .Points(value * Float(UIScreen.main.scale))
                 break
             case "%", "percent":
-                self = .Percent(value * 100)
+                self = .Percent(value)
                 break
                 
             default:
@@ -219,7 +219,7 @@ public enum MasonDimension: Codable {
             try container.encode("px", forKey: .unit)
         case .Percent:
             var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(value / 100, forKey: .value)
+            try container.encode(value, forKey: .value)
             try container.encode("%", forKey: .unit)
         case .Auto:
             var container = encoder.singleValueContainer()
@@ -303,7 +303,7 @@ public enum MasonLengthPercentage: Codable {
             self = .Points(value * Float(UIScreen.main.scale))
             break
         case "%", "percent":
-            self = .Percent(value * 100)
+            self = .Percent(value)
             break
             
         default:
@@ -322,7 +322,7 @@ public enum MasonLengthPercentage: Codable {
             try container.encode("px", forKey: .unit)
         case .Percent:
             var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(value / 100, forKey: .value)
+            try container.encode(value, forKey: .value)
             try container.encode("%", forKey: .unit)
         }
     }
@@ -423,7 +423,7 @@ public enum MasonLengthPercentageAuto: Codable {
                 self = .Points(value * Float(UIScreen.main.scale))
                 break
             case "%", "percent":
-                self = .Percent(value * 100)
+                self = .Percent(value)
                 break
                 
             default:
@@ -443,7 +443,7 @@ public enum MasonLengthPercentageAuto: Codable {
             try container.encode("px", forKey: .unit)
         case .Percent:
             var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(value / 100, forKey: .value)
+            try container.encode(value, forKey: .value)
             try container.encode("%", forKey: .unit)
         case .Auto:
             var container = encoder.singleValueContainer()
@@ -461,7 +461,7 @@ public enum MasonLengthPercentageAuto: Codable {
 
 @objc(AlignItems)
 public enum AlignItems: Int, RawRepresentable {
-    case Normal
+    case Normal = -1
     case Start
     case End
     case Center
@@ -527,7 +527,7 @@ public enum AlignItems: Int, RawRepresentable {
 
 @objc(AlignSelf)
 public enum AlignSelf: Int, RawRepresentable {
-    case Normal
+    case Normal = -1
     case Start
     case End
     case Center
@@ -593,7 +593,7 @@ public enum AlignSelf: Int, RawRepresentable {
 
 @objc(AlignContent)
 public enum AlignContent: Int, RawRepresentable  {
-    case Normal
+    case Normal = -1
     case Start
     case End
     case Center
@@ -950,7 +950,7 @@ public enum JustifySelf: Int, RawRepresentable {
 
 @objc(JustifyContent)
 public enum JustifyContent: Int, RawRepresentable {
-    case Normal
+    case Normal = -1
     case Start
     case End
     case Center
