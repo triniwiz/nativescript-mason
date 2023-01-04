@@ -124,6 +124,7 @@ public enum MaxSizing:Codable, Equatable {
                     self = .FitContent(Float(fitContent.replacingOccurrences(of: "px", with: ""))!)
                 }else {
                     // todo throw
+                    throw NSError(domain: "Invalid type", code: 1000)
                 }
             }else if(value.starts(with: "flex(")){
                 self = .Flex(Float(value
@@ -137,6 +138,9 @@ public enum MaxSizing:Codable, Equatable {
                 self = .Points(Float(value.replacingOccurrences(of: "px", with: ""))!)
             }else {
                 // todo throw
+                
+                throw NSError(domain: "Invalid type", code: 1000)
+
             }
         }
     }
