@@ -106,11 +106,11 @@ public let MasonDimensionSizeAuto = MasonSize<MasonDimension>(uniform: .Auto)
 
 public let MasonLengthPercentageAutoSizeAuto = MasonSize<MasonLengthPercentageAuto>(uniform: .Auto)
 
-public let MasonDimensionSizeMaxPercentWH = MasonSize<MasonDimension>(uniform: .Percent(100))
+public let MasonDimensionSizeMaxPercentWH = MasonSize<MasonDimension>(uniform: .Percent(1))
 
-public let MasonLengthPercentageAutoSizeMaxPercentWH = MasonSize<MasonLengthPercentageAuto>(uniform: .Percent(100))
+public let MasonLengthPercentageAutoSizeMaxPercentWH = MasonSize<MasonLengthPercentageAuto>(uniform: .Percent(1))
 
-public let MasonLengthPercentageSizeMaxPercentWH = MasonSize<MasonLengthPercentage>(uniform: .Percent(100))
+public let MasonLengthPercentageSizeMaxPercentWH = MasonSize<MasonLengthPercentage>(uniform: .Percent(1))
 
 public let MasonDimensionSizeZero = MasonSize<MasonDimension>(uniform: .Points(0))
 
