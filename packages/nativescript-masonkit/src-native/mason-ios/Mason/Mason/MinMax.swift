@@ -7,7 +7,9 @@
 
 import Foundation
 
-public struct MinMax: Codable {
+@objcMembers
+@objc(MinMax)
+public class MinMax: NSObject, Codable {
     let min: MinSizing
     let max: MaxSizing
     let cValue: CMasonMinMax
@@ -72,31 +74,31 @@ public struct MinMax: Codable {
     
     public var cssValue: String {
         get {
-            switch((self.min, self.max)){
-            case (MinSizing.Auto, MaxSizing.Auto):
+            switch((self.min.internalType, self.max.internalType)){
+            case (.Auto, .Auto):
                 return "auto"
-            case (MinSizing.MinContent, MaxSizing.MinContent):
+            case (.MinContent, .MinContent):
                return "min-content"
-            case (MinSizing.MaxContent, MaxSizing.MaxContent):
+            case (.MaxContent, .MaxContent):
                 return "max-content"
-            case (MinSizing.Points(let minPoints), MaxSizing.Points(let maxPoints)):
-                if(minPoints == maxPoints){
-                    return "\(minPoints)px"
+            case (.Points, .Points):
+                if(self.min.value == self.max.value){
+                    return "\(self.min.value)px"
                 }else {
-                   return "minmax(\(minPoints)px, \(maxPoints)px"
+                    return "minmax(\(self.min.value)px, \(self.max.value))px"
                 }
-            case (MinSizing.Percent(let minPercent), MaxSizing.Percent(let maxPercent)):
-                if(minPercent == maxPercent){
-                    return "\(minPercent)%"
+            case (.Percent, .Percent):
+                if(self.min.value == self.max.value){
+                    return "\(self.min.value)%"
                 }else {
-                    return "minmax(\(minPercent)%, \(maxPercent)%"
+                    return "minmax(\(self.min.value)%, \(self.max.value))%"
                 }
-            case (MinSizing.Auto, MaxSizing.Flex(let flex)):
-                return "flex(\(flex)fr)"
-            case (MinSizing.Auto, MaxSizing.FitContent(let fitPx)):
-                return "fit-content(\(fitPx)px)"
-            case (MinSizing.Auto, MaxSizing.FitContentPercent(let fitPercent)):
-                return "fit-content(\(fitPercent)%)"
+            case (.Auto, .Flex):
+                return "flex(\(self.max.value)fr)"
+            case (.Auto, .FitContent):
+                return "fit-content(\(self.max.value)px)"
+            case (.Auto, .FitContentPercent):
+                return "fit-content(\(self.max.value)%)"
             default:
                 return "minmax(\(self.min.cssValue), \(self.max.cssValue))"
             }
@@ -129,7 +131,7 @@ public struct MinMax: Codable {
         }
     }
     
-    static func  decodeMaxValue(value: String) -> MaxSizing? {
+    static func decodeMaxValue(value: String) -> MaxSizing? {
         switch(value){
         case "auto":
             return .Auto
@@ -170,18 +172,24 @@ public struct MinMax: Codable {
     }
     
     
-    public init(from decoder: Decoder) throws {
+    required public init(from decoder: Decoder) throws {
+        min = .Auto
+        max = .Auto
+        cValue = CMasonMinMax()
         let container = try decoder.singleValueContainer()
         let value = try container.decode(String.self)
         switch(value){
         case "auto":
-            self = .Auto
+            self.min.internalType = .Auto
+            self.max.internalType = .Auto
             break
         case "min-content":
-            self = .init(.MinContent, .MinContent)
+            self.min.internalType = .MinContent
+            self.max.internalType = .MinContent
             break
         case "max-content":
-            self = .init(.MaxContent, .MaxContent)
+            self.min.internalType = .MaxContent
+            self.max.internalType = .MaxContent
             break
         default:
             if(value.starts(with: "fit-content(")){
@@ -191,23 +199,41 @@ public struct MinMax: Codable {
                     .trimmingCharacters(in: .whitespaces)
             
                 if(value.contains("%")){
-                    self = .init(.Auto, .FitContentPercent(Float(fitContent.replacingOccurrences(of: "%", with: ""))!))
+                    self.min.internalType = .Auto
+                    self.max.internalType = .FitContentPercent
+                    self.max.value = Float(fitContent.replacingOccurrences(of: "%", with: ""))!
                 }else if(value.contains("px")){
-                    self = .init(.Auto, .FitContent(Float(fitContent.replacingOccurrences(of: "px", with: ""))!))
+                    self.min.internalType = .Auto
+                    self.max.internalType = .FitContent
+                    self.max.value = Float(fitContent.replacingOccurrences(of: "px", with: ""))!
                 }else {
                     // todo throw
                 }
             }else if(value.starts(with: "flex(")){
-                self = .init(.Auto, .Flex(Float(value
+                self.min.internalType = .Auto
+                self.max.internalType = .Flex
+                self.max.value = Float(value
                     .replacingOccurrences(of: "flex(", with: "")
                     .replacingOccurrences(of: "(", with: "")
                     .replacingOccurrences(of: "fr", with: "")
                     .trimmingCharacters(in: .whitespaces))!
-                ))
             }else if(value.contains("%")){
-                self = .Percent(percent: Float(value.replacingOccurrences(of: "%", with: ""))!)
+                
+                let value = Float(value.replacingOccurrences(of: "%", with: ""))!
+                
+                self.min.internalType = .Percent
+                self.min.value = value
+                self.max.internalType = .Percent
+                self.max.value = value
             }else if(value.contains("px")){
-                self = .Points(points: Float(value.replacingOccurrences(of: "px", with: ""))!)
+                
+                let value = Float(value.replacingOccurrences(of: "px", with: ""))!
+                
+                self.min.internalType = .Points
+                self.min.value = value
+                self.max.internalType = .Points
+                self.max.value = value
+                
             }else if(value.starts(with: "minmax(")) {
                let split = value
                     .replacingOccurrences(of: "minmax(", with: "")
@@ -215,11 +241,16 @@ public struct MinMax: Codable {
                     .trimmingCharacters(in: .whitespaces)
                     .split(separator: ",")
                 
-                let min = MinMax.decodeMinValue(value: String(split.first!))
+                let min = MinMax.decodeMinValue(value: String(split.first!))!
                 
-                let max = MinMax.decodeMaxValue(value: String(split.last!))
+                let max = MinMax.decodeMaxValue(value: String(split.last!))!
                 
-                self = .init(min!, max!)
+                self.min.internalType = min.internalType
+                self.min.value = min.value
+                
+                self.max.internalType = max.internalType
+                self.max.value = max.value
+                
                 
             }
             
