@@ -120,7 +120,7 @@ public struct MasonRect<T> {
         ret += "left: \(left), "
         ret += "right: \(right), "
         ret += "top: \(top), "
-        ret += "top: \(top) "
+        ret += "bottom: \(bottom) "
         
         ret += ")"
         
@@ -132,11 +132,11 @@ public let MasonDimensionRectAuto = MasonRect<MasonDimension>(uniform: .Auto)
 
 public let MasonLengthPercentageAutoRectAuto = MasonRect<MasonLengthPercentageAuto>(uniform: .Auto)
 
-public let MasonDimensionRectMaxPercentWH = MasonRect<MasonDimension>(uniform: .Percent(100))
+public let MasonDimensionRectMaxPercentWH = MasonRect<MasonDimension>(uniform: .Percent(1))
 
-public let MasonLengthPercentageAutoRectMaxPercentWH = MasonRect<MasonLengthPercentageAuto>(uniform: .Percent(100))
+public let MasonLengthPercentageAutoRectMaxPercentWH = MasonRect<MasonLengthPercentageAuto>(uniform: .Percent(1))
 
-public let MasonLengthPercentageRectMaxPercentWH = MasonRect<MasonLengthPercentage>(uniform: .Percent(100))
+public let MasonLengthPercentageRectMaxPercentWH = MasonRect<MasonLengthPercentage>(uniform: .Percent(1))
 
 public let MasonDimensionRectZero = MasonRect<MasonDimension>(uniform: .Points(0))
 
