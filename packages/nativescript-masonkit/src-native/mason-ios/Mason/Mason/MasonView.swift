@@ -14,7 +14,7 @@ struct MasonAssociatedKeys {
 
 
 extension UIView {
-    @objc public var mason: MasonNode {
+    public var mason: MasonNode {
         guard let mason = objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) as? MasonNode else {
             let mason = MasonNode()
             mason.data = self
@@ -24,7 +24,6 @@ extension UIView {
                objc_setAssociatedObject(
                 self, &MasonAssociatedKeys.masonEnabled, mason, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             return mason
-            
         }
         return mason
     }
@@ -71,6 +70,7 @@ extension UIView {
     }
     
     public func configure(_ block :(MasonNode) -> Void) {
+        mason.inBatch = true
         mason.configure(block)
     }
     
