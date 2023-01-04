@@ -14,7 +14,7 @@ struct MasonAssociatedKeys {
 
 
 extension UIView {
-    public var mason: MasonNode {
+    @objc public var mason: MasonNode {
         guard let mason = objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) as? MasonNode else {
             let mason = MasonNode()
             mason.data = self
