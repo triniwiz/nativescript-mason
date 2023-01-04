@@ -109,17 +109,7 @@ public class MasonNode: NSObject {
         mason_node_destroy(nativePtr)
     }
     
-    
-    static func to_vec_min_max( array: Array<MinMax>) -> CMasonMinMaxArray {
-        let length = array.count
-        var cArray = array.map({ minMax in
-            minMax.cValue
-        })
-        return CMasonMinMaxArray(array: cArray.withUnsafeMutableBytes({ ptr in
-            ptr.baseAddress!.bindMemory(to: CMasonMinMax.self, capacity: length)
-        }), length: UInt(length))
-    }
-    
+
     
     static func to_vec_non_repeated_track_sizing_function(_ array: Array<MinMax>) -> CMasonNonRepeatedTrackSizingFunctionArray {
         let length = array.count
@@ -135,8 +125,18 @@ public class MasonNode: NSObject {
         if(inBatch){return}
         if (style.isDirty) {
             
-            var gridAutoRows = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoRows)
-            var gridAutoColumns = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoColumns)
+            var gridAutoRows = style.gridAutoRows.map({ minMax in
+                minMax.cValue
+            })
+            
+            let gridAutoRowsCount = UInt(gridAutoRows.count)
+            
+            var gridAutoColumns = style.gridAutoColumns.map({ minMax in
+                minMax.cValue
+            })
+            
+            let gridAutoColumnsCount = UInt(gridAutoRows.count)
+            
             
             var gridTemplateRows =  style.gridTemplateRows.map { value in
                 value.cValue
@@ -150,112 +150,136 @@ public class MasonNode: NSObject {
             
             let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
             
-            gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
-                
-                var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress!.pointee, length: gridTemplateRowsCount)
-                
         
-                gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
+            
+            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRows in
+                
+                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRows.baseAddress, length: gridAutoRowsCount)
+                
+                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumns in
                     
-                    var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumns.baseAddress, length: gridAutoColumnsCount)
                     
-                    mason_node_update_and_set_style_with_values(
-                        TSCMason.instance.nativePtr,
-                        nativePtr,
-                        style.nativePtr,
-                        style.display.rawValue,
-                        style.position.rawValue,
-                        style.direction.rawValue,
-                        style.flexDirection.rawValue,
-                        style.flexWrap.rawValue,
-                        style.overflow.rawValue,
-                        style.alignItems.rawValue,
-                        style.alignSelf.rawValue,
-                        style.alignContent.rawValue,
-                        style.justifyItems.rawValue,
-                        style.justifySelf.rawValue,
-                        style.justifyContent.rawValue,
+                    
+                    
+                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
                         
-                        style.inset.left.type,
-                        style.inset.left.value,
-                        style.inset.right.type,
-                        style.inset.right.value,
-                        style.inset.top.type,
-                        style.inset.top.value,
-                        style.inset.bottom.type,
-                        style.inset.bottom.value,
+                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress!.pointee, length: gridTemplateRowsCount)
                         
-                        style.margin.left.type,
-                        style.margin.left.value,
-                        style.margin.right.type,
-                        style.margin.right.value,
-                        style.margin.top.type,
-                        style.margin.top.value,
-                        style.margin.bottom.type,
-                        style.margin.bottom.value,
-                        
-                        style.padding.left.type,
-                        style.padding.left.value,
-                        style.padding.right.type,
-                        style.padding.right.value,
-                        style.padding.top.type,
-                        style.padding.top.value,
-                        style.padding.bottom.type,
-                        style.padding.bottom.value,
-                        
-                        style.border.left.type,
-                        style.border.left.value,
-                        style.border.right.type,
-                        style.border.right.value,
-                        style.border.top.type,
-                        style.border.top.value,
-                        style.border.bottom.type,
-                        style.border.bottom.value,
-                        
-                        style.flexGrow,
-                        style.flexShrink,
-                        
-                        style.flexBasis.type,
-                        style.flexBasis.value,
-                        
-                        style.size.width.type,
-                        style.size.width.value,
-                        style.size.height.type,
-                        style.size.height.value,
-                        
-                        style.minSize.width.type,
-                        style.minSize.width.value,
-                        style.minSize.height.type,
-                        style.minSize.height.value,
-                        
-                        style.maxSize.width.type,
-                        style.maxSize.width.value,
-                        style.maxSize.height.type,
-                        style.maxSize.height.value,
-                        
-                        style.gap.width.type,
-                        style.gap.width.value,
-                        style.gap.height.type,
-                        style.gap.height.value,
-                        
-                        style.aspectRatio ?? Float.nan,
-                        &gridAutoRows,
-                        &gridAutoColumns,
-                        style.gridAutoFlow.rawValue,
-                        style.gridColumn.start.type,
-                        style.gridColumn.start.placementValue,
-                        style.gridColumn.end.type,
-                        style.gridColumn.end.placementValue,
-                        
-                        style.gridRow.start.type,
-                        style.gridRow.start.placementValue,
-                        style.gridRow.end.type,
-                        style.gridRow.end.placementValue,
-                        &gridTemplateRows,
-                        &gridTemplateColumns
-                    )
+                
+                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
+                            
+                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                            
+                            mason_node_update_and_set_style_with_values(
+                                TSCMason.instance.nativePtr,
+                                nativePtr,
+                                style.nativePtr,
+                                style.display.rawValue,
+                                style.position.rawValue,
+                                style.direction.rawValue,
+                                style.flexDirection.rawValue,
+                                style.flexWrap.rawValue,
+                                style.overflow.rawValue,
+                                style.alignItems.rawValue,
+                                style.alignSelf.rawValue,
+                                style.alignContent.rawValue,
+                                style.justifyItems.rawValue,
+                                style.justifySelf.rawValue,
+                                style.justifyContent.rawValue,
+                                
+                                style.inset.left.type,
+                                style.inset.left.value,
+                                style.inset.right.type,
+                                style.inset.right.value,
+                                style.inset.top.type,
+                                style.inset.top.value,
+                                style.inset.bottom.type,
+                                style.inset.bottom.value,
+                                
+                                style.margin.left.type,
+                                style.margin.left.value,
+                                style.margin.right.type,
+                                style.margin.right.value,
+                                style.margin.top.type,
+                                style.margin.top.value,
+                                style.margin.bottom.type,
+                                style.margin.bottom.value,
+                                
+                                style.padding.left.type,
+                                style.padding.left.value,
+                                style.padding.right.type,
+                                style.padding.right.value,
+                                style.padding.top.type,
+                                style.padding.top.value,
+                                style.padding.bottom.type,
+                                style.padding.bottom.value,
+                                
+                                style.border.left.type,
+                                style.border.left.value,
+                                style.border.right.type,
+                                style.border.right.value,
+                                style.border.top.type,
+                                style.border.top.value,
+                                style.border.bottom.type,
+                                style.border.bottom.value,
+                                
+                                style.flexGrow,
+                                style.flexShrink,
+                                
+                                style.flexBasis.type,
+                                style.flexBasis.value,
+                                
+                                style.size.width.type,
+                                style.size.width.value,
+                                style.size.height.type,
+                                style.size.height.value,
+                                
+                                style.minSize.width.type,
+                                style.minSize.width.value,
+                                style.minSize.height.type,
+                                style.minSize.height.value,
+                                
+                                style.maxSize.width.type,
+                                style.maxSize.width.value,
+                                style.maxSize.height.type,
+                                style.maxSize.height.value,
+                                
+                                style.gap.width.type,
+                                style.gap.width.value,
+                                style.gap.height.type,
+                                style.gap.height.value,
+                                
+                                style.aspectRatio ?? Float.nan,
+                                &gridAutoRows,
+                                &gridAutoColumns,
+                                style.gridAutoFlow.rawValue,
+                                style.gridColumn.start.type,
+                                style.gridColumn.start.placementValue,
+                                style.gridColumn.end.type,
+                                style.gridColumn.end.placementValue,
+                                
+                                style.gridRow.start.type,
+                                style.gridRow.start.placementValue,
+                                style.gridRow.end.type,
+                                style.gridRow.end.placementValue,
+                                &gridTemplateRows,
+                                &gridTemplateColumns
+                            )
+                        }
+                    }
+                    
                 }
+                
             }
+            
+            
+            
+            
+            
+            
+            
+            
             
             
     
@@ -288,10 +312,17 @@ public class MasonNode: NSObject {
         var points: UnsafeMutableRawPointer? = nil
         if (size != nil) {
             
-            var gridAutoRows = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoRows)
-            var gridAutoColumns = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoColumns)
-           // var gridTemplateRows = MasonNode.to_vec_track_sizing_function(style.gridTemplateRows)
-            //var gridTemplateColumns = MasonNode.to_vec_track_sizing_function(style.gridTemplateColumns)
+            var gridAutoRows = style.gridAutoRows.map({ minMax in
+                minMax.cValue
+            })
+            
+            let gridAutoRowsCount = UInt(gridAutoRows.count)
+            
+            var gridAutoColumns = style.gridAutoColumns.map({ minMax in
+                minMax.cValue
+            })
+            
+            let gridAutoColumnsCount = UInt(gridAutoRows.count)
             
             
             var gridTemplateRows =  style.gridTemplateRows.map { value in
@@ -306,125 +337,142 @@ public class MasonNode: NSObject {
             
             let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
             
-            gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
+            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRows in
                 
-                var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress!.pointee, length: gridTemplateRowsCount)
+                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRows.baseAddress, length: gridAutoRowsCount)
                 
-                
-                gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
+                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumns in
                     
-                    var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumns.baseAddress, length: gridAutoColumnsCount)
                     
-                    
-                    points = mason_node_update_style_with_values_size_compute_and_layout(
-                        TSCMason.instance.nativePtr,
-                        nativePtr,
-                        style.nativePtr,
-                        size!.width, size!.height,
-                        style.display.rawValue,
-                        style.position.rawValue,
-                        style.direction.rawValue,
-                        style.flexDirection.rawValue,
-                        style.flexWrap.rawValue,
-                        style.overflow.rawValue,
-                        style.alignItems.rawValue,
-                        style.alignSelf.rawValue,
-                        style.alignContent.rawValue,
-                        style.justifyItems.rawValue,
-                        style.justifySelf.rawValue,
-                        style.justifyContent.rawValue,
+                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
                         
-                        style.inset.left.type,
-                        style.inset.left.value,
-                        style.inset.right.type,
-                        style.inset.right.value,
-                        style.inset.top.type,
-                        style.inset.top.value,
-                        style.inset.bottom.type,
-                        style.inset.bottom.value,
+                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress!.pointee, length: gridTemplateRowsCount)
                         
-                        style.margin.left.type,
-                        style.margin.left.value,
-                        style.margin.right.type,
-                        style.margin.right.value,
-                        style.margin.top.type,
-                        style.margin.top.value,
-                        style.margin.bottom.type,
-                        style.margin.bottom.value,
                         
-                        style.padding.left.type,
-                        style.padding.left.value,
-                        style.padding.right.type,
-                        style.padding.right.value,
-                        style.padding.top.type,
-                        style.padding.top.value,
-                        style.padding.bottom.type,
-                        style.padding.bottom.value,
-                        
-                        style.border.left.type,
-                        style.border.left.value,
-                        style.border.right.type,
-                        style.border.right.value,
-                        style.border.top.type,
-                        style.border.top.value,
-                        style.border.bottom.type,
-                        style.border.bottom.value,
-                        
-                        style.flexGrow,
-                        style.flexShrink,
-                        
-                        style.flexBasis.type,
-                        style.flexBasis.value,
-                        
-                        style.size.width.type,
-                        style.size.width.value,
-                        style.size.height.type,
-                        style.size.height.value,
-                        
-                        style.minSize.width.type,
-                        style.minSize.width.value,
-                        style.minSize.height.type,
-                        style.minSize.height.value,
-                        
-                        style.maxSize.width.type,
-                        style.maxSize.width.value,
-                        style.maxSize.height.type,
-                        style.maxSize.height.value,
-                        
-                        style.gap.width.type,
-                        style.gap.width.value,
-                        style.gap.height.type,
-                        style.gap.height.value,
-                        
-                        style.aspectRatio ?? Float.nan,
-                        &gridAutoRows,
-                        &gridAutoColumns,
-                        style.gridAutoFlow.rawValue,
-                        style.gridColumn.start.type,
-                        style.gridColumn.start.placementValue,
-                        style.gridColumn.end.type,
-                        style.gridColumn.end.placementValue,
-                        
-                        style.gridRow.start.type,
-                        style.gridRow.start.placementValue,
-                        style.gridRow.end.type,
-                        style.gridRow.end.placementValue,
-                        &gridTemplateRows,
-                        &gridTemplateColumns,
-                        create_layout
-                    )
-                    
-                    
+                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
+                            
+                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                            
+                            
+                            points = mason_node_update_style_with_values_size_compute_and_layout(
+                                TSCMason.instance.nativePtr,
+                                nativePtr,
+                                style.nativePtr,
+                                size!.width, size!.height,
+                                style.display.rawValue,
+                                style.position.rawValue,
+                                style.direction.rawValue,
+                                style.flexDirection.rawValue,
+                                style.flexWrap.rawValue,
+                                style.overflow.rawValue,
+                                style.alignItems.rawValue,
+                                style.alignSelf.rawValue,
+                                style.alignContent.rawValue,
+                                style.justifyItems.rawValue,
+                                style.justifySelf.rawValue,
+                                style.justifyContent.rawValue,
+                                
+                                style.inset.left.type,
+                                style.inset.left.value,
+                                style.inset.right.type,
+                                style.inset.right.value,
+                                style.inset.top.type,
+                                style.inset.top.value,
+                                style.inset.bottom.type,
+                                style.inset.bottom.value,
+                                
+                                style.margin.left.type,
+                                style.margin.left.value,
+                                style.margin.right.type,
+                                style.margin.right.value,
+                                style.margin.top.type,
+                                style.margin.top.value,
+                                style.margin.bottom.type,
+                                style.margin.bottom.value,
+                                
+                                style.padding.left.type,
+                                style.padding.left.value,
+                                style.padding.right.type,
+                                style.padding.right.value,
+                                style.padding.top.type,
+                                style.padding.top.value,
+                                style.padding.bottom.type,
+                                style.padding.bottom.value,
+                                
+                                style.border.left.type,
+                                style.border.left.value,
+                                style.border.right.type,
+                                style.border.right.value,
+                                style.border.top.type,
+                                style.border.top.value,
+                                style.border.bottom.type,
+                                style.border.bottom.value,
+                                
+                                style.flexGrow,
+                                style.flexShrink,
+                                
+                                style.flexBasis.type,
+                                style.flexBasis.value,
+                                
+                                style.size.width.type,
+                                style.size.width.value,
+                                style.size.height.type,
+                                style.size.height.value,
+                                
+                                style.minSize.width.type,
+                                style.minSize.width.value,
+                                style.minSize.height.type,
+                                style.minSize.height.value,
+                                
+                                style.maxSize.width.type,
+                                style.maxSize.width.value,
+                                style.maxSize.height.type,
+                                style.maxSize.height.value,
+                                
+                                style.gap.width.type,
+                                style.gap.width.value,
+                                style.gap.height.type,
+                                style.gap.height.value,
+                                
+                                style.aspectRatio ?? Float.nan,
+                                &gridAutoRows,
+                                &gridAutoColumns,
+                                style.gridAutoFlow.rawValue,
+                                style.gridColumn.start.type,
+                                style.gridColumn.start.placementValue,
+                                style.gridColumn.end.type,
+                                style.gridColumn.end.placementValue,
+                                
+                                style.gridRow.start.type,
+                                style.gridRow.start.placementValue,
+                                style.gridRow.end.type,
+                                style.gridRow.end.placementValue,
+                                &gridTemplateRows,
+                                &gridTemplateColumns,
+                                create_layout
+                            )
+                            
+                            
+                        }
+                    }
                 }
             }
            
             
         }else {
             
-            var gridAutoRows = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoRows)
-            var gridAutoColumns = MasonNode.to_vec_non_repeated_track_sizing_function(style.gridAutoColumns)
-           // var gridTemplateRows = MasonNode.to_vec_track_sizing_function(style.gridTemplateRows)
-           // var gridTemplateColumns = MasonNode.to_vec_track_sizing_function(style.gridTemplateColumns)
+            var gridAutoRows = style.gridAutoRows.map({ minMax in
+                minMax.cValue
+            })
+            
+            let gridAutoRowsCount = UInt(gridAutoRows.count)
+            
+            var gridAutoColumns = style.gridAutoColumns.map({ minMax in
+                minMax.cValue
+            })
+            
+            let gridAutoColumnsCount = UInt(gridAutoRows.count)
             
             
             var gridTemplateRows =  style.gridTemplateRows.map { value in
@@ -439,113 +487,122 @@ public class MasonNode: NSObject {
             
             let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
             
-            gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
+            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRows in
                 
-                var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress!.pointee, length: gridTemplateRowsCount)
+                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRows.baseAddress, length: gridAutoRowsCount)
                 
-                
-                gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
+                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumns in
                     
-                    var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumns.baseAddress, length: gridAutoColumnsCount)
                     
-                    
-                    points = mason_node_update_style_with_values_compute_and_layout(
-                        TSCMason.instance.nativePtr, nativePtr, style.nativePtr,
-                        style.display.rawValue,
-                        style.position.rawValue,
-                        style.direction.rawValue,
-                        style.flexDirection.rawValue,
-                        style.flexWrap.rawValue,
-                        style.overflow.rawValue,
-                        style.alignItems.rawValue,
-                        style.alignSelf.rawValue,
-                        style.alignContent.rawValue,
-                        style.justifyItems.rawValue,
-                        style.justifySelf.rawValue,
-                        style.justifyContent.rawValue,
+                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
                         
-                        style.inset.left.type,
-                        style.inset.left.value,
-                        style.inset.right.type,
-                        style.inset.right.value,
-                        style.inset.top.type,
-                        style.inset.top.value,
-                        style.inset.bottom.type,
-                        style.inset.bottom.value,
+                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress!.pointee, length: gridTemplateRowsCount)
                         
-                        style.margin.left.type,
-                        style.margin.left.value,
-                        style.margin.right.type,
-                        style.margin.right.value,
-                        style.margin.top.type,
-                        style.margin.top.value,
-                        style.margin.bottom.type,
-                        style.margin.bottom.value,
                         
-                        style.padding.left.type,
-                        style.padding.left.value,
-                        style.padding.right.type,
-                        style.padding.right.value,
-                        style.padding.top.type,
-                        style.padding.top.value,
-                        style.padding.bottom.type,
-                        style.padding.bottom.value,
-                        
-                        style.border.left.type,
-                        style.border.left.value,
-                        style.border.right.type,
-                        style.border.right.value,
-                        style.border.top.type,
-                        style.border.top.value,
-                        style.border.bottom.type,
-                        style.border.bottom.value,
-                        
-                        style.flexGrow,
-                        style.flexShrink,
-                        
-                        style.flexBasis.type,
-                        style.flexBasis.value,
-                        
-                        style.size.width.type,
-                        style.size.width.value,
-                        style.size.height.type,
-                        style.size.height.value,
-                        
-                        style.minSize.width.type,
-                        style.minSize.width.value,
-                        style.minSize.height.type,
-                        style.minSize.height.value,
-                        
-                        style.maxSize.width.type,
-                        style.maxSize.width.value,
-                        style.maxSize.height.type,
-                        style.maxSize.height.value,
-                        
-                        style.gap.width.type,
-                        style.gap.width.value,
-                        style.gap.height.type,
-                        style.gap.height.value,
-                        
-                        style.aspectRatio ?? Float.nan,
-                        &gridAutoRows,
-                        &gridAutoColumns,
-                        style.gridAutoFlow.rawValue,
-                        style.gridColumn.start.type,
-                        style.gridColumn.start.placementValue,
-                        style.gridColumn.end.type,
-                        style.gridColumn.end.placementValue,
-                        
-                        style.gridRow.start.type,
-                        style.gridRow.start.placementValue,
-                        style.gridRow.end.type,
-                        style.gridRow.end.placementValue,
-                        &gridTemplateRows,
-                        &gridTemplateColumns,
-                        create_layout)
-                    
+                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
+                            
+                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                            
+                            
+                            points = mason_node_update_style_with_values_compute_and_layout(
+                                TSCMason.instance.nativePtr, nativePtr, style.nativePtr,
+                                style.display.rawValue,
+                                style.position.rawValue,
+                                style.direction.rawValue,
+                                style.flexDirection.rawValue,
+                                style.flexWrap.rawValue,
+                                style.overflow.rawValue,
+                                style.alignItems.rawValue,
+                                style.alignSelf.rawValue,
+                                style.alignContent.rawValue,
+                                style.justifyItems.rawValue,
+                                style.justifySelf.rawValue,
+                                style.justifyContent.rawValue,
+                                
+                                style.inset.left.type,
+                                style.inset.left.value,
+                                style.inset.right.type,
+                                style.inset.right.value,
+                                style.inset.top.type,
+                                style.inset.top.value,
+                                style.inset.bottom.type,
+                                style.inset.bottom.value,
+                                
+                                style.margin.left.type,
+                                style.margin.left.value,
+                                style.margin.right.type,
+                                style.margin.right.value,
+                                style.margin.top.type,
+                                style.margin.top.value,
+                                style.margin.bottom.type,
+                                style.margin.bottom.value,
+                                
+                                style.padding.left.type,
+                                style.padding.left.value,
+                                style.padding.right.type,
+                                style.padding.right.value,
+                                style.padding.top.type,
+                                style.padding.top.value,
+                                style.padding.bottom.type,
+                                style.padding.bottom.value,
+                                
+                                style.border.left.type,
+                                style.border.left.value,
+                                style.border.right.type,
+                                style.border.right.value,
+                                style.border.top.type,
+                                style.border.top.value,
+                                style.border.bottom.type,
+                                style.border.bottom.value,
+                                
+                                style.flexGrow,
+                                style.flexShrink,
+                                
+                                style.flexBasis.type,
+                                style.flexBasis.value,
+                                
+                                style.size.width.type,
+                                style.size.width.value,
+                                style.size.height.type,
+                                style.size.height.value,
+                                
+                                style.minSize.width.type,
+                                style.minSize.width.value,
+                                style.minSize.height.type,
+                                style.minSize.height.value,
+                                
+                                style.maxSize.width.type,
+                                style.maxSize.width.value,
+                                style.maxSize.height.type,
+                                style.maxSize.height.value,
+                                
+                                style.gap.width.type,
+                                style.gap.width.value,
+                                style.gap.height.type,
+                                style.gap.height.value,
+                                
+                                style.aspectRatio ?? Float.nan,
+                                &gridAutoRows,
+                                &gridAutoColumns,
+                                style.gridAutoFlow.rawValue,
+                                style.gridColumn.start.type,
+                                style.gridColumn.start.placementValue,
+                                style.gridColumn.end.type,
+                                style.gridColumn.end.placementValue,
+                                
+                                style.gridRow.start.type,
+                                style.gridRow.start.placementValue,
+                                style.gridRow.end.type,
+                                style.gridRow.end.placementValue,
+                                &gridTemplateRows,
+                                &gridTemplateColumns,
+                                create_layout)
+                            
+                        }
+                    }
                 }
             }
-            
             
             
         }
@@ -878,8 +935,6 @@ public class MasonNode: NSObject {
             isWidthPercent = true
         }
         
-        
-        
         if(node.style.size.height.type == MasonDimensionCompatType.Points.rawValue){
             heightCalculated = true
         }
@@ -909,8 +964,6 @@ public class MasonNode: NSObject {
         
         
         if(!node.isUIView || view.subviews.count == 0){
-            
-            let isCollectionView = view is UICollectionView
             
             if(isWidthPercent){
                 size.width = constrainedWidth

@@ -607,9 +607,21 @@ public class MasonStyle: NSObject {
         }
     }
     
+    public var gridColumnCompat: LineGridPlacementCompat {
+        get {
+            return LineGridPlacementCompat(gridColumn.start, gridColumn.end)
+        }
+    }
+    
     public var gridRow =  LineGridPlacementAuto{
         didSet{
             isDirty = true
+        }
+    }
+    
+    public var gridRowCompat: LineGridPlacementCompat {
+        get {
+            return LineGridPlacementCompat(gridRow.start, gridRow.end)
         }
     }
     
