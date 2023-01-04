@@ -26,6 +26,18 @@ public struct MinMax: Codable {
         return MinMax(.Percent(percent), .Percent(percent))
     }
     
+    public static func Flex(flex: Float) -> MinMax {
+        return MinMax(.Auto, .Flex(flex))
+    }
+    
+    public static func FitContent(fit: Float) -> MinMax {
+        return MinMax(.Auto, .FitContent(fit))
+    }
+    
+    public static func FitContentPercent(fit: Float) -> MinMax {
+        return MinMax(.Auto, .FitContentPercent(fit))
+    }
+    
     public static let Auto = MinMax(.Auto, .Auto)
     
     
@@ -73,23 +85,18 @@ public struct MinMax: Codable {
                 }else {
                    return "minmax(\(minPoints)px, \(maxPoints)px"
                 }
-                break
             case (MinSizing.Percent(let minPercent), MaxSizing.Percent(let maxPercent)):
                 if(minPercent == maxPercent){
                     return "\(minPercent)%"
                 }else {
                     return "minmax(\(minPercent)%, \(maxPercent)%"
                 }
-                break
             case (MinSizing.Auto, MaxSizing.Flex(let flex)):
                 return "flex(\(flex)fr)"
-                break
             case (MinSizing.Auto, MaxSizing.FitContent(let fitPx)):
                 return "fit-content(\(fitPx)px)"
-                break
             case (MinSizing.Auto, MaxSizing.FitContentPercent(let fitPercent)):
                 return "fit-content(\(fitPercent)%)"
-                break
             default:
                 return "minmax(\(self.min.cssValue), \(self.max.cssValue))"
             }
@@ -208,14 +215,15 @@ public struct MinMax: Codable {
                     .trimmingCharacters(in: .whitespaces)
                     .split(separator: ",")
                 
-                var min = MinMax.decodeMinValue(value: String(split.first!))
+                let min = MinMax.decodeMinValue(value: String(split.first!))
                 
-                var max = MinMax.decodeMaxValue(value: String(split.last!))
+                let max = MinMax.decodeMaxValue(value: String(split.last!))
                 
                 self = .init(min!, max!)
                 
             }
-            break
+            
+            throw NSError(domain: "Invalid type", code: 1000)
         }
     }
     
