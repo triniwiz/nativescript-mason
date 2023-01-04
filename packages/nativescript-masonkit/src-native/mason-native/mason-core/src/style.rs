@@ -101,7 +101,7 @@ fn to_grid_template(
 fn grid_placement(t: i32, v: i16) -> GridPlacement {
     match t {
         0 => GridPlacement::Auto,
-        1 => GridPlacement::Line(v),
+        1 => GridPlacement::Line(v.into()),
         2 => GridPlacement::Span(v.try_into().unwrap()),
         _ => panic!(),
     }
@@ -135,7 +135,6 @@ impl Style {
         self.style.flex_wrap = wrap;
     }
 
-
     pub fn justify_items(&self) -> Option<AlignItems> {
         self.style.justify_items
     }
@@ -151,7 +150,6 @@ impl Style {
     pub fn set_justify_self(&mut self, align: Option<AlignSelf>) {
         self.style.justify_self = align
     }
-
 
     pub fn justify_content(&self) -> Option<JustifyContent> {
         self.style.justify_content
@@ -1006,10 +1004,13 @@ impl Style {
             _ => panic!(),
         }, */
 
-        style.style.flex_direction =
-            flex_direction_from_enum(flex_direction).unwrap_or_else(|| panic!());
+        if let Some(flex_direction) = flex_direction_from_enum(flex_direction) {
+            style.style.flex_direction = flex_direction;
+        }
 
-        style.style.flex_wrap = flex_wrap_from_enum(flex_wrap).unwrap_or_else(|| panic!());
+        if let Some(flex_wrap) = flex_wrap_from_enum(flex_wrap) {
+            style.style.flex_wrap = flex_wrap;
+        }
 
         /*
         overflow: match overflow {
@@ -1020,26 +1021,41 @@ impl Style {
         },
         */
 
-        style.style.align_items =
-            Some(align_items_from_enum(align_items).unwrap_or_else(|| panic!()));
+        if align_items == -1 {
+            style.style.align_items = None;
+        } else if let Some(align_items) = align_items_from_enum(align_items) {
+            style.style.align_items = Some(align_items);
+        }
 
-        style.style.align_self = Some(align_self_from_enum(align_self).unwrap_or_else(|| panic!()));
+        if align_self == -1 {
+            style.style.align_self = None;
+        } else if let Some(align_self) = align_self_from_enum(align_self) {
+            style.style.align_self = Some(align_self);
+        }
 
-        style.style.align_content =
-            Some(align_content_from_enum(align_content).unwrap_or_else(|| panic!()));
+        if align_content == -1 {
+            style.style.align_content = None;
+        } else if let Some(align_content) = align_content_from_enum(align_content) {
+            style.style.align_content = Some(align_content);
+        }
 
+        if justify_items == -1 {
+            style.style.justify_items = None;
+        } else if let Some(justify_items) = align_items_from_enum(justify_items) {
+            style.style.justify_items = Some(justify_items);
+        }
 
+        if justify_self == -1 {
+            style.style.justify_self = None;
+        } else if let Some(justify_self) = align_self_from_enum(justify_self) {
+            style.style.justify_self = Some(justify_self);
+        }
 
-        style.style.justify_items =
-            Some(align_items_from_enum(justify_items).unwrap_or_else(|| panic!()));
-
-        style.style.justify_self =
-            Some(align_items_from_enum(justify_self).unwrap_or_else(|| panic!()));
-
-
-        style.style.justify_content =
-            Some(justify_content_from_enum(justify_content).unwrap_or_else(|| panic!()));
-
+        if justify_content == -1 {
+            style.style.justify_content = None;
+        } else if let Some(justify_content) = justify_content_from_enum(justify_content) {
+            style.style.justify_content = Some(justify_content);
+        }
 
         style.style.inset = taffy::geometry::Rect {
             left: dimension_with_auto(inset_left_type, inset_left_value),
@@ -1107,8 +1123,9 @@ impl Style {
 
         style.style.grid_auto_columns = grid_auto_columns;
 
-        style.style.grid_auto_flow =
-            grid_auto_flow_from_enum(grid_auto_flow).unwrap_or_else(|| panic!());
+        if let Some(grid_auto_flow) = grid_auto_flow_from_enum(grid_auto_flow) {
+            style.style.grid_auto_flow = grid_auto_flow;
+        }
 
         style.style.grid_row = Line {
             start: grid_placement(grid_row_start_type, grid_row_start_value),
@@ -1119,7 +1136,5 @@ impl Style {
             start: grid_placement(grid_column_start_type, grid_column_start_value),
             end: grid_placement(grid_column_end_type, grid_column_end_value),
         };
-
-
     }
 }
