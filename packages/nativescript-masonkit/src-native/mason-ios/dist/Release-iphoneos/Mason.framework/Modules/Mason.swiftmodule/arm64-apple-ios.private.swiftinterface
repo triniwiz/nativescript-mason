@@ -10,19 +10,32 @@ import _Concurrency
 import _StringProcessing
 public struct Line<T> {
 }
-public struct MinMax : Swift.Codable {
-  public init(_ min: Mason.MinSizing, _ max: Mason.MaxSizing)
-  public static func Points(points: Swift.Float) -> Mason.MinMax
-  public static func Percent(percent: Swift.Float) -> Mason.MinMax
-  public static let Auto: Mason.MinMax
-  public var cssValue: Swift.String {
+@_hasMissingDesignatedInitializers @objcMembers @objc(LineGridPlacementCompat) public class LineGridPlacementCompat : ObjectiveC.NSObject {
+  @objc public var start: Mason.GridPlacementCompat {
     get
   }
-  public var jsonValue: Swift.String? {
+  @objc public var end: Mason.GridPlacementCompat {
     get
   }
-  public init(from decoder: Swift.Decoder) throws
+  @objc deinit
+}
+@objcMembers @objc(MinMax) public class MinMax : ObjectiveC.NSObject, Swift.Codable {
+  @objc public init(_ min: Mason.MinSizing, _ max: Mason.MaxSizing)
+  @objc public static func Points(points: Swift.Float) -> Mason.MinMax
+  @objc public static func Percent(percent: Swift.Float) -> Mason.MinMax
+  @objc public static func Flex(flex: Swift.Float) -> Mason.MinMax
+  @objc public static func FitContent(fit: Swift.Float) -> Mason.MinMax
+  @objc public static func FitContentPercent(fit: Swift.Float) -> Mason.MinMax
+  @objc public static let Auto: Mason.MinMax
+  @objc public var cssValue: Swift.String {
+    @objc get
+  }
+  @objc public var jsonValue: Swift.String? {
+    @objc get
+  }
+  required public init(from decoder: Swift.Decoder) throws
   public func encode(to encoder: Swift.Encoder) throws
+  @objc deinit
 }
 @_inheritsConvenienceInitializers @objc(TSCMason) @objcMembers public class TSCMason : ObjectiveC.NSObject {
   @objc public var nativePtr: Swift.UnsafeMutableRawPointer! {
@@ -39,24 +52,27 @@ public struct MinMax : Swift.Codable {
   @objc override dynamic public init()
   @objc deinit
 }
-public enum MaxSizing : Swift.Codable, Swift.Equatable {
-  case Points(Swift.Float)
-  case Percent(Swift.Float)
-  case FitContent(Swift.Float)
-  case FitContentPercent(Swift.Float)
-  case Flex(Swift.Float)
-  case Auto
-  case MinContent
-  case MaxContent
-  public var cssValue: Swift.String {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MaxSizing) public class MaxSizing : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var value: Swift.Float {
     get
   }
-  public var jsonValue: Swift.String? {
-    get
+  @objc public static func Points(_ points: Swift.Float) -> Mason.MaxSizing
+  @objc public static func Percent(_ percent: Swift.Float) -> Mason.MaxSizing
+  @objc public static func FitContent(_ fit: Swift.Float) -> Mason.MaxSizing
+  @objc public static func FitContentPercent(_ fit: Swift.Float) -> Mason.MaxSizing
+  @objc public static func Flex(_ flex: Swift.Float) -> Mason.MaxSizing
+  @objc public static let Auto: Mason.MaxSizing
+  @objc public static let MinContent: Mason.MaxSizing
+  @objc public static let MaxContent: Mason.MaxSizing
+  @objc public var cssValue: Swift.String {
+    @objc get
   }
-  public init(from decoder: Swift.Decoder) throws
+  @objc public var jsonValue: Swift.String? {
+    @objc get
+  }
+  required public init(from decoder: Swift.Decoder) throws
   public func encode(to encoder: Swift.Encoder) throws
-  public static func == (a: Mason.MaxSizing, b: Mason.MaxSizing) -> Swift.Bool
+  @objc deinit
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionSizeCompat) public class MasonDimensionSizeCompat : ObjectiveC.NSObject {
   @objc public var width: Mason.MasonDimensionCompat
@@ -113,11 +129,18 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public init(style: Mason.MasonStyle, children: [Mason.MasonNode])
   public init(style: Mason.MasonStyle, measureFunc: @escaping Mason.MasonNode.MeasureFunc)
   @objc deinit
+  @objc @discardableResult
+  public func layout() -> Mason.MasonLayout
   @objc public var isDirty: Swift.Bool {
     @objc get
   }
   @objc public func markDirty()
+  @objc public func compute()
+  @objc public func compute(_ width: Swift.Float, _ height: Swift.Float)
+  @objc public func computeMaxContent()
+  @objc public func computeMinContent()
   @objc public func computeWithViewSize()
+  @objc public func computeWithMaxContent()
   @objc public func setChildren(children: [Mason.MasonNode])
   @objc public func addChildren(_ children: [Mason.MasonNode])
   @objc public var isLeaf: Swift.Bool {
@@ -125,21 +148,24 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   }
   @objc public func configure(_ block: (Mason.MasonNode) -> Swift.Void)
 }
-public enum MinSizing : Swift.Codable, Swift.Equatable {
-  case Points(Swift.Float)
-  case Percent(Swift.Float)
-  case Auto
-  case MinContent
-  case MaxContent
-  public var cssValue: Swift.String {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MinSizing) public class MinSizing : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var value: Swift.Float {
     get
   }
-  public var jsonValue: Swift.String? {
-    get
+  @objc public static func Points(_ points: Swift.Float) -> Mason.MinSizing
+  @objc public static func Percent(_ percent: Swift.Float) -> Mason.MinSizing
+  @objc public static let Auto: Mason.MinSizing
+  @objc public static let MinContent: Mason.MinSizing
+  @objc public static let MaxContent: Mason.MinSizing
+  @objc public var cssValue: Swift.String {
+    @objc get
   }
-  public init(from decoder: Swift.Decoder) throws
+  @objc public var jsonValue: Swift.String? {
+    @objc get
+  }
+  required public init(from decoder: Swift.Decoder) throws
   public func encode(to encoder: Swift.Encoder) throws
-  public static func == (a: Mason.MinSizing, b: Mason.MinSizing) -> Swift.Bool
+  @objc deinit
 }
 @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonLayout) @objcMembers public class MasonLayout : ObjectiveC.NSObject {
   @objc final public let order: Swift.Int
@@ -270,9 +296,16 @@ public enum MinSizing : Swift.Codable, Swift.Equatable {
   @objc override dynamic public init()
   @objc deinit
 }
-public enum TrackSizingFunction {
-  case Single(Mason.MinMax)
-  case AutoRepeat(Mason.GridTrackRepetition, Swift.Array<Mason.MinMax>)
+@_hasMissingDesignatedInitializers @objc(TrackSizingFunction) @objcMembers public class TrackSizingFunction : ObjectiveC.NSObject {
+  @objc public var isRepeating: Swift.Bool {
+    get
+  }
+  @objc public var value: Any? {
+    @objc get
+  }
+  @objc public static func Single(_ value: Mason.MinMax) -> Mason.TrackSizingFunction
+  @objc deinit
+  @objc public static func AutoRepeat(_ gridTrackRepetition: Mason.GridTrackRepetition, _ value: Swift.Array<Mason.MinMax>) -> Mason.TrackSizingFunction
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionCompat) public class MasonDimensionCompat : ObjectiveC.NSObject {
   @objc public init(points: Swift.Float)
@@ -450,9 +483,25 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc set
   }
   @objc public func setInsetLeft(_ value: Swift.Float, _ type: Swift.Int)
+  public var leftInset: Mason.MasonLengthPercentageAuto {
+    get
+    set
+  }
   @objc public func setInsetRight(_ value: Swift.Float, _ type: Swift.Int)
+  public var rightInset: Mason.MasonLengthPercentageAuto {
+    get
+    set
+  }
   @objc public func setInsetTop(_ value: Swift.Float, _ type: Swift.Int)
+  public var topInset: Mason.MasonLengthPercentageAuto {
+    get
+    set
+  }
   @objc public func setInsetBottom(_ value: Swift.Float, _ type: Swift.Int)
+  public var bottomInset: Mason.MasonLengthPercentageAuto {
+    get
+    set
+  }
   @objc public func setInsetWithValueType(_ value: Swift.Float, _ type: Swift.Int)
   public var margin: Mason.MasonRect<Mason.MasonLengthPercentageAuto> {
     get
@@ -562,13 +611,13 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     get
     set
   }
-  public var gridAutoRows: [Mason.MinMax] {
-    get
-    set
+  @objc public var gridAutoRows: [Mason.MinMax] {
+    @objc get
+    @objc set
   }
-  public var gridAutoColumns: [Mason.MinMax] {
-    get
-    set
+  @objc public var gridAutoColumns: [Mason.MinMax] {
+    @objc get
+    @objc set
   }
   @objc public var gridAutoFlow: Mason.GridAutoFlow {
     @objc get
@@ -578,17 +627,23 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     get
     set
   }
+  @objc public var gridColumnCompat: Mason.LineGridPlacementCompat {
+    @objc get
+  }
   public var gridRow: Mason.Line<Mason.GridPlacement> {
     get
     set
   }
-  public var gridTemplateRows: [Mason.TrackSizingFunction] {
-    get
-    set
+  @objc public var gridRowCompat: Mason.LineGridPlacementCompat {
+    @objc get
   }
-  public var gridTemplateColumns: [Mason.TrackSizingFunction] {
-    get
-    set
+  @objc public var gridTemplateRows: [Mason.TrackSizingFunction] {
+    @objc get
+    @objc set
+  }
+  @objc public var gridTemplateColumns: [Mason.TrackSizingFunction] {
+    @objc get
+    @objc set
   }
   @objc override dynamic public var description: Swift.String {
     @objc get
@@ -672,7 +727,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   public func encode(to encoder: Swift.Encoder) throws
 }
 @objc(AlignItems) public enum AlignItems : Swift.Int, Swift.RawRepresentable {
-  case Normal
+  case Normal = -1
   case Start
   case End
   case Center
@@ -685,7 +740,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   public init?(rawValue: Mason.AlignItems.RawValue)
 }
 @objc(AlignSelf) public enum AlignSelf : Swift.Int, Swift.RawRepresentable {
-  case Normal
+  case Normal = -1
   case Start
   case End
   case Center
@@ -698,7 +753,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   public init?(rawValue: Mason.AlignSelf.RawValue)
 }
 @objc(AlignContent) public enum AlignContent : Swift.Int, Swift.RawRepresentable {
-  case Normal
+  case Normal = -1
   case Start
   case End
   case Center
@@ -770,7 +825,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   public init?(rawValue: Mason.JustifySelf.RawValue)
 }
 @objc(JustifyContent) public enum JustifyContent : Swift.Int, Swift.RawRepresentable {
-  case Normal
+  case Normal = -1
   case Start
   case End
   case Center

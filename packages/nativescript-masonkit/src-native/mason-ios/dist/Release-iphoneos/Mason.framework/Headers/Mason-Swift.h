@@ -256,32 +256,32 @@ using UInt = size_t;
 
 #if defined(__OBJC__)
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignContent, "AlignContent", open) {
-  AlignContentNormal = 0,
-  AlignContentStart = 1,
-  AlignContentEnd = 2,
-  AlignContentCenter = 3,
-  AlignContentStretch = 4,
-  AlignContentSpaceBetween = 5,
-  AlignContentSpaceAround = 6,
-  AlignContentSpaceEvenly = 7,
+  AlignContentNormal = -1,
+  AlignContentStart = 0,
+  AlignContentEnd = 1,
+  AlignContentCenter = 2,
+  AlignContentStretch = 3,
+  AlignContentSpaceBetween = 4,
+  AlignContentSpaceAround = 5,
+  AlignContentSpaceEvenly = 6,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignItems, "AlignItems", open) {
-  AlignItemsNormal = 0,
-  AlignItemsStart = 1,
-  AlignItemsEnd = 2,
-  AlignItemsCenter = 3,
-  AlignItemsBaseline = 4,
-  AlignItemsStretch = 5,
+  AlignItemsNormal = -1,
+  AlignItemsStart = 0,
+  AlignItemsEnd = 1,
+  AlignItemsCenter = 2,
+  AlignItemsBaseline = 3,
+  AlignItemsStretch = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignSelf, "AlignSelf", open) {
-  AlignSelfNormal = 0,
-  AlignSelfStart = 1,
-  AlignSelfEnd = 2,
-  AlignSelfCenter = 3,
-  AlignSelfBaseline = 4,
-  AlignSelfStretch = 5,
+  AlignSelfNormal = -1,
+  AlignSelfStart = 0,
+  AlignSelfEnd = 1,
+  AlignSelfCenter = 2,
+  AlignSelfBaseline = 3,
+  AlignSelfStretch = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, Direction, "Direction", open) {
@@ -345,14 +345,14 @@ typedef SWIFT_ENUM_NAMED(NSInteger, GridTrackRepetition, "GridTrackRepetition", 
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, JustifyContent, "JustifyContent", open) {
-  JustifyContentNormal = 0,
-  JustifyContentStart = 1,
-  JustifyContentEnd = 2,
-  JustifyContentCenter = 3,
-  JustifyContentStretch = 4,
-  JustifyContentSpaceBetween = 5,
-  JustifyContentSpaceAround = 6,
-  JustifyContentSpaceEvenly = 7,
+  JustifyContentNormal = -1,
+  JustifyContentStart = 0,
+  JustifyContentEnd = 1,
+  JustifyContentCenter = 2,
+  JustifyContentStretch = 3,
+  JustifyContentSpaceBetween = 4,
+  JustifyContentSpaceAround = 5,
+  JustifyContentSpaceEvenly = 6,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, JustifyItems, "JustifyItems", open) {
@@ -372,6 +372,15 @@ typedef SWIFT_ENUM_NAMED(NSInteger, JustifySelf, "JustifySelf", open) {
   JustifySelfBaseline = 3,
   JustifySelfStretch = 4,
 };
+
+
+SWIFT_CLASS_NAMED("LineGridPlacementCompat")
+@interface LineGridPlacementCompat : NSObject
+@property (nonatomic, readonly, strong) GridPlacementCompat * _Nonnull start;
+@property (nonatomic, readonly, strong) GridPlacementCompat * _Nonnull end;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
 
 enum MasonDimensionCompatType : NSInteger;
 
@@ -532,9 +541,15 @@ SWIFT_CLASS_NAMED("MasonNode")
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithStyle:(MasonStyle * _Nonnull)style children:(NSArray<MasonNode *> * _Nonnull)children OBJC_DESIGNATED_INITIALIZER;
+- (MasonLayout * _Nonnull)layout;
 @property (nonatomic, readonly) BOOL isDirty;
 - (void)markDirty;
+- (void)compute;
+- (void)compute:(float)width :(float)height;
+- (void)computeMaxContent;
+- (void)computeMinContent;
 - (void)computeWithViewSize;
+- (void)computeWithMaxContent;
 - (void)setChildrenWithChildren:(NSArray<MasonNode *> * _Nonnull)children;
 - (void)addChildren:(NSArray<MasonNode *> * _Nonnull)children;
 @property (nonatomic, readonly) BOOL isLeaf;
@@ -662,6 +677,8 @@ SWIFT_CLASS_NAMED("MasonReexports")
 
 enum Position : NSInteger;
 enum Overflow : NSInteger;
+@class MinMax;
+@class TrackSizingFunction;
 
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
@@ -724,14 +741,77 @@ SWIFT_CLASS_NAMED("MasonStyle")
 - (void)setGapColumn:(float)value :(NSInteger)type;
 - (void)setRowGap:(float)value :(NSInteger)type;
 - (void)setColumnGap:(float)value :(NSInteger)type;
+@property (nonatomic, copy) NSArray<MinMax *> * _Nonnull gridAutoRows;
+@property (nonatomic, copy) NSArray<MinMax *> * _Nonnull gridAutoColumns;
 @property (nonatomic) enum FlexGridAutoFlowWrap gridAutoFlow;
+@property (nonatomic, readonly, strong) LineGridPlacementCompat * _Nonnull gridColumnCompat;
+@property (nonatomic, readonly, strong) LineGridPlacementCompat * _Nonnull gridRowCompat;
+@property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateRows;
+@property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateColumns;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
+@end
+
+
+SWIFT_CLASS_NAMED("MaxSizing")
+@interface MaxSizing : NSObject
+@property (nonatomic, readonly) float value;
++ (MaxSizing * _Nonnull)Points:(float)points SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)Percent:(float)percent SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)FitContent:(float)fit SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)FitContentPercent:(float)fit SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)Flex:(float)flex SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull Auto;)
++ (MaxSizing * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull MinContent;)
++ (MaxSizing * _Nonnull)MinContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull MaxContent;)
++ (MaxSizing * _Nonnull)MaxContent SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 
 SWIFT_CLASS_NAMED("MeasureOutput")
 @interface MeasureOutput : NSObject
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+@end
+
+@class MinSizing;
+
+SWIFT_CLASS_NAMED("MinMax")
+@interface MinMax : NSObject
+- (nonnull instancetype)init:(MinSizing * _Nonnull)min :(MaxSizing * _Nonnull)max OBJC_DESIGNATED_INITIALIZER;
++ (MinMax * _Nonnull)PointsWithPoints:(float)points SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)PercentWithPercent:(float)percent SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)FlexWithFlex:(float)flex SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)FitContentWithFit:(float)fit SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nonnull)FitContentPercentWithFit:(float)fit SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinMax * _Nonnull Auto;)
++ (MinMax * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+
+SWIFT_CLASS_NAMED("MinSizing")
+@interface MinSizing : NSObject
+@property (nonatomic, readonly) float value;
++ (MinSizing * _Nonnull)Points:(float)points SWIFT_WARN_UNUSED_RESULT;
++ (MinSizing * _Nonnull)Percent:(float)percent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * _Nonnull Auto;)
++ (MinSizing * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * _Nonnull MinContent;)
++ (MinSizing * _Nonnull)MinContent SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * _Nonnull MaxContent;)
++ (MinSizing * _Nonnull)MaxContent SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
+@property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, Overflow, "Overflow", open) {
@@ -759,6 +839,17 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class) BOOL shared;)
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class) BOOL alwaysEnable;)
 + (BOOL)alwaysEnable SWIFT_WARN_UNUSED_RESULT;
 + (void)setAlwaysEnable:(BOOL)value;
+@end
+
+
+SWIFT_CLASS_NAMED("TrackSizingFunction")
+@interface TrackSizingFunction : NSObject
+@property (nonatomic, readonly) BOOL isRepeating;
+@property (nonatomic, readonly) id _Nullable value;
++ (TrackSizingFunction * _Nonnull)Single:(MinMax * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
++ (TrackSizingFunction * _Nonnull)AutoRepeat:(enum GridTrackRepetition)gridTrackRepetition :(NSArray<MinMax *> * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 
