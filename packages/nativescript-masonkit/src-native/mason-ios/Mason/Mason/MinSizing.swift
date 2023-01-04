@@ -8,17 +8,44 @@
 import Foundation
 
 
-public enum MinSizing:Codable, Equatable {
-    case Points(Float)
-    case Percent(Float)
+enum MinSizingType: Equatable {
+    case Points
+    case Percent
     case Auto
     case MinContent
     case MaxContent
+}
+
+
+@objcMembers
+@objc(MinSizing)
+public class MinSizing: NSObject, Codable {
+    var internalType: MinSizingType
+    internal(set) public var value: Float = 0
+    
+    init(_ type: MinSizingType, _ value: Float) {
+        internalType = type
+        super.init()
+    }
+    
+    public static func Points(_ points: Float) -> MinSizing {
+        return MinSizing(.Points, points)
+    }
+    
+    public static func Percent(_ percent: Float) -> MinSizing {
+        return MinSizing(.Percent, percent)
+    }
+    
+    public static let Auto = MinSizing(.Auto, 0)
+    
+    public static let MinContent = MinSizing(.MinContent, 0)
+    
+    public static let MaxContent = MinSizing(.MaxContent, 0)
     
     
     internal var type: Int32 {
         get {
-            switch (self) {
+            switch (self.internalType) {
             case .Auto: return 0
             case .MinContent: return 1
             case .MaxContent: return 2
@@ -28,22 +55,6 @@ public enum MinSizing:Codable, Equatable {
         }
     }
     
-    internal var value: Float{
-        get {
-            switch(self){
-            case .Points(let points):
-                return points
-            case .Percent(let percent):
-                return percent
-            case .Auto:
-                return 0
-            case .MinContent:
-                return 0
-            case .MaxContent:
-                return 0
-            }
-        }
-    }
     
     static func fromTypeValue(_ type: Int, _ value: Float) -> MinSizing? {
         switch (type) {
@@ -60,17 +71,17 @@ public enum MinSizing:Codable, Equatable {
     
     public var cssValue: String {
         get {
-            switch(self){
+            switch(self.internalType){
             case .Auto:
                 return "auto"
             case .MinContent:
                 return "min-content"
             case .MaxContent:
                 return "max-content"
-            case .Percent(let percent):
-                return "\(percent)%"
-            case .Points(let points):
-                return "\(points)px"
+            case .Percent:
+                return "\(value)%"
+            case .Points:
+                return "\(value)px"
             }
         }
     }
@@ -82,21 +93,23 @@ public enum MinSizing:Codable, Equatable {
     }
     
     
-    public init(from decoder: Decoder) throws {
+    required public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let value = try container.decode(String.self)
         switch(value){
         case "auto":
-            self = .Auto
+            self.internalType = .Auto
         case "min-content":
-            self = .MinContent
+            self.internalType = .MinContent
         case "max-content":
-            self = .MaxContent
+            self.internalType = .MaxContent
         default:
             if(value.contains("%")){
-                self = .Percent(Float(value.replacingOccurrences(of: "%", with: ""))!)
+                self.internalType = .Percent
+                self.value = Float(value.replacingOccurrences(of: "%", with: ""))!
             }else if(value.contains("px")){
-                self = .Points(Float(value.replacingOccurrences(of: "px", with: ""))!)
+                self.internalType = .Points
+                self.value = Float(value.replacingOccurrences(of: "px", with: ""))!
             }
         }
         throw NSError(domain: "Invalid type", code: 1000)
