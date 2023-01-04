@@ -12,12 +12,22 @@ import Foundation
 @objc(TrackSizingFunction)
 @objcMembers
 public class TrackSizingFunction: NSObject {
-    var isRepeating: Bool
+    internal(set) public var isRepeating: Bool
+   
     var singleValue: MinMax?
     var gridTrackRepetition: GridTrackRepetition?
     var repeatValue: Array<MinMax>?
     
     var cValue: UnsafeMutablePointer<CMasonTrackSizingFunction>? = nil
+    
+    public var value: Any? {
+        get {
+            if(isRepeating){
+                return repeatValue
+            }
+            return singleValue
+        }
+    }
     
     init(isRepeating: Bool, singleValue: MinMax? = nil, gridTrackRepetition: GridTrackRepetition? = nil, repeatValue: Array<MinMax>? = nil) {
         self.isRepeating = isRepeating
@@ -32,7 +42,14 @@ public class TrackSizingFunction: NSObject {
     }
     
     var minMaxBuffer: UnsafeMutablePointer<CMasonMinMaxArray>? = nil
+    
     var minMaxBufferValues: UnsafeMutableBufferPointer<CMasonMinMax>? = nil
+    
+    deinit {
+        cValue?.deallocate()
+        minMaxBufferValues?.deallocate()
+        minMaxBufferValues?.deallocate()
+    }
     
     public static func AutoRepeat(_ gridTrackRepetition: GridTrackRepetition, _ value: Array<MinMax>) -> TrackSizingFunction {
         let ret = TrackSizingFunction(isRepeating: true, singleValue: nil, gridTrackRepetition: gridTrackRepetition, repeatValue: value)
