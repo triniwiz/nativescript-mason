@@ -44,7 +44,7 @@ public class MasonStyle: NSObject {
     internal var isDirty: Bool = false
     
     public internal (set) var nativePtr: UnsafeMutableRawPointer!
-
+    
     
     public override init() {
         nativePtr = mason_style_init()
@@ -105,7 +105,7 @@ public class MasonStyle: NSObject {
         }
     }
     
-    public var alignContent = AlignContent.Start{
+    public var alignContent = AlignContent.Normal{
         didSet {
             isDirty = true
         }
@@ -123,7 +123,7 @@ public class MasonStyle: NSObject {
         }
     }
     
-    public var justifyContent = JustifyContent.Start {
+    public var justifyContent = JustifyContent.Normal {
         didSet {
             isDirty = true
         }
@@ -157,10 +157,28 @@ public class MasonStyle: NSObject {
         inset = MasonRect(left, inset.right, inset.top, inset.bottom)
     }
     
+    public var leftInset: MasonLengthPercentageAuto {
+        get {
+            return inset.left
+        }
+        set {
+            inset = MasonRect(newValue, inset.right, inset.top, inset.bottom)
+        }
+    }
+    
     public func setInsetRight(_ value: Float, _ type: Int) {
         guard let right = getLengthPercentageAuto(value, type) else {return}
         
         inset = MasonRect(inset.left, right, inset.top, inset.bottom)
+    }
+    
+    public var rightInset: MasonLengthPercentageAuto {
+        get {
+            return inset.right
+        }
+        set {
+            inset = MasonRect(inset.left, newValue, inset.top, inset.bottom)
+        }
     }
     
     public func setInsetTop(_ value: Float, _ type: Int) {
@@ -169,9 +187,27 @@ public class MasonStyle: NSObject {
         inset = MasonRect(inset.left, inset.right, top, inset.bottom)
     }
     
+    public var topInset: MasonLengthPercentageAuto {
+        get {
+            return inset.top
+        }
+        set {
+            inset = MasonRect(inset.left, inset.right, newValue, inset.bottom)
+        }
+    }
+    
     public func setInsetBottom(_ value: Float, _ type: Int) {
         guard let bottom = getLengthPercentageAuto(value, type) else {return}
         inset = MasonRect(inset.left, inset.right, inset.top, bottom)
+    }
+    
+    public var bottomInset: MasonLengthPercentageAuto {
+        get {
+            return inset.bottom
+        }
+        set {
+            inset = MasonRect(inset.left, inset.right, inset.top, newValue)
+        }
     }
     
     public func setInsetWithValueType(_ value: Float, _ type: Int) {
@@ -398,7 +434,7 @@ public class MasonStyle: NSObject {
         minSize = MasonSize(wh, wh)
     }
     
-    public var size = MasonDimensionSizeAuto {
+    public var size: MasonSize<MasonDimension> = MasonDimensionSizeAuto {
         didSet {
             isDirty = true
         }
@@ -547,48 +583,47 @@ public class MasonStyle: NSObject {
         }
     }
     
-    
-    var gridAutoRows: Array<MinMax> = []{
+    public var gridAutoRows: Array<MinMax> = []{
         didSet{
-          isDirty = true
+            isDirty = true
         }
     }
-
-      var gridAutoColumns: Array<MinMax> = []{
-          didSet{
+    
+    public var gridAutoColumns: Array<MinMax> = []{
+        didSet{
             isDirty = true
-          }
-      }
-
-      var gridAutoFlow: GridAutoFlow = GridAutoFlow.Row{
-          didSet{
+        }
+    }
+    
+    public var gridAutoFlow: GridAutoFlow = GridAutoFlow.Row{
+        didSet{
             isDirty = true
-          }
-      }
-
-      var gridColumn = LineGridPlacementAuto {
-          didSet{
+        }
+    }
+    
+    public var gridColumn = LineGridPlacementAuto {
+        didSet{
             isDirty = true
-          }
-      }
-
-      var gridRow =  LineGridPlacementAuto{
-          didSet{
+        }
+    }
+    
+    public var gridRow =  LineGridPlacementAuto{
+        didSet{
             isDirty = true
-          }
-      }
-
-      var gridTemplateRows: Array<TrackSizingFunction> = []{
-          didSet{
+        }
+    }
+    
+    public var gridTemplateRows: Array<TrackSizingFunction> = []{
+        didSet{
             isDirty = true
-          }
-      }
-
-      var gridTemplateColumns: Array<TrackSizingFunction> = []{
-          didSet{
+        }
+    }
+    
+    public var gridTemplateColumns: Array<TrackSizingFunction> = []{
+        didSet{
             isDirty = true
-          }
-      }
+        }
+    }
     
     
     public override var description: String {
@@ -615,15 +650,15 @@ public class MasonStyle: NSObject {
         ret += "size: \(size.cssValue),"
         ret += "minSize: \(minSize.cssValue),"
         ret += "maxSize: \(maxSize.cssValue),"
-        ret += "aspectRatio: \(maxSize.cssValue)"
-        ret += "gridAutoRows: \(gridAutoRows)"
-        ret += "gridAutoColumns: \(gridAutoColumns)"
-        ret += "gridColumn: \(gridColumn.start.cssValue) \\ \(gridColumn.end.cssValue)"
-        ret += "gridRow: \(gridRow.start.cssValue) \\ \(gridRow.end.cssValue)"
-        ret += "gridTemplateRows: \(gridTemplateRows)"
-        ret += "gridTemplateColumns: \(gridTemplateColumns)"
+        ret += "aspectRatio: \(maxSize.cssValue),"
+        ret += "gridAutoRows: \(gridAutoRows),"
+        ret += "gridAutoColumns: \(gridAutoColumns),"
+        ret += "gridColumn: \(gridColumn.start.cssValue) \\ \(gridColumn.end.cssValue),"
+        ret += "gridRow: \(gridRow.start.cssValue) \\ \(gridRow.end.cssValue),"
+        ret += "gridTemplateRows: \(gridTemplateRows),"
+        ret += "gridTemplateColumns: \(gridTemplateColumns),"
         ret += ")"
-    
+        
         return ret
     }
 }
