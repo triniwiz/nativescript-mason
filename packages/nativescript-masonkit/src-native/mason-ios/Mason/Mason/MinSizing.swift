@@ -99,6 +99,7 @@ public enum MinSizing:Codable, Equatable {
                 self = .Points(Float(value.replacingOccurrences(of: "px", with: ""))!)
             }
         }
+        throw NSError(domain: "Invalid type", code: 1000)
     }
     
     public func encode(to encoder: Encoder) throws {
