@@ -1204,7 +1204,7 @@ impl From<GridPlacement> for CMasonGridPlacement {
                 value_type: CMasonGridPlacementType::Auto,
             },
             GridPlacement::Line(value) => CMasonGridPlacement {
-                value,
+                value: value.as_i16(),
                 value_type: CMasonGridPlacementType::Line,
             },
             GridPlacement::Span(value) => CMasonGridPlacement {
@@ -1219,7 +1219,7 @@ impl Into<GridPlacement> for CMasonGridPlacement {
     fn into(self) -> GridPlacement {
         match self.value_type {
             CMasonGridPlacementType::Auto => GridPlacement::Auto,
-            CMasonGridPlacementType::Line => GridPlacement::Line(self.value),
+            CMasonGridPlacementType::Line => GridPlacement::Line(self.value.into()),
             CMasonGridPlacementType::Span => GridPlacement::Span(self.value.try_into().unwrap()),
             // making cxx happy
             _ => GridPlacement::Auto,
