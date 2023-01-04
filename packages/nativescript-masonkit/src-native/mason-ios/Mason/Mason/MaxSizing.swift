@@ -7,20 +7,58 @@
 
 import Foundation
 
-public enum MaxSizing:Codable, Equatable {
-    case Points(Float)
-    case Percent(Float)
-    case FitContent(Float)
-    case FitContentPercent(Float)
-    case Flex(Float)
+enum MaxSizingType: Equatable {
+    case Points
+    case Percent
+    case FitContent
+    case FitContentPercent
+    case Flex
     case Auto
     case MinContent
     case MaxContent
     
+}
+
+@objcMembers
+@objc(MaxSizing)
+public class MaxSizing:NSObject, Codable {
+    var internalType: MaxSizingType
+    internal(set) public var value: Float = 0
+    
+    init(_ type: MaxSizingType, _ value: Float) {
+        internalType = type
+        super.init()
+    }
+    
+    public static func Points(_ points: Float) -> MaxSizing {
+        return MaxSizing(.Points, points)
+    }
+    
+    public static func Percent(_ percent: Float) -> MaxSizing {
+        return MaxSizing(.Percent, percent)
+    }
+    
+    public static func FitContent(_ fit: Float) -> MaxSizing {
+        return MaxSizing(.FitContent, fit)
+    }
+    
+    public static func FitContentPercent(_ fit: Float) -> MaxSizing {
+        return MaxSizing(.FitContentPercent, fit)
+    }
+    
+    public static func Flex(_ flex: Float) -> MaxSizing {
+        return MaxSizing(.Flex, flex)
+    }
+    
+    public static let Auto = MaxSizing(.Auto, 0)
+    
+    public static let MinContent = MaxSizing(.MinContent, 0)
+    
+    public static let MaxContent = MaxSizing(.MaxContent, 0)
     
     internal var type: Int32 {
         get {
-            switch (self) {
+            switch (self.internalType) {
             case .Auto: return 0
             case .MinContent: return 1
             case .MaxContent: return 2
@@ -29,29 +67,6 @@ public enum MaxSizing:Codable, Equatable {
             case .Flex: return 5
             case .FitContent: return 6
             case .FitContentPercent: return 7
-            }
-        }
-    }
-    
-    internal var value: Float{
-        get {
-            switch(self){
-            case .Points(let points):
-                return points
-            case .Percent(let percent):
-                return percent
-            case .Auto:
-                return 0
-            case .MinContent:
-                return 0
-            case .MaxContent:
-                return 0
-            case .FitContent(let points):
-                return points
-            case .FitContentPercent(let percent):
-                return percent
-            case .Flex(let flex):
-                return flex
             }
         }
     }
@@ -73,23 +88,23 @@ public enum MaxSizing:Codable, Equatable {
     
     public var cssValue: String {
         get {
-            switch(self){
+            switch(self.internalType){
             case .Auto:
                 return "auto"
             case .MinContent:
                 return "min-content"
             case .MaxContent:
                 return "max-content"
-            case .Percent(let percent):
-                return "\(percent)%"
-            case .Points(let points):
-                return "\(points)px"
-            case .FitContent(let fitPoints):
-                return "fit-content(\(fitPoints)px)"
-            case .FitContentPercent(let fixPercent):
-                return "fit-content(\(fixPercent)%)"
-            case .Flex(let flex):
-                return "flex(\(flex)fr)"
+            case .Percent:
+                return "\(value)%"
+            case .Points:
+                return "\(value)px"
+            case .FitContent:
+                return "fit-content(\(value)px)"
+            case .FitContentPercent:
+                return "fit-content(\(value)%)"
+            case .Flex:
+                return "flex(\(value)fr)"
             }
         }
     }
@@ -101,16 +116,16 @@ public enum MaxSizing:Codable, Equatable {
     }
     
     
-    public init(from decoder: Decoder) throws {
+    required public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let value = try container.decode(String.self)
         switch(value){
         case "auto":
-            self = .Auto
+            self.internalType = .Auto
         case "min-content":
-            self = .MinContent
+            self.internalType = .MinContent
         case "max-content":
-            self = .MaxContent
+            self.internalType = .MaxContent
         default:
             if(value.starts(with: "fit-content(")){
                 
@@ -119,23 +134,28 @@ public enum MaxSizing:Codable, Equatable {
                     .replacingOccurrences(of: "(", with: "")
                 
                 if(value.contains("%")){
-                    self = .FitContentPercent(Float(fitContent.replacingOccurrences(of: "%", with: ""))!)
+                    self.internalType = .FitContentPercent
+                    self.value = Float(fitContent.replacingOccurrences(of: "%", with: ""))!
                 }else if(value.contains("px")){
-                    self = .FitContent(Float(fitContent.replacingOccurrences(of: "px", with: ""))!)
+                    self.internalType = .FitContent
+                    self.value = Float(fitContent.replacingOccurrences(of: "px", with: ""))!
                 }else {
                     // todo throw
                     throw NSError(domain: "Invalid type", code: 1000)
                 }
             }else if(value.starts(with: "flex(")){
-                self = .Flex(Float(value
+                self.internalType = .Flex
+                self.value = Float(value
                     .replacingOccurrences(of: "flex(", with: "")
                     .replacingOccurrences(of: "(", with: "")
                     .replacingOccurrences(of: "fr", with: "")
-                )!)
+                )!
             }else if(value.contains("%")){
-                self = .Percent(Float(value.replacingOccurrences(of: "%", with: ""))!)
+                self.internalType = .Percent
+                self.value = Float(value.replacingOccurrences(of: "%", with: ""))!
             }else if(value.contains("px")){
-                self = .Points(Float(value.replacingOccurrences(of: "px", with: ""))!)
+                self.internalType = .Points
+                self.value = Float(value.replacingOccurrences(of: "px", with: ""))!
             }else {
                 // todo throw
                 
