@@ -364,6 +364,8 @@ export const gridTemplateColumnsProperty = new CssProperty<Style, string>({
 
 @CSSType('TSCView')
 export class TSCViewBase extends View implements AddChildFromBuilder {
+  android: org.nativescript.mason.masonkit.View;
+  ios: UIView;
   display: Display;
   position: Position;
   flexDirection: FlexDirection;
