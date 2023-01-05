@@ -394,6 +394,22 @@ public class MasonStyle: NSObject {
         }
     }
     
+    public func setFlexBasis(_ value: Float,_ type: Int) {
+        switch(type){
+        case 0:
+            flexBasis = MasonDimension.Auto
+            break
+        case 1:
+            flexBasis =  MasonDimension.Points(value)
+            break
+        case 2:
+            flexBasis =  MasonDimension.Percent(value)
+            break
+        default: break
+            //noop
+        }
+    }
+    
     
     public var minSize = MasonDimensionSizeAuto {
         didSet {
@@ -611,6 +627,9 @@ public class MasonStyle: NSObject {
         get {
             return LineGridPlacementCompat(gridColumn.start, gridColumn.end)
         }
+        set {
+            gridColumn = Line<GridPlacement>(newValue.start.placement, newValue.end.placement)
+        }
     }
     
     public var gridRow =  LineGridPlacementAuto{
@@ -622,6 +641,10 @@ public class MasonStyle: NSObject {
     public var gridRowCompat: LineGridPlacementCompat {
         get {
             return LineGridPlacementCompat(gridRow.start, gridRow.end)
+        }
+        
+        set {
+            gridRow = Line<GridPlacement>(newValue.start.placement, newValue.end.placement)
         }
     }
     
