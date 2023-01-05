@@ -4,6 +4,124 @@
 using namespace facebook::jsi;
 using namespace std;
 
+CMasonNonRepeatedTrackSizingFunctionArray toNonRepeatedTrackSizingFunction(facebook::jsi::Runtime &runtime, facebook::jsi::Array &array) {
+    auto len = array.length(runtime);
+    
+    CMasonNonRepeatedTrackSizingFunctionArray ret {};
+ 
+    std::vector<CMasonMinMax> buffer;
+    buffer.reserve(len);
+    
+
+    auto auto_vec = rust::Vec<CMasonNonRepeatedTrackSizingFunction>();
+
+    if (len == 0) {
+        return std::move(auto_vec);
+    }
+
+    auto_vec.reserve(len);
+
+    for (int i = 0; i < len; i++) {
+        auto value = array.getValueAtIndex(runtime, i).asObject(
+                runtime);
+        // base object {type: number};
+        auto type = (int) value.getProperty(runtime, "type").getNumber();
+        switch (type) {
+            case 0: // auto
+                
+                mason_util_create_non_repeated_track_sizing_function_with_type_value(
+                        0, 0, 0, 0 - 1, auto_vec);
+                break;
+            case 1: // min-content
+                mason_util_create_non_repeated_track_sizing_function_with_type_value(
+                        1, 0, 0, -1, auto_vec);
+                break;
+            case 2: // max-content
+                mason_util_create_non_repeated_track_sizing_function_with_type_value(
+                        2, 0, 0, -1, auto_vec);
+                break;
+
+            case 3: //fit-content
+            {
+                // object {type: number, value_type: number, value: number};
+                auto value_type = (int) value.getProperty(runtime, "value_type").getNumber();
+                auto val = (float) value.getProperty(runtime, "value").getNumber();
+                mason_util_create_non_repeated_track_sizing_function_with_type_value(
+                        3, value_type, val, -1, auto_vec);
+            }
+                break;
+            case 4: //flex
+            {
+                // object {type: number, value: number};
+                auto val = (float) value.getProperty(runtime, "value").getNumber();
+                mason_util_create_non_repeated_track_sizing_function_with_type_value(
+                        4, 0, val, -1, auto_vec);
+            }
+                break;
+            case 5: //points
+            {
+                // object {type: number, value: number};
+                auto val = (float) value.getProperty(runtime, "value").getNumber();
+                mason_util_create_non_repeated_track_sizing_function_with_type_value(
+                        5, 0, val, -1, auto_vec);
+            }
+                break;
+            case 6: //percentage
+            {
+                // object {type: number, value: number};
+                auto val = (float) value.getProperty(runtime, "value").getNumber();
+                mason_util_create_non_repeated_track_sizing_function_with_type_value(
+                        6, 0, val, -1, auto_vec);
+            }
+                break;
+            case 7: //flex
+            {
+                // object {type: number, min_type: number, min_value: number, max_type: number, max_value: number};
+                auto min_type = (int) value.getProperty(runtime, "min_type").getNumber();
+                auto min_value = (float) value.getProperty(runtime, "min_value").getNumber();
+
+                auto max_type = (int) value.getProperty(runtime, "max_type").getNumber();
+                auto max_value = (float) value.getProperty(runtime, "max_value").getNumber();
+
+                CMasonMinMax minMax = {};
+                minMax.min_type = min_type;
+                minMax.min_value = min_value;
+                minMax.max_type = max_type;
+                minMax.max_value = max_value;
+
+                mason_util_create_non_repeated_track_sizing_function(minMax, -1, auto_vec);
+
+            }
+                break;
+            default:
+                // todo assert or do nothing ??
+                break;
+        }
+    }
+
+    return std::move(auto_vec);
+}
+
+
+rust::Vec<CMasonTrackSizingFunction>
+toTrackSizingFunction(facebook::jsi::Runtime &runtime, facebook::jsi::Array &array) {
+    auto len = array.length(runtime);
+
+    auto auto_vec = rust::Vec<CMasonTrackSizingFunction>();
+
+    if (len == 0) {
+        return std::move(auto_vec);
+    }
+
+    auto_vec.reserve(len);
+
+    for (int i = 0; i < len; i++) {
+
+    }
+
+    return std::move(auto_vec);
+}
+
 
 template<typename NativeFunc>
 static void createFunc(Runtime &jsiRuntime, const char *prop, int paramCount, NativeFunc &&func) {
@@ -20,70 +138,13 @@ static void createFunc(Runtime &jsiRuntime, const char *prop, int paramCount, Na
 
 static void* getPointerValue(const facebook::jsi::Value &value, facebook::jsi::Runtime &runtime) {
     // todo switch to bigint
-    return reinterpret_cast<void*>(value.asBigInt(runtime).Int64Value(runtime));
+    auto ptrValue = std::stoll(value.asString(runtime).utf8(runtime));
+    
+    return reinterpret_cast<void*>(ptrValue);
+    
+    //return reinterpret_cast<void*>(value.asBigInt(runtime).Int64Value(runtime));
    // return reinterpret_cast<void*>((int64_t)value.asNumber());
 }
-
-
-static Value dimensionToJS(Runtime &runtime,CMasonDimension dimension){
-    switch (dimension.value_type) {
-        case CMasonDimensionType::Auto:
-            return facebook::jsi::String::createFromUtf8(runtime, "auto");
-        case CMasonDimensionType::Percent: {
-            auto ret = facebook::jsi::Object(runtime);
-            ret.setProperty(runtime, "value", dimension.value / 100);
-            ret.setProperty(runtime, "unit", "%");
-            return ret;
-        }
-        case CMasonDimensionType::Points: {
-            auto ret = facebook::jsi::Object(runtime);
-            ret.setProperty(runtime, "value", dimension.value);
-            ret.setProperty(runtime, "unit", "px");
-            return ret;
-        }
-        default:
-            return Value::undefined();
-    }
-}
-
-static CMasonDimension jsToDimension(float value, int value_type){
-    switch (value_type) {
-        case CMasonDimensionType::Auto:
-            return CMasonDimension {value, CMasonDimensionType::Auto};
-        case CMasonDimensionType::Percent: {
-            return CMasonDimension {value, CMasonDimensionType::Percent};
-        }
-        case CMasonDimensionType::Points: {
-            return CMasonDimension {value, CMasonDimensionType::Points};
-        }
-        default:
-            return CMasonDimension {value, CMasonDimensionType::Undefined};
-    }
-}
-
-static CMasonDimensionType jsToDimensionType(int value_type){
-    switch (value_type) {
-        case CMasonDimensionType::Auto:
-            return CMasonDimensionType::Auto;
-        case CMasonDimensionType::Percent: {
-            return CMasonDimensionType::Percent;
-        }
-        case CMasonDimensionType::Points: {
-            return CMasonDimensionType::Points;
-        }
-        default:
-            return CMasonDimensionType::Undefined;
-    }
-}
-
-
-static facebook::jsi::Value sizeToJS(facebook::jsi::Runtime &runtime, CMasonSize size) {
-    auto ret = facebook::jsi::Object(runtime);
-    ret.setProperty(runtime, "width", dimensionToJS(runtime, size.width));
-    ret.setProperty(runtime, "height", dimensionToJS(runtime, size.height));
-    return ret;
-}
-
 
 
 
@@ -93,104 +154,139 @@ void install(Runtime &jsiRuntime) {
     CREATE_FUNC("__Mason_updateFlexStyleWithValues", 64, [](Runtime &runtime, const Value &thisValue,
                                                             const Value *arguments, size_t count) -> Value {
         
+      
         auto style = getPointerValue(arguments[0], runtime);
-        auto display = (int)arguments[1].asNumber();
-        auto positionType = (int)arguments[2].asNumber();
-        auto direction = (int)arguments[3].asNumber();
+                           auto display = (int) arguments[1].asNumber();
+                           auto position = (int) arguments[2].asNumber();
+                           auto direction = (int) arguments[3].asNumber();
 
-        auto flexDirection = (int)arguments[4].asNumber();
-        auto flexWrap = (int)arguments[5].asNumber();
-        auto overflow = (int)arguments[6].asNumber();
-        
-        auto alignItems = (int)arguments[7].asNumber();
-        auto alignSelf = (int)arguments[8].asNumber();
-        auto alignContent = (int)arguments[9].asNumber();
-        
-        auto justifyContent = (int)arguments[10].asNumber();
-        
-        auto positionLeftType = (int)arguments[11].asNumber();
-        auto positionLeftValue = (float)arguments[12].asNumber();
-        
-        auto positionRightType = (int)arguments[13].asNumber();
-        auto positionRightValue = (float)arguments[14].asNumber();
-        
-        auto positionTopType = (int)arguments[15].asNumber();
-        auto positionTopValue = (float)arguments[16].asNumber();
-        
-        auto positionBottomType = (int)arguments[17].asNumber();
-        auto positionBottomValue = (float)arguments[18].asNumber();
-        
-        
-        
-        auto marginLeftType = (int)arguments[19].asNumber();
-        auto marginLeftValue = (float)arguments[20].asNumber();
-        
-        auto marginRightType = (int)arguments[21].asNumber();
-        auto marginRightValue = (float)arguments[22].asNumber();
-        
-        auto marginTopType = (int)arguments[23].asNumber();
-        auto marginTopValue = (float)arguments[24].asNumber();
-        
-        auto marginBottomType = (int)arguments[25].asNumber();
-        auto marginBottomValue = (float)arguments[26].asNumber();
-        
-        
-        auto paddingLeftType = (int)arguments[27].asNumber();
-        auto paddingLeftValue = (float)arguments[28].asNumber();
-        
-        auto paddingRightType = (int)arguments[29].asNumber();
-        auto paddingRightValue = (float)arguments[30].asNumber();
-        
-        auto paddingTopType = (int)arguments[31].asNumber();
-        auto paddingTopValue = (float)arguments[32].asNumber();
-        
-        auto paddingBottomType = (int)arguments[33].asNumber();
-        auto paddingBottomValue = (float)arguments[34].asNumber();
-        
-        
-        auto borderLeftType = (int)arguments[35].asNumber();
-        auto borderLeftValue = (float)arguments[36].asNumber();
-        
-        auto borderRightType = (int)arguments[37].asNumber();
-        auto borderRightValue = (float)arguments[38].asNumber();
-        
-        auto borderTopType = (int)arguments[39].asNumber();
-        auto borderTopValue = (float)arguments[40].asNumber();
-        
-        auto borderBottomType = (int)arguments[41].asNumber();
-        auto borderBottomValue = (float)arguments[42].asNumber();
-        
-        auto flexGrow = (float)arguments[43].asNumber();
-        auto flexShrink = (float)arguments[44].asNumber();
-        
-        auto flexBasisType = (int)arguments[45].asNumber();
-        auto flexBasisValue = (float)arguments[46].asNumber();
-        
-        auto widthType = (int)arguments[47].asNumber();
-        auto widthValue = (float)arguments[48].asNumber();
-        
-        auto heightType = (int)arguments[49].asNumber();
-        auto heightValue = (float)arguments[50].asNumber();
-        
-        auto minWidthType = (int)arguments[51].asNumber();
-        auto minWidthValue = (float)arguments[52].asNumber();
-        
-        auto minHeightType = (int)arguments[53].asNumber();
-        auto minHeightValue = (float)arguments[54].asNumber();
-        
-        auto maxWidthType = (int)arguments[55].asNumber();
-        auto maxWidthValue = (float)arguments[56].asNumber();
-        
-        auto maxHeightType = (int)arguments[57].asNumber();
-        auto maxHeightValue = (float)arguments[58].asNumber();
-        
-        auto flexGapWidthType = (int)arguments[59].asNumber();
-        auto flexGapWidthValue = (float)arguments[60].asNumber();
-        
-        auto flexGapHeightType = (int)arguments[61].asNumber();
-        auto flexGapHeightValue = (float)arguments[62].asNumber();
-        
-        auto aspectRatio = (float)arguments[63].asNumber();
+                           auto flexDirection = (int) arguments[4].asNumber();
+                           auto flexWrap = (int) arguments[5].asNumber();
+                           auto overflow = (int) arguments[6].asNumber();
+
+                           auto alignItems = (int) arguments[7].asNumber();
+                           auto alignSelf = (int) arguments[8].asNumber();
+                           auto alignContent = (int) arguments[9].asNumber();
+
+
+                           auto justifyItems = (int) arguments[10].asNumber();
+                           auto justifySelf = (int) arguments[11].asNumber();
+                           auto justifyContent = (int) arguments[12].asNumber();
+
+                           auto insetLeftType = (int) arguments[13].asNumber();
+                           auto insetLeftValue = (float) arguments[14].asNumber();
+
+                           auto insetRightType = (int) arguments[15].asNumber();
+                           auto insetRightValue = (float) arguments[16].asNumber();
+
+                           auto insetTopType = (int) arguments[17].asNumber();
+                           auto insetTopValue = (float) arguments[18].asNumber();
+
+                           auto insetBottomType = (int) arguments[19].asNumber();
+                           auto insetBottomValue = (float) arguments[20].asNumber();
+
+
+                           auto marginLeftType = (int) arguments[21].asNumber();
+                           auto marginLeftValue = (float) arguments[22].asNumber();
+
+                           auto marginRightType = (int) arguments[23].asNumber();
+                           auto marginRightValue = (float) arguments[24].asNumber();
+
+                           auto marginTopType = (int) arguments[25].asNumber();
+                           auto marginTopValue = (float) arguments[26].asNumber();
+
+                           auto marginBottomType = (int) arguments[27].asNumber();
+                           auto marginBottomValue = (float) arguments[28].asNumber();
+
+
+                           auto paddingLeftType = (int) arguments[29].asNumber();
+                           auto paddingLeftValue = (float) arguments[30].asNumber();
+
+                           auto paddingRightType = (int) arguments[31].asNumber();
+                           auto paddingRightValue = (float) arguments[32].asNumber();
+
+                           auto paddingTopType = (int) arguments[33].asNumber();
+                           auto paddingTopValue = (float) arguments[34].asNumber();
+
+                           auto paddingBottomType = (int) arguments[35].asNumber();
+                           auto paddingBottomValue = (float) arguments[36].asNumber();
+
+
+                           auto borderLeftType = (int) arguments[37].asNumber();
+                           auto borderLeftValue = (float) arguments[38].asNumber();
+
+                           auto borderRightType = (int) arguments[39].asNumber();
+                           auto borderRightValue = (float) arguments[40].asNumber();
+
+                           auto borderTopType = (int) arguments[41].asNumber();
+                           auto borderTopValue = (float) arguments[42].asNumber();
+
+                           auto borderBottomType = (int) arguments[43].asNumber();
+                           auto borderBottomValue = (float) arguments[44].asNumber();
+
+                           auto flexGrow = (float) arguments[45].asNumber();
+                           auto flexShrink = (float) arguments[46].asNumber();
+
+                           auto flexBasisType = (int) arguments[47].asNumber();
+                           auto flexBasisValue = (float) arguments[48].asNumber();
+
+                           auto widthType = (int) arguments[49].asNumber();
+                           auto widthValue = (float) arguments[50].asNumber();
+
+                           auto heightType = (int) arguments[51].asNumber();
+                           auto heightValue = (float) arguments[52].asNumber();
+
+                           auto minWidthType = (int) arguments[53].asNumber();
+                           auto minWidthValue = (float) arguments[54].asNumber();
+
+                           auto minHeightType = (int) arguments[55].asNumber();
+                           auto minHeightValue = (float) arguments[56].asNumber();
+
+                           auto maxWidthType = (int) arguments[57].asNumber();
+                           auto maxWidthValue = (float) arguments[58].asNumber();
+
+                           auto maxHeightType = (int) arguments[59].asNumber();
+                           auto maxHeightValue = (float) arguments[60].asNumber();
+
+                           auto gapRowType = (int) arguments[61].asNumber();
+                           auto gapRowValue = (float) arguments[62].asNumber();
+
+                           auto gapColumnType = (int) arguments[63].asNumber();
+                           auto gapColumnValue = (float) arguments[64].asNumber();
+
+                           auto aspectRatio = (float) arguments[65].asNumber();
+
+                           auto gridAutoRowsValue = arguments[66].asObject(runtime).getArray(runtime);
+
+                           auto gridAutoColumnsValue = arguments[67].asObject(runtime).getArray(runtime);
+
+                           auto gridAutoRows = toNonRepeatedTrackSizingFunction(runtime,
+                                                                                gridAutoRowsValue);
+                           auto gridAutoColumns = toNonRepeatedTrackSizingFunction(runtime,
+                                                                                   gridAutoColumnsValue);
+
+                           auto gridAutoFlow = (int) arguments[68].asNumber();
+
+                           auto gridColumnStartType = (int) arguments[69].asNumber();
+                           auto gridColumnStartValue = (short) arguments[70].asNumber();
+
+                           auto gridColumnEndType = (int) arguments[71].asNumber();
+                           auto gridColumnEndValue = (short) arguments[72].asNumber();
+
+                           auto gridRowStartType = (int) arguments[73].asNumber();
+                           auto gridRowStartValue = (short) arguments[74].asNumber();
+
+                           auto gridRowEndType = (int) arguments[75].asNumber();
+                           auto gridRowEndValue = (short) arguments[76].asNumber();
+
+
+                           auto gridTemplateRowsValue = arguments[77].asObject(runtime).getArray(runtime);
+                           auto gridTemplateColumnsValue = arguments[78].asObject(runtime).getArray(
+                                   runtime);
+
+                           auto gridTemplateRows = toTrackSizingFunction(runtime, gridTemplateRowsValue);
+                           auto gridTemplateColumns = toTrackSizingFunction(runtime,
+                                                                            gridTemplateColumnsValue);
         
        
         

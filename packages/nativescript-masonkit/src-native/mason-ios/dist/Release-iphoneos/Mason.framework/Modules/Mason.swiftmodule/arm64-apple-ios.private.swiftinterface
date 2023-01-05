@@ -129,6 +129,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public init(style: Mason.MasonStyle, children: [Mason.MasonNode])
   public init(style: Mason.MasonStyle, measureFunc: @escaping Mason.MasonNode.MeasureFunc)
   @objc deinit
+  @objc public func updateNodeStyle()
   @objc @discardableResult
   public func layout() -> Mason.MasonLayout
   @objc public var isDirty: Swift.Bool {
@@ -554,6 +555,7 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     get
     set
   }
+  @objc public func setFlexBasis(_ value: Swift.Float, _ type: Swift.Int)
   public var minSize: Mason.MasonSize<Mason.MasonDimension> {
     get
     set
@@ -629,6 +631,7 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
   }
   @objc public var gridColumnCompat: Mason.LineGridPlacementCompat {
     @objc get
+    @objc set
   }
   public var gridRow: Mason.Line<Mason.GridPlacement> {
     get
@@ -636,6 +639,7 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
   }
   @objc public var gridRowCompat: Mason.LineGridPlacementCompat {
     @objc get
+    @objc set
   }
   @objc public var gridTemplateRows: [Mason.TrackSizingFunction] {
     @objc get
@@ -909,8 +913,8 @@ public enum GridPlacement : Swift.Codable {
   public init?(rawValue: Mason.GridTrackRepetition.RawValue)
 }
 extension UIKit.UIView {
-  @_Concurrency.MainActor(unsafe) public var mason: Mason.MasonNode {
-    get
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var mason: Mason.MasonNode {
+    @objc get
   }
   @objc @_Concurrency.MainActor(unsafe) public static var masonPtr: Swift.Int {
     @objc get
@@ -930,15 +934,172 @@ extension UIKit.UIView {
   }
   @objc @_Concurrency.MainActor(unsafe) dynamic public func addSubviews(_ views: [UIKit.UIView])
   @objc @_Concurrency.MainActor(unsafe) dynamic public func addSubviews(_ views: [UIKit.UIView], at index: Swift.Int)
-  @_Concurrency.MainActor(unsafe) public func configure(_ block: (Mason.MasonNode) -> Swift.Void)
-  @objc @_Concurrency.MainActor(unsafe) dynamic public func setPadding(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func configure(_ block: (Mason.MasonNode) -> Swift.Void)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var inBatch: Swift.Bool {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var display: Mason.Display {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var position: Mason.Position {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var direction: Mason.Direction {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var flexDirection: Mason.FlexDirection {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var flexWrap: Mason.FlexWrap {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var overflow: Mason.Overflow {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var alignItems: Mason.AlignItems {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var alignSelf: Mason.AlignSelf {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var alignContent: Mason.AlignContent {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var justifyItems: Mason.JustifyItems {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var justifySelf: Mason.JustifySelf {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var justifyContent: Mason.JustifyContent {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var flexGrow: Swift.Float {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var flexShrink: Swift.Float {
+    @objc get
+    @objc set(value)
+  }
+  @_Concurrency.MainActor(unsafe) public var flexBasis: Mason.MasonDimension {
+    get
+    set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var flexBasisCompat: Mason.MasonDimensionCompat {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var aspectRatio: Swift.Float {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var gridAutoRows: Swift.Array<Mason.MinMax> {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var gridAutoColumns: Swift.Array<Mason.MinMax> {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var gridAutoFlow: Mason.GridAutoFlow {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var gridColumnCompat: Mason.LineGridPlacementCompat {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var gridRowCompat: Mason.LineGridPlacementCompat {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var gridTemplateRows: Swift.Array<Mason.TrackSizingFunction> {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var gridTemplateColumns: Swift.Array<Mason.TrackSizingFunction> {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setPadding(_ left: Swift.Float, _ right: Swift.Float, _ top: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getPadding() -> Mason.MasonLengthPercentageRectCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setPaddingLeft(_ left: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setPaddingRight(_ right: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setPaddingTop(_ top: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setPaddingBottom(_ bottom: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getPaddingLeft() -> Mason.MasonLengthPercentageCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getPaddingRight() -> Mason.MasonLengthPercentageCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getPaddingTop() -> Mason.MasonLengthPercentageCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getPaddingBottom() -> Mason.MasonLengthPercentageCompat
   @objc @_Concurrency.MainActor(unsafe) dynamic public func setBorder(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getBorder() -> Mason.MasonLengthPercentageRectCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setBorderLeft(_ left: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setBorderRight(_ right: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setBorderTop(_ top: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setBorderBottom(_ bottom: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getBorderLeft() -> Mason.MasonLengthPercentageCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getBorderRight() -> Mason.MasonLengthPercentageCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getBorderBottom() -> Mason.MasonLengthPercentageCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getBorderTop() -> Mason.MasonLengthPercentageCompat
   @objc @_Concurrency.MainActor(unsafe) dynamic public func setMargin(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMargin() -> Mason.MasonLengthPercentageAutoRectCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMarginLeft(_ left: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMarginRight(_ right: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMarginTop(_ top: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMarginBottom(_ bottom: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMarginLeft() -> Mason.MasonLengthPercentageAutoCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMarginRight() -> Mason.MasonLengthPercentageAutoCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMarginTop() -> Mason.MasonLengthPercentageAutoCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMarginBottom() -> Mason.MasonLengthPercentageAutoCompat
   @objc @_Concurrency.MainActor(unsafe) dynamic public func setInset(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getInset() -> Mason.MasonLengthPercentageAutoRectCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setInsetLeft(_ left: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setInsetRight(_ right: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setInsetTop(_ top: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setInsetBottom(_ bottom: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getInsetLeft() -> Mason.MasonLengthPercentageAutoCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getInsetRight() -> Mason.MasonLengthPercentageAutoCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getInsetTop() -> Mason.MasonLengthPercentageAutoCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getInsetBottom() -> Mason.MasonLengthPercentageAutoCompat
   @objc @_Concurrency.MainActor(unsafe) dynamic public func setMinSize(_ width: Swift.Float, _ height: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMinSize() -> Mason.MasonDimensionSizeCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMinSizeWidth(_ width: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMinSizeHeight(_ height: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMinSizeWidth() -> Mason.MasonDimensionCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMinSizeHeight() -> Mason.MasonDimensionCompat
   @objc @_Concurrency.MainActor(unsafe) dynamic public func setSize(_ width: Swift.Float, _ height: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setSizeWidth(_ width: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setSizeHeight(_ height: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getSize() -> Mason.MasonDimensionSizeCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getSizeWidth() -> Mason.MasonDimensionCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getSizeHeight() -> Mason.MasonDimensionCompat
   @objc @_Concurrency.MainActor(unsafe) dynamic public func setMaxSize(_ width: Swift.Float, _ height: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMaxSize() -> Mason.MasonDimensionSizeCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMaxSizeWidth(_ width: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setMaxSizeHeight(_ height: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMaxSizeWidth() -> Mason.MasonDimensionCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getMaxSizeHeight() -> Mason.MasonDimensionCompat
   @objc @_Concurrency.MainActor(unsafe) dynamic public func setGap(_ width: Swift.Float, _ height: Swift.Float)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setGapWithWidthHeightType(_ width: Swift.Float, _ width_type: Swift.Int, _ height: Swift.Float, _ height_type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getGap() -> Mason.MasonLengthPercentageSizeCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setRowGap(_ row: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func setColumnGap(_ column: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getRowGap() -> Mason.MasonLengthPercentageCompat
+  @objc @_Concurrency.MainActor(unsafe) dynamic public func getColumnGap() -> Mason.MasonLengthPercentageCompat
 }
 extension Mason.MasonDimensionCompatType : Swift.Equatable {}
 extension Mason.MasonDimensionCompatType : Swift.Hashable {}
