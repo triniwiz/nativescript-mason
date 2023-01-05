@@ -4,6 +4,7 @@ import { paddingLeftProperty, paddingTopProperty, paddingRightProperty, paddingB
 
 import {
   JSIEnabled,
+  _forceStyleUpdate,
   _getAlignContent,
   _getAlignItems,
   _getAlignSelf,
@@ -16,6 +17,8 @@ import {
   _getJustifyContent,
   _getJustifyItems,
   _getJustifySelf,
+  _isDirty,
+  _markDirty,
   _parseDimension,
   _setAlignContent,
   _setAlignItems,
@@ -96,27 +99,15 @@ export class TSCView extends TSCViewBase {
   }
 
   forceStyleUpdate() {
-    if (JSIEnabled) {
-      global.__Mason_updateNodeAndStyle(this._masonPtr, this._masonNodePtr, this._masonStylePtr);
-    } else {
-      (this.android as any)?.updateNodeAndStyle?.();
-    }
+    _forceStyleUpdate(this as any);
   }
 
   markDirty() {
-    if (JSIEnabled) {
-      global.__Mason_markDirty(this._masonPtr, this._masonNodePtr);
-    } else {
-      (this.android as any)?.markNodeDirty?.();
-    }
+    _markDirty(this as any);
   }
 
   isDirty() {
-    if (JSIEnabled) {
-      return global.__Mason_isDirty(this._masonPtr, this._masonNodePtr);
-    } else {
-      (this.android as any)?.isNodeDirty?.();
-    }
+    return _isDirty(this as any);
   }
 
   //@ts-ignore
