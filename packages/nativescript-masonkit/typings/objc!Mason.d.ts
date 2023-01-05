@@ -523,6 +523,8 @@ declare class MasonNode extends NSObject {
 
   markDirty(): void;
 
+  updateNodeAndStyle(): void;
+
   setChildrenWithChildren(children: NSArray<MasonNode> | MasonNode[]): void;
 }
 
@@ -826,6 +828,8 @@ declare class MasonStyle extends NSObject {
   setBorderWithValueType(value: number, type: number): void;
 
   setColumnGap(value: number, type: number): void;
+
+  setFlexBasis(value: number, type: number): void;
 
   setGapColumn(value: number, type: number): void;
 

@@ -4,6 +4,7 @@ declare module org {
       export module masonkit {
         export class AlignContent {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.AlignContent>;
+          public static Normal: org.nativescript.mason.masonkit.AlignContent;
           public static Start: org.nativescript.mason.masonkit.AlignContent;
           public static End: org.nativescript.mason.masonkit.AlignContent;
           public static Center: org.nativescript.mason.masonkit.AlignContent;
@@ -12,6 +13,7 @@ declare module org {
           public static SpaceAround: org.nativescript.mason.masonkit.AlignContent;
           public static SpaceEvenly: org.nativescript.mason.masonkit.AlignContent;
           public static values(): androidNative.Array<org.nativescript.mason.masonkit.AlignContent>;
+          public getValue(): number;
           public static valueOf(param0: string): org.nativescript.mason.masonkit.AlignContent;
         }
         export module AlignContent {
@@ -31,12 +33,14 @@ declare module org {
       export module masonkit {
         export class AlignItems {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.AlignItems>;
+          public static Normal: org.nativescript.mason.masonkit.AlignItems;
           public static Start: org.nativescript.mason.masonkit.AlignItems;
           public static End: org.nativescript.mason.masonkit.AlignItems;
           public static Center: org.nativescript.mason.masonkit.AlignItems;
           public static Baseline: org.nativescript.mason.masonkit.AlignItems;
           public static Stretch: org.nativescript.mason.masonkit.AlignItems;
           public static valueOf(param0: string): org.nativescript.mason.masonkit.AlignItems;
+          public getValue(): number;
           public static values(): androidNative.Array<org.nativescript.mason.masonkit.AlignItems>;
         }
         export module AlignItems {
@@ -56,12 +60,14 @@ declare module org {
       export module masonkit {
         export class AlignSelf {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.AlignSelf>;
+          public static Normal: org.nativescript.mason.masonkit.AlignSelf;
           public static Start: org.nativescript.mason.masonkit.AlignSelf;
           public static End: org.nativescript.mason.masonkit.AlignSelf;
           public static Center: org.nativescript.mason.masonkit.AlignSelf;
           public static Baseline: org.nativescript.mason.masonkit.AlignSelf;
           public static Stretch: org.nativescript.mason.masonkit.AlignSelf;
           public static valueOf(param0: string): org.nativescript.mason.masonkit.AlignSelf;
+          public getValue(): number;
           public static values(): androidNative.Array<org.nativescript.mason.masonkit.AlignSelf>;
         }
         export module AlignSelf {
@@ -383,6 +389,7 @@ declare module org {
       export module masonkit {
         export class JustifyContent {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.JustifyContent>;
+          public static Normal: org.nativescript.mason.masonkit.JustifyContent;
           public static Start: org.nativescript.mason.masonkit.JustifyContent;
           public static End: org.nativescript.mason.masonkit.JustifyContent;
           public static Center: org.nativescript.mason.masonkit.JustifyContent;
@@ -390,6 +397,7 @@ declare module org {
           public static SpaceBetween: org.nativescript.mason.masonkit.JustifyContent;
           public static SpaceAround: org.nativescript.mason.masonkit.JustifyContent;
           public static SpaceEvenly: org.nativescript.mason.masonkit.JustifyContent;
+          public getValue(): number;
           public static values(): androidNative.Array<org.nativescript.mason.masonkit.JustifyContent>;
           public static valueOf(param0: string): org.nativescript.mason.masonkit.JustifyContent;
         }
@@ -410,11 +418,13 @@ declare module org {
       export module masonkit {
         export class JustifyItems {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.JustifyItems>;
+          public static Normal: org.nativescript.mason.masonkit.JustifyItems;
           public static Start: org.nativescript.mason.masonkit.JustifyItems;
           public static End: org.nativescript.mason.masonkit.JustifyItems;
           public static Center: org.nativescript.mason.masonkit.JustifyItems;
           public static Baseline: org.nativescript.mason.masonkit.JustifyItems;
           public static Stretch: org.nativescript.mason.masonkit.JustifyItems;
+          public getValue(): number;
           public static valueOf(param0: string): org.nativescript.mason.masonkit.JustifyItems;
           public static values(): androidNative.Array<org.nativescript.mason.masonkit.JustifyItems>;
         }
@@ -435,11 +445,13 @@ declare module org {
       export module masonkit {
         export class JustifySelf {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.JustifySelf>;
+          public static Normal: org.nativescript.mason.masonkit.JustifySelf;
           public static Start: org.nativescript.mason.masonkit.JustifySelf;
           public static End: org.nativescript.mason.masonkit.JustifySelf;
           public static Center: org.nativescript.mason.masonkit.JustifySelf;
           public static Baseline: org.nativescript.mason.masonkit.JustifySelf;
           public static Stretch: org.nativescript.mason.masonkit.JustifySelf;
+          public getValue(): number;
           public static values(): androidNative.Array<org.nativescript.mason.masonkit.JustifySelf>;
           public static valueOf(param0: string): org.nativescript.mason.masonkit.JustifySelf;
         }
