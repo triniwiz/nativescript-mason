@@ -121,7 +121,7 @@ public class MasonNode: NSObject {
         }), length: UInt(length))
     }
     
-    internal func updateNodeStyle() {
+    public func updateNodeStyle() {
         if(inBatch){return}
         if (style.isDirty) {
             
