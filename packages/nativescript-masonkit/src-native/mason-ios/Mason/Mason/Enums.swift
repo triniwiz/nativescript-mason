@@ -250,6 +250,18 @@ public enum MasonLengthPercentage: Codable {
     case Points(Float)
     case Percent(Float)
     
+    
+    static func fromValueType(_ value: Float, _ type: Int) -> MasonLengthPercentage? {
+        switch(type){
+        case 0:
+            return Points(value)
+        case 1:
+            return Percent(value)
+        default:
+            return nil
+        }
+      }
+    
     internal var type: Int32 {
         get {
             switch (self) {
