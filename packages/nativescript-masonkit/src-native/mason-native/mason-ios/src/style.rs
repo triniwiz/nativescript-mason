@@ -1,11 +1,11 @@
 use std::ffi::{c_float, c_int, c_void};
 
+use mason_core::style::{min_max_from_values, Style};
 use mason_core::{
-    Dimension, GridPlacement, GridTrackRepetition, LengthPercentage, LengthPercentageAuto, MaxTrackSizingFunction,
-    MinTrackSizingFunction, NonRepeatedTrackSizingFunction, points, Rect, Size,
+    points, Dimension, GridPlacement, GridTrackRepetition, LengthPercentage, LengthPercentageAuto,
+    MaxTrackSizingFunction, MinTrackSizingFunction, NonRepeatedTrackSizingFunction, Rect, Size,
     TrackSizingFunction,
 };
-use mason_core::style::{min_max_from_values, Style};
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -167,20 +167,27 @@ impl Drop for CMasonNonRepeatedTrackSizingFunctionArray {
     }
 }
 
+#[no_mangle]
+pub extern "C" fn mason_destroy_non_repeated_track_sizing_function_array(
+    array: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+) {
+    if array.is_null() {
+        return;
+    }
+    let _ = unsafe { Box::from_raw(array) };
+}
+
 #[repr(C)]
 #[derive(Debug)]
 pub enum CMasonTrackSizingFunction {
     Single(CMasonMinMax),
-    Repeat(i32, *mut CMasonMinMaxArray),
+    Repeat(i32, *mut CMasonNonRepeatedTrackSizingFunctionArray),
 }
 
 impl Drop for CMasonTrackSizingFunction {
     fn drop(&mut self) {
-        match self {
-            CMasonTrackSizingFunction::Repeat(_, array) => {
-                let _ = unsafe { Box::from_raw(array) };
-            }
-            _ => {}
+        if let CMasonTrackSizingFunction::Repeat(_, array) = self {
+            let _ = unsafe { Box::from_raw(array) };
         }
     }
 }
@@ -195,15 +202,13 @@ impl From<TrackSizingFunction> for CMasonTrackSizingFunction {
                         GridTrackRepetition::AutoFill => 0,
                         GridTrackRepetition::AutoFit => 1,
                     },
-                    Box::into_raw(
-                        Box::new(
-                            tracks
-                                .into_iter()
-                                .map(|v| v.into())
-                                .collect::<Vec<CMasonMinMax>>()
-                                .into()
-                        )
-                    ),
+                    Box::into_raw(Box::new(
+                        tracks
+                            .into_iter()
+                            .map(|v| v.into())
+                            .collect::<Vec<CMasonMinMax>>()
+                            .into(),
+                    )),
                 )
             }
         }
@@ -230,7 +235,39 @@ impl Into<TrackSizingFunction> for CMasonTrackSizingFunction {
                     },
                     {
                         let slice = unsafe {
-                            std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length).to_vec()
+                            std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length)
+                                .to_vec()
+                        };
+                        slice.into_iter().map(|v| v.into()).collect()
+                    },
+                )
+            }
+        }
+    }
+}
+
+impl Into<TrackSizingFunction> for &CMasonTrackSizingFunction {
+    fn into(self) -> TrackSizingFunction {
+        match self {
+            CMasonTrackSizingFunction::Single(value) => {
+                TrackSizingFunction::Single(min_max_from_values(
+                    value.min_type,
+                    value.min_value,
+                    value.max_type,
+                    value.max_value,
+                ))
+            }
+            CMasonTrackSizingFunction::Repeat(repetition, tracks) => {
+                TrackSizingFunction::AutoRepeat(
+                    match repetition {
+                        0 => GridTrackRepetition::AutoFill,
+                        1 => GridTrackRepetition::AutoFit,
+                        _ => panic!(),
+                    },
+                    {
+                        let slice = unsafe {
+                            std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length)
+                                .to_vec()
                         };
                         slice.into_iter().map(|v| v.into()).collect()
                     },
@@ -265,29 +302,14 @@ impl Drop for CMasonTrackSizingFunctionArray {
     }
 }
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct CMasonMinMaxArray {
-    pub array: *mut CMasonMinMax,
-    pub length: usize,
-}
-
-impl From<Vec<CMasonMinMax>> for CMasonMinMaxArray {
-    fn from(value: Vec<CMasonMinMax>) -> Self {
-        let mut box_slice = value.into_boxed_slice();
-        let array = Self {
-            array: box_slice.as_mut_ptr(),
-            length: box_slice.len(),
-        };
-        let _ = Box::into_raw(box_slice);
-        array
+#[no_mangle]
+pub extern "C" fn mason_destroy_track_sizing_function_array(
+    array: *mut CMasonTrackSizingFunctionArray,
+) {
+    if array.is_null() {
+        return;
     }
-}
-
-impl Drop for CMasonMinMaxArray {
-    fn drop(&mut self) {
-        let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(self.array, self.length)) };
-    }
+    let _ = unsafe { Box::from_raw(array) };
 }
 
 impl CMasonMinMax {
@@ -742,7 +764,9 @@ impl Into<GridPlacement> for CMasonGridPlacement {
     fn into(self) -> GridPlacement {
         match self.value_type {
             CMasonGridPlacementType::MasonGridPlacementTypeAuto => GridPlacement::Auto,
-            CMasonGridPlacementType::MasonGridPlacementTypeLine => GridPlacement::Line(self.value.into()),
+            CMasonGridPlacementType::MasonGridPlacementTypeLine => {
+                GridPlacement::Line(self.value.into())
+            }
             CMasonGridPlacementType::MasonGridPlacementTypeSpan => {
                 GridPlacement::Span(self.value.try_into().unwrap())
             }
@@ -1425,7 +1449,9 @@ pub extern "C" fn mason_style_get_aspect_ratio(style: *mut c_void) -> c_float {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_grid_auto_rows(style: *mut c_void) -> *mut CMasonMinMaxArray {
+pub extern "C" fn mason_style_get_grid_auto_rows(
+    style: *mut c_void,
+) -> *mut CMasonNonRepeatedTrackSizingFunctionArray {
     let ret: Vec<CMasonMinMax> = mason_core::ffi::style_get_grid_auto_rows(style as _)
         .into_iter()
         .map(|v| v.into())
@@ -1437,7 +1463,7 @@ pub extern "C" fn mason_style_get_grid_auto_rows(style: *mut c_void) -> *mut CMa
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_auto_rows(
     style: *mut c_void,
-    value: *mut CMasonMinMaxArray,
+    value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
 ) {
     let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
 
@@ -1451,7 +1477,9 @@ pub extern "C" fn mason_style_set_grid_auto_rows(
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_grid_auto_columns(style: *mut c_void) -> *mut CMasonMinMaxArray {
+pub extern "C" fn mason_style_get_grid_auto_columns(
+    style: *mut c_void,
+) -> *mut CMasonNonRepeatedTrackSizingFunctionArray {
     let ret: Vec<CMasonMinMax> = mason_core::ffi::style_get_grid_auto_columns(style as _)
         .into_iter()
         .map(|v| v.into())
@@ -1463,7 +1491,7 @@ pub extern "C" fn mason_style_get_grid_auto_columns(style: *mut c_void) -> *mut 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_auto_columns(
     style: *mut c_void,
-    value: *mut CMasonMinMaxArray,
+    value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
 ) {
     let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
 
@@ -1487,8 +1515,34 @@ pub extern "C" fn mason_style_set_grid_auto_flow(style: *mut c_void, value: i32)
 }
 
 #[no_mangle]
+pub extern "C" fn mason_style_set_grid_area(
+    style: *mut c_void,
+    row_start: CMasonGridPlacement,
+    row_end: CMasonGridPlacement,
+    column_start: CMasonGridPlacement,
+    column_end: CMasonGridPlacement,
+) {
+    mason_core::ffi::style_set_grid_area(
+        style as _,
+        row_start.into(),
+        row_end.into(),
+        column_start.into(),
+        column_end.into(),
+    )
+}
+
+#[no_mangle]
 pub extern "C" fn mason_style_get_grid_column_start(style: *mut c_void) -> CMasonGridPlacement {
     mason_core::ffi::style_get_grid_column_start(style as _).into()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_column(
+    style: *mut c_void,
+    start: CMasonGridPlacement,
+    end: CMasonGridPlacement,
+) {
+    mason_core::ffi::style_set_grid_column(style as _, start.into(), end.into())
 }
 
 #[no_mangle]
@@ -1512,6 +1566,15 @@ pub extern "C" fn mason_style_set_grid_column_end(style: *mut c_void, value: CMa
 #[no_mangle]
 pub extern "C" fn mason_style_get_grid_row_start(style: *mut c_void) -> CMasonGridPlacement {
     mason_core::ffi::style_get_grid_row_start(style as _).into()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_row(
+    style: *mut c_void,
+    start: CMasonGridPlacement,
+    end: CMasonGridPlacement,
+) {
+    mason_core::ffi::style_set_grid_row(style as _, start.into(), end.into())
 }
 
 #[no_mangle]
@@ -1547,7 +1610,12 @@ pub extern "C" fn mason_style_set_grid_template_rows(
     style: *mut c_void,
     value: *mut CMasonTrackSizingFunctionArray,
 ) {
-    unsafe {mason_core::ffi::style_set_grid_template_rows(style as _, to_vec_track_sizing_function(value)) }
+    unsafe {
+        mason_core::ffi::style_set_grid_template_rows(
+            style as _,
+            to_vec_track_sizing_function(value),
+        )
+    }
 }
 
 #[no_mangle]
@@ -1568,10 +1636,12 @@ pub extern "C" fn mason_style_set_grid_template_columns(
     style: *mut c_void,
     value: *mut CMasonTrackSizingFunctionArray,
 ) {
-    unsafe { mason_core::ffi::style_set_grid_template_columns(
-        style as _,
-        to_vec_track_sizing_function(value),
-    ) }
+    unsafe {
+        mason_core::ffi::style_set_grid_template_columns(
+            style as _,
+            to_vec_track_sizing_function(value),
+        )
+    }
 }
 
 pub fn to_vec_non_repeated_track_sizing_function(
@@ -1601,7 +1671,6 @@ pub fn to_vec_non_repeated_track_sizing_function(
 pub unsafe fn to_vec_track_sizing_function(
     value: *mut CMasonTrackSizingFunctionArray,
 ) -> Vec<TrackSizingFunction> {
-
     if value.is_null() {
         return vec![];
     }
@@ -1610,7 +1679,6 @@ pub unsafe fn to_vec_track_sizing_function(
             return vec![];
         }
     }
-
 
     let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
 
@@ -1627,12 +1695,14 @@ pub unsafe fn to_vec_track_sizing_function(
                 ))
             }
             CMasonTrackSizingFunction::Repeat(rep, tracks) => {
-
-                let ret: Vec<NonRepeatedTrackSizingFunction> = if unsafe { (*(*tracks)).length == 0 } {
+                let ret: Vec<NonRepeatedTrackSizingFunction> = if unsafe {
+                    (*(*tracks)).length == 0
+                } {
                     Vec::new()
                 } else {
-                    let slice =
-                        unsafe { std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length) };
+                    let slice = unsafe {
+                        std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length)
+                    };
 
                     slice
                         .iter()
@@ -1737,11 +1807,11 @@ pub extern "C" fn mason_style_init_with_values(
     grid_template_rows: *const CMasonTrackSizingFunctionArray,
     grid_template_columns: *const CMasonTrackSizingFunctionArray,
 ) -> *mut c_void {
-
     let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
     let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
     let grid_template_rows = unsafe { to_vec_track_sizing_function(grid_template_rows as *mut _) };
-    let grid_template_columns = unsafe { to_vec_track_sizing_function(grid_template_columns as *mut _)};
+    let grid_template_columns =
+        unsafe { to_vec_track_sizing_function(grid_template_columns as *mut _) };
 
     Box::into_raw(Box::new(Style::from_ffi(
         display,
@@ -1909,8 +1979,8 @@ pub extern "C" fn mason_style_update_with_values(
 ) {
     let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
     let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
-    let grid_template_rows = unsafe { to_vec_track_sizing_function(grid_template_rows)};
-    let grid_template_columns = unsafe { to_vec_track_sizing_function(grid_template_columns)};
+    let grid_template_rows = unsafe { to_vec_track_sizing_function(grid_template_rows) };
+    let grid_template_columns = unsafe { to_vec_track_sizing_function(grid_template_columns) };
 
     unsafe {
         let mut style = Box::from_raw(style as *mut Style);
