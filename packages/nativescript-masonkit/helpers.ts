@@ -1,7 +1,15 @@
-declare const __non_webpack_require__;
+declare const __non_webpack_require__, JSIModule;
 
 import { Utils } from '@nativescript/core';
 import { TSCViewBase } from './common';
+
+const enum GridPlacementCompatType {
+  Auto = 0,
+
+  Line = 1,
+
+  Span = 2,
+}
 
 export const enum FlexWrap {
   NoWrap = 0,
@@ -155,10 +163,24 @@ export let JSIEnabled = false;
 
 if (global.isAndroid) {
   try {
-    __non_webpack_require__('system_lib://libmasonnativev8.so');
+    //  __non_webpack_require__('system_lib://libmasonnativev8.so');
     JSIEnabled = false;
   } catch (error) {
-    console.warn('Failed to enable on FastAPI');
+    console.warn('Failed to enable on FastAPI', error);
+  }
+}
+
+if (global.isIOS) {
+  TSCMason.alwaysEnable = true;
+  if (!JSIEnabled) {
+    try {
+      //@ts-ignore
+      const module = new global.JSIModule();
+      console.log(module.install());
+      JSIEnabled = true;
+    } catch (error) {
+      console.warn('Failed to enable on FastAPI', error);
+    }
   }
 }
 
@@ -174,7 +196,7 @@ export function _forceStyleUpdate(instance: TSCView) {
     }
 
     if (global.isIOS) {
-      instance.ios.mason.updateNodeAndStyle();
+      instance.ios.mason.updateNodeStyle();
     }
   }
 }
@@ -557,6 +579,23 @@ export function _setMinWidth(value, instance: TSCView, initial = false) {
   }
 }
 
+export function _getMinWidth(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.minWidth;
+  }
+  if (JSIEnabled) {
+    return global.__Mason_getMinWidth(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      return _parseDimension(instance.android.getMinSizeWidth());
+    }
+
+    if (global.isIOS) {
+      return _parseDimension(instance.ios.getMinSizeWidth());
+    }
+  }
+}
+
 export function _setMinHeight(value, instance: TSCView, initial = false) {
   if (!instance._hasNativeView) {
     return;
@@ -575,6 +614,23 @@ export function _setMinHeight(value, instance: TSCView, initial = false) {
   }
 }
 
+export function _getMinHeight(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.minHeight;
+  }
+  if (JSIEnabled) {
+    return global.__Mason_getMinHeight(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      return _parseDimension(instance.android.getMinSizeHeight());
+    }
+
+    if (global.isIOS) {
+      return _parseDimension(instance.ios.getMinSizeHeight());
+    }
+  }
+}
+
 export function _setWidth(value, instance: TSCView, initial = false) {
   if (!instance._hasNativeView) {
     return;
@@ -589,6 +645,23 @@ export function _setWidth(value, instance: TSCView, initial = false) {
 
     if (global.isIOS) {
       instance.ios.setSizeWidth(val.value, val.native_type);
+    }
+  }
+}
+
+export function _getWidth(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.width;
+  }
+  if (JSIEnabled) {
+    return global.__Mason_getWidth(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      return _parseDimension(instance.android.getSizeWidth());
+    }
+
+    if (global.isIOS) {
+      return _parseDimension(instance.ios.getSizeWidth());
     }
   }
 }
@@ -612,6 +685,23 @@ export function _setHeight(value, instance: TSCView, initial = false) {
   }
 }
 
+export function _getHeight(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.height;
+  }
+  if (JSIEnabled) {
+    return global.__Mason_getHeight(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      return _parseDimension(instance.android.getSizeHeight());
+    }
+
+    if (global.isIOS) {
+      return _parseDimension(instance.ios.getSizeHeight());
+    }
+  }
+}
+
 export function _setMaxWidth(value, instance: TSCView, initial = false) {
   if (!instance._hasNativeView) {
     return;
@@ -627,6 +717,23 @@ export function _setMaxWidth(value, instance: TSCView, initial = false) {
 
     if (global.isIOS) {
       instance.ios.setMaxSizeWidth(val.value, val.native_type);
+    }
+  }
+}
+
+export function _getMaxWidth(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.maxWidth;
+  }
+  if (JSIEnabled) {
+    return global.__Mason_getMaxWidth(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      return _parseDimension(instance.android.getMaxSizeWidth());
+    }
+
+    if (global.isIOS) {
+      return _parseDimension(instance.ios.getMaxSizeWidth());
     }
   }
 }
@@ -649,6 +756,23 @@ export function _setMaxHeight(value, instance: TSCView, initial = false) {
   }
 }
 
+export function _getMaxHeight(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.maxHeight;
+  }
+  if (JSIEnabled) {
+    return global.__Mason_getMaxHeight(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      return _parseDimension(instance.android.getMaxSizeHeight());
+    }
+
+    if (global.isIOS) {
+      return _parseDimension(instance.ios.getMaxSizeHeight());
+    }
+  }
+}
+
 export function _setFlexDirection(value, instance: TSCView, initial = false) {
   if (initial && value === 'row') {
     return;
@@ -660,28 +784,44 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
         if (JSIEnabled) {
           nativeValue = FlexDirection.Column;
         } else {
-          nativeValue = org.nativescript.mason.masonkit.FlexDirection.Column;
+          if (global.isAndroid) {
+            nativeValue = org.nativescript.mason.masonkit.FlexDirection.Column;
+          } else if (global.isIOS) {
+            nativeValue = FlexDirection.Column;
+          }
         }
         break;
       case 'row':
         if (JSIEnabled) {
           nativeValue = FlexDirection.Row;
         } else {
-          nativeValue = org.nativescript.mason.masonkit.FlexDirection.Row;
+          if (global.isAndroid) {
+            nativeValue = org.nativescript.mason.masonkit.FlexDirection.Row;
+          } else if (global.isIOS) {
+            nativeValue = FlexDirection.Row;
+          }
         }
         break;
       case 'column-reverse':
         if (JSIEnabled) {
           nativeValue = FlexDirection.ColumnReverse;
         } else {
-          nativeValue = org.nativescript.mason.masonkit.FlexDirection.ColumnReverse;
+          if (global.isAndroid) {
+            nativeValue = org.nativescript.mason.masonkit.FlexDirection.ColumnReverse;
+          } else if (global.isIOS) {
+            nativeValue = FlexDirection.ColumnReverse;
+          }
         }
         break;
       case 'row-reverse':
         if (JSIEnabled) {
           nativeValue = FlexDirection.RowReverse;
         } else {
-          nativeValue = org.nativescript.mason.masonkit.FlexDirection.RowReverse;
+          if (global.isAndroid) {
+            nativeValue = org.nativescript.mason.masonkit.FlexDirection.RowReverse;
+          } else if (global.isIOS) {
+            nativeValue = FlexDirection.RowReverse;
+          }
         }
         break;
     }
@@ -697,6 +837,40 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
         if (global.isIOS) {
           instance.ios.flexDirection = nativeValue;
         }
+      }
+    }
+  }
+}
+
+export function _getPosition(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.position;
+  }
+
+  if (JSIEnabled) {
+    const value = global.__Mason_getPosition(instance._masonStylePtr);
+    switch (value) {
+      case 0:
+        return 'relative';
+      case 1:
+        return 'absolute';
+    }
+  } else {
+    if (global.isAndroid) {
+      switch (instance.android.getPosition()) {
+        case org.nativescript.mason.masonkit.Position.Absolute:
+          return 'absolute';
+        case org.nativescript.mason.masonkit.Position.Relative:
+          return 'relative';
+      }
+    }
+
+    if (global.isIOS) {
+      switch (instance.ios.position) {
+        case Position.Absolute:
+          return 'absolute';
+        case Position.Relative:
+          return 'relative';
       }
     }
   }
@@ -2286,5 +2460,186 @@ export function _getAspectRatio(instance: TSCView) {
     }
 
     return null;
+  }
+}
+
+function _parseGridLine(value): { value: number; type: any; native_value?: any } {
+  let parsedValue = undefined;
+  let parsedType = undefined;
+  let nativeValue = undefined;
+  if (typeof value === 'string') {
+    if (value === 'auto') {
+      parsedValue = 0;
+      parsedType = GridPlacementCompatType.Auto;
+      if (!JSIEnabled) {
+        if (global.isAndroid) {
+          parsedType = org.nativescript.mason.masonkit.GridPlacement.Auto;
+          nativeValue = org.nativescript.mason.masonkit.GridPlacement.Auto;
+        }
+
+        if (global.isIOS) {
+          parsedType = GridPlacementCompatType.Auto;
+          nativeValue = GridPlacementCompat.Auto;
+        }
+      }
+    }
+    if (value.startsWith('span')) {
+      parsedValue = Number(value.replace('span', '').trim());
+      parsedType = GridPlacementCompatType.Span;
+
+      if (!JSIEnabled) {
+        const isValid = !Number.isNaN(parsedValue);
+        if (global.isAndroid) {
+          parsedType = org.nativescript.mason.masonkit.GridPlacement.Span;
+          if (isValid) {
+            nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Span(parsedValue);
+          }
+        }
+
+        if (global.isIOS) {
+          parsedType = GridPlacementCompatType.Span;
+          if (isValid) {
+            nativeValue = GridPlacementCompat.alloc().initWithSpan(parsedValue);
+          }
+        }
+      }
+    } else {
+      parsedValue = Number(value.trim());
+      parsedType = GridPlacementCompatType.Line;
+
+      if (!JSIEnabled) {
+        const isValid = !Number.isNaN(parsedValue);
+        if (global.isAndroid) {
+          parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
+          if (isValid) {
+            nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Line(parsedValue);
+          }
+        }
+
+        if (global.isIOS) {
+          parsedType = GridPlacementCompatType.Line;
+          if (isValid) {
+            nativeValue = GridPlacementCompat.alloc().initWithLine(parsedValue);
+          }
+        }
+      }
+    }
+
+    return { value: Number.isNaN(parsedValue) ? undefined : parsedValue, type: parsedType, native_value: nativeValue };
+  }
+
+  if (typeof value === 'number') {
+    parsedValue = value;
+    parsedType = GridPlacementCompatType.Line;
+
+    if (!JSIEnabled) {
+      if (global.isAndroid) {
+        parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
+        nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Line(parsedValue);
+      }
+
+      if (global.isIOS) {
+        parsedType = GridPlacementCompatType.Line;
+        nativeValue = GridPlacementCompat.alloc().initWithLine(parsedValue);
+      }
+    }
+  }
+
+  return { value: parsedValue, type: parsedType, native_value: nativeValue };
+}
+
+export function _setGridColumnStart(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  const val = _parseGridLine(value);
+
+  if (val.value === undefined || val.type === undefined) {
+    return;
+  }
+
+  if (JSIEnabled) {
+    global.__Mason_setColumnStart(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      instance.android.setGridColumnStart(val.native_value);
+    }
+
+    if (global.isIOS) {
+      instance.ios.gridColumnStartCompat = val.native_value;
+    }
+  }
+}
+
+export function _setGridColumnEnd(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  const val = _parseGridLine(value);
+
+  if (val.value === undefined || val.type === undefined) {
+    return;
+  }
+
+  if (JSIEnabled) {
+    global.__Mason_setColumnEnd(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      instance.android.setGridColumnEnd(val.native_value);
+    }
+
+    if (global.isIOS) {
+      instance.ios.gridColumnEndCompat = val.native_value;
+    }
+  }
+}
+
+export function _setGridRowStart(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  const val = _parseGridLine(value);
+
+  if (val.value === undefined || val.type === undefined) {
+    return;
+  }
+
+  if (JSIEnabled) {
+    global.__Mason_setRowStart(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      instance.android.setGridRowStart(val.native_value);
+    }
+
+    if (global.isIOS) {
+      instance.ios.gridRowStartCompat = val.native_value;
+    }
+  }
+}
+
+export function _setGridRowEnd(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  const val = _parseGridLine(value);
+
+  if (val.value === undefined || val.type === undefined) {
+    return;
+  }
+
+  if (JSIEnabled) {
+    global.__Mason_setRowEnd(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      instance.android.setGridRowEnd(val.native_value);
+    }
+
+    if (global.isIOS) {
+      instance.ios.gridRowEndCompat = val.native_value;
+    }
   }
 }

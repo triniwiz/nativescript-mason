@@ -1186,6 +1186,30 @@ pub fn style_set_grid_auto_flow(style: *mut c_void, value: i32) {
     }
 }
 
+pub fn style_set_grid_area(style: *mut c_void, row_start: GridPlacement, row_end: GridPlacement, column_start: GridPlacement, column_end: GridPlacement) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_row(Line { start: row_start, end: row_end });
+
+        style.set_grid_column(Line { start: column_start, end: column_end });
+
+        Box::leak(style);
+    }
+}
+
+pub fn style_set_grid_column(style: *mut c_void, start: GridPlacement, end: GridPlacement) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_column(Line { start, end });
+
+        Box::leak(style);
+    }
+}
+
 pub fn style_get_grid_column_start(style: *const c_void) -> GridPlacement {
     assert_pointer_address(style, "style");
     unsafe {
@@ -1229,6 +1253,17 @@ pub fn style_set_grid_column_end(style: *mut c_void, value: GridPlacement) {
         let mut style = Box::from_raw(style as *mut Style);
 
         style.set_grid_column_end(value);
+
+        Box::leak(style);
+    }
+}
+
+pub fn style_set_grid_row(style: *mut c_void, start: GridPlacement, end: GridPlacement) {
+    assert_pointer_address(style, "style");
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_grid_row(Line { start, end });
 
         Box::leak(style);
     }

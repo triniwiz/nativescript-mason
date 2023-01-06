@@ -410,24 +410,24 @@ public class MasonReexports: NSObject {
     }
     
     
-    public static func style_get_grid_auto_rows(_  style: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CMasonMinMaxArray> {
+    public static func style_get_grid_auto_rows(_  style: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray> {
         return mason_style_get_grid_auto_rows(style)
     }
     
     public static func style_set_grid_auto_rows(
         _ style: UnsafeMutableRawPointer,
-        _ value: UnsafeMutablePointer<CMasonMinMaxArray>
+        _ value: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>
     ) {
         mason_style_set_grid_auto_rows(style, value)
     }
     
-    public static func style_get_grid_auto_columns(_ style: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CMasonMinMaxArray>  {
+    public static func style_get_grid_auto_columns(_ style: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>  {
         return mason_style_get_grid_auto_columns(style)
     }
     
     public static func style_set_grid_auto_columns(
         _ style: UnsafeMutableRawPointer,
-        _ value: UnsafeMutablePointer<CMasonMinMaxArray>
+        _ value: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>
     ) {
         mason_style_set_grid_auto_columns(style, value)
     }
@@ -438,6 +438,14 @@ public class MasonReexports: NSObject {
     
     public static func style_set_grid_auto_flow(_ style: UnsafeMutableRawPointer,_ value: Int32) {
         mason_style_set_grid_auto_flow(style, value)
+    }
+    
+    public static func style_set_grid_area(_ style: UnsafeMutableRawPointer, _ row_start: CMasonGridPlacement, _ row_end: CMasonGridPlacement, _ column_start: CMasonGridPlacement, _ column_end: CMasonGridPlacement) {
+        mason_style_set_grid_area(style, row_start, row_end, column_start, column_end)
+    }
+    
+    public static func style_set_grid_column(_ style: UnsafeMutableRawPointer, _ start: CMasonGridPlacement, _ end: CMasonGridPlacement) {
+        mason_style_set_grid_column(style, start, end)
     }
     
     public static func style_get_grid_column_start(_ style: UnsafeMutableRawPointer) -> CMasonGridPlacement {
@@ -457,6 +465,10 @@ public class MasonReexports: NSObject {
     
     public static func style_set_grid_column_end(_ style: UnsafeMutableRawPointer, _ value: CMasonGridPlacement) {
         mason_style_set_grid_column_end(style, value)
+    }
+    
+    public static func style_set_grid_row(_ style: UnsafeMutableRawPointer, _ start: CMasonGridPlacement, _ end: CMasonGridPlacement) {
+        mason_style_set_grid_row(style, start, end)
     }
     
     public static func style_get_grid_row_start(_ style: UnsafeMutableRawPointer) -> CMasonGridPlacement {
@@ -507,6 +519,33 @@ public class MasonReexports: NSObject {
         )
     }
     
+    public static func destroy(nonRepeatedTrackSizingFunctionArray : UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>){
+        mason_destroy_non_repeated_track_sizing_function_array(nonRepeatedTrackSizingFunctionArray)
+    }
+    
+    public static func destroy(trackSizingFunctionArray : UnsafeMutablePointer<CMasonTrackSizingFunctionArray>){
+        mason_destroy_track_sizing_function_array(trackSizingFunctionArray)
+    }
+    
+    public static func util_parse_non_repeated_track_sizing_function(_ value: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>) -> String {
+       let parsed = mason_util_parse_non_repeated_track_sizing_function(value)
+        guard let parsed  = parsed else {return String()}
+        let ret = NSString(cString: parsed, encoding: NSUTF8StringEncoding) as? String ?? String()
+        mason_util_destroy_string(parsed)
+        return ret
+    }
+    
+    public static func util_parse_auto_repeating_track_sizing_function(_ value: UnsafeMutablePointer<CMasonTrackSizingFunctionArray>) -> String {
+       let parsed =  mason_util_parse_auto_repeating_track_sizing_function(value)
+        guard let parsed  = parsed else {return String()}
+        let ret = NSString(cString: parsed, encoding: NSUTF8StringEncoding) as? String ?? String()
+        mason_util_destroy_string(parsed)
+        return ret
+    }
+    
+    public static func util_create_non_repeated_track_sizing_function_with_type_value(_ track_type: Int32, _ track_value_type: Int32, _ track_value: Float) -> CMasonMinMax {
+       return mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type, track_value_type, track_value)
+    }
     
     public static func style_update_with_values(_ style: UnsafeMutableRawPointer,
                                                 _ display: Int32,

@@ -1599,12 +1599,48 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
+  var gridColumnStart: GridPlacement
+    get() {
+      return style.gridColumnStart
+    }
+    set(value) {
+      style.gridColumnStart = value
+      checkAndUpdateStyle()
+    }
+
+  var gridColumnEnd: GridPlacement
+    get() {
+      return style.gridColumnEnd
+    }
+    set(value) {
+      style.gridColumnEnd = value
+      checkAndUpdateStyle()
+    }
+
   var gridRow: Line<GridPlacement>
     get() {
       return style.gridRow
     }
     set(value) {
       style.gridRow = value
+      checkAndUpdateStyle()
+    }
+
+  var gridRowStart: GridPlacement
+    get() {
+      return style.gridRowStart
+    }
+    set(value) {
+      style.gridRowStart = value
+      checkAndUpdateStyle()
+    }
+
+  var gridRowEnd: GridPlacement
+    get() {
+      return style.gridRowEnd
+    }
+    set(value) {
+      style.gridRowEnd = value
       checkAndUpdateStyle()
     }
 

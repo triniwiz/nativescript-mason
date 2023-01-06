@@ -623,6 +623,27 @@ public class MasonStyle: NSObject {
         }
     }
     
+    
+    public var gridColumnStart: GridPlacement {
+        get {
+            return gridColumn.start
+        }
+        
+        set {
+            gridColumn = Line<GridPlacement>(newValue, gridColumn.end)
+        }
+    }
+    
+    public var gridColumnEnd: GridPlacement {
+        get {
+            return gridColumn.end
+        }
+        
+        set {
+            gridColumn = Line<GridPlacement>(gridColumn.start, newValue)
+        }
+    }
+    
     public var gridColumnCompat: LineGridPlacementCompat {
         get {
             return LineGridPlacementCompat(gridColumn.start, gridColumn.end)
@@ -632,11 +653,54 @@ public class MasonStyle: NSObject {
         }
     }
     
+    public var gridColumnStartCompat: GridPlacementCompat {
+        get {
+            return gridColumnCompat.start
+        }
+        
+        set {
+            gridColumn = Line<GridPlacement>(newValue.placement, gridColumn.end)
+        }
+    }
+    
+    public var gridColumnEndCompat: GridPlacementCompat {
+        get {
+            return gridColumnCompat.end
+        }
+        
+        set {
+            gridColumn = Line<GridPlacement>(gridColumn.start, newValue.placement)
+        }
+    }
+    
+    
+    
     public var gridRow =  LineGridPlacementAuto{
         didSet{
             isDirty = true
         }
     }
+    
+    public var gridRowStart: GridPlacement {
+        get {
+            return gridRow.start
+        }
+        
+        set {
+            gridRow = Line<GridPlacement>(newValue, gridRow.end)
+        }
+    }
+    
+    public var gridRowEnd: GridPlacement {
+        get {
+            return gridRow.end
+        }
+        
+        set {
+            gridRow = Line<GridPlacement>(gridRow.start, newValue)
+        }
+    }
+    
     
     public var gridRowCompat: LineGridPlacementCompat {
         get {
@@ -645,6 +709,26 @@ public class MasonStyle: NSObject {
         
         set {
             gridRow = Line<GridPlacement>(newValue.start.placement, newValue.end.placement)
+        }
+    }
+    
+    public var gridRowStartCompat: GridPlacementCompat {
+        get {
+            return gridRowCompat.start
+        }
+        
+        set {
+            gridRow = Line<GridPlacement>(newValue.placement, gridRow.end)
+        }
+    }
+    
+    public var gridRowEndCompat: GridPlacementCompat {
+        get {
+            return gridRowCompat.end
+        }
+        
+        set {
+            gridRow = Line<GridPlacement>(gridRow.start, newValue.placement)
         }
     }
     

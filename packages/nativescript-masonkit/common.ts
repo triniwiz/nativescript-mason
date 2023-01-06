@@ -204,18 +204,6 @@ export const gridAutoFlowProperty = new CssProperty<Style, GridAutoFlow>({
   defaultValue: 'row',
 });
 
-export const gridColumnStartProperty = new CssProperty<Style, string>({
-  name: 'gridColumnStart',
-  cssName: 'grid-column-start',
-  defaultValue: 'auto',
-});
-
-export const gridColumnEndProperty = new CssProperty<Style, string>({
-  name: 'gridColumnEnd',
-  cssName: 'grid-column-end',
-  defaultValue: 'auto',
-});
-
 function parseGridColumnOrRow(value: string) {
   if (value.trim() === 'auto') {
     return 'auto';
@@ -255,6 +243,88 @@ function parseGridColumnOrRow(value: string) {
     return undefined;
   }
 }
+
+export const gridAreaProperty = new ShorthandProperty<Style, string>({
+  name: 'gridArea',
+  cssName: 'grid-area',
+  getter: function () {
+    return `${this.gridRowStart} / ${this.gridColumnStart} / ${this.gridRowEnd} / ${this.gridColumnEnd}`;
+  },
+  converter(value) {
+    const properties: [CssProperty<any, any>, any][] = [];
+
+    console.log('gridArea', value);
+    if (typeof value === 'string') {
+      const values = value.split('/').filter((item) => item.trim().length !== 0);
+
+      // grid-row-start / grid-column-start / grid-row-end / grid-column-end
+
+      const length = values.length;
+      if (length === 0) {
+        return properties;
+      }
+
+      if (length === 1) {
+        const parsed = parseGridColumnOrRow(values[0]);
+        properties.push([gridRowStartProperty, parsed]);
+        properties.push([gridRowEndProperty, parsed]);
+
+        properties.push([gridColumnStartProperty, parsed]);
+        properties.push([gridColumnEndProperty, parsed]);
+      }
+
+      if (length === 2) {
+        const row = parseGridColumnOrRow(values[0]);
+        properties.push([gridRowStartProperty, row]);
+        properties.push([gridRowEndProperty, row]);
+
+        const column = parseGridColumnOrRow(values[1]);
+        properties.push([gridColumnStartProperty, column]);
+        properties.push([gridColumnEndProperty, column]);
+      }
+
+      if (length === 3) {
+        const rowStart = parseGridColumnOrRow(values[0]);
+        properties.push([gridRowStartProperty, rowStart]);
+
+        const rowEnd = parseGridColumnOrRow(values[2]);
+        properties.push([gridRowEndProperty, rowEnd]);
+
+        const columnStart = parseGridColumnOrRow(values[1]);
+        properties.push([gridColumnStartProperty, columnStart]);
+        properties.push([gridColumnEndProperty, columnStart]);
+      }
+
+      if (length >= 4) {
+        const rowStart = parseGridColumnOrRow(values[0]);
+        properties.push([gridRowStartProperty, rowStart]);
+
+        const rowEnd = parseGridColumnOrRow(values[2]);
+        properties.push([gridRowEndProperty, rowEnd]);
+
+        const columnStart = parseGridColumnOrRow(values[1]);
+        properties.push([gridColumnStartProperty, columnStart]);
+
+        const columnEnd = parseGridColumnOrRow(values[3]);
+        properties.push([gridColumnEndProperty, columnEnd]);
+      }
+    }
+
+    return properties;
+  },
+});
+
+export const gridColumnStartProperty = new CssProperty<Style, string>({
+  name: 'gridColumnStart',
+  cssName: 'grid-column-start',
+  defaultValue: 'auto',
+});
+
+export const gridColumnEndProperty = new CssProperty<Style, string>({
+  name: 'gridColumnEnd',
+  cssName: 'grid-column-end',
+  defaultValue: 'auto',
+});
 
 export const gridColumnProperty = new ShorthandProperty<Style, string>({
   name: 'gridColumn',
@@ -395,6 +465,8 @@ export class TSCViewBase extends View implements AddChildFromBuilder {
   gridAutoColumns: string;
   gridAutoFlow: GridAutoFlow;
 
+  gridArea: string;
+
   gridColumn: string;
   gridColumnStart: string;
   gridColumnEnd: string;
@@ -419,6 +491,7 @@ export class TSCViewBase extends View implements AddChildFromBuilder {
 
   _addChildFromBuilder(name: string, value: any): void {
     this._children.push(value);
+    this._addView(value);
   }
 }
 
@@ -447,6 +520,8 @@ justifyContentProperty.register(Style);
 gridAutoRowsProperty.register(Style);
 gridAutoColumnsProperty.register(Style);
 gridAutoFlowProperty.register(Style);
+
+gridAreaProperty.register(Style);
 
 gridColumnProperty.register(Style);
 gridColumnStartProperty.register(Style);

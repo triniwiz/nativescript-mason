@@ -909,11 +909,47 @@ class Style internal constructor() {
       isDirty = true
     }
 
+
+  var gridColumnStart: GridPlacement
+    get() {
+      return gridColumn.start
+    }
+    set(value) {
+      gridColumn = Line(value, gridColumn.end)
+    }
+
+  var gridColumnEnd: GridPlacement
+    get() {
+      return gridColumn.end
+    }
+    set(value) {
+      gridColumn = Line(gridColumn.start, value)
+    }
+
+
   var gridRow: Line<GridPlacement> = autoLine
     set(value) {
       field = value
       isDirty = true
     }
+
+
+  var gridRowStart: GridPlacement
+    get() {
+      return gridRow.start
+    }
+    set(value) {
+      gridRow = Line(value, gridRow.end)
+    }
+
+  var gridRowEnd: GridPlacement
+    get() {
+      return gridRow.end
+    }
+    set(value) {
+      gridRow = Line(gridRow.start, value)
+    }
+
 
   var gridTemplateRows: Array<TrackSizingFunction> = emptyArray()
     set(value) {

@@ -41,7 +41,7 @@ public class TrackSizingFunction: NSObject {
         return TrackSizingFunction(isRepeating: false, singleValue: value)
     }
     
-    var minMaxBuffer: UnsafeMutablePointer<CMasonMinMaxArray>? = nil
+    var minMaxBuffer: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>? = nil
     
     var minMaxBufferValues: UnsafeMutableBufferPointer<CMasonMinMax>? = nil
     
@@ -55,7 +55,7 @@ public class TrackSizingFunction: NSObject {
         let ret = TrackSizingFunction(isRepeating: true, singleValue: nil, gridTrackRepetition: gridTrackRepetition, repeatValue: value)
         
       
-        let minMax = UnsafeMutablePointer<CMasonMinMaxArray>.allocate(capacity: MemoryLayout<CMasonMinMaxArray>.size)
+        let minMax = UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>.allocate(capacity: MemoryLayout<CMasonNonRepeatedTrackSizingFunctionArray>.size)
         
         let minMaxValues = UnsafeMutableBufferPointer<CMasonMinMax>.allocate(capacity: value.count)
         
@@ -66,7 +66,7 @@ public class TrackSizingFunction: NSObject {
         
         ret.minMaxBufferValues = minMaxValues
         
-        let minMaxArray = CMasonMinMaxArray(array: minMaxValues.baseAddress, length: UInt(value.count))
+        let minMaxArray = CMasonNonRepeatedTrackSizingFunctionArray(array: minMaxValues.baseAddress, length: UInt(value.count))
         
         minMax.initialize(to: minMaxArray)
         

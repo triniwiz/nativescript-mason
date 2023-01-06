@@ -61,6 +61,8 @@ declare module '@nativescript/core/ui/styling/style' {
     gridAutoColumns: string;
     gridAutoFlow: GridAutoFlow;
 
+    gridArea: string;
+
     gridColumn: string;
     gridColumnStart: string;
     gridColumnEnd: string;

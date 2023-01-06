@@ -310,7 +310,7 @@ extension UIView {
     }
         
 
-    var gridColumn: Line<GridPlacement>{
+    public var gridColumn: Line<GridPlacement>{
         get{
           return style.gridColumn
         }
@@ -320,6 +320,27 @@ extension UIView {
         }
     }
     
+    public var gridColumnStart: GridPlacement {
+        get {
+            return gridColumn.start
+        }
+        
+        set {
+            gridColumn = Line<GridPlacement>(newValue, gridColumn.end)
+        }
+    }
+    
+    public var gridColumnEnd: GridPlacement {
+        get {
+            return gridColumn.end
+        }
+        
+        set {
+            gridColumn = Line<GridPlacement>(gridColumn.start, newValue)
+        }
+    }
+    
+ 
     @objc public var gridColumnCompat: LineGridPlacementCompat {
         get {
             return style.gridColumnCompat
@@ -329,9 +350,31 @@ extension UIView {
             checkAndUpdateStyle()
         }
     }
+    
+    @objc public var gridColumnStartCompat: GridPlacementCompat {
+        get {
+            return style.gridColumnStartCompat
+        }
+        
+        set {
+            style.gridColumnStartCompat = newValue
+            checkAndUpdateStyle()
+        }
+    }
+    
+    @objc public var gridColumnEndCompat: GridPlacementCompat {
+        get {
+            return gridColumnCompat.end
+        }
+        
+        set {
+            style.gridColumnEndCompat = newValue
+            checkAndUpdateStyle()
+        }
+    }
         
 
-    var gridRow: Line<GridPlacement> {
+    public var gridRow: Line<GridPlacement> {
         get{
           return style.gridRow
         }
@@ -341,12 +384,55 @@ extension UIView {
         }
     }
     
+    public var gridRowStart: GridPlacement {
+        get {
+            return gridRow.start
+        }
+        
+        set {
+            gridRow = Line<GridPlacement>(newValue, gridRow.end)
+        }
+    }
+    
+    public var gridRowEnd: GridPlacement {
+        get {
+            return gridRow.end
+        }
+        
+        set {
+            gridRow = Line<GridPlacement>(gridRow.start, newValue)
+        }
+    }
+    
+    
     @objc public var gridRowCompat: LineGridPlacementCompat {
         get{
           return style.gridRowCompat
         }
         set {
           style.gridRowCompat = newValue
+            checkAndUpdateStyle()
+        }
+    }
+    
+    @objc public var gridRowStartCompat: GridPlacementCompat {
+        get {
+            return style.gridRowStartCompat
+        }
+        
+        set {
+            style.gridRowStartCompat = newValue
+            checkAndUpdateStyle()
+        }
+    }
+    
+    @objc public var gridRowEndCompat: GridPlacementCompat {
+        get {
+            return style.gridRowEndCompat
+        }
+        
+        set {
+            style.gridRowEndCompat = newValue
             checkAndUpdateStyle()
         }
     }

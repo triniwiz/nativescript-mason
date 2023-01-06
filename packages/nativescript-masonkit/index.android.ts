@@ -1,4 +1,4 @@
-import { aspectRatioProperty, bottomProperty, columnGapProperty, displayProperty, flexBasisProperty, flexDirectionProperty, gapProperty, leftProperty, positionProperty, rightProperty, rowGapProperty, topProperty, TSCViewBase } from './common';
+import { aspectRatioProperty, bottomProperty, columnGapProperty, displayProperty, flexBasisProperty, flexDirectionProperty, gapProperty, gridColumnEndProperty, gridColumnStartProperty, gridRowEndProperty, gridRowStartProperty, leftProperty, positionProperty, rightProperty, rowGapProperty, topProperty, TSCViewBase } from './common';
 
 import { paddingLeftProperty, paddingTopProperty, paddingRightProperty, paddingBottomProperty, Style, Length, widthProperty, heightProperty, View, Utils, Size, marginProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty } from '@nativescript/core';
 
@@ -54,16 +54,24 @@ import {
   _setPaddingRight,
   _setPaddingTop,
   _setPosition,
+  _getPosition,
   _setRight,
   _setTop,
   _setWidth,
+  _getWidth,
+  _getHeight,
+  _getDisplay,
+  _setGridColumnEnd,
+  _setGridColumnStart,
+  _setGridRowEnd,
+  _setGridRowStart,
 } from './helpers';
 
 const BigIntZero = BigInt(0);
 
 export class TSCView extends TSCViewBase {
   static {
-    org.nativescript.mason.masonkit.Mason.setShared(true);
+    org.nativescript.mason.masonkit.Mason.setShared(false);
   }
   __masonStylePtr = BigIntZero;
   get _masonStylePtr() {
@@ -115,49 +123,22 @@ export class TSCView extends TSCViewBase {
     return this.nativeViewProtected as org.nativescript.mason.masonkit.View;
   }
 
-  onLoaded(): void {
-    super.onLoaded();
+  public _addViewToNativeVisualTree(child: View, atIndex: number = Number.MAX_VALUE): boolean {
+    super._addViewToNativeVisualTree(child);
+    const nativeView = this.nativeViewProtected as org.nativescript.mason.masonkit.View;
 
-    const views = this._children.filter((item) => {
-      const ret = !item.parent;
-      if (ret) {
-        this._addView(item);
-      }
-      return ret;
-    });
+    if (nativeView && child.nativeViewProtected) {
+      (nativeView as any).addView(child.nativeViewProtected, -1);
 
-    const array = Array.create('android.view.View', views.length);
+      return true;
+    }
 
-    views.forEach((item, index) => {
-      array[index] = item.nativeView;
-    });
-    this.nativeView.addViews(array);
+    return false;
   }
 
   //@ts-ignore
   get display() {
-    if (!this._hasNativeView) {
-      return this.style.display;
-    }
-
-    if (JSIEnabled) {
-      const value = global.__Mason_getDisplay(this._masonStylePtr);
-      switch (value) {
-        case 0:
-          return 'none';
-        case 1:
-          return 'flex';
-        case 2:
-          return 'grid';
-      }
-    } else {
-      switch (this.android.getDisplay()) {
-        case org.nativescript.mason.masonkit.Display.Flex:
-          return 'flex';
-        case org.nativescript.mason.masonkit.Display.None:
-          return 'none';
-      }
-    }
+    return _getDisplay(this);
   }
 
   //@ts-ignore
@@ -176,26 +157,7 @@ export class TSCView extends TSCViewBase {
 
   //@ts-ignore
   get position() {
-    if (!this._hasNativeView) {
-      return this.style.position;
-    }
-
-    if (JSIEnabled) {
-      const value = global.__Mason_getPosition(this._masonStylePtr);
-      switch (value) {
-        case 0:
-          return 'relative';
-        case 1:
-          return 'absolute';
-      }
-    } else {
-      switch (this.android.getPosition()) {
-        case org.nativescript.mason.masonkit.Position.Absolute:
-          return 'absolute';
-        case org.nativescript.mason.masonkit.Position.Relative:
-          return 'relative';
-      }
-    }
+    return _getPosition(this);
   }
 
   [positionProperty.setNative](value) {
@@ -497,15 +459,7 @@ export class TSCView extends TSCViewBase {
 
   //@ts-ignore
   get width() {
-    if (!this._hasNativeView) {
-      return this.style.width;
-    }
-    if (JSIEnabled) {
-      return global.__Mason_getWidth(this._masonStylePtr);
-    } else {
-      return _parseDimension(this.android.getSizeWidth());
-      //  return JSON.parse(this.android.getSizeJsonValue())?.width;
-    }
+    return _getWidth(this);
   }
 
   //@ts-ignore
@@ -516,15 +470,7 @@ export class TSCView extends TSCViewBase {
 
   //@ts-ignore
   get height() {
-    if (!this._hasNativeView) {
-      return this.style.height;
-    }
-    if (JSIEnabled) {
-      return global.__Mason_getHeight(this._masonStylePtr);
-    } else {
-      return _parseDimension(this.android.getSizeHeight());
-      // return JSON.parse(this.android.getSizeJsonValue())?.height;
-    }
+    return _getHeight(this);
   }
 
   //@ts-ignore
@@ -574,6 +520,10 @@ export class TSCView extends TSCViewBase {
     this.style.gridColumnStart = value;
   }
 
+  [gridColumnStartProperty.setNative](value) {
+    _setGridColumnStart(value, this as any);
+  }
+
   //@ts-ignore
   get gridColumnStart() {
     return this.style.gridColumnStart;
@@ -582,6 +532,10 @@ export class TSCView extends TSCViewBase {
   //@ts-ignore
   set gridColumnEnd(value) {
     this.style.gridColumnEnd = value;
+  }
+
+  [gridColumnEndProperty.setNative](value) {
+    _setGridColumnEnd(value, this as any);
   }
 
   //@ts-ignore
@@ -594,6 +548,10 @@ export class TSCView extends TSCViewBase {
     this.style.gridRowStart = value;
   }
 
+  [gridRowStartProperty.setNative](value) {
+    _setGridRowStart(value, this as any);
+  }
+
   //@ts-ignore
   get gridRowStart() {
     return this.style.gridRowStart;
@@ -602,6 +560,10 @@ export class TSCView extends TSCViewBase {
   //@ts-ignore
   set gridRowEnd(value) {
     this.style.gridRowEnd = value;
+  }
+
+  [gridRowEndProperty.setNative](value) {
+    _setGridRowEnd(value, this as any);
   }
 
   //@ts-ignore

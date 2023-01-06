@@ -1,2 +1,29 @@
 @import 'nativescript-theme-core/scss/light';
 @import 'nativescript-theme-core/scss/index';
+
+.grid-example {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  grid-column-gap: 0px;
+  grid-row-gap: 0px;
+
+  .a {
+    grid-area: 1 / 1 / 2 / 2;
+  }
+  .b {
+    grid-area: 1 / 3 / 2 / 4;
+  }
+  .c {
+    grid-area: 1 / 5 / 2 / 6;
+  }
+  .d {
+    grid-area: 3 / 3 / 4 / 4;
+  }
+  .e {
+    grid-area: 5 / 1 / 6 / 2;
+  }
+  .f {
+    grid-area: 5 / 5 / 6 / 6;
+  }
+}
