@@ -120,12 +120,6 @@ interface CMasonMinMax {
 }
 declare var CMasonMinMax: interop.StructType<CMasonMinMax>;
 
-interface CMasonMinMaxArray {
-  array: interop.Pointer | interop.Reference<CMasonMinMax>;
-  length: number;
-}
-declare var CMasonMinMaxArray: interop.StructType<CMasonMinMaxArray>;
-
 interface CMasonNonRepeatedTrackSizingFunctionArray {
   array: interop.Pointer | interop.Reference<CMasonMinMax>;
   length: number;
@@ -523,13 +517,15 @@ declare class MasonNode extends NSObject {
 
   markDirty(): void;
 
-  updateNodeAndStyle(): void;
-
   setChildrenWithChildren(children: NSArray<MasonNode> | MasonNode[]): void;
+
+  updateNodeStyle(): void;
 }
 
 declare class MasonReexports extends NSObject {
   static alloc(): MasonReexports; // inherited from NSObject
+
+  static destroyWithNonRepeatedTrackSizingFunctionArray(nonRepeatedTrackSizingFunctionArray: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
 
   static new(): MasonReexports; // inherited from NSObject
 
@@ -581,11 +577,11 @@ declare class MasonReexports extends NSObject {
 
   static style_get_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageSize;
 
-  static style_get_grid_auto_columns(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonMinMaxArray>;
+  static style_get_grid_auto_columns(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 
   static style_get_grid_auto_flow(style: interop.Pointer | interop.Reference<any>): number;
 
-  static style_get_grid_auto_rows(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonMinMaxArray>;
+  static style_get_grid_auto_rows(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 
   static style_get_grid_column_end(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
 
@@ -679,15 +675,21 @@ declare class MasonReexports extends NSObject {
 
   static style_set_gap(style: interop.Pointer | interop.Reference<any>, width_value: number, width_type: CMasonLengthPercentageType, height_value: number, height_type: CMasonLengthPercentageType): void;
 
-  static style_set_grid_auto_columns(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonMinMaxArray>): void;
+  static style_set_grid_area(style: interop.Pointer | interop.Reference<any>, row_start: CMasonGridPlacement, row_end: CMasonGridPlacement, column_start: CMasonGridPlacement, column_end: CMasonGridPlacement): void;
+
+  static style_set_grid_auto_columns(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
 
   static style_set_grid_auto_flow(style: interop.Pointer | interop.Reference<any>, value: number): void;
 
-  static style_set_grid_auto_rows(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonMinMaxArray>): void;
+  static style_set_grid_auto_rows(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
+
+  static style_set_grid_column(style: interop.Pointer | interop.Reference<any>, start: CMasonGridPlacement, end: CMasonGridPlacement): void;
 
   static style_set_grid_column_end(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
 
   static style_set_grid_column_start(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
+
+  static style_set_grid_row(style: interop.Pointer | interop.Reference<any>, start: CMasonGridPlacement, end: CMasonGridPlacement): void;
 
   static style_set_grid_row_end(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
 
@@ -746,6 +748,10 @@ declare class MasonReexports extends NSObject {
   static style_set_row_gap(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
 
   static style_set_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
+
+  static util_create_non_repeated_track_sizing_function_with_type_value(track_type: number, track_value_type: number, track_value: number): CMasonMinMax;
+
+  static util_parse_non_repeated_track_sizing_function(value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): string;
 }
 
 declare class MasonStyle extends NSObject {
@@ -781,9 +787,17 @@ declare class MasonStyle extends NSObject {
 
   gridAutoRows: NSArray<MinMax>;
 
-  readonly gridColumnCompat: LineGridPlacementCompat;
+  gridColumnCompat: LineGridPlacementCompat;
 
-  readonly gridRowCompat: LineGridPlacementCompat;
+  gridColumnEndCompat: GridPlacementCompat;
+
+  gridColumnStartCompat: GridPlacementCompat;
+
+  gridRowCompat: LineGridPlacementCompat;
+
+  gridRowEndCompat: GridPlacementCompat;
+
+  gridRowStartCompat: GridPlacementCompat;
 
   gridTemplateColumns: NSArray<TrackSizingFunction>;
 
@@ -994,7 +1008,7 @@ declare const enum Position {
 
 interface Repeat_Body {
   _0: number;
-  _1: interop.Pointer | interop.Reference<CMasonMinMaxArray>;
+  _1: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 }
 declare var Repeat_Body: interop.StructType<Repeat_Body>;
 
@@ -1035,6 +1049,8 @@ declare class TrackSizingFunction extends NSObject {
 declare function mason_clear(mason: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_destroy(mason: interop.Pointer | interop.Reference<any>): void;
+
+declare function mason_destroy_non_repeated_track_sizing_function_array(array: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
 
 declare function mason_init(): interop.Pointer | interop.Reference<any>;
 
@@ -1140,11 +1156,11 @@ declare function mason_style_get_flex_wrap(style: interop.Pointer | interop.Refe
 
 declare function mason_style_get_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageSize;
 
-declare function mason_style_get_grid_auto_columns(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonMinMaxArray>;
+declare function mason_style_get_grid_auto_columns(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 
 declare function mason_style_get_grid_auto_flow(style: interop.Pointer | interop.Reference<any>): number;
 
-declare function mason_style_get_grid_auto_rows(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonMinMaxArray>;
+declare function mason_style_get_grid_auto_rows(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 
 declare function mason_style_get_grid_column_end(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
 
@@ -1240,15 +1256,21 @@ declare function mason_style_set_flex_wrap(style: interop.Pointer | interop.Refe
 
 declare function mason_style_set_gap(style: interop.Pointer | interop.Reference<any>, width_value: number, width_type: CMasonLengthPercentageType, height_value: number, height_type: CMasonLengthPercentageType): void;
 
-declare function mason_style_set_grid_auto_columns(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonMinMaxArray>): void;
+declare function mason_style_set_grid_area(style: interop.Pointer | interop.Reference<any>, row_start: CMasonGridPlacement, row_end: CMasonGridPlacement, column_start: CMasonGridPlacement, column_end: CMasonGridPlacement): void;
+
+declare function mason_style_set_grid_auto_columns(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
 
 declare function mason_style_set_grid_auto_flow(style: interop.Pointer | interop.Reference<any>, value: number): void;
 
-declare function mason_style_set_grid_auto_rows(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonMinMaxArray>): void;
+declare function mason_style_set_grid_auto_rows(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
+
+declare function mason_style_set_grid_column(style: interop.Pointer | interop.Reference<any>, start: CMasonGridPlacement, end: CMasonGridPlacement): void;
 
 declare function mason_style_set_grid_column_end(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
 
 declare function mason_style_set_grid_column_start(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
+
+declare function mason_style_set_grid_row(style: interop.Pointer | interop.Reference<any>, start: CMasonGridPlacement, end: CMasonGridPlacement): void;
 
 declare function mason_style_set_grid_row_end(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
 
@@ -1309,3 +1331,9 @@ declare function mason_style_set_position(style: interop.Pointer | interop.Refer
 declare function mason_style_set_row_gap(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
 
 declare function mason_style_set_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
+
+declare function mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type: number, track_value_type: number, track_value: number): CMasonMinMax;
+
+declare function mason_util_destroy_string(string: string | interop.Pointer | interop.Reference<any>): void;
+
+declare function mason_util_parse_non_repeated_track_sizing_function(value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): string;
