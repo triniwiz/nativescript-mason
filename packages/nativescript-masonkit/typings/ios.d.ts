@@ -46,7 +46,15 @@ interface UIView {
 
   gridColumnCompat: LineGridPlacementCompat;
 
+  gridColumnEndCompat: GridPlacementCompat;
+
+  gridColumnStartCompat: GridPlacementCompat;
+
   gridRowCompat: LineGridPlacementCompat;
+
+  gridRowEndCompat: GridPlacementCompat;
+
+  gridRowStartCompat: GridPlacementCompat;
 
   gridTemplateColumns: NSArray<TrackSizingFunction>;
 
