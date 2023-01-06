@@ -4,6 +4,7 @@ use mason_core::Mason;
 
 pub mod node;
 pub mod style;
+pub mod util;
 
 #[no_mangle]
 pub extern "C" fn mason_init() -> *mut c_void {
@@ -36,3 +37,4 @@ pub extern "C" fn mason_clear(mason: *mut c_void) {
         Box::leak(mason);
     }
 }
+
