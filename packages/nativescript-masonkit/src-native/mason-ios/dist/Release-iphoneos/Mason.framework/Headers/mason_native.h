@@ -63,11 +63,6 @@ typedef struct CMasonNonRepeatedTrackSizingFunctionArray {
   uintptr_t length;
 } CMasonNonRepeatedTrackSizingFunctionArray;
 
-typedef struct CMasonMinMaxArray {
-  struct CMasonMinMax *array;
-  uintptr_t length;
-} CMasonMinMaxArray;
-
 typedef enum CMasonTrackSizingFunction_Tag {
   Single,
   Repeat,
@@ -75,7 +70,7 @@ typedef enum CMasonTrackSizingFunction_Tag {
 
 typedef struct Repeat_Body {
   int32_t _0;
-  struct CMasonMinMaxArray *_1;
+  struct CMasonNonRepeatedTrackSizingFunctionArray *_1;
 } Repeat_Body;
 
 typedef struct CMasonTrackSizingFunction {
@@ -471,6 +466,10 @@ void mason_node_set_measure_func(void *mason,
 
 void mason_node_remove_measure_func(void *mason, void *node);
 
+void mason_destroy_non_repeated_track_sizing_function_array(struct CMasonNonRepeatedTrackSizingFunctionArray *array);
+
+void mason_destroy_track_sizing_function_array(struct CMasonTrackSizingFunctionArray *array);
+
 void *mason_style_init(void);
 
 void mason_style_destroy(void *style);
@@ -721,19 +720,31 @@ void mason_style_set_aspect_ratio(void *style, float ratio);
 
 float mason_style_get_aspect_ratio(void *style);
 
-struct CMasonMinMaxArray *mason_style_get_grid_auto_rows(void *style);
+struct CMasonNonRepeatedTrackSizingFunctionArray *mason_style_get_grid_auto_rows(void *style);
 
-void mason_style_set_grid_auto_rows(void *style, struct CMasonMinMaxArray *value);
+void mason_style_set_grid_auto_rows(void *style,
+                                    struct CMasonNonRepeatedTrackSizingFunctionArray *value);
 
-struct CMasonMinMaxArray *mason_style_get_grid_auto_columns(void *style);
+struct CMasonNonRepeatedTrackSizingFunctionArray *mason_style_get_grid_auto_columns(void *style);
 
-void mason_style_set_grid_auto_columns(void *style, struct CMasonMinMaxArray *value);
+void mason_style_set_grid_auto_columns(void *style,
+                                       struct CMasonNonRepeatedTrackSizingFunctionArray *value);
 
 int32_t mason_style_get_grid_auto_flow(void *style);
 
 void mason_style_set_grid_auto_flow(void *style, int32_t value);
 
+void mason_style_set_grid_area(void *style,
+                               struct CMasonGridPlacement row_start,
+                               struct CMasonGridPlacement row_end,
+                               struct CMasonGridPlacement column_start,
+                               struct CMasonGridPlacement column_end);
+
 struct CMasonGridPlacement mason_style_get_grid_column_start(void *style);
+
+void mason_style_set_grid_column(void *style,
+                                 struct CMasonGridPlacement start,
+                                 struct CMasonGridPlacement end);
 
 void mason_style_set_grid_column_start(void *style, struct CMasonGridPlacement value);
 
@@ -742,6 +753,10 @@ struct CMasonGridPlacement mason_style_get_grid_column_end(void *style);
 void mason_style_set_grid_column_end(void *style, struct CMasonGridPlacement value);
 
 struct CMasonGridPlacement mason_style_get_grid_row_start(void *style);
+
+void mason_style_set_grid_row(void *style,
+                              struct CMasonGridPlacement start,
+                              struct CMasonGridPlacement end);
 
 void mason_style_set_grid_row_start(void *style, struct CMasonGridPlacement value);
 
@@ -916,5 +931,15 @@ void mason_style_update_with_values(void *style,
                                     int16_t grid_row_end_value,
                                     struct CMasonTrackSizingFunctionArray *grid_template_rows,
                                     struct CMasonTrackSizingFunctionArray *grid_template_columns);
+
+struct CMasonMinMax mason_util_create_non_repeated_track_sizing_function_with_type_value(int32_t track_type,
+                                                                                         int32_t track_value_type,
+                                                                                         float track_value);
+
+char *mason_util_parse_non_repeated_track_sizing_function(struct CMasonNonRepeatedTrackSizingFunctionArray *value);
+
+char *mason_util_parse_auto_repeating_track_sizing_function(struct CMasonTrackSizingFunctionArray *value);
+
+void mason_util_destroy_string(char *string);
 
 #endif /* CBINDGEN_BINDINGS_H */

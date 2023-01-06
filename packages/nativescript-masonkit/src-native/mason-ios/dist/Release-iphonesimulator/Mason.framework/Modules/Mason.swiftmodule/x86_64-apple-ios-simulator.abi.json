@@ -7970,13 +7970,13 @@
               {
                 "kind": "TypeNominal",
                 "name": "UnsafeMutablePointer",
-                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonMinMaxArray>",
+                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>",
                 "children": [
                   {
                     "kind": "TypeNominal",
-                    "name": "CMasonMinMaxArray",
-                    "printedName": "Mason.CMasonMinMaxArray",
-                    "usr": "c:@S@CMasonMinMaxArray"
+                    "name": "CMasonNonRepeatedTrackSizingFunctionArray",
+                    "printedName": "Mason.CMasonNonRepeatedTrackSizingFunctionArray",
+                    "usr": "c:@S@CMasonNonRepeatedTrackSizingFunctionArray"
                   }
                 ],
                 "usr": "s:Sp"
@@ -7990,7 +7990,7 @@
             ],
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_grid_auto_rows:",
-            "mangledName": "$s5Mason0A9ReexportsC24style_get_grid_auto_rowsySpySo17CMasonMinMaxArrayVGSvFZ",
+            "mangledName": "$s5Mason0A9ReexportsC24style_get_grid_auto_rowsySpySo41CMasonNonRepeatedTrackSizingFunctionArrayVGSvFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -8015,13 +8015,13 @@
               {
                 "kind": "TypeNominal",
                 "name": "UnsafeMutablePointer",
-                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonMinMaxArray>",
+                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>",
                 "children": [
                   {
                     "kind": "TypeNominal",
-                    "name": "CMasonMinMaxArray",
-                    "printedName": "Mason.CMasonMinMaxArray",
-                    "usr": "c:@S@CMasonMinMaxArray"
+                    "name": "CMasonNonRepeatedTrackSizingFunctionArray",
+                    "printedName": "Mason.CMasonNonRepeatedTrackSizingFunctionArray",
+                    "usr": "c:@S@CMasonNonRepeatedTrackSizingFunctionArray"
                   }
                 ],
                 "usr": "s:Sp"
@@ -8029,7 +8029,7 @@
             ],
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_grid_auto_rows::",
-            "mangledName": "$s5Mason0A9ReexportsC24style_set_grid_auto_rowsyySv_SpySo17CMasonMinMaxArrayVGtFZ",
+            "mangledName": "$s5Mason0A9ReexportsC24style_set_grid_auto_rowsyySv_SpySo41CMasonNonRepeatedTrackSizingFunctionArrayVGtFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -8043,13 +8043,13 @@
               {
                 "kind": "TypeNominal",
                 "name": "UnsafeMutablePointer",
-                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonMinMaxArray>",
+                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>",
                 "children": [
                   {
                     "kind": "TypeNominal",
-                    "name": "CMasonMinMaxArray",
-                    "printedName": "Mason.CMasonMinMaxArray",
-                    "usr": "c:@S@CMasonMinMaxArray"
+                    "name": "CMasonNonRepeatedTrackSizingFunctionArray",
+                    "printedName": "Mason.CMasonNonRepeatedTrackSizingFunctionArray",
+                    "usr": "c:@S@CMasonNonRepeatedTrackSizingFunctionArray"
                   }
                 ],
                 "usr": "s:Sp"
@@ -8063,7 +8063,7 @@
             ],
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_grid_auto_columns:",
-            "mangledName": "$s5Mason0A9ReexportsC27style_get_grid_auto_columnsySpySo17CMasonMinMaxArrayVGSvFZ",
+            "mangledName": "$s5Mason0A9ReexportsC27style_get_grid_auto_columnsySpySo41CMasonNonRepeatedTrackSizingFunctionArrayVGSvFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -8088,13 +8088,13 @@
               {
                 "kind": "TypeNominal",
                 "name": "UnsafeMutablePointer",
-                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonMinMaxArray>",
+                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>",
                 "children": [
                   {
                     "kind": "TypeNominal",
-                    "name": "CMasonMinMaxArray",
-                    "printedName": "Mason.CMasonMinMaxArray",
-                    "usr": "c:@S@CMasonMinMaxArray"
+                    "name": "CMasonNonRepeatedTrackSizingFunctionArray",
+                    "printedName": "Mason.CMasonNonRepeatedTrackSizingFunctionArray",
+                    "usr": "c:@S@CMasonNonRepeatedTrackSizingFunctionArray"
                   }
                 ],
                 "usr": "s:Sp"
@@ -8102,7 +8102,7 @@
             ],
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_grid_auto_columns::",
-            "mangledName": "$s5Mason0A9ReexportsC27style_set_grid_auto_columnsyySv_SpySo17CMasonMinMaxArrayVGtFZ",
+            "mangledName": "$s5Mason0A9ReexportsC27style_set_grid_auto_columnsyySv_SpySo41CMasonNonRepeatedTrackSizingFunctionArrayVGtFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -8160,6 +8160,92 @@
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_grid_auto_flow::",
             "mangledName": "$s5Mason0A9ReexportsC24style_set_grid_auto_flowyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_grid_area",
+            "printedName": "style_set_grid_area(_:_:_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonGridPlacement",
+                "printedName": "Mason.CMasonGridPlacement",
+                "usr": "c:@S@CMasonGridPlacement"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonGridPlacement",
+                "printedName": "Mason.CMasonGridPlacement",
+                "usr": "c:@S@CMasonGridPlacement"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonGridPlacement",
+                "printedName": "Mason.CMasonGridPlacement",
+                "usr": "c:@S@CMasonGridPlacement"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonGridPlacement",
+                "printedName": "Mason.CMasonGridPlacement",
+                "usr": "c:@S@CMasonGridPlacement"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_grid_area:::::",
+            "mangledName": "$s5Mason0A9ReexportsC19style_set_grid_areayySv_So19CMasonGridPlacementVA3FtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_grid_column",
+            "printedName": "style_set_grid_column(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonGridPlacement",
+                "printedName": "Mason.CMasonGridPlacement",
+                "usr": "c:@S@CMasonGridPlacement"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonGridPlacement",
+                "printedName": "Mason.CMasonGridPlacement",
+                "usr": "c:@S@CMasonGridPlacement"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_grid_column:::",
+            "mangledName": "$s5Mason0A9ReexportsC21style_set_grid_columnyySv_So19CMasonGridPlacementVAFtFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -8274,6 +8360,43 @@
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_grid_column_end::",
             "mangledName": "$s5Mason0A9ReexportsC25style_set_grid_column_endyySv_So19CMasonGridPlacementVtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_grid_row",
+            "printedName": "style_set_grid_row(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonGridPlacement",
+                "printedName": "Mason.CMasonGridPlacement",
+                "usr": "c:@S@CMasonGridPlacement"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonGridPlacement",
+                "printedName": "Mason.CMasonGridPlacement",
+                "usr": "c:@S@CMasonGridPlacement"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_grid_row:::",
+            "mangledName": "$s5Mason0A9ReexportsC18style_set_grid_rowyySv_So19CMasonGridPlacementVAFtFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -8534,6 +8657,178 @@
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_grid_template_columns::",
             "mangledName": "$s5Mason0A9ReexportsC31style_set_grid_template_columnsyySv_SpySo30CMasonTrackSizingFunctionArrayVGtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "destroy",
+            "printedName": "destroy(nonRepeatedTrackSizingFunctionArray:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutablePointer",
+                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CMasonNonRepeatedTrackSizingFunctionArray",
+                    "printedName": "Mason.CMasonNonRepeatedTrackSizingFunctionArray",
+                    "usr": "c:@S@CMasonNonRepeatedTrackSizingFunctionArray"
+                  }
+                ],
+                "usr": "s:Sp"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)destroyWithNonRepeatedTrackSizingFunctionArray:",
+            "mangledName": "$s5Mason0A9ReexportsC7destroy35nonRepeatedTrackSizingFunctionArrayySpySo09CMasonNonefghI0VG_tFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "destroy",
+            "printedName": "destroy(trackSizingFunctionArray:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutablePointer",
+                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CMasonTrackSizingFunctionArray",
+                    "printedName": "Mason.CMasonTrackSizingFunctionArray",
+                    "usr": "c:@S@CMasonTrackSizingFunctionArray"
+                  }
+                ],
+                "usr": "s:Sp"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)destroyWithTrackSizingFunctionArray:",
+            "mangledName": "$s5Mason0A9ReexportsC7destroy24trackSizingFunctionArrayySpySo011CMasonTrackefG0VG_tFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "util_parse_non_repeated_track_sizing_function",
+            "printedName": "util_parse_non_repeated_track_sizing_function(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutablePointer",
+                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CMasonNonRepeatedTrackSizingFunctionArray",
+                    "printedName": "Mason.CMasonNonRepeatedTrackSizingFunctionArray",
+                    "usr": "c:@S@CMasonNonRepeatedTrackSizingFunctionArray"
+                  }
+                ],
+                "usr": "s:Sp"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)util_parse_non_repeated_track_sizing_function:",
+            "mangledName": "$s5Mason0A9ReexportsC45util_parse_non_repeated_track_sizing_functionySSSpySo41CMasonNonRepeatedTrackSizingFunctionArrayVGFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "util_parse_auto_repeating_track_sizing_function",
+            "printedName": "util_parse_auto_repeating_track_sizing_function(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutablePointer",
+                "printedName": "Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CMasonTrackSizingFunctionArray",
+                    "printedName": "Mason.CMasonTrackSizingFunctionArray",
+                    "usr": "c:@S@CMasonTrackSizingFunctionArray"
+                  }
+                ],
+                "usr": "s:Sp"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)util_parse_auto_repeating_track_sizing_function:",
+            "mangledName": "$s5Mason0A9ReexportsC47util_parse_auto_repeating_track_sizing_functionySSSpySo30CMasonTrackSizingFunctionArrayVGFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "util_create_non_repeated_track_sizing_function_with_type_value",
+            "printedName": "util_create_non_repeated_track_sizing_function_with_type_value(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CMasonMinMax",
+                "printedName": "Mason.CMasonMinMax",
+                "usr": "c:@S@CMasonMinMax"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)util_create_non_repeated_track_sizing_function_with_type_value:::",
+            "mangledName": "$s5Mason0A9ReexportsC62util_create_non_repeated_track_sizing_function_with_type_valueySo12CMasonMinMaxVs5Int32V_AHSftFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -17837,6 +18132,164 @@
           },
           {
             "kind": "Var",
+            "name": "gridColumnStart",
+            "printedName": "gridColumnStart",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacement",
+                "printedName": "Mason.GridPlacement",
+                "usr": "s:5Mason13GridPlacementO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason0A5StyleC15gridColumnStartAA13GridPlacementOvp",
+            "mangledName": "$s5Mason0A5StyleC15gridColumnStartAA13GridPlacementOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC15gridColumnStartAA13GridPlacementOvg",
+                "mangledName": "$s5Mason0A5StyleC15gridColumnStartAA13GridPlacementOvg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC15gridColumnStartAA13GridPlacementOvs",
+                "mangledName": "$s5Mason0A5StyleC15gridColumnStartAA13GridPlacementOvs",
+                "moduleName": "Mason",
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC15gridColumnStartAA13GridPlacementOvM",
+                "mangledName": "$s5Mason0A5StyleC15gridColumnStartAA13GridPlacementOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridColumnEnd",
+            "printedName": "gridColumnEnd",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacement",
+                "printedName": "Mason.GridPlacement",
+                "usr": "s:5Mason13GridPlacementO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason0A5StyleC13gridColumnEndAA13GridPlacementOvp",
+            "mangledName": "$s5Mason0A5StyleC13gridColumnEndAA13GridPlacementOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC13gridColumnEndAA13GridPlacementOvg",
+                "mangledName": "$s5Mason0A5StyleC13gridColumnEndAA13GridPlacementOvg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC13gridColumnEndAA13GridPlacementOvs",
+                "mangledName": "$s5Mason0A5StyleC13gridColumnEndAA13GridPlacementOvs",
+                "moduleName": "Mason",
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC13gridColumnEndAA13GridPlacementOvM",
+                "mangledName": "$s5Mason0A5StyleC13gridColumnEndAA13GridPlacementOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "gridColumnCompat",
             "printedName": "gridColumnCompat",
             "children": [
@@ -17910,6 +18363,168 @@
                 "declKind": "Accessor",
                 "usr": "s:5Mason0A5StyleC16gridColumnCompatAA017LineGridPlacementE0CvM",
                 "mangledName": "$s5Mason0A5StyleC16gridColumnCompatAA017LineGridPlacementE0CvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridColumnStartCompat",
+            "printedName": "gridColumnStartCompat",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacementCompat",
+                "printedName": "Mason.GridPlacementCompat",
+                "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(py)gridColumnStartCompat",
+            "mangledName": "$s5Mason0A5StyleC21gridColumnStartCompatAA013GridPlacementF0Cvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)gridColumnStartCompat",
+                "mangledName": "$s5Mason0A5StyleC21gridColumnStartCompatAA013GridPlacementF0Cvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setGridColumnStartCompat:",
+                "mangledName": "$s5Mason0A5StyleC21gridColumnStartCompatAA013GridPlacementF0Cvs",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC21gridColumnStartCompatAA013GridPlacementF0CvM",
+                "mangledName": "$s5Mason0A5StyleC21gridColumnStartCompatAA013GridPlacementF0CvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridColumnEndCompat",
+            "printedName": "gridColumnEndCompat",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacementCompat",
+                "printedName": "Mason.GridPlacementCompat",
+                "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(py)gridColumnEndCompat",
+            "mangledName": "$s5Mason0A5StyleC19gridColumnEndCompatAA013GridPlacementF0Cvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)gridColumnEndCompat",
+                "mangledName": "$s5Mason0A5StyleC19gridColumnEndCompatAA013GridPlacementF0Cvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setGridColumnEndCompat:",
+                "mangledName": "$s5Mason0A5StyleC19gridColumnEndCompatAA013GridPlacementF0Cvs",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC19gridColumnEndCompatAA013GridPlacementF0CvM",
+                "mangledName": "$s5Mason0A5StyleC19gridColumnEndCompatAA013GridPlacementF0CvM",
                 "moduleName": "Mason",
                 "implicit": true,
                 "accessorKind": "_modify"
@@ -18024,6 +18639,164 @@
           },
           {
             "kind": "Var",
+            "name": "gridRowStart",
+            "printedName": "gridRowStart",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacement",
+                "printedName": "Mason.GridPlacement",
+                "usr": "s:5Mason13GridPlacementO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason0A5StyleC12gridRowStartAA13GridPlacementOvp",
+            "mangledName": "$s5Mason0A5StyleC12gridRowStartAA13GridPlacementOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC12gridRowStartAA13GridPlacementOvg",
+                "mangledName": "$s5Mason0A5StyleC12gridRowStartAA13GridPlacementOvg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC12gridRowStartAA13GridPlacementOvs",
+                "mangledName": "$s5Mason0A5StyleC12gridRowStartAA13GridPlacementOvs",
+                "moduleName": "Mason",
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC12gridRowStartAA13GridPlacementOvM",
+                "mangledName": "$s5Mason0A5StyleC12gridRowStartAA13GridPlacementOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridRowEnd",
+            "printedName": "gridRowEnd",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacement",
+                "printedName": "Mason.GridPlacement",
+                "usr": "s:5Mason13GridPlacementO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason0A5StyleC10gridRowEndAA13GridPlacementOvp",
+            "mangledName": "$s5Mason0A5StyleC10gridRowEndAA13GridPlacementOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC10gridRowEndAA13GridPlacementOvg",
+                "mangledName": "$s5Mason0A5StyleC10gridRowEndAA13GridPlacementOvg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC10gridRowEndAA13GridPlacementOvs",
+                "mangledName": "$s5Mason0A5StyleC10gridRowEndAA13GridPlacementOvs",
+                "moduleName": "Mason",
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC10gridRowEndAA13GridPlacementOvM",
+                "mangledName": "$s5Mason0A5StyleC10gridRowEndAA13GridPlacementOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "gridRowCompat",
             "printedName": "gridRowCompat",
             "children": [
@@ -18097,6 +18870,168 @@
                 "declKind": "Accessor",
                 "usr": "s:5Mason0A5StyleC13gridRowCompatAA017LineGridPlacementE0CvM",
                 "mangledName": "$s5Mason0A5StyleC13gridRowCompatAA017LineGridPlacementE0CvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridRowStartCompat",
+            "printedName": "gridRowStartCompat",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacementCompat",
+                "printedName": "Mason.GridPlacementCompat",
+                "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(py)gridRowStartCompat",
+            "mangledName": "$s5Mason0A5StyleC18gridRowStartCompatAA013GridPlacementF0Cvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)gridRowStartCompat",
+                "mangledName": "$s5Mason0A5StyleC18gridRowStartCompatAA013GridPlacementF0Cvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setGridRowStartCompat:",
+                "mangledName": "$s5Mason0A5StyleC18gridRowStartCompatAA013GridPlacementF0Cvs",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC18gridRowStartCompatAA013GridPlacementF0CvM",
+                "mangledName": "$s5Mason0A5StyleC18gridRowStartCompatAA013GridPlacementF0CvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridRowEndCompat",
+            "printedName": "gridRowEndCompat",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacementCompat",
+                "printedName": "Mason.GridPlacementCompat",
+                "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(py)gridRowEndCompat",
+            "mangledName": "$s5Mason0A5StyleC16gridRowEndCompatAA013GridPlacementF0Cvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)gridRowEndCompat",
+                "mangledName": "$s5Mason0A5StyleC16gridRowEndCompatAA013GridPlacementF0Cvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setGridRowEndCompat:",
+                "mangledName": "$s5Mason0A5StyleC16gridRowEndCompatAA013GridPlacementF0Cvs",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC16gridRowEndCompatAA013GridPlacementF0CvM",
+                "mangledName": "$s5Mason0A5StyleC16gridRowEndCompatAA013GridPlacementF0CvM",
                 "moduleName": "Mason",
                 "implicit": true,
                 "accessorKind": "_modify"
@@ -26905,6 +27840,279 @@
           },
           {
             "kind": "Var",
+            "name": "gridColumn",
+            "printedName": "gridColumn",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Line",
+                "printedName": "Mason.Line<Mason.GridPlacement>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "usr": "s:5Mason4LineV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:So6UIViewC5MasonE10gridColumnAC4LineVyAC13GridPlacementOGvp",
+            "mangledName": "$sSo6UIViewC5MasonE10gridColumnAC4LineVyAC13GridPlacementOGvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Custom", "AccessControl"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Line",
+                    "printedName": "Mason.Line<Mason.GridPlacement>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "GridPlacement",
+                        "printedName": "Mason.GridPlacement",
+                        "usr": "s:5Mason13GridPlacementO"
+                      }
+                    ],
+                    "usr": "s:5Mason4LineV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE10gridColumnAC4LineVyAC13GridPlacementOGvg",
+                "mangledName": "$sSo6UIViewC5MasonE10gridColumnAC4LineVyAC13GridPlacementOGvg",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Line",
+                    "printedName": "Mason.Line<Mason.GridPlacement>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "GridPlacement",
+                        "printedName": "Mason.GridPlacement",
+                        "usr": "s:5Mason13GridPlacementO"
+                      }
+                    ],
+                    "usr": "s:5Mason4LineV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE10gridColumnAC4LineVyAC13GridPlacementOGvs",
+                "mangledName": "$sSo6UIViewC5MasonE10gridColumnAC4LineVyAC13GridPlacementOGvs",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE10gridColumnAC4LineVyAC13GridPlacementOGvM",
+                "mangledName": "$sSo6UIViewC5MasonE10gridColumnAC4LineVyAC13GridPlacementOGvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "isFromExtension": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridColumnStart",
+            "printedName": "gridColumnStart",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacement",
+                "printedName": "Mason.GridPlacement",
+                "usr": "s:5Mason13GridPlacementO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:So6UIViewC5MasonE15gridColumnStartAC13GridPlacementOvp",
+            "mangledName": "$sSo6UIViewC5MasonE15gridColumnStartAC13GridPlacementOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Custom", "AccessControl"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE15gridColumnStartAC13GridPlacementOvg",
+                "mangledName": "$sSo6UIViewC5MasonE15gridColumnStartAC13GridPlacementOvg",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE15gridColumnStartAC13GridPlacementOvs",
+                "mangledName": "$sSo6UIViewC5MasonE15gridColumnStartAC13GridPlacementOvs",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE15gridColumnStartAC13GridPlacementOvM",
+                "mangledName": "$sSo6UIViewC5MasonE15gridColumnStartAC13GridPlacementOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "isFromExtension": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridColumnEnd",
+            "printedName": "gridColumnEnd",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacement",
+                "printedName": "Mason.GridPlacement",
+                "usr": "s:5Mason13GridPlacementO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:So6UIViewC5MasonE13gridColumnEndAC13GridPlacementOvp",
+            "mangledName": "$sSo6UIViewC5MasonE13gridColumnEndAC13GridPlacementOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Custom", "AccessControl"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE13gridColumnEndAC13GridPlacementOvg",
+                "mangledName": "$sSo6UIViewC5MasonE13gridColumnEndAC13GridPlacementOvg",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE13gridColumnEndAC13GridPlacementOvs",
+                "mangledName": "$sSo6UIViewC5MasonE13gridColumnEndAC13GridPlacementOvs",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE13gridColumnEndAC13GridPlacementOvM",
+                "mangledName": "$sSo6UIViewC5MasonE13gridColumnEndAC13GridPlacementOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "isFromExtension": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "gridColumnCompat",
             "printedName": "gridColumnCompat",
             "children": [
@@ -26971,6 +28179,411 @@
           },
           {
             "kind": "Var",
+            "name": "gridColumnStartCompat",
+            "printedName": "gridColumnStartCompat",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacementCompat",
+                "printedName": "Mason.GridPlacementCompat",
+                "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)gridColumnStartCompat",
+            "mangledName": "$sSo6UIViewC5MasonE21gridColumnStartCompatAC013GridPlacementF0Cvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)gridColumnStartCompat",
+                "mangledName": "$sSo6UIViewC5MasonE21gridColumnStartCompatAC013GridPlacementF0Cvg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)setGridColumnStartCompat:",
+                "mangledName": "$sSo6UIViewC5MasonE21gridColumnStartCompatAC013GridPlacementF0Cvs",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "set"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridColumnEndCompat",
+            "printedName": "gridColumnEndCompat",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacementCompat",
+                "printedName": "Mason.GridPlacementCompat",
+                "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)gridColumnEndCompat",
+            "mangledName": "$sSo6UIViewC5MasonE19gridColumnEndCompatAC013GridPlacementF0Cvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)gridColumnEndCompat",
+                "mangledName": "$sSo6UIViewC5MasonE19gridColumnEndCompatAC013GridPlacementF0Cvg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)setGridColumnEndCompat:",
+                "mangledName": "$sSo6UIViewC5MasonE19gridColumnEndCompatAC013GridPlacementF0Cvs",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "set"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridRow",
+            "printedName": "gridRow",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Line",
+                "printedName": "Mason.Line<Mason.GridPlacement>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "usr": "s:5Mason4LineV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:So6UIViewC5MasonE7gridRowAC4LineVyAC13GridPlacementOGvp",
+            "mangledName": "$sSo6UIViewC5MasonE7gridRowAC4LineVyAC13GridPlacementOGvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Custom", "AccessControl"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Line",
+                    "printedName": "Mason.Line<Mason.GridPlacement>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "GridPlacement",
+                        "printedName": "Mason.GridPlacement",
+                        "usr": "s:5Mason13GridPlacementO"
+                      }
+                    ],
+                    "usr": "s:5Mason4LineV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE7gridRowAC4LineVyAC13GridPlacementOGvg",
+                "mangledName": "$sSo6UIViewC5MasonE7gridRowAC4LineVyAC13GridPlacementOGvg",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Line",
+                    "printedName": "Mason.Line<Mason.GridPlacement>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "GridPlacement",
+                        "printedName": "Mason.GridPlacement",
+                        "usr": "s:5Mason13GridPlacementO"
+                      }
+                    ],
+                    "usr": "s:5Mason4LineV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE7gridRowAC4LineVyAC13GridPlacementOGvs",
+                "mangledName": "$sSo6UIViewC5MasonE7gridRowAC4LineVyAC13GridPlacementOGvs",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE7gridRowAC4LineVyAC13GridPlacementOGvM",
+                "mangledName": "$sSo6UIViewC5MasonE7gridRowAC4LineVyAC13GridPlacementOGvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "isFromExtension": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridRowStart",
+            "printedName": "gridRowStart",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacement",
+                "printedName": "Mason.GridPlacement",
+                "usr": "s:5Mason13GridPlacementO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:So6UIViewC5MasonE12gridRowStartAC13GridPlacementOvp",
+            "mangledName": "$sSo6UIViewC5MasonE12gridRowStartAC13GridPlacementOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Custom", "AccessControl"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE12gridRowStartAC13GridPlacementOvg",
+                "mangledName": "$sSo6UIViewC5MasonE12gridRowStartAC13GridPlacementOvg",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE12gridRowStartAC13GridPlacementOvs",
+                "mangledName": "$sSo6UIViewC5MasonE12gridRowStartAC13GridPlacementOvs",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE12gridRowStartAC13GridPlacementOvM",
+                "mangledName": "$sSo6UIViewC5MasonE12gridRowStartAC13GridPlacementOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "isFromExtension": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridRowEnd",
+            "printedName": "gridRowEnd",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacement",
+                "printedName": "Mason.GridPlacement",
+                "usr": "s:5Mason13GridPlacementO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:So6UIViewC5MasonE10gridRowEndAC13GridPlacementOvp",
+            "mangledName": "$sSo6UIViewC5MasonE10gridRowEndAC13GridPlacementOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Custom", "AccessControl"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE10gridRowEndAC13GridPlacementOvg",
+                "mangledName": "$sSo6UIViewC5MasonE10gridRowEndAC13GridPlacementOvg",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacement",
+                    "printedName": "Mason.GridPlacement",
+                    "usr": "s:5Mason13GridPlacementO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE10gridRowEndAC13GridPlacementOvs",
+                "mangledName": "$sSo6UIViewC5MasonE10gridRowEndAC13GridPlacementOvs",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE10gridRowEndAC13GridPlacementOvM",
+                "mangledName": "$sSo6UIViewC5MasonE10gridRowEndAC13GridPlacementOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "isFromExtension": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "gridRowCompat",
             "printedName": "gridRowCompat",
             "children": [
@@ -27028,6 +28641,138 @@
                 "declKind": "Accessor",
                 "usr": "c:@CM@Mason@@objc(cs)UIView(im)setGridRowCompat:",
                 "mangledName": "$sSo6UIViewC5MasonE13gridRowCompatAC017LineGridPlacementE0Cvs",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "set"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridRowStartCompat",
+            "printedName": "gridRowStartCompat",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacementCompat",
+                "printedName": "Mason.GridPlacementCompat",
+                "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)gridRowStartCompat",
+            "mangledName": "$sSo6UIViewC5MasonE18gridRowStartCompatAC013GridPlacementF0Cvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)gridRowStartCompat",
+                "mangledName": "$sSo6UIViewC5MasonE18gridRowStartCompatAC013GridPlacementF0Cvg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)setGridRowStartCompat:",
+                "mangledName": "$sSo6UIViewC5MasonE18gridRowStartCompatAC013GridPlacementF0Cvs",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "set"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "gridRowEndCompat",
+            "printedName": "gridRowEndCompat",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "GridPlacementCompat",
+                "printedName": "Mason.GridPlacementCompat",
+                "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)gridRowEndCompat",
+            "mangledName": "$sSo6UIViewC5MasonE16gridRowEndCompatAC013GridPlacementF0Cvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)gridRowEndCompat",
+                "mangledName": "$sSo6UIViewC5MasonE16gridRowEndCompatAC013GridPlacementF0Cvg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GridPlacementCompat",
+                    "printedName": "Mason.GridPlacementCompat",
+                    "usr": "c:@M@Mason@objc(cs)GridPlacementCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)setGridRowEndCompat:",
+                "mangledName": "$sSo6UIViewC5MasonE16gridRowEndCompatAC013GridPlacementF0Cvs",
                 "moduleName": "Mason",
                 "declAttributes": ["Dynamic", "ObjC"],
                 "isFromExtension": true,
@@ -29576,35 +31321,35 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 16885,
+      "offset": 17844,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 17302,
+      "offset": 19162,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 17260,
+      "offset": 19120,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 17435,
+      "offset": 19295,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 17393,
+      "offset": 19253,
       "length": 2,
       "value": "[]"
     },
