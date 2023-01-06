@@ -13,10 +13,57 @@
      </FlexboxLayout>
       <FlexboxLayout width="100%" height="100%"  flexDirection="column" backgroundColor="orange" rows="auto,auto">
      </FlexboxLayout>
-    </FlexboxLayout> -->
+    </FlexboxLayout>
+    -->
+
+  <ui:TSCView class="grid-example">
+    <ui:TSCView class="a" backgroundColor="red">
+      <Label text="A"/>
+    </ui:TSCView>
+
+    <ui:TSCView class="b" backgroundColor="blue">
+      <Label text="B"/>
+    </ui:TSCView>
+
+    <ui:TSCView class="c" backgroundColor="purple">
+      <Label text="C"/>
+    </ui:TSCView>
+
+    <ui:TSCView class="d" backgroundColor="orange">
+      <Label text="D"/>
+    </ui:TSCView>
+
+    <ui:TSCView class="e" backgroundColor="brown">
+      <Label text="E"/>
+    </ui:TSCView>
+
+    <ui:TSCView class="f" backgroundColor="pink">
+      <Label text="F"/>
+    </ui:TSCView>
+
+  </ui:TSCView>
 
 
-     <ui:TSCView class="p-20" display="grid" flexDirection="column" alignSelf="stretch" gap="50% 50%" loaded="loaded">
+
+
+
+  <!-- <ui:TSCView id="root" flexDirection="column">
+      <ui:TSCView class="bg-red" width="100%" height="100%" flexDirection="column" backgroundColor="red" rows="auto,auto">
+      <Label text="First"/>
+      </ui:TSCView>
+       <ui:TSCView width="100%" height="100%"  flexDirection="column" backgroundColor="blue" rows="auto,auto">
+      <Label text="Second"/>
+      </ui:TSCView>
+       <ui:TSCView width="100%" height="100%"  flexDirection="column" backgroundColor="purple" rows="auto,auto">
+      <Label text="Third"/>
+      </ui:TSCView>
+       <ui:TSCView width="100%" height="100%"  flexDirection="column" backgroundColor="orange" rows="auto,auto">
+      <Label text="Fourth"/>
+      </ui:TSCView>
+     </ui:TSCView>  -->
+
+<!--
+     <ui:TSCView class="p-20" display="flex" flexDirection="column" alignItems="stretch" loaded="loaded">
      <Button  text="Test 1" tap="{{ testIt }}" class="btn btn-primary"/>
         <Button  text="Test 2" tap="{{ testIt }}" class="btn btn-primary"/>
     <Image width="100" height="100" src="https://picsum.photos/200/300"/>
@@ -61,8 +108,8 @@
         <Button  text="Test 2.5" tap="{{ testIt }}" class="btn btn-primary"/>
         <Button  text="Test 3.5" tap="{{ testIt }}" class="btn btn-primary"/>
         <Button  text="Test 4.5" tap="{{ testIt }}" class="btn btn-primary"/>
-        </ui:TSCView> 
-    </ui:TSCView>
+        </ui:TSCView>
+    </ui:TSCView> -->
 
 
 <!--
