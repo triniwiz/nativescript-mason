@@ -1,5 +1,5 @@
-import { borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, heightProperty, Length, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, Utils, widthProperty } from '@nativescript/core';
-import { aspectRatioProperty, bottomProperty, columnGapProperty, displayProperty, flexBasisProperty, flexDirectionProperty, leftProperty, positionProperty, rightProperty, rowGapProperty, topProperty, TSCViewBase } from './common';
+import { borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, heightProperty, Length, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, Utils, ViewBase, widthProperty } from '@nativescript/core';
+import { aspectRatioProperty, bottomProperty, columnGapProperty, displayProperty, flexBasisProperty, flexDirectionProperty, gridColumnEndProperty, gridColumnStartProperty, gridRowEndProperty, gridRowStartProperty, leftProperty, positionProperty, rightProperty, rowGapProperty, topProperty, TSCViewBase } from './common';
 import {
   _forceStyleUpdate,
   _getAlignContent,
@@ -54,26 +54,21 @@ import {
   _setRight,
   _setTop,
   _setWidth,
+  JSIEnabled,
+  _getPosition,
+  _getHeight,
+  _getWidth,
+  _setGridColumnStart,
+  _setGridColumnEnd,
+  _setGridRowEnd,
+  _setGridRowStart,
 } from './helpers';
 
-let JSIEnabled = false;
-
 export class TSCView extends TSCViewBase {
-  static {
-    TSCMason.alwaysEnable = true;
-    if (!JSIEnabled) {
-      //@ts-ignore
-      const module = new JSIModule();
-      console.log(module.install());
-      console.log('creating module');
-      JSIEnabled = true;
-    }
-  }
-
   __masonStylePtr = 0;
   get _masonStylePtr() {
     if (this.__masonStylePtr === 0) {
-      this.__masonStylePtr = this.ios?.masonStylePtr ?? 0;
+      this.__masonStylePtr = String(this.ios?.masonStylePtr ?? 0) as any; // cast as string for now
     }
     return this.__masonStylePtr;
   }
@@ -81,7 +76,7 @@ export class TSCView extends TSCViewBase {
   __masonNodePtr = 0;
   get _masonNodePtr() {
     if (this.__masonNodePtr === 0) {
-      this.__masonNodePtr = this.ios?.masonNodePtr ?? 0;
+      this.__masonNodePtr = String(this.ios?.masonNodePtr ?? 0) as any; // cast as string for now
     }
     return this.__masonNodePtr;
   }
@@ -89,7 +84,7 @@ export class TSCView extends TSCViewBase {
   __masonPtr = 0;
   get _masonPtr() {
     if (this.__masonPtr === 0) {
-      this.__masonPtr = this.ios?.masonPtr ?? 0;
+      this.__masonPtr = String((UIView as any).masonPtr ?? 0) as any; // cast as string for now
     }
     return this.__masonPtr;
   }
@@ -99,8 +94,6 @@ export class TSCView extends TSCViewBase {
   createNativeView() {
     const view = UIView.alloc().initWithFrame(CGRectZero);
     view.mason.isEnabled = true;
-    this.style.minWidth = undefined;
-    this.style.minHeight = undefined;
     // this._masonStylePtr = view.masonStylePtr;
     // this._masonNodePtr = view.masonNodePtr;
     // this._masonPtr = view.masonPtr;
@@ -135,9 +128,15 @@ export class TSCView extends TSCViewBase {
     if (nativeView) {
       const width = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
       const height = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
-      this.setMeasuredDimension(width, height);
 
-      this.ios.mason.computeMaxContent();
+      if (this.id === 'root') {
+        this.setMeasuredDimension(width, height);
+        this.ios.mason.computeWithViewSize();
+        //  this.ios.mason.computeMaxContent();
+      } else {
+        const layout = this.ios.mason.layout();
+        this.setMeasuredDimension(Utils.layout.toDeviceIndependentPixels(layout.width), Utils.layout.toDeviceIndependentPixels(layout.height));
+      }
 
       /*
       console.log('JSI method', JSIEnabled);
@@ -163,26 +162,43 @@ export class TSCView extends TSCViewBase {
     }
   }
 
+  public _addViewToNativeVisualTree(view: ViewBase, atIndex?: number): boolean {
+    const nativeView = this.nativeView as UIView;
+    super._addViewToNativeVisualTree(view, atIndex);
+    const index = atIndex ?? -1;
+
+    if (nativeView && view.nativeViewProtected) {
+      nativeView.addSubview(view.nativeViewProtected);
+      /* if (index >= nativeView.subviews.count) {
+        nativeView.addSubview(view.nativeViewProtected);
+      } else {
+        nativeView.insertSubviewAtIndex(view.nativeViewProtected, index);
+      } */
+    }
+
+    return true;
+  }
+
   onLoaded(): void {
     super.onLoaded();
 
     console.time('onLoaded');
 
-    const views = this._children.filter((item) => {
-      const ret = !item.parent;
-      if (ret) {
-        this._addView(item);
-      }
-      return ret;
-    });
+    // const views = this._children.filter((item) => {
+    //   const ret = !item.parent;
+    //   if (ret) {
+    //     this._addView(item);
+    //   }
+    //   return ret;
+    // });
 
-    const array = NSMutableArray.alloc().initWithCapacity(views.length);
+    // const array = NSMutableArray.alloc().initWithCapacity(views.length);
 
-    views.forEach((item) => {
-      array.addObject(item.nativeView);
-    });
+    // views.forEach((item) => {
+    //   array.addObject(item.nativeView);
+    // });
 
-    this.nativeView.addSubviews(array);
+    // this.nativeView.addSubviews(array);
 
     // this._children.forEach((item) => {
     //   if (!item.parent) {
@@ -215,26 +231,7 @@ export class TSCView extends TSCViewBase {
 
   //@ts-ignore
   get position() {
-    if (!this._hasNativeView) {
-      return this.style.position;
-    }
-
-    if (JSIEnabled) {
-      const value = global.__Mason_getPosition(this._masonStylePtr);
-      switch (value) {
-        case 0:
-          return 'relative';
-        case 1:
-          return 'absolute';
-      }
-    } else {
-      switch (this.android.getPosition()) {
-        case org.nativescript.mason.masonkit.Position.Absolute:
-          return 'absolute';
-        case org.nativescript.mason.masonkit.Position.Relative:
-          return 'relative';
-      }
-    }
+    return _getPosition(this as any);
   }
 
   [positionProperty.setNative](value) {
@@ -536,15 +533,7 @@ export class TSCView extends TSCViewBase {
 
   //@ts-ignore
   get width() {
-    if (!this._hasNativeView) {
-      return this.style.width;
-    }
-    if (JSIEnabled) {
-      return global.__Mason_getWidth(this._masonStylePtr);
-    } else {
-      return _parseDimension(this.android.getSizeWidth());
-      //  return JSON.parse(this.android.getSizeJsonValue())?.width;
-    }
+    return _getWidth(this as any);
   }
 
   //@ts-ignore
@@ -555,15 +544,7 @@ export class TSCView extends TSCViewBase {
 
   //@ts-ignore
   get height() {
-    if (!this._hasNativeView) {
-      return this.style.height;
-    }
-    if (JSIEnabled) {
-      return global.__Mason_getHeight(this._masonStylePtr);
-    } else {
-      return _parseDimension(this.android.getSizeHeight());
-      // return JSON.parse(this.android.getSizeJsonValue())?.height;
-    }
+    return _getHeight(this as any);
   }
 
   //@ts-ignore
@@ -613,6 +594,10 @@ export class TSCView extends TSCViewBase {
     this.style.gridColumnStart = value;
   }
 
+  [gridColumnStartProperty.setNative](value) {
+    _setGridColumnStart(value, this as any);
+  }
+
   //@ts-ignore
   get gridColumnStart() {
     return this.style.gridColumnStart;
@@ -621,6 +606,10 @@ export class TSCView extends TSCViewBase {
   //@ts-ignore
   set gridColumnEnd(value) {
     this.style.gridColumnEnd = value;
+  }
+
+  [gridColumnEndProperty.setNative](value) {
+    _setGridColumnEnd(value, this as any);
   }
 
   //@ts-ignore
@@ -633,6 +622,10 @@ export class TSCView extends TSCViewBase {
     this.style.gridRowStart = value;
   }
 
+  [gridRowStartProperty.setNative](value) {
+    _setGridRowStart(value, this as any);
+  }
+
   //@ts-ignore
   get gridRowStart() {
     return this.style.gridRowStart;
@@ -641,6 +634,10 @@ export class TSCView extends TSCViewBase {
   //@ts-ignore
   set gridRowEnd(value) {
     this.style.gridRowEnd = value;
+  }
+
+  [gridRowEndProperty.setNative](value) {
+    _setGridRowEnd(value, this as any);
   }
 
   //@ts-ignore
