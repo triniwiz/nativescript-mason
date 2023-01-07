@@ -28,6 +28,7 @@ public class MaxSizing:NSObject, Codable {
     init(_ type: MaxSizingType, _ value: Float) {
         internalType = type
         super.init()
+        self.value = value
     }
     
     public static func Points(_ points: Float) -> MaxSizing {
@@ -62,8 +63,8 @@ public class MaxSizing:NSObject, Codable {
             case .Auto: return 0
             case .MinContent: return 1
             case .MaxContent: return 2
-            case .Percent: return 3
-            case .Points: return 4
+            case .Points: return 3
+            case .Percent: return 4
             case .Flex: return 5
             case .FitContent: return 6
             case .FitContentPercent: return 7
@@ -76,8 +77,8 @@ public class MaxSizing:NSObject, Codable {
         case 0: return .Auto
         case 1: return .MinContent
         case 2: return .MaxContent
-        case 3: return .Percent(value)
-        case 4: return .Points(value)
+        case 3: return .Points(value)
+        case 4: return .Percent(value)
         case 5: return .Flex(value)
         case 6: return .FitContent(value)
         case 7: return .FitContentPercent(value)
@@ -131,7 +132,7 @@ public class MaxSizing:NSObject, Codable {
                 
             let fitContent = value
                     .replacingOccurrences(of: "fit-content(", with: "")
-                    .replacingOccurrences(of: "(", with: "")
+                    .replacingOccurrences(of: ")", with: "")
                 
                 if(value.contains("%")){
                     self.internalType = .FitContentPercent
@@ -147,7 +148,7 @@ public class MaxSizing:NSObject, Codable {
                 self.internalType = .Flex
                 self.value = Float(value
                     .replacingOccurrences(of: "flex(", with: "")
-                    .replacingOccurrences(of: "(", with: "")
+                    .replacingOccurrences(of: ")", with: "")
                     .replacingOccurrences(of: "fr", with: "")
                 )!
             }else if(value.contains("%")){
