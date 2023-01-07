@@ -1,5 +1,84 @@
-import { View, AddChildFromBuilder, ViewBase, CssProperty, Style, Length as NSLength, ShorthandProperty, CSSType } from '@nativescript/core';
+import { View, AddChildFromBuilder, ViewBase, CssProperty, Style, Length as NSLength, ShorthandProperty, CSSType, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, CustomLayoutView, heightProperty, minHeightProperty, minWidthProperty, widthProperty } from '@nativescript/core';
 import { Display, FlexDirection, FlexWrap, Gap, Length, Position, AlignContent, AlignItems, AlignSelf, JustifyContent, JustifyItems, JustifySelf, GridAutoFlow, LengthAuto } from '.';
+import {
+  _forceStyleUpdate,
+  _getAlignContent,
+  _getAlignItems,
+  _getAlignSelf,
+  _getAspectRatio,
+  _getDisplay,
+  _getFlexBasis,
+  _getFlexDirection,
+  _getFlexGrow,
+  _getFlexShrink,
+  _getFlexWrap,
+  _getGap,
+  _getHeight,
+  _getJustifyContent,
+  _getJustifyItems,
+  _getJustifySelf,
+  _getPosition,
+  _getWidth,
+  _isDirty,
+  _markDirty,
+  _setAlignContent,
+  _setAlignItems,
+  _setAlignSelf,
+  _setAspectRatio,
+  _setBorderBottom,
+  _setBorderLeft,
+  _setBorderRight,
+  _setBorderTop,
+  _setBottom,
+  _setColumnGap,
+  _setDisplay,
+  _setFlexBasis,
+  _setFlexDirection,
+  _setFlexGrow,
+  _setFlexShrink,
+  _setFlexWrap,
+  _setGap,
+  _setGridColumnEnd,
+  _setGridColumnStart,
+  _setGridRowEnd,
+  _setGridRowStart,
+  _setHeight,
+  _setJustifyContent,
+  _setJustifyItems,
+  _setJustifySelf,
+  _setLeft,
+  _setMarginBottom,
+  _setMarginLeft,
+  _setMarginRight,
+  _setMarginTop,
+  _setMaxHeight,
+  _setMaxWidth,
+  _setMinHeight,
+  _setMinWidth,
+  _setPaddingBottom,
+  _setPaddingLeft,
+  _setPaddingRight,
+  _setPaddingTop,
+  _setPosition,
+  _setRight,
+  _setRowGap,
+  _setTop,
+  _setWidth,
+} from './helpers';
+
+export const flexGrowProperty = new CssProperty<Style, number>({
+  name: 'flexGrow',
+  cssName: 'flex-grow',
+  defaultValue: 0,
+  valueConverter: parseFloat,
+});
+
+export const flexShrinkProperty = new CssProperty<Style, number>({
+  name: 'flexShrink',
+  cssName: 'flex-shrink',
+  defaultValue: 1,
+  valueConverter: parseFloat,
+});
 
 export const displayProperty = new CssProperty<Style, Display>({
   name: 'display',
@@ -93,6 +172,28 @@ export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
 });
 
+export const gridRowGapProperty = new ShorthandProperty<Style, Gap>({
+  name: 'gridRowGap',
+  cssName: 'grid-row-gap',
+  getter: function () {
+    return this.rowGap;
+  },
+  converter(value) {
+    return [[rowGapProperty, value]];
+  },
+});
+
+export const gridColumnGapProperty = new ShorthandProperty<Style, Length>({
+  name: 'gridColumnGap',
+  cssName: 'grid-column-gap',
+  getter: function () {
+    return this.columnGap;
+  },
+  converter(value) {
+    return [[columnGapProperty, value]];
+  },
+});
+
 export const rowGapProperty = new CssProperty<Style, Length>({
   name: 'rowGap',
   cssName: 'row-gap',
@@ -147,7 +248,7 @@ export const gapProperty = new ShorthandProperty<Style, Gap>({
 export const aspectRatioProperty = new CssProperty<Style, number>({
   name: 'aspectRatio',
   cssName: 'aspect-ratio',
-  defaultValue: undefined,
+  defaultValue: Number.NaN,
 });
 
 export const alignItemsProperty = new CssProperty<Style, AlignItems>({
@@ -252,8 +353,6 @@ export const gridAreaProperty = new ShorthandProperty<Style, string>({
   },
   converter(value) {
     const properties: [CssProperty<any, any>, any][] = [];
-
-    console.log('gridArea', value);
     if (typeof value === 'string') {
       const values = value.split('/').filter((item) => item.trim().length !== 0);
 
@@ -420,6 +519,10 @@ export const gridRowProperty = new ShorthandProperty<Style, string>({
   },
 });
 
+function parseGridTemplate(value: string) {
+  // todo
+}
+
 export const gridTemplateRowsProperty = new CssProperty<Style, string>({
   name: 'gridTemplateRows',
   cssName: 'grid-template-rows',
@@ -433,49 +536,482 @@ export const gridTemplateColumnsProperty = new CssProperty<Style, string>({
 });
 
 @CSSType('TSCView')
-export class TSCViewBase extends View implements AddChildFromBuilder {
+export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder {
   android: org.nativescript.mason.masonkit.View;
   ios: UIView;
-  display: Display;
-  position: Position;
-  flexDirection: FlexDirection;
-  flexWrap: FlexWrap;
-  maxWidth: Length;
-  maxHeight: Length;
-  left: Length;
-  right: Length;
-  top: Length;
-  bottom: Length;
-  flexBasis: Length;
+
   gap: Gap;
-  rowGap: Length;
-  columnGap: Length;
-
-  aspectRatio: number;
-  alignItems: AlignItems;
-  // @ts-ignore
-  alignSelf: AlignSelf;
-  alignContent: AlignContent;
-
-  justifyItems: JustifyItems;
-  justifySelf: JustifySelf;
-  justifyContent: JustifyContent;
-
-  gridAutoRows: string;
-  gridAutoColumns: string;
-  gridAutoFlow: GridAutoFlow;
-
   gridArea: string;
-
   gridColumn: string;
-  gridColumnStart: string;
-  gridColumnEnd: string;
-
   gridRow: string;
-  gridRowStart: string;
-  gridRowEnd: string;
 
   _children: any[] = [];
+
+  forceStyleUpdate() {
+    _forceStyleUpdate(this as any);
+  }
+
+  markDirty() {
+    _markDirty(this as any);
+  }
+
+  isDirty() {
+    return _isDirty(this as any);
+  }
+
+  get display(): Display {
+    return _getDisplay(this as any);
+  }
+
+  set display(value) {
+    this.style.display = value as any;
+  }
+
+  [displayProperty.setNative](value) {
+    _setDisplay(value, this as any);
+  }
+
+  set position(value) {
+    this.style.position = value;
+  }
+
+  get position(): Position {
+    return _getPosition(this as any);
+  }
+
+  [positionProperty.setNative](value) {
+    _setPosition(value, this as any);
+  }
+
+  set flexDirection(value) {
+    this.style.flexDirection = value;
+  }
+
+  get flexDirection() {
+    return _getFlexDirection(this as any);
+  }
+
+  [flexDirectionProperty.setNative](value) {
+    _setFlexDirection(value, this as any);
+  }
+
+  set flexWrap(value) {
+    this.style.flexWrap = value as any;
+  }
+
+  [flexWrapProperty.setNative](value) {
+    _setFlexWrap(value, this as any);
+  }
+
+  get flexWrap() {
+    return _getFlexWrap(this as any);
+  }
+
+  set alignItems(value) {
+    this.style.alignItems = value as any;
+  }
+
+  get alignItems() {
+    return _getAlignItems(this as any);
+  }
+
+  [alignItemsProperty.setNative](value) {
+    _setAlignItems(value, this as any);
+  }
+
+  //@ts-ignore
+  set alignSelf(value: AlignSelf) {
+    this.style.alignSelf = value as any;
+  }
+
+  //@ts-ignore
+  get alignSelf() {
+    return _getAlignSelf(this as any);
+  }
+
+  [alignSelfProperty.setNative](value) {
+    _setAlignSelf(value, this as any);
+  }
+
+  set alignContent(value) {
+    this.style.alignContent = value as any;
+  }
+
+  [alignContentProperty.setNative](value) {
+    _setAlignContent(value, this as any);
+  }
+
+  get alignContent() {
+    return _getAlignContent(this as any);
+  }
+
+  set justifyItems(value) {
+    this.style.justifyItems = value as any;
+  }
+
+  [justifyItemsProperty.setNative](value) {
+    _setJustifyItems(value, this as any);
+  }
+
+  get justifyItems() {
+    return _getJustifyItems(this as any);
+  }
+
+  set justifySelf(value) {
+    this.style.justifySelf = value as any;
+  }
+
+  [justifySelfProperty.setNative](value) {
+    _setJustifySelf(value, this as any);
+  }
+
+  get justifySelf() {
+    return _getJustifySelf(this as any);
+  }
+
+  set justifyContent(value) {
+    this.style.justifyContent = value as any;
+  }
+
+  [justifyContentProperty.setNative](value) {
+    _setJustifyContent(value, this as any);
+  }
+
+  get justifyContent() {
+    return _getJustifyContent(this as any);
+  }
+
+  //@ts-ignore
+  set left(value) {
+    this.style.left = value;
+  }
+
+  get left() {
+    return this.style.left;
+  }
+
+  [leftProperty.setNative](value) {
+    _setLeft(value, this as any);
+  }
+
+  //@ts-ignore
+  set right(value) {
+    this.style.right = value;
+  }
+
+  get right() {
+    return this.style.right;
+  }
+
+  [rightProperty.setNative](value) {
+    _setRight(value, this as any);
+  }
+
+  //@ts-ignore
+  set top(value) {
+    this.style.top = value;
+  }
+
+  get top() {
+    return this.style.top;
+  }
+
+  [topProperty.setNative](value) {
+    _setTop(value, this as any);
+  }
+
+  //@ts-ignore
+  set bottom(value) {
+    this.style.bottom = value;
+  }
+
+  get bottom() {
+    return this.style.bottom;
+  }
+
+  [bottomProperty.setNative](value) {
+    _setBottom(value, this as any);
+  }
+
+  [marginLeftProperty.setNative](value) {
+    _setMarginLeft(value, this as any);
+  }
+
+  [marginRightProperty.setNative](value) {
+    _setMarginRight(value, this as any);
+  }
+
+  [marginTopProperty.setNative](value) {
+    _setMarginTop(value, this as any);
+  }
+
+  [marginBottomProperty.setNative](value) {
+    _setMarginBottom(value, this as any);
+  }
+
+  [borderLeftWidthProperty.setNative](value) {
+    _setBorderLeft(value, this as any);
+  }
+
+  [borderRightWidthProperty.setNative](value) {
+    _setBorderRight(value, this as any);
+  }
+
+  [borderTopWidthProperty.setNative](value) {
+    _setBorderTop(value, this as any);
+  }
+
+  [borderBottomWidthProperty.setNative](value) {
+    _setBorderBottom(value, this as any);
+  }
+
+  //@ts-ignore
+  get flexGrow() {
+    return _getFlexGrow(this as any);
+  }
+
+  set flexGrow(value) {
+    this.style.flexGrow = value;
+  }
+
+  [flexGrowProperty.setNative](value) {
+    _setFlexGrow(value, this as any);
+  }
+
+  //@ts-ignore
+  get flexShrink() {
+    return _getFlexShrink(this as any);
+  }
+
+  set flexShrink(value) {
+    this.style.flexShrink = value;
+  }
+
+  [flexShrinkProperty.setNative](value) {
+    _setFlexShrink(value, this as any);
+  }
+
+  //@ts-ignore
+  get flexBasis() {
+    return _getFlexBasis(this as any);
+  }
+
+  [flexBasisProperty.setNative](value) {
+    _setFlexBasis(value, this as any);
+  }
+
+  /* faster setter/getter
+  //@ts-ignore
+  get gap() {
+    return _getGap(this as any);
+  }
+
+  set gap(value) {
+    this.style.gap = value;
+    _setGap(value, this as any);
+  }
+
+  */
+
+  set rowGap(value) {
+    this.style.rowGap = value;
+  }
+
+  [rowGapProperty.setNative](value) {
+    _setRowGap(value, this as any);
+  }
+
+  set columnGap(value) {
+    this.style.columnGap = value;
+  }
+
+  [columnGapProperty.setNative](value) {
+    _setColumnGap(value, this as any);
+  }
+
+  get aspectRatio() {
+    return _getAspectRatio(this as any);
+  }
+
+  [aspectRatioProperty.setNative](value) {
+    _setAspectRatio(value, this as any);
+  }
+
+  [paddingLeftProperty.setNative](value) {
+    _setPaddingLeft(value, this as any);
+  }
+
+  [paddingTopProperty.setNative](value) {
+    _setPaddingTop(value, this as any);
+  }
+
+  [paddingRightProperty.setNative](value) {
+    _setPaddingRight(value, this as any);
+  }
+
+  [paddingBottomProperty.setNative](value) {
+    _setPaddingBottom(value, this as any);
+  }
+
+  //@ts-ignore
+  set minWidth(value) {
+    this.style.minWidth = value;
+  }
+
+  [minWidthProperty.setNative](value) {
+    _setMinWidth(value, this as any);
+  }
+
+  //@ts-ignore
+  set minHeight(value) {
+    this.style.minHeight = value;
+  }
+
+  [minHeightProperty.setNative](value) {
+    _setMinHeight(value, this as any);
+  }
+
+  //@ts-ignore
+  set width(value) {
+    this.style.width = value;
+  }
+
+  [widthProperty.setNative](value) {
+    _setWidth(value, this as any);
+  }
+
+  get width() {
+    return _getWidth(this as any);
+  }
+
+  //@ts-ignore
+  set height(value) {
+    this.style.height = value;
+  }
+
+  [heightProperty.setNative](value) {
+    _setHeight(value, this as any);
+  }
+
+  //@ts-ignore
+  get height() {
+    return _getHeight(this as any);
+  }
+
+  set maxWidth(value) {
+    this.style.maxWidth = value;
+  }
+
+  [maxWidthProperty.setNative](value) {
+    _setMaxWidth(value, this as any);
+  }
+
+  //@ts-ignore
+  set maxHeight(value) {
+    this.style.maxHeight = value;
+  }
+
+  [maxHeightProperty.setNative](value) {
+    _setMaxHeight(value, this as any);
+  }
+
+  //@ts-ignore
+  set gridAutoRows(value) {
+    this.style.gridAutoRows = value;
+  }
+
+  [gridAutoRowsProperty.setNative](value) {
+    console.log('gridAutoRowsProperty', value);
+  }
+
+  //@ts-ignore
+  get gridAutoRows() {
+    return this.style.gridAutoRows;
+  }
+
+  //@ts-ignore
+  set gridAutoColumns(value) {
+    this.style.gridAutoColumns = value;
+    console.log('gridAutoColumns', value);
+  }
+
+  get gridAutoColumns() {
+    return this.style.gridAutoColumns;
+  }
+
+  set gridAutoFlow(value) {
+    this.style.gridAutoFlow = value;
+  }
+
+  [gridAutoFlowProperty.setNative](value) {}
+
+  get gridAutoFlow() {
+    return this.style.gridAutoFlow;
+  }
+
+  set gridColumnStart(value) {
+    this.style.gridColumnStart = value;
+  }
+
+  [gridColumnStartProperty.setNative](value) {
+    _setGridColumnStart(value, this as any);
+  }
+
+  get gridColumnStart() {
+    return this.style.gridColumnStart;
+  }
+
+  set gridColumnEnd(value) {
+    this.style.gridColumnEnd = value;
+  }
+
+  [gridColumnEndProperty.setNative](value) {
+    _setGridColumnEnd(value, this as any);
+  }
+
+  get gridColumnEnd() {
+    return this.style.gridColumnEnd;
+  }
+
+  set gridRowStart(value) {
+    this.style.gridRowStart = value;
+  }
+
+  [gridRowStartProperty.setNative](value) {
+    _setGridRowStart(value, this as any);
+  }
+
+  get gridRowStart() {
+    return this.style.gridRowStart;
+  }
+
+  set gridRowEnd(value) {
+    this.style.gridRowEnd = value;
+  }
+
+  [gridRowEndProperty.setNative](value) {
+    _setGridRowEnd(value, this as any);
+  }
+
+  get gridRowEnd() {
+    return this.style.gridRowEnd;
+  }
+
+  set gridTemplateRows(value) {
+    this.style.gridTemplateRows = value;
+  }
+
+  [gridTemplateRowsProperty.setNative](value) {
+    console.log('gridTemplateRowsProperty', value);
+  }
+
+  set gridTemplateColumns(value) {
+    this.style.gridTemplateColumns = value;
+  }
+
+  [gridTemplateColumnsProperty.setNative](value) {
+    console.log('gridTemplateRowsProperty', value);
+  }
 
   public eachChild(callback: (child: ViewBase) => boolean) {
     this._children.forEach((child) => {
@@ -506,8 +1042,15 @@ rightProperty.register(Style);
 topProperty.register(Style);
 bottomProperty.register(Style);
 flexBasisProperty.register(Style);
+
+flexGrowProperty.register(Style);
+flexShrinkProperty.register(Style);
+
 rowGapProperty.register(Style);
 columnGapProperty.register(Style);
+
+gridRowGapProperty.register(Style);
+gridColumnGapProperty.register(Style);
 gapProperty.register(Style);
 aspectRatioProperty.register(Style);
 alignItemsProperty.register(Style);
@@ -530,3 +1073,7 @@ gridColumnEndProperty.register(Style);
 gridRowProperty.register(Style);
 gridRowStartProperty.register(Style);
 gridRowEndProperty.register(Style);
+
+gridTemplateRowsProperty.register(Style);
+
+gridTemplateColumnsProperty.register(Style);
