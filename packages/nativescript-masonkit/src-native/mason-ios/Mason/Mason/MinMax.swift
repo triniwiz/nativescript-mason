@@ -19,7 +19,7 @@ public class MinMax: NSObject, Codable {
         self.max = max
         self.cValue = CMasonMinMax(min_type: min.type, min_value: min.value, max_type: max.type, max_value: max.value)
     }
-
+    
     public static func Points(points: Float) -> MinMax {
         return MinMax(.Points(points), .Points(points))
     }
@@ -42,6 +42,54 @@ public class MinMax: NSObject, Codable {
     
     public static let Auto = MinMax(.Auto, .Auto)
     
+    public static func fromTypeValue(_ minType: Int, _ minValue: Float, _ maxType: Int, _ maxValue: Float) -> MinMax? {
+        var min: MinSizing? = nil
+        
+        switch (minType) {
+        case 0: min = MinSizing.Auto
+            break
+        case 1: min = MinSizing.MinContent
+            break
+        case 2: min = MinSizing.MaxContent
+            break
+        case 3: min = MinSizing.Percent(minValue)
+            break
+        case 4: min = MinSizing.Points(minValue)
+            break
+        default:
+            min = nil
+        }
+        
+        var max: MaxSizing? = nil
+        
+        switch (maxType) {
+        case 0: max = MaxSizing.Auto
+            break
+        case 1: max = MaxSizing.MinContent
+            break
+        case 2: max = MaxSizing.MaxContent
+            break
+        case 3: max = MaxSizing.Percent(maxValue)
+            break
+        case 4: max = MaxSizing.Points(maxValue)
+            break
+        case 5 : max = MaxSizing.Flex(maxValue)
+            break
+        case 6 : max = MaxSizing.FitContent(maxValue)
+            break
+        case 7 : max =  MaxSizing.FitContentPercent(maxValue)
+            break
+        default:
+            max = nil
+        }
+        
+        guard let min = min else{return nil}
+        guard let max = max else{return nil}
+        
+        
+        return MinMax(min, max)
+    }
+    
     
     
     var minType: Int32{
@@ -49,27 +97,27 @@ public class MinMax: NSObject, Codable {
             return min.type
         }
     }
-
+    
     var minValue: Float{
         get {
-          return min.value
+            return min.value
         }
     }
-      
-
+    
+    
     var maxType: Int32{
         get {
-          return max.type
+            return max.type
         }
     }
-      
-
+    
+    
     var maxValue: Float{
         get {
-          return max.value
+            return max.value
         }
     }
-      
+    
     
     
     public var cssValue: String {
@@ -78,7 +126,7 @@ public class MinMax: NSObject, Codable {
             case (.Auto, .Auto):
                 return "auto"
             case (.MinContent, .MinContent):
-               return "min-content"
+                return "min-content"
             case (.MaxContent, .MaxContent):
                 return "max-content"
             case (.Points, .Points):
@@ -141,11 +189,11 @@ public class MinMax: NSObject, Codable {
             return .MaxContent
         default:
             if(value.starts(with: "fit-content(")){
-            let fitContent = value
+                let fitContent = value
                     .replacingOccurrences(of: "fit-content(", with: "")
-                    .replacingOccurrences(of: "(", with: "")
+                    .replacingOccurrences(of: ")", with: "")
                     .trimmingCharacters(in: .whitespaces)
-            
+                
                 if(value.contains("%")){
                     return .FitContentPercent(Float(fitContent.replacingOccurrences(of: "%", with: ""))!)
                 }else if(value.contains("px")){
@@ -156,7 +204,7 @@ public class MinMax: NSObject, Codable {
             }else if(value.starts(with: "flex(")){
                 return .Flex(Float(value
                     .replacingOccurrences(of: "flex(", with: "")
-                    .replacingOccurrences(of: "(", with: "")
+                    .replacingOccurrences(of: ")", with: "")
                     .replacingOccurrences(of: "fr", with: "")
                     .trimmingCharacters(in: .whitespaces))!
                 )
@@ -193,11 +241,11 @@ public class MinMax: NSObject, Codable {
             break
         default:
             if(value.starts(with: "fit-content(")){
-            let fitContent = value
+                let fitContent = value
                     .replacingOccurrences(of: "fit-content(", with: "")
-                    .replacingOccurrences(of: "(", with: "")
+                    .replacingOccurrences(of: ")", with: "")
                     .trimmingCharacters(in: .whitespaces)
-            
+                
                 if(value.contains("%")){
                     self.min.internalType = .Auto
                     self.max.internalType = .FitContentPercent
@@ -214,9 +262,27 @@ public class MinMax: NSObject, Codable {
                 self.max.internalType = .Flex
                 self.max.value = Float(value
                     .replacingOccurrences(of: "flex(", with: "")
-                    .replacingOccurrences(of: "(", with: "")
+                    .replacingOccurrences(of: ")", with: "")
                     .replacingOccurrences(of: "fr", with: "")
                     .trimmingCharacters(in: .whitespaces))!
+            }else if(value.starts(with: "minmax(")) {
+                let split = value
+                    .replacingOccurrences(of: "minmax(", with: "")
+                    .replacingOccurrences(of: ")", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                    .split(separator: ",")
+                
+                let min = MinMax.decodeMinValue(value: String(split.first!))!
+                
+                let max = MinMax.decodeMaxValue(value: String(split.last!))!
+                
+                self.min.internalType = min.internalType
+                self.min.value = min.value
+                
+                self.max.internalType = max.internalType
+                self.max.value = max.value
+                
+                
             }else if(value.contains("%")){
                 
                 let value = Float(value.replacingOccurrences(of: "%", with: ""))!
@@ -233,24 +299,6 @@ public class MinMax: NSObject, Codable {
                 self.min.value = value
                 self.max.internalType = .Points
                 self.max.value = value
-                
-            }else if(value.starts(with: "minmax(")) {
-               let split = value
-                    .replacingOccurrences(of: "minmax(", with: "")
-                    .replacingOccurrences(of: "(", with: "")
-                    .trimmingCharacters(in: .whitespaces)
-                    .split(separator: ",")
-                
-                let min = MinMax.decodeMinValue(value: String(split.first!))!
-                
-                let max = MinMax.decodeMaxValue(value: String(split.last!))!
-                
-                self.min.internalType = min.internalType
-                self.min.value = min.value
-                
-                self.max.internalType = max.internalType
-                self.max.value = max.value
-                
                 
             }
             
