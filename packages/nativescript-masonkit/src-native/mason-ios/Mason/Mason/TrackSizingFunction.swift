@@ -38,7 +38,19 @@ public class TrackSizingFunction: NSObject {
     
     
     public static func Single(_ value: MinMax) -> TrackSizingFunction {
-        return TrackSizingFunction(isRepeating: false, singleValue: value)
+        let ret = TrackSizingFunction(isRepeating: false, singleValue: value)
+        
+        let tracking = UnsafeMutablePointer<CMasonTrackSizingFunction>.allocate(capacity: 1)
+        
+        tracking.pointee.tag = CMasonTrackSizingFunction_Tag(0)
+        
+        print(ret.singleValue!.cValue)
+        
+        tracking.pointee.single = ret.singleValue!.cValue
+        
+        ret.cValue = tracking
+        
+        return ret
     }
     
     var minMaxBuffer: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>? = nil
@@ -54,16 +66,14 @@ public class TrackSizingFunction: NSObject {
     public static func AutoRepeat(_ gridTrackRepetition: GridTrackRepetition, _ value: Array<MinMax>) -> TrackSizingFunction {
         let ret = TrackSizingFunction(isRepeating: true, singleValue: nil, gridTrackRepetition: gridTrackRepetition, repeatValue: value)
         
-      
-        let minMax = UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>.allocate(capacity: MemoryLayout<CMasonNonRepeatedTrackSizingFunctionArray>.size)
+        let minMax = UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>.allocate(capacity: 1)
         
         let minMaxValues = UnsafeMutableBufferPointer<CMasonMinMax>.allocate(capacity: value.count)
         
         let _ = minMaxValues.initialize(from: value.map({ value in
             value.cValue
         }))
-        
-        
+                
         ret.minMaxBufferValues = minMaxValues
         
         let minMaxArray = CMasonNonRepeatedTrackSizingFunctionArray(array: minMaxValues.baseAddress, length: UInt(value.count))
@@ -72,7 +82,7 @@ public class TrackSizingFunction: NSObject {
         
         ret.minMaxBuffer = minMax
         
-        let tracking = UnsafeMutablePointer<CMasonTrackSizingFunction>.allocate(capacity: MemoryLayout<CMasonTrackSizingFunction>.size)
+        let tracking = UnsafeMutablePointer<CMasonTrackSizingFunction>.allocate(capacity: 1)
         
         var trackingValue = CMasonTrackSizingFunction()
         
