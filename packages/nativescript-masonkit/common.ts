@@ -21,6 +21,7 @@ import {
   _getWidth,
   _isDirty,
   _markDirty,
+  _parseGridTemplates,
   _setAlignContent,
   _setAlignItems,
   _setAlignSelf,
@@ -38,10 +39,14 @@ import {
   _setFlexShrink,
   _setFlexWrap,
   _setGap,
+  _setGridAutoColumns,
+  _setGridAutoRows,
   _setGridColumnEnd,
   _setGridColumnStart,
   _setGridRowEnd,
   _setGridRowStart,
+  _setGridTemplateColumns,
+  _setGridTemplateRows,
   _setHeight,
   _setJustifyContent,
   _setJustifyItems,
@@ -519,10 +524,6 @@ export const gridRowProperty = new ShorthandProperty<Style, string>({
   },
 });
 
-function parseGridTemplate(value: string) {
-  // todo
-}
-
 export const gridTemplateRowsProperty = new CssProperty<Style, string>({
   name: 'gridTemplateRows',
   cssName: 'grid-template-rows',
@@ -921,7 +922,7 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   }
 
   [gridAutoRowsProperty.setNative](value) {
-    console.log('gridAutoRowsProperty', value);
+    _setGridAutoRows(value, this as any);
   }
 
   //@ts-ignore
@@ -932,7 +933,10 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   //@ts-ignore
   set gridAutoColumns(value) {
     this.style.gridAutoColumns = value;
-    console.log('gridAutoColumns', value);
+  }
+
+  [gridAutoColumnsProperty.setNative](value) {
+    _setGridAutoColumns(value, this as any);
   }
 
   get gridAutoColumns() {
@@ -1002,7 +1006,10 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   }
 
   [gridTemplateRowsProperty.setNative](value) {
-    console.log('gridTemplateRowsProperty', value);
+    const templates = _parseGridTemplates(value);
+    if (templates) {
+      _setGridTemplateRows(templates, this as any);
+    }
   }
 
   set gridTemplateColumns(value) {
@@ -1010,7 +1017,10 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   }
 
   [gridTemplateColumnsProperty.setNative](value) {
-    console.log('gridTemplateRowsProperty', value);
+    const templates = _parseGridTemplates(value);
+    if (templates) {
+      _setGridTemplateColumns(templates, this as any);
+    }
   }
 
   public eachChild(callback: (child: ViewBase) => boolean) {
