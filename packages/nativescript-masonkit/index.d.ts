@@ -70,5 +70,8 @@ declare module '@nativescript/core/ui/styling/style' {
     gridRow: string;
     gridRowStart: string;
     gridRowEnd: string;
+
+    gridTemplateRows: string;
+    gridTemplateColumns: string;
   }
 }
