@@ -1,7 +1,9 @@
 declare const __non_webpack_require__, JSIModule;
 
-import { Utils } from '@nativescript/core';
+import { Length, Utils } from '@nativescript/core';
 import { TSCViewBase } from './common';
+
+import { AlignSelf as AlignSelfType } from '.';
 
 const enum GridPlacementCompatType {
   Auto = 0,
@@ -435,6 +437,13 @@ export function _toLengthPercentage(value): { value: number; type: 'points' | 'p
     return value;
   }
 
+  if (typeof value === 'string') {
+    const parsed = Length.parse(value);
+    if (parsed) {
+      value = parsed;
+    }
+  }
+
   const typeOf = typeof value;
   if (typeOf === 'object') {
     switch (value?.unit) {
@@ -842,6 +851,53 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
   }
 }
 
+export function _getFlexDirection(instance: TSCView) {
+  if (instance._hasNativeView) {
+    if (JSIEnabled) {
+      const value = global.__Mason_getFlexDirection(instance._masonStylePtr);
+      switch (value) {
+        case FlexDirection.Row:
+          return 'row';
+        case FlexDirection.Column:
+          return 'column';
+        case FlexDirection.RowReverse:
+          return 'row-reverse';
+        case FlexDirection.ColumnReverse:
+          return 'column-reverse';
+      }
+    } else {
+      if (global.isAndroid) {
+        const value = instance.android.getFlexDirection();
+        switch (value) {
+          case org.nativescript.mason.masonkit.FlexDirection.Row:
+            return 'row';
+          case org.nativescript.mason.masonkit.FlexDirection.Column:
+            return 'column';
+          case org.nativescript.mason.masonkit.FlexDirection.RowReverse:
+            return 'row-reverse';
+          case org.nativescript.mason.masonkit.FlexDirection.ColumnReverse:
+            return 'column-reverse';
+        }
+      }
+
+      if (global.isIOS) {
+        const value = instance.ios.flexDirection as any;
+        switch (value) {
+          case FlexDirection.Row:
+            return 'row';
+          case FlexDirection.Column:
+            return 'column';
+          case FlexDirection.RowReverse:
+            return 'row-reverse';
+          case FlexDirection.ColumnReverse:
+            return 'column-reverse';
+        }
+      }
+    }
+  }
+  return instance.style.flexDirection;
+}
+
 export function _getPosition(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.position;
@@ -1231,7 +1287,7 @@ export function _setAlignSelf(value, instance: TSCView, initial = false) {
   }
 }
 
-export function _getAlignSelf(instance: TSCView) {
+export function _getAlignSelf(instance: TSCView): AlignSelfType {
   if (instance._hasNativeView) {
     if (JSIEnabled) {
       const value = global.__Mason_getAlignSelf(instance._masonStylePtr);
@@ -1287,7 +1343,7 @@ export function _getAlignSelf(instance: TSCView) {
       }
     }
   }
-  return instance.style.alignSelf;
+  return instance.style.alignSelf as any;
 }
 
 export function _setAlignContent(value, instance: TSCView, initial = false) {
@@ -2434,7 +2490,11 @@ export function _setAspectRatio(value, instance: TSCView, initial = false) {
     global.__Mason_setAspectRatio(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
   } else {
     if (global.isAndroid) {
-      instance.android.setAspectRatio(value);
+      if (Number.isNaN(value)) {
+        instance.android.setAspectRatio(null);
+      } else {
+        instance.android.setAspectRatio(value);
+      }
     }
 
     if (global.isIOS) {
@@ -2640,6 +2700,55 @@ export function _setGridRowEnd(value, instance: TSCView, initial = false) {
 
     if (global.isIOS) {
       instance.ios.gridRowEndCompat = val.native_value;
+    }
+  }
+}
+
+export function _setRowGap(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  const val = _toLengthPercentage(value);
+
+  if (val.value === undefined || val.type === undefined) {
+    return;
+  }
+
+  if (JSIEnabled) {
+    global.__Mason_setRowGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      instance.android.setGapRow(val.value, val.native_type);
+    }
+
+    if (global.isIOS) {
+      instance.ios.setRowGap(val.value, val.native_type);
+    }
+  }
+}
+
+export function _setColumnGap(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  const val = _toLengthPercentage(value);
+
+  if (val.value === undefined || val.type === undefined) {
+    return;
+  }
+
+  if (JSIEnabled) {
+    console.log(val.value, val.native_type);
+    global.__Mason_setColumnGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      instance.android.setGapColumn(val.value, val.native_type);
+    }
+
+    if (global.isIOS) {
+      instance.ios.setColumnGap(val.value, val.native_type);
     }
   }
 }
