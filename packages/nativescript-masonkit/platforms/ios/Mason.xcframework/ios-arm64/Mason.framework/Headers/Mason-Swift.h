@@ -804,6 +804,7 @@ SWIFT_CLASS_NAMED("MinMax")
 + (MinMax * _Nonnull)FitContentPercentWithFit:(float)fit SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinMax * _Nonnull Auto;)
 + (MinMax * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
++ (MinMax * _Nullable)fromTypeValue:(NSInteger)minType :(float)minValue :(NSInteger)maxType :(float)maxValue SWIFT_WARN_UNUSED_RESULT;
 @property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 @property (nonatomic, readonly, copy) NSString * _Nullable jsonValue;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;

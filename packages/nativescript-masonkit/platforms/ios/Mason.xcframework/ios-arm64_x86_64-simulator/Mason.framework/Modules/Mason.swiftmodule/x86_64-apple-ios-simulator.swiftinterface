@@ -27,6 +27,7 @@ public struct Line<T> {
   @objc public static func FitContent(fit: Swift.Float) -> Mason.MinMax
   @objc public static func FitContentPercent(fit: Swift.Float) -> Mason.MinMax
   @objc public static let Auto: Mason.MinMax
+  @objc public static func fromTypeValue(_ minType: Swift.Int, _ minValue: Swift.Float, _ maxType: Swift.Int, _ maxValue: Swift.Float) -> Mason.MinMax?
   @objc public var cssValue: Swift.String {
     @objc get
   }

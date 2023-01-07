@@ -110,8 +110,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "917"
-            endingLineNumber = "917"
+            startingLineNumber = "934"
+            endingLineNumber = "934"
             landmarkName = "measureFunction(_:_:_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -126,8 +126,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "853"
-            endingLineNumber = "853"
+            startingLineNumber = "870"
+            endingLineNumber = "870"
             landmarkName = "attachNodesFromView(_:)"
             landmarkType = "7">
             <Locations>
@@ -174,8 +174,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "807"
-            endingLineNumber = "807"
+            startingLineNumber = "824"
+            endingLineNumber = "824"
             landmarkName = "isLeaf"
             landmarkType = "24">
             <Locations>
@@ -222,8 +222,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "831"
-            endingLineNumber = "831"
+            startingLineNumber = "848"
+            endingLineNumber = "848"
             landmarkName = "attachNodesFromView(_:)"
             landmarkType = "7">
             <Locations>
@@ -270,8 +270,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "803"
-            endingLineNumber = "803"
+            startingLineNumber = "820"
+            endingLineNumber = "820"
             landmarkName = "isLeaf"
             landmarkType = "24">
             <Locations>
@@ -333,8 +333,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "804"
-            endingLineNumber = "804"
+            startingLineNumber = "821"
+            endingLineNumber = "821"
             landmarkName = "isLeaf"
             landmarkType = "24">
             <Locations>
@@ -381,8 +381,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "855"
-            endingLineNumber = "855"
+            startingLineNumber = "872"
+            endingLineNumber = "872"
             landmarkName = "attachNodesFromView(_:)"
             landmarkType = "7">
             <Locations>
@@ -444,8 +444,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "858"
-            endingLineNumber = "858"
+            startingLineNumber = "875"
+            endingLineNumber = "875"
             landmarkName = "attachNodesFromView(_:)"
             landmarkType = "7">
             <Locations>
@@ -507,8 +507,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "762"
-            endingLineNumber = "762"
+            startingLineNumber = "779"
+            endingLineNumber = "779"
             landmarkName = "removeAllChildren()"
             landmarkType = "7">
          </BreakpointContent>
@@ -571,8 +571,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "966"
-            endingLineNumber = "966"
+            startingLineNumber = "983"
+            endingLineNumber = "983"
             landmarkName = "measureFunction(_:_:_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -587,8 +587,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "986"
-            endingLineNumber = "986"
+            startingLineNumber = "1003"
+            endingLineNumber = "1003"
             landmarkName = "measureFunction(_:_:_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -603,8 +603,8 @@
             filePath = "Mason/MasonNode.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "988"
-            endingLineNumber = "988"
+            startingLineNumber = "1005"
+            endingLineNumber = "1005"
             landmarkName = "measureFunction(_:_:_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -655,6 +655,22 @@
             endingLineNumber = "17"
             landmarkName = "mason"
             landmarkType = "24">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "B2DFF125-6D13-4A70-A10A-7CA250BD57E5"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Mason/MasonNode.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "185"
+            endingLineNumber = "185"
+            landmarkName = "updateNodeStyle()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
