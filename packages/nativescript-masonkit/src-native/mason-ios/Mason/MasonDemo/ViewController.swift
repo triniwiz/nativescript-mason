@@ -143,7 +143,18 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             mason.style.justifyContent = .Start
             mason.style.display = .Flex
             
-            
+            // TODO fix
+            mason.style.gridTemplateColumns = [
+//                TrackSizingFunction.Single(MinMax.fromTypeValue(0, 0, 5, 1)!),
+//                TrackSizingFunction.Single(MinMax.fromTypeValue(0, 0, 5, 1)!),
+//                TrackSizingFunction.Single(MinMax.fromTypeValue(0, 0, 5, 1)!)
+                
+//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!]),
+//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!]),
+//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!]),
+//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!]),
+//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!])
+            ]
             mason.style.size = MasonSize(MasonDimension.Points(Float(sv.bounds.size.width) * scale), MasonDimension.Points(Float(sv.bounds.size.height) * scale))
             
         }
