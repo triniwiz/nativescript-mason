@@ -16,7 +16,7 @@
     </FlexboxLayout>
     -->
 
-  <ui:TSCView class="grid-example">
+  <ui:TSCView class="grid-example" id="root">
     <ui:TSCView class="a" backgroundColor="red">
       <Label text="A"/>
     </ui:TSCView>
