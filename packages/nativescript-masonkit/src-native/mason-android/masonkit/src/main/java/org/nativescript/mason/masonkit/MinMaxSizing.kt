@@ -9,6 +9,7 @@ sealed class MinSizing {
   object MaxContent : MinSizing()
 
   companion object {
+    @JvmStatic
     fun fromTypeValue(type: Int, value: Float): MinSizing? {
       return when (type) {
         0 -> Auto
@@ -51,6 +52,7 @@ sealed class MaxSizing {
   object MaxContent : MaxSizing()
 
   companion object {
+    @JvmStatic
     fun fromTypeValue(type: Int, value: Float): MaxSizing? {
       return when (type) {
         0 -> Auto

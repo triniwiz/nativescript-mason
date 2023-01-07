@@ -23,6 +23,7 @@ sealed class MinMax(
   ) : MinMax(minVal, maxVal)
 
   companion object {
+    @JvmStatic
     fun fromTypeValue(minType: Int, minValue: Float, maxType: Int, maxValue: Float): MinMax? {
       val min = when (minType) {
         0 -> MinSizing.Auto

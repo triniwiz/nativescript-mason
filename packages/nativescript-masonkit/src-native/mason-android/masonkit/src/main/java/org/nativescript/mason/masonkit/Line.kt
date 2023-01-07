@@ -5,6 +5,7 @@ data class Line<T>(
   val end: T,
 ){
   companion object {
+    @JvmStatic
     fun fromStartAndEndValues(
       startType: Int,
       startValue: Short,

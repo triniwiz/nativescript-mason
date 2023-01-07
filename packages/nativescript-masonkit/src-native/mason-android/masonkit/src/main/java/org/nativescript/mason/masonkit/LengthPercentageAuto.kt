@@ -10,6 +10,7 @@ sealed class LengthPercentageAuto {
 
 
   companion object {
+    @JvmStatic
     fun fromTypeValue(type: Int, value: Float): LengthPercentageAuto? {
       return when (type) {
         0 -> Auto
