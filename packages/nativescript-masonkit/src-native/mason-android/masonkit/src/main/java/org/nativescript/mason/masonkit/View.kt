@@ -1544,11 +1544,19 @@ class View @JvmOverloads constructor(
   }
 
   fun setGapRow(value: Float, type: Int) {
+    setRowGap(value, type)
+  }
+
+  fun setRowGap(value: Float, type: Int) {
     style.setGapRow(value, type)
     checkAndUpdateStyle()
   }
 
   fun setGapColumn(value: Float, type: Int) {
+    setColumnGap(value, type)
+  }
+
+  fun setColumnGap(value: Float, type: Int) {
     style.setGapColumn(value, type)
     checkAndUpdateStyle()
   }
