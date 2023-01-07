@@ -699,6 +699,23 @@ pub(crate) mod ffi {
             height_type: CMasonLengthPercentageType,
         );
 
+
+        fn mason_style_set_row_gap(
+            style: i64,
+            value: f32,
+            value_type: CMasonLengthPercentageType,
+        );
+
+        fn mason_style_get_row_gap(style: i64) -> CMasonLengthPercentage;
+
+        fn mason_style_set_column_gap(
+            style: i64,
+            value: f32,
+            value_type: CMasonLengthPercentageType,
+        );
+
+        fn mason_style_get_column_gap(style: i64) -> CMasonLengthPercentage;
+
         fn mason_style_set_aspect_ratio(style: i64, ratio: f32);
 
         fn mason_style_get_aspect_ratio(style: i64) -> f32;
@@ -1709,6 +1726,32 @@ fn mason_style_set_gap(
     let width = CMasonLengthPercentage::new(width_value, width_type);
     let height = CMasonLengthPercentage::new(height_value, height_type);
     mason_core::ffi::style_set_gap(style as _, width.into(), height.into())
+}
+
+fn mason_style_set_row_gap(
+    style: i64,
+    value: f32,
+    value_type: CMasonLengthPercentageType,
+) {
+    let width = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_row_gap(style as _, width.into())
+}
+
+fn mason_style_get_row_gap(style: i64) -> CMasonLengthPercentage {
+    mason_core::ffi::style_get_row_gap(style as  _).into()
+}
+
+fn mason_style_set_column_gap(
+    style: i64,
+    value: f32,
+    value_type: CMasonLengthPercentageType,
+) {
+    let height = CMasonLengthPercentage::new(value, value_type);
+    mason_core::ffi::style_set_column_gap(style as _, height.into())
+}
+
+fn mason_style_get_column_gap(style: i64) -> CMasonLengthPercentage {
+    mason_core::ffi::style_get_column_gap(style as  _).into()
 }
 
 fn mason_style_set_aspect_ratio(style: i64, ratio: f32) {

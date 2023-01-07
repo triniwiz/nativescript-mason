@@ -1619,6 +1619,77 @@ void install(Runtime &jsiRuntime) {
         
     });
     
+    CREATE_FUNC("__Mason_getRowGap", 1, [](Runtime &runtime, const Value &thisValue,
+                                        const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto ret = [MasonReexports style_get_row_gap:style];
+        
+        return lengthPercentageToJS(runtime, ret);
+        
+    });
+    
+    CREATE_FUNC("__Mason_setRowGap", 6, [](Runtime &runtime, const Value &thisValue,
+                                        const Value *arguments, size_t count) -> Value {
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        
+        auto update = arguments[5].asBool();
+        
+        auto row_value = (float) arguments[3].asNumber();
+        auto row_type = (int) arguments[4].asNumber();
+        
+        [MasonReexports style_set_row_gap:style :row_value :jsToLengthPercentageType(row_type)];
+        
+        if (update) {
+            [MasonReexports node_set_style:mason :node :style];
+        }
+        
+        return Value::undefined();
+        
+    });
+    
+    
+    CREATE_FUNC("__Mason_getColumnGap", 1, [](Runtime &runtime, const Value &thisValue,
+                                        const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto ret = [MasonReexports style_get_column_gap:style];
+        
+        return lengthPercentageToJS(runtime, ret);
+        
+    });
+    
+    CREATE_FUNC("__Mason_setColumnGap", 6, [](Runtime &runtime, const Value &thisValue,
+                                        const Value *arguments, size_t count) -> Value {
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        
+        auto update = arguments[5].asBool();
+        
+        auto row_value = (float) arguments[3].asNumber();
+        auto row_type = (int) arguments[4].asNumber();
+        
+        [MasonReexports style_set_column_gap:style :row_value :jsToLengthPercentageType(row_type)];
+        
+        if (update) {
+            [MasonReexports node_set_style:mason :node :style];
+        }
+        
+        return Value::undefined();
+        
+    });
+    
     
     CREATE_FUNC("__Mason_getAspectRatio", 1, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
