@@ -450,15 +450,15 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_isDirty", 2, [](Runtime &runtime, const Value &thisValue,
                                          const Value *arguments, size_t count) -> Value {
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto value = mason_node_dirty(mason, node);
+                    auto value = mason_node_dirty(mason, node);
 
-        return Value(value);
+                    return Value(value);
 
-    }
+                }
     );
 
 
@@ -479,13 +479,13 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getDisplay", 1, [](Runtime &runtime, const Value &thisValue,
                                             const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto value = mason_style_get_display(style);
+                    auto value = mason_style_get_display(style);
 
-        return Value(value);
+                    return Value(value);
 
-    }
+                }
     );
 
 
@@ -493,24 +493,24 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
                                             const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[4].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[4].asBool();
 
-        auto display = (int) arguments[3].asNumber();
+                    auto display = (int) arguments[3].asNumber();
 
 
-        mason_style_set_display(style, display);
+                    mason_style_set_display(style, display);
 
-        if (update) {
-            mason_node_update_and_set_style(mason, node, style);
-        }
+                    if (update) {
+                        mason_node_update_and_set_style(mason, node, style);
+                    }
 
-        return Value::undefined();
-    }
+                    return Value::undefined();
+                }
 
     );
 
@@ -1391,13 +1391,13 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getFlexGrow", 1, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto ret = (double) mason_style_get_flex_grow(style);
+                    auto ret = (double) mason_style_get_flex_grow(style);
 
-        return Value(ret);
+                    return Value(ret);
 
-    }
+                }
 
     );
 
@@ -1429,13 +1429,13 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getFlexShrink", 1, [](Runtime &runtime, const Value &thisValue,
                                                const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto ret = (double) mason_style_get_flex_shrink(style);
+                    auto ret = (double) mason_style_get_flex_shrink(style);
 
-        return Value(ret);
+                    return Value(ret);
 
-    }
+                }
 
     );
 
@@ -1541,17 +1541,88 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
 
     });
 
+    CREATE_FUNC("__Mason_getRowGap", 1, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+
+        auto style = getPointerValue(arguments[0], runtime);
+
+        auto ret = mason_style_get_row_gap(style);
+
+        return lengthPercentageToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setRowGap", 6, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
+
+        auto update = arguments[5].asBool();
+
+        auto row_value = (float) arguments[3].asNumber();
+        auto row_type = (int) arguments[4].asNumber();
+
+        mason_style_set_row_gap(style, row_value, jsToLengthPercentageType(row_type));
+
+        if (update) {
+            mason_node_update_and_set_style(mason, node, style);
+        }
+
+        return Value::undefined();
+
+    });
+
+
+    CREATE_FUNC("__Mason_getColumnGap", 1, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto style = getPointerValue(arguments[0], runtime);
+
+        auto ret = mason_style_get_column_gap(style);
+
+        return lengthPercentageToJS(runtime, ret);
+
+    });
+
+    CREATE_FUNC("__Mason_setColumnGap", 6, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+
+        auto mason = getPointerValue(arguments[0], runtime);
+
+        auto node = getPointerValue(arguments[1], runtime);
+
+        auto style = getPointerValue(arguments[2], runtime);
+
+        auto update = arguments[5].asBool();
+
+        auto row_value = (float) arguments[3].asNumber();
+        auto row_type = (int) arguments[4].asNumber();
+
+        mason_style_set_column_gap(style, row_value, jsToLengthPercentageType(row_type));
+
+        if (update) {
+            mason_node_update_and_set_style(mason, node, style);
+        }
+
+        return Value::undefined();
+
+    });
+
 
     CREATE_FUNC("__Mason_getAspectRatio", 1, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto ret = (double) mason_style_get_aspect_ratio(style);
+                    auto ret = (double) mason_style_get_aspect_ratio(style);
 
-        return Value(ret);
+                    return Value(ret);
 
-    }
+                }
 
     );
 
@@ -1583,13 +1654,13 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getFlexDirection", 1, [](Runtime &runtime, const Value &thisValue,
                                                   const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto value = mason_style_get_flex_direction(style);
+                    auto value = mason_style_get_flex_direction(style);
 
-        return Value(value);
+                    return Value(value);
 
-    }
+                }
 
     );
 
@@ -1666,26 +1737,26 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_setMinHeight", 6, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[5].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[5].asBool();
 
-        auto value = (float) arguments[3].asNumber();
-        auto value_type = (int) arguments[4].asNumber();
+                    auto value = (float) arguments[3].asNumber();
+                    auto value_type = (int) arguments[4].asNumber();
 
 
-        mason_style_set_min_height(style, value, jsToDimensionType(value_type));
+                    mason_style_set_min_height(style, value, jsToDimensionType(value_type));
 
-        if (update) {
-            mason_node_update_and_set_style(mason, node, style);
-        }
+                    if (update) {
+                        mason_node_update_and_set_style(mason, node, style);
+                    }
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
@@ -1738,26 +1809,26 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_setHeight", 6, [](Runtime &runtime, const Value &thisValue,
                                            const Value *arguments, size_t count) -> Value {
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[5].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[5].asBool();
 
-        auto value = (float) arguments[3].asNumber();
-        auto value_type = (int) arguments[4].asNumber();
+                    auto value = (float) arguments[3].asNumber();
+                    auto value_type = (int) arguments[4].asNumber();
 
 
-        mason_style_set_height(style, value, jsToDimensionType(value_type));
+                    mason_style_set_height(style, value, jsToDimensionType(value_type));
 
-        if (update) {
-            mason_node_update_and_set_style(mason, node, style);
-        }
+                    if (update) {
+                        mason_node_update_and_set_style(mason, node, style);
+                    }
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
@@ -1809,26 +1880,26 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_setMaxHeight", 6, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[5].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[5].asBool();
 
-        auto value = (float) arguments[3].asNumber();
-        auto value_type = (int) arguments[4].asNumber();
+                    auto value = (float) arguments[3].asNumber();
+                    auto value_type = (int) arguments[4].asNumber();
 
 
-        mason_style_set_max_height(style, value, jsToDimensionType(value_type));
+                    mason_style_set_max_height(style, value, jsToDimensionType(value_type));
 
-        if (update) {
-            mason_node_update_and_set_style(mason, node, style);
-        }
+                    if (update) {
+                        mason_node_update_and_set_style(mason, node, style);
+                    }
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
@@ -1849,27 +1920,27 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_setAutoRows", 5, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[4].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[4].asBool();
 
-        auto array = arguments[3].asObject(runtime).getArray(runtime);
+                    auto array = arguments[3].asObject(runtime).getArray(runtime);
 
-        auto value = toNonRepeatedTrackSizingFunction(runtime, array);
+                    auto value = toNonRepeatedTrackSizingFunction(runtime, array);
 
 
-        mason_style_set_grid_auto_rows(style, std::move(value));
+                    mason_style_set_grid_auto_rows(style, std::move(value));
 
-        if (update) {
-            mason_node_update_and_set_style(mason, node, style);
-        }
+                    if (update) {
+                        mason_node_update_and_set_style(mason, node, style);
+                    }
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
@@ -1891,27 +1962,27 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_setAutoColumns", 5, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[4].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[4].asBool();
 
-        auto array = arguments[3].asObject(runtime).getArray(runtime);
+                    auto array = arguments[3].asObject(runtime).getArray(runtime);
 
-        auto value = toNonRepeatedTrackSizingFunction(runtime, array);
+                    auto value = toNonRepeatedTrackSizingFunction(runtime, array);
 
 
-        mason_style_set_grid_auto_columns(style, std::move(value));
+                    mason_style_set_grid_auto_columns(style, std::move(value));
 
-        if (update) {
-            mason_node_update_and_set_style(mason, node, style);
-        }
+                    if (update) {
+                        mason_node_update_and_set_style(mason, node, style);
+                    }
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
@@ -1919,13 +1990,13 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getAutoFlow", 1, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto value = mason_style_get_grid_auto_flow(style);
+                    auto value = mason_style_get_grid_auto_flow(style);
 
-        return Value(value);
+                    return Value(value);
 
-    }
+                }
 
     );
 
@@ -1957,99 +2028,99 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getArea", 1, [](Runtime &runtime, const Value &thisValue,
                                          const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto row_start = mason_style_get_grid_row_start(style);
-        auto row_end = mason_style_get_grid_row_start(style);
+                    auto row_start = mason_style_get_grid_row_start(style);
+                    auto row_end = mason_style_get_grid_row_start(style);
 
-        auto col_start = mason_style_get_grid_column_start(style);
-        auto col_end = mason_style_get_grid_column_start(style);
+                    auto col_start = mason_style_get_grid_column_start(style);
+                    auto col_end = mason_style_get_grid_column_start(style);
 
-        auto ret = facebook::jsi::Object(runtime);
-        ret.setProperty(runtime, "col_start_type", (int) col_start.value_type);
-        ret.setProperty(runtime, "col_start_value", (int) col_start.value);
-        ret.setProperty(runtime, "col_end_type", (int) col_end.value_type);
-        ret.setProperty(runtime, "col_end_value", (int) col_end.value);
+                    auto ret = facebook::jsi::Object(runtime);
+                    ret.setProperty(runtime, "col_start_type", (int) col_start.value_type);
+                    ret.setProperty(runtime, "col_start_value", (int) col_start.value);
+                    ret.setProperty(runtime, "col_end_type", (int) col_end.value_type);
+                    ret.setProperty(runtime, "col_end_value", (int) col_end.value);
 
-        ret.setProperty(runtime, "row_start_type", (int) row_start.value_type);
-        ret.setProperty(runtime, "row_start_value", (int) row_start.value);
-        ret.setProperty(runtime, "row_end_type", (int) row_end.value_type);
-        ret.setProperty(runtime, "row_end_value", (int) row_end.value);
+                    ret.setProperty(runtime, "row_start_type", (int) row_start.value_type);
+                    ret.setProperty(runtime, "row_start_value", (int) row_start.value);
+                    ret.setProperty(runtime, "row_end_type", (int) row_end.value_type);
+                    ret.setProperty(runtime, "row_end_value", (int) row_end.value);
 
 
-        std::stringstream ss;
-        if (col_start.value == col_end.value && col_start.value_type == col_end.value_type) {
-            if (col_start.value_type == CMasonGridPlacementType::Auto) {
-                ss << "auto";
-            } else {
-                ss << col_start.value;
-                if (col_start.value_type == CMasonGridPlacementType::Span) {
-                    ss << " span";
+                    std::stringstream ss;
+                    if (col_start.value == col_end.value && col_start.value_type == col_end.value_type) {
+                        if (col_start.value_type == CMasonGridPlacementType::Auto) {
+                            ss << "auto";
+                        } else {
+                            ss << col_start.value;
+                            if (col_start.value_type == CMasonGridPlacementType::Span) {
+                                ss << " span";
+                            }
+                        }
+                    } else {
+                        if (col_start.value_type == CMasonGridPlacementType::Auto) {
+                            ss << "auto";
+                        } else {
+                            ss << col_start.value;
+                            if (col_start.value_type == CMasonGridPlacementType::Span) {
+                                ss << " span";
+                            }
+                        }
+
+                        ss << " / ";
+
+                        if (col_end.value_type == CMasonGridPlacementType::Auto) {
+                            ss << "auto";
+                        } else {
+                            ss << col_end.value;
+                            if (col_end.value_type == CMasonGridPlacementType::Span) {
+                                ss << " span";
+                            }
+                        }
+                    }
+
+
+                    ret.setProperty(runtime, "colFormatted", ss.str().c_str());
+
+
+                    std::stringstream row_ss;
+                    if (row_start.value == row_end.value && row_start.value_type == row_end.value_type) {
+                        if (row_start.value_type == CMasonGridPlacementType::Auto) {
+                            row_ss << "auto";
+                        } else {
+                            row_ss << row_start.value;
+                            if (row_start.value_type == CMasonGridPlacementType::Span) {
+                                row_ss << " span";
+                            }
+                        }
+                    } else {
+                        if (row_start.value_type == CMasonGridPlacementType::Auto) {
+                            row_ss << "auto";
+                        } else {
+                            row_ss << row_start.value;
+                            if (row_start.value_type == CMasonGridPlacementType::Span) {
+                                row_ss << " span";
+                            }
+                        }
+
+                        row_ss << " / ";
+
+                        if (row_end.value_type == CMasonGridPlacementType::Auto) {
+                            row_ss << "auto";
+                        } else {
+                            row_ss << row_end.value;
+                            if (row_end.value_type == CMasonGridPlacementType::Span) {
+                                row_ss << " span";
+                            }
+                        }
+                    }
+
+                    ret.setProperty(runtime, "rowFormatted", row_ss.str().c_str());
+
+                    return ret;
+
                 }
-            }
-        } else {
-            if (col_start.value_type == CMasonGridPlacementType::Auto) {
-                ss << "auto";
-            } else {
-                ss << col_start.value;
-                if (col_start.value_type == CMasonGridPlacementType::Span) {
-                    ss << " span";
-                }
-            }
-
-            ss << " / ";
-
-            if (col_end.value_type == CMasonGridPlacementType::Auto) {
-                ss << "auto";
-            } else {
-                ss << col_end.value;
-                if (col_end.value_type == CMasonGridPlacementType::Span) {
-                    ss << " span";
-                }
-            }
-        }
-
-
-        ret.setProperty(runtime, "colFormatted", ss.str().c_str());
-
-
-        std::stringstream row_ss;
-        if (row_start.value == row_end.value && row_start.value_type == row_end.value_type) {
-            if (row_start.value_type == CMasonGridPlacementType::Auto) {
-                row_ss << "auto";
-            } else {
-                row_ss << row_start.value;
-                if (row_start.value_type == CMasonGridPlacementType::Span) {
-                    row_ss << " span";
-                }
-            }
-        } else {
-            if (row_start.value_type == CMasonGridPlacementType::Auto) {
-                row_ss << "auto";
-            } else {
-                row_ss << row_start.value;
-                if (row_start.value_type == CMasonGridPlacementType::Span) {
-                    row_ss << " span";
-                }
-            }
-
-            row_ss << " / ";
-
-            if (row_end.value_type == CMasonGridPlacementType::Auto) {
-                row_ss << "auto";
-            } else {
-                row_ss << row_end.value;
-                if (row_end.value_type == CMasonGridPlacementType::Span) {
-                    row_ss << " span";
-                }
-            }
-        }
-
-        ret.setProperty(runtime, "rowFormatted", row_ss.str().c_str());
-
-        return ret;
-
-    }
 
     );
 
@@ -2099,58 +2170,58 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getColumn", 1, [](Runtime &runtime, const Value &thisValue,
                                            const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto row_start = mason_style_get_grid_row_start(style);
-        auto row_end = mason_style_get_grid_row_start(style);
+                    auto row_start = mason_style_get_grid_row_start(style);
+                    auto row_end = mason_style_get_grid_row_start(style);
 
-        auto col_start = mason_style_get_grid_column_start(style);
-        auto col_end = mason_style_get_grid_column_start(style);
+                    auto col_start = mason_style_get_grid_column_start(style);
+                    auto col_end = mason_style_get_grid_column_start(style);
 
-        auto ret = facebook::jsi::Object(runtime);
-        ret.setProperty(runtime, "col_start_type", (int) col_start.value_type);
-        ret.setProperty(runtime, "col_start_value", (int) col_start.value);
-        ret.setProperty(runtime, "col_end_type", (int) col_end.value_type);
-        ret.setProperty(runtime, "col_end_value", (int) col_end.value);
+                    auto ret = facebook::jsi::Object(runtime);
+                    ret.setProperty(runtime, "col_start_type", (int) col_start.value_type);
+                    ret.setProperty(runtime, "col_start_value", (int) col_start.value);
+                    ret.setProperty(runtime, "col_end_type", (int) col_end.value_type);
+                    ret.setProperty(runtime, "col_end_value", (int) col_end.value);
 
-        std::stringstream ss;
-        if (col_start.value == col_end.value && col_start.value_type == col_end.value_type) {
-            if (col_start.value_type == CMasonGridPlacementType::Auto) {
-                ss << "auto";
-            } else {
-                ss << col_start.value;
-                if (col_start.value_type == CMasonGridPlacementType::Span) {
-                    ss << " span";
+                    std::stringstream ss;
+                    if (col_start.value == col_end.value && col_start.value_type == col_end.value_type) {
+                        if (col_start.value_type == CMasonGridPlacementType::Auto) {
+                            ss << "auto";
+                        } else {
+                            ss << col_start.value;
+                            if (col_start.value_type == CMasonGridPlacementType::Span) {
+                                ss << " span";
+                            }
+                        }
+                    } else {
+                        if (col_start.value_type == CMasonGridPlacementType::Auto) {
+                            ss << "auto";
+                        } else {
+                            ss << col_start.value;
+                            if (col_start.value_type == CMasonGridPlacementType::Span) {
+                                ss << " span";
+                            }
+                        }
+
+                        ss << " / ";
+
+                        if (col_end.value_type == CMasonGridPlacementType::Auto) {
+                            ss << "auto";
+                        } else {
+                            ss << col_end.value;
+                            if (col_end.value_type == CMasonGridPlacementType::Span) {
+                                ss << " span";
+                            }
+                        }
+                    }
+
+
+                    ret.setProperty(runtime, "colFormatted", ss.str().c_str());
+
+                    return ret;
+
                 }
-            }
-        } else {
-            if (col_start.value_type == CMasonGridPlacementType::Auto) {
-                ss << "auto";
-            } else {
-                ss << col_start.value;
-                if (col_start.value_type == CMasonGridPlacementType::Span) {
-                    ss << " span";
-                }
-            }
-
-            ss << " / ";
-
-            if (col_end.value_type == CMasonGridPlacementType::Auto) {
-                ss << "auto";
-            } else {
-                ss << col_end.value;
-                if (col_end.value_type == CMasonGridPlacementType::Span) {
-                    ss << " span";
-                }
-            }
-        }
-
-
-        ret.setProperty(runtime, "colFormatted", ss.str().c_str());
-
-        return ret;
-
-    }
 
     );
 
@@ -2190,13 +2261,13 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getColumnStart", 1, [](Runtime &runtime, const Value &thisValue,
                                                 const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto value = mason_style_get_grid_column_start(style);
+                    auto value = mason_style_get_grid_column_start(style);
 
-        return gridPlacementToJS(runtime, value);
+                    return gridPlacementToJS(runtime, value);
 
-    }
+                }
 
     );
 
@@ -2205,30 +2276,30 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
                                                 const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[4].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[4].asBool();
 
-        auto object = arguments[3].asObject(runtime);
+                    auto object = arguments[3].asObject(runtime);
 
-        auto value = (short) object.getProperty(runtime, "value").asNumber();
-        auto type = (int) object.getProperty(runtime, "type").asNumber();
+                    auto value = (short) object.getProperty(runtime, "value").asNumber();
+                    auto type = (int) object.getProperty(runtime, "type").asNumber();
 
-        if (type >= 0 && type < 3) {
-            mason_style_set_grid_column_start(style, jsToGridPlacement(value, type));
+                    if (type >= 0 && type < 3) {
+                        mason_style_set_grid_column_start(style, jsToGridPlacement(value, type));
 
-            if (update) {
-                mason_node_update_and_set_style(mason, node, style);
-            }
-        }
+                        if (update) {
+                            mason_node_update_and_set_style(mason, node, style);
+                        }
+                    }
 
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
@@ -2236,13 +2307,13 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getColumnEnd", 1, [](Runtime &runtime, const Value &thisValue,
                                               const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto value = mason_style_get_grid_column_end(style);
+                    auto value = mason_style_get_grid_column_end(style);
 
-        return gridPlacementToJS(runtime, value);
+                    return gridPlacementToJS(runtime, value);
 
-    }
+                }
 
     );
 
@@ -2251,89 +2322,89 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
                                               const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[4].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[4].asBool();
 
-        auto object = arguments[3].asObject(runtime);
+                    auto object = arguments[3].asObject(runtime);
 
-        auto value = (short) object.getProperty(runtime, "value").asNumber();
-        auto type = (int) object.getProperty(runtime, "type").asNumber();
+                    auto value = (short) object.getProperty(runtime, "value").asNumber();
+                    auto type = (int) object.getProperty(runtime, "type").asNumber();
 
-        if (type >= 0 && type < 3) {
-            mason_style_set_grid_column_end(style, jsToGridPlacement(value, type));
+                    if (type >= 0 && type < 3) {
+                        mason_style_set_grid_column_end(style, jsToGridPlacement(value, type));
 
-            if (update) {
-                mason_node_update_and_set_style(mason, node, style);
-            }
-        }
+                        if (update) {
+                            mason_node_update_and_set_style(mason, node, style);
+                        }
+                    }
 
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
     CREATE_FUNC("__Mason_getRow", 1, [](Runtime &runtime, const Value &thisValue,
                                         const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto row_start = mason_style_get_grid_row_start(style);
-        auto row_end = mason_style_get_grid_row_start(style);
+                    auto row_start = mason_style_get_grid_row_start(style);
+                    auto row_end = mason_style_get_grid_row_start(style);
 
-        auto col_start = mason_style_get_grid_column_start(style);
-        auto col_end = mason_style_get_grid_column_start(style);
+                    auto col_start = mason_style_get_grid_column_start(style);
+                    auto col_end = mason_style_get_grid_column_start(style);
 
-        auto ret = facebook::jsi::Object(runtime);
+                    auto ret = facebook::jsi::Object(runtime);
 
-        ret.setProperty(runtime, "row_start_type", (int) row_start.value_type);
-        ret.setProperty(runtime, "row_start_value", (int) row_start.value);
-        ret.setProperty(runtime, "row_end_type", (int) row_end.value_type);
-        ret.setProperty(runtime, "row_end_value", (int) row_end.value);
+                    ret.setProperty(runtime, "row_start_type", (int) row_start.value_type);
+                    ret.setProperty(runtime, "row_start_value", (int) row_start.value);
+                    ret.setProperty(runtime, "row_end_type", (int) row_end.value_type);
+                    ret.setProperty(runtime, "row_end_value", (int) row_end.value);
 
 
-        std::stringstream row_ss;
-        if (row_start.value == row_end.value && row_start.value_type == row_end.value_type) {
-            if (row_start.value_type == CMasonGridPlacementType::Auto) {
-                row_ss << "auto";
-            } else {
-                row_ss << row_start.value;
-                if (row_start.value_type == CMasonGridPlacementType::Span) {
-                    row_ss << " span";
+                    std::stringstream row_ss;
+                    if (row_start.value == row_end.value && row_start.value_type == row_end.value_type) {
+                        if (row_start.value_type == CMasonGridPlacementType::Auto) {
+                            row_ss << "auto";
+                        } else {
+                            row_ss << row_start.value;
+                            if (row_start.value_type == CMasonGridPlacementType::Span) {
+                                row_ss << " span";
+                            }
+                        }
+                    } else {
+                        if (row_start.value_type == CMasonGridPlacementType::Auto) {
+                            row_ss << "auto";
+                        } else {
+                            row_ss << row_start.value;
+                            if (row_start.value_type == CMasonGridPlacementType::Span) {
+                                row_ss << " span";
+                            }
+                        }
+
+                        row_ss << " / ";
+
+                        if (row_end.value_type == CMasonGridPlacementType::Auto) {
+                            row_ss << "auto";
+                        } else {
+                            row_ss << row_end.value;
+                            if (row_end.value_type == CMasonGridPlacementType::Span) {
+                                row_ss << " span";
+                            }
+                        }
+                    }
+
+                    ret.setProperty(runtime, "rowFormatted", row_ss.str().c_str());
+
+                    return ret;
+
                 }
-            }
-        } else {
-            if (row_start.value_type == CMasonGridPlacementType::Auto) {
-                row_ss << "auto";
-            } else {
-                row_ss << row_start.value;
-                if (row_start.value_type == CMasonGridPlacementType::Span) {
-                    row_ss << " span";
-                }
-            }
-
-            row_ss << " / ";
-
-            if (row_end.value_type == CMasonGridPlacementType::Auto) {
-                row_ss << "auto";
-            } else {
-                row_ss << row_end.value;
-                if (row_end.value_type == CMasonGridPlacementType::Span) {
-                    row_ss << " span";
-                }
-            }
-        }
-
-        ret.setProperty(runtime, "rowFormatted", row_ss.str().c_str());
-
-        return ret;
-
-    }
 
     );
 
@@ -2360,7 +2431,7 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
 
 
         mason_style_set_grid_row(style, jsToGridPlacement(startValue, startType),
-                                    jsToGridPlacement(endValue, endType));
+                                 jsToGridPlacement(endValue, endType));
 
         if (update) {
             mason_node_update_and_set_style(mason, node, style);
@@ -2374,13 +2445,13 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getRowStart", 1, [](Runtime &runtime, const Value &thisValue,
                                              const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto value = mason_style_get_grid_row_start(style);
+                    auto value = mason_style_get_grid_row_start(style);
 
-        return gridPlacementToJS(runtime, value);
+                    return gridPlacementToJS(runtime, value);
 
-    }
+                }
 
     );
 
@@ -2389,30 +2460,30 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
                                              const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[4].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[4].asBool();
 
-        auto object = arguments[3].asObject(runtime);
+                    auto object = arguments[3].asObject(runtime);
 
-        auto value = (short) object.getProperty(runtime, "value").asNumber();
-        auto type = (int) object.getProperty(runtime, "type").asNumber();
+                    auto value = (short) object.getProperty(runtime, "value").asNumber();
+                    auto type = (int) object.getProperty(runtime, "type").asNumber();
 
-        if (type >= 0 && type < 3) {
-            mason_style_set_grid_row_start(style, jsToGridPlacement(value, type));
+                    if (type >= 0 && type < 3) {
+                        mason_style_set_grid_row_start(style, jsToGridPlacement(value, type));
 
-            if (update) {
-                mason_node_update_and_set_style(mason, node, style);
-            }
-        }
+                        if (update) {
+                            mason_node_update_and_set_style(mason, node, style);
+                        }
+                    }
 
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
@@ -2420,13 +2491,13 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_getRowEnd", 1, [](Runtime &runtime, const Value &thisValue,
                                            const Value *arguments, size_t count) -> Value {
 
-        auto style = getPointerValue(arguments[0], runtime);
+                    auto style = getPointerValue(arguments[0], runtime);
 
-        auto value = mason_style_get_grid_row_end(style);
+                    auto value = mason_style_get_grid_row_end(style);
 
-        return gridPlacementToJS(runtime, value);
+                    return gridPlacementToJS(runtime, value);
 
-    }
+                }
 
     );
 
@@ -2435,30 +2506,30 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
                                            const Value *arguments, size_t count) -> Value {
 
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[4].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[4].asBool();
 
-        auto object = arguments[3].asObject(runtime);
+                    auto object = arguments[3].asObject(runtime);
 
-        auto value = (short) object.getProperty(runtime, "value").asNumber();
-        auto type = (int) object.getProperty(runtime, "type").asNumber();
+                    auto value = (short) object.getProperty(runtime, "value").asNumber();
+                    auto type = (int) object.getProperty(runtime, "type").asNumber();
 
-        if (type >= 0 && type < 3) {
-            mason_style_set_grid_row_end(style, jsToGridPlacement(value, type));
+                    if (type >= 0 && type < 3) {
+                        mason_style_set_grid_row_end(style, jsToGridPlacement(value, type));
 
-            if (update) {
-                mason_node_update_and_set_style(mason, node, style);
-            }
-        }
+                        if (update) {
+                            mason_node_update_and_set_style(mason, node, style);
+                        }
+                    }
 
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
@@ -2480,27 +2551,27 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_setTemplateRows", 5, [](Runtime &runtime, const Value &thisValue,
                                                  const Value *arguments, size_t count) -> Value {
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[4].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[4].asBool();
 
-        auto array = arguments[3].asObject(runtime).getArray(runtime);
+                    auto array = arguments[3].asObject(runtime).getArray(runtime);
 
-        auto value = toTrackSizingFunction(runtime, array);
+                    auto value = toTrackSizingFunction(runtime, array);
 
 
-        mason_style_set_grid_template_rows(style, std::move(value));
+                    mason_style_set_grid_template_rows(style, std::move(value));
 
-        if (update) {
-            mason_node_update_and_set_style(mason, node, style);
-        }
+                    if (update) {
+                        mason_node_update_and_set_style(mason, node, style);
+                    }
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
@@ -2522,27 +2593,27 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     CREATE_FUNC("__Mason_setTemplateColumns", 5, [](Runtime &runtime, const Value &thisValue,
                                                     const Value *arguments, size_t count) -> Value {
 
-        auto mason = getPointerValue(arguments[0], runtime);
+                    auto mason = getPointerValue(arguments[0], runtime);
 
-        auto node = getPointerValue(arguments[1], runtime);
+                    auto node = getPointerValue(arguments[1], runtime);
 
-        auto style = getPointerValue(arguments[2], runtime);
-        auto update = arguments[4].asBool();
+                    auto style = getPointerValue(arguments[2], runtime);
+                    auto update = arguments[4].asBool();
 
-        auto array = arguments[3].asObject(runtime).getArray(runtime);
+                    auto array = arguments[3].asObject(runtime).getArray(runtime);
 
-        auto value = toTrackSizingFunction(runtime, array);
+                    auto value = toTrackSizingFunction(runtime, array);
 
 
-        mason_style_set_grid_template_columns(style, std::move(value));
+                    mason_style_set_grid_template_columns(style, std::move(value));
 
-        if (update) {
-            mason_node_update_and_set_style(mason, node, style);
-        }
+                    if (update) {
+                        mason_node_update_and_set_style(mason, node, style);
+                    }
 
-        return Value::undefined();
+                    return Value::undefined();
 
-    }
+                }
 
     );
 
