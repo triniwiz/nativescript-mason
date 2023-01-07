@@ -20,72 +20,40 @@ std::vector<CMasonMinMax> toNonRepeatedTrackSizingFunction(facebook::jsi::Runtim
     for (int i = 0; i < len; i++) {
         auto value = array.getValueAtIndex(runtime, i).asObject(
                                                                 runtime);
-        // base object {type: number};
-        auto type = (int) value.getProperty(runtime, "type").getNumber();
-        switch (type) {
-            case 0: // auto
-                buffer.push_back([MasonReexports  util_create_non_repeated_track_sizing_function_with_type_value: 0 :0 :0]);
-                break;
-            case 1: // min-content
-                buffer.push_back([MasonReexports  util_create_non_repeated_track_sizing_function_with_type_value:1 :0 :0]);
-                break;
-            case 2: // max-content
-                buffer.push_back([MasonReexports util_create_non_repeated_track_sizing_function_with_type_value:2 :0 :0]);
-                break;
-            case 3: //fit-content
-            {
-                // object {type: number, value_type: number, value: number};
-                auto value_type = (int) value.getProperty(runtime, "value_type").getNumber();
-                auto val = (float) value.getProperty(runtime, "value").getNumber();
-                buffer.push_back([MasonReexports  util_create_non_repeated_track_sizing_function_with_type_value:3 :value_type :val]);
-            }
-                break;
-            case 4: //flex
-            {
-                // object {type: number, value: number};
-                auto val = (float) value.getProperty(runtime, "value").getNumber();
-                buffer.push_back([MasonReexports  util_create_non_repeated_track_sizing_function_with_type_value:4 :0 :val]);
-            }
-                break;
-            case 5: //points
-            {
-                // object {type: number, value: number};
-                auto val = (float) value.getProperty(runtime, "value").getNumber();
-                buffer.push_back([MasonReexports  util_create_non_repeated_track_sizing_function_with_type_value:5 :0 :val]);
-            }
-                break;
-            case 6: //percentage
-            {
-                // object {type: number, value: number};
-                auto val = (float) value.getProperty(runtime, "value").getNumber();
-                buffer.push_back([MasonReexports  util_create_non_repeated_track_sizing_function_with_type_value:6 :0 :val]);
-            }
-                break;
-            case 7: //flex
-            {
-                // object {type: number, min_type: number, min_value: number, max_type: number, max_value: number};
-                auto min_type = (int) value.getProperty(runtime, "min_type").getNumber();
-                auto min_value = (float) value.getProperty(runtime, "min_value").getNumber();
-                
-                auto max_type = (int) value.getProperty(runtime, "max_type").getNumber();
-                auto max_value = (float) value.getProperty(runtime, "max_value").getNumber();
-                
-                CMasonMinMax minMax;
-                minMax.min_type = min_type;
-                minMax.min_value = min_value;
-                minMax.max_type = max_type;
-                minMax.max_value = max_value;
-                
-                buffer.push_back(minMax);
-            }
-                break;
-            default:
-                // todo assert or do nothing ??
-                break;
-        }
+        
+        // object {type: number, min_type: number, min_value: number, max_type: number, max_value: number};
+        auto min_type = (int) value.getProperty(runtime, "min_type").getNumber();
+        auto min_value = (float) value.getProperty(runtime, "min_value").getNumber();
+        
+        auto max_type = (int) value.getProperty(runtime, "max_type").getNumber();
+        auto max_value = (float) value.getProperty(runtime, "max_value").getNumber();
+        
+        CMasonMinMax minMax;
+        minMax.min_type = min_type;
+        minMax.min_value = min_value;
+        minMax.max_type = max_type;
+        minMax.max_value = max_value;
+        
+        buffer.push_back(minMax);
     }
     
     return buffer;
+}
+
+void destroy_c_mason_track_sizing_function(CMasonTrackSizingFunction tracking){
+    switch (tracking.tag) {
+        case Repeat:
+        {
+            auto array = tracking.repeat._1;
+            if(array != nullptr){
+                free(array->array);
+                free(array);
+            };
+        }
+            break;
+        default:
+            break;
+    }
 }
 
 
@@ -102,7 +70,81 @@ std::vector<CMasonTrackSizingFunction> toTrackSizingFunction(facebook::jsi::Runt
     buffer.reserve(len);
     
     for (int i = 0; i < len; i++) {
-        
+        auto object = array.getValueAtIndex(runtime, i).asObject(runtime);
+        bool is_repeating = object.getProperty(runtime, "is_repeating").asBool();
+        auto repeating_type = (int)object.getProperty(runtime, "repeating_type").asNumber();
+        auto value = object.getProperty(runtime, "value");
+        if(is_repeating){
+            auto value_array = value.asObject(runtime).asArray(runtime);
+            auto repeating_length = value_array.size(runtime);
+            
+            auto min_max_size = sizeof(CMasonMinMax);
+            
+            auto tracks = (CMasonMinMax*)malloc(repeating_length * min_max_size);
+            
+            if(repeating_type == 0 || repeating_type == 1){
+                continue;
+            }
+            
+            
+            for (int j = 0; j < repeating_length; j++) {
+                auto repeat_object = value_array.getValueAtIndex(runtime, j).asObject(runtime);
+                
+                auto min_type = (int)repeat_object.getProperty(runtime, "min_type").asNumber();
+                auto min_value = (float)repeat_object.getProperty(runtime, "min_value").asNumber();
+                auto max_type = (int)repeat_object.getProperty(runtime, "max_type").asNumber();
+                auto max_value = (float)repeat_object.getProperty(runtime, "max_value").asNumber();
+                
+                
+                CMasonMinMax minMax;
+                minMax.min_type = min_type;
+                minMax.min_value = min_value;
+                
+                minMax.max_type = max_type;
+                minMax.max_value = max_value;
+                
+                
+                tracks[i * min_max_size] = minMax;
+            }
+            
+            
+            CMasonTrackSizingFunction repeat;
+            repeat.tag = Repeat;
+            Repeat_Body body;
+            body._0 = repeating_type;
+            auto array = (CMasonNonRepeatedTrackSizingFunctionArray*)malloc(sizeof(CMasonNonRepeatedTrackSizingFunctionArray));
+            array->array = tracks;
+            array->length = repeating_length;
+            body._1 = array;
+            repeat.repeat = body;
+            buffer.emplace_back(repeat);
+            
+        }else {
+            
+            CMasonTrackSizingFunction single;
+            single.tag = Single;
+            
+            auto single_object = value.asObject(runtime);
+            
+            
+            
+            auto min_type = (int)single_object.getProperty(runtime, "min_type").asNumber();
+            auto min_value = (float)single_object.getProperty(runtime, "min_value").asNumber();
+            auto max_type = (int)single_object.getProperty(runtime, "max_type").asNumber();
+            auto max_value = (float)single_object.getProperty(runtime, "max_value").asNumber();
+            
+            
+            CMasonMinMax minMax;
+            minMax.min_type = min_type;
+            minMax.min_value = min_value;
+            
+            minMax.max_type = max_type;
+            minMax.max_value = max_value;
+            
+            single.single = minMax;
+            
+            buffer.emplace_back(single);
+        }
     }
     
     return buffer;
@@ -138,7 +180,7 @@ void install(Runtime &jsiRuntime) {
     
     
     CREATE_FUNC("__Mason_updateStyleWithValues", 77, [](Runtime &runtime, const Value &thisValue,
-                                                            const Value *arguments, size_t count) -> Value {
+                                                        const Value *arguments, size_t count) -> Value {
         
         
         auto style = getPointerValue(arguments[0], runtime);
@@ -358,7 +400,15 @@ void install(Runtime &jsiRuntime) {
          :&gridTemplateRows
          gridTemplateColumns: &gridTemplateColumns];
         
+        for(int i = 0; i < gridTemplateRowsBuffer.size();i++){
+            auto it = gridTemplateRowsBuffer[i];
+            destroy_c_mason_track_sizing_function(it);
+        }
         
+        for(int i = 0; i < gridTemplateColumnsBuffer.size();i++){
+            auto it = gridTemplateColumnsBuffer[i];
+            destroy_c_mason_track_sizing_function(it);
+        }
         
         return Value::undefined();
     });
@@ -1620,7 +1670,7 @@ void install(Runtime &jsiRuntime) {
     });
     
     CREATE_FUNC("__Mason_getRowGap", 1, [](Runtime &runtime, const Value &thisValue,
-                                        const Value *arguments, size_t count) -> Value {
+                                           const Value *arguments, size_t count) -> Value {
         
         auto style = getPointerValue(arguments[0], runtime);
         
@@ -1631,7 +1681,7 @@ void install(Runtime &jsiRuntime) {
     });
     
     CREATE_FUNC("__Mason_setRowGap", 6, [](Runtime &runtime, const Value &thisValue,
-                                        const Value *arguments, size_t count) -> Value {
+                                           const Value *arguments, size_t count) -> Value {
         
         auto mason = getPointerValue(arguments[0], runtime);
         
@@ -1656,7 +1706,7 @@ void install(Runtime &jsiRuntime) {
     
     
     CREATE_FUNC("__Mason_getColumnGap", 1, [](Runtime &runtime, const Value &thisValue,
-                                        const Value *arguments, size_t count) -> Value {
+                                              const Value *arguments, size_t count) -> Value {
         
         auto style = getPointerValue(arguments[0], runtime);
         
@@ -1667,7 +1717,7 @@ void install(Runtime &jsiRuntime) {
     });
     
     CREATE_FUNC("__Mason_setColumnGap", 6, [](Runtime &runtime, const Value &thisValue,
-                                        const Value *arguments, size_t count) -> Value {
+                                              const Value *arguments, size_t count) -> Value {
         
         auto mason = getPointerValue(arguments[0], runtime);
         
@@ -1984,160 +2034,160 @@ void install(Runtime &jsiRuntime) {
     
     
     
-    CREATE_FUNC("__Mason_getAutoRows", 2, [](Runtime &runtime, const Value &thisValue,
-                                                 const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
+    CREATE_FUNC("__Mason_getGridAutoRows", 2, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
         
-            auto rows = [MasonReexports style_get_grid_auto_rows:style];
+        auto style = getPointerValue(arguments[0], runtime);
         
-            auto parsed = [MasonReexports util_parse_non_repeated_track_sizing_function:rows];
+        auto rows = [MasonReexports style_get_grid_auto_rows:style];
         
-            [MasonReexports destroyWithNonRepeatedTrackSizingFunctionArray: rows];
-
+        auto parsed = [MasonReexports util_parse_non_repeated_track_sizing_function:rows];
         
-            return facebook::jsi::String::createFromUtf8(runtime, std::string(parsed.UTF8String, parsed.length));
-        });
-
-
-        CREATE_FUNC("__Mason_setAutoRows", 5, [](Runtime &runtime, const Value &thisValue,
-                                                 const Value *arguments, size_t count) -> Value {
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-            auto array = arguments[3].asObject(runtime).getArray(runtime);
-
-            auto value = toNonRepeatedTrackSizingFunction(runtime, array);
-            
-            CMasonNonRepeatedTrackSizingFunctionArray val;
-            val.array = value.data();
-            val.length = value.size();
-
-            [MasonReexports style_set_grid_auto_rows:style :&val];
-            
-            if (update) {
-                [MasonReexports node_set_style:mason :node :style];
-            }
-
-            return Value::undefined();
-
+        [MasonReexports destroyWithNonRepeatedTrackSizingFunctionArray: rows];
+        
+        
+        return facebook::jsi::String::createFromUtf8(runtime, std::string(parsed.UTF8String, parsed.length));
+    });
+    
+    
+    CREATE_FUNC("__Mason_setGridAutoRows", 5, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        auto array = arguments[3].asObject(runtime).getArray(runtime);
+        
+        auto value = toNonRepeatedTrackSizingFunction(runtime, array);
+        
+        CMasonNonRepeatedTrackSizingFunctionArray val;
+        val.array = value.data();
+        val.length = value.size();
+        
+        [MasonReexports style_set_grid_auto_rows:style :&val];
+        
+        if (update) {
+            [MasonReexports node_set_style:mason :node :style];
         }
-
-        );
-
-
-        CREATE_FUNC("__Mason_getAutoColumns", 2, [](Runtime &runtime, const Value &thisValue,
-                                                    const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
-            
-
-            auto columns = [MasonReexports style_get_grid_auto_columns:style];
         
-            auto parsed = [MasonReexports util_parse_non_repeated_track_sizing_function:columns];
+        return Value::undefined();
         
-            [MasonReexports destroyWithNonRepeatedTrackSizingFunctionArray:columns];
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_getGridAutoColumns", 2, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
         
-            return facebook::jsi::String::createFromUtf8(runtime, std::string(parsed.UTF8String, parsed.length));
-        });
-
-
-        CREATE_FUNC("__Mason_setAutoColumns", 5, [](Runtime &runtime, const Value &thisValue,
-                                                    const Value *arguments, size_t count) -> Value {
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-            auto array = arguments[3].asObject(runtime).getArray(runtime);
-
-            auto value = toNonRepeatedTrackSizingFunction(runtime, array);
-            
-            CMasonNonRepeatedTrackSizingFunctionArray val;
-            val.array = value.data();
-            val.length = value.size();
-
-            [MasonReexports style_set_grid_auto_columns:style :&val];
-
-            if (update) {
-                [MasonReexports node_set_style:mason :node :style];
-            }
-
-            return Value::undefined();
-
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        
+        auto columns = [MasonReexports style_get_grid_auto_columns:style];
+        
+        auto parsed = [MasonReexports util_parse_non_repeated_track_sizing_function:columns];
+        
+        [MasonReexports destroyWithNonRepeatedTrackSizingFunctionArray:columns];
+        
+        return facebook::jsi::String::createFromUtf8(runtime, std::string(parsed.UTF8String, parsed.length));
+    });
+    
+    
+    CREATE_FUNC("__Mason_setGridAutoColumns", 5, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        auto array = arguments[3].asObject(runtime).getArray(runtime);
+        
+        auto value = toNonRepeatedTrackSizingFunction(runtime, array);
+        
+        CMasonNonRepeatedTrackSizingFunctionArray val;
+        val.array = value.data();
+        val.length = value.size();
+        
+        [MasonReexports style_set_grid_auto_columns:style :&val];
+        
+        if (update) {
+            [MasonReexports node_set_style:mason :node :style];
         }
-
-        );
-
-
-        CREATE_FUNC("__Mason_getAutoFlow", 1, [](Runtime &runtime, const Value &thisValue,
-                                                 const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
-
-            auto value = [MasonReexports style_get_grid_auto_flow: style];
-
-            return Value(value);
-
+        
+        return Value::undefined();
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_getAutoFlow", 1, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto value = [MasonReexports style_get_grid_auto_flow: style];
+        
+        return Value(value);
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_setAutoFlow", 5, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+        
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        auto flow = (int) arguments[3].asNumber();
+        
+        [MasonReexports style_set_grid_auto_flow:style :flow];
+        
+        if (update) {
+            [MasonReexports node_set_style:mason :node :style];
         }
-
-        );
-
-
-        CREATE_FUNC("__Mason_setAutoFlow", 5, [](Runtime &runtime, const Value &thisValue,
-                                                 const Value *arguments, size_t count) -> Value {
-
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-            auto flow = (int) arguments[3].asNumber();
-            
-            [MasonReexports style_set_grid_auto_flow:style :flow];
-
-            if (update) {
-                [MasonReexports node_set_style:mason :node :style];
-            }
-
-            return Value::undefined();
-
-        });
+        
+        return Value::undefined();
+        
+    });
     
     CREATE_FUNC("__Mason_getArea", 1, [](Runtime &runtime, const Value &thisValue,
                                          const Value *arguments, size_t count) -> Value {
-
+        
         auto style = getPointerValue(arguments[0], runtime);
-
+        
         auto row_start = [MasonReexports style_get_grid_row_start: style];
         auto row_end = [MasonReexports style_get_grid_row_start: style];
-
+        
         auto col_start = [MasonReexports style_get_grid_column_start: style];
         auto col_end = [MasonReexports style_get_grid_column_start: style];
-
+        
         auto ret = facebook::jsi::Object(runtime);
         ret.setProperty(runtime, "col_start_type", (int) col_start.value_type);
         ret.setProperty(runtime, "col_start_value", (int) col_start.value);
         ret.setProperty(runtime, "col_end_type", (int) col_end.value_type);
         ret.setProperty(runtime, "col_end_value", (int) col_end.value);
-
+        
         ret.setProperty(runtime, "row_start_type", (int) row_start.value_type);
         ret.setProperty(runtime, "row_start_value", (int) row_start.value);
         ret.setProperty(runtime, "row_end_type", (int) row_end.value_type);
         ret.setProperty(runtime, "row_end_value", (int) row_end.value);
-
-
+        
+        
         std::stringstream ss;
         if (col_start.value == col_end.value && col_start.value_type == col_end.value_type) {
             if (col_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
@@ -2157,9 +2207,9 @@ void install(Runtime &jsiRuntime) {
                     ss << " span";
                 }
             }
-
+            
             ss << " / ";
-
+            
             if (col_end.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                 ss << "auto";
             } else {
@@ -2169,11 +2219,11 @@ void install(Runtime &jsiRuntime) {
                 }
             }
         }
-
-
+        
+        
         ret.setProperty(runtime, "colFormatted", ss.str().c_str());
-
-
+        
+        
         std::stringstream row_ss;
         if (row_start.value == row_end.value && row_start.value_type == row_end.value_type) {
             if (row_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
@@ -2193,9 +2243,9 @@ void install(Runtime &jsiRuntime) {
                     row_ss << " span";
                 }
             }
-
+            
             row_ss << " / ";
-
+            
             if (row_end.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                 row_ss << "auto";
             } else {
@@ -2205,257 +2255,257 @@ void install(Runtime &jsiRuntime) {
                 }
             }
         }
-
+        
         ret.setProperty(runtime, "rowFormatted", row_ss.str().c_str());
-
+        
         return ret;
-
+        
     }
-
-    );
-
-
+                
+                );
+    
+    
     CREATE_FUNC("__Mason_setArea", 5, [](Runtime &runtime, const Value &thisValue,
                                          const Value *arguments, size_t count) -> Value {
-
-
+        
+        
         auto mason = getPointerValue(arguments[0], runtime);
-
+        
         auto node = getPointerValue(arguments[1], runtime);
-
+        
         auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
-
+        
         auto object = arguments[3].asObject(runtime);
-
+        
         auto rowStartType = (int) object.getProperty(runtime, "row_start_type").asNumber();
         auto rowStartValue = (short) object.getProperty(runtime, "row_start_value").asNumber();
-
+        
         auto rowEndType = (int) object.getProperty(runtime, "row_end_type").asNumber();
         auto rowEndValue = (short) object.getProperty(runtime, "row_end_value").asNumber();
-
+        
         auto columnStartType = (int) object.getProperty(runtime, "col_start_type").asNumber();
         auto columnStartValue = (short) object.getProperty(runtime, "col_start_value").asNumber();
-
+        
         auto columnEndType = (int) object.getProperty(runtime, "col_end_type").asNumber();
         auto columnEndValue = (short) object.getProperty(runtime, "col_end_value").asNumber();
         
-
+        
         [MasonReexports style_set_grid_area:
-                style
-                :jsToGridPlacement(rowStartValue, rowStartType)
-                :jsToGridPlacement(rowEndValue, rowEndType)
-                :jsToGridPlacement(columnStartValue, columnStartType)
-                :jsToGridPlacement(columnEndValue, columnEndType)
+             style
+                                           :jsToGridPlacement(rowStartValue, rowStartType)
+                                           :jsToGridPlacement(rowEndValue, rowEndType)
+                                           :jsToGridPlacement(columnStartValue, columnStartType)
+                                           :jsToGridPlacement(columnEndValue, columnEndType)
         ];
-
+        
         if (update) {
             [MasonReexports node_set_style:mason :node :style];
         }
-
+        
         return Value::undefined();
-
+        
     });
     
     
-
-        CREATE_FUNC("__Mason_getColumn", 1, [](Runtime &runtime, const Value &thisValue,
-                                               const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
-
-            auto col_start = [MasonReexports style_get_grid_column_start: style];
-            auto col_end = [MasonReexports style_get_grid_column_start: style];
-
-            auto ret = facebook::jsi::Object(runtime);
-            ret.setProperty(runtime, "col_start_type", (int)col_start.value_type);
-            ret.setProperty(runtime, "col_start_value", (int)col_start.value);
-            ret.setProperty(runtime, "col_end_type", (int)col_end.value_type);
-            ret.setProperty(runtime, "col_end_value", (int)col_end.value);
-
-            std::stringstream ss;
-            if (col_start.value == col_end.value && col_start.value_type == col_end.value_type) {
-                if (col_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
-                    ss << "auto";
-                } else {
-                    ss << col_start.value;
-                    if (col_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
-                        ss << " span";
-                    }
-                }
+    
+    CREATE_FUNC("__Mason_getColumn", 1, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto col_start = [MasonReexports style_get_grid_column_start: style];
+        auto col_end = [MasonReexports style_get_grid_column_start: style];
+        
+        auto ret = facebook::jsi::Object(runtime);
+        ret.setProperty(runtime, "col_start_type", (int)col_start.value_type);
+        ret.setProperty(runtime, "col_start_value", (int)col_start.value);
+        ret.setProperty(runtime, "col_end_type", (int)col_end.value_type);
+        ret.setProperty(runtime, "col_end_value", (int)col_end.value);
+        
+        std::stringstream ss;
+        if (col_start.value == col_end.value && col_start.value_type == col_end.value_type) {
+            if (col_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
+                ss << "auto";
             } else {
-                if (col_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
-                    ss << "auto";
-                } else {
-                    ss << col_start.value;
-                    if (col_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
-                        ss << " span";
-                    }
-                }
-
-                ss << " / ";
-
-                if (col_end.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
-                    ss << "auto";
-                } else {
-                    ss << col_end.value;
-                    if (col_end.value_type == CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
-                        ss << " span";
-                    }
+                ss << col_start.value;
+                if (col_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
+                    ss << " span";
                 }
             }
-
-
-            ret.setProperty(runtime, "colFormatted", ss.str().c_str());
-
-            return ret;
-
+        } else {
+            if (col_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
+                ss << "auto";
+            } else {
+                ss << col_start.value;
+                if (col_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
+                    ss << " span";
+                }
+            }
+            
+            ss << " / ";
+            
+            if (col_end.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
+                ss << "auto";
+            } else {
+                ss << col_end.value;
+                if (col_end.value_type == CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
+                    ss << " span";
+                }
+            }
         }
-
-        );
-
-
-        CREATE_FUNC("__Mason_setColumn", 5, [](Runtime &runtime, const Value &thisValue,
-                                               const Value *arguments, size_t count) -> Value {
-
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-           
-            auto object = arguments[3].asObject(runtime);
-
-          
-            auto columnStartType = (int) object.getProperty(runtime, "col_start_type").asNumber();
-            auto columnStartValue = (short) object.getProperty(runtime, "col_start_value").asNumber();
-
-            auto columnEndType = (int) object.getProperty(runtime, "col_end_type").asNumber();
-            auto columnEndValue = (short) object.getProperty(runtime, "col_end_value").asNumber();
-            
-            
-            [MasonReexports style_set_grid_column:style :jsToGridPlacement(columnStartValue, columnStartType) :jsToGridPlacement(columnEndValue, columnEndType)];
         
+        
+        ret.setProperty(runtime, "colFormatted", ss.str().c_str());
+        
+        return ret;
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_setColumn", 5, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+        
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        
+        auto object = arguments[3].asObject(runtime);
+        
+        
+        auto columnStartType = (int) object.getProperty(runtime, "col_start_type").asNumber();
+        auto columnStartValue = (short) object.getProperty(runtime, "col_start_value").asNumber();
+        
+        auto columnEndType = (int) object.getProperty(runtime, "col_end_type").asNumber();
+        auto columnEndValue = (short) object.getProperty(runtime, "col_end_value").asNumber();
+        
+        
+        [MasonReexports style_set_grid_column:style :jsToGridPlacement(columnStartValue, columnStartType) :jsToGridPlacement(columnEndValue, columnEndType)];
+        
+        if (update) {
+            [MasonReexports node_set_style:mason :node :style];
+        }
+        
+        return Value::undefined();
+        
+    });
+    
+    
+    CREATE_FUNC("__Mason_getColumnStart", 1, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto value = [MasonReexports style_get_grid_column_start: style];
+        
+        return gridPlacementToJS(runtime, value);
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_setColumnStart", 5, [](Runtime &runtime, const Value &thisValue,
+                                                const Value *arguments, size_t count) -> Value {
+        
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        auto object = arguments[3].asObject(runtime);
+        
+        auto value = (short) object.getProperty(runtime, "value").asNumber();
+        auto type = (int) object.getProperty(runtime, "type").asNumber();
+        
+        if (type >= 0 && type < 3) {
+            [MasonReexports style_set_grid_column_start:style :jsToGridPlacement(value, type)];
+            
             if (update) {
                 [MasonReexports node_set_style:mason :node :style];
             }
-
-            return Value::undefined();
-
-        });
-
-
-        CREATE_FUNC("__Mason_getColumnStart", 1, [](Runtime &runtime, const Value &thisValue,
-                                                    const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
-
-            auto value = [MasonReexports style_get_grid_column_start: style];
-
-            return gridPlacementToJS(runtime, value);
-
         }
-
-        );
-
-
-        CREATE_FUNC("__Mason_setColumnStart", 5, [](Runtime &runtime, const Value &thisValue,
-                                                    const Value *arguments, size_t count) -> Value {
-
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-            auto object = arguments[3].asObject(runtime);
-
-            auto value = (short) object.getProperty(runtime, "value").asNumber();
-            auto type = (int) object.getProperty(runtime, "type").asNumber();
-
-            if (type >= 0 && type < 3) {
-                [MasonReexports style_set_grid_column_start:style :jsToGridPlacement(value, type)];
-
-                if (update) {
-                    [MasonReexports node_set_style:mason :node :style];
-                }
+        
+        
+        return Value::undefined();
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_getColumnEnd", 1, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto value = [MasonReexports style_get_grid_column_end: style];
+        
+        return gridPlacementToJS(runtime, value);
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_setColumnEnd", 5, [](Runtime &runtime, const Value &thisValue,
+                                              const Value *arguments, size_t count) -> Value {
+        
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        auto object = arguments[3].asObject(runtime);
+        
+        auto value = (short) object.getProperty(runtime, "value").asNumber();
+        auto type = (int) object.getProperty(runtime, "type").asNumber();
+        
+        if (type >= 0 && type < 3) {
+            [MasonReexports style_set_grid_column_end:style :jsToGridPlacement(value, type)];
+            
+            if (update) {
+                [MasonReexports node_set_style:mason :node :style];
             }
-
-
-            return Value::undefined();
-
         }
-
-        );
-
-
-        CREATE_FUNC("__Mason_getColumnEnd", 1, [](Runtime &runtime, const Value &thisValue,
-                                                  const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
-
-            auto value = [MasonReexports style_get_grid_column_end: style];
-
-            return gridPlacementToJS(runtime, value);
-
-        }
-
-        );
-
-
-        CREATE_FUNC("__Mason_setColumnEnd", 5, [](Runtime &runtime, const Value &thisValue,
-                                                  const Value *arguments, size_t count) -> Value {
-
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-            auto object = arguments[3].asObject(runtime);
-
-            auto value = (short) object.getProperty(runtime, "value").asNumber();
-            auto type = (int) object.getProperty(runtime, "type").asNumber();
-
-            if (type >= 0 && type < 3) {
-                [MasonReexports style_set_grid_column_end:style :jsToGridPlacement(value, type)];
-
-                if (update) {
-                    [MasonReexports node_set_style:mason :node :style];
-                }
-            }
-
-
-            return Value::undefined();
-
-        }
-
-        );
+        
+        
+        return Value::undefined();
+        
+    }
+                
+                );
     
     
     CREATE_FUNC("__Mason_getRow", 1, [](Runtime &runtime, const Value &thisValue,
-                                           const Value *arguments, size_t count) -> Value {
-
+                                        const Value *arguments, size_t count) -> Value {
+        
         auto style = getPointerValue(arguments[0], runtime);
-
+        
         auto row_start = [MasonReexports style_get_grid_row_start: style];
         auto row_end = [MasonReexports style_get_grid_row_start: style];
-
+        
         auto ret = facebook::jsi::Object(runtime);
-
+        
         ret.setProperty(runtime, "row_start_type", (int)row_start.value_type);
         ret.setProperty(runtime, "row_start_value", (int)row_start.value);
         ret.setProperty(runtime, "row_end_type", (int)row_end.value_type);
         ret.setProperty(runtime, "row_end_value", (int)row_end.value);
-
-
+        
+        
         std::stringstream row_ss;
         if (row_start.value == row_end.value && row_start.value_type == row_end.value_type) {
             if (row_start.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
@@ -2475,9 +2525,9 @@ void install(Runtime &jsiRuntime) {
                     row_ss << " span";
                 }
             }
-
+            
             row_ss << " / ";
-
+            
             if (row_end.value_type == CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                 row_ss << "auto";
             } else {
@@ -2487,229 +2537,239 @@ void install(Runtime &jsiRuntime) {
                 }
             }
         }
-
+        
         ret.setProperty(runtime, "rowFormatted", row_ss.str().c_str());
-
+        
         return ret;
-
+        
     }
-
-    );
-
+                
+                );
+    
     CREATE_FUNC("__Mason_setRow", 5, [](Runtime &runtime, const Value &thisValue,
-                                           const Value *arguments, size_t count) -> Value {
-
-
+                                        const Value *arguments, size_t count) -> Value {
+        
+        
         auto mason = getPointerValue(arguments[0], runtime);
-
+        
         auto node = getPointerValue(arguments[1], runtime);
-
+        
         auto style = getPointerValue(arguments[2], runtime);
         auto update = arguments[4].asBool();
-
-       
+        
+        
         auto object = arguments[3].asObject(runtime);
-
+        
         auto rowStartType = (int) object.getProperty(runtime, "row_start_type").asNumber();
         auto rowStartValue = (short) object.getProperty(runtime, "row_start_value").asNumber();
-
+        
         auto rowEndType = (int) object.getProperty(runtime, "row_end_type").asNumber();
         auto rowEndValue = (short) object.getProperty(runtime, "row_end_value").asNumber();
-
+        
         
         [MasonReexports style_set_grid_row:style :jsToGridPlacement(rowStartValue, rowStartType) :jsToGridPlacement(rowEndValue,rowEndType)];
-    
+        
         if (update) {
             [MasonReexports node_set_style:mason :node :style];
         }
-
+        
         return Value::undefined();
-
+        
     });
-
-
-        CREATE_FUNC("__Mason_getRowStart", 1, [](Runtime &runtime, const Value &thisValue,
-                                                 const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
-
-            auto value =  [MasonReexports style_get_grid_row_start: style];
-
-            return gridPlacementToJS(runtime, value);
-
-        }
-
-        );
-
-
-        CREATE_FUNC("__Mason_setRowStart", 5, [](Runtime &runtime, const Value &thisValue,
-                                                 const Value *arguments, size_t count) -> Value {
-
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-            auto object = arguments[3].asObject(runtime);
-
-            auto value = (short) object.getProperty(runtime, "value").asNumber();
-            auto type = (int) object.getProperty(runtime, "type").asNumber();
-
-            if (type >= 0 && type < 3) {
-                [MasonReexports style_set_grid_row_start: style :jsToGridPlacement(value, type)];
-
-                if (update) {
-                    [MasonReexports node_set_style:mason :node :style];
-                }
-            }
-
-
-            return Value::undefined();
-
-        }
-
-        );
-
-
-        CREATE_FUNC("__Mason_getRowEnd", 1, [](Runtime &runtime, const Value &thisValue,
-                                               const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
-
-            auto value = [MasonReexports style_get_grid_row_end: style];
-
-            return gridPlacementToJS(runtime, value);
-
-        }
-
-        );
-
-
-        CREATE_FUNC("__Mason_setRowEnd", 5, [](Runtime &runtime, const Value &thisValue,
-                                               const Value *arguments, size_t count) -> Value {
-
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-            auto object = arguments[3].asObject(runtime);
-
-            auto value = (short) object.getProperty(runtime, "value").asNumber();
-            auto type = (int) object.getProperty(runtime, "type").asNumber();
-
-            if (type >= 0 && type < 3) {
-                [MasonReexports style_set_grid_row_end: style :jsToGridPlacement(value, type)];
-
-                if (update) {
-                    [MasonReexports node_set_style:mason :node :style];
-                }
-            }
-
-
-            return Value::undefined();
-
-        }
-
-        );
-
-
-        CREATE_FUNC("__Mason_getTemplateRows", 2, [](Runtime &runtime, const Value &thisValue,
-                                                     const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
-
-            auto rows = [MasonReexports style_get_grid_template_rows: style];
-
-            
-            auto parsed = [MasonReexports util_parse_auto_repeating_track_sizing_function: rows];
-
-            return facebook::jsi::String::createFromUtf8(runtime,
-                                                         std::string(parsed.UTF8String, parsed.length));
-        });
-
-
-        CREATE_FUNC("__Mason_setTemplateRows", 5, [](Runtime &runtime, const Value &thisValue,
-                                                     const Value *arguments, size_t count) -> Value {
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-            auto array = arguments[3].asObject(runtime).getArray(runtime);
-
-            auto value = toTrackSizingFunction(runtime, array);
-
-            CMasonTrackSizingFunctionArray rows = {};
-            rows.array = value.data();
-            rows.length = value.size();
-
-            [MasonReexports style_set_grid_template_rows:style :&rows];
-
-            if (update) {
-                [MasonReexports node_set_style:mason :node :style];
-            }
-
-            return Value::undefined();
-
-        }
-
-        );
-
-
-        CREATE_FUNC("__Mason_getTemplateColumns", 2, [](Runtime &runtime, const Value &thisValue,
-                                                        const Value *arguments, size_t count) -> Value {
-
-            auto style = getPointerValue(arguments[0], runtime);
-            
-            auto columns = [MasonReexports style_get_grid_template_columns:style];
-
-            auto parsed = [MasonReexports util_parse_auto_repeating_track_sizing_function: columns];
-
-            return facebook::jsi::String::createFromUtf8(runtime,
-                                                         std::string(parsed.UTF8String, parsed.length));
-        });
-
-
-        CREATE_FUNC("__Mason_setTemplateColumns", 5, [](Runtime &runtime, const Value &thisValue,
-                                                        const Value *arguments, size_t count) -> Value {
-
-            auto mason = getPointerValue(arguments[0], runtime);
-
-            auto node = getPointerValue(arguments[1], runtime);
-
-            auto style = getPointerValue(arguments[2], runtime);
-            auto update = arguments[4].asBool();
-
-            auto array = arguments[3].asObject(runtime).getArray(runtime);
-
-            auto value = toTrackSizingFunction(runtime, array);
-
-
-            CMasonTrackSizingFunctionArray columns = {};
-            columns.array = value.data();
-            columns.length = value.size();
-
-            [MasonReexports style_set_grid_template_columns:style :&columns];
+    
+    
+    CREATE_FUNC("__Mason_getRowStart", 1, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto value =  [MasonReexports style_get_grid_row_start: style];
+        
+        return gridPlacementToJS(runtime, value);
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_setRowStart", 5, [](Runtime &runtime, const Value &thisValue,
+                                             const Value *arguments, size_t count) -> Value {
+        
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        auto object = arguments[3].asObject(runtime);
+        
+        auto value = (short) object.getProperty(runtime, "value").asNumber();
+        auto type = (int) object.getProperty(runtime, "type").asNumber();
+        
+        if (type >= 0 && type < 3) {
+            [MasonReexports style_set_grid_row_start: style :jsToGridPlacement(value, type)];
             
             if (update) {
                 [MasonReexports node_set_style:mason :node :style];
             }
-
-            return Value::undefined();
-
         }
-
-        );
+        
+        
+        return Value::undefined();
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_getRowEnd", 1, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto value = [MasonReexports style_get_grid_row_end: style];
+        
+        return gridPlacementToJS(runtime, value);
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_setRowEnd", 5, [](Runtime &runtime, const Value &thisValue,
+                                           const Value *arguments, size_t count) -> Value {
+        
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        auto object = arguments[3].asObject(runtime);
+        
+        auto value = (short) object.getProperty(runtime, "value").asNumber();
+        auto type = (int) object.getProperty(runtime, "type").asNumber();
+        
+        if (type >= 0 && type < 3) {
+            [MasonReexports style_set_grid_row_end: style :jsToGridPlacement(value, type)];
+            
+            if (update) {
+                [MasonReexports node_set_style:mason :node :style];
+            }
+        }
+        
+        
+        return Value::undefined();
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_getGridTemplateRows", 2, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto rows = [MasonReexports style_get_grid_template_rows: style];
+        
+        
+        auto parsed = [MasonReexports util_parse_auto_repeating_track_sizing_function: rows];
+        
+        return facebook::jsi::String::createFromUtf8(runtime,
+                                                     std::string(parsed.UTF8String, parsed.length));
+    });
+    
+    
+    CREATE_FUNC("__Mason_setGridTemplateRows", 5, [](Runtime &runtime, const Value &thisValue,
+                                                 const Value *arguments, size_t count) -> Value {
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        auto array = arguments[3].asObject(runtime).getArray(runtime);
+        
+        auto value = toTrackSizingFunction(runtime, array);
+        
+        CMasonTrackSizingFunctionArray rows = {};
+        rows.array = value.data();
+        rows.length = value.size();
+        
+        [MasonReexports style_set_grid_template_rows:style :&rows];
+        
+        for(int i = 0; i < value.size();i++){
+            auto it = value[i];
+            destroy_c_mason_track_sizing_function(it);
+        }
+        
+        if (update) {
+            [MasonReexports node_set_style:mason :node :style];
+        }
+        
+        return Value::undefined();
+        
+    }
+                
+                );
+    
+    
+    CREATE_FUNC("__Mason_getGridTemplateColumns", 2, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+        
+        auto style = getPointerValue(arguments[0], runtime);
+        
+        auto columns = [MasonReexports style_get_grid_template_columns:style];
+        
+        auto parsed = [MasonReexports util_parse_auto_repeating_track_sizing_function: columns];
+        
+        return facebook::jsi::String::createFromUtf8(runtime,
+                                                     std::string(parsed.UTF8String, parsed.length));
+    });
+    
+    
+    CREATE_FUNC("__Mason_setGridTemplateColumns", 5, [](Runtime &runtime, const Value &thisValue,
+                                                    const Value *arguments, size_t count) -> Value {
+        
+        auto mason = getPointerValue(arguments[0], runtime);
+        
+        auto node = getPointerValue(arguments[1], runtime);
+        
+        auto style = getPointerValue(arguments[2], runtime);
+        auto update = arguments[4].asBool();
+        
+        auto array = arguments[3].asObject(runtime).getArray(runtime);
+        
+        auto value = toTrackSizingFunction(runtime, array);
+        
+        
+        CMasonTrackSizingFunctionArray columns = {};
+        columns.array = value.data();
+        columns.length = value.size();
+        
+        [MasonReexports style_set_grid_template_columns:style :&columns];
+        
+        for(int i = 0; i < value.size();i++){
+            auto it = value[i];
+            destroy_c_mason_track_sizing_function(it);
+        }
+        
+        if (update) {
+            [MasonReexports node_set_style:mason :node :style];
+        }
+        
+        return Value::undefined();
+        
+    }
+                
+                );
     
     
 }
