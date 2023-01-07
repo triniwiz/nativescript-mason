@@ -50,7 +50,7 @@ export class TSCView extends TSCViewBase {
   }
 
   public _addViewToNativeVisualTree(child: ViewBase, atIndex: number = Number.MAX_VALUE): boolean {
-    super._addViewToNativeVisualTree(child);
+    // super._addViewToNativeVisualTree(child);
     const nativeView = this.nativeViewProtected as org.nativescript.mason.masonkit.View;
 
     if (nativeView && child.nativeViewProtected) {

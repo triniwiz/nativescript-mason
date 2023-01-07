@@ -26,6 +26,7 @@ public class MinSizing: NSObject, Codable {
     init(_ type: MinSizingType, _ value: Float) {
         internalType = type
         super.init()
+        self.value = value
     }
     
     public static func Points(_ points: Float) -> MinSizing {
@@ -49,8 +50,8 @@ public class MinSizing: NSObject, Codable {
             case .Auto: return 0
             case .MinContent: return 1
             case .MaxContent: return 2
-            case .Percent: return 3
-            case .Points: return 4
+            case .Points: return 3
+            case .Percent: return 4
             }
         }
     }
@@ -61,8 +62,8 @@ public class MinSizing: NSObject, Codable {
         case 0: return .Auto
         case 1: return .MinContent
         case 2: return .MaxContent
-        case 3: return .Percent(value)
-        case 4: return .Points(value)
+        case 3: return .Points(value)
+        case 4: return .Percent(value)
         default:
             return nil
         }

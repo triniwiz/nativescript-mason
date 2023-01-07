@@ -14,6 +14,7 @@ sealed class Dimension {
   object Auto : Dimension()
 
   companion object {
+    @JvmStatic
     fun fromTypeValue(type: Int, value: Float): Dimension? {
       return when (type) {
         0 -> Auto

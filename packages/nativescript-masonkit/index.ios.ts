@@ -51,6 +51,7 @@ export class TSCView extends TSCViewBase {
       const width = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
       const height = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
 
+      // todo fix
       if (this.id === 'root') {
         this.setMeasuredDimension(width, height);
         this.ios.mason.computeWithViewSize();

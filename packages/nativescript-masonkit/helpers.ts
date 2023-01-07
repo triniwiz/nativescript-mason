@@ -5,6 +5,12 @@ import { TSCViewBase } from './common';
 
 import { AlignSelf as AlignSelfType } from '.';
 
+const enum GridTrackRepetition {
+  AutoFill = 0,
+
+  AutoFit = 1,
+}
+
 const enum GridPlacementCompatType {
   Auto = 0,
 
@@ -165,7 +171,7 @@ export let JSIEnabled = false;
 
 if (global.isAndroid) {
   try {
-    //  __non_webpack_require__('system_lib://libmasonnativev8.so');
+    __non_webpack_require__('system_lib://libmasonnativev8.so');
     JSIEnabled = false;
   } catch (error) {
     console.warn('Failed to enable on FastAPI', error);
@@ -2740,7 +2746,6 @@ export function _setColumnGap(value, instance: TSCView, initial = false) {
   }
 
   if (JSIEnabled) {
-    console.log(val.value, val.native_type);
     global.__Mason_setColumnGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
@@ -2749,6 +2754,477 @@ export function _setColumnGap(value, instance: TSCView, initial = false) {
 
     if (global.isIOS) {
       instance.ios.setColumnGap(val.value, val.native_type);
+    }
+  }
+}
+
+const enum MinSizingType {
+  Auto = 0,
+  MinContent = 1,
+  MaxContent = 2,
+  Points = 3,
+  Percent = 4,
+}
+
+const enum MaxSizingType {
+  Auto = 0,
+  MinContent = 1,
+  MaxContent = 2,
+  Points = 3,
+  Percent = 4,
+  Flex = 5,
+  FitContent = 6,
+  FitContentPercent = 7,
+}
+
+const Auto = 'auto';
+const None = 'none';
+const MinContent = 'min-content';
+const MaxContent = 'max-content';
+
+interface MinMaxType {
+  min_type: MinSizingType;
+  min_value: number;
+  max_type: MaxSizingType;
+  max_value: number;
+}
+
+export function _parseMinMaxValue(value: string): MinMaxType {
+  if (typeof value === 'string') {
+    if (value === Auto || value === None) {
+      return {
+        min_type: MinSizingType.Auto,
+        min_value: 0,
+        max_type: MaxSizingType.Auto,
+        max_value: 0,
+      };
+    } else if (value === MinContent) {
+      return {
+        min_type: MinSizingType.MinContent,
+        min_value: 0,
+        max_type: MaxSizingType.MinContent,
+        max_value: 0,
+      };
+    } else if (value === MaxContent) {
+      return {
+        min_type: MinSizingType.MaxContent,
+        min_value: 0,
+        max_type: MaxSizingType.MaxContent,
+        max_value: 0,
+      };
+    } else if (value.startsWith('flex')) {
+      const flex = parseInt(value.replace('flex(', '').replace(')', '').replace('fr', '').trim());
+      return {
+        min_type: MinSizingType.Auto,
+        min_value: 0,
+        max_type: MaxSizingType.Flex,
+        max_value: flex,
+      };
+    } else if (value.startsWith('minmax')) {
+      const minMax = parseInt(value.replace('minmax(', '').replace(')', '').trim());
+    } else if (value.startsWith('fit-content')) {
+      const fitContent = value.replace('fit-content(', '').replace(')', '').trim();
+
+      if (fitContent.indexOf('px') > -1) {
+        const px = parseInt(fitContent.replace('px', ''));
+        return {
+          min_type: MinSizingType.Auto,
+          min_value: px,
+          max_type: MaxSizingType.FitContent,
+          max_value: px,
+        };
+      }
+
+      if (fitContent.indexOf('px') > -1) {
+        const dip = Utils.layout.toDevicePixels(parseInt(fitContent.replace('dip', '')));
+        return {
+          min_type: MinSizingType.Auto,
+          min_value: dip,
+          max_type: MaxSizingType.FitContent,
+          max_value: dip,
+        };
+      }
+
+      if (fitContent.indexOf('%') > -1) {
+        const percent = parseFloat(fitContent.replace('%', ''));
+        return {
+          min_type: MinSizingType.Auto,
+          min_value: percent,
+          max_type: MaxSizingType.FitContentPercent,
+          max_value: percent,
+        };
+      }
+    } else if (value.indexOf('px') > -1) {
+      const px = parseInt(value.replace('px', ''));
+      return {
+        min_type: MinSizingType.Points,
+        min_value: px,
+        max_type: MaxSizingType.Points,
+        max_value: px,
+      };
+    } else if (value.indexOf('dip') > -1) {
+      const dip = Utils.layout.toDevicePixels(parseInt(value.replace('dip', '')));
+      return {
+        min_type: MinSizingType.Points,
+        min_value: dip,
+        max_type: MaxSizingType.Points,
+        max_value: dip,
+      };
+    } else if (value.indexOf('%') > -1) {
+      const percent = parseFloat(value.replace('%', ''));
+      return {
+        min_type: MinSizingType.Percent,
+        min_value: percent,
+        max_type: MaxSizingType.Percent,
+        max_value: percent,
+      };
+    } else if (value.indexOf('fr') > -1) {
+      const flex = parseFloat(value.replace('fr', ''));
+      return {
+        min_type: MinSizingType.Auto,
+        min_value: 0,
+        max_type: MaxSizingType.Flex,
+        max_value: flex,
+      };
+    }
+  }
+  return undefined;
+}
+
+interface GridTemplates {
+  is_repeating: boolean;
+  repeating_type: GridTrackRepetition;
+  value: MinMaxType | Array<MinMaxType>;
+}
+
+export function _parseGridTemplates(value: string): Array<GridTemplates> {
+  const array = [];
+  if (typeof value === 'string') {
+    const values = value.split(') ');
+    values.forEach((item) => {
+      if (item.startsWith('repeat(')) {
+        const repeatedValues = item.replace('repeat(', '').replace(')', '').split(',');
+
+        const type = repeatedValues[0].trim();
+
+        let isSingle = false;
+
+        let repeating_type = 0;
+
+        let repeat_count = 0;
+
+        switch (type) {
+          case 'repeat-fill':
+            repeating_type = GridTrackRepetition.AutoFill;
+            break;
+          case 'repeat-fit':
+            repeating_type = GridTrackRepetition.AutoFit;
+            break;
+          default:
+            const number = parseInt(type);
+
+            if (!Number.isNaN(number)) {
+              isSingle = true;
+              repeat_count = number;
+            }
+
+            break;
+        }
+
+        const minMax = _parseMinMaxValue(repeatedValues[1].trim());
+
+        if (repeat_count > 0) {
+          for (let i = 0; i < repeat_count; i++) {
+            array.push({
+              is_repeating: !isSingle,
+              repeating_type,
+              value: minMax,
+            });
+          }
+        }
+      } else {
+        const value = _parseMinMaxValue(item);
+        array.push({
+          is_repeating: false,
+          repeating_type: 0,
+          value,
+        });
+      }
+    });
+  }
+  return array;
+}
+
+export function _setGridTemplateRows(value: Array<GridTemplates>, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  if (JSIEnabled) {
+    global.__Mason_setGridTemplateRows(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
+      const length = value.length;
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+        if (item.is_repeating) {
+          const repeating = item.value as Array<MinMaxType>;
+          const tracks = Array.create('org.nativescript.mason.masonkit.MinMax', repeating.length);
+          let gridTrackRepetition = null;
+          switch (item.repeating_type) {
+            case GridTrackRepetition.AutoFill:
+              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFill;
+              break;
+            case GridTrackRepetition.AutoFit:
+              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFit;
+              break;
+          }
+          if (gridTrackRepetition === null) {
+            continue;
+          }
+
+          const repeatingLength = repeating.length;
+
+          for (let j = 0; j < repeatingLength; j++) {
+            const repeat = repeating[j];
+            tracks[j] = org.nativescript.mason.masonkit.MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value);
+          }
+
+          const repeat = new org.nativescript.mason.masonkit.TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
+          array[i] = repeat;
+        } else {
+          const single = item.value as MinMaxType;
+          const trackSizingFunction = new org.nativescript.mason.masonkit.TrackSizingFunction.Single(org.nativescript.mason.masonkit.MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
+          array[i] = trackSizingFunction;
+        }
+      }
+      instance.android.setGridTemplateRows(array);
+    }
+
+    if (global.isIOS) {
+      const length = value.length;
+      const array = NSMutableArray.arrayWithCapacity<TrackSizingFunction>(length);
+
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+        if (item.is_repeating) {
+          const repeating = item.value as Array<MinMaxType>;
+          const repeatingLength = repeating.length;
+          const tracks = NSMutableArray.arrayWithCapacity<MinMax>(repeatingLength);
+          let gridTrackRepetition = null;
+          switch (item.repeating_type) {
+            case GridTrackRepetition.AutoFill:
+              gridTrackRepetition = GridTrackRepetition.AutoFill;
+              break;
+            case GridTrackRepetition.AutoFit:
+              gridTrackRepetition = GridTrackRepetition.AutoFit;
+              break;
+          }
+          if (gridTrackRepetition === null) {
+            continue;
+          }
+
+          for (let j = 0; j < repeatingLength; j++) {
+            const repeat = repeating[j];
+            tracks.addObject(MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value));
+          }
+
+          const repeat = TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
+          array.addObject(repeat);
+        } else {
+          const single = item.value as MinMaxType;
+          const trackSizingFunction = TrackSizingFunction.Single(MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
+          console.log(trackSizingFunction.value.cssValue, trackSizingFunction.value.jsonValue);
+          array.addObject(trackSizingFunction);
+        }
+      }
+
+      instance.ios.gridTemplateRows = array;
+    }
+  }
+}
+
+export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  if (JSIEnabled) {
+    global.__Mason_setGridTemplateColumns(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
+      const length = value.length;
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+        if (item.is_repeating) {
+          const repeating = item.value as Array<MinMaxType>;
+          const tracks = Array.create('org.nativescript.mason.masonkit.MinMax', repeating.length);
+          let gridTrackRepetition = null;
+          switch (item.repeating_type) {
+            case GridTrackRepetition.AutoFill:
+              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFill;
+              break;
+            case GridTrackRepetition.AutoFit:
+              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFit;
+              break;
+          }
+          if (gridTrackRepetition === null) {
+            continue;
+          }
+
+          const repeatingLength = repeating.length;
+
+          for (let j = 0; j < repeatingLength; j++) {
+            const repeat = repeating[j];
+            tracks[j] = org.nativescript.mason.masonkit.MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value);
+          }
+
+          const repeat = new org.nativescript.mason.masonkit.TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
+          array[i] = repeat;
+        } else {
+          const single = item.value as MinMaxType;
+          const trackSizingFunction = new org.nativescript.mason.masonkit.TrackSizingFunction.Single(org.nativescript.mason.masonkit.MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
+          array[i] = trackSizingFunction;
+        }
+      }
+      instance.android.setGridTemplateColumns(array);
+    }
+
+    if (global.isIOS) {
+      const length = value.length;
+      const array = NSMutableArray.arrayWithCapacity<TrackSizingFunction>(length);
+
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+        if (item.is_repeating) {
+          const repeating = item.value as Array<MinMaxType>;
+
+          const repeatingLength = repeating.length;
+
+          const tracks = NSMutableArray.arrayWithCapacity<MinMax>(repeatingLength);
+
+          let gridTrackRepetition = null;
+          switch (item.repeating_type) {
+            case GridTrackRepetition.AutoFill:
+              gridTrackRepetition = GridTrackRepetition.AutoFill;
+              break;
+            case GridTrackRepetition.AutoFit:
+              gridTrackRepetition = GridTrackRepetition.AutoFit;
+              break;
+          }
+          if (gridTrackRepetition === null) {
+            continue;
+          }
+
+          for (let j = 0; j < repeatingLength; j++) {
+            const repeat = repeating[j];
+            tracks.addObject(MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value));
+          }
+
+          const repeat = TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
+          array.addObject(repeat);
+        } else {
+          const single = item.value as MinMaxType;
+          const trackSizingFunction = TrackSizingFunction.Single(MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
+          array.addObject(trackSizingFunction);
+        }
+      }
+
+      instance.ios.gridTemplateColumns = array;
+    }
+  }
+}
+
+export function _parseGridAutoRowsColumns(value: string): Array<MinMaxType> {
+  const array = [];
+  if (typeof value === 'string') {
+    const values = value.split(' ');
+    values.forEach((item) => {
+      const value = _parseMinMaxValue(item);
+      array.push({
+        is_repeating: false,
+        repeating_type: 0,
+        value,
+      });
+    });
+  }
+  return array;
+}
+
+export function _setGridAutoRows(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  const values = _parseGridAutoRowsColumns(value);
+
+  if (JSIEnabled) {
+    global.__Mason_setGridAutoRows(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, values, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
+      const length = value.length;
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+
+        const minMax = org.nativescript.mason.masonkit.MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
+
+        array[i] = minMax;
+      }
+      instance.android.setGridAutoRows(array);
+    }
+
+    if (global.isIOS) {
+      const length = value.length;
+      const array = NSMutableArray.arrayWithCapacity<MinMax>(length);
+
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+        const minMax = MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
+        array.addObject(minMax);
+      }
+
+      instance.ios.gridAutoRows = array;
+    }
+  }
+}
+
+export function _setGridAutoColumns(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  const values = _parseGridAutoRowsColumns(value);
+
+  if (JSIEnabled) {
+    global.__Mason_setGridAutoColumns(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, values, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
+      const length = value.length;
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+
+        const minMax = org.nativescript.mason.masonkit.MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
+
+        array[i] = minMax;
+      }
+      instance.android.setGridAutoColumns(array);
+    }
+
+    if (global.isIOS) {
+      const length = value.length;
+      const array = NSMutableArray.arrayWithCapacity<MinMax>(length);
+
+      for (let i = 0; i < length; i++) {
+        const item = value[i];
+        const minMax = MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
+        array.addObject(minMax);
+      }
+
+      instance.ios.gridAutoColumns = array;
     }
   }
 }

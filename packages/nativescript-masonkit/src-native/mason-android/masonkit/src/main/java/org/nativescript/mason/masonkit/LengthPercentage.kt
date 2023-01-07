@@ -8,6 +8,7 @@ sealed class LengthPercentage {
   }
 
   companion object {
+    @JvmStatic
     fun fromTypeValue(type: Int, value: Float): LengthPercentage? {
       return when (type) {
         0 -> Points(value)

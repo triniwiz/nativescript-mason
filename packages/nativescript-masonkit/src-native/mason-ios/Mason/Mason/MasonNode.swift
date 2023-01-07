@@ -152,24 +152,41 @@ public class MasonNode: NSObject {
             
         
             
-            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRows in
+            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRowsBuffer in
                 
-                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRows.baseAddress, length: gridAutoRowsCount)
+                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray()
+            
+                if(gridAutoRowsCount > 0){
+                    gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRowsBuffer.baseAddress, length: gridAutoRowsCount)
+                }
                 
-                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumns in
+                
+                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumnsBuffer in
                     
-                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumns.baseAddress, length: gridAutoColumnsCount)
+                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray()
+                    
+                    if(gridAutoColumnsCount > 0){
+                        gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumnsBuffer.baseAddress, length: gridAutoColumnsCount)
+                    }
                     
                     
-                    
-                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
+
+                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRowsBuffer in
                         
-                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress!.pointee, length: gridTemplateRowsCount)
+                        var gridTemplateRows = CMasonTrackSizingFunctionArray()
                         
-                
-                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
+                        if(gridTemplateRowsCount > 0){
+                            gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRowsBuffer.baseAddress!.pointee, length: gridTemplateRowsCount)
+                        }
+                        
+            
+                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumnsBuffer in
                             
-                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                            var gridTemplateColumns = CMasonTrackSizingFunctionArray()
+                            
+                            if(gridTemplateColumnsCount > 0){
+                                gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumnsBuffer.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                            }
                             
                             mason_node_update_and_set_style_with_values(
                                 TSCMason.instance.nativePtr,

@@ -414,6 +414,58 @@
             ]
           },
           {
+            "kind": "Function",
+            "name": "fromTypeValue",
+            "printedName": "fromTypeValue(_:_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.MinMax?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MinMax",
+                    "printedName": "Mason.MinMax",
+                    "usr": "c:@M@Mason@objc(cs)MinMax"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MinMax(cm)fromTypeValue::::",
+            "mangledName": "$s5Mason6MinMaxC13fromTypeValueyACSgSi_SfSiSftFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
             "kind": "Var",
             "name": "cssValue",
             "printedName": "cssValue",
@@ -30796,21 +30848,21 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 1195,
+      "offset": 1222,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 1261,
+      "offset": 1288,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 1327,
+      "offset": 1354,
       "length": 1,
       "value": "0"
     },
@@ -30943,21 +30995,21 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 777,
+      "offset": 804,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 843,
+      "offset": 870,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 909,
+      "offset": 936,
       "length": 1,
       "value": "0"
     },

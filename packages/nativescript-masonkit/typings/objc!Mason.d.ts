@@ -951,6 +951,8 @@ declare class MinMax extends NSObject {
 
   static alloc(): MinMax; // inherited from NSObject
 
+  static fromTypeValue(minType: number, minValue: number, maxType: number, maxValue: number): MinMax;
+
   static new(): MinMax; // inherited from NSObject
 
   readonly cssValue: string;
