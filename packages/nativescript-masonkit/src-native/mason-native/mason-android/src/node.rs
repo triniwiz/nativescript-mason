@@ -1,9 +1,9 @@
+use jni::JNIEnv;
 use jni::objects::{JClass, JObject, JValue, ReleaseMode};
 use jni::sys::{
-    jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, jobjectArray, jshort, JNI_FALSE,
-    JNI_TRUE,
+    jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, JNI_FALSE, JNI_TRUE, jobjectArray,
+    jshort,
 };
-use jni::JNIEnv;
 
 use mason_core::{AvailableSpace, Mason, MeasureFunc, MeasureOutput, Node, Size};
 
@@ -124,7 +124,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let style = Box::from_raw(style as *mut mason_core::style::Style);
 
-        match env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+       let ret =  match env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
             Ok(array) => {
                 let data = std::slice::from_raw_parts_mut(
                     array.as_ptr() as *mut jlong,
@@ -137,16 +137,22 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
                         *v
                     })
                     .collect();
+
                 mason
-                    .new_node_with_children(*style, data.as_slice())
+                    .new_node_with_children(*style.clone(), data.as_slice())
                     .map(|v| Box::into_raw(Box::new(v)) as jlong)
                     .unwrap_or_else(|| 0)
             }
             Err(_) => mason
-                .new_node(*style)
+                .new_node(*style.clone())
                 .map(|v| Box::into_raw(Box::new(v)) as jlong)
                 .unwrap_or_else(|| 0),
-        }
+        };
+
+        Box::leak(mason);
+        Box::leak(style);
+
+        ret
     }
 }
 
