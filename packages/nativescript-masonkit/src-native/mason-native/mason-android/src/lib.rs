@@ -253,7 +253,6 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeClear(
 
 fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
     track_type: i32,
-    track_value_type: i32,
     track_value: f32,
     index: isize,
     store: &mut Vec<CMasonNonRepeatedTrackSizingFunction>,
@@ -262,14 +261,12 @@ fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
         0 => auto(),
         1 => min_content(),
         2 => max_content(),
-        3 => fit_content(match track_value_type {
-            0 => LengthPercentage::Points(track_value),
-            1 => LengthPercentage::Points(track_value),
-            _ => panic!(),
-        }),
-        4 => flex(track_value),
-        5 => points(track_value),
-        6 => percent(track_value),
+        3 => points(track_value),
+        4 => percent(track_value),
+        5 => flex(track_value),
+        6 => fit_content(LengthPercentage::Points(track_value)),
+        7 => fit_content(LengthPercentage::Percent(track_value)),
+
         _ => panic!(),
     });
 
@@ -488,7 +485,6 @@ pub(crate) mod ffi {
 
         fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
             track_type: i32,
-            track_value_type: i32,
             track_value: f32,
             index: isize,
             store: &mut Vec<CMasonNonRepeatedTrackSizingFunction>,
