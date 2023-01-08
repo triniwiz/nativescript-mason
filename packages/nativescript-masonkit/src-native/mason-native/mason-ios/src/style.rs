@@ -1679,11 +1679,12 @@ pub unsafe fn to_vec_track_sizing_function(
             return vec![];
         }
     }
+    let value = unsafe {&*value};
 
-    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
+    let slice = unsafe { std::slice::from_raw_parts_mut(value.array, value.length) };
 
     slice
-        .into_iter()
+        .iter()
         .map(|v| match v {
             CMasonTrackSizingFunction::Single(value) => {
                 let v = *value;
