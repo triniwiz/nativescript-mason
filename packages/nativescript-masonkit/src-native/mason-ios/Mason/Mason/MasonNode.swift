@@ -176,16 +176,17 @@ public class MasonNode: NSObject {
                         var gridTemplateRows = CMasonTrackSizingFunctionArray()
                         
                         if(gridTemplateRowsCount > 0){
-                            gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRowsBuffer.baseAddress!.pointee, length: gridTemplateRowsCount)
+                            gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRowsBuffer.baseAddress, length: gridTemplateRowsCount)
                         }
                         
-            
+                        
+                
                         gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumnsBuffer in
                             
                             var gridTemplateColumns = CMasonTrackSizingFunctionArray()
                             
                             if(gridTemplateColumnsCount > 0){
-                                gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumnsBuffer.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                                gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumnsBuffer.baseAddress, length: gridTemplateColumnsCount)
                             }
                             
                             mason_node_update_and_set_style_with_values(
@@ -364,12 +365,12 @@ public class MasonNode: NSObject {
                     
                     gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
                         
-                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress!.pointee, length: gridTemplateRowsCount)
+                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress, length: gridTemplateRowsCount)
                         
                         
                         gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
                             
-                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress, length: gridTemplateColumnsCount)
                             
                             
                             points = mason_node_update_style_with_values_size_compute_and_layout(
@@ -514,12 +515,12 @@ public class MasonNode: NSObject {
                     
                     gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
                         
-                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress!.pointee, length: gridTemplateRowsCount)
+                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress, length: gridTemplateRowsCount)
                         
                         
                         gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
                             
-                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress!.pointee, length: gridTemplateColumnsCount)
+                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress, length: gridTemplateColumnsCount)
                             
                             
                             points = mason_node_update_style_with_values_compute_and_layout(

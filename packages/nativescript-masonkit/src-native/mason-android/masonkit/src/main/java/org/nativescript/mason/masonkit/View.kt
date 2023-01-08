@@ -10,6 +10,7 @@ import androidx.annotation.Keep
 import com.google.gson.Gson
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
+import kotlin.math.log
 import kotlin.math.roundToInt
 
 interface MeasureFunc {
@@ -218,7 +219,7 @@ class View @JvmOverloads constructor(
 
     node.style.size = Size(width, height)
 
-    node.updateNodeStyle()
+    checkAndUpdateStyle()
   }
 
   private fun createLayout(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -229,17 +230,13 @@ class View @JvmOverloads constructor(
     val layout = if (parent !is View) {
       if ((parent as? android.view.View)?.id == android.R.id.content) {
         setSizeFromMeasureSpec(widthMeasureSpec, heightMeasureSpec)
-        node.updateNodeStyle()
       }
-      // node.computeMaxContent()
-      // node.layout()
       node.computeAndLayout()
     } else {
       node.layout()
     }
 
     setMeasuredDimension(layout.width.roundToInt(), layout.height.roundToInt())
-
   }
 
   override fun addView(child: android.view.View, index: Int, params: ViewGroup.LayoutParams) {
@@ -445,7 +442,6 @@ class View @JvmOverloads constructor(
           node.style.aspectRatio = value
         }
         R.styleable.mason_mason_borderLeft -> {
-          // TODO handle direction
           borderLeft = LengthPercentage.Points(value)
         }
         R.styleable.mason_mason_borderTop -> {
@@ -471,6 +467,7 @@ class View @JvmOverloads constructor(
           borderBottom = points
         }
         R.styleable.mason_mason_direction -> {
+          // TODO handle direction
           node.style.direction = Direction.fromInt(value.roundToInt())
         }
         R.styleable.mason_mason_display -> {
@@ -660,7 +657,7 @@ class View @JvmOverloads constructor(
         }
       }
       if (value.endsWith("%")) {
-        val numericValue = value.replace("%", "").toFloat()
+        val numericValue = value.replace("%", "").toFloat() / 100
         when (attribute) {
           R.styleable.mason_mason_flexBasis -> {
             node.style.flexBasis = Dimension.Percent(numericValue)
@@ -771,7 +768,7 @@ class View @JvmOverloads constructor(
     node.style.minSize = Size(minWidth, minHeight)
     node.style.maxSize = Size(maxWidth, maxHeight)
 
-    node.updateNodeStyle()
+    checkAndUpdateStyle()
   }
 
 

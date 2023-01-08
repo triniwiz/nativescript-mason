@@ -52,9 +52,9 @@ public class MinMax: NSObject, Codable {
             break
         case 2: min = MinSizing.MaxContent
             break
-        case 3: min = MinSizing.Percent(minValue)
+        case 3: min = MinSizing.Points(minValue)
             break
-        case 4: min = MinSizing.Points(minValue)
+        case 4: min = MinSizing.Percent(minValue)
             break
         default:
             min = nil
@@ -69,9 +69,9 @@ public class MinMax: NSObject, Codable {
             break
         case 2: max = MaxSizing.MaxContent
             break
-        case 3: max = MaxSizing.Percent(maxValue)
+        case 3: max = MaxSizing.Points(maxValue)
             break
-        case 4: max = MaxSizing.Points(maxValue)
+        case 4: max = MaxSizing.Percent(maxValue)
             break
         case 5 : max = MaxSizing.Flex(maxValue)
             break

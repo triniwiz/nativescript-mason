@@ -967,6 +967,7 @@ class Style internal constructor() {
   @Throws(Throwable::class)
   protected fun finalize() {
     nativeDestroy(nativePtr)
+    nativePtr = 0
   }
 
   internal fun updateStyle(

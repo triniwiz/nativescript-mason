@@ -621,8 +621,9 @@ class Node private constructor(private var nativePtr: Long) {
   @Throws(Throwable::class)
   protected fun finalize() {
     if (nativePtr != 0L){
-    //  owner?.removeChild(this)
-  //    nativeDestroy(nativePtr)
+      owner?.removeChild(this)
+      nativeDestroy(nativePtr)
+      nativePtr = 0
     }
 
   }

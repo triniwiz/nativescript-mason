@@ -62,42 +62,6 @@ pub fn min_max_from_values(
     }
 }
 
-fn to_grid_template(
-    single: Option<&[(i32, f32, i32, f32)]>,
-    auto_repeat: Option<&[(i32, &[(i32, f32, i32, f32)])]>,
-) -> Vec<TrackSizingFunction> {
-    if let Some(single) = single {
-        return single
-            .iter()
-            .map(|(min_type, min_value, max_type, max_value)| {
-                TrackSizingFunction::Single(min_max_from_values(
-                    *min_type, *min_value, *max_type, *max_value,
-                ))
-            })
-            .collect();
-    } else if let Some(auto_repeat) = auto_repeat {
-        return auto_repeat
-            .iter()
-            .map(|(track_repetition, values)| {
-                TrackSizingFunction::AutoRepeat(
-                    match track_repetition {
-                        0 => GridTrackRepetition::AutoFill,
-                        1 => GridTrackRepetition::AutoFit,
-                        _ => panic!(),
-                    },
-                    values
-                        .iter()
-                        .map(|(min_type, min_value, max_type, max_value)| {
-                            min_max_from_values(*min_type, *min_value, *max_type, *max_value)
-                        })
-                        .collect(),
-                )
-            })
-            .collect();
-    }
-    vec![]
-}
-
 fn grid_placement(t: i32, v: i16) -> GridPlacement {
     match t {
         0 => GridPlacement::Auto,

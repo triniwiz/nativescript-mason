@@ -117,12 +117,12 @@ pub extern "C" fn mason_node_new_node_with_measure_func(
 
                             let available_space_width = match available_space.width {
                                 mason_core::AvailableSpace::Definite(width) => width,
-                                _ => f32::NAN
+                                _ => f32::NAN,
                             };
 
                             let available_space_height = match available_space.height {
                                 mason_core::AvailableSpace::Definite(height) => height,
-                                _ => f32::NAN
+                                _ => f32::NAN,
                             };
 
                             let size = measure(
@@ -130,7 +130,7 @@ pub extern "C" fn mason_node_new_node_with_measure_func(
                                 known_dimensions.width.unwrap_or(f32::NAN),
                                 known_dimensions.height.unwrap_or(f32::NAN),
                                 available_space_width,
-                                available_space_height
+                                available_space_height,
                             );
 
                             let width = MeasureOutput::get_width(size);
@@ -521,7 +521,6 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
             grid_template_columns,
         );
         mason.set_style(*node, *style.clone());
-
 
         Box::leak(mason);
         Box::leak(node);
@@ -1376,17 +1375,16 @@ pub extern "C" fn mason_node_set_measure_func(
                 move |known_dimensions, available_space| match measure.as_ref() {
                     None => known_dimensions.map(|v| v.unwrap_or(0.0)),
                     Some(measure) => {
-
                         let measure_data = measure_data as *mut c_void;
 
                         let available_space_width = match available_space.width {
                             mason_core::AvailableSpace::Definite(width) => width,
-                            _ => f32::NAN
+                            _ => f32::NAN,
                         };
 
                         let available_space_height = match available_space.height {
                             mason_core::AvailableSpace::Definite(height) => height,
-                            _ => f32::NAN
+                            _ => f32::NAN,
                         };
 
                         let size = measure(

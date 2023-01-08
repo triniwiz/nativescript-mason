@@ -18,7 +18,8 @@ public class TrackSizingFunction: NSObject {
     var gridTrackRepetition: GridTrackRepetition?
     var repeatValue: Array<MinMax>?
     
-    var cValue: UnsafeMutablePointer<CMasonTrackSizingFunction>? = nil
+    var cValue: CMasonTrackSizingFunction
+
     
     public var value: Any? {
         get {
@@ -34,22 +35,21 @@ public class TrackSizingFunction: NSObject {
         self.singleValue = singleValue
         self.gridTrackRepetition = gridTrackRepetition
         self.repeatValue = repeatValue
+        self.cValue = CMasonTrackSizingFunction()
     }
     
     
     public static func Single(_ value: MinMax) -> TrackSizingFunction {
         let ret = TrackSizingFunction(isRepeating: false, singleValue: value)
         
-        let tracking = UnsafeMutablePointer<CMasonTrackSizingFunction>.allocate(capacity: 1)
+        var tracking = CMasonTrackSizingFunction()
         
-        tracking.pointee.tag = CMasonTrackSizingFunction_Tag(0)
-        
-        print(ret.singleValue!.cValue)
-        
-        tracking.pointee.single = ret.singleValue!.cValue
-        
+        tracking.tag = CMasonTrackSizingFunction_Tag(0)
+    
+        tracking.single = ret.singleValue!.cValue
+    
         ret.cValue = tracking
-        
+    
         return ret
     }
     
@@ -58,42 +58,37 @@ public class TrackSizingFunction: NSObject {
     var minMaxBufferValues: UnsafeMutableBufferPointer<CMasonMinMax>? = nil
     
     deinit {
-        cValue?.deallocate()
-        minMaxBufferValues?.deallocate()
+        minMaxBuffer?.deallocate()
         minMaxBufferValues?.deallocate()
     }
+
     
     public static func AutoRepeat(_ gridTrackRepetition: GridTrackRepetition, _ value: Array<MinMax>) -> TrackSizingFunction {
         let ret = TrackSizingFunction(isRepeating: true, singleValue: nil, gridTrackRepetition: gridTrackRepetition, repeatValue: value)
         
-        let minMax = UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>.allocate(capacity: 1)
-        
         let minMaxValues = UnsafeMutableBufferPointer<CMasonMinMax>.allocate(capacity: value.count)
-        
+      
         let _ = minMaxValues.initialize(from: value.map({ value in
             value.cValue
         }))
                 
         ret.minMaxBufferValues = minMaxValues
         
-        let minMaxArray = CMasonNonRepeatedTrackSizingFunctionArray(array: minMaxValues.baseAddress, length: UInt(value.count))
+        let minMaxBuffer = UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>.allocate(capacity: 1)
+   
+        minMaxBuffer.pointee.array = minMaxValues.baseAddress
+        minMaxBuffer.pointee.length = UInt(value.count)
+
+        ret.minMaxBuffer = minMaxBuffer
         
-        minMax.initialize(to: minMaxArray)
+        var tracking = CMasonTrackSizingFunction()
+    
+        tracking.tag = Repeat
         
-        ret.minMaxBuffer = minMax
-        
-        let tracking = UnsafeMutablePointer<CMasonTrackSizingFunction>.allocate(capacity: 1)
-        
-        var trackingValue = CMasonTrackSizingFunction()
-        
-        trackingValue.tag = Repeat
-        
-        trackingValue.repeat = Repeat_Body(_0: gridTrackRepetition.rawValue, _1: minMax)
-        
-        tracking.initialize(to: trackingValue)
+        tracking.repeat = Repeat_Body(_0: gridTrackRepetition.rawValue, _1: minMaxBuffer)
         
         ret.cValue = tracking
-        
+    
        return ret
     }
     

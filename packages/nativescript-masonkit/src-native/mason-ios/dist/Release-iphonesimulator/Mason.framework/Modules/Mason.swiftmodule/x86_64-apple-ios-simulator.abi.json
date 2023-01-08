@@ -16,6 +16,46 @@
         "kind": "TypeDecl",
         "name": "Line",
         "printedName": "Line",
+        "children": [
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Line",
+                "printedName": "Mason.Line<τ_0_0>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "GenericTypeParam",
+                    "printedName": "τ_0_0"
+                  }
+                ],
+                "usr": "s:5Mason4LineV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "GenericTypeParam",
+                "printedName": "τ_0_0"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "GenericTypeParam",
+                "printedName": "τ_0_0"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:5Mason4LineVyACyxGx_xtcfc",
+            "mangledName": "$s5Mason4LineVyACyxGx_xtcfc",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0>",
+            "sugared_genericSig": "<T>",
+            "declAttributes": ["AccessControl"],
+            "init_kind": "Designated"
+          }
+        ],
         "declKind": "Struct",
         "usr": "s:5Mason4LineV",
         "mangledName": "$s5Mason4LineV",
@@ -8851,7 +8891,7 @@
           {
             "kind": "Function",
             "name": "util_create_non_repeated_track_sizing_function_with_type_value",
-            "printedName": "util_create_non_repeated_track_sizing_function_with_type_value(_:_:_:)",
+            "printedName": "util_create_non_repeated_track_sizing_function_with_type_value(_:_:)",
             "children": [
               {
                 "kind": "TypeNominal",
@@ -8867,20 +8907,14 @@
               },
               {
                 "kind": "TypeNominal",
-                "name": "Int32",
-                "printedName": "Swift.Int32",
-                "usr": "s:s5Int32V"
-              },
-              {
-                "kind": "TypeNominal",
                 "name": "Float",
                 "printedName": "Swift.Float",
                 "usr": "s:Sf"
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)util_create_non_repeated_track_sizing_function_with_type_value:::",
-            "mangledName": "$s5Mason0A9ReexportsC62util_create_non_repeated_track_sizing_function_with_type_valueySo12CMasonMinMaxVs5Int32V_AHSftFZ",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)util_create_non_repeated_track_sizing_function_with_type_value::",
+            "mangledName": "$s5Mason0A9ReexportsC62util_create_non_repeated_track_sizing_function_with_type_valueySo12CMasonMinMaxVs5Int32V_SftFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -30813,7 +30847,7 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonLine.swift",
       "kind": "StringLiteral",
-      "offset": 1217,
+      "offset": 1224,
       "length": 23,
       "value": "\"Mason.LineGridPlacementCompat\""
     },

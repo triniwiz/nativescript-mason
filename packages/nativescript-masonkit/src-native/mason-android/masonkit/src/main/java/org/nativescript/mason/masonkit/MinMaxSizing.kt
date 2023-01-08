@@ -27,8 +27,8 @@ sealed class MinSizing {
       is Auto -> 0
       is MinContent -> 1
       is MaxContent -> 2
-      is Percent -> 3
-      is Points -> 4
+      is Points -> 3
+      is Percent -> 4
     }
 
   val value: Float
