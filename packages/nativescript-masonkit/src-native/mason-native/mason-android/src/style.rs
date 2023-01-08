@@ -129,17 +129,17 @@ pub(crate) fn to_vec_track_sizing_function(
                     )
                     .unwrap();
 
-                let auto_repeat_value_array = auto_repeat_value.l().unwrap().into_raw();
+                let auto_repeat_value_array = auto_repeat_value.l().unwrap();
 
                 let repeating_len = env
-                    .get_array_length(auto_repeat_value_array)
+                    .get_array_length(auto_repeat_value_array.into_raw())
                     .unwrap_or_default();
 
                 let mut repeat_ret = Vec::with_capacity(repeating_len as usize);
 
                 for j in 0..repeating_len {
                     let repeat_object = env
-                        .get_object_array_element(auto_repeat_value_array, j)
+                        .get_object_array_element(auto_repeat_value_array.into_raw(), j)
                         .unwrap();
 
                     let min_type = env
@@ -150,6 +150,7 @@ pub(crate) fn to_vec_track_sizing_function(
                             &[],
                         )
                         .unwrap();
+
                     let min_value = env
                         .call_method_unchecked(
                             repeat_object,
@@ -158,6 +159,7 @@ pub(crate) fn to_vec_track_sizing_function(
                             &[],
                         )
                         .unwrap();
+
                     let max_type = env
                         .call_method_unchecked(
                             repeat_object,
@@ -166,6 +168,7 @@ pub(crate) fn to_vec_track_sizing_function(
                             &[],
                         )
                         .unwrap();
+
                     let max_value = env
                         .call_method_unchecked(
                             repeat_object,
@@ -206,12 +209,15 @@ pub(crate) fn to_vec_track_sizing_function(
                 let min_type = env
                     .call_method_unchecked(single_value, min_max.min_type_id, JAVA_INT_TYPE, &[])
                     .unwrap();
+
                 let min_value = env
                     .call_method_unchecked(single_value, min_max.min_value_id, JAVA_FLOAT_TYPE, &[])
                     .unwrap();
+
                 let max_type = env
                     .call_method_unchecked(single_value, min_max.max_type_id, JAVA_INT_TYPE, &[])
                     .unwrap();
+
                 let max_value = env
                     .call_method_unchecked(single_value, min_max.max_value_id, JAVA_FLOAT_TYPE, &[])
                     .unwrap();
