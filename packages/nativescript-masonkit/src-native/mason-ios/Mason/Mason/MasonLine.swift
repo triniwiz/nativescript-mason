@@ -11,7 +11,7 @@ public struct Line<T>{
     var start: T
     var end: T
     
-    init(_ start: T,_ end: T) {
+    public init(_ start: T,_ end: T) {
         self.start = start
         self.end = end
     }
