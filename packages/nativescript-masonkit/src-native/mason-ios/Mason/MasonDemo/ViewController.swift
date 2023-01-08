@@ -123,8 +123,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         } while i < 1000
         
         
-        let start = CACurrentMediaTime()
-        
         
         let sv = UIScrollView(frame: view.bounds)
         
@@ -135,6 +133,189 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         sv.addSubview(masonView)
         
         
+        
+        /*
+         .parent {
+         display: grid;
+         grid-template-columns: repeat(5, 1fr);
+         grid-template-rows: repeat(5, 1fr);
+         grid-column-gap: 0px;
+         grid-row-gap: 0px;
+         }
+
+         .div1 { grid-area: 1 / 1 / 2 / 2; }
+         .div2 { grid-area: 1 / 5 / 2 / 6; }
+         .div3 { grid-area: 3 / 3 / 4 / 4; }
+         .div4 { grid-area: 5 / 1 / 6 / 2; }
+         .div5 { grid-area: 5 / 5 / 6 / 6; }
+
+         
+         */
+        
+        
+        masonView.configure { node in
+            node.isEnabled = true
+            node.style.display = .Grid
+            node.style.gridTemplateColumns = [
+                TrackSizingFunction.Single(.Flex(flex: 1)),
+                TrackSizingFunction.Single(.Flex(flex: 1)),
+                TrackSizingFunction.Single(.Flex(flex: 1)),
+                TrackSizingFunction.Single(.Flex(flex: 1)),
+                TrackSizingFunction.Single(.Flex(flex: 1))
+            ]
+            
+            node.style.gridTemplateRows = [
+                TrackSizingFunction.Single(.Flex(flex: 1)),
+                TrackSizingFunction.Single(.Flex(flex: 1)),
+                TrackSizingFunction.Single(.Flex(flex: 1)),
+                TrackSizingFunction.Single(.Flex(flex: 1)),
+                TrackSizingFunction.Single(.Flex(flex: 1))
+            ]
+            
+            node.style.gap = MasonSize(.Points(0), .Points(0))
+            
+        }
+        
+        
+        let view1 = UIView(frame: .zero)
+        view1.configure { node in
+            node.isEnabled = true
+            node.style.gridRow = Line<GridPlacement>(.Line(1),.Line(2))
+            node.style.gridColumn = Line<GridPlacement>(.Line(1),.Line(2))
+        }
+        
+        let label1 = UILabel(frame: .zero)
+        label1.mason.isEnabled = true
+        label1.text = "1"
+        view1.addSubview(label1)
+        
+        let view2 = UIView(frame: .zero)
+        
+  
+        view2.configure { node in
+            node.isEnabled = true
+            node.style.gridRow = Line<GridPlacement>(.Line(1),.Line(2))
+            node.style.gridColumn = Line<GridPlacement>(.Line(5),.Line(6))
+        }
+        
+        let label2 = UILabel(frame: .zero)
+        label2.mason.isEnabled = true
+        label2.text = "2"
+        view2.addSubview(label2)
+        
+        let view3 = UIView(frame: .zero)
+        
+        view3.configure { node in
+            node.isEnabled = true
+            node.style.gridRow = Line<GridPlacement>(.Line(3),.Line(4))
+            node.style.gridColumn = Line<GridPlacement>(.Line(3),.Line(4))
+        }
+        
+        let label3 = UILabel(frame: .zero)
+        label3.mason.isEnabled = true
+        label3.text = "3"
+        view3.addSubview(label3)
+        
+        
+        let view4 = UIView(frame: .zero)
+        
+        view4.configure { node in
+            node.isEnabled = true
+            node.style.gridRow = Line<GridPlacement>(.Line(5),.Line(6))
+            node.style.gridColumn = Line<GridPlacement>(.Line(1),.Line(2))
+        }
+        
+        let label4 = UILabel(frame: .zero)
+        label4.mason.isEnabled = true
+        label4.text = "4"
+        view4.addSubview(label4)
+        
+        let view5 = UIView(frame: .zero)
+        
+        view5.configure { node in
+            node.isEnabled = true
+            node.style.gridRow = Line<GridPlacement>(.Line(5),.Line(6))
+            node.style.gridColumn = Line<GridPlacement>(.Line(5),.Line(6))
+        }
+        
+        let label5 = UILabel(frame: .zero)
+        label5.mason.isEnabled = true
+        label5.text = "5"
+        view5.addSubview(label5)
+        
+        masonView.addSubview(view1)
+        masonView.addSubview(view2)
+        masonView.addSubview(view3)
+        masonView.addSubview(view4)
+        masonView.addSubview(view5)
+        
+        
+        masonView.mason.computeMaxContent()
+    }
+    
+    func resizeImage(_ image: UIImage, _ newSize: CGSize) -> UIImage{
+        let newImage = UIGraphicsImageRenderer(size: newSize).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        
+        
+        return newImage.withRenderingMode(image.renderingMode)
+    }
+    
+    
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+        return 1
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return items.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "default", for: indexPath) as! DefaultCellView
+        let item = items[indexPath.row]
+        cell.listTextView.text = item
+        DispatchQueue.global().async { [self] in
+            do {
+                let data = try Data(contentsOf: URL(string: item)!)
+                
+                let side = CGFloat(150)
+                
+                
+                let image = resizeImage(UIImage(data: data)!, CGSize(width: side, height: side))
+                
+                
+                DispatchQueue.main.async {
+                    cell.listImageView.image = image
+                    cell.containerView.mason.computeWithMaxContent()
+                }
+            }catch{}
+        }
+        return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        (cell as! DefaultCellView).containerView.mason.computeWithMaxContent()
+    }
+    
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        guard let cell = collectionView.cellForItem(at: indexPath) else {
+            let layout = collectionView.mason.layout()
+            return CGSizeMake(collectionView.frame.width, CGFloat(layout.height / scale))
+        }
+
+        let layout = cell.mason.layout()
+   
+        
+        return CGSizeMake(CGFloat(layout.width / scale), CGFloat(layout.height / scale))
+    }
+    
+    
+    
+    func testLayout(){
+        guard let masonView = masonView else {return}
+        
         masonView.mason.configure { mason in
             mason.isEnabled = true
             mason.style.alignContent = .Stretch
@@ -142,20 +323,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             mason.style.flexDirection = .Column
             mason.style.justifyContent = .Start
             mason.style.display = .Flex
-            
-            // TODO fix
-            mason.style.gridTemplateColumns = [
-//                TrackSizingFunction.Single(MinMax.fromTypeValue(0, 0, 5, 1)!),
-//                TrackSizingFunction.Single(MinMax.fromTypeValue(0, 0, 5, 1)!),
-//                TrackSizingFunction.Single(MinMax.fromTypeValue(0, 0, 5, 1)!)
-                
-//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!]),
-//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!]),
-//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!]),
-//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!]),
-//                TrackSizingFunction.AutoRepeat(.AutoFill, [MinMax.fromTypeValue(0, 0, 5, 1)!])
-            ]
-            mason.style.size = MasonSize(MasonDimension.Points(Float(sv.bounds.size.width) * scale), MasonDimension.Points(Float(sv.bounds.size.height) * scale))
+
+            mason.style.size = MasonSize(MasonDimension.Points(Float(view.bounds.size.width) * scale), MasonDimension.Points(Float(view.bounds.size.height) * scale))
             
         }
         
@@ -377,66 +546,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             }
         }
     
-        
-        
-    }
-    
-    func resizeImage(_ image: UIImage, _ newSize: CGSize) -> UIImage{
-        let newImage = UIGraphicsImageRenderer(size: newSize).image { _ in
-            image.draw(in: CGRect(origin: .zero, size: newSize))
-        }
-        
-        
-        return newImage.withRenderingMode(image.renderingMode)
-    }
-    
-    
-    func numberOfSections(in collectionView: UICollectionView) -> Int {
-        return 1
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return items.count
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "default", for: indexPath) as! DefaultCellView
-        let item = items[indexPath.row]
-        cell.listTextView.text = item
-        DispatchQueue.global().async { [self] in
-            do {
-                let data = try Data(contentsOf: URL(string: item)!)
-                
-                let side = CGFloat(150)
-                
-                
-                let image = resizeImage(UIImage(data: data)!, CGSize(width: side, height: side))
-                
-                
-                DispatchQueue.main.async {
-                    cell.listImageView.image = image
-                    cell.containerView.mason.computeWithMaxContent()
-                }
-            }catch{}
-        }
-        return cell
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-        (cell as! DefaultCellView).containerView.mason.computeWithMaxContent()
-    }
-    
-    
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        guard let cell = collectionView.cellForItem(at: indexPath) else {
-            let layout = collectionView.mason.layout()
-            return CGSizeMake(collectionView.frame.width, CGFloat(layout.height / scale))
-        }
-
-        let layout = cell.mason.layout()
-   
-        
-        return CGSizeMake(CGFloat(layout.width / scale), CGFloat(layout.height / scale))
     }
     
     
