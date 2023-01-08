@@ -9,7 +9,6 @@
     mason:mason_alignItems="center"
     mason:mason_flexDirection="column"
     mason:mason_justifyContent="start"
-    mason:mason_display="flex"
     tools:context=".MainActivity">
 
     <!--
