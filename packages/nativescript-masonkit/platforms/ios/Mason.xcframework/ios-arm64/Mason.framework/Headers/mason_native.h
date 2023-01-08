@@ -933,7 +933,6 @@ void mason_style_update_with_values(void *style,
                                     struct CMasonTrackSizingFunctionArray *grid_template_columns);
 
 struct CMasonMinMax mason_util_create_non_repeated_track_sizing_function_with_type_value(int32_t track_type,
-                                                                                         int32_t track_value_type,
                                                                                          float track_value);
 
 char *mason_util_parse_non_repeated_track_sizing_function(struct CMasonNonRepeatedTrackSizingFunctionArray *value);
