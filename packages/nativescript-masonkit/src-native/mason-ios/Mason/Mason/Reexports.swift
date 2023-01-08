@@ -543,8 +543,8 @@ public class MasonReexports: NSObject {
         return ret
     }
     
-    public static func util_create_non_repeated_track_sizing_function_with_type_value(_ track_type: Int32, _ track_value_type: Int32, _ track_value: Float) -> CMasonMinMax {
-       return mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type, track_value_type, track_value)
+    public static func util_create_non_repeated_track_sizing_function_with_type_value(_ track_type: Int32, _ track_value: Float) -> CMasonMinMax {
+       return mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type, track_value)
     }
     
     public static func style_update_with_values(_ style: UnsafeMutableRawPointer,
