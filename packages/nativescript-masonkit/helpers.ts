@@ -1140,7 +1140,7 @@ export function _setFlexWrap(value, instance: TSCView, initial = false) {
             nativeValue = org.nativescript.mason.masonkit.FlexWrap.NoWrap;
           }
 
-          if (global.isAndroid) {
+          if (global.isIOS) {
             nativeValue = FlexWrap.NoWrap;
           }
         }
@@ -1153,7 +1153,7 @@ export function _setFlexWrap(value, instance: TSCView, initial = false) {
             nativeValue = org.nativescript.mason.masonkit.FlexWrap.Wrap;
           }
 
-          if (global.isAndroid) {
+          if (global.isIOS) {
             nativeValue = FlexWrap.Wrap;
           }
         }
@@ -1167,7 +1167,7 @@ export function _setFlexWrap(value, instance: TSCView, initial = false) {
             nativeValue = org.nativescript.mason.masonkit.FlexWrap.WrapReverse;
           }
 
-          if (global.isAndroid) {
+          if (global.isIOS) {
             nativeValue = FlexWrap.WrapReverse;
           }
         }

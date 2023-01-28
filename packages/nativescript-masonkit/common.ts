@@ -795,6 +795,7 @@ export const flexDirectionProperty = new CssProperty<Style, FlexDirection>({
 export const flexWrapProperty = new CssProperty<Style, FlexWrap>({
   name: 'flexWrap',
   cssName: 'flex-wrap',
+  defaultValue: 'no-wrap',
 });
 
 export const leftProperty = new CssProperty<Style, LengthAuto>({
