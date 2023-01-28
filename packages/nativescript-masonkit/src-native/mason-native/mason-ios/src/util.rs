@@ -1,14 +1,15 @@
-use std::ffi::{c_char, c_void, CString};
+use std::ffi::{c_char, CString};
 
 use mason_core::{
     auto, fit_content, flex, max_content, min_content, percent, points, LengthPercentage,
-    NonRepeatedTrackSizingFunction, TrackSizingFunction,
+    NonRepeatedTrackSizingFunction,
 };
 
-use crate::style::{
-    CMasonMinMax, CMasonNonRepeatedTrackSizingFunction, CMasonNonRepeatedTrackSizingFunctionArray,
-    CMasonTrackSizingFunction, CMasonTrackSizingFunctionArray,
-};
+use crate::style::CMasonMinMax;
+
+use crate::style::CMasonNonRepeatedTrackSizingFunctionArray;
+
+use crate::style::CMasonTrackSizingFunctionArray;
 
 #[no_mangle]
 pub extern "C" fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
@@ -45,7 +46,7 @@ pub extern "C" fn mason_util_parse_non_repeated_track_sizing_function(
             if i != 0 {
                 ret.push(' ');
             }
-            ret.push_str(parsed.as_str())
+            ret.push_str(parsed.as_ref())
         }
     }
     if ret.is_empty() {

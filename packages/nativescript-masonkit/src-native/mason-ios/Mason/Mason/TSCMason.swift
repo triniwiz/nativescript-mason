@@ -17,7 +17,7 @@ public class TSCMason: NSObject {
     }
     
     deinit {
-       // mason_destroy(nativePtr)
+        mason_destroy(nativePtr)
     }
     
     public func clear(){

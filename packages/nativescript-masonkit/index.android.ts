@@ -1,6 +1,8 @@
-import { Utils, ViewBase } from '@nativescript/core';
-import { TSCViewBase } from './common';
+import { Utils, View, ViewBase } from '@nativescript/core';
+import { TSCViewBase, applyMixins } from './common';
 const BigIntZero = BigInt(0);
+
+export { applyMixins };
 
 export class TSCView extends TSCViewBase {
   static {
@@ -54,11 +56,20 @@ export class TSCView extends TSCViewBase {
     const nativeView = this.nativeViewProtected as org.nativescript.mason.masonkit.View;
 
     if (nativeView && child.nativeViewProtected) {
+      child['_hasNativeView'] = true;
+      child['_isMasonChild'] = true;
       (nativeView as any).addView(child.nativeViewProtected, -1);
 
       return true;
     }
 
     return false;
+  }
+
+  public _removeViewFromNativeVisualTree(view: ViewBase): void {
+    (view as any)._masonParent = undefined;
+    (view as any)._isMasonView = false;
+    (view as any)._isMasonChild = false;
+    super._removeViewFromNativeVisualTree(view);
   }
 }

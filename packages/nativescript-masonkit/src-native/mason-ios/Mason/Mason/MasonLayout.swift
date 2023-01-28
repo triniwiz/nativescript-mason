@@ -9,7 +9,7 @@ import Foundation
 
 @objc(MasonLayout)
 @objcMembers
-public class MasonLayout: NSObject {
+public class MasonLayout: NSObject, Codable {
     public let order: Int
     public let x: Float
     public let y: Float
@@ -18,18 +18,17 @@ public class MasonLayout: NSObject {
     public let children: [MasonLayout]
     
     public override var description: String {
-        var ret = "(MasonLayout)("
-        
-        ret += "order: \(order), "
-        ret += "x: \(x), "
-        ret += "y: \(y), "
-        ret += "width: \(width), "
-        ret += "height: \(height), "
-        ret += "children: \(children.description)"
-        
-        ret += ")"
-        
-        return ret
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted]
+            
+            encoder.nonConformingFloatEncodingStrategy = .convertToString(positiveInfinity: "-Infinity", negativeInfinity: "Infinity", nan: "NaN")
+                                                                          
+            let jsonData = try encoder.encode(self)
+                return String(data: jsonData, encoding: .utf8) ?? ""
+             } catch {
+                 return "json serialization error: \(error)"
+             }
     }
     
     internal override init() {

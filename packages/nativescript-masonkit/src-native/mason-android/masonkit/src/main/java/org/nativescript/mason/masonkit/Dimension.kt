@@ -72,34 +72,42 @@ sealed class Dimension {
     }
 }
 
-fun Rect<Dimension>.jsonValue(): String {
-  return Mason.gson.toJson(this)
-}
+val Rect<Dimension>.jsonValue: String
+  get() {
+    return Mason.gson.toJson(this)
+  }
 
-fun Rect<Dimension>.cssValue(): String {
-  return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
-}
+val Rect<Dimension>.cssValue: String
+  get() {
+    return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
+  }
 
-fun Size<Dimension>.jsonValue(): String {
-  return Mason.gson.toJson(this)
-}
+val Size<Dimension>.jsonValue: String
+  get() {
+    return Mason.gson.toJson(this)
+  }
 
-fun Size<Dimension>.cssValue(): String {
-  return "{\"width\":${width.cssValue},\"height\":${height.cssValue}}"
-}
+val Size<Dimension>.cssValue: String
+  get() {
+    return "{\"width\":${width.cssValue},\"height\":${height.cssValue}}"
+  }
 
-fun Size<Dimension>.widthCssValue(): String {
-  return width.cssValue
-}
+val Size<Dimension>.widthCssValue: String
+  get() {
+    return width.cssValue
+  }
 
-fun Size<Dimension>.heightCssValue(): String {
-  return height.cssValue
-}
+val Size<Dimension>.heightCssValue: String
+  get() {
+    return height.cssValue
+  }
 
-fun Size<Dimension>.widthJsonValue(): String {
-  return width.jsonValue
-}
+val Size<Dimension>.widthJsonValue: String
+  get() {
+    return width.jsonValue
+  }
 
-fun Size<Dimension>.heightJsonValue(): String {
-  return height.jsonValue
-}
+val Size<Dimension>.heightJsonValue: String
+  get() {
+    return height.jsonValue
+  }

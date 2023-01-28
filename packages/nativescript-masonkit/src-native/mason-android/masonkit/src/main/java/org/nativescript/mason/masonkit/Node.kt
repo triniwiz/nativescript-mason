@@ -188,17 +188,18 @@ class Node private constructor(private var nativePtr: Long) {
     inBatch = true
     block(this)
     inBatch = false
+    updateNodeStyle()
   }
 
   @JvmOverloads
-  fun computeAndLayout(size: Size<Float>? = null): Layout {
-    if (size != null) {
+  fun computeAndLayout(width: Float? = null, height: Float? = null): Layout {
+    if (width != null && height != null) {
       return Layout.fromFloatArray(
         nativeUpdateSetStyleComputeWithSizeAndLayout(
           Mason.instance.nativePtr,
           nativePtr,
           style.getNativePtr(),
-          size.width, size.height,
+          width, height,
           style.display.ordinal,
           style.position.ordinal,
           style.direction.ordinal,
@@ -399,6 +400,41 @@ class Node private constructor(private var nativePtr: Long) {
     return nativePtr
   }
 
+  val root: Node?
+    get() {
+      return owner?.let {
+        var current: Node? = it
+        var next = current
+        while (next != null) {
+          next = current?.owner
+          if (next != null) {
+            current = next
+          }
+        }
+        return current
+      }
+    }
+
+  fun rootCompute() {
+    root?.compute()
+  }
+
+  fun rootCompute(width: Float, height: Float) {
+    root?.compute(width, height)
+  }
+
+  fun rootComputeMaxContent() {
+    root?.computeMaxContent()
+  }
+
+  fun rootComputeMinContent() {
+    root?.computeMinContent()
+  }
+
+  fun rootComputeWithViewSize() {
+    root?.computeWithViewSize()
+  }
+
   fun compute() {
     nativeCompute(Mason.instance.nativePtr, nativePtr)
   }
@@ -413,6 +449,12 @@ class Node private constructor(private var nativePtr: Long) {
 
   fun computeMinContent() {
     nativeComputeMinContent(Mason.instance.nativePtr, nativePtr)
+  }
+
+  fun computeWithViewSize() {
+    (data as View?)?.let {
+      compute(it.width.toFloat(), it.height.toFloat())
+    }
   }
 
   fun getChildAt(index: Int): Node? {
@@ -620,7 +662,7 @@ class Node private constructor(private var nativePtr: Long) {
   @Synchronized
   @Throws(Throwable::class)
   protected fun finalize() {
-    if (nativePtr != 0L){
+    if (nativePtr != 0L) {
       owner?.removeChild(this)
       nativeDestroy(nativePtr)
       nativePtr = 0

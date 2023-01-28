@@ -1578,6 +1578,174 @@ declare module org {
   }
 }
 
+declare module org {
+  export module nativescript {
+    export module mason {
+      export module masonkit {
+        export class NodeHelper {
+          public static class: java.lang.Class<org.nativescript.mason.masonkit.NodeHelper>;
+          public static INSTANCE: org.nativescript.mason.masonkit.NodeHelper;
+          public getAlignSelf(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.AlignSelf;
+          public setAspectRatio(param0: org.nativescript.mason.masonkit.Node, param1: java.lang.Float): void;
+          public setSizeWidth(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getInsetLeft(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
+          public setAlignContent(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.AlignContent): void;
+          public setMaxSize(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getBorderBottom(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public setBorderBottom(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setGridColumnStart(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.GridPlacement): void;
+          public getMinSizeHeight(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
+          public getGridAutoRows(param0: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.MinMax>;
+          public getFlexDirection(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.FlexDirection;
+          public getDisplay(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Display;
+          public getBorder(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
+          public getMarginJsonValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setMargin(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.LengthPercentageAuto, param2: org.nativescript.mason.masonkit.LengthPercentageAuto, param3: org.nativescript.mason.masonkit.LengthPercentageAuto, param4: org.nativescript.mason.masonkit.LengthPercentageAuto): void;
+          public getPosition(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Position;
+          public getInsetRight(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
+          public setGap(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
+          public setPosition(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
+          public getMinSize(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+          public setGridRowStart(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.GridPlacement): void;
+          public setMinSizeHeight(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getPadding(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
+          public setMarginBottom(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setBorder(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.LengthPercentage, param2: org.nativescript.mason.masonkit.LengthPercentage, param3: org.nativescript.mason.masonkit.LengthPercentage, param4: org.nativescript.mason.masonkit.LengthPercentage): void;
+          public getAlignItems(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.AlignItems;
+          public setFlexBasis(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension): void;
+          public setFlexBasis(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setMargin(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number, param5: number, param6: number, param7: number, param8: number): void;
+          public getGridRowStart(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridPlacement;
+          public getGridAutoColumns(param0: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.MinMax>;
+          public setPaddingBottom(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setJustifyItems(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.JustifyItems): void;
+          public getBorderLeft(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public getInsetJsonValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setBorderTop(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setGridRowEnd(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.GridPlacement): void;
+          public getMarginLeft(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
+          public getStylePaddingLeft(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public getSizeJsonValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public getStylePaddingBottom(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public setBorderLeft(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getGap(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.LengthPercentage>;
+          public setMaxSizeWidth(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getStylePaddingTop(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public getMargin(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>;
+          public setGridAutoColumns(param0: org.nativescript.mason.masonkit.Node, param1: androidNative.Array<org.nativescript.mason.masonkit.MinMax>): void;
+          public getSize(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+          public getJustifyContent(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.JustifyContent;
+          public getMarginTop(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
+          public getBorderJsonValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setMinSize(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setInsetLeft(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setBorderRight(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getGapColumn(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public getGridTemplateRows(param0: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
+          public getBorderCssValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public getMinSizeJsonValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setFlexWrap(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.FlexWrap): void;
+          public getInsetCssValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public getInsetBottom(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
+          public getGridColumnStart(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridPlacement;
+          public getJustifyItems(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.JustifyItems;
+          public setInset(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number, param5: number, param6: number, param7: number, param8: number): void;
+          public getFlexWrap(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.FlexWrap;
+          public getMaxSizeWidth(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
+          public setGridAutoRows(param0: org.nativescript.mason.masonkit.Node, param1: androidNative.Array<org.nativescript.mason.masonkit.MinMax>): void;
+          public setJustifyContent(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.JustifyContent): void;
+          public setGapRow(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getMarginRight(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
+          public getSizeHeight(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
+          public setSize(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
+          public getPaddingCssValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setRowGap(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setPadding(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number, param5: number, param6: number, param7: number, param8: number): void;
+          public getGridTemplateColumns(param0: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
+          public getMinSizeCssValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setMaxSize(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension, param2: org.nativescript.mason.masonkit.Dimension): void;
+          public getMaxSizeHeight(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
+          public getAlignContent(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.AlignContent;
+          public setPadding(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.LengthPercentage, param2: org.nativescript.mason.masonkit.LengthPercentage, param3: org.nativescript.mason.masonkit.LengthPercentage, param4: org.nativescript.mason.masonkit.LengthPercentage): void;
+          public setMarginWithValueType(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getGridRowEnd(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridPlacement;
+          public setColumnGap(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getInsetTop(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
+          public setMaxSizeHeight(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setPadding(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
+          public setMarginRight(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getFlexBasis(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
+          public setMinSize(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
+          public getInset(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>;
+          public setSizeHeight(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getFlexGrow(param0: org.nativescript.mason.masonkit.Node): number;
+          public setGridColumnEnd(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.GridPlacement): void;
+          public getMarginCssValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setInsetWithValueType(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setJustifySelf(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.JustifySelf): void;
+          public getFlexShrink(param0: org.nativescript.mason.masonkit.Node): number;
+          public setInsetTop(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setGap(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.LengthPercentage, param2: org.nativescript.mason.masonkit.LengthPercentage): void;
+          public getBorderRight(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public setGridTemplateColumns(param0: org.nativescript.mason.masonkit.Node, param1: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
+          public setMinSizeWidth(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setGridColumn(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>): void;
+          public setPaddingTop(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setGapColumn(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getSizeCssValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setOverflow(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Overflow): void;
+          public setInsetBottom(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getGridColumn(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>;
+          public setMinSize(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension, param2: org.nativescript.mason.masonkit.Dimension): void;
+          public getGridAutoFlow(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridAutoFlow;
+          public setInsetRight(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getMinSizeWidth(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
+          public getStylePaddingRight(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public setSize(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension, param2: org.nativescript.mason.masonkit.Dimension): void;
+          public getOverflow(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Overflow;
+          public setBorderWithValueType(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getDirection(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Direction;
+          public getMaxSizeJsonValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setGap(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setBorder(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
+          public setFlexShrink(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
+          public getMarginBottom(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
+          public getMaxSize(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+          public getJustifySelf(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.JustifySelf;
+          public setAlignSelf(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.AlignSelf): void;
+          public setDisplay(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Display): void;
+          public getSizeWidth(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
+          public setFlexGrow(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
+          public setBorder(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number, param5: number, param6: number, param7: number, param8: number): void;
+          public setAlignItems(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.AlignItems): void;
+          public setMarginTop(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setSize(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setFlexDirection(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.FlexDirection): void;
+          public setGridTemplateRows(param0: org.nativescript.mason.masonkit.Node, param1: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
+          public getMaxSizeCssValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public getPaddingJsonValue(param0: org.nativescript.mason.masonkit.Node): string;
+          public setPaddingWithValueType(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getGapRow(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public getGridColumnEnd(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridPlacement;
+          public getBorderTop(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
+          public getGridRow(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>;
+          public setDirection(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Direction): void;
+          public setMargin(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
+          public setPaddingRight(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setMaxSize(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
+          public configure(param0: org.nativescript.mason.masonkit.Node, param0: kotlin.jvm.functions.Function1<org.nativescript.mason.masonkit.Node, kotlin.Unit>): void;
+          public setMarginLeft(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public getAspectRatio(param0: org.nativescript.mason.masonkit.Node): java.lang.Float;
+          public setGridAutoFlow(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.GridAutoFlow): void;
+          public setPosition(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Position): void;
+          public setPaddingLeft(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setPosition(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.LengthPercentageAuto, param2: org.nativescript.mason.masonkit.LengthPercentageAuto, param3: org.nativescript.mason.masonkit.LengthPercentageAuto, param4: org.nativescript.mason.masonkit.LengthPercentageAuto): void;
+          public setGridRow(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>): void;
+        }
+      }
+    }
+  }
+}
 //Generics information:
 //org.nativescript.mason.masonkit.Line:1
 //org.nativescript.mason.masonkit.Rect:1

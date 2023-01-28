@@ -116,13 +116,15 @@ pub extern "C" fn mason_node_new_node_with_measure_func(
                             let measure_data = measure_data as *mut c_void;
 
                             let available_space_width = match available_space.width {
-                                mason_core::AvailableSpace::Definite(width) => width,
-                                _ => f32::NAN,
+                                mason_core::AvailableSpace::MinContent => -1.,
+                                mason_core::AvailableSpace::MaxContent => -2.,
+                                mason_core::AvailableSpace::Definite(value) => value,
                             };
 
                             let available_space_height = match available_space.height {
-                                mason_core::AvailableSpace::Definite(height) => height,
-                                _ => f32::NAN,
+                                mason_core::AvailableSpace::MinContent => -1.,
+                                mason_core::AvailableSpace::MaxContent => -2.,
+                                mason_core::AvailableSpace::Definite(value) => value,
                             };
 
                             let size = measure(
@@ -208,6 +210,7 @@ pub extern "C" fn mason_node_layout(
     unsafe {
         let mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
+
         let output = mason.layout(*node);
 
         let ret = layout(output.as_ptr());
@@ -233,6 +236,7 @@ pub extern "C" fn mason_node_compute_wh(
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
         mason.compute_wh(*node, width, height);
+
         Box::leak(mason);
         Box::leak(node);
     }
@@ -283,7 +287,7 @@ pub extern "C" fn mason_node_compute_min_content(mason: *mut c_void, node: *mut 
     unsafe {
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
-        let size = Size::<AvailableSpace>::max_content();
+        let size = Size::<AvailableSpace>::min_content();
         mason.compute_size(*node, size);
         Box::leak(mason);
         Box::leak(node);
@@ -520,7 +524,9 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
             grid_template_rows,
             grid_template_columns,
         );
+
         mason.set_style(*node, *style.clone());
+
 
         Box::leak(mason);
         Box::leak(node);
@@ -1238,7 +1244,7 @@ pub extern "C" fn mason_node_is_children_same(
             return false;
         }
 
-        let data = std::slice::from_raw_parts(children as *const *mut Node, children_size as usize);
+        let data = std::slice::from_raw_parts(children as *const *mut Node, children_size);
 
         let data: Vec<Node> = data.iter().map(|v| *(*v)).collect();
 
@@ -1364,7 +1370,6 @@ pub extern "C" fn mason_node_set_measure_func(
     if mason.is_null() || node.is_null() {
         return;
     }
-
     unsafe {
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
@@ -1376,15 +1381,16 @@ pub extern "C" fn mason_node_set_measure_func(
                     None => known_dimensions.map(|v| v.unwrap_or(0.0)),
                     Some(measure) => {
                         let measure_data = measure_data as *mut c_void;
-
                         let available_space_width = match available_space.width {
-                            mason_core::AvailableSpace::Definite(width) => width,
-                            _ => f32::NAN,
+                            mason_core::AvailableSpace::MinContent => -1.,
+                            mason_core::AvailableSpace::MaxContent => -2.,
+                            mason_core::AvailableSpace::Definite(value) => value,
                         };
 
                         let available_space_height = match available_space.height {
-                            mason_core::AvailableSpace::Definite(height) => height,
-                            _ => f32::NAN,
+                            mason_core::AvailableSpace::MinContent => -1.,
+                            mason_core::AvailableSpace::MaxContent => -2.,
+                            mason_core::AvailableSpace::Definite(value) => value,
                         };
 
                         let size = measure(
@@ -1397,6 +1403,7 @@ pub extern "C" fn mason_node_set_measure_func(
 
                         let width = MeasureOutput::get_width(size);
                         let height = MeasureOutput::get_height(size);
+
                         Size::<f32>::new(width, height).into()
                     }
                 },

@@ -12,13 +12,67 @@ struct MasonAssociatedKeys {
     static var masonEnabled: UInt8 = 1
 }
 
+/*
+// Can enable adding the owner to nodes
+private func swizzle(_ v: UIView.Type) {
+  [
+    (#selector(v.didMoveToSuperview), #selector(v.mason_didMoveToSuperview))
+  ]
+  .forEach { original, swizzled in
 
+    guard let originalMethod = class_getInstanceMethod(v, original),
+      let swizzledMethod = class_getInstanceMethod(v, swizzled) else { return }
+
+    let didAddViewDidLoadMethod = class_addMethod(
+      v,
+      original,
+      method_getImplementation(swizzledMethod),
+      method_getTypeEncoding(swizzledMethod)
+    )
+
+    if didAddViewDidLoadMethod {
+      class_replaceMethod(
+        v,
+        swizzled,
+        method_getImplementation(originalMethod),
+        method_getTypeEncoding(originalMethod)
+      )
+    } else {
+      method_exchangeImplementations(originalMethod, swizzledMethod)
+    }
+  }
+}
+
+private var hasSwizzled = false
+
+*/
+
+ 
 extension UIView {
+   /* public final class func swizzleForMason() {
+       guard !hasSwizzled else { return }
+
+       hasSwizzled = true
+        Mason.swizzle(self)
+     }
+    
+    @objc internal func mason_didMoveToSuperview() {
+      self.mason_didMoveToSuperview()
+        if let superview = self.superview {
+            mason.owner = superview.mason
+        }
+        else {
+            mason.owner = nil
+        }
+    }
+    */
+    
     @objc public var mason: MasonNode {
+       // UIView.swizzleForMason()
         guard let mason = objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) as? MasonNode else {
             let mason = MasonNode()
             mason.data = self
-            mason.didInitWithView = true
+            mason.includeInLayout = true
             mason.setDefaultMeasureFunction()
             mason.isEnabled = TSCMason.alwaysEnable
             objc_setAssociatedObject(
@@ -55,6 +109,7 @@ extension UIView {
         }
     }
     
+    
     @objc public func addSubviews(_ views: [UIView]){
         addSubviews(views, at: -1)
     }
@@ -70,7 +125,6 @@ extension UIView {
     }
     
     @objc public func configure(_ block :(MasonNode) -> Void) {
-        mason.inBatch = true
         mason.configure(block)
     }
     
@@ -480,17 +534,17 @@ extension UIView {
         
     @objc public func setPaddingRight(_ right: Float, _ type: Int) {
         mason.style.setPaddingRight(right, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setPaddingTop(_ top: Float, _ type: Int) {
         mason.style.setPaddingTop(top, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setPaddingBottom(_ bottom: Float, _ type: Int) {
         mason.style.setPaddingBottom(bottom, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getPaddingLeft() -> MasonLengthPercentageCompat {
@@ -530,17 +584,17 @@ extension UIView {
     
     @objc public func setBorderRight(_ right: Float, _ type: Int) {
         mason.style.setBorderRight(right, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setBorderTop(_ top: Float, _ type: Int) {
         mason.style.setBorderTop(top, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setBorderBottom(_ bottom: Float, _ type: Int) {
         mason.style.setBorderBottom(bottom, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getBorderLeft() -> MasonLengthPercentageCompat {
@@ -566,7 +620,7 @@ extension UIView {
             MasonLengthPercentageAuto.Points(top),
             MasonLengthPercentageAuto.Points(bottom)
         )
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getMargin() -> MasonLengthPercentageAutoRectCompat{
@@ -575,22 +629,22 @@ extension UIView {
     
     @objc public func setMarginLeft(_ left: Float, _ type: Int) {
         mason.style.setMarginLeft(left, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setMarginRight(_ right: Float, _ type: Int) {
         mason.style.setMarginRight(right, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setMarginTop(_ top: Float, _ type: Int) {
         mason.style.setMarginTop(top, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setMarginBottom(_ bottom: Float, _ type: Int) {
         mason.style.setMarginBottom(bottom, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getMarginLeft() -> MasonLengthPercentageAutoCompat {
@@ -616,7 +670,7 @@ extension UIView {
             MasonLengthPercentageAuto.Points(top),
             MasonLengthPercentageAuto.Points(bottom)
         )
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getInset() -> MasonLengthPercentageAutoRectCompat{
@@ -625,22 +679,22 @@ extension UIView {
     
     @objc public func setInsetLeft(_ left: Float,_  type: Int) {
         mason.style.setInsetLeft(left, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setInsetRight(_ right: Float,_  type: Int) {
         mason.style.setInsetRight(right, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setInsetTop(_ top: Float,_  type: Int) {
         mason.style.setInsetTop(top, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setInsetBottom(_ bottom: Float,_  type: Int) {
         mason.style.setInsetBottom(bottom, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getInsetLeft() -> MasonLengthPercentageAutoCompat {
@@ -664,7 +718,7 @@ extension UIView {
             MasonDimension.Points(width),
             MasonDimension.Points(height)
         )
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getMinSize() -> MasonDimensionSizeCompat{
@@ -673,12 +727,12 @@ extension UIView {
     
     @objc public func setMinSizeWidth(_ width: Float,_ type: Int) {
         mason.style.setMinSizeHeight(width, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setMinSizeHeight(_ height: Float,_ type: Int) {
         mason.style.setMinSizeWidth(height, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     
@@ -695,17 +749,17 @@ extension UIView {
             MasonDimension.Points(width),
             MasonDimension.Points(height)
         )
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setSizeWidth(_ width: Float,_ type: Int) {
         mason.style.setSizeHeight(width, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setSizeHeight(_ height: Float,_ type: Int) {
         mason.style.setSizeWidth(height, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getSize() -> MasonDimensionSizeCompat{
@@ -725,7 +779,7 @@ extension UIView {
             MasonDimension.Points(width),
             MasonDimension.Points(height)
         )
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getMaxSize() -> MasonDimensionSizeCompat{
@@ -734,12 +788,12 @@ extension UIView {
         
     @objc public func setMaxSizeWidth(_ width: Float,_ type: Int) {
         mason.style.setMaxSizeHeight(width, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setMaxSizeHeight(_ height: Float,_ type: Int) {
         mason.style.setMaxSizeWidth(height, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getMaxSizeWidth() -> MasonDimensionCompat{
@@ -755,7 +809,7 @@ extension UIView {
             MasonLengthPercentage.Points(width),
             MasonLengthPercentage.Points(height)
         )
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setGapWithWidthHeightType(_ width: Float , _ width_type: Int,_ height: Float, _ height_type: Int) {
@@ -765,7 +819,7 @@ extension UIView {
             width,
             height
         )
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getGap() -> MasonLengthPercentageSizeCompat{
@@ -774,12 +828,12 @@ extension UIView {
     
     @objc public func setRowGap(_ row: Float,_ type: Int) {
         mason.style.setRowGap(row, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func setColumnGap(_ column: Float,_ type: Int) {
         mason.style.setColumnGap(column, type)
-        mason.updateNodeStyle()
+        checkAndUpdateStyle()
     }
     
     @objc public func getRowGap() -> MasonLengthPercentageCompat{

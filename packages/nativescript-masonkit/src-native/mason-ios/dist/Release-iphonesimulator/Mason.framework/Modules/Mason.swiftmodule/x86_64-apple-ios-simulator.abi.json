@@ -3385,6 +3385,90 @@
           },
           {
             "kind": "Var",
+            "name": "includeInLayout",
+            "printedName": "includeInLayout",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(py)includeInLayout",
+            "mangledName": "$s5Mason0A4NodeC15includeInLayoutSbvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)includeInLayout",
+                "mangledName": "$s5Mason0A4NodeC15includeInLayoutSbvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonNode(im)setIncludeInLayout:",
+                "mangledName": "$s5Mason0A4NodeC15includeInLayoutSbvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A4NodeC15includeInLayoutSbvM",
+                "mangledName": "$s5Mason0A4NodeC15includeInLayoutSbvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "isEnabled",
             "printedName": "isEnabled",
             "children": [
@@ -3932,6 +4016,153 @@
           },
           {
             "kind": "Function",
+            "name": "getRoot",
+            "printedName": "getRoot()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.MasonNode?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonNode",
+                    "printedName": "Mason.MasonNode",
+                    "usr": "c:@M@Mason@objc(cs)MasonNode"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)getRoot",
+            "mangledName": "$s5Mason0A4NodeC7getRootACSgyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "rootCompute",
+            "printedName": "rootCompute()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)rootCompute",
+            "mangledName": "$s5Mason0A4NodeC11rootComputeyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "rootCompute",
+            "printedName": "rootCompute(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)rootCompute::",
+            "mangledName": "$s5Mason0A4NodeC11rootComputeyySf_SftF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "rootComputeMaxContent",
+            "printedName": "rootComputeMaxContent()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)rootComputeMaxContent",
+            "mangledName": "$s5Mason0A4NodeC21rootComputeMaxContentyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "rootComputeMinContent",
+            "printedName": "rootComputeMinContent()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)rootComputeMinContent",
+            "mangledName": "$s5Mason0A4NodeC21rootComputeMinContentyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "rootComputeWithViewSize",
+            "printedName": "rootComputeWithViewSize()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)rootComputeWithViewSize",
+            "mangledName": "$s5Mason0A4NodeC23rootComputeWithViewSizeyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "rootComputeWithMaxContent",
+            "printedName": "rootComputeWithMaxContent()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)rootComputeWithMaxContent",
+            "mangledName": "$s5Mason0A4NodeC25rootComputeWithMaxContentyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "compute",
             "printedName": "compute()",
             "children": [
@@ -4016,6 +4247,36 @@
           },
           {
             "kind": "Function",
+            "name": "computeWithSize",
+            "printedName": "computeWithSize(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)computeWithSize::",
+            "mangledName": "$s5Mason0A4NodeC15computeWithSizeyySf_SftF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "computeWithViewSize",
             "printedName": "computeWithViewSize()",
             "children": [
@@ -4046,6 +4307,42 @@
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonNode(im)computeWithMaxContent",
             "mangledName": "$s5Mason0A4NodeC21computeWithMaxContentyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "computeWithMinContent",
+            "printedName": "computeWithMinContent()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)computeWithMinContent",
+            "mangledName": "$s5Mason0A4NodeC21computeWithMinContentyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "attachAndApply",
+            "printedName": "attachAndApply()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonNode(im)attachAndApply",
+            "mangledName": "$s5Mason0A4NodeC14attachAndApplyyyF",
             "moduleName": "Mason",
             "declAttributes": ["AccessControl", "ObjC"],
             "funcSelfKind": "NonMutating"
@@ -5057,6 +5354,58 @@
                 "accessorKind": "get"
               }
             ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(from:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "MasonLayout",
+                "printedName": "Mason.MasonLayout",
+                "usr": "c:@M@Mason@objc(cs)MasonLayout"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Decoder",
+                "printedName": "Swift.Decoder",
+                "usr": "s:s7DecoderP"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:5Mason0A6LayoutC4fromACs7Decoder_p_tKcfc",
+            "mangledName": "$s5Mason0A6LayoutC4fromACs7Decoder_p_tKcfc",
+            "moduleName": "Mason",
+            "implicit": true,
+            "declAttributes": ["Required"],
+            "throwing": true,
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "encode",
+            "printedName": "encode(to:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Encoder",
+                "printedName": "Swift.Encoder",
+                "usr": "s:s7EncoderP"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:5Mason0A6LayoutC6encode2toys7Encoder_p_tKF",
+            "mangledName": "$s5Mason0A6LayoutC6encode2toys7Encoder_p_tKF",
+            "moduleName": "Mason",
+            "implicit": true,
+            "throwing": true,
+            "funcSelfKind": "NonMutating"
           }
         ],
         "declKind": "Class",
@@ -5070,6 +5419,20 @@
         "inheritsConvenienceInitializers": true,
         "superclassNames": ["ObjectiveC.NSObject"],
         "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Decodable",
+            "printedName": "Decodable",
+            "usr": "s:Se",
+            "mangledName": "$sSe"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Encodable",
+            "printedName": "Encodable",
+            "usr": "s:SE",
+            "mangledName": "$sSE"
+          },
           {
             "kind": "Conformance",
             "name": "Equatable",
@@ -21583,6 +21946,84 @@
           },
           {
             "kind": "Var",
+            "name": "FlexStart",
+            "printedName": "FlexStart",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.AlignItems.Type) -> Mason.AlignItems",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AlignItems",
+                    "printedName": "Mason.AlignItems",
+                    "usr": "c:@M@Mason@E@AlignItems"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.AlignItems.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "AlignItems",
+                        "printedName": "Mason.AlignItems",
+                        "usr": "c:@M@Mason@E@AlignItems"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@AlignItems@AlignItemsFlexStart",
+            "mangledName": "$s5Mason10AlignItemsO9FlexStartyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 6
+          },
+          {
+            "kind": "Var",
+            "name": "FlexEnd",
+            "printedName": "FlexEnd",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.AlignItems.Type) -> Mason.AlignItems",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AlignItems",
+                    "printedName": "Mason.AlignItems",
+                    "usr": "c:@M@Mason@E@AlignItems"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.AlignItems.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "AlignItems",
+                        "printedName": "Mason.AlignItems",
+                        "usr": "c:@M@Mason@E@AlignItems"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@AlignItems@AlignItemsFlexEnd",
+            "mangledName": "$s5Mason10AlignItemsO7FlexEndyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 7
+          },
+          {
+            "kind": "Var",
             "name": "rawValue",
             "printedName": "rawValue",
             "children": [
@@ -21937,6 +22378,84 @@
             "moduleName": "Mason",
             "declAttributes": ["ObjC"],
             "fixedbinaryorder": 5
+          },
+          {
+            "kind": "Var",
+            "name": "FlexStart",
+            "printedName": "FlexStart",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.AlignSelf.Type) -> Mason.AlignSelf",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AlignSelf",
+                    "printedName": "Mason.AlignSelf",
+                    "usr": "c:@M@Mason@E@AlignSelf"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.AlignSelf.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "AlignSelf",
+                        "printedName": "Mason.AlignSelf",
+                        "usr": "c:@M@Mason@E@AlignSelf"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@AlignSelf@AlignSelfFlexStart",
+            "mangledName": "$s5Mason9AlignSelfO9FlexStartyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 6
+          },
+          {
+            "kind": "Var",
+            "name": "FlexEnd",
+            "printedName": "FlexEnd",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.AlignSelf.Type) -> Mason.AlignSelf",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AlignSelf",
+                    "printedName": "Mason.AlignSelf",
+                    "usr": "c:@M@Mason@E@AlignSelf"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.AlignSelf.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "AlignSelf",
+                        "printedName": "Mason.AlignSelf",
+                        "usr": "c:@M@Mason@E@AlignSelf"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@AlignSelf@AlignSelfFlexEnd",
+            "mangledName": "$s5Mason9AlignSelfO7FlexEndyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 7
           },
           {
             "kind": "Var",
@@ -22372,6 +22891,84 @@
             "moduleName": "Mason",
             "declAttributes": ["ObjC"],
             "fixedbinaryorder": 7
+          },
+          {
+            "kind": "Var",
+            "name": "FlexStart",
+            "printedName": "FlexStart",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.AlignContent.Type) -> Mason.AlignContent",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AlignContent",
+                    "printedName": "Mason.AlignContent",
+                    "usr": "c:@M@Mason@E@AlignContent"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.AlignContent.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "AlignContent",
+                        "printedName": "Mason.AlignContent",
+                        "usr": "c:@M@Mason@E@AlignContent"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@AlignContent@AlignContentFlexStart",
+            "mangledName": "$s5Mason12AlignContentO9FlexStartyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 8
+          },
+          {
+            "kind": "Var",
+            "name": "FlexEnd",
+            "printedName": "FlexEnd",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.AlignContent.Type) -> Mason.AlignContent",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AlignContent",
+                    "printedName": "Mason.AlignContent",
+                    "usr": "c:@M@Mason@E@AlignContent"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.AlignContent.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "AlignContent",
+                        "printedName": "Mason.AlignContent",
+                        "usr": "c:@M@Mason@E@AlignContent"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@AlignContent@AlignContentFlexEnd",
+            "mangledName": "$s5Mason12AlignContentO7FlexEndyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 9
           },
           {
             "kind": "Var",
@@ -23491,6 +24088,84 @@
           },
           {
             "kind": "Var",
+            "name": "FlexStart",
+            "printedName": "FlexStart",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.JustifyItems.Type) -> Mason.JustifyItems",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "JustifyItems",
+                    "printedName": "Mason.JustifyItems",
+                    "usr": "c:@M@Mason@E@JustifyItems"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.JustifyItems.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "JustifyItems",
+                        "printedName": "Mason.JustifyItems",
+                        "usr": "c:@M@Mason@E@JustifyItems"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@JustifyItems@JustifyItemsFlexStart",
+            "mangledName": "$s5Mason12JustifyItemsO9FlexStartyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 6
+          },
+          {
+            "kind": "Var",
+            "name": "FlexEnd",
+            "printedName": "FlexEnd",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.JustifyItems.Type) -> Mason.JustifyItems",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "JustifyItems",
+                    "printedName": "Mason.JustifyItems",
+                    "usr": "c:@M@Mason@E@JustifyItems"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.JustifyItems.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "JustifyItems",
+                        "printedName": "Mason.JustifyItems",
+                        "usr": "c:@M@Mason@E@JustifyItems"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@JustifyItems@JustifyItemsFlexEnd",
+            "mangledName": "$s5Mason12JustifyItemsO7FlexEndyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 7
+          },
+          {
+            "kind": "Var",
             "name": "rawValue",
             "printedName": "rawValue",
             "children": [
@@ -23845,6 +24520,84 @@
             "moduleName": "Mason",
             "declAttributes": ["ObjC"],
             "fixedbinaryorder": 5
+          },
+          {
+            "kind": "Var",
+            "name": "FlexStart",
+            "printedName": "FlexStart",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.JustifySelf.Type) -> Mason.JustifySelf",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "JustifySelf",
+                    "printedName": "Mason.JustifySelf",
+                    "usr": "c:@M@Mason@E@JustifySelf"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.JustifySelf.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "JustifySelf",
+                        "printedName": "Mason.JustifySelf",
+                        "usr": "c:@M@Mason@E@JustifySelf"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@JustifySelf@JustifySelfFlexStart",
+            "mangledName": "$s5Mason11JustifySelfO9FlexStartyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 6
+          },
+          {
+            "kind": "Var",
+            "name": "FlexEnd",
+            "printedName": "FlexEnd",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.JustifySelf.Type) -> Mason.JustifySelf",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "JustifySelf",
+                    "printedName": "Mason.JustifySelf",
+                    "usr": "c:@M@Mason@E@JustifySelf"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.JustifySelf.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "JustifySelf",
+                        "printedName": "Mason.JustifySelf",
+                        "usr": "c:@M@Mason@E@JustifySelf"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@JustifySelf@JustifySelfFlexEnd",
+            "mangledName": "$s5Mason11JustifySelfO7FlexEndyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 7
           },
           {
             "kind": "Var",
@@ -24280,6 +25033,84 @@
             "moduleName": "Mason",
             "declAttributes": ["ObjC"],
             "fixedbinaryorder": 7
+          },
+          {
+            "kind": "Var",
+            "name": "FlexStart",
+            "printedName": "FlexStart",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.JustifyContent.Type) -> Mason.JustifyContent",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "JustifyContent",
+                    "printedName": "Mason.JustifyContent",
+                    "usr": "c:@M@Mason@E@JustifyContent"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.JustifyContent.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "JustifyContent",
+                        "printedName": "Mason.JustifyContent",
+                        "usr": "c:@M@Mason@E@JustifyContent"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@JustifyContent@JustifyContentFlexStart",
+            "mangledName": "$s5Mason14JustifyContentO9FlexStartyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 8
+          },
+          {
+            "kind": "Var",
+            "name": "FlexEnd",
+            "printedName": "FlexEnd",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.JustifyContent.Type) -> Mason.JustifyContent",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "JustifyContent",
+                    "printedName": "Mason.JustifyContent",
+                    "usr": "c:@M@Mason@E@JustifyContent"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.JustifyContent.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "JustifyContent",
+                        "printedName": "Mason.JustifyContent",
+                        "usr": "c:@M@Mason@E@JustifyContent"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@JustifyContent@JustifyContentFlexEnd",
+            "mangledName": "$s5Mason14JustifyContentO7FlexEndyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 9
           },
           {
             "kind": "Var",
@@ -26106,7 +26937,7 @@
             "usr": "c:@CM@Mason@@objc(cs)UIView(py)mason",
             "mangledName": "$sSo6UIViewC5MasonE5masonAC0B4NodeCvp",
             "moduleName": "Mason",
-            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC", "RawDocComment"],
             "isFromExtension": true,
             "accessors": [
               {
@@ -30861,14 +31692,14 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TSCMason.swift",
       "kind": "BooleanLiteral",
-      "offset": 536,
+      "offset": 534,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TSCMason.swift",
       "kind": "BooleanLiteral",
-      "offset": 639,
+      "offset": 637,
       "length": 5,
       "value": "false"
     },
@@ -30973,49 +31804,49 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 1386,
+      "offset": 1397,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 1411,
+      "offset": 1422,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 1444,
+      "offset": 1455,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 1575,
+      "offset": 1586,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "Array",
-      "offset": 1795,
+      "offset": 1806,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "Dictionary",
-      "offset": 1888,
+      "offset": 1899,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
-      "offset": 1915,
+      "offset": 1926,
       "length": 5,
       "value": "false"
     },
@@ -31533,364 +32364,448 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 13000,
+      "offset": 11787,
+      "length": 9,
+      "value": "5"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 11806,
+      "length": 7,
+      "value": "6"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 13326,
       "length": 2,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 13012,
+      "offset": 13338,
       "length": 5,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 13027,
+      "offset": 13353,
       "length": 3,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 13040,
+      "offset": 13366,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 13056,
+      "offset": 13382,
       "length": 8,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 13074,
+      "offset": 13400,
       "length": 7,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 14311,
+      "offset": 13417,
+      "length": 9,
+      "value": "5"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 13436,
+      "length": 7,
+      "value": "6"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 14963,
       "length": 2,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 14323,
+      "offset": 14975,
       "length": 5,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 14338,
+      "offset": 14990,
       "length": 3,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 14351,
+      "offset": 15003,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 14367,
+      "offset": 15019,
       "length": 7,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 14384,
+      "offset": 15036,
       "length": 12,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 14406,
+      "offset": 15058,
       "length": 11,
       "value": "5"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 14427,
+      "offset": 15079,
       "length": 11,
       "value": "6"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 16000,
+      "offset": 15100,
+      "length": 9,
+      "value": "7"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 15119,
+      "length": 7,
+      "value": "8"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 16978,
       "length": 3,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 16013,
+      "offset": 16991,
       "length": 3,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 16814,
+      "offset": 17792,
       "length": 4,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 16828,
+      "offset": 17806,
       "length": 4,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 17642,
+      "offset": 18620,
       "length": 6,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 17658,
+      "offset": 18636,
       "length": 10,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 17678,
+      "offset": 18656,
       "length": 13,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 18686,
+      "offset": 19664,
       "length": 2,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 18698,
+      "offset": 19676,
       "length": 5,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 18713,
+      "offset": 19691,
       "length": 3,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 18726,
+      "offset": 19704,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 18742,
+      "offset": 19720,
       "length": 8,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 18760,
+      "offset": 19738,
       "length": 7,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 19994,
+      "offset": 19755,
+      "length": 9,
+      "value": "5"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 19774,
+      "length": 7,
+      "value": "6"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 21298,
       "length": 2,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20006,
+      "offset": 21310,
       "length": 5,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20021,
+      "offset": 21325,
       "length": 3,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20034,
+      "offset": 21338,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20050,
+      "offset": 21354,
       "length": 8,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20068,
+      "offset": 21372,
       "length": 7,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21308,
+      "offset": 21389,
+      "length": 9,
+      "value": "5"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 21408,
+      "length": 7,
+      "value": "6"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 22938,
       "length": 2,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21320,
+      "offset": 22950,
       "length": 5,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21335,
+      "offset": 22965,
       "length": 3,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21348,
+      "offset": 22978,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21364,
+      "offset": 22994,
       "length": 7,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21381,
+      "offset": 23011,
       "length": 12,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21403,
+      "offset": 23033,
       "length": 11,
       "value": "5"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21424,
+      "offset": 23054,
       "length": 11,
       "value": "6"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 22995,
+      "offset": 23075,
+      "length": 9,
+      "value": "7"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 23094,
+      "length": 7,
+      "value": "8"
+    },
+    {
+      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 24953,
       "length": 6,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23011,
+      "offset": 24969,
       "length": 6,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23845,
+      "offset": 25803,
       "length": 8,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 24565,
+      "offset": 26523,
       "length": 4,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 24579,
+      "offset": 26537,
       "length": 11,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 25444,
+      "offset": 27401,
       "length": 6,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 25460,
+      "offset": 27417,
       "length": 8,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 25478,
+      "offset": 27435,
       "length": 11,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 28157,
+      "offset": 30114,
       "length": 4,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 28171,
+      "offset": 30128,
       "length": 4,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 28790,
+      "offset": 30747,
       "length": 7,
       "value": "1"
     },

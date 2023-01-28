@@ -746,6 +746,10 @@ public class MasonStyle: NSObject {
     
     
     public override var description: String {
+        var aspectRatio = "undefined"
+        if(self.aspectRatio != nil){
+            aspectRatio = String(aspectRatio)
+        }
         var ret = "(MasonStyle)("
         
         ret += "display: \(display.cssValue), "
@@ -769,7 +773,7 @@ public class MasonStyle: NSObject {
         ret += "size: \(size.cssValue),"
         ret += "minSize: \(minSize.cssValue),"
         ret += "maxSize: \(maxSize.cssValue),"
-        ret += "aspectRatio: \(maxSize.cssValue),"
+        ret += "aspectRatio: \(aspectRatio),"
         ret += "gridAutoRows: \(gridAutoRows),"
         ret += "gridAutoColumns: \(gridAutoColumns),"
         ret += "gridColumn: \(gridColumn.start.cssValue) \\ \(gridColumn.end.cssValue),"

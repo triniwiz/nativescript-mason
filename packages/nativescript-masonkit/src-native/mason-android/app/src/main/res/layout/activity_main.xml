@@ -1,227 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <org.nativescript.mason.masonkit.View xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:mason="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/rootView"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    mason:mason_alignContent="stretch"
-    mason:mason_alignItems="center"
-    mason:mason_flexDirection="column"
-    mason:mason_justifyContent="start"
-    tools:context=".MainActivity">
+  xmlns:mason="http://schemas.android.com/apk/res-auto"
+  xmlns:tools="http://schemas.android.com/tools"
+  android:id="@+id/rootView"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  mason:mason_flexDirection="column"
+  mason:mason_alignItems="center"
+  tools:context=".MainActivity">
 
-    <!--
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <org.nativescript.mason.masonkit.View
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            mason:flex_direction="column"
-            mason:flex_grow="1"
-            android:id="@+id/container"
-            mason:alignContent="stretch"
-            mason:alignItems="center"
-            mason:alignSelf="auto"
-            mason:justifyContent="start"
-             >
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="First"
-                />
-
-
-        </org.nativescript.mason.masonkit.View>
-
-    </ScrollView>
-
--->
-
-  <!--
-
-  <TextView
+  <Button
+    android:id="@+id/btnAbsolute"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:textColor="@color/white"
-    android:text="Test"/>
+    android:text="Open Absolute" />
 
-  <TextView
-    android:layout_width="wrap_content"
+  <Button
+    android:id="@+id/btnFlex"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Top Left"
-    mason:mason_position="relative"
-    mason:mason_insetTop="0dp"
-    mason:mason_insetLeft="0dp"
-    android:background="@color/blue"
-    android:textColor="@color/white"
+    android:text="Open Flex"
     />
 
-  <TextView
-    android:layout_width="wrap_content"
+  <Button
+    android:id="@+id/btnGrid"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Top Right"
-    mason:mason_position="relative"
-    mason:mason_insetRight="0dp"
-    mason:mason_insetTop="0dp"
-    android:background="@color/blue"
-    android:textColor="@color/white"
-    />
+    android:text="Open Grid"/>
 
-  <TextView
-    android:layout_width="wrap_content"
+  <Button
+    android:id="@+id/btnList"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Bottom Left"
-    mason:mason_position="relative"
-    mason:mason_insetLeft="0dp"
-    mason:mason_insetBottom="0dp"
-    android:background="@color/blue"
-    android:textColor="@color/white"
-    /> -->
+    android:text="Open List"/>
 
-
-
-
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Test"/>
-
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Top Left"
-        mason:mason_position="absolute"
-        mason:mason_insetTop="0dp"
-        mason:mason_insetLeft="0dp"
-        android:background="@color/blue"
-        android:textColor="@color/white"
-        />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Top Right"
-        mason:mason_position="absolute"
-        mason:mason_insetRight="0dp"
-        mason:mason_insetTop="0dp"
-        android:background="@color/blue"
-        android:textColor="@color/white"
-        />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Bottom Left"
-        mason:mason_position="absolute"
-        mason:mason_insetLeft="0dp"
-        mason:mason_insetBottom="0dp"
-        android:background="@color/blue"
-        android:textColor="@color/white"
-        />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Bottom Right"
-        mason:mason_position="absolute"
-        mason:mason_insetRight="0dp"
-        mason:mason_insetBottom="0dp"
-        android:background="@color/blue"
-        android:textColor="@color/white"
-        />
-
-    <LinearLayout
-       android:layout_width="match_parent"
-       android:layout_height="wrap_content">
-       <androidx.recyclerview.widget.RecyclerView
-           android:id="@+id/recyclerView"
-           android:layout_width="match_parent"
-           android:layout_height="300dp"
-           android:orientation="horizontal" />
-   </LinearLayout>
-
-    <org.nativescript.mason.masonkit.View
-        android:id="@+id/first"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/green">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Nested TextView in mason" />
-
-    </org.nativescript.mason.masonkit.View>
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/red"
-        android:text="Hello this"
-        android:textColor="@color/white" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/green"
-        android:text=" is the new" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/orange"
-        android:text=" layout" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/blue"
-        android:text=" powered by taffy"
-        android:textColor="@color/white" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/white">
-
-        <org.nativescript.mason.masonkit.View
-            android:id="@+id/llc"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <org.nativescript.mason.masonkit.View
-                android:id="@+id/llgc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Hello World Nested" />
-            </org.nativescript.mason.masonkit.View>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Thing"
-                mason:mason_marginLeft="10dp" />
-
-        </org.nativescript.mason.masonkit.View>
-
-    </LinearLayout>
-
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-
-
+  <Button
+    android:id="@+id/btnScroll"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Open Scroll"/>
 
 </org.nativescript.mason.masonkit.View>

@@ -1,4 +1,4 @@
-import { Utils, ViewBase } from '@nativescript/core';
+import { Utils, View, ViewBase } from '@nativescript/core';
 import { TSCViewBase } from './common';
 
 export class TSCView extends TSCViewBase {
@@ -29,10 +29,8 @@ export class TSCView extends TSCViewBase {
   _hasNativeView = false;
 
   createNativeView() {
-    const view = UIView.alloc().initWithFrame(CGRectZero);
-    view.mason.isEnabled = true;
     this._hasNativeView = true;
-    return view;
+    return UIView.alloc().initWithFrame(CGRectZero);
   }
 
   disposeNativeView(): void {
@@ -45,60 +43,95 @@ export class TSCView extends TSCViewBase {
     return this.nativeViewProtected as UIView;
   }
 
+  /*
+   // This method won't be called in Android because we use the native android layout.
+   public onLayout(left: number, top: number, right: number, bottom: number): void {
+    this.eachLayoutChild((child) => {
+      View.layoutChild(this, child, 0, 0, right - left, bottom - top);
+      return true;
+    });
+  }
+
+  */
+
+  public onLayout(left: number, top: number, right: number, bottom: number): void {
+    const nativeView = this.nativeView;
+    if (nativeView) {
+      //   this.ios.mason.computeWithMaxContent();
+
+      this.eachLayoutChild((child) => {
+        const layout = child.ios.mason.layout();
+        View.layoutChild(this as any, child, layout.x, layout.y, layout.width, layout.height);
+        return true;
+      });
+    }
+  }
+
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this.nativeView;
     if (nativeView) {
       const width = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
       const height = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
+      const next = (this as any)._masonParent;
 
-      // todo fix
-      if (this.id === 'root') {
-        this.setMeasuredDimension(width, height);
-        this.ios.mason.computeWithViewSize();
-        //  this.ios.mason.computeMaxContent();
-      } else {
-        const layout = this.ios.mason.layout();
-        this.setMeasuredDimension(Utils.layout.toDeviceIndependentPixels(layout.width), Utils.layout.toDeviceIndependentPixels(layout.height));
+      if (!next) {
+        let parent;
+        let entry = this;
+        while (next) {
+          parent = next;
+          entry = (this as any)._masonParent;
+        }
+
+        entry.ios.setSize(width, height);
+
+        if (!this._isMasonChild) {
+          entry.ios.mason.computeWithMaxContent();
+        }
       }
 
-      /*
-      console.log('JSI method', JSIEnabled);
+      const layout = this.ios.mason.layout();
 
-      // cache the ptr value since it's not going to change
-      const masonStylePtr = this.ios.masonStylePtr;
-      console.time('JSI: getWidth');
-      for (let i = 0; i < 1000000; i++) {
-        JSIEnabled(masonStylePtr);
-      }
-      console.timeEnd('JSI: getWidth');
-
-      console.log('JSI', 'width', JSIEnabled(this.ios.masonStylePtr));
-
-      console.time('runtime: getWidth');
-      for (let i = 0; i < 1000000; i++) {
-        this.ios.mason.style.sizeCompatWidth.cssValue;
-      }
-      console.timeEnd('runtime: getWidth');
-      console.log('runtime', 'width', this.ios.mason.style.sizeCompatWidth.cssValue);
-
-      */
+      this.setMeasuredDimension(layout.width, layout.height);
     }
+  }
+
+  public layoutNativeView(): void {
+    // noop
   }
 
   public _addViewToNativeVisualTree(view: ViewBase, atIndex?: number): boolean {
     const nativeView = this.nativeView as UIView;
+    (view as any)._masonParent = this;
     super._addViewToNativeVisualTree(view, atIndex);
-    const index = atIndex ?? -1;
 
+    // if (nativeView && view.nativeViewProtected) {
+    //   console.log(view.nativeViewProtected);
+    //   nativeView.addSubview(view.nativeViewProtected);
+    // }
+
+    const index = atIndex ?? Infinity;
     if (nativeView && view.nativeViewProtected) {
-      nativeView.addSubview(view.nativeViewProtected);
-      /* if (index >= nativeView.subviews.count) {
+      view['_hasNativeView'] = true;
+      if (index >= nativeView.subviews.count) {
         nativeView.addSubview(view.nativeViewProtected);
       } else {
         nativeView.insertSubviewAtIndex(view.nativeViewProtected, index);
-      } */
+      }
     }
 
     return true;
+  }
+
+  public _removeViewFromNativeVisualTree(view: ViewBase): void {
+    const nativeView = this.viewController.view;
+    (view as any)._masonParent = undefined;
+    (view as any)._isMasonView = false;
+    (view as any)._isMasonChild = false;
+    super._removeViewFromNativeVisualTree(view);
+    if (view.nativeViewProtected) {
+      if ((view.nativeViewProtected as UIView).superview === nativeView) {
+        (view.nativeViewProtected as UIView).removeFromSuperview();
+      }
+    }
   }
 }

@@ -509,6 +509,8 @@ declare class MasonNode extends NSObject {
 
   configure(block: (p1: MasonNode) => void): void;
 
+  getRoot(): MasonNode;
+
   initWithStyle(style: MasonStyle): this;
 
   initWithStyleChildren(style: MasonStyle, children: NSArray<MasonNode> | MasonNode[]): this;
@@ -516,6 +518,16 @@ declare class MasonNode extends NSObject {
   layout(): MasonLayout;
 
   markDirty(): void;
+
+  rootCompute(): void;
+
+  rootComputeMaxContent(): void;
+
+  rootComputeMinContent(): void;
+
+  rootComputeWithMaxContent(): void;
+
+  rootComputeWithViewSize(): void;
 
   setChildrenWithChildren(children: NSArray<MasonNode> | MasonNode[]): void;
 
@@ -749,7 +761,7 @@ declare class MasonReexports extends NSObject {
 
   static style_set_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
 
-  static util_create_non_repeated_track_sizing_function_with_type_value(track_type: number, track_value_type: number, track_value: number): CMasonMinMax;
+  static util_create_non_repeated_track_sizing_function_with_type_value(track_type: number, track_value: number): CMasonMinMax;
 
   static util_parse_non_repeated_track_sizing_function(value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): string;
 }
@@ -1334,7 +1346,7 @@ declare function mason_style_set_row_gap(style: interop.Pointer | interop.Refere
 
 declare function mason_style_set_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
 
-declare function mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type: number, track_value_type: number, track_value: number): CMasonMinMax;
+declare function mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type: number, track_value: number): CMasonMinMax;
 
 declare function mason_util_destroy_string(string: string | interop.Pointer | interop.Reference<any>): void;
 

@@ -1,5 +1,7 @@
 import { CoreTypes } from '@nativescript/core';
 
+import { TSCViewBase } from './common';
+
 export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit;
 
 export type LengthAuto = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | 'auto';
@@ -32,45 +34,47 @@ export type JustifyContent = AlignContent;
 
 export type GridAutoFlow = 'row' | 'column' | 'row-dense' | 'column-dense';
 
+export { applyMixins } from './helpers';
+
+export class TSCView extends TSCViewBase {}
+
 declare module '@nativescript/core/ui/styling/style' {
   interface Style {
     display: Display;
     position: Position;
     flexDirection: FlexDirection;
     flexWrap: FlexWrap;
+    width: Length;
+    height: Length;
     maxWidth: Length;
     maxHeight: Length;
     left: Length;
     right: Length;
     top: Length;
     bottom: Length;
+    gridGap: Gap;
     gap: Gap;
     rowGap: Length;
     columnGap: Length;
     aspectRatio: number;
-
     alignItems: AlignItems;
     alignSelf: AlignSelf;
     alignContent: AlignContent;
-
     justifyItems: JustifyItems;
     justifySelf: JustifySelf;
     justifyContent: JustifyContent;
-
     gridAutoRows: string;
     gridAutoColumns: string;
     gridAutoFlow: GridAutoFlow;
-
+    gridRowGap: Gap;
+    gridColumnGap: Gap;
     gridArea: string;
-
     gridColumn: string;
     gridColumnStart: string;
     gridColumnEnd: string;
-
     gridRow: string;
     gridRowStart: string;
     gridRowEnd: string;
-
     gridTemplateRows: string;
     gridTemplateColumns: string;
   }
