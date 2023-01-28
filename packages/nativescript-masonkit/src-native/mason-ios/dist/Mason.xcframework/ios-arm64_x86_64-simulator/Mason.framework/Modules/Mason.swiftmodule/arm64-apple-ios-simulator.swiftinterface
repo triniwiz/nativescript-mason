@@ -115,6 +115,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
     @objc get
     @objc set
   }
+  @objc public var includeInLayout: Swift.Bool
   @objc public var isEnabled: Swift.Bool
   @objc public var data: Swift.AnyObject? {
     @objc get
@@ -138,12 +139,22 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
     @objc get
   }
   @objc public func markDirty()
+  @objc public func getRoot() -> Mason.MasonNode?
+  @objc public func rootCompute()
+  @objc public func rootCompute(_ width: Swift.Float, _ height: Swift.Float)
+  @objc public func rootComputeMaxContent()
+  @objc public func rootComputeMinContent()
+  @objc public func rootComputeWithViewSize()
+  @objc public func rootComputeWithMaxContent()
   @objc public func compute()
   @objc public func compute(_ width: Swift.Float, _ height: Swift.Float)
   @objc public func computeMaxContent()
   @objc public func computeMinContent()
+  @objc public func computeWithSize(_ width: Swift.Float, _ height: Swift.Float)
   @objc public func computeWithViewSize()
   @objc public func computeWithMaxContent()
+  @objc public func computeWithMinContent()
+  @objc public func attachAndApply()
   @objc public func setChildren(children: [Mason.MasonNode])
   @objc public func addChildren(_ children: [Mason.MasonNode])
   @objc public var isLeaf: Swift.Bool {
@@ -170,7 +181,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   public func encode(to encoder: Swift.Encoder) throws
   @objc deinit
 }
-@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonLayout) @objcMembers public class MasonLayout : ObjectiveC.NSObject {
+@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonLayout) @objcMembers public class MasonLayout : ObjectiveC.NSObject, Swift.Codable {
   @objc final public let order: Swift.Int
   @objc final public let x: Swift.Float
   @objc final public let y: Swift.Float
@@ -181,6 +192,8 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
     @objc get
   }
   @objc deinit
+  public func encode(to encoder: Swift.Encoder) throws
+  required public init(from decoder: Swift.Decoder) throws
 }
 @_inheritsConvenienceInitializers @objcMembers @objc(MasonReexports) public class MasonReexports : ObjectiveC.NSObject {
   @objc public static func node_set_style(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer, _ style: Swift.UnsafeMutableRawPointer)
@@ -779,6 +792,8 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   case Center
   case Baseline
   case Stretch
+  case FlexStart
+  case FlexEnd
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.AlignItems.RawValue {
     get
@@ -792,6 +807,8 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   case Center
   case Baseline
   case Stretch
+  case FlexStart
+  case FlexEnd
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.AlignSelf.RawValue {
     get
@@ -807,6 +824,8 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   case SpaceBetween
   case SpaceAround
   case SpaceEvenly
+  case FlexStart
+  case FlexEnd
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.AlignContent.RawValue {
     get
@@ -851,6 +870,8 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   case Center
   case Baseline
   case Stretch
+  case FlexStart
+  case FlexEnd
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.JustifyItems.RawValue {
     get
@@ -864,6 +885,8 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   case Center
   case Baseline
   case Stretch
+  case FlexStart
+  case FlexEnd
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.JustifySelf.RawValue {
     get
@@ -879,6 +902,8 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   case SpaceBetween
   case SpaceAround
   case SpaceEvenly
+  case FlexStart
+  case FlexEnd
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.JustifyContent.RawValue {
     get

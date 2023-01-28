@@ -13,6 +13,12 @@ sealed class MinMax(
   data class Flex(var flex: Float) :
     MinMax(MinSizing.Auto, MaxSizing.Flex(flex))
 
+  data class FitContent(var points: Float) :
+    MinMax(MinSizing.Auto, MaxSizing.FitContent(points))
+
+  data class FitContentPercent(var percent: Float) :
+    MinMax(MinSizing.Auto, MaxSizing.FitContentPercent(percent))
+
   object Auto : MinMax(MinSizing.Auto, MaxSizing.Auto)
   object MinContent : MinMax(MinSizing.MinContent, MaxSizing.MinContent)
   object MaxContent : MinMax(MinSizing.MaxContent, MaxSizing.MaxContent)
@@ -49,7 +55,6 @@ sealed class MinMax(
       if (min == null || max == null) {
         return null
       }
-
       return Values(min, max)
     }
   }
@@ -74,4 +79,59 @@ sealed class MinMax(
       return max.value
     }
 
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Auto -> "auto"
+        is Flex -> "flex(${maxValue}fr)"
+        MaxContent -> "max-content"
+        MinContent -> "min-content"
+        is Percent -> "minmax(${minValue * 100}%, ${maxValue * 100}%)"
+        is Points -> "minmax(${minValue}px, ${maxValue}px)"
+        is FitContent -> "fit-content(${maxValue}px)"
+        is FitContentPercent -> "fit-content(${maxValue * 100}%)"
+        is Values -> {
+          if (minVal == MinSizing.Auto && maxVal == MaxSizing.Auto) {
+            return "auto"
+          } else if (minVal == MinSizing.MinContent && maxVal == MaxSizing.MinContent) {
+            return "min-content"
+          } else if (minVal == MinSizing.MaxContent && maxVal == MaxSizing.MaxContent) {
+            return "max-content"
+          } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.Flex) {
+            return "flex(${maxValue}fr)"
+          } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.FitContent) {
+            return "fit-content(${maxValue}px)"
+          } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.FitContentPercent) {
+            return "fit-content(${maxValue * 100}%)"
+          } else {
+            return "minmax()"
+          }
+        }
+      }
+    }
 }
+
+
+val Array<MinMax>.jsonValue: String
+  get() {
+    return Mason.gson.toJson(this)
+  }
+
+val Array<MinMax>.cssValue: String
+  get() {
+    if (isEmpty()) {
+      return ""
+    }
+    val builder = StringBuilder()
+    val last = this.lastIndex
+    this.forEachIndexed { index, minMax ->
+      if (index == last) {
+        builder.append(minMax.cssValue)
+      } else {
+        builder.append("${minMax.cssValue} ")
+      }
+    }
+    builder.append(")")
+    return builder.toString()
+  }

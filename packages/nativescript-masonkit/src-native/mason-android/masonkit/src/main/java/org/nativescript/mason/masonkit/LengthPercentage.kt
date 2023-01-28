@@ -65,34 +65,42 @@ sealed class LengthPercentage {
     }
 }
 
-fun Rect<LengthPercentage>.jsonValue(): String {
-  return Mason.gson.toJson(this)
-}
+val Rect<LengthPercentage>.jsonValue: String
+  get() {
+    return Mason.gson.toJson(this)
+  }
 
-fun Rect<LengthPercentage>.cssValue(): String {
-  return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
-}
+val Rect<LengthPercentage>.cssValue: String
+  get() {
+    return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
+  }
 
-fun Size<LengthPercentage>.jsonValue(): String {
-  return Mason.gson.toJson(this)
-}
+val Size<LengthPercentage>.jsonValue: String
+  get() {
+    return Mason.gson.toJson(this)
+  }
 
-fun Size<LengthPercentage>.cssValue(): String {
-  return "{\"width\":${width.cssValue},\"height\":${height.cssValue}}"
-}
+val Size<LengthPercentage>.cssValue: String
+  get() {
+    return "{\"width\":${width.cssValue},\"height\":${height.cssValue}}"
+  }
 
-fun Size<LengthPercentage>.widthCssValue(): String {
-  return width.cssValue
-}
+val Size<LengthPercentage>.widthCssValue: String
+  get() {
+    return width.cssValue
+  }
 
-fun Size<LengthPercentage>.heightCssValue(): String {
-  return height.cssValue
-}
+val Size<LengthPercentage>.heightCssValue: String
+  get() {
+    return height.cssValue
+  }
 
-fun Size<LengthPercentage>.widthJsonValue(): String {
-  return width.jsonValue
-}
+val Size<LengthPercentage>.widthJsonValue: String
+  get() {
+    return width.jsonValue
+  }
 
-fun Size<LengthPercentage>.heightJsonValue(): String {
-  return height.jsonValue
-}
+val Size<LengthPercentage>.heightJsonValue: String
+  get() {
+    return height.jsonValue
+  }

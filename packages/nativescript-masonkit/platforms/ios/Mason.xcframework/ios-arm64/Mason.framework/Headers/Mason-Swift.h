@@ -264,6 +264,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, AlignContent, "AlignContent", open) {
   AlignContentSpaceBetween = 4,
   AlignContentSpaceAround = 5,
   AlignContentSpaceEvenly = 6,
+  AlignContentFlexStart = 7,
+  AlignContentFlexEnd = 8,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignItems, "AlignItems", open) {
@@ -273,6 +275,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, AlignItems, "AlignItems", open) {
   AlignItemsCenter = 2,
   AlignItemsBaseline = 3,
   AlignItemsStretch = 4,
+  AlignItemsFlexStart = 5,
+  AlignItemsFlexEnd = 6,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, AlignSelf, "AlignSelf", open) {
@@ -282,6 +286,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, AlignSelf, "AlignSelf", open) {
   AlignSelfCenter = 2,
   AlignSelfBaseline = 3,
   AlignSelfStretch = 4,
+  AlignSelfFlexStart = 5,
+  AlignSelfFlexEnd = 6,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, Direction, "Direction", open) {
@@ -353,6 +359,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, JustifyContent, "JustifyContent", open) {
   JustifyContentSpaceBetween = 4,
   JustifyContentSpaceAround = 5,
   JustifyContentSpaceEvenly = 6,
+  JustifyContentFlexStart = 7,
+  JustifyContentFlexEnd = 8,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, JustifyItems, "JustifyItems", open) {
@@ -362,6 +370,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, JustifyItems, "JustifyItems", open) {
   JustifyItemsCenter = 2,
   JustifyItemsBaseline = 3,
   JustifyItemsStretch = 4,
+  JustifyItemsFlexStart = 5,
+  JustifyItemsFlexEnd = 6,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, JustifySelf, "JustifySelf", open) {
@@ -371,6 +381,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, JustifySelf, "JustifySelf", open) {
   JustifySelfCenter = 2,
   JustifySelfBaseline = 3,
   JustifySelfStretch = 4,
+  JustifySelfFlexStart = 5,
+  JustifySelfFlexEnd = 6,
 };
 
 
@@ -534,6 +546,7 @@ SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
 @property (nonatomic, readonly) void * _Null_unspecified nativePtr;
 @property (nonatomic, strong) MasonStyle * _Nonnull style;
+@property (nonatomic) BOOL includeInLayout;
 @property (nonatomic) BOOL isEnabled;
 @property (nonatomic, strong) id _Nullable data;
 @property (nonatomic, readonly, strong) MasonNode * _Nullable owner;
@@ -545,12 +558,22 @@ SWIFT_CLASS_NAMED("MasonNode")
 - (MasonLayout * _Nonnull)layout;
 @property (nonatomic, readonly) BOOL isDirty;
 - (void)markDirty;
+- (MasonNode * _Nullable)getRoot SWIFT_WARN_UNUSED_RESULT;
+- (void)rootCompute;
+- (void)rootCompute:(float)width :(float)height;
+- (void)rootComputeMaxContent;
+- (void)rootComputeMinContent;
+- (void)rootComputeWithViewSize;
+- (void)rootComputeWithMaxContent;
 - (void)compute;
 - (void)compute:(float)width :(float)height;
 - (void)computeMaxContent;
 - (void)computeMinContent;
+- (void)computeWithSize:(float)width :(float)height;
 - (void)computeWithViewSize;
 - (void)computeWithMaxContent;
+- (void)computeWithMinContent;
+- (void)attachAndApply;
 - (void)setChildrenWithChildren:(NSArray<MasonNode *> * _Nonnull)children;
 - (void)addChildren:(NSArray<MasonNode *> * _Nonnull)children;
 @property (nonatomic, readonly) BOOL isLeaf;

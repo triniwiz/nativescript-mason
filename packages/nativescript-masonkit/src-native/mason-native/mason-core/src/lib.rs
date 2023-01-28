@@ -1,5 +1,6 @@
 extern crate core;
 
+pub use taffy::axis::*;
 pub use taffy::geometry::Line;
 pub use taffy::node::Measurable;
 pub use taffy::node::MeasureFunc;
@@ -21,6 +22,8 @@ pub const fn align_content_from_enum(value: i32) -> Option<AlignContent> {
         4 => Some(AlignContent::SpaceBetween),
         5 => Some(AlignContent::SpaceAround),
         6 => Some(AlignContent::SpaceEvenly),
+        7 => Some(AlignContent::FlexStart),
+        8 => Some(AlignContent::FlexEnd),
         _ => None,
     }
 }
@@ -34,6 +37,8 @@ pub const fn align_content_to_enum(value: AlignContent) -> i32 {
         AlignContent::SpaceBetween => 4,
         AlignContent::SpaceEvenly => 5,
         AlignContent::SpaceAround => 6,
+        AlignContent::FlexStart => 7,
+        AlignContent::FlexEnd => 8,
     }
 }
 
@@ -44,6 +49,8 @@ pub const fn align_items_from_enum(value: i32) -> Option<AlignItems> {
         2 => Some(AlignItems::Center),
         3 => Some(AlignItems::Baseline),
         4 => Some(AlignItems::Stretch),
+        5 => Some(AlignItems::FlexStart),
+        6 => Some(AlignItems::FlexEnd),
         _ => None,
     }
 }
@@ -55,6 +62,8 @@ pub const fn align_items_to_enum(value: AlignItems) -> i32 {
         AlignItems::Center => 2,
         AlignItems::Baseline => 3,
         AlignItems::Stretch => 4,
+        AlignItems::FlexStart => 5,
+        AlignItems::FlexEnd => 6,
     }
 }
 
@@ -65,6 +74,8 @@ pub const fn align_self_from_enum(value: i32) -> Option<AlignSelf> {
         2 => Some(AlignSelf::Center),
         3 => Some(AlignSelf::Baseline),
         4 => Some(AlignSelf::Stretch),
+        5 => Some(AlignSelf::FlexStart),
+        6 => Some(AlignSelf::FlexEnd),
         _ => None,
     }
 }
@@ -76,6 +87,8 @@ pub const fn align_self_to_enum(value: AlignSelf) -> i32 {
         AlignSelf::Center => 2,
         AlignSelf::Baseline => 3,
         AlignSelf::Stretch => 4,
+        AlignSelf::FlexStart => 5,
+        AlignSelf::FlexEnd => 6,
     }
 }
 
@@ -141,6 +154,8 @@ pub const fn justify_content_from_enum(value: i32) -> Option<JustifyContent> {
         4 => Some(JustifyContent::SpaceBetween),
         5 => Some(JustifyContent::SpaceAround),
         6 => Some(JustifyContent::SpaceEvenly),
+        7 => Some(JustifyContent::FlexStart),
+        8 => Some(JustifyContent::FlexEnd),
         _ => None,
     }
 }
@@ -153,7 +168,9 @@ pub const fn justify_content_to_enum(value: JustifyContent) -> i32 {
         JustifyContent::Stretch => 3,
         JustifyContent::SpaceBetween => 4,
         JustifyContent::SpaceAround => 5,
-        JustifyContent::SpaceEvenly => 6
+        JustifyContent::SpaceEvenly => 6,
+        JustifyContent::FlexStart => 7,
+        JustifyContent::FlexEnd => 8,
     }
 }
 
@@ -191,8 +208,8 @@ pub const fn grid_auto_flow_to_enum(value: GridAutoFlow) -> i32 {
     }
 }
 
-pub mod style;
 pub mod ffi;
+pub mod style;
 
 pub struct MeasureOutput {}
 
@@ -271,8 +288,11 @@ impl Mason {
         self.taffy.set_style(node.node, style.style).unwrap()
     }
 
-    pub fn style(&mut self, node: Node) -> Option<Style> {
-        self.taffy.style(node.node).map(|v| Style::from_taffy(v.clone())).ok()
+    pub fn style(&self, node: Node) -> Option<Style> {
+        self.taffy
+            .style(node.node)
+            .map(|v| Style::from_taffy(v.clone()))
+            .ok()
     }
 
     pub fn clear(&mut self) {
@@ -429,10 +449,27 @@ impl Mason {
         output
     }
 
+    pub fn measure(
+        &self,
+        node: Node,
+        known_dimensions: Size<Option<f32>>,
+        available_space: Size<AvailableSpace>,
+    ) -> Size<f32> {
+        Size::from_taffy(self.taffy.measure_node(
+            node.node,
+            known_dimensions.size,
+            available_space.into(),
+        ))
+    }
+
     fn copy_output(taffy: &Taffy, node: taffy::node::Node, output: &mut Vec<f32>) {
         let layout = taffy.layout(node).unwrap();
 
         let children = taffy.children(node).unwrap();
+
+        output.reserve(
+            children.len() * 6
+        );
 
         output.push(layout.order as f32);
         output.push(layout.location.x);

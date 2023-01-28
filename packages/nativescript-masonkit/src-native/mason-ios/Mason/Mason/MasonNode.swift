@@ -36,12 +36,12 @@ public class MasonNode: NSObject {
     internal var measureFunc: MeasureFunc? = nil
     
     public var style: MasonStyle {
-        didSet {
-            mason_node_set_style(TSCMason.instance.nativePtr, nativePtr, style.nativePtr)
+        willSet {
+            mason_node_set_style(TSCMason.instance.nativePtr, nativePtr, newValue.nativePtr)
         }
     }
     
-    var didInitWithView = false
+    public var includeInLayout = false
     var isUIView = false
     public var isEnabled = false
     public var data: AnyObject? = nil {
@@ -89,7 +89,7 @@ public class MasonNode: NSObject {
         super.init()
         
         children.forEach { node in
-            node.data = self
+            node.owner = self
         }
     }
     
@@ -124,7 +124,6 @@ public class MasonNode: NSObject {
     public func updateNodeStyle() {
         if(inBatch){return}
         if (style.isDirty) {
-            
             var gridAutoRows = style.gridAutoRows.map({ minMax in
                 minMax.cValue
             })
@@ -149,8 +148,6 @@ public class MasonNode: NSObject {
             }
             
             let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
-            
-        
             
             gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRowsBuffer in
                 
@@ -290,18 +287,6 @@ public class MasonNode: NSObject {
                 }
                 
             }
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-    
-            
             
             style.isDirty = false
         }
@@ -629,6 +614,43 @@ public class MasonNode: NSObject {
         return layout
     }
     
+    public func getRoot() -> MasonNode? {
+        guard let owner = self.owner else {return nil}
+        var current = owner
+        var next: MasonNode? = current
+        while(next != nil){
+            next = current.owner
+            if(next != nil){
+                current = next!
+            }
+        }
+        return current
+    }
+    
+    public func rootCompute() {
+        getRoot()?.compute()
+    }
+    
+    public func rootCompute(_ width: Float, _ height: Float) {
+        getRoot()?.compute(width, height)
+    }
+    
+    public func rootComputeMaxContent() {
+        getRoot()?.computeMaxContent()
+    }
+    
+    public func rootComputeMinContent() {
+        getRoot()?.computeMinContent()
+    }
+    
+    public func rootComputeWithViewSize(){
+        getRoot()?.computeWithViewSize()
+    }
+    
+    public func rootComputeWithMaxContent(){
+        getRoot()?.computeWithMaxContent()
+    }
+        
     public func compute() {
         mason_node_compute(TSCMason.instance.nativePtr, nativePtr)
     }
@@ -636,7 +658,7 @@ public class MasonNode: NSObject {
     public func compute(_ width: Float, _ height: Float) {
         mason_node_compute_wh(TSCMason.instance.nativePtr, nativePtr, width, height)
     }
-    
+        
     public func computeMaxContent() {
         mason_node_compute_max_content(TSCMason.instance.nativePtr, nativePtr)
     }
@@ -645,7 +667,13 @@ public class MasonNode: NSObject {
         mason_node_compute_min_content(TSCMason.instance.nativePtr, nativePtr)
     }
     
-
+    public func computeWithSize(_ width: Float, _ height: Float){
+        guard let view = data as? UIView else{return}
+        MasonNode.attachNodesFromView(view)
+        compute(width, height)
+        MasonNode.applyToView(view)
+    }
+    
     public func computeWithViewSize(){
         guard let view = data as? UIView else{return}
         MasonNode.attachNodesFromView(view)
@@ -656,10 +684,22 @@ public class MasonNode: NSObject {
     public func computeWithMaxContent(){
         guard let view = data as? UIView else{return}
         MasonNode.attachNodesFromView(view)
-        compute()
+        computeMaxContent()
         MasonNode.applyToView(view)
     }
     
+    public func computeWithMinContent(){
+        guard let view = data as? UIView else{return}
+        MasonNode.attachNodesFromView(view)
+        computeMinContent()
+        MasonNode.applyToView(view)
+    }
+    
+    public func attachAndApply(){
+        guard let view = data as? UIView else{return}
+        MasonNode.attachNodesFromView(view)
+        MasonNode.applyToView(view)
+    }
     func getChildAt(_ index: Int) -> MasonNode? {
         // todo support negative get
         if(index < 0){
@@ -685,7 +725,8 @@ public class MasonNode: NSObject {
     
     public func setChildren(children: [MasonNode]){
         setChildren(children.map { child in
-            child.nativePtr!
+            child.owner = self
+            return child.nativePtr!
         })
         
         self.children.removeAll()
@@ -696,7 +737,12 @@ public class MasonNode: NSObject {
     }
     
     public func addChildren(_ children: [MasonNode]){
+        let map = children.map { node in
+            node.owner = self
+            return node.nativePtr
+        }
         
+        mason_node_add_children(TSCMason.instance.nativePtr, nativePtr, map, UInt(map.count))
     }
     
     func addChild(_ child: MasonNode) {
@@ -809,11 +855,12 @@ public class MasonNode: NSObject {
     
     func removeMeasureFunction(){
         mason_node_remove_measure_func(TSCMason.instance.nativePtr, nativePtr)
+        self.measureFunc = nil
     }
     
     func setMeasureFunction(_ measureFunc: @escaping MeasureFunc) {
         self.measureFunc = measureFunc
-        mason_node_set_measure_func(TSCMason.instance.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
+        mason_node_set_measure_func(TSCMason.instance.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
     }
     
     public var isLeaf: Bool {
@@ -822,7 +869,7 @@ public class MasonNode: NSObject {
             guard let view = self.data as? UIView else {return true}
             for subview in view.subviews {
                 let mason = subview.mason
-                if(mason.isEnabled && mason.didInitWithView){
+                if(mason.isEnabled && mason.includeInLayout){
                     return false
                 }
             }
@@ -862,9 +909,10 @@ public class MasonNode: NSObject {
             
             for subview in view.subviews {
                 let mason = subview.mason
-                if(mason.isEnabled && mason.didInitWithView){
+                if(mason.isEnabled && mason.includeInLayout){
                     subviewsToInclude.append(subview)
                     nodesToInclude.append(mason.nativePtr!)
+                    mason.owner = view.mason
                 }
             }
             
@@ -883,46 +931,47 @@ public class MasonNode: NSObject {
     static func applyToView(_ view: UIView){
         let mason = view.mason
         
-        if(!mason.didInitWithView){
+        if(!mason.includeInLayout){
             return
         }
         
         let layout = mason.layout()
-    
         
         let widthIsNan = layout.width.isNaN
+        
         let heightIsNan = layout.height.isNaN
-    
         
         let x = CGFloat(layout.x.isNaN ? 0 : layout.x/TSCMason.scale)
         
         let y = CGFloat(layout.y.isNaN ? 0 : layout.y/TSCMason.scale)
-        
-        var width = CGFloat()
+    
+        var width: CGFloat = 0
+    
         
         if(widthIsNan && mason.style.size.width.type == MasonDimensionCompatType.Percent.rawValue){
-            width = (view.superview?.frame.width ?? 0) * CGFloat(mason.style.size.width.value)
+            width = (view.superview?.bounds.width ?? 0) * CGFloat(mason.style.size.width.value)
+        }else if(widthIsNan && mason.style.size.width.type == MasonDimensionCompatType.Points.rawValue){
+            width = CGFloat(mason.style.size.width.value/TSCMason.scale)
         }else {
             width = CGFloat(widthIsNan ? 0 : layout.width/TSCMason.scale)
         }
         
-        
-        var height = CGFloat()
-        
+        var height: CGFloat = 0
         
         if(heightIsNan  && mason.style.size.height.type == MasonDimensionCompatType.Percent.rawValue){
-            height = (view.superview?.frame.height ?? 0) * CGFloat(mason.style.size.height.value)
+            height = (view.superview?.bounds.height ?? 0) * CGFloat(mason.style.size.height.value)
+        }else if(heightIsNan  && mason.style.size.height.type == MasonDimensionCompatType.Points.rawValue){
+            height = CGFloat(mason.style.size.height.value/TSCMason.scale)
         }else {
             height = CGFloat(heightIsNan ? 0 : layout.height/TSCMason.scale)
         }
-        
+                
         let point = CGPoint(x: x, y: y)
         
         let size = CGSizeMake(width, height)
-        
-
+  
         view.frame = CGRect(origin: point, size: size)
- 
+    
         if (!mason.isLeaf) {
             view.subviews.forEach { subview in
                 MasonNode.applyToView(subview)
@@ -930,97 +979,111 @@ public class MasonNode: NSObject {
         }
     }
     
+    enum MeasureMode {
+        case Min
+        case Max
+        case Definite
+    }
+    
     static func measureFunction(_ view: UIView, _ knownDimensions: CGSize?,_ availableSpace: CGSize) -> CGSize {
         
         let node = view.mason
         
-        var size = CGSize.zero
+        let widthIsNan = knownDimensions?.width.isNaN ?? true
+        let heightIsNan = knownDimensions?.height.isNaN ?? true
         
-        var widthCalculated = false
-        var heightCalculated = false
-        
-        var isWidthPercent = false
-        var isHeightPercent = false
-        
-        // points
-        if(node.style.size.width.type == MasonDimensionCompatType.Points.rawValue){
-            widthCalculated = true
+        if(!widthIsNan && !heightIsNan){
+            return knownDimensions!
         }
         
-        // percent
-        if(node.style.size.width.type == MasonDimensionCompatType.Percent.rawValue){
-            widthCalculated = true
-            isWidthPercent = true
-        }
-        
-        if(node.style.size.height.type == MasonDimensionCompatType.Points.rawValue){
-            heightCalculated = true
-        }
-        
-        if(node.style.size.height.type == MasonDimensionCompatType.Percent.rawValue){
-            heightCalculated = true
-            isHeightPercent = true
-        }
-        
+        var size: CGSize = .zero
         
         let scale = CGFloat(TSCMason.scale)
         
         
-        let maxAvailableSpaceWidth = Float(availableSpace.width.isNaN ? ((view.superview?.frame.width ?? 0) * scale) : availableSpace.width)
-        
-        let maxAvailableSpaceHeight = Float(availableSpace.height.isNaN ? ((view.superview?.frame.height ?? 0) * scale) : availableSpace.height)
-        
-        let constrainedWidth = !widthCalculated ? CGFLOAT_MAX :
-        isWidthPercent ?  CGFloat(
-          maxAvailableSpaceWidth * node.style.size.width.value
-        )  : CGFloat(node.style.size.width.value)
-        
-        let constrainedHeight = !heightCalculated ? CGFLOAT_MAX :
-        isHeightPercent ?  CGFloat(
-            maxAvailableSpaceHeight * node.style.size.height.value
-        ) : CGFloat(node.style.size.height.value)
-        
-        
-        if(!node.isUIView || view.subviews.count == 0){
-            
-            if(isWidthPercent){
-                size.width = constrainedWidth
-            }
-            
-            if(isHeightPercent){
-                size.height = constrainedHeight
-            }
+        var widthCalculated = false
+        var heightCalculated = false
 
         
-            if(isWidthPercent && isHeightPercent){
-                return size
-            }
-            
-            if(widthCalculated && heightCalculated){
-                return size
-            }
-            
-                    
-            size = view.sizeThatFits(CGSizeMake(constrainedWidth, constrainedHeight))
-            
-            size = CGSize(width: .minimum(size.width * scale, constrainedWidth), height: .minimum(size.height * scale, constrainedHeight))
+        if (widthIsNan) {
+            if (node.style.size.width.type == MasonDimensionCompatType.Points.rawValue) {
+                size.width = CGFloat(node.style.size.width.value)
+               widthCalculated = true
+             }
+           }
+
+           if (heightIsNan) {
+             if (node.style.size.height.type == MasonDimensionCompatType.Points.rawValue) {
+                 size.height = CGFloat(node.style.size.height.value)
+               heightCalculated = true
+             }
+           }
+
+           if (widthCalculated && heightCalculated) {
+               return size
+           }
         
+        
+        var widthMode: MeasureMode = .Definite
+        var heightMode: MeasureMode = .Definite
+        
+       
+        
+        var widthConstraint: CGFloat = 0
+        var heightConstraint: CGFloat = 0
+        
+        if(widthIsNan){
+            if(availableSpace.width == -1){
+                widthMode = .Min
+                widthConstraint = CGFLOAT_MAX
+            }else if(availableSpace.width == -2){
+                widthMode = .Max
+                widthConstraint = CGFLOAT_MAX
+            }else {
+                widthConstraint = availableSpace.width / scale
+            }
         }else {
+            widthConstraint = knownDimensions!.width
+        }
+
+        
+        if(heightIsNan){
+            if(availableSpace.height == -1){
+                heightMode = .Min
+                heightConstraint = CGFLOAT_MAX
+            }else if(availableSpace.height == -2){
+                heightMode = .Max
+                heightConstraint = CGFLOAT_MAX
+            }else {
+                heightConstraint = availableSpace.height / scale
+            }
+        }else {
+            heightConstraint = knownDimensions!.height
+        }
+        
+        if(!node.isUIView || view.subviews.count > 0){
             
-            guard let knownDimensions = knownDimensions  else {
-                if(isWidthPercent){
-                    size.width = constrainedWidth
-                }
-                
-                if(isHeightPercent){
-                    size.height = constrainedHeight
-                }
-                
-                return size
+            let fits = view.sizeThatFits(CGSizeMake(widthConstraint, heightConstraint))
+            
+            switch(widthMode){
+            case .Min:
+                size.width = .minimum(fits.width, widthConstraint) * scale
+            case .Max:
+                size.width = fits.width * scale
+            case .Definite:
+                size.width = widthConstraint //widthIsNan ? .maximum(fits.width * scale, maxAvailableSpaceWidth) : knownDimensions!.width
             }
             
-            size.width = knownDimensions.width.isNaN ? 0 : knownDimensions.width
-            size.height = knownDimensions.height.isNaN ? 0 : knownDimensions.height
+       
+            switch(heightMode){
+            case .Min:
+                size.height = .minimum(fits.height, heightConstraint) * scale
+            case .Max:
+                size.height = fits.height * scale
+            case .Definite:
+                size.height = heightConstraint //heightIsNan ? .maximum(fits.height * scale, maxAvailableSpaceHeight) : knownDimensions!.height
+            }
+            
         }
         
         return size

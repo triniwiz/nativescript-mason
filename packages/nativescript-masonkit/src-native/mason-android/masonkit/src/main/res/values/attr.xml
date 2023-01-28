@@ -2,6 +2,7 @@
 <resources>
   <declare-styleable name="mason">
     <attr name="mason_alignContent" format="enum">
+      <enum name="normal" value="-1" />
       <enum name="start" value="0" />
       <enum name="end" value="1" />
       <enum name="center" value="2" />
@@ -13,6 +14,7 @@
 
 
     <attr name="mason_justifyContent" format="enum">
+      <enum name="normal" value="-1" />
       <enum name="start" value="0" />
       <enum name="end" value="1" />
       <enum name="center" value="2" />
@@ -23,6 +25,7 @@
     </attr>
 
     <attr name="mason_alignItems" format="enum">
+      <enum name="normal" value="-1" />
       <enum name="start" value="0" />
       <enum name="end" value="1" />
       <enum name="center" value="2" />
@@ -31,6 +34,7 @@
     </attr>
 
     <attr name="mason_justifyItems" format="enum">
+      <enum name="normal" value="-1" />
       <enum name="start" value="0" />
       <enum name="end" value="1" />
       <enum name="center" value="2" />
@@ -39,6 +43,7 @@
     </attr>
 
     <attr name="mason_alignSelf" format="enum">
+      <enum name="normal" value="-1" />
       <enum name="start" value="0" />
       <enum name="end" value="1" />
       <enum name="center" value="2" />
@@ -47,6 +52,7 @@
     </attr>
 
     <attr name="mason_justifySelf" format="enum">
+      <enum name="normal" value="-1" />
       <enum name="start" value="0" />
       <enum name="end" value="1" />
       <enum name="center" value="2" />

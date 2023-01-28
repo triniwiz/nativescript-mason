@@ -1,4 +1,6 @@
+use std::borrow::Cow;
 use std::ffi::c_void;
+use std::io::Read;
 
 use taffy::prelude::*;
 
@@ -1186,14 +1188,26 @@ pub fn style_set_grid_auto_flow(style: *mut c_void, value: i32) {
     }
 }
 
-pub fn style_set_grid_area(style: *mut c_void, row_start: GridPlacement, row_end: GridPlacement, column_start: GridPlacement, column_end: GridPlacement) {
+pub fn style_set_grid_area(
+    style: *mut c_void,
+    row_start: GridPlacement,
+    row_end: GridPlacement,
+    column_start: GridPlacement,
+    column_end: GridPlacement,
+) {
     assert_pointer_address(style, "style");
     unsafe {
         let mut style = Box::from_raw(style as *mut Style);
 
-        style.set_grid_row(Line { start: row_start, end: row_end });
+        style.set_grid_row(Line {
+            start: row_start,
+            end: row_end,
+        });
 
-        style.set_grid_column(Line { start: column_start, end: column_end });
+        style.set_grid_column(Line {
+            start: column_start,
+            end: column_end,
+        });
 
         Box::leak(style);
     }
@@ -1453,7 +1467,7 @@ pub fn node_compute_min_content(mason: *mut c_void, node: *const c_void) {
     unsafe {
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
-        let size = Size::<AvailableSpace>::max_content();
+        let size = Size::<AvailableSpace>::min_content();
         mason.compute_size(*node, size);
         Box::leak(mason);
         Box::leak(node);
@@ -1517,59 +1531,64 @@ pub fn node_dirty(mason: *const c_void, node: *const c_void) -> bool {
     }
 }
 
-pub fn parse_non_repeated_track_sizing_function_value(
+const AUTO: &str = "auto";
+const MIN_CONTENT: &str = "min-content";
+const MAX_CONTENT: &str = "max-content";
+const FIT_CONTENT: &str = "fit-content";
+const FLEX_UNIT: &str = "fr";
+pub fn parse_non_repeated_track_sizing_function_value<'a>(
     value: NonRepeatedTrackSizingFunction,
-) -> String {
-    let mut string = String::new();
-
-    match (value.min, value.max) {
-        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Auto) => string.push_str("auto"),
+) -> Cow<'a, str> {
+    return match (value.min, value.max) {
+        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Auto) => AUTO.into(),
         (MinTrackSizingFunction::MinContent, MaxTrackSizingFunction::MinContent) => {
-            string.push_str("min-content")
+            MIN_CONTENT.into()
         }
         (MinTrackSizingFunction::MaxContent, MaxTrackSizingFunction::MaxContent) => {
-            string.push_str("max-content")
+            MAX_CONTENT.into()
         }
-        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::FitContent(value)) => string
-            .push_str(&match value {
-                LengthPercentage::Points(value) => format!("fit-content({}px)", value),
-                LengthPercentage::Percent(value) => format!("fit-content({}%)", value),
-            }),
+        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::FitContent(value)) => match value {
+            LengthPercentage::Points(value) => format!("fit-content({:.0}px)", value).into(),
+            LengthPercentage::Percent(value) => format!("fit-content({:.3}%)", value).into(),
+        },
         (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Flex(value)) => {
-            string.push_str(&format!("{}fr", value))
+            (value.to_string() + FLEX_UNIT).into()
         }
         (min, max) => {
-            string.push_str(&format!(
+            format!(
                 "minmax({}, {})",
-                match min {
+                Cow::from(match min {
                     MinTrackSizingFunction::Fixed(value) => {
-                        match value {
+                        return match value {
                             LengthPercentage::Points(value) => format!("{}px", value),
                             LengthPercentage::Percent(value) => format!("{}%", value),
                         }
+                        .into();
                     }
-                    MinTrackSizingFunction::MinContent => "min-content".to_string(),
-                    MinTrackSizingFunction::MaxContent => "max-content".to_string(),
-                    MinTrackSizingFunction::Auto => "auto".to_string(),
-                },
-                match max {
+                    MinTrackSizingFunction::MinContent => MIN_CONTENT,
+                    MinTrackSizingFunction::MaxContent => MAX_CONTENT,
+                    MinTrackSizingFunction::Auto => AUTO,
+                }),
+                Cow::from(match max {
                     MaxTrackSizingFunction::Fixed(value) => {
-                        match value {
+                        return match value {
                             LengthPercentage::Points(value) => format!("{}px", value),
                             LengthPercentage::Percent(value) => format!("{}%", value),
                         }
+                        .into();
                     }
-                    MaxTrackSizingFunction::MinContent => "min-content".to_string(),
-                    MaxTrackSizingFunction::MaxContent => "max-content".to_string(),
+                    MaxTrackSizingFunction::MinContent => MIN_CONTENT,
+                    MaxTrackSizingFunction::MaxContent => MAX_CONTENT,
                     MaxTrackSizingFunction::FitContent(_) => panic!(), // invalid should not hit here
-                    MaxTrackSizingFunction::Auto => "auto".to_string(),
-                    MaxTrackSizingFunction::Flex(value) => format!("{}px", value),
-                }
-            ));
+                    MaxTrackSizingFunction::Auto => AUTO,
+                    MaxTrackSizingFunction::Flex(value) => {
+                        return format!("{}fr", value).into();
+                    }
+                })
+            )
+            .into()
         }
-    }
-
-    string
+    };
 }
 
 pub fn parse_track_sizing_function_value(value: &TrackSizingFunction) -> String {
@@ -1577,7 +1596,7 @@ pub fn parse_track_sizing_function_value(value: &TrackSizingFunction) -> String 
     match value {
         TrackSizingFunction::Single(value) => {
             let parsed = parse_non_repeated_track_sizing_function_value(*value);
-            ret.push_str(parsed.as_str())
+            ret.push_str(parsed.as_ref())
         }
         TrackSizingFunction::AutoRepeat(grid_track_repetition, values) => {
             ret.push_str("repeat(");
@@ -1597,7 +1616,7 @@ pub fn parse_track_sizing_function_value(value: &TrackSizingFunction) -> String 
                     ret.push(' ');
                 }
 
-                ret.push_str(parsed.as_str())
+                ret.push_str(parsed.as_ref())
             }
 
             ret.push(')');

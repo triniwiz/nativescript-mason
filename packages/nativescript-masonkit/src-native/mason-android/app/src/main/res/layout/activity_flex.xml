@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<org.nativescript.mason.masonkit.View xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:mason="http://schemas.android.com/apk/res-auto"
+  android:id="@+id/flexRoot"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@color/black"
+  mason:mason_flexDirection="column"
+  >
+
+  <org.nativescript.mason.masonkit.View
+    android:id="@+id/a"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@color/red"
+    mason:mason_height="100dp"
+    mason:mason_width="100dp" />
+
+  <org.nativescript.mason.masonkit.View
+    android:id="@+id/b"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@color/blue"
+    mason:mason_height="100dp"
+    mason:mason_width="100dp" />
+
+</org.nativescript.mason.masonkit.View>

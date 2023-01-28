@@ -7,7 +7,23 @@ enum class AlignItems(val value: Int) {
   End(1),
   Center(2),
   Baseline(3),
-  Stretch(4);
+  Stretch(4),
+  FlexStart(5),
+  FlexEnd(6);
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Normal -> "normal"
+        Start -> "start"
+        End -> "end"
+        Center -> "center"
+        Baseline -> "baseline"
+        Stretch -> "stretch"
+        FlexStart -> "flex-start"
+        FlexEnd -> "flex-end"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): AlignItems {
@@ -18,6 +34,8 @@ enum class AlignItems(val value: Int) {
         2 -> Center
         3 -> Baseline
         4 -> Stretch
+        5 -> FlexStart
+        6 -> FlexEnd
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -30,7 +48,23 @@ enum class AlignSelf(val value: Int) {
   End(1),
   Center(2),
   Baseline(3),
-  Stretch(4);
+  Stretch(4),
+  FlexStart(5),
+  FlexEnd(6);
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Normal -> "normal"
+        Start -> "start"
+        End -> "end"
+        Center -> "center"
+        Baseline -> "baseline"
+        Stretch -> "stretch"
+        FlexStart -> "flex-start"
+        FlexEnd -> "flex-end"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): AlignSelf {
@@ -41,6 +75,8 @@ enum class AlignSelf(val value: Int) {
         2 -> Center
         3 -> Baseline
         4 -> Stretch
+        5 -> FlexStart
+        6 -> FlexEnd
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -55,7 +91,25 @@ enum class AlignContent(val value: Int) {
   Stretch(3),
   SpaceBetween(4),
   SpaceAround(5),
-  SpaceEvenly(6);
+  SpaceEvenly(6),
+  FlexStart(7),
+  FlexEnd(8);
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Normal -> "normal"
+        Start -> "start"
+        End -> "end"
+        Center -> "center"
+        Stretch -> "stretch"
+        SpaceBetween -> "space-between"
+        SpaceAround -> "space-around"
+        SpaceEvenly -> "space-evenly"
+        FlexStart -> "flex-start"
+        FlexEnd -> "flex-end"
+      }
+    }
 
 
   companion object {
@@ -69,6 +123,8 @@ enum class AlignContent(val value: Int) {
         4 -> SpaceBetween
         5 -> SpaceAround
         6 -> SpaceEvenly
+        7 -> FlexStart
+        8 -> FlexEnd
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -79,6 +135,15 @@ enum class Direction {
   Inherit,
   LTR,
   RTL;
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Inherit -> "inherit"
+        LTR -> "LTR"
+        RTL -> "rtl"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): Direction {
@@ -97,6 +162,15 @@ enum class Display {
   Flex,
   Grid;
 
+  val cssValue: String
+    get() {
+      return when (this) {
+        None -> "none"
+        Flex -> "flex"
+        Grid -> "grid"
+      }
+    }
+
   companion object {
     fun fromInt(value: Int): Display {
       return when (value) {
@@ -114,6 +188,16 @@ enum class FlexDirection {
   Column,
   RowReverse,
   ColumnReverse;
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Row -> "row"
+        Column -> "column"
+        RowReverse -> "row-reverse"
+        ColumnReverse -> "column-reverse"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): FlexDirection {
@@ -134,7 +218,23 @@ enum class JustifySelf(val value: Int) {
   End(1),
   Center(2),
   Baseline(3),
-  Stretch(4);
+  Stretch(4),
+  FlexStart(5),
+  FlexEnd(6);
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Normal -> "normal"
+        Start -> "start"
+        End -> "end"
+        Center -> "center"
+        Baseline -> "baseline"
+        Stretch -> "stretch"
+        FlexStart -> "flex-start"
+        FlexEnd -> "flex-end"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): JustifySelf {
@@ -145,6 +245,8 @@ enum class JustifySelf(val value: Int) {
         2 -> Center
         3 -> Baseline
         4 -> Stretch
+        5 -> FlexStart
+        6 -> FlexEnd
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -157,7 +259,23 @@ enum class JustifyItems(val value: Int) {
   End(1),
   Center(2),
   Baseline(3),
-  Stretch(4);
+  Stretch(4),
+  FlexStart(5),
+  FlexEnd(6);
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Normal -> "normal"
+        Start -> "start"
+        End -> "end"
+        Center -> "center"
+        Baseline -> "baseline"
+        Stretch -> "stretch"
+        FlexStart -> "flex-start"
+        FlexEnd -> "flex-end"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): JustifyItems {
@@ -168,6 +286,8 @@ enum class JustifyItems(val value: Int) {
         2 -> Center
         3 -> Baseline
         4 -> Stretch
+        5 -> FlexStart
+        6 -> FlexEnd
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -182,7 +302,25 @@ enum class JustifyContent(val value: Int) {
   Stretch(3),
   SpaceBetween(4),
   SpaceAround(5),
-  SpaceEvenly(6);
+  SpaceEvenly(6),
+  FlexStart(7),
+  FlexEnd(7);
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Normal -> "normal"
+        Start -> "start"
+        End -> "end"
+        Center -> "center"
+        Stretch -> "stretch"
+        SpaceBetween -> "space-between"
+        SpaceAround -> "space-around"
+        SpaceEvenly -> "space-evenly"
+        FlexStart -> "flex-start"
+        FlexEnd -> "flex-end"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): JustifyContent {
@@ -195,6 +333,8 @@ enum class JustifyContent(val value: Int) {
         4 -> SpaceBetween
         5 -> SpaceAround
         6 -> SpaceEvenly
+        7 -> FlexStart
+        8 -> FlexEnd
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -205,6 +345,15 @@ enum class Overflow {
   Visible,
   Hidden,
   Scroll;
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Visible -> "visible"
+        Hidden -> "hidden"
+        Scroll -> "scroll"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): Overflow {
@@ -222,6 +371,14 @@ enum class Position {
   Relative,
   Absolute;
 
+  val cssValue: String
+    get() {
+      return when (this) {
+        Relative -> "relative"
+        Absolute -> "absolute"
+      }
+    }
+
   companion object {
     fun fromInt(value: Int): Position {
       return when (value) {
@@ -237,6 +394,15 @@ enum class FlexWrap {
   NoWrap,
   Wrap,
   WrapReverse;
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        NoWrap -> "nowrap"
+        Wrap -> "wrap"
+        WrapReverse -> "wrap-reverse"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): FlexWrap {
@@ -255,6 +421,16 @@ enum class GridAutoFlow {
   Column,
   RowDense,
   ColumnDense;
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Row -> "row"
+        Column -> "column"
+        RowDense -> "row-dense"
+        ColumnDense -> "column-dense"
+      }
+    }
 
   companion object {
     fun fromInt(value: Int): GridAutoFlow {
@@ -288,11 +464,33 @@ sealed class GridPlacement {
       is Line -> value
       is Span -> value
     }
+
+  val jsonValue: String
+    get() {
+      return Mason.gson.toJson(this)
+    }
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Auto -> "auto"
+        is Line -> "$value"
+        is Span -> "span $value"
+      }
+    }
 }
 
 enum class GridTrackRepetition {
   AutoFill,
   AutoFit;
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        AutoFill -> "auto-fill"
+        AutoFit -> "auto-fit"
+      }
+    }
 
   fun toInt(): Int {
     return when (this) {
@@ -341,7 +539,51 @@ sealed class TrackSizingFunction(val isRepeating: Boolean = false) {
       return result
     }
   }
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        is AutoRepeat -> {
+          val builder = StringBuilder("repeat(${gridTrackRepetition.cssValue}, ")
+          val last = value.lastIndex
+          value.forEachIndexed { index, minMax ->
+            if (index == last) {
+              builder.append(minMax.cssValue)
+            } else {
+              builder.append("${minMax.cssValue} ")
+            }
+          }
+          builder.append(")")
+          return builder.toString()
+        }
+        is Single -> value.cssValue
+      }
+    }
 }
+
+val Array<TrackSizingFunction>.jsonValue: String
+  get() {
+    return Mason.gson.toJson(this)
+  }
+
+val Array<TrackSizingFunction>.cssValue: String
+  get() {
+    if (isEmpty()) {
+      return ""
+    }
+    val builder = StringBuilder()
+    val last = this.lastIndex
+    this.forEachIndexed { index, minMax ->
+      if (index == last) {
+        builder.append(minMax.cssValue)
+      } else {
+        builder.append("${minMax.cssValue} ")
+      }
+    }
+    builder.append(")")
+    return builder.toString()
+  }
+
 
 class Style internal constructor() {
 
@@ -412,13 +654,13 @@ class Style internal constructor() {
     }
 
 
-  var justifySelf: JustifySelf = JustifySelf.Stretch
+  var justifySelf: JustifySelf = JustifySelf.Normal
     set(value) {
       field = value
       isDirty = true
     }
 
-  var justifyContent: JustifyContent = JustifyContent.Start
+  var justifyContent: JustifyContent = JustifyContent.Normal
     set(value) {
       field = value
       isDirty = true
@@ -1348,6 +1590,48 @@ class Style internal constructor() {
     }
 
     return nativePtr
+  }
+
+  override fun toString(): String {
+    var ret = "(MasonStyle)("
+
+    ret += "display: ${display.cssValue}, "
+    ret += "position: ${position.cssValue}, "
+    ret += "flexDirection: ${flexDirection.cssValue}, "
+    ret += "flexWrap: ${flexWrap.cssValue}, "
+    ret += "alignItems: ${alignItems.cssValue}, "
+    ret += "alignSelf: ${alignSelf.cssValue}, "
+    ret += "alignContent: ${alignContent.cssValue}, "
+    ret += "justifyItems: ${justifyItems.cssValue}, "
+    ret += "justifySelf: ${justifySelf.cssValue}, "
+    ret += "justifyContent: ${justifyContent.cssValue}, "
+    ret += "position: ${position.cssValue}, "
+    ret += "margin: ${margin.cssValue}, "
+    ret += "padding: ${padding.cssValue}, "
+    ret += "border: ${border.cssValue}, "
+    ret += "gap: ${gap.cssValue}, "
+    ret += "flexGrow: ${flexGrow},"
+    ret += "flexShrink: ${flexShrink},"
+    ret += "flexBasis: ${flexBasis.cssValue},"
+    ret += "size: ${size.cssValue},"
+    ret += "minSize: ${minSize.cssValue},"
+    ret += "maxSize: ${maxSize.cssValue},"
+    ret += "aspectRatio: ${
+      if (aspectRatio == null) {
+        "undefined"
+      } else {
+        aspectRatio
+      }
+    },"
+    ret += "gridAutoRows: ${gridAutoRows.cssValue},"
+    ret += "gridAutoColumns: ${gridAutoColumns.cssValue},"
+    ret += "gridColumn: ${gridColumn.start.cssValue} \\ ${gridColumn.end.cssValue},"
+    ret += "gridRow: ${gridRow.start.cssValue} \\ ${gridRow.end.cssValue},"
+    ret += "gridTemplateRows: ${gridTemplateRows.cssValue},"
+    ret += "gridTemplateColumns: ${gridTemplateColumns.cssValue}"
+    ret += ")"
+
+    return ret
   }
 
   companion object {

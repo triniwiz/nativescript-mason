@@ -72,6 +72,11 @@ fn grid_placement(t: i32, v: i16) -> GridPlacement {
 }
 
 impl Style {
+    pub fn new() -> Self {
+        Self {
+            style: Default::default(),
+        }
+    }
     pub fn from_taffy(style: taffy::style::Style) -> Self {
         Self { style }
     }
@@ -693,6 +698,7 @@ impl Style {
         grid_template_rows: Vec<TrackSizingFunction>,
         grid_template_columns: Vec<TrackSizingFunction>,
     ) -> Self {
+
         Style::from_taffy(taffy::style::Style {
             display: match display {
                 0 => Display::None,
@@ -736,67 +742,15 @@ impl Style {
                 _ => panic!(),
             },
             */
-            align_items: match align_items {
-                -1 => None,
-                0 => Some(AlignItems::Start),
-                1 => Some(AlignItems::End),
-                2 => Some(AlignItems::Center),
-                3 => Some(AlignItems::Baseline),
-                4 => Some(AlignItems::Stretch),
-                _ => panic!(),
-            },
+            align_items: align_items_from_enum(align_items),
 
-            align_self: match align_self {
-                -1 => None,
-                0 => Some(AlignSelf::Start),
-                1 => Some(AlignSelf::End),
-                2 => Some(AlignSelf::Center),
-                3 => Some(AlignSelf::Baseline),
-                4 => Some(AlignSelf::Stretch),
-                _ => panic!(),
-            },
+            align_self: align_self_from_enum(align_self),
 
-            justify_items: match justify_items {
-                -1 => None,
-                0 => Some(AlignItems::Start),
-                1 => Some(AlignItems::End),
-                2 => Some(AlignItems::Center),
-                3 => Some(AlignItems::Baseline),
-                4 => Some(AlignItems::Stretch),
-                _ => panic!(),
-            },
-            justify_self: match justify_self {
-                -1 => None,
-                0 => Some(AlignSelf::Start),
-                1 => Some(AlignSelf::End),
-                2 => Some(AlignSelf::Center),
-                3 => Some(AlignSelf::Baseline),
-                4 => Some(AlignSelf::Stretch),
-                _ => panic!(),
-            },
-            align_content: match align_content {
-                -1 => None,
-                0 => Some(AlignContent::Start),
-                1 => Some(AlignContent::End),
-                2 => Some(AlignContent::Center),
-                3 => Some(AlignContent::Stretch),
-                4 => Some(AlignContent::SpaceBetween),
-                5 => Some(AlignContent::SpaceAround),
-                6 => Some(AlignContent::SpaceEvenly),
-                _ => panic!(),
-            },
+            justify_items: align_items_from_enum(justify_items),
+            justify_self: align_self_from_enum(justify_self),
+            align_content: align_content_from_enum(align_content),
 
-            justify_content: match justify_content {
-                -1 => None,
-                0 => Some(JustifyContent::Start),
-                1 => Some(JustifyContent::End),
-                2 => Some(JustifyContent::Center),
-                3 => Some(JustifyContent::Stretch),
-                4 => Some(JustifyContent::SpaceBetween),
-                5 => Some(JustifyContent::SpaceAround),
-                6 => Some(JustifyContent::SpaceEvenly),
-                _ => panic!(),
-            },
+            justify_content: justify_content_from_enum(justify_content),
 
             inset: taffy::geometry::Rect {
                 left: dimension_with_auto(inset_left_type, inset_left_value),
@@ -857,7 +811,6 @@ impl Style {
                 width: dimension_with_auto(min_width_type, min_width_value).into(),
                 height: dimension_with_auto(min_height_type, min_height_value).into(),
             },
-
             max_size: taffy::geometry::Size {
                 width: dimension_with_auto(max_width_type, max_width_value).into(),
                 height: dimension_with_auto(max_height_type, max_height_value).into(),

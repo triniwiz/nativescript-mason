@@ -14,5 +14,4 @@ declare const __non_webpack_require__;
 // } catch (error) {
 //   console.log(error);
 // }
-
 Application.run({ moduleName: 'app-root' });

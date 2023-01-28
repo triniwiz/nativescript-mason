@@ -479,6 +479,8 @@ public enum AlignItems: Int, RawRepresentable {
     case Center
     case Baseline
     case Stretch
+    case FlexStart
+    case FlexEnd
     
     public typealias RawValue = Int32
     
@@ -496,6 +498,10 @@ public enum AlignItems: Int, RawRepresentable {
             return 3
         case .Stretch:
             return 4
+        case .FlexStart:
+            return 5
+        case .FlexEnd:
+            return 6
         }
     }
     
@@ -514,6 +520,10 @@ public enum AlignItems: Int, RawRepresentable {
             self = .Baseline
         case 4:
             self = .Stretch
+        case 5:
+            self = .FlexStart
+        case 6:
+            self = .FlexEnd
         default:
             return nil
         }
@@ -533,6 +543,10 @@ public enum AlignItems: Int, RawRepresentable {
             return "baseline"
         case .Stretch:
             return "stretch"
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-end"
         }
     }
 }
@@ -545,6 +559,8 @@ public enum AlignSelf: Int, RawRepresentable {
     case Center
     case Baseline
     case Stretch
+    case FlexStart
+    case FlexEnd
     
     public typealias RawValue = Int32
     
@@ -562,6 +578,10 @@ public enum AlignSelf: Int, RawRepresentable {
             return 3
         case .Stretch:
             return 4
+        case .FlexStart:
+            return 5
+        case .FlexEnd:
+            return 6
         }
     }
     
@@ -580,6 +600,10 @@ public enum AlignSelf: Int, RawRepresentable {
             self = .Baseline
         case 4:
             self = .Stretch
+        case 5:
+            self = .FlexStart
+        case 6:
+            self = .FlexEnd
         default:
             return nil
         }
@@ -599,6 +623,10 @@ public enum AlignSelf: Int, RawRepresentable {
             return "baseline"
         case .Stretch:
             return "stretch"
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-end"
         }
     }
 }
@@ -613,6 +641,8 @@ public enum AlignContent: Int, RawRepresentable  {
     case SpaceBetween
     case SpaceAround
     case SpaceEvenly
+    case FlexStart
+    case FlexEnd
     
     public typealias RawValue = Int32
     
@@ -634,6 +664,10 @@ public enum AlignContent: Int, RawRepresentable  {
             return 5
         case .SpaceEvenly:
             return 6
+        case .FlexStart:
+            return 7
+        case .FlexEnd:
+            return 8
         }
     }
     
@@ -656,6 +690,10 @@ public enum AlignContent: Int, RawRepresentable  {
             self = .SpaceAround
         case 6:
             self = .SpaceEvenly
+        case 7:
+            self = .FlexStart
+        case 8:
+            self = .FlexEnd
         default:
             return nil
         }
@@ -679,6 +717,10 @@ public enum AlignContent: Int, RawRepresentable  {
             return "space-around"
         case .SpaceEvenly:
             return "space-evenly"
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-end"
         }
     }
 }
@@ -836,6 +878,8 @@ public enum JustifyItems: Int, RawRepresentable {
     case Center
     case Baseline
     case Stretch
+    case FlexStart
+    case FlexEnd
     
     public typealias RawValue = Int32
     
@@ -853,6 +897,10 @@ public enum JustifyItems: Int, RawRepresentable {
             return 3
         case .Stretch:
             return 4
+        case .FlexStart:
+            return 5
+        case .FlexEnd:
+            return 6
         }
     }
     
@@ -871,6 +919,10 @@ public enum JustifyItems: Int, RawRepresentable {
             self = .Baseline
         case 4:
             self = .Stretch
+        case 5:
+            self = .FlexStart
+        case 6:
+            self = .FlexEnd
         default:
             return nil
         }
@@ -890,6 +942,10 @@ public enum JustifyItems: Int, RawRepresentable {
             return "baseline"
         case .Stretch:
             return "stretch"
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-end"
         }
     }
 }
@@ -902,6 +958,8 @@ public enum JustifySelf: Int, RawRepresentable {
     case Center
     case Baseline
     case Stretch
+    case FlexStart
+    case FlexEnd
     
     public typealias RawValue = Int32
     
@@ -919,6 +977,10 @@ public enum JustifySelf: Int, RawRepresentable {
             return 3
         case .Stretch:
             return 4
+        case .FlexStart:
+            return 5
+        case .FlexEnd:
+            return 6
         }
     }
     
@@ -937,6 +999,10 @@ public enum JustifySelf: Int, RawRepresentable {
             self = .Baseline
         case 4:
             self = .Stretch
+        case 5:
+            self = .FlexStart
+        case 6:
+            self = .FlexEnd
         default:
             return nil
         }
@@ -956,6 +1022,10 @@ public enum JustifySelf: Int, RawRepresentable {
             return "baseline"
         case .Stretch:
             return "stretch"
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-end"
         }
     }
 }
@@ -970,6 +1040,8 @@ public enum JustifyContent: Int, RawRepresentable {
     case SpaceBetween
     case SpaceAround
     case SpaceEvenly
+    case FlexStart
+    case FlexEnd
     
     public typealias RawValue = Int32
     
@@ -991,6 +1063,10 @@ public enum JustifyContent: Int, RawRepresentable {
             return 5
         case .SpaceEvenly:
             return 6
+        case .FlexStart:
+            return 7
+        case .FlexEnd:
+            return 8
         }
     }
     
@@ -1013,6 +1089,10 @@ public enum JustifyContent: Int, RawRepresentable {
             self = .SpaceAround
         case 6:
             self = .SpaceEvenly
+        case 7:
+            self = .FlexStart
+        case 8:
+            self = .FlexEnd
         default:
             return nil
         }
@@ -1036,6 +1116,10 @@ public enum JustifyContent: Int, RawRepresentable {
             return "space-around"
         case .SpaceEvenly:
             return "space-evenly"
+        case .FlexStart:
+            return "flex-start"
+        case .FlexEnd:
+            return "flex-start"
         }
     }
 }
@@ -1162,7 +1246,7 @@ public enum FlexWrap: Int, RawRepresentable {
     var cssValue: String {
         switch self {
         case .NoWrap:
-            return "no-wrap"
+            return "nowrap"
         case .Wrap:
             return "wrap"
         case .WrapReverse:
