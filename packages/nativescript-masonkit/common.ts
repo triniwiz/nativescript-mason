@@ -1,4 +1,4 @@
-import { AddChildFromBuilder, ViewBase, CssProperty, Style, Length as NSLength, ShorthandProperty, CSSType, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, CustomLayoutView, heightProperty, minHeightProperty, minWidthProperty, widthProperty, View, PropertyChangeData } from '@nativescript/core';
+import { AddChildFromBuilder, ViewBase, CssProperty, Style, Length as NSLength, ShorthandProperty, CSSType, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, CustomLayoutView, heightProperty, minHeightProperty, minWidthProperty, widthProperty, View, PropertyChangeData, getViewById } from '@nativescript/core';
 import { Display, FlexDirection, FlexWrap, Gap, Length, Position, AlignContent, AlignItems, AlignSelf, JustifyContent, JustifyItems, JustifySelf, GridAutoFlow, LengthAuto } from '.';
 import {
   _forceStyleUpdate,
@@ -1779,6 +1779,47 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
     this._children.push(value);
     value._isMasonChild = true;
     this._addView(value);
+  }
+
+  getChildrenCount() {
+    return this._children.length;
+  }
+
+  get _childrenCount() {
+    return this._children.length;
+  }
+
+  getChildAt(index: number) {
+    return this._children[index];
+  }
+
+  getChildIndex(child: View) {
+    return this._children.indexOf(child);
+  }
+  getChildById(id: string) {
+    return getViewById(this, id);
+  }
+
+  addChild(child: View) {
+    this._children.push(child);
+    this._addView(child);
+  }
+
+  insertChild(child: View, atIndex: number) {
+    this._children.splice(atIndex, 0, child);
+    this._addView(child, atIndex);
+  }
+
+  removeChild(child: View) {
+    const index = this._children.indexOf(child);
+    this._children.splice(index, 1);
+    this._removeView(child);
+  }
+
+  removeChildren() {
+    while (this.getChildrenCount() !== 0) {
+      this.removeChild(this._children[this.getChildrenCount() - 1]);
+    }
   }
 }
 
