@@ -47,7 +47,6 @@ private var hasSwizzled = false
 
 */
 
- 
 extension UIView {
    /* public final class func swizzleForMason() {
        guard !hasSwizzled else { return }
@@ -66,6 +65,22 @@ extension UIView {
         }
     }
     */
+    
+    @objc public static func createGridView() -> UIView{
+        let view = UIView(frame: .zero)
+        view.mason.configure { node in
+            node.style.display = .Grid
+        }
+        return view
+    }
+    
+    @objc public static func createFlexView() -> UIView{
+        let view = UIView(frame: .zero)
+        view.mason.configure { node in
+            node.style.display = .Flex
+        }
+        return view
+    }
     
     @objc public var mason: MasonNode {
        // UIView.swizzleForMason()
@@ -726,12 +741,12 @@ extension UIView {
     }
     
     @objc public func setMinSizeWidth(_ width: Float,_ type: Int) {
-        mason.style.setMinSizeHeight(width, type)
+        mason.style.setMinSizeWidth(width, type)
         checkAndUpdateStyle()
     }
     
     @objc public func setMinSizeHeight(_ height: Float,_ type: Int) {
-        mason.style.setMinSizeWidth(height, type)
+        mason.style.setMinSizeHeight(height, type)
         checkAndUpdateStyle()
     }
     
@@ -753,12 +768,12 @@ extension UIView {
     }
     
     @objc public func setSizeWidth(_ width: Float,_ type: Int) {
-        mason.style.setSizeHeight(width, type)
+        mason.style.setSizeWidth(width, type)
         checkAndUpdateStyle()
     }
     
     @objc public func setSizeHeight(_ height: Float,_ type: Int) {
-        mason.style.setSizeWidth(height, type)
+        mason.style.setSizeHeight(height, type)
         checkAndUpdateStyle()
     }
     
@@ -787,12 +802,12 @@ extension UIView {
     }
         
     @objc public func setMaxSizeWidth(_ width: Float,_ type: Int) {
-        mason.style.setMaxSizeHeight(width, type)
+        mason.style.setMaxSizeWidth(width, type)
         checkAndUpdateStyle()
     }
     
     @objc public func setMaxSizeHeight(_ height: Float,_ type: Int) {
-        mason.style.setMaxSizeWidth(height, type)
+        mason.style.setMaxSizeHeight(height, type)
         checkAndUpdateStyle()
     }
     

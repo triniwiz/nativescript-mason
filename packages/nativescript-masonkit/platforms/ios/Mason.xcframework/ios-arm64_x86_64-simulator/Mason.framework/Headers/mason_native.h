@@ -70,7 +70,8 @@ typedef enum CMasonTrackSizingFunction_Tag {
 
 typedef struct Repeat_Body {
   int32_t _0;
-  struct CMasonNonRepeatedTrackSizingFunctionArray *_1;
+  uint16_t _1;
+  struct CMasonNonRepeatedTrackSizingFunctionArray *_2;
 } Repeat_Body;
 
 typedef struct CMasonTrackSizingFunction {

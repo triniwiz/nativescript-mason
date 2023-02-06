@@ -6,69 +6,76 @@
   </Page.actionBar>
 
 
-  <!-- <ui:TSCView class="flex-example" color="white">
+    <!-- <ui:Flex class="flex-example" color="white">
     <Label text="a" class="a"/>
     <Label text="b" class="b"/>
-  </ui:TSCView> -->
+  </ui:Flex> -->
+
+  
 
 
   <!-- https://gridbyexample.com/examples/example5/ -->
 
-  <ui:TSCView class="wrapper-5">
 
-  <ui:TSCView class="box a">
+
+  <ui:Grid class="wrapper-5">
+
+    <ui:Grid class="box a">
     <Label text="A" />
-    </ui:TSCView>
+    </ui:Grid>
 
-     <ui:TSCView class="box b">
+     <ui:Grid class="box b">
     <Label text="B" />
-    </ui:TSCView>
+    </ui:Grid>
 
-     <ui:TSCView class="box c">
+     <ui:Grid class="box c">
     <Label text="C" />
-    </ui:TSCView>
+    </ui:Grid>
 
-     <ui:TSCView class="box d">
+     <ui:Grid class="box d">
     <Label text="D" />
-    </ui:TSCView>
-  </ui:TSCView>
+    </ui:Grid>
+  </ui:Grid>
+
+ 
 
   <!--
   https://gridbyexample.com/examples/example26/ -->
 
 
-<!--
-  <ui:TSCView class="wrapper-6">
-    <ui:TSCView class="box a">
+
+   <!-- <ui:Container class="wrapper-6">
+    <ui:Container class="box a">
       <Label text="This is box A."></Label>
       <Label text="align-self: stretch"></Label>
-    </ui:TSCView>
+    </ui:Container>
 
-    <ui:TSCView class="box b">
+    <ui:Container class="box b">
       <Label text="This is box B."></Label>
       <Label text="align-self: end"></Label>
-    </ui:TSCView>
+    </ui:Container>
 
-    <ui:TSCView class="box c">
+    <ui:Container class="box c">
       <Label text="This is box C."></Label>
       <Label text="align-self: start"></Label>
-    </ui:TSCView>
+    </ui:Container>
 
-    <ui:TSCView class="box d">
+    <ui:Container class="box d">
       <Label text="This is box D."></Label>
       <Label text="align-self: center"></Label>
-    </ui:TSCView>
+    </ui:Container>
 
-    <ui:TSCView class="box e">
+    <ui:Container class="box e">
       <Label
+        textWrap="true"
         text="Each of the boxes on the left has a grid area of 3 columns and 3 rows (we're counting the gutter col/row). So each covers the same size area as box A."></Label>
       <Label text="The align-self property is used to align the content inside the grid-area."></Label>
-    </ui:TSCView>
+    </ui:Container>
 
-  </ui:TSCView> -->
+  </ui:Container>   -->
 
 
-  <!-- <ui:TSCView class="grid-example">
+  <!-- <ui:Grid class="grid-example">
 
     <Label text="A" color="green" class="a" backgroundColor="red"/>
 
@@ -82,7 +89,7 @@
 
     <Label text="F" class="f" backgroundColor="pink"/>
 
-  </ui:TSCView> -->
+  </ui:Grid> -->
 
 
   <!-- <ui:TSCView id="root" flexDirection="column">

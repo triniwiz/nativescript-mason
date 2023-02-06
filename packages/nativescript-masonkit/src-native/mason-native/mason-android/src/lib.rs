@@ -84,6 +84,7 @@ pub struct TrackSizingFunctionCacheItem {
     single_value_id: JMethodID,
     auto_repeat_value_id: JMethodID,
     auto_repeat_grid_track_repetition_id: JMethodID,
+    auto_repeat_grid_track_repetition_count_id: JMethodID,
 }
 
 impl TrackSizingFunctionCacheItem {
@@ -95,6 +96,7 @@ impl TrackSizingFunctionCacheItem {
         single_value_id: JMethodID,
         auto_repeat_value_id: JMethodID,
         auto_repeat_grid_track_repetition_id: JMethodID,
+        auto_repeat_grid_track_repetition_count_id: JMethodID,
     ) -> Self {
         Self {
             clazz,
@@ -104,6 +106,7 @@ impl TrackSizingFunctionCacheItem {
             single_value_id,
             auto_repeat_value_id,
             auto_repeat_grid_track_repetition_id,
+            auto_repeat_grid_track_repetition_count_id
         }
     }
 
@@ -192,8 +195,18 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
             let auto_repeat_grid_track_repetition = env
                 .get_method_id(
                     track_sizing_function_auto_repeat_clazz,
-                    "gridTrackRepetitionNativeValue",
+                    "gridTrackRepetitionNativeType",
                     "()I",
+                )
+                .unwrap();
+
+
+
+            let auto_repeat_grid_track_repetition_count = env
+                .get_method_id(
+                    track_sizing_function_auto_repeat_clazz,
+                    "gridTrackRepetitionNativeValue",
+                    "()S",
                 )
                 .unwrap();
 
@@ -208,6 +221,7 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     single_value,
                     auto_repeat_value,
                     auto_repeat_grid_track_repetition,
+                    auto_repeat_grid_track_repetition_count
                 )
             });
         }
@@ -316,14 +330,16 @@ fn mason_util_create_single_track_sizing_function(
 
 fn mason_util_create_auto_repeating_track_sizing_function(
     grid_track_repetition: i32,
+    grid_track_repetition_count: u16,
     values: Vec<CMasonMinMax>,
     index: isize,
     store: &mut Vec<CMasonTrackSizingFunction>,
 ) {
-    let value = CMasonTrackSizingFunction(TrackSizingFunction::AutoRepeat(
+    let value = CMasonTrackSizingFunction(TrackSizingFunction::Repeat(
         match grid_track_repetition {
             0 => GridTrackRepetition::AutoFill,
             1 => GridTrackRepetition::AutoFit,
+            2 => GridTrackRepetition::Count(grid_track_repetition_count),
             _ => panic!(),
         },
         values
@@ -498,6 +514,7 @@ pub(crate) mod ffi {
 
         fn mason_util_create_auto_repeating_track_sizing_function(
             grid_track_repetition: i32,
+            grid_track_repetition_count: u16,
             values: Vec<CMasonMinMax>,
             index: isize,
             store: &mut Vec<CMasonTrackSizingFunction>,
@@ -1273,7 +1290,7 @@ fn mason_util_parse_non_repeated_track_sizing_function_value(
         if i != 0 {
             ret.push(' ');
         }
-        ret.push_str(parsed.as_str())
+        ret.push_str(parsed.as_ref())
     }
     ret
 }

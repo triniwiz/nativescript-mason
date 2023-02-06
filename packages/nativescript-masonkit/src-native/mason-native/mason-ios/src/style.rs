@@ -181,12 +181,12 @@ pub extern "C" fn mason_destroy_non_repeated_track_sizing_function_array(
 #[derive(Debug)]
 pub enum CMasonTrackSizingFunction {
     Single(CMasonMinMax),
-    Repeat(i32, *mut CMasonNonRepeatedTrackSizingFunctionArray),
+    Repeat(i32, u16, *mut CMasonNonRepeatedTrackSizingFunctionArray),
 }
 
 impl Drop for CMasonTrackSizingFunction {
     fn drop(&mut self) {
-        if let CMasonTrackSizingFunction::Repeat(_, array) = self {
+        if let CMasonTrackSizingFunction::Repeat(_, _, array) = self {
             let _ = unsafe { Box::from_raw(array) };
         }
     }
@@ -196,12 +196,21 @@ impl From<TrackSizingFunction> for CMasonTrackSizingFunction {
     fn from(value: TrackSizingFunction) -> Self {
         match value {
             TrackSizingFunction::Single(value) => CMasonTrackSizingFunction::Single(value.into()),
-            TrackSizingFunction::AutoRepeat(repetition, tracks) => {
+            TrackSizingFunction::Repeat(repetition, tracks) => {
+                let mut count = 0;
+                let rep = match repetition {
+                    GridTrackRepetition::AutoFill => 0,
+                    GridTrackRepetition::AutoFit => 1,
+                    GridTrackRepetition::Count(value) => {
+                        count = value;
+                        2
+                    }
+                };
+
+
                 CMasonTrackSizingFunction::Repeat(
-                    match repetition {
-                        GridTrackRepetition::AutoFill => 0,
-                        GridTrackRepetition::AutoFit => 1,
-                    },
+                    rep,
+                    count,
                     Box::into_raw(Box::new(
                         tracks
                             .into_iter()
@@ -226,11 +235,12 @@ impl Into<TrackSizingFunction> for CMasonTrackSizingFunction {
                     value.max_value,
                 ))
             }
-            CMasonTrackSizingFunction::Repeat(repetition, tracks) => {
-                TrackSizingFunction::AutoRepeat(
+            CMasonTrackSizingFunction::Repeat(repetition, count,tracks) => {
+                TrackSizingFunction::Repeat(
                     match repetition {
                         0 => GridTrackRepetition::AutoFill,
                         1 => GridTrackRepetition::AutoFit,
+                        2 => GridTrackRepetition::Count(*count),
                         _ => panic!(),
                     },
                     {
@@ -257,11 +267,12 @@ impl Into<TrackSizingFunction> for &CMasonTrackSizingFunction {
                     value.max_value,
                 ))
             }
-            CMasonTrackSizingFunction::Repeat(repetition, tracks) => {
-                TrackSizingFunction::AutoRepeat(
+            CMasonTrackSizingFunction::Repeat(repetition, count, tracks) => {
+                TrackSizingFunction::Repeat(
                     match repetition {
                         0 => GridTrackRepetition::AutoFill,
                         1 => GridTrackRepetition::AutoFit,
+                        2 => GridTrackRepetition::Count(*count),
                         _ => panic!(),
                     },
                     {
@@ -1679,9 +1690,9 @@ pub unsafe fn to_vec_track_sizing_function(
             return vec![];
         }
     }
-    let value = unsafe {&*value};
+    let value: &CMasonTrackSizingFunctionArray = unsafe {&*value};
 
-    let slice = unsafe { std::slice::from_raw_parts_mut(value.array, value.length) };
+    let slice: &mut [CMasonTrackSizingFunction] = unsafe { std::slice::from_raw_parts_mut(value.array, value.length) };
 
     slice
         .iter()
@@ -1695,7 +1706,7 @@ pub unsafe fn to_vec_track_sizing_function(
                     v.max_value,
                 ))
             }
-            CMasonTrackSizingFunction::Repeat(rep, tracks) => {
+            CMasonTrackSizingFunction::Repeat(rep, count, tracks) => {
                 let ret: Vec<NonRepeatedTrackSizingFunction> = if unsafe {
                     (*(*tracks)).length == 0
                 } {
@@ -1714,10 +1725,11 @@ pub unsafe fn to_vec_track_sizing_function(
                         .collect()
                 };
 
-                TrackSizingFunction::AutoRepeat(
+                TrackSizingFunction::Repeat(
                     match *rep {
                         0 => GridTrackRepetition::AutoFill,
                         1 => GridTrackRepetition::AutoFit,
+                        2 => GridTrackRepetition::Count(*count),
                         _ => panic!(),
                     },
                     ret,

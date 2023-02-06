@@ -948,7 +948,7 @@ public class MasonNode: NSObject {
         var width: CGFloat = 0
     
         
-        if(widthIsNan && mason.style.size.width.type == MasonDimensionCompatType.Percent.rawValue){
+        if((widthIsNan || layout.width == 0) && mason.style.size.width.type == MasonDimensionCompatType.Percent.rawValue){
             width = (view.superview?.bounds.width ?? 0) * CGFloat(mason.style.size.width.value)
         }else if(widthIsNan && mason.style.size.width.type == MasonDimensionCompatType.Points.rawValue){
             width = CGFloat(mason.style.size.width.value/TSCMason.scale)
@@ -958,14 +958,16 @@ public class MasonNode: NSObject {
         
         var height: CGFloat = 0
         
-        if(heightIsNan  && mason.style.size.height.type == MasonDimensionCompatType.Percent.rawValue){
+     
+        if((heightIsNan || layout.height == 0)  && mason.style.size.height.type == MasonDimensionCompatType.Percent.rawValue){
             height = (view.superview?.bounds.height ?? 0) * CGFloat(mason.style.size.height.value)
         }else if(heightIsNan  && mason.style.size.height.type == MasonDimensionCompatType.Points.rawValue){
             height = CGFloat(mason.style.size.height.value/TSCMason.scale)
         }else {
             height = CGFloat(heightIsNan ? 0 : layout.height/TSCMason.scale)
         }
-                
+        
+     
         let point = CGPoint(x: x, y: y)
         
         let size = CGSizeMake(width, height)
@@ -1043,7 +1045,7 @@ public class MasonNode: NSObject {
                 widthConstraint = availableSpace.width / scale
             }
         }else {
-            widthConstraint = knownDimensions!.width
+            widthConstraint = knownDimensions!.width / scale
         }
 
         
@@ -1058,7 +1060,7 @@ public class MasonNode: NSObject {
                 heightConstraint = availableSpace.height / scale
             }
         }else {
-            heightConstraint = knownDimensions!.height
+            heightConstraint = knownDimensions!.height / scale
         }
         
         if(!node.isUIView || view.subviews.count > 0){
@@ -1071,7 +1073,7 @@ public class MasonNode: NSObject {
             case .Max:
                 size.width = fits.width * scale
             case .Definite:
-                size.width = widthConstraint //widthIsNan ? .maximum(fits.width * scale, maxAvailableSpaceWidth) : knownDimensions!.width
+                size.width = widthConstraint * scale
             }
             
        
@@ -1081,7 +1083,7 @@ public class MasonNode: NSObject {
             case .Max:
                 size.height = fits.height * scale
             case .Definite:
-                size.height = heightConstraint //heightIsNan ? .maximum(fits.height * scale, maxAvailableSpaceHeight) : knownDimensions!.height
+                size.height = heightConstraint * scale
             }
             
         }

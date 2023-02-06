@@ -34,6 +34,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInit(
 }
 
 pub(crate) const JAVA_INT_TYPE: ReturnType = ReturnType::Primitive(jni::signature::Primitive::Int);
+pub(crate) const JAVA_SHORT_TYPE: ReturnType = ReturnType::Primitive(jni::signature::Primitive::Short);
 pub(crate) const JAVA_FLOAT_TYPE: ReturnType =
     ReturnType::Primitive(jni::signature::Primitive::Float);
 pub(crate) const JAVA_BOOLEAN_TYPE: ReturnType =
@@ -120,6 +121,18 @@ pub(crate) fn to_vec_track_sizing_function(
                     .i()
                     .unwrap();
 
+
+                let auto_repeat_grid_track_repetition_count = env
+                    .call_method_unchecked(
+                        object,
+                        track_sizing.auto_repeat_grid_track_repetition_count_id,
+                        JAVA_SHORT_TYPE,
+                        &[],
+                    )
+                    .unwrap()
+                    .s()
+                    .unwrap();
+
                 let auto_repeat_value = env
                     .call_method_unchecked(
                         object,
@@ -186,10 +199,12 @@ pub(crate) fn to_vec_track_sizing_function(
                     ));
                 }
 
-                ret.push(TrackSizingFunction::AutoRepeat(
+
+                ret.push(TrackSizingFunction::Repeat(
                     match auto_repeat_grid_track_repetition {
                         0 => GridTrackRepetition::AutoFill,
                         1 => GridTrackRepetition::AutoFit,
+                        2 => GridTrackRepetition::Count(auto_repeat_grid_track_repetition_count as u16),
                         _ => panic!(),
                     },
                     repeat_ret,

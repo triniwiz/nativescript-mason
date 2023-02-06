@@ -84,8 +84,8 @@ public class TrackSizingFunction: NSObject {
         var tracking = CMasonTrackSizingFunction()
     
         tracking.tag = Repeat
-        
-        tracking.repeat = Repeat_Body(_0: gridTrackRepetition.rawValue, _1: minMaxBuffer)
+                
+        tracking.repeat = Repeat_Body(_0: gridTrackRepetition.type, _1: gridTrackRepetition.value, _2: minMaxBuffer)
         
         ret.cValue = tracking
     

@@ -24,4 +24,66 @@
     mason:mason_height="100dp"
     mason:mason_width="100dp" />
 
+  <!--
+  <org.nativescript.mason.masonkit.View
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    mason:mason_width="100dp"
+    mason:mason_alignItems="baseline"
+    android:background="@color/red"
+    >
+
+    <org.nativescript.mason.masonkit.View
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      mason:mason_width="50dp"
+      mason:mason_height="60dp"
+      android:background="@color/green"
+      />
+
+    <org.nativescript.mason.masonkit.View
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      mason:mason_width="50dp"
+      mason:mason_flexWrap="wrap"
+      android:background="@color/blue"
+      >
+
+      <org.nativescript.mason.masonkit.View
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        mason:mason_width="25dp"
+        mason:mason_height="20dp"
+        android:background="@color/yellow"
+        />
+
+      <org.nativescript.mason.masonkit.View
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        mason:mason_width="25dp"
+        mason:mason_height="10dp"
+        android:background="@color/purple"
+        />
+
+      <org.nativescript.mason.masonkit.View
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        mason:mason_width="25dp"
+        mason:mason_height="20dp"
+        android:background="@color/cyan"
+        />
+
+      <org.nativescript.mason.masonkit.View
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        mason:mason_width="25dp"
+        mason:mason_height="10dp"
+        android:background="@color/gray"
+        />
+
+    </org.nativescript.mason.masonkit.View>
+  </org.nativescript.mason.masonkit.View>
+
+  -->
+
 </org.nativescript.mason.masonkit.View>

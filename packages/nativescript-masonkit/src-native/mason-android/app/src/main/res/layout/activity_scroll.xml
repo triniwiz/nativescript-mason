@@ -15,11 +15,7 @@
       android:id="@+id/container"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      mason:mason_alignContent="stretch"
-      mason:mason_alignItems="center"
-      mason:mason_flexDirection="column"
-      mason:mason_flexGrow="1"
-      mason:mason_justifyContent="start">
+      mason:mason_flexDirection="column">
 
       <TextView
         android:layout_width="match_parent"

@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
+import android.os.Build
 import android.view.ViewGroup
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
@@ -174,6 +174,21 @@ class Node private constructor(private var nativePtr: Long) {
     } else {
       nativeSetStyle(Mason.instance.nativePtr, nativePtr, style.getNativePtr())
     }
+
+    val view = data as? android.view.View
+
+    view?.let {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) {
+        it.requestLayout()
+        return
+      }
+      if (!it.isInLayout) {
+        it.requestLayout()
+      } else {
+        it.requestLayout()
+      }
+    }
+
   }
 
   var inBatch = false
@@ -188,7 +203,6 @@ class Node private constructor(private var nativePtr: Long) {
     inBatch = true
     block(this)
     inBatch = false
-    updateNodeStyle()
   }
 
   @JvmOverloads

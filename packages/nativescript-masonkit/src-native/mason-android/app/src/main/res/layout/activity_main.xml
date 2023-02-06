@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<org.nativescript.mason.masonkit.View xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:mason="http://schemas.android.com/apk/res-auto"
   xmlns:tools="http://schemas.android.com/tools"
   android:id="@+id/rootView"
@@ -7,7 +7,14 @@
   android:layout_height="match_parent"
   mason:mason_flexDirection="column"
   mason:mason_alignItems="center"
-  tools:context=".MainActivity">
+  tools:context=".MainActivity"
+  android:orientation="vertical">
+
+  <Button
+    android:id="@+id/btnAnimation"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Open Animation" />
 
   <Button
     android:id="@+id/btnAbsolute"
@@ -40,4 +47,10 @@
     android:layout_height="wrap_content"
     android:text="Open Scroll"/>
 
-</org.nativescript.mason.masonkit.View>
+  <Button
+    android:id="@+id/btnImage"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Open Image"/>
+
+</LinearLayout>

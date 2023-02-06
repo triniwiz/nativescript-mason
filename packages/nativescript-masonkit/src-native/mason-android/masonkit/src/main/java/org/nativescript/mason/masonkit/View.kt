@@ -2,17 +2,13 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import androidx.annotation.Keep
-import androidx.core.view.size
 import com.google.gson.Gson
 import java.lang.ref.WeakReference
-import java.util.WeakHashMap
-import kotlin.math.log
 import kotlin.math.roundToInt
 
 interface MeasureFunc {
@@ -47,6 +43,23 @@ internal class MeasureFuncImpl(
 class View @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : ViewGroup(context, attrs, defStyleAttr) {
+
+  var node = Node()
+    private set
+
+  private val nodes = mutableMapOf<android.view.View, Node>()
+
+  init {
+    node.data = this
+
+    val layoutParams = if (attrs != null) {
+      LayoutParams(context, attrs)
+    } else {
+      generateDefaultLayoutParams()
+    }
+
+    applyLayoutParams(layoutParams as LayoutParams, node, this)
+  }
 
 
   val masonPtr: Long
@@ -96,28 +109,10 @@ class View @JvmOverloads constructor(
     return gson.toJson(style)
   }
 
-  val node = Node()
-
-  private val nodes = mutableMapOf<android.view.View, Node>()
-
-  init {
-    node.data = this
-
-    val layoutParams = if (attrs != null) {
-      LayoutParams(context, attrs)
-    } else {
-      generateDefaultLayoutParams()
-    }
-
-    applyLayoutParams(layoutParams as LayoutParams, node, this)
-  }
-
   fun nodeForView(view: android.view.View): Node {
-    // TODO evaluate
-    return nodesRef[view] ?: nodes[view] ?: run {
+    return nodes[view] ?: run {
       val node = Node().apply { data = view }
       nodes[view] = node
-      nodesRef[view] = node
       node
     }
   }
@@ -132,22 +127,32 @@ class View @JvmOverloads constructor(
 
       val layout = node.layout()
 
-      val widthIsNaN = layout.width.isNaN()
-      val heightIsNaN = layout.height.isNaN()
+      var widthIsNaN = layout.width.isNaN()
+      var heightIsNaN = layout.height.isNaN()
 
       val measureWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
       val measureHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
 
+      if (measureWidth == 0 && node.style.size.width == Dimension.Auto) {
+        widthIsNaN = true
+      }
 
-//      view.measure(
-//        MeasureSpec.makeMeasureSpec(
-//          measureWidth,
-//          widthSpec
-//        ), MeasureSpec.makeMeasureSpec(
-//          measureHeight,
-//          heightSpec
-//        )
-//      )
+      if (measureHeight == 0 && node.style.size.height == Dimension.Auto) {
+        heightIsNaN = true
+      }
+
+
+      if (widthIsNaN || heightIsNaN) {
+        view.measure(
+          MeasureSpec.makeMeasureSpec(
+            measureWidth,
+            if (widthIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+          ), MeasureSpec.makeMeasureSpec(
+            measureHeight,
+            if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+          )
+        )
+      }
 
 
       val left = (xOffset + if (layout.x.isNaN()) 0F else layout.x).roundToInt()
@@ -193,33 +198,34 @@ class View @JvmOverloads constructor(
   }
 
   private fun setSizeFromMeasureSpec(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-    val widthSize = MeasureSpec.getSize(widthMeasureSpec)
-    val heightSize = MeasureSpec.getSize(heightMeasureSpec)
+    if (node.style.size.width == Dimension.Auto && node.style.size.height == Dimension.Auto) {
+      val widthSize = MeasureSpec.getSize(widthMeasureSpec)
+      val heightSize = MeasureSpec.getSize(heightMeasureSpec)
 
-    var width: Dimension = Dimension.Points(widthSize.toFloat())
-    var height: Dimension = Dimension.Points(heightSize.toFloat())
+      var width: Dimension = Dimension.Points(widthSize.toFloat())
+      var height: Dimension = Dimension.Points(heightSize.toFloat())
 
-    val paramsWidth = layoutParams.width
-    val paramsHeight = layoutParams.height
+      val paramsWidth = layoutParams.width
+      val paramsHeight = layoutParams.height
 
-    if (widthSize == 0 && paramsWidth == ViewGroup.LayoutParams.WRAP_CONTENT) {
-      width = Dimension.Auto
+      if (widthSize == 0 && paramsWidth == ViewGroup.LayoutParams.WRAP_CONTENT) {
+        width = Dimension.Auto
+      }
+
+      if (heightSize == 0 && paramsHeight == ViewGroup.LayoutParams.WRAP_CONTENT) {
+        height = Dimension.Auto
+      }
+
+      if (widthSize == 0 && paramsWidth == ViewGroup.LayoutParams.MATCH_PARENT) {
+        width = Dimension.Auto
+      }
+
+      if (heightSize == 0 && paramsHeight == ViewGroup.LayoutParams.MATCH_PARENT) {
+        height = Dimension.Auto
+      }
+
+      node.style.size = Size(width, height)
     }
-
-    if (heightSize == 0 && paramsHeight == ViewGroup.LayoutParams.WRAP_CONTENT) {
-      height = Dimension.Auto
-    }
-
-    if (widthSize == 0 && paramsWidth == ViewGroup.LayoutParams.MATCH_PARENT) {
-      width = Dimension.Auto
-    }
-
-    if (heightSize == 0 && paramsHeight == ViewGroup.LayoutParams.MATCH_PARENT) {
-      height = Dimension.Auto
-    }
-
-    node.style.size = Size(width, height)
-
     checkAndUpdateStyle()
   }
 
@@ -238,12 +244,12 @@ class View @JvmOverloads constructor(
       )
     }
 
-
     val layout = if (parent !is View) {
       node.computeAndLayout(specWidth.toFloat(), specHeight.toFloat())
     } else {
       node.layout()
     }
+
 
     val width = MeasureSpec.makeMeasureSpec(layout.width.roundToInt(), MeasureSpec.EXACTLY)
     val height = MeasureSpec.makeMeasureSpec(layout.height.roundToInt(), MeasureSpec.EXACTLY)
@@ -1556,7 +1562,6 @@ class View @JvmOverloads constructor(
     return style.gap.height
   }
 
-
   fun setGap(row: LengthPercentage, column: LengthPercentage) {
     style.gap = Size(
       row,
@@ -1792,13 +1797,22 @@ class View @JvmOverloads constructor(
   }
 
   companion object {
-    internal val nodesRef = WeakHashMap<android.view.View, Node>()
-
     internal val gson = Gson()
 
-    init {
-      Mason.initLib()
+    @JvmStatic
+    fun createGridView(context: Context): View {
+      return View(context).apply {
+        style.display = Display.Grid
+      }
     }
+
+    @JvmStatic
+    fun createFlexView(context: Context): View {
+      return View(context).apply {
+        style.display = Display.Flex
+      }
+    }
+
   }
 
   internal class ViewMeasureFunc(private val node: WeakReference<Node>) : MeasureFunc {
@@ -1811,12 +1825,11 @@ class View @JvmOverloads constructor(
       if (view == null) {
         return zeroSize
       } else if (view is View && view.childCount > 0) {
-        zeroSize
+        return zeroSize
       }
 
       val widthIsNaN = width.isNaN()
       val heightIsNaN = height.isNaN()
-
 
       if (!widthIsNaN && !heightIsNaN) {
         return Size(width, height)
@@ -1837,13 +1850,17 @@ class View @JvmOverloads constructor(
           if (node.style.size.width is Dimension.Points) {
             retWidth = node.style.size.width.value
             widthCalculated = true
+          } else if (node.style.size.width is Dimension.Percent) {
+            isWidthPercent = true
           }
         }
 
         if (heightIsNaN) {
-          if (node.style.size.width is Dimension.Points) {
+          if (node.style.size.height is Dimension.Points) {
             retHeight = node.style.size.height.value
             heightCalculated = true
+          } else if (node.style.size.height is Dimension.Percent) {
+            isHeightPercent = true
           }
         }
 

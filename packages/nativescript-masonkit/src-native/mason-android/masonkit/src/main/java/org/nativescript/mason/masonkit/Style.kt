@@ -480,15 +480,31 @@ sealed class GridPlacement {
     }
 }
 
-enum class GridTrackRepetition {
-  AutoFill,
-  AutoFit;
+sealed class GridTrackRepetition {
+  object AutoFill : GridTrackRepetition()
+  object AutoFit : GridTrackRepetition()
+  data class Count(val count: Short) : GridTrackRepetition()
+
+  val type: Int
+    get() {
+      return toInt()
+    }
+
+  val value: Short
+    get() {
+      return when (this) {
+        AutoFill -> 0
+        AutoFit -> 0
+        is Count -> count
+      }
+    }
 
   val cssValue: String
     get() {
       return when (this) {
         AutoFill -> "auto-fill"
         AutoFit -> "auto-fit"
+        is Count -> "$value"
       }
     }
 
@@ -496,14 +512,17 @@ enum class GridTrackRepetition {
     return when (this) {
       AutoFill -> 0
       AutoFit -> 1
+      is Count -> 2
     }
   }
 
   companion object {
-    fun fromInt(value: Int): GridTrackRepetition {
-      return when (value) {
+    @JvmStatic
+    fun fromInt(type: Int, value: Short): GridTrackRepetition {
+      return when (type) {
         0 -> AutoFill
         1 -> AutoFit
+        2 -> Count(value)
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -517,8 +536,12 @@ sealed class TrackSizingFunction(val isRepeating: Boolean = false) {
   data class AutoRepeat(val gridTrackRepetition: GridTrackRepetition, val value: Array<MinMax>) :
     TrackSizingFunction(true) {
 
-    fun gridTrackRepetitionNativeValue(): Int {
+    fun gridTrackRepetitionNativeType(): Int {
       return gridTrackRepetition.toInt()
+    }
+
+    fun gridTrackRepetitionNativeValue(): Short {
+      return gridTrackRepetition.value
     }
 
     override fun equals(other: Any?): Boolean {
@@ -1597,6 +1620,7 @@ class Style internal constructor() {
 
     ret += "display: ${display.cssValue}, "
     ret += "position: ${position.cssValue}, "
+    ret += "inset: ${inset.cssValue}, "
     ret += "flexDirection: ${flexDirection.cssValue}, "
     ret += "flexWrap: ${flexWrap.cssValue}, "
     ret += "alignItems: ${alignItems.cssValue}, "
@@ -1605,29 +1629,40 @@ class Style internal constructor() {
     ret += "justifyItems: ${justifyItems.cssValue}, "
     ret += "justifySelf: ${justifySelf.cssValue}, "
     ret += "justifyContent: ${justifyContent.cssValue}, "
-    ret += "position: ${position.cssValue}, "
     ret += "margin: ${margin.cssValue}, "
     ret += "padding: ${padding.cssValue}, "
     ret += "border: ${border.cssValue}, "
     ret += "gap: ${gap.cssValue}, "
-    ret += "flexGrow: ${flexGrow},"
-    ret += "flexShrink: ${flexShrink},"
-    ret += "flexBasis: ${flexBasis.cssValue},"
-    ret += "size: ${size.cssValue},"
-    ret += "minSize: ${minSize.cssValue},"
-    ret += "maxSize: ${maxSize.cssValue},"
+    ret += "flexGrow: ${flexGrow}, "
+    ret += "flexShrink: ${flexShrink}, "
+    ret += "flexBasis: ${flexBasis.cssValue}, "
+    ret += "size: ${size.cssValue}, "
+    ret += "minSize: ${minSize.cssValue}, "
+    ret += "maxSize: ${maxSize.cssValue}, "
     ret += "aspectRatio: ${
       if (aspectRatio == null) {
         "undefined"
       } else {
         aspectRatio
       }
-    },"
-    ret += "gridAutoRows: ${gridAutoRows.cssValue},"
-    ret += "gridAutoColumns: ${gridAutoColumns.cssValue},"
-    ret += "gridColumn: ${gridColumn.start.cssValue} \\ ${gridColumn.end.cssValue},"
-    ret += "gridRow: ${gridRow.start.cssValue} \\ ${gridRow.end.cssValue},"
-    ret += "gridTemplateRows: ${gridTemplateRows.cssValue},"
+    } ,"
+    ret += "gridAutoRows: ${gridAutoRows.cssValue} ,"
+    ret += "gridAutoColumns: ${gridAutoColumns.cssValue} ,"
+    ret += "gridColumn: ${
+      if (gridColumn.start == gridColumn.end) {
+        gridColumn.start.cssValue
+      } else {
+        "${gridColumn.start.cssValue} \\ ${gridColumn.end.cssValue}"
+      }
+    } ,"
+    ret += "gridRow: ${
+      if (gridRow.start == gridRow.end) {
+        gridRow.start.cssValue
+      } else {
+        "${gridRow.start.cssValue} \\ ${gridRow.end.cssValue}"
+      }
+    } ,"
+    ret += "gridTemplateRows: ${gridTemplateRows.cssValue} ,"
     ret += "gridTemplateColumns: ${gridTemplateColumns.cssValue}"
     ret += ")"
 

@@ -13,13 +13,21 @@ class MainActivity : AppCompatActivity() {
     binding = ActivityMainBinding.inflate(layoutInflater)
     setContentView(binding.root)
 
+    binding.btnImage.setOnClickListener {
+      val intent = Intent(this, ImageActivity::class.java)
+      startActivity(intent)
+    }
+
+    binding.btnAnimation.setOnClickListener {
+      val intent = Intent(this, AnimationActivity::class.java)
+      startActivity(intent)
+    }
+
+
     binding.btnAbsolute.setOnClickListener {
       val intent = Intent(this, AbsoluteActivity::class.java)
       startActivity(intent)
     }
-
-    val intent = Intent(this, GridActivity::class.java)
-    startActivity(intent)
 
     binding.btnFlex.setOnClickListener {
       val intent = Intent(this, FlexActivity::class.java)

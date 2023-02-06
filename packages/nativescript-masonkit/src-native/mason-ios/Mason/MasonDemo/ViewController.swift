@@ -78,47 +78,47 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
     
     override func viewDidAppear(_ animated: Bool) {
-        view?.mason.computeWithMaxContent()
-        view?.frame.origin.x += view.safeAreaInsets.left
-        view?.frame.origin.y += view.safeAreaInsets.top
+        //        view?.mason.computeWithMaxContent()
+        //        view?.frame.origin.x += view.safeAreaInsets.left
+        //        view?.frame.origin.y += view.safeAreaInsets.top
     }
     
     override func viewSafeAreaInsetsDidChange() {
         /*
-        let left = Float(self.view.safeAreaInsets.left) * scale
-        let right = Float(self.view.safeAreaInsets.right) * scale
-        let top = Float(self.view.safeAreaInsets.top) * scale
-        let bottom = Float(self.view.safeAreaInsets.bottom) * scale
-        
-        guard let rootView = rootView else {return}
-        
-    
-        rootView.mason.style.inset = MasonRect(
-            .Points(left),
-            .Points(right),
-            .Points(top),
-            .Points(bottom)
-        )
-        
-        textTopLeft?.configure({ mason in
-            mason.style.topInset = .Points(top)
-        })
-        
-        textTopRight?.configure({ mason in
-            mason.style.topInset = .Points(top)
-        })
-        
-        textBottomLeft?.configure({ mason in
-            mason.style.bottomInset = .Points(bottom)
-        })
-        
-        textBottomRight?.configure({ mason in
-            mason.style.bottomInset = .Points(bottom)
-        })
-        
+         let left = Float(self.view.safeAreaInsets.left) * scale
+         let right = Float(self.view.safeAreaInsets.right) * scale
+         let top = Float(self.view.safeAreaInsets.top) * scale
+         let bottom = Float(self.view.safeAreaInsets.bottom) * scale
+         
+         guard let rootView = rootView else {return}
+         
+         
+         rootView.mason.style.inset = MasonRect(
+         .Points(left),
+         .Points(right),
+         .Points(top),
+         .Points(bottom)
+         )
+         
+         textTopLeft?.configure({ mason in
+         mason.style.topInset = .Points(top)
+         })
+         
+         textTopRight?.configure({ mason in
+         mason.style.topInset = .Points(top)
+         })
+         
+         textBottomLeft?.configure({ mason in
+         mason.style.bottomInset = .Points(bottom)
+         })
+         
+         textBottomRight?.configure({ mason in
+         mason.style.bottomInset = .Points(bottom)
+         })
+         
          view.mason.computeWithMaxContent()
-        
-        */
+         
+         */
         
     }
     
@@ -134,9 +134,168 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         //testLayout()
         
-      showFlexExample()
+        // showFlexExample()
         
-      //  showGridExample()
+         showGridExample()
+        //  animationExample()
+        
+        //wrapper6()
+    }
+    
+    func createParentWith2Kids(_ kidAText: String, _ kidBText: String) -> UIView {
+        let parent = UIView(frame: .zero)
+        
+        parent.mason.isEnabled = true
+        
+        let kida = UILabel(frame: .zero)
+        
+        kida.mason.isEnabled = true
+        
+        kida.text = kidAText
+        
+        let kidb = UILabel(frame: .zero)
+        
+        kidb.mason.isEnabled = true
+        
+        kidb.text = kidBText
+        
+        parent.addSubview(kida)
+        
+        parent.addSubview(kidb)
+        
+        return parent
+    }
+    
+    func wrapper6() {
+        
+        view.subviews.forEach { view in
+            view.removeFromSuperview()
+        }
+        
+        /*
+         display: grid;
+         background: no-repeat url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/12005/grid.png);
+         grid-gap: 10px;
+         grid-template-columns:  repeat(6, 150px);
+         grid-template-rows: repeat( 4, 150px);
+         background-color: #fff;
+         color: #444;
+         */
+        
+        let wrapper6 = UIView(frame: .zero)
+        
+        view.addSubview(wrapper6)
+        
+        let boxA = createParentWith2Kids("This is box A.", "align-self: stretch")
+        let boxB = createParentWith2Kids("This is box B.", "align-self: end")
+        let boxC = createParentWith2Kids("This is box C.", "align-self: start")
+        let boxD = createParentWith2Kids("This is box D.", "align-self: center")
+        let boxE = createParentWith2Kids(
+            "Each of the boxes on the left has a grid area of 3 columns and 3 rows (we're counting the gutter col/row). So each covers the same size area as box A.",
+            "The align-self property is used to align the content inside the grid-area."
+        )
+        
+        
+        wrapper6.addSubview(boxA)
+        wrapper6.addSubview(boxB)
+        wrapper6.addSubview(boxC)
+        wrapper6.addSubview(boxD)
+        wrapper6.addSubview(boxE)
+        
+        let bg = UIColor(red: 0.27, green: 0.27, blue: 0.27, alpha: 1.00)
+        
+        wrapper6.configure { node in
+            node.isEnabled = true
+            node.style.display = .Grid
+            // node.style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
+            node.style.gap = MasonSize(.Points(10 * scale), .Points(10 * scale))
+            node.style.gridTemplateColumns = [
+                TrackSizingFunction.AutoRepeat(.Count(6), [.Points(points: 150 * scale)])
+            ]
+            
+            node.style.gridTemplateRows = [
+                TrackSizingFunction.AutoRepeat(.Count(4), [.Points(points: 150 * scale)])
+            ]
+        }
+        
+        boxA.configure { node in
+            node.isEnabled = true
+            boxA.backgroundColor = bg
+            node.style.flexDirection = .Column
+            node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+            node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+            node.style.alignSelf = AlignSelf.Stretch
+        }
+        
+        boxB.configure { node in
+            node.isEnabled = true
+            boxA.backgroundColor = bg
+            node.style.flexDirection = .Column
+            node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
+            node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+            node.style.alignSelf = AlignSelf.End
+        }
+        
+        
+        boxC.configure { node in
+            node.isEnabled = true
+            boxA.backgroundColor = bg
+            node.style.flexDirection = .Column
+            node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+            node.style.gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
+            node.style.alignSelf = AlignSelf.Start
+        }
+        
+        boxD.configure { node in
+            node.isEnabled = true
+            boxA.backgroundColor = bg
+            node.style.flexDirection = .Column
+            node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
+            node.style.gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
+            node.style.alignSelf = AlignSelf.Center
+        }
+        
+        
+        boxE.configure { node in
+            node.isEnabled = true
+            boxA.backgroundColor = bg
+            node.style.flexDirection = .Column
+            node.style.gridColumn = Line(GridPlacement.Line(5), GridPlacement.Line(7))
+            node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(6))
+            node.style.alignSelf = AlignSelf.Stretch
+        }
+        
+        wrapper6.mason.computeWithMaxContent()
+        
+    }
+    
+    func animationExample(){
+        view.subviews.forEach { view in
+            view.removeFromSuperview()
+        }
+        
+        let root = UIView(frame: .zero)
+        root.backgroundColor = .blue
+        let width = Float(view.frame.size.width)
+        let height = Float(view.frame.size.height)
+        root.configure({ node in
+            node.style.size = MasonSize( .Points(width * scale), .Points(height * scale))
+            node.isEnabled = true
+            node.style.flexDirection = .Column
+        })
+        
+        view!.addSubview(root)
+        
+        root.mason.computeWithMaxContent()
+        
+        UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
+            root.setSizeHeight(0.3, 2)
+            root.setSizeWidth(0.3, 2)
+            root.backgroundColor = .red
+            root.mason.computeWithMaxContent()
+        }
+        
+        
     }
     
     func showFlexExample(){
@@ -149,10 +308,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         root.configure({ node in
             node.isEnabled = true
             node.style.flexDirection = .Column
-            node.style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
         })
         
         let childA = UIView()
+        
         childA.configure { node in
             node.isEnabled = true
             node.style.size =  MasonSize(.Points( scale * 100), .Points( scale * 100))
@@ -170,11 +329,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         root.addSubview(childA)
         root.addSubview(childB)
-    
-        root.mason.computeWithMaxContent()
         
-        print(root.mason.layout())
-
+        root.mason.computeWithMaxContent()
     }
     
     
@@ -193,27 +349,26 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             
             node.style.gap = MasonSize(.Points(scale * 10), .Points(scale * 10))
             node.style.gridTemplateColumns = [
-                TrackSizingFunction.Single(MinMax.Points(points: scale * 100)),
-                TrackSizingFunction.Single(MinMax.Points(points: scale * 100)),
-                TrackSizingFunction.Single(MinMax.Points(points: scale * 100))
+                TrackSizingFunction.AutoRepeat(.Count(3), [MinMax.Points(points: scale * 100)])
             ]
             
         })
         
         let childA = UILabel(frame: .zero)
         childA.text = "A"
+        childA.textColor = .white
+        childA.textAlignment = .center
         childA.configure { node in
             node.isEnabled = true
-            childA.mason.includeInLayout = false
-            
             node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
             node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-            childA.backgroundColor = .red
+            childA.backgroundColor = childBg
         }
         
         
         let childB = UILabel(frame: .zero)
         childB.text = "B"
+        childB.textColor = .white
         childB.configure { node in
             node.isEnabled = true
             node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
@@ -223,6 +378,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let childC = UILabel(frame: .zero)
         childC.text = "C"
+        childC.textColor = .white
         childC.configure { node in
             node.isEnabled = true
             node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
@@ -232,6 +388,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let childD = UILabel(frame: .zero)
         childD.text = "D"
+        childD.textColor = .white
         childD.configure { node in
             node.isEnabled = true
             node.style.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
@@ -239,14 +396,14 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             childD.backgroundColor = childBg
         }
         
-    
+        
         root.addSubview(childA)
         root.addSubview(childB)
         root.addSubview(childC)
         root.addSubview(childD)
         
         root.mason.computeWithMaxContent()
-    
+        
     }
     
     func resizeImage(_ image: UIImage, _ newSize: CGSize) -> UIImage{
@@ -299,9 +456,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             let layout = collectionView.mason.layout()
             return CGSizeMake(collectionView.frame.width, CGFloat(layout.height / scale))
         }
-
+        
         let layout = cell.mason.layout()
-   
+        
         
         return CGSizeMake(CGFloat(layout.width / scale), CGFloat(layout.height / scale))
     }
@@ -318,9 +475,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             mason.style.flexDirection = .Column
             mason.style.justifyContent = .Start
             mason.style.display = .Flex
-
+            
             mason.style.size = MasonSize(MasonDimension.Points(Float(view.bounds.size.width) * scale), MasonDimension.Points(Float(view.bounds.size.height) * scale))
-        
+            
         }
         
         
@@ -413,13 +570,13 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .vertical
-    
+        
         let list = UICollectionView(frame: .zero, collectionViewLayout: layout)
         
-
+        
         list.configure { mason in
             mason.isEnabled = true
-           mason.style.size =  MasonSize(MasonDimension.Percent(1), MasonDimension.Points(300 * scale))
+            mason.style.size =  MasonSize(MasonDimension.Percent(1), MasonDimension.Points(300 * scale))
         }
         
         list.register(DefaultCellView.self, forCellWithReuseIdentifier: "default")
@@ -539,7 +696,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
                 print(error)
             }
         }
-    
+        
     }
     
     
@@ -547,30 +704,30 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
 
 
-        extension UIColor {
-            public convenience init?(hex: String) {
-                let r, g, b, a: CGFloat
-
-                if hex.hasPrefix("#") {
-                    let start = hex.index(hex.startIndex, offsetBy: 1)
-                    let hexColor = String(hex[start...])
-
-                    if hexColor.count == 8 {
-                        let scanner = Scanner(string: hexColor)
-                        var hexNumber: UInt64 = 0
-
-                        if scanner.scanHexInt64(&hexNumber) {
-                            r = CGFloat((hexNumber & 0xff000000) >> 24) / 255
-                            g = CGFloat((hexNumber & 0x00ff0000) >> 16) / 255
-                            b = CGFloat((hexNumber & 0x0000ff00) >> 8) / 255
-                            a = CGFloat(hexNumber & 0x000000ff) / 255
-
-                            self.init(red: r, green: g, blue: b, alpha: a)
-                            return
-                        }
-                    }
+extension UIColor {
+    public convenience init?(hex: String) {
+        let r, g, b, a: CGFloat
+        
+        if hex.hasPrefix("#") {
+            let start = hex.index(hex.startIndex, offsetBy: 1)
+            let hexColor = String(hex[start...])
+            
+            if hexColor.count == 8 {
+                let scanner = Scanner(string: hexColor)
+                var hexNumber: UInt64 = 0
+                
+                if scanner.scanHexInt64(&hexNumber) {
+                    r = CGFloat((hexNumber & 0xff000000) >> 24) / 255
+                    g = CGFloat((hexNumber & 0x00ff0000) >> 16) / 255
+                    b = CGFloat((hexNumber & 0x0000ff00) >> 8) / 255
+                    a = CGFloat(hexNumber & 0x000000ff) / 255
+                    
+                    self.init(red: r, green: g, blue: b, alpha: a)
+                    return
                 }
-
-                return nil
             }
         }
+        
+        return nil
+    }
+}

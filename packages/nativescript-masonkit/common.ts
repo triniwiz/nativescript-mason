@@ -1743,7 +1743,25 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   }
   */
 
-  eachLayoutChild(callback: (child: View, isLast: boolean) => void): void {}
+  public eachLayoutChild(callback: (child: View, isLast: boolean) => void): void {
+    let lastChild: View = null;
+
+    this.eachChildView((cv) => {
+      cv._eachLayoutView((lv) => {
+        if (lastChild && !lastChild.isCollapsed) {
+          callback(lastChild, false);
+        }
+
+        lastChild = lv;
+      });
+
+      return true;
+    });
+
+    if (lastChild && !lastChild.isCollapsed) {
+      callback(lastChild, true);
+    }
+  }
 
   public eachChild(callback: (child: ViewBase) => boolean) {
     this._children.forEach((child) => {

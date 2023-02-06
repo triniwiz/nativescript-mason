@@ -38,6 +38,12 @@ export { applyMixins } from './helpers';
 
 export class TSCView extends TSCViewBase {}
 
+export class Grid extends TSCView {}
+
+export class Flex extends TSCView {}
+
+export class Container extends TSCView {}
+
 declare module '@nativescript/core/ui/styling/style' {
   interface Style {
     display: Display;

@@ -10,6 +10,5 @@ class FlexActivity : AppCompatActivity() {
     super.onCreate(savedInstanceState)
     binding = ActivityFlexBinding.inflate(layoutInflater)
     setContentView(binding.root)
-
   }
 }

@@ -1,29 +1,28 @@
 package org.nativescript.mason.masondemo
 
+import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.TextView
+import org.nativescript.mason.masondemo.databinding.ActivityScrollBinding
 import org.nativescript.mason.masonkit.View
 
 class ScrollActivity : AppCompatActivity() {
-  lateinit var container: View
-
+  lateinit var binding: ActivityScrollBinding
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_scroll)
+    binding = ActivityScrollBinding.inflate(layoutInflater)
+    setContentView(binding.root)
 
-    container = findViewById(R.id.container)
 
     repeat(1000) {
       val view = TextView(this)
       val text = "Laffy Taffy ${it + 1}"
       view.text = text
-      container.addView(
-        view, ViewGroup.LayoutParams(
-          ViewGroup.LayoutParams.MATCH_PARENT,
-          ViewGroup.LayoutParams.WRAP_CONTENT
-        )
+      view.setTextColor(Color.BLACK)
+      binding.container.addView(
+        view
       )
     }
   }

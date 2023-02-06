@@ -44,7 +44,7 @@ void destroy_c_mason_track_sizing_function(CMasonTrackSizingFunction tracking){
     switch (tracking.tag) {
         case Repeat:
         {
-            auto array = tracking.repeat._1;
+            auto array = tracking.repeat._2;
             if(array != nullptr){
                 free(array->array);
                 free(array);
@@ -73,6 +73,7 @@ std::vector<CMasonTrackSizingFunction> toTrackSizingFunction(facebook::jsi::Runt
         auto object = array.getValueAtIndex(runtime, i).asObject(runtime);
         bool is_repeating = object.getProperty(runtime, "is_repeating").asBool();
         auto repeating_type = (int)object.getProperty(runtime, "repeating_type").asNumber();
+        auto repeating_count = (short)object.getProperty(runtime, "repeating_count").asNumber();
         auto value = object.getProperty(runtime, "value");
         if(is_repeating){
             auto value_array = value.asObject(runtime).asArray(runtime);
@@ -81,10 +82,6 @@ std::vector<CMasonTrackSizingFunction> toTrackSizingFunction(facebook::jsi::Runt
             auto min_max_size = sizeof(CMasonMinMax);
             
             auto tracks = (CMasonMinMax*)malloc(repeating_length * min_max_size);
-            
-            if(repeating_type == 0 || repeating_type == 1){
-                continue;
-            }
             
             
             for (int j = 0; j < repeating_length; j++) {
@@ -115,7 +112,8 @@ std::vector<CMasonTrackSizingFunction> toTrackSizingFunction(facebook::jsi::Runt
             auto array = (CMasonNonRepeatedTrackSizingFunctionArray*)malloc(sizeof(CMasonNonRepeatedTrackSizingFunctionArray));
             array->array = tracks;
             array->length = repeating_length;
-            body._1 = array;
+            body._1 = repeating_count;
+            body._2 = array;
             repeat.repeat = body;
             buffer.emplace_back(repeat);
             

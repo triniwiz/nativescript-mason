@@ -970,16 +970,21 @@ public enum GridPlacement : Swift.Codable {
   }
   public init?(rawValue: Mason.GridPlacementCompatType.RawValue)
 }
-@objc(GridTrackRepetition) public enum GridTrackRepetition : Swift.Int, Swift.RawRepresentable {
-  case AutoFill
-  case AutoFit
-  public typealias RawValue = Swift.Int32
-  public var rawValue: Mason.GridTrackRepetition.RawValue {
-    get
+@_hasMissingDesignatedInitializers @objcMembers @objc(GridTrackRepetition) public class GridTrackRepetition : ObjectiveC.NSObject {
+  @objc public var type: Swift.Int32 {
+    @objc get
   }
-  public init?(rawValue: Mason.GridTrackRepetition.RawValue)
+  @objc public var value: Swift.UInt16 {
+    @objc get
+  }
+  @objc public static let AutoFill: Mason.GridTrackRepetition
+  @objc public static let AutoFit: Mason.GridTrackRepetition
+  @objc public static func Count(_ value: Swift.UInt16) -> Mason.GridTrackRepetition
+  @objc deinit
 }
 extension UIKit.UIView {
+  @objc @_Concurrency.MainActor(unsafe) public static func createGridView() -> UIKit.UIView
+  @objc @_Concurrency.MainActor(unsafe) public static func createFlexView() -> UIKit.UIView
   @objc @_Concurrency.MainActor(unsafe) dynamic public var mason: Mason.MasonNode {
     @objc get
   }
@@ -1242,5 +1247,3 @@ extension Mason.GridAutoFlow : Swift.Equatable {}
 extension Mason.GridAutoFlow : Swift.Hashable {}
 extension Mason.GridPlacementCompatType : Swift.Equatable {}
 extension Mason.GridPlacementCompatType : Swift.Hashable {}
-extension Mason.GridTrackRepetition : Swift.Equatable {}
-extension Mason.GridTrackRepetition : Swift.Hashable {}

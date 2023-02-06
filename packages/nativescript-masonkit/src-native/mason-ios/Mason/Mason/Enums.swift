@@ -1414,32 +1414,47 @@ public enum GridPlacementCompatType: Int, RawRepresentable {
     }
 }
 
-
-@objc(GridTrackRepetition)
-public enum GridTrackRepetition: Int, RawRepresentable {
+enum GridTrackRepetitionType {
     case AutoFill
     case AutoFit
+    case Count(UInt16)
+}
+
+@objcMembers
+@objc(GridTrackRepetition)
+public class GridTrackRepetition: NSObject {
+    let repetition: GridTrackRepetitionType
     
-    public typealias RawValue = Int32
+    init(repetition: GridTrackRepetitionType) {
+        self.repetition = repetition
+    }
     
-    public var rawValue: RawValue {
-        switch self {
+    public var type: Int32 {
+        switch(repetition){
         case .AutoFill:
             return 0
         case .AutoFit:
             return 1
+        case .Count(_):
+            return 2
         }
     }
     
-    
-    public init?(rawValue: RawValue) {
-        switch rawValue {
-        case 0:
-            self = .AutoFill
-        case 1:
-            self = .AutoFit
+    public var value: UInt16 {
+        switch(repetition){
+        case .Count(let value):
+            return value
         default:
-            return nil
+            return 0
         }
     }
+    
+    public static let AutoFill = GridTrackRepetition(repetition: GridTrackRepetitionType.AutoFill)
+    
+    public static let AutoFit = GridTrackRepetition(repetition: GridTrackRepetitionType.AutoFit)
+    
+    public static func Count(_ value: UInt16) -> GridTrackRepetition {
+        return GridTrackRepetition(repetition: GridTrackRepetitionType.Count(value))
+    }
+    
 }

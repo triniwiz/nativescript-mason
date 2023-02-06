@@ -4,6 +4,11 @@ interface UIView {
   readonly masonNodePtr: number;
   readonly masonPtr: number;
   readonly masonStylePtr: number;
+
+  static createGridView(): UIView;
+
+  static createFlexView(): UIView;
+
   style: MasonStyle;
 
   alignContent: AlignContent;

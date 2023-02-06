@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::ffi::c_void;
-use std::io::Read;
+
 
 use taffy::prelude::*;
 
@@ -1598,7 +1598,7 @@ pub fn parse_track_sizing_function_value(value: &TrackSizingFunction) -> String 
             let parsed = parse_non_repeated_track_sizing_function_value(*value);
             ret.push_str(parsed.as_ref())
         }
-        TrackSizingFunction::AutoRepeat(grid_track_repetition, values) => {
+        TrackSizingFunction::Repeat(grid_track_repetition, values) => {
             ret.push_str("repeat(");
             match *grid_track_repetition {
                 GridTrackRepetition::AutoFill => {
@@ -1606,6 +1606,9 @@ pub fn parse_track_sizing_function_value(value: &TrackSizingFunction) -> String 
                 }
                 GridTrackRepetition::AutoFit => {
                     ret.push_str("auto-fit");
+                }
+                GridTrackRepetition::Count(count) => {
+                    ret.push_str(&format!("{count}"))
                 }
             }
 

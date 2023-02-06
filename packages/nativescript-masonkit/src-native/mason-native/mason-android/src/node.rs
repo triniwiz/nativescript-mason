@@ -710,7 +710,6 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         let output = mason.layout(*node);
 
         let result = env.new_float_array(output.len() as i32).unwrap();
-
         env.set_float_array_region(result, 0, &output).unwrap();
 
         Box::leak(mason);

@@ -14,6 +14,10 @@ declare const enum AlignContent {
   SpaceAround = 5,
 
   SpaceEvenly = 6,
+
+  FlexStart = 7,
+
+  FlexEnd = 8,
 }
 
 declare const enum AlignItems {
@@ -28,6 +32,10 @@ declare const enum AlignItems {
   Baseline = 3,
 
   Stretch = 4,
+
+  FlexStart = 5,
+
+  FlexEnd = 6,
 }
 
 declare const enum AlignSelf {
@@ -42,6 +50,10 @@ declare const enum AlignSelf {
   Baseline = 3,
 
   Stretch = 4,
+
+  FlexStart = 5,
+
+  FlexEnd = 6,
 }
 
 declare const enum AvailableSpace_Tag {
@@ -208,10 +220,20 @@ declare const enum GridPlacementCompatType {
   Span = 2,
 }
 
-declare const enum GridTrackRepetition {
-  AutoFill = 0,
+declare class GridTrackRepetition extends NSObject {
+  static Count(value: number): GridTrackRepetition;
 
-  AutoFit = 1,
+  static alloc(): GridTrackRepetition; // inherited from NSObject
+
+  static new(): GridTrackRepetition; // inherited from NSObject
+
+  readonly type: number;
+
+  readonly value: number;
+
+  static readonly AutoFill: GridTrackRepetition;
+
+  static readonly AutoFit: GridTrackRepetition;
 }
 
 declare const enum JustifyContent {
@@ -230,6 +252,10 @@ declare const enum JustifyContent {
   SpaceAround = 5,
 
   SpaceEvenly = 6,
+
+  FlexStart = 7,
+
+  FlexEnd = 8,
 }
 
 declare const enum JustifyItems {
@@ -244,6 +270,10 @@ declare const enum JustifyItems {
   Baseline = 3,
 
   Stretch = 4,
+
+  FlexStart = 5,
+
+  FlexEnd = 6,
 }
 
 declare const enum JustifySelf {
@@ -258,6 +288,10 @@ declare const enum JustifySelf {
   Baseline = 3,
 
   Stretch = 4,
+
+  FlexStart = 5,
+
+  FlexEnd = 6,
 }
 
 declare class LineGridPlacementCompat extends NSObject {
@@ -479,6 +513,8 @@ declare class MasonNode extends NSObject {
 
   data: any;
 
+  includeInLayout: boolean;
+
   readonly isDirty: boolean;
 
   isEnabled: boolean;
@@ -497,6 +533,8 @@ declare class MasonNode extends NSObject {
 
   addChildren(children: NSArray<MasonNode> | MasonNode[]): void;
 
+  attachAndApply(): void;
+
   compute(): void;
 
   computeMaxContent(): void;
@@ -504,6 +542,10 @@ declare class MasonNode extends NSObject {
   computeMinContent(): void;
 
   computeWithMaxContent(): void;
+
+  computeWithMinContent(): void;
+
+  computeWithSize(width: number, height: number): void;
 
   computeWithViewSize(): void;
 
@@ -1022,7 +1064,8 @@ declare const enum Position {
 
 interface Repeat_Body {
   _0: number;
-  _1: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
+  _1: number;
+  _2: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 }
 declare var Repeat_Body: interop.StructType<Repeat_Body>;
 

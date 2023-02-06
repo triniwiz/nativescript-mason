@@ -62,14 +62,11 @@ toTrackSizingFunction(facebook::jsi::Runtime &runtime, facebook::jsi::Array &arr
         auto object = array.getValueAtIndex(runtime, i).asObject(runtime);
         bool is_repeating = object.getProperty(runtime, "is_repeating").asBool();
         auto repeating_type = (int) object.getProperty(runtime, "repeating_type").asNumber();
+        auto repeating_count = (short) object.getProperty(runtime, "repeating_count").asNumber();
         auto value = object.getProperty(runtime, "value");
         if (is_repeating) {
             auto value_array = value.asObject(runtime).asArray(runtime);
             auto repeating_length = value_array.size(runtime);
-
-            if (repeating_type == 0 || repeating_type == 1) {
-                continue;
-            }
 
             rust::Vec<CMasonMinMax> vec;
             vec.reserve(repeating_length);
@@ -94,7 +91,7 @@ toTrackSizingFunction(facebook::jsi::Runtime &runtime, facebook::jsi::Array &arr
             }
 
             mason_util_create_auto_repeating_track_sizing_function(
-                    repeating_type, std::move(vec), -1, auto_vec
+                    repeating_type, repeating_count, std::move(vec), -1, auto_vec
             );
 
         } else {
@@ -1903,7 +1900,7 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
     );
 
     CREATE_FUNC("__Mason_getGridAutoRows", 2, [](Runtime &runtime, const Value &thisValue,
-                                             const Value *arguments, size_t count) -> Value {
+                                                 const Value *arguments, size_t count) -> Value {
 
         auto style = getPointerValue(arguments[0], runtime);
 
@@ -1917,7 +1914,7 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
 
 
     CREATE_FUNC("__Mason_setGridAutoRows", 5, [](Runtime &runtime, const Value &thisValue,
-                                             const Value *arguments, size_t count) -> Value {
+                                                 const Value *arguments, size_t count) -> Value {
 
         auto mason = getPointerValue(arguments[0], runtime);
 
@@ -1945,7 +1942,7 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
 
 
     CREATE_FUNC("__Mason_getGridAutoColumns", 2, [](Runtime &runtime, const Value &thisValue,
-                                                const Value *arguments, size_t count) -> Value {
+                                                    const Value *arguments, size_t count) -> Value {
 
         auto style = getPointerValue(arguments[0], runtime);
 
@@ -1959,7 +1956,7 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
 
 
     CREATE_FUNC("__Mason_setGridAutoColumns", 5, [](Runtime &runtime, const Value &thisValue,
-                                                const Value *arguments, size_t count) -> Value {
+                                                    const Value *arguments, size_t count) -> Value {
 
         auto mason = getPointerValue(arguments[0], runtime);
 
@@ -2534,7 +2531,8 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
 
 
     CREATE_FUNC("__Mason_getGridTemplateRows", 2, [](Runtime &runtime, const Value &thisValue,
-                                                 const Value *arguments, size_t count) -> Value {
+                                                     const Value *arguments,
+                                                     size_t count) -> Value {
 
         auto style = getPointerValue(arguments[0], runtime);
 
@@ -2548,7 +2546,8 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
 
 
     CREATE_FUNC("__Mason_setGridTemplateRows", 5, [](Runtime &runtime, const Value &thisValue,
-                                                 const Value *arguments, size_t count) -> Value {
+                                                     const Value *arguments,
+                                                     size_t count) -> Value {
 
         auto mason = getPointerValue(arguments[0], runtime);
 
@@ -2576,7 +2575,8 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
 
 
     CREATE_FUNC("__Mason_getGridTemplateColumns", 2, [](Runtime &runtime, const Value &thisValue,
-                                                    const Value *arguments, size_t count) -> Value {
+                                                        const Value *arguments,
+                                                        size_t count) -> Value {
 
         auto style = getPointerValue(arguments[0], runtime);
 
@@ -2590,7 +2590,8 @@ createFunc(jsiRuntime, "__Mason_layout", 2, [](Runtime &runtime, const Value &th
 
 
     CREATE_FUNC("__Mason_setGridTemplateColumns", 5, [](Runtime &runtime, const Value &thisValue,
-                                                    const Value *arguments, size_t count) -> Value {
+                                                        const Value *arguments,
+                                                        size_t count) -> Value {
 
         auto mason = getPointerValue(arguments[0], runtime);
 

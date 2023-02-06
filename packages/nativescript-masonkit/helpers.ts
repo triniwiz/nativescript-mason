@@ -13,10 +13,12 @@ const enum Display {
   Grid = 2,
 }
 
-const enum GridTrackRepetition {
+const enum TSCGridTrackRepetition {
   AutoFill = 0,
 
   AutoFit = 1,
+
+  Count = 2,
 }
 
 const enum GridPlacementCompatType {
@@ -192,7 +194,7 @@ if (global.isIOS) {
     try {
       //@ts-ignore
       const module = new global.JSIModule();
-      console.log(module.install());
+      // module.install()
       // JSIEnabled = true;
     } catch (error) {
       console.warn('Failed to enable on FastAPI', error);
@@ -3360,54 +3362,70 @@ export function _parseMinMaxValue(value: string): MinMaxType {
 
 interface GridTemplates {
   is_repeating: boolean;
-  repeating_type: GridTrackRepetition;
+  repeating_type: TSCGridTrackRepetition;
+  repeating_count: number;
   value: MinMaxType | Array<MinMaxType>;
 }
+
+const grid_templates_regex = /[^\s()]+(?:\([^\s()]+(?:\([^()]+\))?(?:, *[^\s()]+(?:\([^()]+\))?)*\))?/g;
 
 export function _parseGridTemplates(value: string): Array<GridTemplates> {
   const array = [];
   if (typeof value === 'string') {
-    const values = value.split(') ');
+    const values = Array.from(value.matchAll(grid_templates_regex), (m) => m[0]);
+
     values.forEach((item) => {
       if (item.startsWith('repeat(')) {
-        const repeatedValues = item.replace('repeat(', '').replace(')', '').split(',');
+        const repeatValue = item.replace('repeat(', '').replace(')', '');
 
-        const type = repeatedValues[0].trim();
+        const trackEnd = repeatValue.indexOf(',');
 
-        let isSingle = false;
+        const repetition = repeatValue.substring(0, trackEnd);
+
+        const tracks = repeatValue
+          .substring(trackEnd + 1)
+          .split(' ')
+          .filter((a) => {
+            return a.length || a.trim() === ',';
+          });
+        let isValid = true;
 
         let repeating_type = 0;
 
         let repeat_count = 0;
 
-        switch (type) {
+        switch (repetition) {
           case 'repeat-fill':
-            repeating_type = GridTrackRepetition.AutoFill;
+            repeating_type = TSCGridTrackRepetition.AutoFill;
             break;
           case 'repeat-fit':
-            repeating_type = GridTrackRepetition.AutoFit;
+            repeating_type = TSCGridTrackRepetition.AutoFit;
             break;
           default:
-            const number = parseInt(type);
+            const number = parseInt(repetition);
 
-            if (!Number.isNaN(number)) {
-              isSingle = true;
+            repeating_type = TSCGridTrackRepetition.Count;
+
+            isValid = !Number.isNaN(number);
+            if (isValid) {
               repeat_count = number;
             }
-
             break;
         }
 
-        const minMax = _parseMinMaxValue(repeatedValues[1].trim());
+        if (isValid) {
+          const tracks_array = [];
+          tracks.forEach((track) => {
+            const minMax = _parseMinMaxValue(track.trim());
+            tracks_array.push(minMax);
+          });
 
-        if (repeat_count > 0) {
-          for (let i = 0; i < repeat_count; i++) {
-            array.push({
-              is_repeating: !isSingle,
-              repeating_type,
-              value: minMax,
-            });
-          }
+          array.push({
+            is_repeating: true,
+            repeating_type,
+            repeating_count: repeat_count,
+            value: tracks_array,
+          });
         }
       } else {
         const value = _parseMinMaxValue(item);
@@ -3440,11 +3458,14 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: TSCV
           const tracks = Array.create('org.nativescript.mason.masonkit.MinMax', repeating.length);
           let gridTrackRepetition = null;
           switch (item.repeating_type) {
-            case GridTrackRepetition.AutoFill:
+            case TSCGridTrackRepetition.AutoFill:
               gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFill;
               break;
-            case GridTrackRepetition.AutoFit:
+            case TSCGridTrackRepetition.AutoFit:
               gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFit;
+              break;
+            case TSCGridTrackRepetition.Count:
+              gridTrackRepetition = new org.nativescript.mason.masonkit.GridTrackRepetition.Count(item.repeating_count);
               break;
           }
           if (gridTrackRepetition === null) {
@@ -3487,11 +3508,14 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: TSCV
           const tracks = NSMutableArray.arrayWithCapacity<MinMax>(repeatingLength);
           let gridTrackRepetition = null;
           switch (item.repeating_type) {
-            case GridTrackRepetition.AutoFill:
-              gridTrackRepetition = GridTrackRepetition.AutoFill;
+            case TSCGridTrackRepetition.AutoFill:
+              gridTrackRepetition = TSCGridTrackRepetition.AutoFill;
               break;
-            case GridTrackRepetition.AutoFit:
-              gridTrackRepetition = GridTrackRepetition.AutoFit;
+            case TSCGridTrackRepetition.AutoFit:
+              gridTrackRepetition = TSCGridTrackRepetition.AutoFit;
+              break;
+            case TSCGridTrackRepetition.Count:
+              gridTrackRepetition = GridTrackRepetition.Count(item.repeating_count);
               break;
           }
           if (gridTrackRepetition === null) {
@@ -3535,11 +3559,14 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: T
           const tracks = Array.create('org.nativescript.mason.masonkit.MinMax', repeating.length);
           let gridTrackRepetition = null;
           switch (item.repeating_type) {
-            case GridTrackRepetition.AutoFill:
-              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFill;
+            case TSCGridTrackRepetition.AutoFill:
+              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFill.INSTANCE;
               break;
-            case GridTrackRepetition.AutoFit:
-              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFit;
+            case TSCGridTrackRepetition.AutoFit:
+              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFit.INSTANCE;
+              break;
+            case TSCGridTrackRepetition.Count:
+              gridTrackRepetition = new org.nativescript.mason.masonkit.GridTrackRepetition.Count(item.repeating_count);
               break;
           }
           if (gridTrackRepetition === null) {
@@ -3554,6 +3581,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: T
           }
 
           const repeat = new org.nativescript.mason.masonkit.TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
+
           array[i] = repeat;
         } else {
           const single = item.value as MinMaxType;
@@ -3585,11 +3613,14 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: T
 
           let gridTrackRepetition = null;
           switch (item.repeating_type) {
-            case GridTrackRepetition.AutoFill:
-              gridTrackRepetition = GridTrackRepetition.AutoFill;
+            case TSCGridTrackRepetition.AutoFill:
+              gridTrackRepetition = TSCGridTrackRepetition.AutoFill;
               break;
-            case GridTrackRepetition.AutoFit:
-              gridTrackRepetition = GridTrackRepetition.AutoFit;
+            case TSCGridTrackRepetition.AutoFit:
+              gridTrackRepetition = TSCGridTrackRepetition.AutoFit;
+              break;
+            case TSCGridTrackRepetition.Count:
+              gridTrackRepetition = GridTrackRepetition.Count(item.repeating_count);
               break;
           }
           if (gridTrackRepetition === null) {

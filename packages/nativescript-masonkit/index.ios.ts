@@ -30,7 +30,9 @@ export class TSCView extends TSCViewBase {
 
   createNativeView() {
     this._hasNativeView = true;
-    return UIView.alloc().initWithFrame(CGRectZero);
+    const view = UIView.alloc().initWithFrame(CGRectZero);
+    view.mason.isEnabled = true;
+    return view;
   }
 
   disposeNativeView(): void {
@@ -43,24 +45,15 @@ export class TSCView extends TSCViewBase {
     return this.nativeViewProtected as UIView;
   }
 
-  /*
-   // This method won't be called in Android because we use the native android layout.
-   public onLayout(left: number, top: number, right: number, bottom: number): void {
-    this.eachLayoutChild((child) => {
-      View.layoutChild(this, child, 0, 0, right - left, bottom - top);
-      return true;
-    });
-  }
-
-  */
-
   public onLayout(left: number, top: number, right: number, bottom: number): void {
+    super.onLayout(left, top, right, bottom);
     const nativeView = this.nativeView;
     if (nativeView) {
-      //   this.ios.mason.computeWithMaxContent();
-
       this.eachLayoutChild((child) => {
         const layout = child.ios.mason.layout();
+
+        child.setMeasuredDimension(layout.width, layout.height);
+
         View.layoutChild(this as any, child, layout.x, layout.y, layout.width, layout.height);
         return true;
       });
@@ -72,21 +65,14 @@ export class TSCView extends TSCViewBase {
     if (nativeView) {
       const width = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
       const height = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
-      const next = (this as any)._masonParent;
 
-      if (!next) {
-        let parent;
-        let entry = this;
-        while (next) {
-          parent = next;
-          entry = (this as any)._masonParent;
-        }
+      if (!(this as any)._masonParent) {
+        this.ios.setSize(width, height);
+      }
 
-        entry.ios.setSize(width, height);
-
-        if (!this._isMasonChild) {
-          entry.ios.mason.computeWithMaxContent();
-        }
+      if (!this._isMasonChild) {
+        // only call compute on the parent
+        this.ios.mason.computeWithMaxContent();
       }
 
       const layout = this.ios.mason.layout();
@@ -112,6 +98,8 @@ export class TSCView extends TSCViewBase {
     const index = atIndex ?? Infinity;
     if (nativeView && view.nativeViewProtected) {
       view['_hasNativeView'] = true;
+      view['_isMasonChild'] = true;
+
       if (index >= nativeView.subviews.count) {
         nativeView.addSubview(view.nativeViewProtected);
       } else {
@@ -135,3 +123,21 @@ export class TSCView extends TSCViewBase {
     }
   }
 }
+
+export class Grid extends TSCView {
+  createNativeView() {
+    const view = (UIView as any).createGridView() as any;
+    this._hasNativeView = true;
+    return view;
+  }
+}
+
+export class Flex extends TSCView {
+  createNativeView() {
+    const view = (UIView as any).createFlexView() as any;
+    this._hasNativeView = true;
+    return view;
+  }
+}
+
+export class Container extends TSCView {}

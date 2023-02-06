@@ -55,6 +55,8 @@ export class TSCView extends TSCViewBase {
     // super._addViewToNativeVisualTree(child);
     const nativeView = this.nativeViewProtected as org.nativescript.mason.masonkit.View;
 
+    (child as any)._masonParent = this;
+
     if (nativeView && child.nativeViewProtected) {
       child['_hasNativeView'] = true;
       child['_isMasonChild'] = true;
@@ -73,3 +75,21 @@ export class TSCView extends TSCViewBase {
     super._removeViewFromNativeVisualTree(view);
   }
 }
+
+export class Grid extends TSCView {
+  createNativeView() {
+    const view = org.nativescript.mason.masonkit.View.createGridView(this._context) as any;
+    this._hasNativeView = true;
+    return view;
+  }
+}
+
+export class Flex extends TSCView {
+  createNativeView() {
+    const view = org.nativescript.mason.masonkit.View.createFlexView(this._context) as any;
+    this._hasNativeView = true;
+    return view;
+  }
+}
+
+export class Container extends TSCView {}

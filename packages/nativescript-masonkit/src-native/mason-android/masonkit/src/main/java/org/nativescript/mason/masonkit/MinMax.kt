@@ -1,5 +1,7 @@
 package org.nativescript.mason.masonkit;
 
+import android.util.Log
+
 sealed class MinMax(
   val min: MinSizing,
   val max: MaxSizing
@@ -35,8 +37,8 @@ sealed class MinMax(
         0 -> MinSizing.Auto
         1 -> MinSizing.MinContent
         2 -> MinSizing.MaxContent
-        3 -> MinSizing.Percent(minValue)
-        4 -> MinSizing.Points(minValue)
+        3 -> MinSizing.Points(minValue)
+        4 -> MinSizing.Percent(minValue)
         else -> null
       }
 
@@ -44,8 +46,8 @@ sealed class MinMax(
         0 -> MaxSizing.Auto
         1 -> MaxSizing.MinContent
         2 -> MaxSizing.MaxContent
-        3 -> MaxSizing.Percent(maxValue)
-        4 -> MaxSizing.Points(maxValue)
+        3 -> MaxSizing.Points(maxValue)
+        4 -> MaxSizing.Percent(maxValue)
         5 -> MaxSizing.Flex(maxValue)
         6 -> MaxSizing.FitContent(maxValue)
         7 -> MaxSizing.FitContentPercent(maxValue)
@@ -87,8 +89,8 @@ sealed class MinMax(
         is Flex -> "flex(${maxValue}fr)"
         MaxContent -> "max-content"
         MinContent -> "min-content"
-        is Percent -> "minmax(${minValue * 100}%, ${maxValue * 100}%)"
-        is Points -> "minmax(${minValue}px, ${maxValue}px)"
+        is Percent -> "${minValue * 100}%"
+        is Points -> "${minValue}px"
         is FitContent -> "fit-content(${maxValue}px)"
         is FitContentPercent -> "fit-content(${maxValue * 100}%)"
         is Values -> {
@@ -104,8 +106,33 @@ sealed class MinMax(
             return "fit-content(${maxValue}px)"
           } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.FitContentPercent) {
             return "fit-content(${maxValue * 100}%)"
+          } else if (minType == maxType && minValue == maxValue) {
+            when (minVal) {
+              is MinSizing.Percent -> "${minVal.percentage * 100}%"
+              is MinSizing.Points -> "${minVal.points}px"
+              else -> ""
+            }
           } else {
-            return "minmax()"
+            return "minmax(${
+              when (minVal) {
+                MinSizing.Auto -> "auto"
+                MinSizing.MaxContent -> "max-content"
+                MinSizing.MinContent -> "min-content"
+                is MinSizing.Percent -> "${minVal.percentage * 100}%"
+                is MinSizing.Points -> "${minVal.points}px"
+              }
+            },${
+              when (maxVal) {
+                MaxSizing.Auto -> "auto"
+                MaxSizing.MaxContent -> "max-content"
+                MaxSizing.MinContent -> "min-content"
+                is MaxSizing.Percent -> "${maxVal.percentage * 100}%"
+                is MaxSizing.Points -> "${maxVal.points}px"
+                is MaxSizing.FitContent -> "fit-content(${maxValue}px)" // should not return type maybe invalid
+                is MaxSizing.FitContentPercent -> "fit-content(${maxValue * 100}%)" // should not return type maybe invalid
+                is MaxSizing.Flex -> "${maxValue}fr"
+              }
+            })"
           }
         }
       }

@@ -345,10 +345,19 @@ typedef SWIFT_ENUM_NAMED(NSInteger, GridPlacementCompatType, "GridPlacementCompa
   GridPlacementCompatTypeSpan = 2,
 };
 
-typedef SWIFT_ENUM_NAMED(NSInteger, GridTrackRepetition, "GridTrackRepetition", open) {
-  GridTrackRepetitionAutoFill = 0,
-  GridTrackRepetitionAutoFit = 1,
-};
+
+SWIFT_CLASS_NAMED("GridTrackRepetition")
+@interface GridTrackRepetition : NSObject
+@property (nonatomic, readonly) int32_t type;
+@property (nonatomic, readonly) uint16_t value;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) GridTrackRepetition * _Nonnull AutoFill;)
++ (GridTrackRepetition * _Nonnull)AutoFill SWIFT_WARN_UNUSED_RESULT;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) GridTrackRepetition * _Nonnull AutoFit;)
++ (GridTrackRepetition * _Nonnull)AutoFit SWIFT_WARN_UNUSED_RESULT;
++ (GridTrackRepetition * _Nonnull)Count:(uint16_t)value SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, JustifyContent, "JustifyContent", open) {
   JustifyContentNormal = -1,
@@ -885,13 +894,15 @@ SWIFT_CLASS_NAMED("TrackSizingFunction")
 @property (nonatomic, readonly) BOOL isRepeating;
 @property (nonatomic, readonly) id _Nullable value;
 + (TrackSizingFunction * _Nonnull)Single:(MinMax * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
-+ (TrackSizingFunction * _Nonnull)AutoRepeat:(enum GridTrackRepetition)gridTrackRepetition :(NSArray<MinMax *> * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
++ (TrackSizingFunction * _Nonnull)AutoRepeat:(GridTrackRepetition * _Nonnull)gridTrackRepetition :(NSArray<MinMax *> * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
 
 @interface UIView (SWIFT_EXTENSION(Mason))
++ (UIView * _Nonnull)createGridView SWIFT_WARN_UNUSED_RESULT;
++ (UIView * _Nonnull)createFlexView SWIFT_WARN_UNUSED_RESULT;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull mason;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly) NSInteger masonPtr;)
 + (NSInteger)masonPtr SWIFT_WARN_UNUSED_RESULT;
