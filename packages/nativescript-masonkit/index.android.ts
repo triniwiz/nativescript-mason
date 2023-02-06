@@ -1,4 +1,4 @@
-import { Utils, View, ViewBase } from '@nativescript/core';
+import { CSSType, Utils, View, ViewBase } from '@nativescript/core';
 import { TSCViewBase, applyMixins } from './common';
 const BigIntZero = BigInt(0);
 
@@ -76,6 +76,7 @@ export class TSCView extends TSCViewBase {
   }
 }
 
+@CSSType('Grid')
 export class Grid extends TSCView {
   createNativeView() {
     const view = org.nativescript.mason.masonkit.View.createGridView(this._context) as any;
@@ -84,6 +85,7 @@ export class Grid extends TSCView {
   }
 }
 
+@CSSType('Flex')
 export class Flex extends TSCView {
   createNativeView() {
     const view = org.nativescript.mason.masonkit.View.createFlexView(this._context) as any;
@@ -92,4 +94,5 @@ export class Flex extends TSCView {
   }
 }
 
+@CSSType('Container')
 export class Container extends TSCView {}

@@ -1,4 +1,4 @@
-import { Utils, View, ViewBase } from '@nativescript/core';
+import { CSSType, Utils, View, ViewBase } from '@nativescript/core';
 import { TSCViewBase } from './common';
 
 export class TSCView extends TSCViewBase {
@@ -124,6 +124,7 @@ export class TSCView extends TSCViewBase {
   }
 }
 
+@CSSType('Grid')
 export class Grid extends TSCView {
   createNativeView() {
     const view = (UIView as any).createGridView() as any;
@@ -132,6 +133,7 @@ export class Grid extends TSCView {
   }
 }
 
+@CSSType('Flex')
 export class Flex extends TSCView {
   createNativeView() {
     const view = (UIView as any).createFlexView() as any;
@@ -140,4 +142,5 @@ export class Flex extends TSCView {
   }
 }
 
+@CSSType('Container')
 export class Container extends TSCView {}
