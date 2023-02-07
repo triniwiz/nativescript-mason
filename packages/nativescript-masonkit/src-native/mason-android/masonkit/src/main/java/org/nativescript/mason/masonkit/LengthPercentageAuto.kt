@@ -61,7 +61,7 @@ sealed class LengthPercentageAuto {
           "$points$PxUnit"
         }
         is Percent -> {
-          "$percentage$PercentUnit"
+          "${percentage * 100}$PercentUnit"
         }
         is Auto -> {
           AutoValue

@@ -4,10 +4,19 @@
   android:id="@+id/flexRoot"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
-  android:background="@color/black"
-  mason:mason_flexDirection="column"
+  android:background="@color/gray"
+  mason:mason_width="100%"
+  mason:mason_height="100%"
+  mason:mason_flexDirection="row"
+  mason:mason_justifyContent="center"
+  mason:mason_alignItems="center"
   >
 
+  <TextView
+    android:text="Hello World"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"/>
+  <!--
   <org.nativescript.mason.masonkit.View
     android:id="@+id/a"
     android:layout_width="wrap_content"
@@ -22,7 +31,7 @@
     android:layout_height="wrap_content"
     android:background="@color/blue"
     mason:mason_height="100dp"
-    mason:mason_width="100dp" />
+    mason:mason_width="100dp" /> -->
 
   <!--
   <org.nativescript.mason.masonkit.View

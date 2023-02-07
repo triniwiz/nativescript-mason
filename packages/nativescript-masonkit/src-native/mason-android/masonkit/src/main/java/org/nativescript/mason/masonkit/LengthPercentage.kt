@@ -59,7 +59,7 @@ sealed class LengthPercentage {
           "$points$PxUnit"
         }
         is Percent -> {
-          "$percentage$PercentUnit"
+          "${percentage * 100}$PercentUnit"
         }
       }
     }

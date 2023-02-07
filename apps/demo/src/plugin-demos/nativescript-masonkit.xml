@@ -11,14 +11,26 @@
     <Label text="b" class="b"/>
   </ui:Flex> -->
 
-  
 
+   <!-- <ui:Flex style="background-color:#808080;flex-direction: row;width:100%; height:100%;justify-content:center;align-items:center;">
+    <Label text="Hello World"/>
+  </ui:Flex> -->
+
+
+<!-- <ui:Flex style="background-color:#808080;width:400;">
+    <Button text="Hello world" height="50" width="300"/>
+  </ui:Flex> -->
+
+
+<!-- <ui:Flex  style="display: flex; flex-direction: column; width: 100; height: 100;">
+<Label textWrap="true" text="HHHHHHH&#8203;HHHHHH&#8203;HHHH&#8203;HHHHHH&#8203;HHHH&#8203;HHHHHHH"/>
+</ui:Flex> -->
 
   <!-- https://gridbyexample.com/examples/example5/ -->
 
 
 
-  <ui:Grid class="wrapper-5">
+  <!-- <ui:Grid class="wrapper-5">
 
     <ui:Grid class="box a">
     <Label text="A" />
@@ -35,7 +47,7 @@
      <ui:Grid class="box d">
     <Label text="D" />
     </ui:Grid>
-  </ui:Grid>
+  </ui:Grid> -->
 
  
 
@@ -43,8 +55,8 @@
   https://gridbyexample.com/examples/example26/ -->
 
 
-
-   <!-- <ui:Container class="wrapper-6">
+<!-- 
+   <ui:Container class="wrapper-6">
     <ui:Container class="box a">
       <Label text="This is box A."></Label>
       <Label text="align-self: stretch"></Label>
@@ -75,7 +87,7 @@
   </ui:Container>   -->
 
 
-  <!-- <ui:Grid class="grid-example">
+  <ui:Grid class="grid-example">
 
     <Label text="A" color="green" class="a" backgroundColor="red"/>
 
@@ -89,7 +101,7 @@
 
     <Label text="F" class="f" backgroundColor="pink"/>
 
-  </ui:Grid> -->
+  </ui:Grid>
 
 
   <!-- <ui:TSCView id="root" flexDirection="column">
