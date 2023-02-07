@@ -1253,14 +1253,14 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
     let nativeValue = null;
     switch (value) {
       case 'normal':
-        if (JSIEnabled) {
+        if (JSIEnabled || global.isIOS) {
           nativeValue = AlignItems.Normal;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Normal;
         }
         break;
       case 'baseline':
-        if (JSIEnabled) {
+        if (JSIEnabled || global.isIOS) {
           nativeValue = AlignItems.Baseline;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Baseline;
@@ -1268,7 +1268,7 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'center':
-        if (JSIEnabled) {
+        if (JSIEnabled || global.isIOS) {
           nativeValue = AlignItems.Center;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Center;
@@ -1277,7 +1277,7 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
         break;
       case 'flex-end':
       case 'end':
-        if (JSIEnabled) {
+        if (JSIEnabled || global.isIOS) {
           nativeValue = AlignItems.End;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.End;
@@ -1286,7 +1286,7 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
         break;
       case 'flex-start':
       case 'start':
-        if (JSIEnabled) {
+        if (JSIEnabled || global.isIOS) {
           nativeValue = AlignItems.Start;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Start;
@@ -1294,7 +1294,7 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'stretch':
-        if (JSIEnabled) {
+        if (JSIEnabled || global.isIOS) {
           nativeValue = AlignItems.Stretch;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Stretch;
