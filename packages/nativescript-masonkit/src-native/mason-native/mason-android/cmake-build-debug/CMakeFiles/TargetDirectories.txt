@@ -1,2 +1,0 @@
-/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-native/mason-android/cmake-build-debug/CMakeFiles/edit_cache.dir
-/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-native/mason-android/cmake-build-debug/CMakeFiles/rebuild_cache.dir
