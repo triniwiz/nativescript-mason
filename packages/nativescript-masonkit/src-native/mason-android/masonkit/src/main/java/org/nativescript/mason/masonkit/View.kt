@@ -125,13 +125,13 @@ class View @JvmOverloads constructor(
         return
       }
 
-      val layout = node.layout()
+      var layout = node.layout()
 
       var widthIsNaN = layout.width.isNaN()
       var heightIsNaN = layout.height.isNaN()
 
-      val measureWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
-      val measureHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
+      var measureWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
+      var measureHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
 
       if (measureWidth == 0 && node.style.size.width == Dimension.Auto) {
         widthIsNaN = true
@@ -140,7 +140,6 @@ class View @JvmOverloads constructor(
       if (measureHeight == 0 && node.style.size.height == Dimension.Auto) {
         heightIsNaN = true
       }
-
 
       if (widthIsNaN || heightIsNaN) {
         view.measure(
@@ -153,7 +152,6 @@ class View @JvmOverloads constructor(
           )
         )
       }
-
 
       val left = (xOffset + if (layout.x.isNaN()) 0F else layout.x).roundToInt()
       val top = (yOffset + if (layout.y.isNaN()) 0F else layout.y).roundToInt()
@@ -262,7 +260,7 @@ class View @JvmOverloads constructor(
 
   override fun addView(child: android.view.View, index: Int, params: ViewGroup.LayoutParams) {
     node.removeMeasureFunction()
-    super.addView(child, index, params)
+    super.addView(child, index, params);
 
     if (nodes.containsKey(child)) {
       return
@@ -1828,8 +1826,8 @@ class View @JvmOverloads constructor(
         return zeroSize
       }
 
-      val widthIsNaN = width.isNaN()
-      val heightIsNaN = height.isNaN()
+      var widthIsNaN = width.isNaN()
+      var heightIsNaN = height.isNaN()
 
       if (!widthIsNaN && !heightIsNaN) {
         return Size(width, height)
@@ -1840,66 +1838,51 @@ class View @JvmOverloads constructor(
 
       node.get()?.let { node ->
 
-        var widthCalculated = false
-        var heightCalculated = false
-
         var isWidthPercent = false
         var isHeightPercent = false
 
-        if (widthIsNaN) {
+        if (widthIsNaN || width.equals(0.0f)) {
           if (node.style.size.width is Dimension.Points) {
             retWidth = node.style.size.width.value
-            widthCalculated = true
+            if (!retWidth.isNaN()) widthIsNaN = false;
           } else if (node.style.size.width is Dimension.Percent) {
-            isWidthPercent = true
+            isHeightPercent = true;
           }
         }
 
-        if (heightIsNaN) {
+        if (heightIsNaN || height.equals(0.0f)) {
           if (node.style.size.height is Dimension.Points) {
             retHeight = node.style.size.height.value
-            heightCalculated = true
+            if (!retHeight.isNaN()) heightIsNaN = false;
           } else if (node.style.size.height is Dimension.Percent) {
-            isHeightPercent = true
+            isHeightPercent = true;
           }
         }
 
-        if (widthCalculated && heightCalculated) {
-          return@let
+        val widthSpec = if (widthIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+        val heightSpec = if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+
+        if (retWidth.equals(0f)) {
+          retWidth = Float.NaN
         }
 
-        val measureWidth = if (widthIsNaN) 0 else width.roundToInt()
-        val measureHeight = if (heightIsNaN) 0 else height.roundToInt()
-
-        val widthSpec = if (widthIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
-
-        val heightSpec = if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+        if (retHeight.equals(0f)) {
+          retHeight = Float.NaN
+        }
 
         view.measure(
           MeasureSpec.makeMeasureSpec(
-            measureWidth, widthSpec
+            retWidth.roundToInt(), widthSpec
           ), MeasureSpec.makeMeasureSpec(
-            measureHeight, heightSpec
+            retHeight.roundToInt(), heightSpec
           )
         )
 
-        if (widthIsNaN) {
-          retWidth = view.measuredWidth.toFloat()
-          if (retWidth == 0F) {
-            retWidth = Float.NaN
-          }
-        }
-
-        if (heightIsNaN) {
-          retHeight = view.measuredHeight.toFloat()
-          if (retHeight == 0F) {
-            retHeight = Float.NaN
-          }
-        }
+        retWidth = view.measuredWidth.toFloat()
+        retHeight = view.measuredHeight.toFloat()
       }
 
       return Size(retWidth, retHeight)
-
     }
 
     override fun measure(
