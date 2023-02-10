@@ -13,6 +13,10 @@
   >
 
   <TextView
+    android:background="@color/blue"
+    android:gravity="center"
+    mason:mason_width="60%"
+    mason:mason_height="60%"
     android:text="Hello World"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"/>
