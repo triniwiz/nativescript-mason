@@ -1826,8 +1826,8 @@ class View @JvmOverloads constructor(
         return zeroSize
       }
 
-      val widthIsNaN = width.isNaN()
-      val heightIsNaN = height.isNaN()
+      var widthIsNaN = width.isNaN()
+      var heightIsNaN = height.isNaN()
 
       if (!widthIsNaN && !heightIsNaN) {
         return Size(width, height)
@@ -1844,6 +1844,7 @@ class View @JvmOverloads constructor(
         if (widthIsNaN || width.equals(0.0f)) {
           if (node.style.size.width is Dimension.Points) {
             retWidth = node.style.size.width.value
+            if (!retWidth.isNaN()) widthIsNaN = false;
           } else if (node.style.size.width is Dimension.Percent) {
             isHeightPercent = true;
           }
@@ -1852,32 +1853,33 @@ class View @JvmOverloads constructor(
         if (heightIsNaN || height.equals(0.0f)) {
           if (node.style.size.height is Dimension.Points) {
             retHeight = node.style.size.height.value
+            if (!retHeight.isNaN()) heightIsNaN = false;
           } else if (node.style.size.height is Dimension.Percent) {
             isHeightPercent = true;
           }
         }
 
+        val widthSpec = if (widthIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+        val heightSpec = if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
+
+        if (retWidth.equals(0f)) {
+          retWidth = Float.NaN
+        }
+
+        if (retHeight.equals(0f)) {
+          retHeight = Float.NaN
+        }
+
         view.measure(
           MeasureSpec.makeMeasureSpec(
-            retWidth.roundToInt(), MeasureSpec.EXACTLY
+            retWidth.roundToInt(), widthSpec
           ), MeasureSpec.makeMeasureSpec(
-            retHeight.roundToInt(), MeasureSpec.EXACTLY
+            retHeight.roundToInt(), heightSpec
           )
         )
 
-        if (widthIsNaN) {
-          retWidth = view.measuredWidth.toFloat()
-          if (retWidth.equals(0f)) {
-            retWidth = Float.NaN
-          }
-        }
-
-        if (heightIsNaN) {
-          retHeight = view.measuredHeight.toFloat()
-          if (retHeight.equals(0f)) {
-            retHeight = Float.NaN
-          }
-        }
+        retWidth = view.measuredWidth.toFloat()
+        retHeight = view.measuredHeight.toFloat()
       }
 
       return Size(retWidth, retHeight)
