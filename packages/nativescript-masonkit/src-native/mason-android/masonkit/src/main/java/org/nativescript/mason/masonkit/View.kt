@@ -44,6 +44,7 @@ class View @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : ViewGroup(context, attrs, defStyleAttr) {
 
+  var shouldEnsureLayout = true;
   var node = Node()
     private set
 
@@ -117,6 +118,41 @@ class View @JvmOverloads constructor(
     }
   }
 
+  private fun ensureLayout() {
+    if (!shouldEnsureLayout) return;
+      if (this.node.style.size.width !is Dimension.Auto && this.node.style.size.height !is Dimension.Auto) return
+      val layout = this.node.layout();
+      if (layout.width != 0f && layout.height != 0f) return
+      shouldEnsureLayout = false;
+      val width = if (layout.width.isNaN()) 0f else layout.width;
+      val height = if (layout.height.isNaN()) 0f else layout.height;
+      var bottom = if (layout.y.isNaN()) height else layout.y + height
+      var right = if (layout.x.isNaN()) width else layout.x + width
+
+      for (lt: Layout in layout.children) {
+        if (layout.width == 0f) {
+          right += lt.width
+        }
+        if (layout.height == 0f) {
+          bottom += lt.height
+        }
+      }
+      val correctParentWidth = (right - layout.x).toInt()
+      val correctParentHeight = (bottom - layout.y).toInt()
+      // If parent measured dim is same as parent layout dim, we can return safely.
+      if (this.measuredWidth != 0 &&
+        this.measuredHeight != 0 &&
+        correctParentWidth == this.measuredWidth &&
+        correctParentHeight == this.measuredHeight
+      ) return
+
+      this.measure(correctParentWidth, correctParentHeight);
+      this.layout(
+        layout.x.toInt(), layout.y.toInt(),
+        layout.x.toInt() + correctParentWidth, layout.y.toInt() + correctParentHeight
+      );
+    }
+
   private fun applyLayoutRecursive(node: Node, xOffset: Float, yOffset: Float) {
     val view = node.data as? android.view.View
 
@@ -130,8 +166,8 @@ class View @JvmOverloads constructor(
       var widthIsNaN = layout.width.isNaN()
       var heightIsNaN = layout.height.isNaN()
 
-      var measureWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
-      var measureHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
+      var measuredWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
+      var measuredHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
 
       val widthIsZero = node.style.size.width.isZero
 
@@ -139,7 +175,7 @@ class View @JvmOverloads constructor(
 
       var hasPercentDimensions = false
 
-      if (measureWidth == 0 && !widthIsZero) {
+      if (measuredWidth == 0 && !widthIsZero) {
         when (node.style.size.width) {
           is Dimension.Auto -> {
             widthIsNaN = true
@@ -151,7 +187,7 @@ class View @JvmOverloads constructor(
         }
       }
 
-      if (measureHeight == 0 && !heightIsZero) {
+      if (measuredHeight == 0 && !heightIsZero) {
         when (node.style.size.height) {
           is Dimension.Auto -> {
             heightIsNaN = true
@@ -174,39 +210,47 @@ class View @JvmOverloads constructor(
         heightIsNaN = layout.height.isNaN()
       }
 
-      measureWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
-      measureHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
+      measuredWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
+      measuredHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
 
       if (widthIsZero) {
-        measureWidth = 0
+        measuredWidth = 0
         widthIsNaN = false
       }
 
       if (heightIsZero) {
-        measureHeight = 0
+        measuredHeight = 0
         heightIsNaN = false
       }
 
+      node.owner?.let {
+        val parent = it.data as View
+        if (parent !is View) return
+        parent.ensureLayout();
+      }
 
       if (widthIsNaN || heightIsNaN) {
         view.measure(
           MeasureSpec.makeMeasureSpec(
-            measureWidth,
+            measuredWidth,
             MeasureSpec.UNSPECIFIED
           ), MeasureSpec.makeMeasureSpec(
-            measureHeight,
+            measuredHeight,
             MeasureSpec.UNSPECIFIED
           )
         )
+        measuredWidth = view.measuredWidth;
+        measuredHeight = view.measuredHeight;
       }
+
 
       val left = (xOffset + if (layout.x.isNaN()) 0F else layout.x).roundToInt()
       val top = (yOffset + if (layout.y.isNaN()) 0F else layout.y).roundToInt()
 
       val right =
-        left + view.measuredWidth
+        left + measuredWidth
       val bottom =
-        top + view.measuredHeight
+        top + measuredHeight
 
       view.layout(left, top, right, bottom)
     }
@@ -229,6 +273,7 @@ class View @JvmOverloads constructor(
         }
       }
     }
+    shouldEnsureLayout = true;
   }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
@@ -239,7 +284,9 @@ class View @JvmOverloads constructor(
       )
     }
 
-    applyLayoutRecursive(node, 0F, 0F)
+    if (shouldEnsureLayout) {
+      applyLayoutRecursive(node, 0F, 0F)
+    }
   }
 
   private fun setSizeFromMeasureSpec(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -1903,7 +1950,8 @@ class View @JvmOverloads constructor(
             is Dimension.Percent -> {
               val parentLayout = node.owner?.layout()
               parentLayout?.let {
-                retWidth = if (it.width.isNaN()) 0.0f else parentLayout.width * node.style.size.width.value
+                retWidth =
+                  if (it.width.isNaN()) 0.0f else parentLayout.width * node.style.size.width.value
                 widthIsNaN = false
               }
             }
@@ -1920,7 +1968,8 @@ class View @JvmOverloads constructor(
             is Dimension.Percent -> {
               val parentLayout = node.owner?.layout()
               parentLayout?.let {
-                retHeight = if (it.height.isNaN()) 0.0f else parentLayout.height * node.style.size.height.value
+                retHeight =
+                  if (it.height.isNaN()) 0.0f else parentLayout.height * node.style.size.height.value
                 heightIsNaN = false
               }
             }
