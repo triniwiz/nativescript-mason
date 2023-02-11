@@ -120,38 +120,43 @@ class View @JvmOverloads constructor(
 
   private fun ensureLayout() {
     if (!shouldEnsureLayout) return;
-      if (this.node.style.size.width !is Dimension.Auto && this.node.style.size.height !is Dimension.Auto) return
-      val layout = this.node.layout();
-      if (layout.width != 0f && layout.height != 0f) return
-      shouldEnsureLayout = false;
-      val width = if (layout.width.isNaN()) 0f else layout.width;
-      val height = if (layout.height.isNaN()) 0f else layout.height;
-      var bottom = if (layout.y.isNaN()) height else layout.y + height
-      var right = if (layout.x.isNaN()) width else layout.x + width
+    if (this.node.style.size.width !is Dimension.Auto && this.node.style.size.height !is Dimension.Auto) return
+    val layout = this.node.layout();
 
-      for (lt: Layout in layout.children) {
-        if (layout.width == 0f) {
-          right += lt.width
-        }
-        if (layout.height == 0f) {
-          bottom += lt.height
-        }
+    if (layout.width != 0f && layout.height != 0f) return
+    shouldEnsureLayout = false;
+    val width = if (layout.width.isNaN()) 0f else layout.width;
+    val height = if (layout.height.isNaN()) 0f else layout.height;
+    var bottom = if (layout.y.isNaN()) height else layout.y + height
+    var right = if (layout.x.isNaN()) width else layout.x + width
+
+    for (lt: Layout in layout.children) {
+      if (layout.width == 0f) {
+        right += lt.width
       }
-      val correctParentWidth = (right - layout.x).toInt()
-      val correctParentHeight = (bottom - layout.y).toInt()
-      // If parent measured dim is same as parent layout dim, we can return safely.
-      if (this.measuredWidth != 0 &&
-        this.measuredHeight != 0 &&
-        correctParentWidth == this.measuredWidth &&
-        correctParentHeight == this.measuredHeight
-      ) return
-
-      this.measure(correctParentWidth, correctParentHeight);
-      this.layout(
-        layout.x.toInt(), layout.y.toInt(),
-        layout.x.toInt() + correctParentWidth, layout.y.toInt() + correctParentHeight
-      );
+      if (layout.height == 0f) {
+        bottom += lt.height
+      }
     }
+    val correctParentWidth = (right - layout.x).toInt()
+    val correctParentHeight = (bottom - layout.y).toInt()
+    // If parent measured dim is same as parent layout dim, we can return safely.
+    if (this.measuredWidth != 0 &&
+      this.measuredHeight != 0 &&
+      correctParentWidth == this.measuredWidth &&
+      correctParentHeight == this.measuredHeight
+    ) return
+
+    this.measure(
+      MeasureSpec.makeMeasureSpec(correctParentWidth, MeasureSpec.EXACTLY),
+      MeasureSpec.makeMeasureSpec(correctParentHeight, MeasureSpec.EXACTLY)
+    )
+
+    this.layout(
+      layout.x.toInt(), layout.y.toInt(),
+      layout.x.toInt() + correctParentWidth, layout.y.toInt() + correctParentHeight
+    );
+  }
 
   private fun applyLayoutRecursive(node: Node, xOffset: Float, yOffset: Float) {
     val view = node.data as? android.view.View
