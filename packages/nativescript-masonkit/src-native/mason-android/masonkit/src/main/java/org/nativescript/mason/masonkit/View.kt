@@ -281,6 +281,17 @@ class View @JvmOverloads constructor(
     shouldEnsureLayout = true;
   }
 
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    if (this.parent !is View) {
+      this.node.dirty();
+      this.node.computeMaxContent();
+      val layout = this.node.layout();
+      this.layoutParams.width = if (layout.width.isNaN()) 0 else layout.width.toInt();
+      this.layoutParams.height = if (layout.height.isNaN()) 0 else layout.height.toInt();
+    }
+  }
+
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     if (parent !is View) {
       createLayout(
@@ -353,7 +364,7 @@ class View @JvmOverloads constructor(
     setMeasuredDimension(
       width,
       height
-    )
+      )
   }
 
   override fun addView(child: android.view.View, index: Int, params: ViewGroup.LayoutParams) {
