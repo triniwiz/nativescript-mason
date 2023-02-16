@@ -55,7 +55,7 @@ class Node private constructor(private var nativePtr: Long) {
     }
 
     this.children.addAll(children)
-
+    
     this.style = style
   }
 

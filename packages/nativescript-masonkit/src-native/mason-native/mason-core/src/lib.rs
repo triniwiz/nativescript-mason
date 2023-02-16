@@ -306,9 +306,19 @@ impl Mason {
     }
 
     pub fn compute_wh(&mut self, node: Node, width: f32, height: f32) {
+        let min_size = Size::<AvailableSpace>::min_content();
+        let max_size = Size::<AvailableSpace>::max_content();
         let size = taffy::geometry::Size {
-            width: AvailableSpace::Definite(width),
-            height: AvailableSpace::Definite(height),
+            width: match width {
+                x if x == -1.0 => min_size.size.width,
+                x if x == -2.0 => max_size.size.width,
+                _ => AvailableSpace::Definite(width)
+            },
+            height: match height {
+                x if x == -1.0 => min_size.size.height,
+                x if x == -2.0 => max_size.size.height,
+                _ => AvailableSpace::Definite(height)
+            }
         };
         let _ = self.taffy.compute_layout(node.node, size);
     }

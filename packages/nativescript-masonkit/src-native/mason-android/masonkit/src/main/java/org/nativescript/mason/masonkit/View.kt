@@ -294,10 +294,39 @@ class View @JvmOverloads constructor(
     }
 
     val layout = if (parent !is View) {
-      if (node.style.size.height is Dimension.Auto || node.style.size.width is Dimension.Auto) {
+      val mason_height = node.style.size.height
+      val mason_width = node.style.size.width
+
+      if (mason_width is Dimension.Auto && mason_height is Dimension.Auto) {
         node.computeMaxContent()
       } else {
-        node.computeAndLayout(specWidth.toFloat(), specHeight.toFloat())
+        var width = 0.0f;
+        var height = 0.0f;
+
+        when(mason_width) {
+          is Dimension.Percent -> {
+            width = mason_width.value * (parent as android.view.View).measuredWidth
+          }
+          is Dimension.Auto -> {
+              width = -2.0f
+          }
+          is Dimension.Points -> {
+            width = specWidth.toFloat();
+          }
+        }
+
+        when(mason_height) {
+          is Dimension.Percent -> {
+            height = mason_height.value * (parent as android.view.View).measuredHeight
+          }
+          is Dimension.Auto -> {
+            height = -2.0f
+          }
+          is Dimension.Points -> {
+            height = specHeight.toFloat();
+          }
+        }
+        node.compute(width,height);
       }
       node.layout()
     } else {
