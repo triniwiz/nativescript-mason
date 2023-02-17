@@ -9,8 +9,11 @@ import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import org.nativescript.mason.masondemo.databinding.ActivityListBinding
+import org.nativescript.mason.masondemo.databinding.ListItemBinding
 
 class ListActivity : AppCompatActivity() {
+  lateinit var binding: ActivityListBinding
   val array = ArrayList<String>()
   lateinit var adapter: CustomAdapter
 
@@ -18,25 +21,27 @@ class ListActivity : AppCompatActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_list)
+    binding = ActivityListBinding.inflate(layoutInflater)
+    setContentView(binding.root)
 
 
-    adapter = CustomAdapter(array, resources.displayMetrics.density)
-    recyclerView = findViewById(R.id.recyclerView)
-
-    repeat(1000) {
+    repeat(5) {
       array.add("https://robohash.org/${it + 1}?set=set4")
     }
 
-    recyclerView.adapter = adapter
+    adapter = CustomAdapter(array, resources.displayMetrics.density)
 
-    recyclerView.layoutManager = LinearLayoutManager(this)
+    binding.recyclerView.adapter = adapter
+
+    binding.recyclerView.layoutManager = LinearLayoutManager(this).apply {
+      orientation = LinearLayoutManager.VERTICAL
+    }
 
   }
 
   class CustomAdapter(private val dataSet: ArrayList<String>, val scale: Float) :
     RecyclerView.Adapter<CustomAdapter.ViewHolder>() {
-
+    lateinit var binding: ListItemBinding
     class ViewHolder(view: android.view.View) : RecyclerView.ViewHolder(view) {
       val textView: TextView
       val imageView: ImageView
@@ -48,10 +53,9 @@ class ListActivity : AppCompatActivity() {
     }
 
     override fun onCreateViewHolder(viewGroup: ViewGroup, viewType: Int): ViewHolder {
-      val view = LayoutInflater.from(viewGroup.context)
-        .inflate(R.layout.list_item, viewGroup, false)
+      binding = ListItemBinding.inflate(LayoutInflater.from(viewGroup.context))
 
-      return ViewHolder(view)
+      return ViewHolder(binding.root)
     }
 
     override fun onBindViewHolder(viewHolder: ViewHolder, position: Int) {

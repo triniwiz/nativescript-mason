@@ -6,7 +6,7 @@
   android:layout_height="match_parent"
   tools:context=".AbsoluteActivity">
 
-  <!--
+
   <TextView
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -43,7 +43,7 @@
     mason:mason_insetBottom="0dp"
     mason:mason_insetLeft="0dp"
     mason:mason_position="absolute" />
--->
+
 
   <TextView
     android:layout_width="wrap_content"

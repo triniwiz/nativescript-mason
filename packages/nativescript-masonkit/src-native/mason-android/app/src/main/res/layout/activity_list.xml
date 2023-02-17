@@ -10,6 +10,10 @@
     android:id="@+id/recyclerView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal" />
+    android:orientation="horizontal"
+    mason:layout_constraintBottom_toBottomOf="parent"
+    mason:layout_constraintEnd_toEndOf="parent"
+    mason:layout_constraintStart_toStartOf="parent"
+    mason:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

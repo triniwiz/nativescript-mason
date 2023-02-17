@@ -132,14 +132,51 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         } while i < 1000
         
         
-        //testLayout()
+        testLayout()
         
         // showFlexExample()
         
-         showGridExample()
-        //  animationExample()
+    // showGridExample()
+         // animationExample()
         
         //wrapper6()
+        
+       // imageExample()
+    }
+    
+    func imageExample(){
+        view.subviews.forEach { view in
+            view.removeFromSuperview()
+        }
+        
+        view.mason.isEnabled = true
+        
+        
+        let image = UIImageView(frame: .zero)
+        image.mason.isEnabled = true
+        image.mason.style.sizeCompatWidth = MasonDimensionCompat(percent: 1)
+        
+        
+        DispatchQueue.global().async { [self] in
+            do {
+                let data = try Data(contentsOf: URL(string: "https://picsum.photos/600/600")!)
+                
+                let side = CGFloat(500 / scale)
+                
+                let img = resizeImage(UIImage(data: data)!, CGSize(width: side, height: side))
+                
+                DispatchQueue.main.async {
+                    image.image = img
+                    self.view.mason.computeWithMaxContent()
+                }
+            }catch{
+                print(error)
+            }
+        }
+        
+ 
+        
+        view.addSubview(image)
     }
     
     func createParentWith2Kids(_ kidAText: String, _ kidBText: String) -> UIView {

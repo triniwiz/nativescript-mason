@@ -184,7 +184,7 @@ if (global.isAndroid) {
     __non_webpack_require__('system_lib://libmasonnativev8.so');
     // JSIEnabled = true;
   } catch (error) {
-    console.warn('Failed to enable on FastAPI', error);
+    console.warn('Failed to enable on FastAPI');
   }
 }
 
@@ -197,7 +197,7 @@ if (global.isIOS) {
       // module.install()
       // JSIEnabled = true;
     } catch (error) {
-      console.warn('Failed to enable on FastAPI', error);
+      console.warn('Failed to enable on FastAPI');
     }
   }
 }

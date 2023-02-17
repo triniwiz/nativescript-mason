@@ -15,12 +15,15 @@ class ImageActivity : AppCompatActivity() {
     super.onCreate(savedInstanceState)
     binding = ActivityImageBinding.inflate(layoutInflater)
     setContentView(binding.root)
-
+    val activity = this
     Timer().schedule(
       5000
     ) {
 
       runOnUiThread {
+        if (activity.isDestroyed) {
+          return@runOnUiThread
+        }
         Glide.with(binding.imageView)
           .load(
             Uri.parse(

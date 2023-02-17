@@ -50,7 +50,7 @@ public class MasonNode: NSObject {
                 isUIView = false
                 return
             }
-           isUIView = data.isMember(of: UIView.self)
+            isUIView = data.isMember(of: UIView.self)
         }
     }
     public internal (set) var owner: MasonNode? = nil
@@ -109,7 +109,7 @@ public class MasonNode: NSObject {
         mason_node_destroy(nativePtr)
     }
     
-
+    
     
     static func to_vec_non_repeated_track_sizing_function(_ array: Array<MinMax>) -> CMasonNonRepeatedTrackSizingFunctionArray {
         let length = array.count
@@ -152,7 +152,7 @@ public class MasonNode: NSObject {
             gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRowsBuffer in
                 
                 var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray()
-            
+                
                 if(gridAutoRowsCount > 0){
                     gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRowsBuffer.baseAddress, length: gridAutoRowsCount)
                 }
@@ -167,7 +167,7 @@ public class MasonNode: NSObject {
                     }
                     
                     
-
+                    
                     gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRowsBuffer in
                         
                         var gridTemplateRows = CMasonTrackSizingFunctionArray()
@@ -177,7 +177,7 @@ public class MasonNode: NSObject {
                         }
                         
                         
-                
+                        
                         gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumnsBuffer in
                             
                             var gridTemplateColumns = CMasonTrackSizingFunctionArray()
@@ -461,7 +461,7 @@ public class MasonNode: NSObject {
                     }
                 }
             }
-           
+            
             
         }else {
             
@@ -647,10 +647,14 @@ public class MasonNode: NSObject {
         getRoot()?.computeWithViewSize()
     }
     
+    public func rootComputeWithViewSize(layout: Bool){
+        getRoot()?.computeWithViewSize(layout: layout)
+    }
+    
     public func rootComputeWithMaxContent(){
         getRoot()?.computeWithMaxContent()
     }
-        
+    
     public func compute() {
         mason_node_compute(TSCMason.instance.nativePtr, nativePtr)
     }
@@ -658,7 +662,7 @@ public class MasonNode: NSObject {
     public func compute(_ width: Float, _ height: Float) {
         mason_node_compute_wh(TSCMason.instance.nativePtr, nativePtr, width, height)
     }
-        
+    
     public func computeMaxContent() {
         mason_node_compute_max_content(TSCMason.instance.nativePtr, nativePtr)
     }
@@ -675,11 +679,18 @@ public class MasonNode: NSObject {
     }
     
     public func computeWithViewSize(){
+        computeWithViewSize(layout: false)
+    }
+    
+    public func computeWithViewSize(layout: Bool){
         guard let view = data as? UIView else{return}
         MasonNode.attachNodesFromView(view)
         compute(Float(view.frame.size.width) * TSCMason.scale, Float(view.frame.size.height) * TSCMason.scale)
-        MasonNode.applyToView(view)
+        if(layout){
+            MasonNode.applyToView(view)
+        }
     }
+    
     
     public func computeWithMaxContent(){
         guard let view = data as? UIView else{return}
@@ -935,45 +946,87 @@ public class MasonNode: NSObject {
             return
         }
         
-        let layout = mason.layout()
+        var layout = mason.layout()
         
-        let widthIsNan = layout.width.isNaN
+        var widthIsNan = layout.width.isNaN
         
-        let heightIsNan = layout.height.isNaN
+        var heightIsNan = layout.height.isNaN
+        
+        let widthIsZero = mason.style.size.width.isZero
+        
+        let heightIsZero = mason.style.size.height.isZero
+        
+        var width = CGFloat(layout.width.isNaN ? 0 : layout.width/TSCMason.scale)
+        
+        var height = CGFloat(layout.height.isNaN ? 0 : layout.height/TSCMason.scale)
+        
+        var hasPercentDimensions = false
+        
+        if (width.isZero && !widthIsZero) {
+            switch(mason.style.size.width){
+            case .Auto:
+                widthIsNan = true
+            case .Percent(_):
+                hasPercentDimensions = true
+            default:
+                break
+            }
+        }
+        
+        
+        if (height.isZero && !heightIsZero) {
+            switch(mason.style.size.height){
+            case .Auto:
+                heightIsNan = true
+            case .Percent(_):
+                hasPercentDimensions = true
+            default:
+                break
+            }
+        }
+        
+        if (hasPercentDimensions) {
+            mason.owner?.markDirty()
+            mason.markDirty()
+            mason.rootComputeWithViewSize()
+            layout = mason.layout()
+            widthIsNan = layout.width.isNaN
+            heightIsNan = layout.height.isNaN
+        }
+        
+        
+        width = CGFloat(layout.width.isNaN ? 0 : layout.width/TSCMason.scale)
+        
+        height = CGFloat(layout.height.isNaN ? 0 : layout.height/TSCMason.scale)
+        
+        if (widthIsZero) {
+            width = 0
+            widthIsNan = false
+        }
+        
+        if (heightIsZero) {
+            height = 0
+            heightIsNan = false
+        }
+        
+        
+        if (widthIsNan || heightIsNan) {
+            let fit = view.sizeThatFits(CGSizeMake(.greatestFiniteMagnitude, .greatestFiniteMagnitude))
+            width = fit.width
+            height = fit.height
+        }
+        
         
         let x = CGFloat(layout.x.isNaN ? 0 : layout.x/TSCMason.scale)
         
         let y = CGFloat(layout.y.isNaN ? 0 : layout.y/TSCMason.scale)
-    
-        var width: CGFloat = 0
-    
         
-        if((widthIsNan || layout.width == 0) && mason.style.size.width.type == MasonDimensionCompatType.Percent.rawValue){
-            width = (view.superview?.bounds.width ?? 0) * CGFloat(mason.style.size.width.value)
-        }else if(widthIsNan && mason.style.size.width.type == MasonDimensionCompatType.Points.rawValue){
-            width = CGFloat(mason.style.size.width.value/TSCMason.scale)
-        }else {
-            width = CGFloat(widthIsNan ? 0 : layout.width/TSCMason.scale)
-        }
-        
-        var height: CGFloat = 0
-        
-     
-        if((heightIsNan || layout.height == 0)  && mason.style.size.height.type == MasonDimensionCompatType.Percent.rawValue){
-            height = (view.superview?.bounds.height ?? 0) * CGFloat(mason.style.size.height.value)
-        }else if(heightIsNan  && mason.style.size.height.type == MasonDimensionCompatType.Points.rawValue){
-            height = CGFloat(mason.style.size.height.value/TSCMason.scale)
-        }else {
-            height = CGFloat(heightIsNan ? 0 : layout.height/TSCMason.scale)
-        }
-        
-     
         let point = CGPoint(x: x, y: y)
         
         let size = CGSizeMake(width, height)
-  
+        
         view.frame = CGRect(origin: point, size: size)
-    
+        
         if (!mason.isLeaf) {
             view.subviews.forEach { subview in
                 MasonNode.applyToView(subview)
@@ -988,11 +1041,11 @@ public class MasonNode: NSObject {
     }
     
     static func measureFunction(_ view: UIView, _ knownDimensions: CGSize?,_ availableSpace: CGSize) -> CGSize {
-        
+    
         let node = view.mason
-        
-        let widthIsNan = knownDimensions?.width.isNaN ?? true
-        let heightIsNan = knownDimensions?.height.isNaN ?? true
+                
+        var widthIsNan = knownDimensions?.width.isNaN ?? true
+        var heightIsNan = knownDimensions?.height.isNaN ?? true
         
         if(!widthIsNan && !heightIsNan){
             return knownDimensions!
@@ -1003,38 +1056,94 @@ public class MasonNode: NSObject {
         let scale = CGFloat(TSCMason.scale)
         
         
-        var widthCalculated = false
-        var heightCalculated = false
-
+        let widthIsZero = node.style.size.width.isZero
+        let heightIsZero = node.style.size.height.isZero
         
-        if (widthIsNan) {
-            if (node.style.size.width.type == MasonDimensionCompatType.Points.rawValue) {
-                size.width = CGFloat(node.style.size.width.value)
-               widthCalculated = true
-             }
-           }
+        
+        if(widthIsZero && heightIsZero){
+            return size
+        }
+        
 
-           if (heightIsNan) {
-             if (node.style.size.height.type == MasonDimensionCompatType.Points.rawValue) {
-                 size.height = CGFloat(node.style.size.height.value)
-               heightCalculated = true
-             }
-           }
-
-           if (widthCalculated && heightCalculated) {
-               return size
-           }
+        if (widthIsNan || knownDimensions!.width.isZero && !widthIsZero) {
+            switch(node.style.size.width){
+            case .Points(let value):
+                size.width = CGFloat(value)
+                if(!size.width.isNaN){
+                    widthIsNan = false
+                }
+            case .Percent(let value):
+                let parentView = node.owner?.data as? UIView
+                if(parentView != nil){
+                    size.width = (parentView!.frame.size.width.isNaN ? 0 : parentView!.frame.size.width * CGFloat(value)) * scale
+                    widthIsNan = false
+                }else {
+                    let root = view.rootView
+                    if(root != nil){
+                        size.width = (root!.frame.size.width.isNaN ? 0 : root!.frame.size.width * CGFloat(value)) * scale
+                        widthIsNan = false
+                    }
+                }
+                if(size.width.isNaN || size.width.isZero){
+                    let parentLayout = node.owner?.layout()
+                    if(parentLayout != nil){
+                        size.width = CGFloat(parentLayout?.width.isNaN ?? true ? 0 : parentLayout!.width * value)  * scale
+                        widthIsNan = false
+                    }
+                }
+            default:
+                // noop
+                break
+            }
+        }
+        
+        if (heightIsNan || knownDimensions!.height.isZero && !heightIsZero) {
+            switch(node.style.size.height){
+            case .Points(let value):
+                size.height = CGFloat(value)
+                if(!size.height.isNaN){
+                    heightIsNan = false
+                }
+            case .Percent(let value):
+                let parentView = node.owner?.data as? UIView
+                if(parentView != nil){
+                    size.height = (parentView!.frame.size.height.isNaN ? 0 : parentView!.frame.size.height * CGFloat(value)) * scale
+                    heightIsNan = false
+                }else {
+                    let root = view.rootView
+                    if(root != nil){
+                        size.height = (root!.frame.size.height.isNaN ? 0 : root!.frame.size.height * CGFloat(value)) * scale
+                        print(size.height)
+                        heightIsNan = false
+                    }
+                }
+                if(size.height.isNaN || size.height.isZero){
+                    let parentLayout = node.owner?.layout()
+                    if(parentLayout != nil){
+                        size.height = CGFloat(parentLayout?.height.isNaN ?? true ? 0 : parentLayout!.height * value)  * scale
+                        heightIsNan = false
+                    }
+                }
+                
+            default:
+                // noop
+                break
+            }
+        }
+        
+        if(!widthIsNan && !widthIsZero && !heightIsNan && heightIsZero){
+            return size
+        }
         
         
         var widthMode: MeasureMode = .Definite
         var heightMode: MeasureMode = .Definite
         
-       
         
         var widthConstraint: CGFloat = 0
         var heightConstraint: CGFloat = 0
         
-        if(widthIsNan){
+        if(widthIsNan || !widthIsZero){
             if(availableSpace.width == -1){
                 widthMode = .Min
                 widthConstraint = CGFLOAT_MAX
@@ -1047,9 +1156,9 @@ public class MasonNode: NSObject {
         }else {
             widthConstraint = knownDimensions!.width / scale
         }
-
         
-        if(heightIsNan){
+        
+        if(heightIsNan || !heightIsZero){
             if(availableSpace.height == -1){
                 heightMode = .Min
                 heightConstraint = CGFLOAT_MAX
@@ -1062,6 +1171,9 @@ public class MasonNode: NSObject {
         }else {
             heightConstraint = knownDimensions!.height / scale
         }
+        
+    
+        
         
         if(!node.isUIView || view.subviews.count > 0){
             
@@ -1076,7 +1188,7 @@ public class MasonNode: NSObject {
                 size.width = widthConstraint * scale
             }
             
-       
+            
             switch(heightMode){
             case .Min:
                 size.height = .minimum(fits.height, heightConstraint) * scale
@@ -1088,9 +1200,10 @@ public class MasonNode: NSObject {
             
         }
         
+        
         return size
         
     }
-
+    
     
 }

@@ -66,6 +66,14 @@ extension UIView {
     }
     */
     
+    @objc public var rootView: UIView? {
+        var view = self
+           while let s = view.superview {
+               view = s
+           }
+           return view
+    }
+    
     @objc public static func createGridView() -> UIView{
         let view = UIView(frame: .zero)
         view.mason.configure { node in

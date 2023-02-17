@@ -128,6 +128,19 @@ public enum MasonDimension: Codable {
     case Points(Float)
     case Percent(Float)
     
+    internal var isZero: Bool {
+        get {
+            switch(self){
+            case .Auto:
+                return false
+            case .Points(let value):
+                return value <= 0
+            case .Percent(let value):
+                return value <= 0
+            }
+        }
+    }
+    
     internal var type: Int32 {
         get {
             switch (self) {

@@ -1,5 +1,16 @@
-import { CSSType, Utils, View, ViewBase } from '@nativescript/core';
+import { CoreTypes, CSSType, Screen, Utils, View, ViewBase } from '@nativescript/core';
 import { TSCViewBase } from './common';
+
+function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit, parent = 0) {
+  switch (length.unit) {
+    case '%':
+      return length.value * parent;
+    case 'dip':
+      return Utils.layout.toDevicePixels(length.value);
+    case 'px':
+      return length.value;
+  }
+}
 
 export class TSCView extends TSCViewBase {
   __masonStylePtr = 0;
@@ -63,20 +74,57 @@ export class TSCView extends TSCViewBase {
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this.nativeView;
     if (nativeView) {
-      const width = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
-      const height = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
-
-      if (!(this as any)._masonParent) {
-        this.ios.setSize(width, height);
-      }
+      const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
+      const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
+      // if (!(this as any)._masonParent) {
+      //   const widthAuto = this.width !== 'auto';
+      //   const heightAuto = this.height !== 'auto';
+      //   // if (width && ) {
+      //   //   this.ios.setSizeWidth()
+      //   //   this.ios.setSize(width, height);
+      //   // }
+      // }
 
       if (!this._isMasonChild) {
         // only call compute on the parent
-        this.ios.mason.computeWithMaxContent();
+
+        if (this.width === 'auto' && this.height === 'auto') {
+          this.ios.mason.computeWithMaxContent();
+        } else {
+          let width;
+          switch (typeof this.width) {
+            case 'object':
+              const parent = this.parent as any;
+              const mw = parent?.getMeasuredWidth?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.width ?? 0) || specWidth;
+              width = parseLength(this.width, mw);
+              break;
+            case 'string':
+              width = -2;
+              break;
+            case 'number':
+              width = Utils.layout.toDevicePixels(this.width);
+              break;
+          }
+
+          let height;
+          switch (typeof this.height) {
+            case 'object':
+              const parent = this.parent as any;
+              const mh = parent?.getMeasuredHeight?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.height ?? 0) || specHeight;
+              height = parseLength(this.height, mh);
+              break;
+            case 'string':
+              height = -2;
+              break;
+            case 'number':
+              height = Utils.layout.toDevicePixels(this.height);
+              break;
+          }
+          this.ios.mason.computeWithSize(width, height);
+        }
       }
 
       const layout = this.ios.mason.layout();
-
       this.setMeasuredDimension(layout.width, layout.height);
     }
   }

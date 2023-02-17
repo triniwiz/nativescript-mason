@@ -198,8 +198,8 @@ class View @JvmOverloads constructor(
             MeasureSpec.UNSPECIFIED
           )
         )
-        measuredWidth = view.measuredWidth;
-        measuredHeight = view.measuredHeight;
+        measuredWidth = view.measuredWidth
+        measuredHeight = view.measuredHeight
       }
 
 
@@ -294,39 +294,37 @@ class View @JvmOverloads constructor(
     }
 
     val layout = if (parent !is View) {
-      val mason_height = node.style.size.height
-      val mason_width = node.style.size.width
+      val masonHeight = node.style.size.height
+      val masonWidth = node.style.size.width
 
-      if (mason_width is Dimension.Auto && mason_height is Dimension.Auto) {
+      if (masonWidth is Dimension.Auto && masonHeight is Dimension.Auto) {
         node.computeMaxContent()
       } else {
-        var width = 0.0f;
-        var height = 0.0f;
 
-        when(mason_width) {
+        val width: Float = when (masonWidth) {
           is Dimension.Percent -> {
-            width = mason_width.value * (parent as android.view.View).measuredWidth
+            masonWidth.value * (parent as android.view.View).measuredWidth
           }
           is Dimension.Auto -> {
-              width = -2.0f
+            -2.0f
           }
           is Dimension.Points -> {
-            width = specWidth.toFloat();
+            specWidth.toFloat()
           }
         }
 
-        when(mason_height) {
+        val height: Float = when (masonHeight) {
           is Dimension.Percent -> {
-            height = mason_height.value * (parent as android.view.View).measuredHeight
+            masonHeight.value * (parent as android.view.View).measuredHeight
           }
           is Dimension.Auto -> {
-            height = -2.0f
+            -2.0f
           }
           is Dimension.Points -> {
-            height = specHeight.toFloat();
+            specHeight.toFloat()
           }
         }
-        node.compute(width,height);
+        node.compute(width, height)
       }
       node.layout()
     } else {
@@ -339,7 +337,7 @@ class View @JvmOverloads constructor(
     setMeasuredDimension(
       width,
       height
-      )
+    )
   }
 
   override fun addView(child: android.view.View, index: Int, params: ViewGroup.LayoutParams) {

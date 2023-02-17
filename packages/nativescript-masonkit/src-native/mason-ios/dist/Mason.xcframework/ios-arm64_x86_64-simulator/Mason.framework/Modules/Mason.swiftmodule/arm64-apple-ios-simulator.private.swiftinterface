@@ -145,6 +145,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public func rootComputeMaxContent()
   @objc public func rootComputeMinContent()
   @objc public func rootComputeWithViewSize()
+  @objc public func rootComputeWithViewSize(layout: Swift.Bool)
   @objc public func rootComputeWithMaxContent()
   @objc public func compute()
   @objc public func compute(_ width: Swift.Float, _ height: Swift.Float)
@@ -152,6 +153,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public func computeMinContent()
   @objc public func computeWithSize(_ width: Swift.Float, _ height: Swift.Float)
   @objc public func computeWithViewSize()
+  @objc public func computeWithViewSize(layout: Swift.Bool)
   @objc public func computeWithMaxContent()
   @objc public func computeWithMinContent()
   @objc public func attachAndApply()
@@ -983,6 +985,9 @@ public enum GridPlacement : Swift.Codable {
   @objc deinit
 }
 extension UIKit.UIView {
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var rootView: UIKit.UIView? {
+    @objc get
+  }
   @objc @_Concurrency.MainActor(unsafe) public static func createGridView() -> UIKit.UIView
   @objc @_Concurrency.MainActor(unsafe) public static func createFlexView() -> UIKit.UIView
   @objc @_Concurrency.MainActor(unsafe) dynamic public var mason: Mason.MasonNode {
