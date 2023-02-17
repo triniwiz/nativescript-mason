@@ -1932,8 +1932,8 @@ class View @JvmOverloads constructor(
           return@let
         }
 
-        if (widthIsNaN || width.equals(0.0f) && !widthIsZero) {
-          when (node.style.size.height) {
+        if (widthIsNaN || (width.equals(0.0f) && !widthIsZero)) {
+          when (node.style.size.width) {
             is Dimension.Points -> {
               retWidth = node.style.size.width.value
               if (!retWidth.isNaN()) widthIsNaN = false
@@ -1950,7 +1950,7 @@ class View @JvmOverloads constructor(
           }
         }
 
-        if (heightIsNaN || height.equals(0.0f) && !heightIsZero) {
+        if (heightIsNaN || (height.equals(0.0f) && !heightIsZero)) {
           when (node.style.size.height) {
             is Dimension.Points -> {
               retHeight = node.style.size.height.value
