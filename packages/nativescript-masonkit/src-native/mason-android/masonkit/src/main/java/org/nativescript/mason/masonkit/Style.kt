@@ -1013,7 +1013,7 @@ class Style internal constructor() {
     }
 
     width?.let {
-      minSize = Size(it, size.height)
+      minSize = Size(it, minSize.height)
     }
   }
 
@@ -1025,8 +1025,9 @@ class Style internal constructor() {
       else -> null
     }
 
+
     height?.let {
-      minSize = Size(size.width, it)
+      minSize = Size(minSize.width, it)
     }
   }
 
@@ -1077,7 +1078,7 @@ class Style internal constructor() {
     }
 
     width?.let {
-      maxSize = Size(it, size.height)
+      maxSize = Size(it, maxSize.height)
     }
   }
 
@@ -1090,7 +1091,7 @@ class Style internal constructor() {
     }
 
     height?.let {
-      maxSize = Size(size.width, it)
+      maxSize = Size(maxSize.width, it)
     }
   }
 
