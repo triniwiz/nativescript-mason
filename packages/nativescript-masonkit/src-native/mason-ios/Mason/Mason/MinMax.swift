@@ -29,7 +29,7 @@ public class MinMax: NSObject, Codable {
     }
     
     public static func Flex(flex: Float) -> MinMax {
-        return MinMax(.Auto, .Flex(flex))
+        return MinMax(.Auto, .Fraction(flex))
     }
     
     public static func FitContent(fit: Float) -> MinMax {
@@ -73,7 +73,7 @@ public class MinMax: NSObject, Codable {
             break
         case 4: max = MaxSizing.Percent(maxValue)
             break
-        case 5 : max = MaxSizing.Flex(maxValue)
+        case 5 : max = MaxSizing.Fraction(maxValue)
             break
         case 6 : max = MaxSizing.FitContent(maxValue)
             break
@@ -141,8 +141,8 @@ public class MinMax: NSObject, Codable {
                 }else {
                     return "minmax(\(self.min.value)%, \(self.max.value))%"
                 }
-            case (.Auto, .Flex):
-                return "flex(\(self.max.value)fr)"
+            case (.Auto, .Fraction):
+                return "\(self.max.value)fr"
             case (.Auto, .FitContent):
                 return "fit-content(\(self.max.value)px)"
             case (.Auto, .FitContentPercent):
@@ -201,13 +201,8 @@ public class MinMax: NSObject, Codable {
                 }else {
                     return nil
                 }
-            }else if(value.starts(with: "flex(")){
-                return .Flex(Float(value
-                    .replacingOccurrences(of: "flex(", with: "")
-                    .replacingOccurrences(of: ")", with: "")
-                    .replacingOccurrences(of: "fr", with: "")
-                    .trimmingCharacters(in: .whitespaces))!
-                )
+            }else if(value.contains("fr")){
+                return .Fraction(Float(value.replacingOccurrences(of: "fr", with: ""))!)
             }else if(value.contains("%")){
                 return .Percent(Float(value.replacingOccurrences(of: "%", with: ""))!)
             }else if(value.contains("px")){
@@ -257,14 +252,10 @@ public class MinMax: NSObject, Codable {
                 }else {
                     // todo throw
                 }
-            }else if(value.starts(with: "flex(")){
+            }else if(value.contains("fr")){
                 self.min.internalType = .Auto
-                self.max.internalType = .Flex
-                self.max.value = Float(value
-                    .replacingOccurrences(of: "flex(", with: "")
-                    .replacingOccurrences(of: ")", with: "")
-                    .replacingOccurrences(of: "fr", with: "")
-                    .trimmingCharacters(in: .whitespaces))!
+                self.max.internalType = .Fraction
+                self.max.value =  Float(value.replacingOccurrences(of: "fr", with: ""))!
             }else if(value.starts(with: "minmax(")) {
                 let split = value
                     .replacingOccurrences(of: "minmax(", with: "")

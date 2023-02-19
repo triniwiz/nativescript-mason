@@ -1031,6 +1031,15 @@ class Style internal constructor() {
     }
   }
 
+
+  fun setMinSizeWidth(value: Dimension) {
+    minSize = Size(value, minSize.height)
+  }
+
+  fun setMinSizeHeight(value: Dimension) {
+    minSize = Size(minSize.width, value)
+  }
+
   var size: Size<Dimension> = autoSize
     set(value) {
       field = value
@@ -1050,6 +1059,10 @@ class Style internal constructor() {
     }
   }
 
+  fun setSizeWidth(value: Dimension) {
+    size = Size(value, size.height)
+  }
+
   fun setSizeHeight(value: Float, type: Int) {
     val height = when (type) {
       0 -> Dimension.Auto
@@ -1061,6 +1074,10 @@ class Style internal constructor() {
     height?.let {
       size = Size(size.width, it)
     }
+  }
+
+  fun setSizeHeight(value: Dimension) {
+    size = Size(size.width, value)
   }
 
   var maxSize: Size<Dimension> = autoSize
@@ -1093,6 +1110,15 @@ class Style internal constructor() {
     height?.let {
       maxSize = Size(maxSize.width, it)
     }
+  }
+
+
+  fun setMaxSizeWidth(value: Dimension) {
+    maxSize = Size(value, maxSize.height)
+  }
+
+  fun setMaxSizeHeight(value: Dimension) {
+    maxSize = Size(maxSize.width, value)
   }
 
   var gap: Size<LengthPercentage> = LengthPercentageZeroSize

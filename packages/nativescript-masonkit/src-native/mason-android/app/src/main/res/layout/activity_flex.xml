@@ -5,17 +5,19 @@
   android:layout_width="match_parent"
   android:layout_height="match_parent"
   android:background="@color/gray"
-  mason:mason_width="100%"
-  mason:mason_height="100%"
   mason:mason_flexDirection="row"
-  mason:mason_justifyContent="center"
-  mason:mason_alignItems="center"
   >
 
-  <TextView
-    android:text="Hello World"
+  <Button
+    android:id="@+id/btn"
+    android:text="Button"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"/>
+
+  <!--<TextView
+    android:text="Hello World"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"/>-->
   <!--
   <org.nativescript.mason.masonkit.View
     android:id="@+id/a"

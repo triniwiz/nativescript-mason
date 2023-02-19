@@ -1404,8 +1404,8 @@
           },
           {
             "kind": "Function",
-            "name": "Flex",
-            "printedName": "Flex(_:)",
+            "name": "Fraction",
+            "printedName": "Fraction(_:)",
             "children": [
               {
                 "kind": "TypeNominal",
@@ -1421,8 +1421,8 @@
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MaxSizing(cm)Flex:",
-            "mangledName": "$s5Mason9MaxSizingC4FlexyACSfFZ",
+            "usr": "c:@M@Mason@objc(cs)MaxSizing(cm)Fraction:",
+            "mangledName": "$s5Mason9MaxSizingC8FractionyACSfFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -31933,35 +31933,35 @@
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 443,
+      "offset": 447,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 1222,
+      "offset": 1234,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 1288,
+      "offset": 1300,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
-      "offset": 1354,
+      "offset": 1366,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "StringLiteral",
-      "offset": 333,
+      "offset": 337,
       "length": 9,
       "value": "\"Mason.MaxSizing\""
     },

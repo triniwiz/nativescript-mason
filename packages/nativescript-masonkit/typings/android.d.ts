@@ -107,6 +107,7 @@ declare module org {
           public static class: java.lang.Class<org.nativescript.mason.masonkit.AvailableSpace>;
           public getValue$masonkit_release(): number;
           public getType$masonkit_release(): number;
+          public static fromTypeValue(param0: number, param1: number): org.nativescript.mason.masonkit.AvailableSpace;
         }
         export module AvailableSpace {
           export class Companion {
@@ -162,6 +163,7 @@ declare module org {
           public getCssValue(): string;
           public updateValue$masonkit_release(param0: number): void;
           public getValue$masonkit_release(): number;
+          public isZero(): boolean;
           public static fromTypeValue(param0: number, param1: number): org.nativescript.mason.masonkit.Dimension;
           public getType$masonkit_release(): number;
           public getJsonValue(): string;
@@ -807,14 +809,14 @@ declare module org {
             public component1(): number;
             public toString(): string;
           }
-          export class Flex extends org.nativescript.mason.masonkit.MaxSizing {
-            public static class: java.lang.Class<org.nativescript.mason.masonkit.MaxSizing.Flex>;
-            public getFlex(): number;
-            public setFlex(param0: number): void;
+          export class Fraction extends org.nativescript.mason.masonkit.MaxSizing {
+            public static class: java.lang.Class<org.nativescript.mason.masonkit.MaxSizing.Fraction>;
             public constructor(param0: number);
             public hashCode(): number;
             public equals(param0: any): boolean;
-            public copy(param0: number): org.nativescript.mason.masonkit.MaxSizing.Flex;
+            public copy(param0: number): org.nativescript.mason.masonkit.MaxSizing.Fraction;
+            public setFraction(param0: number): void;
+            public getFraction(): number;
             public component1(): number;
             public toString(): string;
           }
@@ -948,14 +950,14 @@ declare module org {
             public getPercent(): number;
             public toString(): string;
           }
-          export class Flex extends org.nativescript.mason.masonkit.MinMax {
-            public static class: java.lang.Class<org.nativescript.mason.masonkit.MinMax.Flex>;
-            public getFlex(): number;
-            public copy(param0: number): org.nativescript.mason.masonkit.MinMax.Flex;
-            public setFlex(param0: number): void;
+          export class Fraction extends org.nativescript.mason.masonkit.MinMax {
+            public static class: java.lang.Class<org.nativescript.mason.masonkit.MinMax.Fraction>;
+            public copy(param0: number): org.nativescript.mason.masonkit.MinMax.Fraction;
             public constructor(param0: number);
             public hashCode(): number;
             public equals(param0: any): boolean;
+            public setFraction(param0: number): void;
+            public getFraction(): number;
             public component1(): number;
             public toString(): string;
           }
@@ -1166,6 +1168,7 @@ declare module org {
           public getGridRowStart(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridPlacement;
           public getGridAutoColumns(param0: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.MinMax>;
           public setPaddingBottom(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setMinSizeHeight(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension): void;
           public setJustifyItems(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.JustifyItems): void;
           public getBorderLeft(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
           public getInsetJsonValue(param0: org.nativescript.mason.masonkit.Node): string;
@@ -1212,6 +1215,7 @@ declare module org {
           public getGridTemplateColumns(param0: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
           public getMinSizeCssValue(param0: org.nativescript.mason.masonkit.Node): string;
           public setMaxSize(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension, param2: org.nativescript.mason.masonkit.Dimension): void;
+          public setMaxSizeHeight(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension): void;
           public getMaxSizeHeight(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
           public getAlignContent(param0: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.AlignContent;
           public setPadding(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.LengthPercentage, param2: org.nativescript.mason.masonkit.LengthPercentage, param3: org.nativescript.mason.masonkit.LengthPercentage, param4: org.nativescript.mason.masonkit.LengthPercentage): void;
@@ -1267,6 +1271,7 @@ declare module org {
           public setBorder(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number, param5: number, param6: number, param7: number, param8: number): void;
           public setAlignItems(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.AlignItems): void;
           public setMarginTop(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setMinSizeWidth(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension): void;
           public setSize(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
           public setFlexDirection(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.FlexDirection): void;
           public setGridTemplateRows(param0: org.nativescript.mason.masonkit.Node, param1: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
@@ -1280,7 +1285,9 @@ declare module org {
           public setDirection(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Direction): void;
           public setMargin(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
           public setPaddingRight(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
+          public setSizeWidth(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension): void;
           public setMaxSize(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number, param3: number, param4: number): void;
+          public setMaxSizeWidth(param0: org.nativescript.mason.masonkit.Node, param1: org.nativescript.mason.masonkit.Dimension): void;
           public configure(param0: org.nativescript.mason.masonkit.Node, param1: kotlin.jvm.functions.Function1<org.nativescript.mason.masonkit.Node, kotlin.Unit>): void;
           public setMarginLeft(param0: org.nativescript.mason.masonkit.Node, param1: number, param2: number): void;
           public getAspectRatio(param0: org.nativescript.mason.masonkit.Node): java.lang.Float;
@@ -1416,6 +1423,7 @@ declare module org {
           public setMaxSizeHeight(param0: number, param1: number): void;
           public getPosition(): org.nativescript.mason.masonkit.Position;
           public getFlexBasis(): org.nativescript.mason.masonkit.Dimension;
+          public setSizeHeight(param0: org.nativescript.mason.masonkit.Dimension): void;
           public setMinSizeHeight(param0: number, param1: number): void;
           public getJustifySelf(): org.nativescript.mason.masonkit.JustifySelf;
           public setBorderRight(param0: number, param1: number): void;
@@ -1426,6 +1434,7 @@ declare module org {
           public setGridAutoFlow(param0: org.nativescript.mason.masonkit.GridAutoFlow): void;
           public setBorderBottom(param0: number, param1: number): void;
           public setDirection(param0: org.nativescript.mason.masonkit.Direction): void;
+          public setMinSizeWidth(param0: org.nativescript.mason.masonkit.Dimension): void;
           public getOverflow(): org.nativescript.mason.masonkit.Overflow;
           public getInset(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>;
           public setMargin(param0: org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>): void;
@@ -1439,6 +1448,7 @@ declare module org {
           public setPaddingLeft(param0: number, param1: number): void;
           public setPaddingBottom(param0: number, param1: number): void;
           public setGridTemplateRows(param0: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
+          public setMaxSizeWidth(param0: org.nativescript.mason.masonkit.Dimension): void;
           public isDirty$masonkit_release(): boolean;
           public setGridRowStart(param0: org.nativescript.mason.masonkit.GridPlacement): void;
           public getFlexWrap(): org.nativescript.mason.masonkit.FlexWrap;
@@ -1447,6 +1457,7 @@ declare module org {
           public setInsetTop(param0: number, param1: number): void;
           public setAlignContent(param0: org.nativescript.mason.masonkit.AlignContent): void;
           public setOverflow(param0: org.nativescript.mason.masonkit.Overflow): void;
+          public setMinSizeHeight(param0: org.nativescript.mason.masonkit.Dimension): void;
           public getAlignContent(): org.nativescript.mason.masonkit.AlignContent;
           public setMaxSize(param0: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>): void;
           public getPadding(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
@@ -1474,6 +1485,7 @@ declare module org {
           public getGridColumn(): org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>;
           public setFlexShrink(param0: number): void;
           public setFlexBasis(param0: number, param1: number): void;
+          public setMaxSizeHeight(param0: org.nativescript.mason.masonkit.Dimension): void;
           public setBorderWithValueType(param0: number, param1: number): void;
           public getDisplay(): org.nativescript.mason.masonkit.Display;
           public getMinSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
@@ -1488,6 +1500,7 @@ declare module org {
           public setInsetBottom(param0: number, param1: number): void;
           public setGapRow(param0: number, param1: number): void;
           public setGridRowEnd(param0: org.nativescript.mason.masonkit.GridPlacement): void;
+          public setSizeWidth(param0: org.nativescript.mason.masonkit.Dimension): void;
           public setFlexWrap(param0: org.nativescript.mason.masonkit.FlexWrap): void;
           public setGap(param0: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.LengthPercentage>): void;
           public setMinSize(param0: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>): void;

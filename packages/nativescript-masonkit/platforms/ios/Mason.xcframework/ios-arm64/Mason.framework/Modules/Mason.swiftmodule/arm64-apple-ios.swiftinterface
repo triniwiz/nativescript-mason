@@ -62,7 +62,7 @@ public struct Line<T> {
   @objc public static func Percent(_ percent: Swift.Float) -> Mason.MaxSizing
   @objc public static func FitContent(_ fit: Swift.Float) -> Mason.MaxSizing
   @objc public static func FitContentPercent(_ fit: Swift.Float) -> Mason.MaxSizing
-  @objc public static func Flex(_ flex: Swift.Float) -> Mason.MaxSizing
+  @objc public static func Fraction(_ flex: Swift.Float) -> Mason.MaxSizing
   @objc public static let Auto: Mason.MaxSizing
   @objc public static let MinContent: Mason.MaxSizing
   @objc public static let MaxContent: Mason.MaxSizing

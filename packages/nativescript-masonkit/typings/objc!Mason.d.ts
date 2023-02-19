@@ -549,6 +549,8 @@ declare class MasonNode extends NSObject {
 
   computeWithViewSize(): void;
 
+  computeWithViewSizeWithLayout(layout: boolean): void;
+
   configure(block: (p1: MasonNode) => void): void;
 
   getRoot(): MasonNode;
@@ -570,6 +572,8 @@ declare class MasonNode extends NSObject {
   rootComputeWithMaxContent(): void;
 
   rootComputeWithViewSize(): void;
+
+  rootComputeWithViewSizeWithLayout(layout: boolean): void;
 
   setChildrenWithChildren(children: NSArray<MasonNode> | MasonNode[]): void;
 
@@ -963,7 +967,7 @@ declare class MaxSizing extends NSObject {
 
   static FitContentPercent(fit: number): MaxSizing;
 
-  static Flex(flex: number): MaxSizing;
+  static Fraction(flex: number): MaxSizing;
 
   static Percent(percent: number): MaxSizing;
 

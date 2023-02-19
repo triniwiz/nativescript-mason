@@ -807,7 +807,7 @@ SWIFT_CLASS_NAMED("MaxSizing")
 + (MaxSizing * _Nonnull)Percent:(float)percent SWIFT_WARN_UNUSED_RESULT;
 + (MaxSizing * _Nonnull)FitContent:(float)fit SWIFT_WARN_UNUSED_RESULT;
 + (MaxSizing * _Nonnull)FitContentPercent:(float)fit SWIFT_WARN_UNUSED_RESULT;
-+ (MaxSizing * _Nonnull)Flex:(float)flex SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)Fraction:(float)flex SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull Auto;)
 + (MaxSizing * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull MinContent;)
@@ -1828,7 +1828,7 @@ SWIFT_CLASS_NAMED("MaxSizing")
 + (MaxSizing * _Nonnull)Percent:(float)percent SWIFT_WARN_UNUSED_RESULT;
 + (MaxSizing * _Nonnull)FitContent:(float)fit SWIFT_WARN_UNUSED_RESULT;
 + (MaxSizing * _Nonnull)FitContentPercent:(float)fit SWIFT_WARN_UNUSED_RESULT;
-+ (MaxSizing * _Nonnull)Flex:(float)flex SWIFT_WARN_UNUSED_RESULT;
++ (MaxSizing * _Nonnull)Fraction:(float)flex SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull Auto;)
 + (MaxSizing * _Nonnull)Auto SWIFT_WARN_UNUSED_RESULT;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MaxSizing * _Nonnull MinContent;)

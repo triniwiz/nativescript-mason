@@ -605,6 +605,18 @@ object NodeHelper {
     checkAndUpdateStyle(node)
   }
 
+
+  fun setMinSizeWidth(node: Node, value: Dimension) {
+    node.style.setMinSizeWidth(value)
+    checkAndUpdateStyle(node)
+  }
+
+  fun setMinSizeHeight(node: Node, value: Dimension) {
+    node.style.setMinSizeHeight(value)
+    checkAndUpdateStyle(node)
+  }
+
+
   fun setMinSizeWidth(node: Node, value: Float, type: Int) {
     node.style.setMinSizeWidth(value, type)
     checkAndUpdateStyle(node)
@@ -667,6 +679,11 @@ object NodeHelper {
 
   fun setSizeWidth(node: Node, value: Float, type: Int) {
     node.style.setSizeWidth(value, type)
+    checkAndUpdateStyle(node)
+  }
+
+  fun setSizeWidth(node: Node, value: Dimension) {
+    node.style.setSizeWidth(value)
     checkAndUpdateStyle(node)
   }
 
@@ -734,6 +751,17 @@ object NodeHelper {
     node.style.setMaxSizeHeight(value, type)
     checkAndUpdateStyle(node)
   }
+
+  fun setMaxSizeWidth(node: Node, value: Dimension) {
+    node.style.setMaxSizeWidth(value)
+    checkAndUpdateStyle(node)
+  }
+
+  fun setMaxSizeHeight(node: Node, value: Dimension) {
+    node.style.setMaxSizeHeight(value)
+    checkAndUpdateStyle(node)
+  }
+
 
   fun setGap(node: Node, width: Float, height: Float) {
     node.style.gap = Size(

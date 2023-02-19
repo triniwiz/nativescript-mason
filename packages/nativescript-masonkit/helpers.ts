@@ -3263,8 +3263,8 @@ export function _parseMinMaxValue(value: string): MinMaxType {
         max_type: MaxSizingType.MaxContent,
         max_value: 0,
       };
-    } else if (value.startsWith('flex')) {
-      const flex = parseInt(value.replace('flex(', '').replace(')', '').replace('fr', '').trim());
+    } else if (value.indexOf('fr') > -1) {
+      const flex = parseInt(value.replace('fr', '').trim());
       return {
         min_type: MinSizingType.Auto,
         min_value: 0,

@@ -12,8 +12,8 @@ sealed class MinMax(
   data class Percent(var percentage: Float) :
     MinMax(MinSizing.Percent(percentage), MaxSizing.Percent(percentage))
 
-  data class Flex(var flex: Float) :
-    MinMax(MinSizing.Auto, MaxSizing.Flex(flex))
+  data class Fraction(var fraction: Float) :
+    MinMax(MinSizing.Auto, MaxSizing.Fraction(fraction))
 
   data class FitContent(var points: Float) :
     MinMax(MinSizing.Auto, MaxSizing.FitContent(points))
@@ -48,7 +48,7 @@ sealed class MinMax(
         2 -> MaxSizing.MaxContent
         3 -> MaxSizing.Points(maxValue)
         4 -> MaxSizing.Percent(maxValue)
-        5 -> MaxSizing.Flex(maxValue)
+        5 -> MaxSizing.Fraction(maxValue)
         6 -> MaxSizing.FitContent(maxValue)
         7 -> MaxSizing.FitContentPercent(maxValue)
         else -> null
@@ -86,7 +86,7 @@ sealed class MinMax(
     get() {
       return when (this) {
         Auto -> "auto"
-        is Flex -> "flex(${maxValue}fr)"
+        is Fraction -> "${maxValue}fr"
         MaxContent -> "max-content"
         MinContent -> "min-content"
         is Percent -> "${minValue * 100}%"
@@ -100,8 +100,8 @@ sealed class MinMax(
             return "min-content"
           } else if (minVal == MinSizing.MaxContent && maxVal == MaxSizing.MaxContent) {
             return "max-content"
-          } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.Flex) {
-            return "flex(${maxValue}fr)"
+          } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.Fraction) {
+            return "${maxValue}fr"
           } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.FitContent) {
             return "fit-content(${maxValue}px)"
           } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.FitContentPercent) {
@@ -130,7 +130,7 @@ sealed class MinMax(
                 is MaxSizing.Points -> "${maxVal.points}px"
                 is MaxSizing.FitContent -> "fit-content(${maxValue}px)" // should not return type maybe invalid
                 is MaxSizing.FitContentPercent -> "fit-content(${maxValue * 100}%)" // should not return type maybe invalid
-                is MaxSizing.Flex -> "${maxValue}fr"
+                is MaxSizing.Fraction -> "${maxValue}fr"
               }
             })"
           }

@@ -513,8 +513,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
             grid_template_rows,
             grid_template_columns,
         );
-        mason.set_style(*node, *style.clone());
 
+        mason.set_style(*node, *style.clone());
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);

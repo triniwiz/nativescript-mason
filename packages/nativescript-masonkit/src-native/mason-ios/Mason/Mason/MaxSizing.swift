@@ -12,7 +12,7 @@ enum MaxSizingType: Equatable {
     case Percent
     case FitContent
     case FitContentPercent
-    case Flex
+    case Fraction
     case Auto
     case MinContent
     case MaxContent
@@ -47,8 +47,8 @@ public class MaxSizing:NSObject, Codable {
         return MaxSizing(.FitContentPercent, fit)
     }
     
-    public static func Flex(_ flex: Float) -> MaxSizing {
-        return MaxSizing(.Flex, flex)
+    public static func Fraction(_ flex: Float) -> MaxSizing {
+        return MaxSizing(.Fraction, flex)
     }
     
     public static let Auto = MaxSizing(.Auto, 0)
@@ -65,7 +65,7 @@ public class MaxSizing:NSObject, Codable {
             case .MaxContent: return 2
             case .Points: return 3
             case .Percent: return 4
-            case .Flex: return 5
+            case .Fraction: return 5
             case .FitContent: return 6
             case .FitContentPercent: return 7
             }
@@ -79,7 +79,7 @@ public class MaxSizing:NSObject, Codable {
         case 2: return .MaxContent
         case 3: return .Points(value)
         case 4: return .Percent(value)
-        case 5: return .Flex(value)
+        case 5: return .Fraction(value)
         case 6: return .FitContent(value)
         case 7: return .FitContentPercent(value)
         default:
@@ -104,8 +104,8 @@ public class MaxSizing:NSObject, Codable {
                 return "fit-content(\(value)px)"
             case .FitContentPercent:
                 return "fit-content(\(value)%)"
-            case .Flex:
-                return "flex(\(value)fr)"
+            case .Fraction:
+                return "\(value)fr"
             }
         }
     }
@@ -144,13 +144,9 @@ public class MaxSizing:NSObject, Codable {
                     // todo throw
                     throw NSError(domain: "Invalid type", code: 1000)
                 }
-            }else if(value.starts(with: "flex(")){
-                self.internalType = .Flex
-                self.value = Float(value
-                    .replacingOccurrences(of: "flex(", with: "")
-                    .replacingOccurrences(of: ")", with: "")
-                    .replacingOccurrences(of: "fr", with: "")
-                )!
+            }else if(value.contains("fr")){
+                self.internalType = .Fraction
+                self.value = Float(value.replacingOccurrences(of: "fr", with: ""))!
             }else if(value.contains("%")){
                 self.internalType = .Percent
                 self.value = Float(value.replacingOccurrences(of: "%", with: ""))!

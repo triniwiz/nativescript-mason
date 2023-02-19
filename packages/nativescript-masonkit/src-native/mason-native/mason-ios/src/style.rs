@@ -382,7 +382,7 @@ impl From<NonRepeatedTrackSizingFunction> for CMasonMinMax {
                 }
             },
             MaxTrackSizingFunction::Auto => max_type = 0,
-            MaxTrackSizingFunction::Flex(flex) => {
+            MaxTrackSizingFunction::Fraction(flex) => {
                 max_type = 5;
                 max_value = flex;
             }

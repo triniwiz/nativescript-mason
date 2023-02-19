@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.os.Build
+import android.util.Log
 import android.view.ViewGroup
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
@@ -55,7 +56,7 @@ class Node private constructor(private var nativePtr: Long) {
     }
 
     this.children.addAll(children)
-    
+
     this.style = style
   }
 
@@ -182,9 +183,8 @@ class Node private constructor(private var nativePtr: Long) {
         it.requestLayout()
         return
       }
+
       if (!it.isInLayout) {
-        it.requestLayout()
-      } else {
         it.requestLayout()
       }
     }

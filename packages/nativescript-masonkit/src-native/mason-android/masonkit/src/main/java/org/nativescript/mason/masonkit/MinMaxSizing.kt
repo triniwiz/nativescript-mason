@@ -46,7 +46,7 @@ sealed class MaxSizing {
   data class Percent(var percentage: Float) : MaxSizing()
   data class FitContent(var fitContent: Float) : MaxSizing()
   data class FitContentPercent(var fitContent: Float) : MaxSizing()
-  data class Flex(var flex: Float) : MaxSizing()
+  data class Fraction(var fraction: Float) : MaxSizing()
   object Auto : MaxSizing()
   object MinContent : MaxSizing()
   object MaxContent : MaxSizing()
@@ -60,7 +60,7 @@ sealed class MaxSizing {
         2 -> MaxContent
         3 -> Points(value)
         4 -> Percent(value)
-        5 -> Flex(value)
+        5 -> Fraction(value)
         6 -> FitContent(value)
         7 -> FitContentPercent(value)
         else -> null
@@ -75,7 +75,7 @@ sealed class MaxSizing {
       is MaxContent -> 2
       is Points -> 3
       is Percent -> 4
-      is Flex -> 5
+      is Fraction -> 5
       is FitContent -> 6
       is FitContentPercent -> 7
     }
@@ -87,7 +87,7 @@ sealed class MaxSizing {
       is MaxContent -> 0f
       is Percent -> this.percentage
       is Points -> this.points
-      is Flex -> this.flex
+      is Fraction -> this.fraction
       is FitContent -> this.fitContent
       is FitContentPercent -> this.fitContent
     }
