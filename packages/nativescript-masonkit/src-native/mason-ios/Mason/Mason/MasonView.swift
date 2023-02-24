@@ -170,7 +170,7 @@ extension UIView {
         }
     }
     
-    @objc public var position: Position {
+    @objc public var _position: Position {
         get{
             return style.position
         }
