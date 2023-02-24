@@ -41,7 +41,7 @@ interface UIView {
 
   overflow: Overflow;
 
-  position: Position;
+  _position: Position;
 
   gridAutoColumns: NSArray<MinMax>;
 

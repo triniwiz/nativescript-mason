@@ -217,7 +217,7 @@ public class MasonStyle: NSObject {
     }
     
     
-    public var margin =  MasonLengthPercentageAutoRectAuto {
+    public var margin =  MasonLengthPercentageAutoRectZero {
         didSet {
             isDirty = true
         }
