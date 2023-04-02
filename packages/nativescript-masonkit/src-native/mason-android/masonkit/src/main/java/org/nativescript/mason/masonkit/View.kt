@@ -187,21 +187,17 @@ class View @JvmOverloads constructor(
         heightIsNaN = false
       }
 
-
-      if (widthIsNaN || heightIsNaN) {
         view.measure(
           MeasureSpec.makeMeasureSpec(
             measuredWidth,
-            MeasureSpec.UNSPECIFIED
+            MeasureSpec.EXACTLY
           ), MeasureSpec.makeMeasureSpec(
             measuredHeight,
-            MeasureSpec.UNSPECIFIED
+            MeasureSpec.EXACTLY
           )
         )
         measuredWidth = view.measuredWidth;
         measuredHeight = view.measuredHeight;
-      }
-
 
       val left = (xOffset + if (layout.x.isNaN()) 0F else layout.x).roundToInt()
       val top = (yOffset + if (layout.y.isNaN()) 0F else layout.y).roundToInt()
