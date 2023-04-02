@@ -998,38 +998,6 @@ class Style internal constructor() {
     }
   }
 
-  var minSize: Size<Dimension> = autoSize
-    set(value) {
-      field = value
-      isDirty = true
-    }
-
-  fun setMinSizeWidth(value: Float, type: Int) {
-    val width = when (type) {
-      0 -> Dimension.Auto
-      1 -> Dimension.Points(value)
-      2 -> Dimension.Percent(value)
-      else -> null
-    }
-
-    width?.let {
-      minSize = Size(it, size.height)
-    }
-  }
-
-  fun setMinSizeHeight(value: Float, type: Int) {
-    val height = when (type) {
-      0 -> Dimension.Auto
-      1 -> Dimension.Points(value)
-      2 -> Dimension.Percent(value)
-      else -> null
-    }
-
-    height?.let {
-      minSize = Size(size.width, it)
-    }
-  }
-
   var size: Size<Dimension> = autoSize
     set(value) {
       field = value
@@ -1062,6 +1030,38 @@ class Style internal constructor() {
     }
   }
 
+  var minSize: Size<Dimension> = autoSize
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  fun setMinSizeWidth(value: Float, type: Int) {
+    val width = when (type) {
+      0 -> Dimension.Auto
+      1 -> Dimension.Points(value)
+      2 -> Dimension.Percent(value)
+      else -> null
+    }
+
+    width?.let {
+      minSize = Size(it, minSize.height)
+    }
+  }
+
+  fun setMinSizeHeight(value: Float, type: Int) {
+    val height = when (type) {
+      0 -> Dimension.Auto
+      1 -> Dimension.Points(value)
+      2 -> Dimension.Percent(value)
+      else -> null
+    }
+
+    height?.let {
+      minSize = Size(minSize.width, it)
+    }
+  }
+
   var maxSize: Size<Dimension> = autoSize
     set(value) {
       field = value
@@ -1077,7 +1077,7 @@ class Style internal constructor() {
     }
 
     width?.let {
-      maxSize = Size(it, size.height)
+      maxSize = Size(it, maxSize.height)
     }
   }
 
@@ -1090,7 +1090,7 @@ class Style internal constructor() {
     }
 
     height?.let {
-      maxSize = Size(size.width, it)
+      maxSize = Size(maxSize.width, it)
     }
   }
 
