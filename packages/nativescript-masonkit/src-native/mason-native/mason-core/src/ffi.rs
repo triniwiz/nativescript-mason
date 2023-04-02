@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::ffi::c_void;
 
-
 use taffy::prelude::*;
 
 use crate::style::Style;
@@ -1551,7 +1550,7 @@ pub fn parse_non_repeated_track_sizing_function_value<'a>(
             LengthPercentage::Points(value) => format!("fit-content({:.0}px)", value).into(),
             LengthPercentage::Percent(value) => format!("fit-content({:.3}%)", value).into(),
         },
-        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Flex(value)) => {
+        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Fraction(value)) => {
             (value.to_string() + FLEX_UNIT).into()
         }
         (min, max) => {
@@ -1581,7 +1580,7 @@ pub fn parse_non_repeated_track_sizing_function_value<'a>(
                     MaxTrackSizingFunction::MaxContent => MAX_CONTENT,
                     MaxTrackSizingFunction::FitContent(_) => panic!(), // invalid should not hit here
                     MaxTrackSizingFunction::Auto => AUTO,
-                    MaxTrackSizingFunction::Flex(value) => {
+                    MaxTrackSizingFunction::Fraction(value) => {
                         return format!("{}fr", value).into();
                     }
                 })
@@ -1607,9 +1606,7 @@ pub fn parse_track_sizing_function_value(value: &TrackSizingFunction) -> String 
                 GridTrackRepetition::AutoFit => {
                     ret.push_str("auto-fit");
                 }
-                GridTrackRepetition::Count(count) => {
-                    ret.push_str(&format!("{count}"))
-                }
+                GridTrackRepetition::Count(count) => ret.push_str(&format!("{count}")),
             }
 
             for (j, inner_val) in values.iter().enumerate() {

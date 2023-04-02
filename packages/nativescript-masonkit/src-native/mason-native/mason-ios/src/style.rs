@@ -207,7 +207,6 @@ impl From<TrackSizingFunction> for CMasonTrackSizingFunction {
                     }
                 };
 
-
                 CMasonTrackSizingFunction::Repeat(
                     rep,
                     count,
@@ -235,7 +234,7 @@ impl Into<TrackSizingFunction> for CMasonTrackSizingFunction {
                     value.max_value,
                 ))
             }
-            CMasonTrackSizingFunction::Repeat(repetition, count,tracks) => {
+            CMasonTrackSizingFunction::Repeat(repetition, count, tracks) => {
                 TrackSizingFunction::Repeat(
                     match repetition {
                         0 => GridTrackRepetition::AutoFill,
@@ -382,7 +381,7 @@ impl From<NonRepeatedTrackSizingFunction> for CMasonMinMax {
                 }
             },
             MaxTrackSizingFunction::Auto => max_type = 0,
-            MaxTrackSizingFunction::Flex(flex) => {
+            MaxTrackSizingFunction::Fraction(flex) => {
                 max_type = 5;
                 max_value = flex;
             }
@@ -1690,9 +1689,10 @@ pub unsafe fn to_vec_track_sizing_function(
             return vec![];
         }
     }
-    let value: &CMasonTrackSizingFunctionArray = unsafe {&*value};
+    let value: &CMasonTrackSizingFunctionArray = unsafe { &*value };
 
-    let slice: &mut [CMasonTrackSizingFunction] = unsafe { std::slice::from_raw_parts_mut(value.array, value.length) };
+    let slice: &mut [CMasonTrackSizingFunction] =
+        unsafe { std::slice::from_raw_parts_mut(value.array, value.length) };
 
     slice
         .iter()
