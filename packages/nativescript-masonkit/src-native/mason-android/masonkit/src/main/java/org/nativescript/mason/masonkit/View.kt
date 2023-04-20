@@ -111,8 +111,12 @@ class View @JvmOverloads constructor(
   }
 
   fun nodeForView(view: android.view.View): Node {
+    val that = this
     return nodes[view] ?: run {
-      val node = Node().apply { data = view }
+      val node = Node().apply {
+        data = view
+        owner = that.node
+      }
       nodes[view] = node
       node
     }
@@ -274,8 +278,9 @@ class View @JvmOverloads constructor(
       }
 
       node.style.size = Size(width, height)
+
+      checkAndUpdateStyle()
     }
-    checkAndUpdateStyle()
   }
 
   private fun createLayout(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -621,10 +626,10 @@ class View @JvmOverloads constructor(
           marginBottom = points
         }
         R.styleable.mason_mason_maxHeight -> {
-          maxWidth = Dimension.Points(value)
+          maxHeight = Dimension.Points(value)
         }
         R.styleable.mason_mason_maxWidth -> {
-          maxHeight = Dimension.Points(value)
+          maxWidth = Dimension.Points(value)
         }
         R.styleable.mason_mason_minHeight -> {
           minHeight = Dimension.Points(value)
@@ -873,6 +878,78 @@ class View @JvmOverloads constructor(
             insetRight = percent
             insetTop = percent
             insetBottom = percent
+          }
+        }
+      }
+
+      if (value == "0") {
+        when (attribute) {
+          R.styleable.mason_mason_marginLeft -> {
+            marginLeft = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_marginTop -> {
+            marginTop = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_marginRight -> {
+            marginRight = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_marginBottom -> {
+            marginBottom = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_marginStart -> {
+            marginLeft = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_marginEnd -> {
+            marginRight = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_marginAll -> {
+            marginLeft = LengthPercentageAuto.Points(0F)
+            marginRight = LengthPercentageAuto.Points(0F)
+            marginTop = LengthPercentageAuto.Points(0F)
+            marginBottom = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_insetLeft -> {
+            insetLeft = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_insetTop -> {
+            insetTop = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_insetRight -> {
+            insetRight = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_insetBottom -> {
+            insetBottom = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_insetStart -> {
+            insetLeft = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_insetEnd -> {
+            insetRight = LengthPercentageAuto.Points(0F)
+          }
+          R.styleable.mason_mason_insetAll -> {
+            val points = LengthPercentageAuto.Points(0F)
+            insetLeft = points
+            insetRight = points
+            insetBottom = points
+            insetTop = points
+          }
+          R.styleable.mason_mason_height -> {
+            height = Dimension.Points(0F)
+          }
+          R.styleable.mason_mason_width -> {
+            width = Dimension.Points(0F)
+          }
+          R.styleable.mason_mason_maxHeight -> {
+            maxHeight = Dimension.Points(0F)
+          }
+          R.styleable.mason_mason_maxWidth -> {
+            maxWidth = Dimension.Points(0F)
+          }
+          R.styleable.mason_mason_minHeight -> {
+            minHeight = Dimension.Points(0F)
+          }
+          R.styleable.mason_mason_minWidth -> {
+            minWidth = Dimension.Points(0F)
           }
         }
       }
