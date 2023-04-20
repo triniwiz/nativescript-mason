@@ -1644,53 +1644,52 @@ class Style internal constructor() {
 
   override fun toString(): String {
     var ret = "(MasonStyle)("
-
-    ret += "display: ${display.cssValue}, "
-    ret += "position: ${position.cssValue}, "
-    ret += "inset: ${inset.cssValue}, "
-    ret += "flexDirection: ${flexDirection.cssValue}, "
-    ret += "flexWrap: ${flexWrap.cssValue}, "
-    ret += "alignItems: ${alignItems.cssValue}, "
-    ret += "alignSelf: ${alignSelf.cssValue}, "
-    ret += "alignContent: ${alignContent.cssValue}, "
-    ret += "justifyItems: ${justifyItems.cssValue}, "
-    ret += "justifySelf: ${justifySelf.cssValue}, "
-    ret += "justifyContent: ${justifyContent.cssValue}, "
-    ret += "margin: ${margin.cssValue}, "
-    ret += "padding: ${padding.cssValue}, "
-    ret += "border: ${border.cssValue}, "
-    ret += "gap: ${gap.cssValue}, "
-    ret += "flexGrow: ${flexGrow}, "
-    ret += "flexShrink: ${flexShrink}, "
-    ret += "flexBasis: ${flexBasis.cssValue}, "
-    ret += "size: ${size.cssValue}, "
-    ret += "minSize: ${minSize.cssValue}, "
-    ret += "maxSize: ${maxSize.cssValue}, "
+    ret += "display: ${display.cssValue}, \n"
+    ret += "position: ${position.cssValue}, \n"
+    ret += "inset: ${inset.cssValue}, \n"
+    ret += "flexDirection: ${flexDirection.cssValue}, \n"
+    ret += "flexWrap: ${flexWrap.cssValue}, \n"
+    ret += "alignItems: ${alignItems.cssValue}, \n"
+    ret += "alignSelf: ${alignSelf.cssValue}, \n"
+    ret += "alignContent: ${alignContent.cssValue}, \n"
+    ret += "justifyItems: ${justifyItems.cssValue}, \n"
+    ret += "justifySelf: ${justifySelf.cssValue}, \n"
+    ret += "justifyContent: ${justifyContent.cssValue}, \n"
+    ret += "margin: ${margin.cssValue}, \n"
+    ret += "padding: ${padding.cssValue}, \n"
+    ret += "border: ${border.cssValue}, \n"
+    ret += "gap: ${gap.cssValue}, \n"
+    ret += "flexGrow: ${flexGrow}, \n"
+    ret += "flexShrink: ${flexShrink}, \n"
+    ret += "flexBasis: ${flexBasis.cssValue}, \n"
+    ret += "size: ${size.cssValue}, \n"
+    ret += "minSize: ${minSize.cssValue}, \n"
+    ret += "maxSize: ${maxSize.cssValue}, \n"
     ret += "aspectRatio: ${
       if (aspectRatio == null) {
         "undefined"
       } else {
         aspectRatio
       }
-    } ,"
-    ret += "gridAutoRows: ${gridAutoRows.cssValue} ,"
-    ret += "gridAutoColumns: ${gridAutoColumns.cssValue} ,"
+    }, \n"
+    ret += "gridAutoRows: ${gridAutoRows.cssValue}, \n"
+    ret += "gridAutoColumns: ${gridAutoColumns.cssValue}, \n"
     ret += "gridColumn: ${
       if (gridColumn.start == gridColumn.end) {
         gridColumn.start.cssValue
       } else {
         "${gridColumn.start.cssValue} \\ ${gridColumn.end.cssValue}"
       }
-    } ,"
+    }, \n"
     ret += "gridRow: ${
       if (gridRow.start == gridRow.end) {
         gridRow.start.cssValue
       } else {
         "${gridRow.start.cssValue} \\ ${gridRow.end.cssValue}"
       }
-    } ,"
-    ret += "gridTemplateRows: ${gridTemplateRows.cssValue} ,"
-    ret += "gridTemplateColumns: ${gridTemplateColumns.cssValue}"
+    }, \n"
+    ret += "gridTemplateRows: ${gridTemplateRows.cssValue}, \n"
+    ret += "gridTemplateColumns: ${gridTemplateColumns.cssValue} \n"
     ret += ")"
 
     return ret
