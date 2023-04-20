@@ -472,6 +472,10 @@ impl Mason {
         ))
     }
 
+    pub fn needs_measure(&self, node: Node) -> bool{
+        self.taffy.needs_measure(node.node)
+    }
+
     fn copy_output(taffy: &Taffy, node: taffy::node::Node, output: &mut Vec<f32>) {
         let layout = taffy.layout(node).unwrap();
 

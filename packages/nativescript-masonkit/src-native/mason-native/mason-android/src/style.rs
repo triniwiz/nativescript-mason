@@ -1,6 +1,6 @@
-use jni::objects::{JObject, ReleaseMode};
+use jni::objects::{JObject, JObjectArray, JPrimitiveArray, ReleaseMode};
 use jni::signature::ReturnType;
-use jni::sys::{jfloat, jint, jlong, jobjectArray, jshort};
+use jni::sys::{jfloat, jint, jlong, jobject, jobjectArray, jshort};
 use jni::JNIEnv;
 
 use mason_core::style::{min_max_from_values, Style};
@@ -43,52 +43,56 @@ pub(crate) const JAVA_OBJECT_TYPE: ReturnType = ReturnType::Object;
 pub(crate) const JAVA_ARRAY_TYPE: ReturnType = ReturnType::Array;
 
 pub(crate) fn to_vec_non_repeated_track_sizing_function(
-    env: JNIEnv,
+    env: &mut JNIEnv,
     array: jobjectArray,
 ) -> Vec<NonRepeatedTrackSizingFunction> {
-    return if array.is_null() {
-        vec![]
-    } else {
-        let len = env.get_array_length(array).unwrap_or_default();
-        if len == 0 {
-            return vec![];
-        }
+    unsafe {
+        return if array.is_null() {
+            vec![]
+        } else {
+            let array = JObjectArray::from_raw(array);
+            let len = env.get_array_length(&array).unwrap_or_default();
+            if len == 0 {
+                return vec![];
+            }
 
-        let mut ret = Vec::with_capacity(len as usize);
+            let mut ret = Vec::with_capacity(len as usize);
 
-        let min_max = crate::MIN_MAX.get().unwrap();
+            let min_max = crate::MIN_MAX.get().unwrap();
 
-        for i in 0..len {
-            let object = env.get_object_array_element(array, i).unwrap();
-            let min_type = env
-                .call_method_unchecked(object, min_max.min_type_id, JAVA_INT_TYPE, &[])
-                .unwrap();
-            let min_value = env
-                .call_method_unchecked(object, min_max.min_value_id, JAVA_FLOAT_TYPE, &[])
-                .unwrap();
-            let max_type = env
-                .call_method_unchecked(object, min_max.max_type_id, JAVA_INT_TYPE, &[])
-                .unwrap();
-            let max_value = env
-                .call_method_unchecked(object, min_max.max_value_id, JAVA_FLOAT_TYPE, &[])
-                .unwrap();
-            ret.push(min_max_from_values(
-                min_type.i().unwrap(),
-                min_value.f().unwrap(),
-                max_type.i().unwrap(),
-                max_value.f().unwrap(),
-            ));
-        }
-        ret
-    };
+            for i in 0..len {
+                let object = env.get_object_array_element(&array, i).unwrap();
+                let min_type = env
+                    .call_method_unchecked(&object, min_max.min_type_id, JAVA_INT_TYPE, &[])
+                    .unwrap();
+                let min_value = env
+                    .call_method_unchecked(&object, min_max.min_value_id, JAVA_FLOAT_TYPE, &[])
+                    .unwrap();
+                let max_type = env
+                    .call_method_unchecked(&object, min_max.max_type_id, JAVA_INT_TYPE, &[])
+                    .unwrap();
+                let max_value = env
+                    .call_method_unchecked(&object, min_max.max_value_id, JAVA_FLOAT_TYPE, &[])
+                    .unwrap();
+                ret.push(min_max_from_values(
+                    min_type.i().unwrap(),
+                    min_value.f().unwrap(),
+                    max_type.i().unwrap(),
+                    max_value.f().unwrap(),
+                ));
+            }
+            ret
+        };
+    }
 }
 
 pub(crate) fn to_vec_track_sizing_function(
-    env: JNIEnv,
+    env: &mut JNIEnv,
     array: jobjectArray,
 ) -> Vec<TrackSizingFunction> {
     if !array.is_null() {
-        let len = env.get_array_length(array).unwrap_or_default();
+        let array = unsafe { JObjectArray::from_raw(array)};
+        let len = env.get_array_length(&array).unwrap_or_default();
 
         if len == 0 {
             return vec![];
@@ -100,149 +104,151 @@ pub(crate) fn to_vec_track_sizing_function(
 
         let min_max = crate::MIN_MAX.get().unwrap();
 
-        for i in 0..len {
-            let object = env.get_object_array_element(array, i).unwrap();
+        unsafe {
+            for i in 0..len {
+                let object = env.get_object_array_element(&array, i).unwrap();
 
-            let is_repeating = env
-                .call_method_unchecked(object, track_sizing.is_repeating, JAVA_BOOLEAN_TYPE, &[])
-                .unwrap()
-                .z()
-                .unwrap();
-
-            if is_repeating {
-                let auto_repeat_grid_track_repetition = env
-                    .call_method_unchecked(
-                        object,
-                        track_sizing.auto_repeat_grid_track_repetition_id,
-                        JAVA_INT_TYPE,
-                        &[],
-                    )
+                let is_repeating = env
+                    .call_method_unchecked(&object, track_sizing.is_repeating, JAVA_BOOLEAN_TYPE, &[])
                     .unwrap()
-                    .i()
+                    .z()
                     .unwrap();
 
+                if is_repeating {
+                    let auto_repeat_grid_track_repetition = env
+                        .call_method_unchecked(
+                            &object,
+                            track_sizing.auto_repeat_grid_track_repetition_id,
+                            JAVA_INT_TYPE,
+                            &[],
+                        )
+                        .unwrap()
+                        .i()
+                        .unwrap();
 
-                let auto_repeat_grid_track_repetition_count = env
-                    .call_method_unchecked(
-                        object,
-                        track_sizing.auto_repeat_grid_track_repetition_count_id,
-                        JAVA_SHORT_TYPE,
-                        &[],
-                    )
-                    .unwrap()
-                    .s()
-                    .unwrap();
 
-                let auto_repeat_value = env
-                    .call_method_unchecked(
-                        object,
-                        track_sizing.auto_repeat_value_id,
-                        JAVA_ARRAY_TYPE,
-                        &[],
-                    )
-                    .unwrap();
+                    let auto_repeat_grid_track_repetition_count = env
+                        .call_method_unchecked(
+                            &object,
+                            track_sizing.auto_repeat_grid_track_repetition_count_id,
+                            JAVA_SHORT_TYPE,
+                            &[],
+                        )
+                        .unwrap()
+                        .s()
+                        .unwrap();
 
-                let auto_repeat_value_array = auto_repeat_value.l().unwrap();
+                    let auto_repeat_value = env
+                        .call_method_unchecked(
+                            &object,
+                            track_sizing.auto_repeat_value_id,
+                            JAVA_ARRAY_TYPE,
+                            &[],
+                        )
+                        .unwrap();
 
-                let repeating_len = env
-                    .get_array_length(auto_repeat_value_array.into_raw())
-                    .unwrap_or_default();
+                    let auto_repeat_value_array = JObjectArray::from(auto_repeat_value.l().unwrap());
 
-                let mut repeat_ret = Vec::with_capacity(repeating_len as usize);
+                    let repeating_len = env
+                        .get_array_length(&auto_repeat_value_array)
+                        .unwrap_or_default();
 
-                for j in 0..repeating_len {
-                    let repeat_object = env
-                        .get_object_array_element(auto_repeat_value_array.into_raw(), j)
+                    let mut repeat_ret = Vec::with_capacity(repeating_len as usize);
+
+                    for j in 0..repeating_len {
+                        let repeat_object = env
+                            .get_object_array_element(&auto_repeat_value_array, j)
+                            .unwrap();
+
+                        let min_type = env
+                            .call_method_unchecked(
+                                &repeat_object,
+                                min_max.min_type_id,
+                                JAVA_INT_TYPE,
+                                &[],
+                            )
+                            .unwrap();
+
+                        let min_value = env
+                            .call_method_unchecked(
+                                &repeat_object,
+                                min_max.min_value_id,
+                                JAVA_FLOAT_TYPE,
+                                &[],
+                            )
+                            .unwrap();
+
+                        let max_type = env
+                            .call_method_unchecked(
+                                &repeat_object,
+                                min_max.max_type_id,
+                                JAVA_INT_TYPE,
+                                &[],
+                            )
+                            .unwrap();
+
+                        let max_value = env
+                            .call_method_unchecked(
+                                repeat_object,
+                                min_max.max_value_id,
+                                JAVA_FLOAT_TYPE,
+                                &[],
+                            )
+                            .unwrap();
+
+                        repeat_ret.push(min_max_from_values(
+                            min_type.i().unwrap(),
+                            min_value.f().unwrap(),
+                            max_type.i().unwrap(),
+                            max_value.f().unwrap(),
+                        ));
+                    }
+
+
+                    ret.push(TrackSizingFunction::Repeat(
+                        match auto_repeat_grid_track_repetition {
+                            0 => GridTrackRepetition::AutoFill,
+                            1 => GridTrackRepetition::AutoFit,
+                            2 => GridTrackRepetition::Count(auto_repeat_grid_track_repetition_count as u16),
+                            _ => panic!(),
+                        },
+                        repeat_ret,
+                    ));
+                } else {
+                    let single_value = env
+                        .call_method_unchecked(
+                            object,
+                            track_sizing.single_value_id,
+                            JAVA_OBJECT_TYPE,
+                            &[],
+                        )
+                        .unwrap()
+                        .l()
                         .unwrap();
 
                     let min_type = env
-                        .call_method_unchecked(
-                            repeat_object,
-                            min_max.min_type_id,
-                            JAVA_INT_TYPE,
-                            &[],
-                        )
+                        .call_method_unchecked(&single_value, min_max.min_type_id, JAVA_INT_TYPE, &[])
                         .unwrap();
 
                     let min_value = env
-                        .call_method_unchecked(
-                            repeat_object,
-                            min_max.min_value_id,
-                            JAVA_FLOAT_TYPE,
-                            &[],
-                        )
+                        .call_method_unchecked(&single_value, min_max.min_value_id, JAVA_FLOAT_TYPE, &[])
                         .unwrap();
 
                     let max_type = env
-                        .call_method_unchecked(
-                            repeat_object,
-                            min_max.max_type_id,
-                            JAVA_INT_TYPE,
-                            &[],
-                        )
+                        .call_method_unchecked(&single_value, min_max.max_type_id, JAVA_INT_TYPE, &[])
                         .unwrap();
 
                     let max_value = env
-                        .call_method_unchecked(
-                            repeat_object,
-                            min_max.max_value_id,
-                            JAVA_FLOAT_TYPE,
-                            &[],
-                        )
+                        .call_method_unchecked(single_value, min_max.max_value_id, JAVA_FLOAT_TYPE, &[])
                         .unwrap();
 
-                    repeat_ret.push(min_max_from_values(
+                    ret.push(TrackSizingFunction::Single(min_max_from_values(
                         min_type.i().unwrap(),
                         min_value.f().unwrap(),
                         max_type.i().unwrap(),
                         max_value.f().unwrap(),
-                    ));
+                    )));
                 }
-
-
-                ret.push(TrackSizingFunction::Repeat(
-                    match auto_repeat_grid_track_repetition {
-                        0 => GridTrackRepetition::AutoFill,
-                        1 => GridTrackRepetition::AutoFit,
-                        2 => GridTrackRepetition::Count(auto_repeat_grid_track_repetition_count as u16),
-                        _ => panic!(),
-                    },
-                    repeat_ret,
-                ));
-            } else {
-                let single_value = env
-                    .call_method_unchecked(
-                        object,
-                        track_sizing.single_value_id,
-                        JAVA_OBJECT_TYPE,
-                        &[],
-                    )
-                    .unwrap()
-                    .l()
-                    .unwrap();
-
-                let min_type = env
-                    .call_method_unchecked(single_value, min_max.min_type_id, JAVA_INT_TYPE, &[])
-                    .unwrap();
-
-                let min_value = env
-                    .call_method_unchecked(single_value, min_max.min_value_id, JAVA_FLOAT_TYPE, &[])
-                    .unwrap();
-
-                let max_type = env
-                    .call_method_unchecked(single_value, min_max.max_type_id, JAVA_INT_TYPE, &[])
-                    .unwrap();
-
-                let max_value = env
-                    .call_method_unchecked(single_value, min_max.max_value_id, JAVA_FLOAT_TYPE, &[])
-                    .unwrap();
-
-                ret.push(TrackSizingFunction::Single(min_max_from_values(
-                    min_type.i().unwrap(),
-                    min_value.f().unwrap(),
-                    max_type.i().unwrap(),
-                    max_value.f().unwrap(),
-                )));
             }
         }
 
@@ -254,7 +260,7 @@ pub(crate) fn to_vec_track_sizing_function(
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWithValues(
-    env: JNIEnv,
+    env: &mut JNIEnv,
     _: JObject,
     display: jint,
     position: jint,
@@ -268,6 +274,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     justify_items: jint,
     justify_self: jint,
     justify_content: jint,
+
     inset_left_type: jint,
     inset_left_value: jfloat,
     inset_right_type: jint,
@@ -276,6 +283,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     inset_top_value: jfloat,
     inset_bottom_type: jint,
     inset_bottom_value: jfloat,
+
     margin_left_type: jint,
     margin_left_value: jfloat,
     margin_right_type: jint,
@@ -284,6 +292,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     margin_top_value: jfloat,
     margin_bottom_type: jint,
     margin_bottom_value: jfloat,
+
     padding_left_type: jint,
     padding_left_value: jfloat,
     padding_right_type: jint,
@@ -292,6 +301,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     padding_top_value: jfloat,
     padding_bottom_type: jint,
     padding_bottom_value: jfloat,
+
     border_left_type: jint,
     border_left_value: jfloat,
     border_right_type: jint,
@@ -300,27 +310,35 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
     border_top_value: jfloat,
     border_bottom_type: jint,
     border_bottom_value: jfloat,
+
     flex_grow: jfloat,
     flex_shrink: jfloat,
+
     flex_basis_type: jint,
     flex_basis_value: jfloat,
+
     width_type: jint,
     width_value: jfloat,
     height_type: jint,
     height_value: jfloat,
+
     min_width_type: jint,
     min_width_value: jfloat,
     min_height_type: jint,
     min_height_value: jfloat,
+
     max_width_type: jint,
     max_width_value: jfloat,
     max_height_type: jint,
     max_height_value: jfloat,
+
     gap_row_type: jint,
     gap_row_value: jfloat,
     gap_column_type: jint,
     gap_column_value: jfloat,
+
     aspect_ratio: jfloat,
+
     grid_auto_rows: jobjectArray,
     grid_auto_columns: jobjectArray,
     grid_auto_flow: jint,
@@ -424,7 +442,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInitWith
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWithValues(
-    env: JNIEnv,
+    env: &mut JNIEnv,
     _: JObject,
     style: jlong,
     display: jint,
@@ -439,6 +457,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     justify_items: jint,
     justify_self: jint,
     justify_content: jint,
+
     inset_left_type: jint,
     inset_left_value: jfloat,
     inset_right_type: jint,
@@ -447,6 +466,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     inset_top_value: jfloat,
     inset_bottom_type: jint,
     inset_bottom_value: jfloat,
+
     margin_left_type: jint,
     margin_left_value: jfloat,
     margin_right_type: jint,
@@ -455,6 +475,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     margin_top_value: jfloat,
     margin_bottom_type: jint,
     margin_bottom_value: jfloat,
+
     padding_left_type: jint,
     padding_left_value: jfloat,
     padding_right_type: jint,
@@ -463,6 +484,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     padding_top_value: jfloat,
     padding_bottom_type: jint,
     padding_bottom_value: jfloat,
+
     border_left_type: jint,
     border_left_value: jfloat,
     border_right_type: jint,
@@ -471,27 +493,35 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     border_top_value: jfloat,
     border_bottom_type: jint,
     border_bottom_value: jfloat,
+
     flex_grow: jfloat,
     flex_shrink: jfloat,
+
     flex_basis_type: jint,
     flex_basis_value: jfloat,
+
     width_type: jint,
     width_value: jfloat,
     height_type: jint,
     height_value: jfloat,
+
     min_width_type: jint,
     min_width_value: jfloat,
     min_height_type: jint,
     min_height_value: jfloat,
+
     max_width_type: jint,
     max_width_value: jfloat,
     max_height_type: jint,
     max_height_value: jfloat,
+
     gap_row_type: jint,
     gap_row_value: jfloat,
     gap_column_type: jint,
     gap_column_value: jfloat,
+
     aspect_ratio: jfloat,
+
     grid_auto_rows: jobjectArray,
     grid_auto_columns: jobjectArray,
     grid_auto_flow: jint,

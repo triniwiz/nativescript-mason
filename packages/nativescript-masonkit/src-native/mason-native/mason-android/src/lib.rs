@@ -69,7 +69,8 @@ impl MinMaxCacheItem {
     }
 
     pub fn clazz(&self) -> JClass {
-        JClass::from(self.clazz.as_obj())
+        let obj = unsafe { JObject::from_raw(self.clazz.as_raw()) };
+        JClass::from(obj)
     }
 }
 
@@ -111,15 +112,18 @@ impl TrackSizingFunctionCacheItem {
     }
 
     pub fn clazz(&self) -> JClass {
-        JClass::from(self.clazz.as_obj())
+        let obj = unsafe { JObject::from_raw(self.clazz.as_raw()) };
+        JClass::from(obj)
     }
 
     pub fn single_clazz(&self) -> JClass {
-        JClass::from(self.single_clazz.as_obj())
+        let obj = unsafe { JObject::from_raw(self.single_clazz.as_raw()) };
+        JClass::from(obj)
     }
 
     pub fn auto_repeat(&self) -> JClass {
-        JClass::from(self.auto_repeat_clazz.as_obj())
+        let obj = unsafe { JObject::from_raw(self.auto_repeat_clazz.as_raw()) };
+        JClass::from(obj)
     }
 }
 
@@ -143,17 +147,17 @@ pub struct CMasonTrackSizingFunction(TrackSizingFunction);
 pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint {
     {
         android_logger::init_once(
-            android_logger::Config::default().with_min_level(log::Level::Debug),
+            android_logger::Config::default(),
         );
 
-        if let Ok(env) = vm.get_env() {
+        if let Ok(mut env) = vm.get_env() {
             let clazz = env.find_class(MIN_MAX_CLASS).unwrap();
 
-            let min_type = env.get_method_id(clazz, "getMinType", "()I").unwrap();
-            let min_value = env.get_method_id(clazz, "getMinValue", "()F").unwrap();
+            let min_type = env.get_method_id(&clazz, "getMinType", "()I").unwrap();
+            let min_value = env.get_method_id(&clazz, "getMinValue", "()F").unwrap();
 
-            let max_type = env.get_method_id(clazz, "getMaxType", "()I").unwrap();
-            let max_value = env.get_method_id(clazz, "getMaxValue", "()F").unwrap();
+            let max_type = env.get_method_id(&clazz, "getMaxType", "()I").unwrap();
+            let max_value = env.get_method_id(&clazz, "getMaxValue", "()F").unwrap();
 
             MIN_MAX.get_or_init(|| {
                 MinMaxCacheItem::new(
@@ -173,12 +177,12 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                 .unwrap();
 
             let is_repeating = env
-                .get_method_id(track_sizing_function_clazz, "isRepeating", "()Z")
+                .get_method_id(&track_sizing_function_clazz, "isRepeating", "()Z")
                 .unwrap();
 
             let single_value = env
                 .get_method_id(
-                    track_sizing_function_single_clazz,
+                    &track_sizing_function_single_clazz,
                     "getValue",
                     "()Lorg/nativescript/mason/masonkit/MinMax;",
                 )
@@ -186,7 +190,7 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
 
             let auto_repeat_value = env
                 .get_method_id(
-                    track_sizing_function_auto_repeat_clazz,
+                    &track_sizing_function_auto_repeat_clazz,
                     "getValue",
                     "()[Lorg/nativescript/mason/masonkit/MinMax;",
                 )
@@ -194,7 +198,7 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
 
             let auto_repeat_grid_track_repetition = env
                 .get_method_id(
-                    track_sizing_function_auto_repeat_clazz,
+                    &track_sizing_function_auto_repeat_clazz,
                     "gridTrackRepetitionNativeType",
                     "()I",
                 )
@@ -204,7 +208,7 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
 
             let auto_repeat_grid_track_repetition_count = env
                 .get_method_id(
-                    track_sizing_function_auto_repeat_clazz,
+                    &track_sizing_function_auto_repeat_clazz,
                     "gridTrackRepetitionNativeValue",
                     "()S",
                 )

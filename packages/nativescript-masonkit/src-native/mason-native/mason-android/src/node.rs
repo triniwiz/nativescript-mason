@@ -1,4 +1,4 @@
-use jni::objects::{JClass, JObject, JValue, ReleaseMode};
+use jni::objects::{JClass, JObject, JPrimitiveArray, JValue, ReleaseMode};
 use jni::sys::{
     jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, jobjectArray, jshort, JNI_FALSE,
     JNI_TRUE,
@@ -71,7 +71,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
                 *style.clone(),
                 MeasureFunc::Boxed(Box::new(move |known_dimensions, available_space| {
                     let vm = jvm.attach_current_thread();
-                    let env = vm.unwrap();
+                    let mut env = vm.unwrap();
                     let result = env.call_method(
                         measure.as_obj(),
                         "measure",
@@ -119,7 +119,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWithChildren(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _: JClass,
     taffy: jlong,
     style: jlong,
@@ -132,11 +132,12 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let style = Box::from_raw(style as *mut mason_core::style::Style);
 
-        let ret = match env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+        let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
+        let ret = match env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
             Ok(array) => {
                 let data = std::slice::from_raw_parts_mut(
                     array.as_ptr() as *mut jlong,
-                    array.size().unwrap_or_default() as usize,
+                    array.len(),
                 );
                 let data: Vec<Node> = data
                     .iter()
@@ -195,17 +196,17 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeLayout(
     node: jlong,
 ) -> jfloatArray {
     if taffy == 0 || node == 0 {
-        return env.new_float_array(0_i32).unwrap();
+        return env.new_float_array(0_i32).unwrap().into_raw();
     }
     unsafe {
         let mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
         let output = mason.layout(*node);
         let result = env.new_float_array(output.len() as i32).unwrap();
-        env.set_float_array_region(result, 0, &output).unwrap();
+        env.set_float_array_region(&result, 0, &output).unwrap();
         Box::leak(mason);
         Box::leak(node);
-        result
+        result.into_raw()
     }
 }
 
@@ -335,7 +336,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetStyle(
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAndSetStyle(
-    env: JNIEnv,
+    env: &mut JNIEnv,
     _: JObject,
     taffy: jlong,
     node: jlong,
@@ -523,7 +524,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSetStyleComputeAndLayout(
-    env: JNIEnv,
+    env: &mut JNIEnv,
     _: JObject,
     taffy: jlong,
     node: jlong,
@@ -608,7 +609,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     grid_template_columns: jobjectArray,
 ) -> jfloatArray {
     if taffy == 0 || node == 0 || style == 0 {
-        return env.new_float_array(0_i32).unwrap();
+        return env.new_float_array(0_i32).unwrap().into_raw();
     }
 
     unsafe {
@@ -710,19 +711,19 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         let output = mason.layout(*node);
 
         let result = env.new_float_array(output.len() as i32).unwrap();
-        env.set_float_array_region(result, 0, &output).unwrap();
+        env.set_float_array_region(&result, 0, &output).unwrap();
 
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
 
-        result
+        result.into_raw()
     }
 }
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSetStyleComputeWithSizeAndLayout(
-    env: JNIEnv,
+    env: &mut JNIEnv,
     _: JObject,
     taffy: jlong,
     node: jlong,
@@ -809,7 +810,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     grid_template_columns: jobjectArray,
 ) -> jfloatArray {
     if taffy == 0 || node == 0 || style == 0 {
-        return env.new_float_array(0_i32).unwrap();
+        return env.new_float_array(0_i32).unwrap().into_raw();
     }
 
     unsafe {
@@ -912,13 +913,13 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
 
         let result = env.new_float_array(output.len() as i32).unwrap();
 
-        env.set_float_array_region(result, 0, &output).unwrap();
+        env.set_float_array_region(&result, 0, &output).unwrap();
 
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
 
-        result
+        result.into_raw()
     }
 }
 
@@ -948,7 +949,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeGetChildA
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetChildren(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _: JClass,
     taffy: jlong,
     node: jlong,
@@ -961,10 +962,11 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetChildr
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
 
-        if let Ok(array) = env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+        let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
+        if let Ok(array) = env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
             let data = std::slice::from_raw_parts_mut(
                 array.as_ptr() as *mut jlong,
-                array.size().unwrap_or_default() as usize,
+                array.len()
             );
             let data: Vec<Node> = data
                 .iter()
@@ -983,7 +985,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetChildr
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChildren(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _: JClass,
     taffy: jlong,
     node: jlong,
@@ -996,10 +998,11 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChildr
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
 
-        if let Ok(array) = env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+        let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
+        if let Ok(array) = env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
             let data = std::slice::from_raw_parts_mut(
                 array.as_ptr() as *mut jlong,
-                array.size().unwrap_or_default() as usize,
+                array.len()
             );
             let data: Vec<Node> = data
                 .iter()
@@ -1198,7 +1201,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeMarkDirty
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeIsChildrenSame(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _: JClass,
     taffy: jlong,
     node: jlong,
@@ -1211,9 +1214,10 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeIsChildre
         let mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
 
-        let ret = match env.get_primitive_array_critical(children, ReleaseMode::NoCopyBack) {
+        let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
+        let ret = match env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
             Ok(array) => {
-                let size = array.size().unwrap_or_default() as usize;
+                let size = array.len();
                 if mason.child_count(*node) != size {
                     return JNI_TRUE;
                 }
@@ -1330,7 +1334,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeGetChildr
     node: jlong,
 ) -> jlongArray {
     if taffy == 0 || node == 0 {
-        return env.new_long_array(0_i32).unwrap();
+        return env.new_long_array(0_i32).unwrap().into_raw();
     }
     unsafe {
         let mason = Box::from_raw(taffy as *mut Mason);
@@ -1344,7 +1348,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeGetChildr
                     .iter_mut()
                     .map(|v| Box::into_raw(Box::new(v)) as jlong)
                     .collect();
-                env.set_long_array_region(array, 0, &buf).unwrap();
+                env.set_long_array_region(&array, 0, &buf).unwrap();
                 array
             })
             .unwrap_or_else(|| env.new_long_array(0_i32).unwrap());
@@ -1352,7 +1356,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeGetChildr
         Box::leak(mason);
         Box::leak(node);
 
-        ret
+        ret.into_raw()
     }
 }
 
@@ -1377,7 +1381,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetMeasur
             Some(MeasureFunc::Boxed(Box::new(
                 move |known_dimensions, available_space| {
                     let vm = jvm.attach_current_thread();
-                    let env = vm.unwrap();
+                    let mut env = vm.unwrap();
                     let result = env.call_method(
                         measure.as_obj(),
                         "measure",
