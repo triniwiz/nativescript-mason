@@ -3594,7 +3594,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: T
         } else {
           const single = item.value as MinMaxType;
 
-          const minMax = single ? org.nativescript.mason.masonkit.MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value) : new org.nativescript.mason.masonkit.MinMax.Auto();
+          const minMax = single ? org.nativescript.mason.masonkit.MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value) : org.nativescript.mason.masonkit.MinMax.Auto.INSTANCE;
           const trackSizingFunction = new org.nativescript.mason.masonkit.TrackSizingFunction.Single(minMax);
           array[i] = trackSizingFunction;
         }
