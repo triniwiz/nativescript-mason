@@ -2910,85 +2910,83 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
   let parsedValue = undefined;
   let parsedType = undefined;
   let nativeValue = undefined;
-  if (typeof value === 'string') {
-    if (value === 'auto') {
-      parsedValue = 0;
-      parsedType = GridPlacementCompatType.Auto;
-      if (!JSIEnabled) {
-        if (global.isAndroid) {
-          parsedType = org.nativescript.mason.masonkit.GridPlacement.Auto;
-          nativeValue = org.nativescript.mason.masonkit.GridPlacement.Auto;
-        }
 
-        if (global.isIOS) {
-          parsedType = GridPlacementCompatType.Auto;
-          nativeValue = GridPlacementCompat.Auto;
-        }
-      }
-    }
+  if (value === 'auto' || value === undefined) {
+    parsedValue = 0;
+    parsedType = 0 /* GridPlacementCompatType.Auto */;
+  }
+
+  if (typeof value === 'string') {
     if (value.startsWith('span')) {
       parsedValue = Number(value.replace('span', '').trim());
-      parsedType = GridPlacementCompatType.Span;
-
-      if (!JSIEnabled) {
-        const isValid = !Number.isNaN(parsedValue);
-        if (global.isAndroid) {
-          parsedType = org.nativescript.mason.masonkit.GridPlacement.Span;
-          if (isValid) {
-            nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Span(parsedValue);
-          }
-        }
-
-        if (global.isIOS) {
-          parsedType = GridPlacementCompatType.Span;
-          if (isValid) {
-            nativeValue = GridPlacementCompat.alloc().initWithSpan(parsedValue);
-          }
-        }
-      }
+      parsedType = 2 /* GridPlacementCompatType.Span */;
     } else {
       parsedValue = Number(value.trim());
-      parsedType = GridPlacementCompatType.Line;
-
-      if (!JSIEnabled) {
-        const isValid = !Number.isNaN(parsedValue);
-        if (global.isAndroid) {
-          parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
-          if (isValid) {
-            nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Line(parsedValue);
-          }
-        }
-
-        if (global.isIOS) {
-          parsedType = GridPlacementCompatType.Line;
-          if (isValid) {
-            nativeValue = GridPlacementCompat.alloc().initWithLine(parsedValue);
-          }
-        }
+      if (parsedValue < 1) {
+        parsedValue = 0;
+        parsedType = 0 /* GridPlacementCompatType.Auto */;
+      } else {
+        parsedType = 1 /* GridPlacementCompatType.Line */;
       }
     }
-
-    return { value: Number.isNaN(parsedValue) ? undefined : parsedValue, type: parsedType, native_value: nativeValue };
   }
 
   if (typeof value === 'number') {
     parsedValue = value;
-    parsedType = GridPlacementCompatType.Line;
+    if (parsedValue < 1) {
+      parsedValue = 0;
+      parsedType = 0 /* GridPlacementCompatType.Auto */;
+    } else {
+      parsedType = 1 /* GridPlacementCompatType.Line */;
+    }
+  }
 
+  if (parsedType === 0) {
     if (!JSIEnabled) {
       if (global.isAndroid) {
-        parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
-        nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Line(parsedValue);
+        parsedType = org.nativescript.mason.masonkit.GridPlacement.Auto;
+        nativeValue = org.nativescript.mason.masonkit.GridPlacement.Auto.INSTANCE;
       }
-
       if (global.isIOS) {
-        parsedType = GridPlacementCompatType.Line;
-        nativeValue = GridPlacementCompat.alloc().initWithLine(parsedValue);
+        parsedType = 0 /* GridPlacementCompatType.Auto */;
+        nativeValue = GridPlacementCompat.Auto;
+      }
+    }
+  } else if (parsedType === 1) {
+    if (!JSIEnabled) {
+      const isValid = !Number.isNaN(parsedValue);
+      if (global.isAndroid) {
+        parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
+        if (isValid) {
+          nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Line(parsedValue);
+        }
+      }
+      if (global.isIOS) {
+        parsedType = 1 /* GridPlacementCompatType.Line */;
+        if (isValid) {
+          nativeValue = GridPlacementCompat.alloc().initWithLine(parsedValue);
+        }
+      }
+    }
+  } else {
+    if (!JSIEnabled) {
+      const isValid = !Number.isNaN(parsedValue);
+      if (global.isAndroid) {
+        parsedType = org.nativescript.mason.masonkit.GridPlacement.Span;
+        if (isValid) {
+          nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Span(parsedValue);
+        }
+      }
+      if (global.isIOS) {
+        parsedType = 2 /* GridPlacementCompatType.Span */;
+        if (isValid) {
+          nativeValue = GridPlacementCompat.alloc().initWithSpan(parsedValue);
+        }
       }
     }
   }
 
-  return { value: parsedValue, type: parsedType, native_value: nativeValue };
+  return { value: Number.isNaN(parsedValue) ? undefined : parsedValue, type: parsedType, native_value: nativeValue };
 }
 
 export function _setGridColumnStart(value, instance: TSCView, initial = false) {
@@ -3065,6 +3063,7 @@ export function _setGridRowStart(value, instance: TSCView, initial = false) {
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
+
       if (instance._isMasonChild) {
         org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridRowStart(nodeOrView, val.native_value);
       } else {
@@ -3094,6 +3093,7 @@ export function _setGridRowEnd(value, instance: TSCView, initial = false) {
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
+
       if (instance._isMasonChild) {
         org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridRowEnd(nodeOrView, val.native_value);
       } else {
