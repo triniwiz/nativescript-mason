@@ -41,13 +41,13 @@ function writeComponentToFile(testName) {
   const testMarkup = createTreeFromHtmlFile(testName);
   const component = `
 import { Component, NO_ERRORS_SCHEMA } from '@angular/core';
-import {Page} from "@nativescript/core";
+import { Page, Frame } from '@nativescript/core';
 @Component({
   standalone: true,
   schemas: [NO_ERRORS_SCHEMA],
   template: \`
   <StackLayout>
-  <Label textWrap="true" text="${testName}" style="font-size:30px;padding:10;" ></Label>
+  <Label textWrap="true" text="${testName}" style="font-size:30px;padding:10;" (tap)="goBack()"></Label>
    <TSCView style="flex:1;justify-content:center;align-items:center">
   ${testMarkup.trim()}
   </TSCView>
@@ -57,8 +57,12 @@ import {Page} from "@nativescript/core";
 })
 export class ${toPascalCase(testName)}Component {
 
-  constructor(page: Page) {
+constructor(page: Page) {
     page.actionBarHidden = true;
+}
+
+goBack() {
+  Frame.topmost().goBack();
 }
 
 }
@@ -89,6 +93,22 @@ function writeTestsFile(items) {
   items.map((item, index) => {
     fs.writeFileSync(`../../../apps/demo-angular/e2e/${index}_${item.name}.yml`, template(item, index));
   });
+
+  const allTests = [
+    `appId: org.nativescript.plugindemoangular`,
+    `---`,
+    `- launchApp`
+  ];
+
+  items.map((item, index) => {
+      allTests.push(...[
+        `- tapOn: '${index}'`,
+        `- takeScreenshot: e2e/__snapshots__/${index}_${item.name}`,
+        `- tapOn: ${item.name}`
+      ])
+  });
+
+  fs.writeFileSync(`../../../apps/demo-angular/e2e/run_all.yml`, allTests.join("\n"));
 }
 
 function writeComponentsToFile() {
