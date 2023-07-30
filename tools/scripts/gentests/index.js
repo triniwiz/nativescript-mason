@@ -85,9 +85,9 @@ function writeTestsFile(items) {
 ---
 - launchApp
 - tapOn: '${index}'
-- takeScreenshot: e2e/__snapshots__/${item.name}`;
+- takeScreenshot: e2e/__snapshots__/${index}_${item.name}`;
   items.map((item, index) => {
-    fs.writeFileSync(`../../../apps/demo-angular/e2e/${item.name}.yml`, template(item, index));
+    fs.writeFileSync(`../../../apps/demo-angular/e2e/${index}_${item.name}.yml`, template(item, index));
   });
 }
 
