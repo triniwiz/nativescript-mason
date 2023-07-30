@@ -5,7 +5,8 @@
     "@triniwiz/nativescript-masonkit": "file:../../dist/packages/nativescript-masonkit"
   },
   "devDependencies": {
-    "@nativescript/android": "dev",
-    "@nativescript/ios": "dev"
+    "@nativescript/android": "8.5.1",
+    "@nativescript/ios": "8.5.2",
+    "@nativescript/detox": "1.0.1"
   }
 }

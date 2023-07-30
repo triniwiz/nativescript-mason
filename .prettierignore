@@ -3,3 +3,4 @@
 /dist
 /coverage
 native-src
+tools/scripts/**/*

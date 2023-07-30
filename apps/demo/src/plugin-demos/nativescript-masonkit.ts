@@ -7,13 +7,6 @@ export function navigatingTo(args: EventData) {
   page.bindingContext = new DemoModel();
 }
 
-export function centerText(args) {
-  if (global.isAndroid) {
-    const view = args.object?.nativeView as android.widget.TextView;
-    view?.setGravity?.(android.view.Gravity.CENTER);
-  }
-}
-
 export function loaded(args) {
   const view = args.object;
   // setTimeout(() => {

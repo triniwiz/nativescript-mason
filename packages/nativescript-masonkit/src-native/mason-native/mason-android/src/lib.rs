@@ -107,7 +107,7 @@ impl TrackSizingFunctionCacheItem {
             single_value_id,
             auto_repeat_value_id,
             auto_repeat_grid_track_repetition_id,
-            auto_repeat_grid_track_repetition_count_id
+            auto_repeat_grid_track_repetition_count_id,
         }
     }
 
@@ -146,9 +146,7 @@ pub struct CMasonTrackSizingFunction(TrackSizingFunction);
 #[no_mangle]
 pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint {
     {
-        android_logger::init_once(
-            android_logger::Config::default(),
-        );
+        android_logger::init_once(android_logger::Config::default());
 
         if let Ok(mut env) = vm.get_env() {
             let clazz = env.find_class(MIN_MAX_CLASS).unwrap();
@@ -204,8 +202,6 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                 )
                 .unwrap();
 
-
-
             let auto_repeat_grid_track_repetition_count = env
                 .get_method_id(
                     &track_sizing_function_auto_repeat_clazz,
@@ -225,7 +221,7 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     single_value,
                     auto_repeat_value,
                     auto_repeat_grid_track_repetition,
-                    auto_repeat_grid_track_repetition_count
+                    auto_repeat_grid_track_repetition_count,
                 )
             });
         }
@@ -716,12 +712,7 @@ pub(crate) mod ffi {
             height_type: CMasonLengthPercentageType,
         );
 
-
-        fn mason_style_set_row_gap(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
+        fn mason_style_set_row_gap(style: i64, value: f32, value_type: CMasonLengthPercentageType);
 
         fn mason_style_get_row_gap(style: i64) -> CMasonLengthPercentage;
 
@@ -1745,30 +1736,22 @@ fn mason_style_set_gap(
     mason_core::ffi::style_set_gap(style as _, width.into(), height.into())
 }
 
-fn mason_style_set_row_gap(
-    style: i64,
-    value: f32,
-    value_type: CMasonLengthPercentageType,
-) {
+fn mason_style_set_row_gap(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let width = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_row_gap(style as _, width.into())
 }
 
 fn mason_style_get_row_gap(style: i64) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_row_gap(style as  _).into()
+    mason_core::ffi::style_get_row_gap(style as _).into()
 }
 
-fn mason_style_set_column_gap(
-    style: i64,
-    value: f32,
-    value_type: CMasonLengthPercentageType,
-) {
+fn mason_style_set_column_gap(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let height = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_column_gap(style as _, height.into())
 }
 
 fn mason_style_get_column_gap(style: i64) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_column_gap(style as  _).into()
+    mason_core::ffi::style_get_column_gap(style as _).into()
 }
 
 fn mason_style_set_aspect_ratio(style: i64, ratio: f32) {

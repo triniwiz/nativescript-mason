@@ -48,6 +48,7 @@ android {
     }
     ndk {
       abiFilters 'x86','x86_64', 'armeabi-v7a', 'arm64-v8a'
+      //abiFilters 'x86_64'
     }
   }
 
@@ -71,7 +72,7 @@ android {
     }
   }
 
-  ndkVersion '21.1.6352462'
+  ndkVersion '21.4.7075529'
 }
 
 dependencies {
@@ -122,7 +123,7 @@ tasks.whenTaskAdded { task ->
 
 for (target in targets) {
   tasks.register("copy_libc++_shared${target.capitalize()}", Copy) {
-    def ndkDir = android.ndkDirectory
+    def ndkDir = project.ndkDirectory
     // hostTag, abi and archTriple from: https://developer.android.com/ndk/guides/other_build_systems
 
     def hostTag
