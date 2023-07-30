@@ -698,7 +698,6 @@ impl Style {
         grid_template_rows: Vec<TrackSizingFunction>,
         grid_template_columns: Vec<TrackSizingFunction>,
     ) -> Self {
-
         Style::from_taffy(taffy::style::Style {
             display: match display {
                 0 => Display::None,
@@ -800,7 +799,7 @@ impl Style {
                 start: grid_placement(grid_row_start_type, grid_row_start_value),
                 end: grid_placement(grid_row_end_type, grid_row_end_value),
             },
-            flex_basis: dimension(flex_basis_type, flex_basis_value).into(),
+            flex_basis: dimension_with_auto(flex_basis_type, flex_basis_value).into(),
 
             size: taffy::geometry::Size {
                 width: dimension_with_auto(width_type, width_value).into(),
@@ -1009,7 +1008,7 @@ impl Style {
         style.style.flex_grow = flex_grow;
         style.style.flex_shrink = flex_shrink;
 
-        style.style.flex_basis = dimension(flex_basis_type, flex_basis_value).into();
+        style.style.flex_basis = dimension_with_auto(flex_basis_type, flex_basis_value).into();
 
         style.style.size = taffy::geometry::Size {
             width: dimension_with_auto(width_type, width_value).into(),
