@@ -13,7 +13,8 @@
     "sync-packages-with-demos": "nx g @nativescript/plugin-tools:sync-packages-with-demos",
     "remove-package": "nx g @nativescript/plugin-tools:remove-package",
     "add-demo": "nx g @nativescript/plugin-tools:add-demo",
-    "gen:tests": "cd tools/scripts/gentests/ && node index.js && cd ../../../"
+    "gen:tests": "cd tools/scripts/gentests/ && node index.js && cd ../../../",
+    "build:all": "nx run-many --target=build.all --all"
   },
   "private": true,
   "devDependencies": {
