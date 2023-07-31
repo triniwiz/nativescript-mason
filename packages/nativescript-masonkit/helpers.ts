@@ -4,6 +4,7 @@ import { Length, Utils } from '@nativescript/core';
 import { TSCViewBase } from './common';
 
 import { AlignSelf as AlignSelfType } from '.';
+import { parseUnit } from '@nativescript/core/css/parser';
 
 const enum Display {
   None = 0,
@@ -363,26 +364,29 @@ export function _toMasonDimension(value): { value: number; type: 'auto' | 'point
     return value;
   }
   if (value === 'auto') {
-    return { value: 0, type: 'auto', native_type: MasonDimensionCompatType.Auto };
+    return { value: 0, type: 'auto', native_type: 0 /* MasonDimensionCompatType.Auto */ };
   }
 
-  const typeOf = typeof value;
+  let typeOf = typeof value;
+  if (typeOf === 'string') {
+    value = parseUnit(value).value;
+    typeOf = 'object';
+  }
   if (typeOf === 'object') {
     switch (value?.unit) {
       case '%':
-        return { value: value.value, type: 'percent', native_type: MasonDimensionCompatType.Percent };
+        return { value: value.value, type: 'percent', native_type: 2 /* MasonDimensionCompatType.Percent */ };
       case 'px':
-        return { value: value.value, type: 'points', native_type: MasonDimensionCompatType.Points };
+        return { value: value.value, type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
       case 'dip':
-        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: MasonDimensionCompatType.Points };
+        return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
     }
   }
-
   if (typeOf === 'number') {
-    return { value: Utils.layout.toDevicePixels(value), type: 'points', native_type: MasonDimensionCompatType.Points };
+    return { value: Utils.layout.toDevicePixels(value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
   }
 
-  return { value: value, type: 'points', native_type: MasonDimensionCompatType.Points };
+  return { value: value, type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
 }
 
 export function _intoMasonDimension(value) {
