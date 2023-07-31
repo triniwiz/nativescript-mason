@@ -1,6 +1,6 @@
 const cheerio = require('cheerio');
 const fs = require('fs');
-const colors = ['red', 'green', 'blue', 'yellow', 'purple', 'cyan', 'gray', 'darkGray', 'lightGray', 'lightBlue', 'lightGreen', 'lightRed', 'lightYellow', 'lightPurple', 'lightCyan'];
+const colors = ['red', 'green', 'blue', 'yellow', 'purple', 'cyan', 'gray', 'darkGray', 'lightGray', 'lightBlue', 'lightGreen', 'magenta', 'lightYellow', 'orange', 'lightCyan'];
 
 function toPascalCase(str) {
   return str
@@ -16,6 +16,7 @@ function toPascalCase(str) {
 function createTreeFromHtmlFile(testName) {
   // read the file and get the test props
   const html = fs.readFileSync(`taffy_tests/${testName}.html`, 'utf8');
+  if (html.startsWith("//Disabled")) return `<Label text="DISABLED" ></Label>`
   const $ = cheerio.load(html);
 
   $('div').each((i, elem) => {
@@ -46,9 +47,9 @@ import { Page, Frame } from '@nativescript/core';
   standalone: true,
   schemas: [NO_ERRORS_SCHEMA],
   template: \`
-  <StackLayout>
-  <Label textWrap="true" text="${testName}" style="font-size:30px;padding:10;" (tap)="goBack()"></Label>
-   <TSCView style="flex:1;justify-content:center;align-items:center">
+  <StackLayout style="width:100%;height:100%;">
+  <Label testID="${testName.slice(0,10)}" textWrap="true" text="${testName}" style="font-size:30px;padding:10;" (tap)="goBack()"></Label>
+   <TSCView horizontalAlignment="center"  style="width:250;height:250;">
   ${testMarkup.trim()}
   </TSCView>
   </StackLayout>
@@ -71,6 +72,14 @@ goBack() {
   fs.writeFileSync(`../../../apps/demo-angular/src/tests/${testName.toLowerCase()}.component.ts`, component);
 }
 
+function chunk(arr, chunkSize) {
+  if (chunkSize <= 0) throw "Invalid chunk size";
+  var R = [];
+  for (var i=0,len=arr.length; i<len; i+=chunkSize)
+    R.push(arr.slice(i,i+chunkSize));
+  return R;
+}
+
 function writeHtmlWithColor(testName) {
   const html = fs.readFileSync(`taffy_tests/${testName}.html`, 'utf8');
   const $ = cheerio.load(html);
@@ -85,30 +94,53 @@ function writeHtmlWithColor(testName) {
 }
 
 function writeTestsFile(items) {
-  const template = (item, index) => `appId: org.nativescript.plugindemoangular
----
-- launchApp
-- tapOn: '${index}'
-- takeScreenshot: e2e/__snapshots__/${index}_${item.name}`;
-  items.map((item, index) => {
-    fs.writeFileSync(`../../../apps/demo-angular/e2e/${index}_${item.name}.yml`, template(item, index));
+
+  const template = (item, index) => `const { compareScreens } = require('../screenshots');
+  const { device } = require('detox');
+
+  beforeEach(async () => {
+    await device.launchApp({ newInstance: true });
   });
 
-  const allTests = [
-    `appId: org.nativescript.plugindemoangular`,
-    `---`,
-    `- launchApp`
-  ];
-
+  describe('${index}:${item.name.replaceAll('_', ' ').toUpperCase()}', () => {
+    it('Should take a screenshot and compare the component', async () => {
+      await element(by.text('${index}')).tap();
+      await compareScreens(element(by.id('test-root')), '${index}');
+    });
+  });
+  `;
   items.map((item, index) => {
-      allTests.push(...[
-        `- tapOn: '${index}'`,
-        `- takeScreenshot: e2e/__snapshots__/${index}_${item.name}`,
-        `- tapOn: ${item.name}`
-      ])
+    fs.writeFileSync(`../../../apps/demo-angular/e2e/tests/${index}_${item.name}.test.js`, template(item, index));
   });
 
-  fs.writeFileSync(`../../../apps/demo-angular/e2e/run_all.yml`, allTests.join("\n"));
+//   const all_template = (tests) => {
+
+//     return `const { compareScreens } = require('./screenshots');
+//     const { device } = require('detox');
+
+//     beforeEach(async () => {
+//       await device.launchApp({ newInstance: true });
+//     });
+
+//     describe('RUN ALL TESTS', () => {
+//       it('TEST ALL', async () => {
+//         ${tests}
+//       });
+//     });`
+//   };
+
+//   let tests = ``
+//   items.map((item, index) => {
+//     tests+= `console.log("${index}:${item.name.replaceAll('_', ' ').toUpperCase()}");
+// await element(by.text('${index}')).tap();
+// await compareScreens(element(by.id('test-root')), '${index}');
+// await element(by.id('${item.name.slice(0,10)}')).tap();
+
+// `
+//   });
+
+//   fs.writeFileSync(`../../../apps/demo-angular/e2e/all.test.js`, all_template(tests));
+
 }
 
 function writeComponentsToFile() {

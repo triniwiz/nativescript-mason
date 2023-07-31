@@ -2,5 +2,5 @@ hooks
 platforms
 !webpack.config.js
 artifacts
-e2e/*
+e2e/tests/*
 src/tests/*

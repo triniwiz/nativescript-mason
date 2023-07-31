@@ -1,0 +1,3 @@
+include ":masonkit"
+project(":masonkit").projectDir = file('../../../../packages/nativescript-masonkit/src-native/mason-android/masonkit');
+

@@ -1195,7 +1195,7 @@ class Style internal constructor() {
       isDirty = true
     }
 
-  var gridColumn: Line<GridPlacement> = autoLine
+  var gridColumn: Line<GridPlacement> = Line(GridPlacement.Auto, GridPlacement.Auto)
     set(value) {
       field = value
       isDirty = true
@@ -1219,12 +1219,11 @@ class Style internal constructor() {
     }
 
 
-  var gridRow: Line<GridPlacement> = autoLine
+  var gridRow: Line<GridPlacement> = Line(GridPlacement.Auto, GridPlacement.Auto)
     set(value) {
       field = value
       isDirty = true
     }
-
 
   var gridRowStart: GridPlacement
     get() {
