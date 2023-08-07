@@ -12,7 +12,7 @@ pub use taffy::style_helpers::{auto, length, max_content, min_content, minmax, p
 pub use taffy::*;
 
 use style::Style;
-use taffy::tree::MeasureFunc;
+pub use taffy::tree::MeasureFunc;
 
 pub const fn align_content_from_enum(value: i32) -> Option<AlignContent> {
     match value {
@@ -277,7 +277,7 @@ impl Mason {
     }
 
     pub fn is_children_same(&self, node: Node, children: &[Node]) -> bool {
-        let children: Vec<taffy::tree::NodeId> = children.iter().map(|v| v.node).collect();
+        let children: Vec<NodeId> = children.iter().map(|v| v.node).collect();
         self.taffy
             .children(node.node)
             .map(|v| v == children)

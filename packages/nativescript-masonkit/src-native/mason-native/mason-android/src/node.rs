@@ -1,12 +1,12 @@
-use jni::objects::{JClass, JObject, JPrimitiveArray, JValue, ReleaseMode};
+use jni::objects::{GlobalRef, JClass, JObject, JPrimitiveArray, JValue, ReleaseMode};
 use jni::sys::{
     jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, jobjectArray, jshort, JNI_FALSE,
     JNI_TRUE,
 };
-use jni::JNIEnv;
+use jni::{JavaVM, JNIEnv};
 
 use crate::style::{to_vec_non_repeated_track_sizing_function, to_vec_track_sizing_function};
-use mason_core::tree::MeasureFunc;
+use mason_core::tree::{Measurable, MeasureFunc};
 use mason_core::{AvailableSpace, Mason, MeasureOutput, Node, Size};
 
 #[no_mangle]
@@ -20,6 +20,51 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeDestroy(
     }
     unsafe {
         let _ = Box::from_raw(node as *mut Node);
+    }
+}
+
+struct MeasureFunction {
+    jvm: JavaVM,
+    measure: GlobalRef
+}
+
+impl Measurable for MeasureFunction {
+    fn measure(&self, known_dimensions: mason_core::geometry::Size<Option<f32>>, available_space: mason_core::geometry::Size<mason_core::AvailableSpace>) -> mason_core::geometry::Size<f32> {
+        let vm = self.jvm.attach_current_thread();
+        let mut env = vm.unwrap();
+        let result = env.call_method(
+            self.measure.as_obj(),
+            "measure",
+            "(JJ)J",
+            &[
+                JValue::from(MeasureOutput::make(
+                    known_dimensions.width.unwrap_or(f32::NAN),
+                    known_dimensions.height.unwrap_or(f32::NAN),
+                )),
+                JValue::from(MeasureOutput::make(
+                    match available_space.width {
+                        AvailableSpace::MinContent => -1.,
+                        AvailableSpace::MaxContent => -2.,
+                        AvailableSpace::Definite(value) => value,
+                    },
+                    match available_space.height {
+                        AvailableSpace::MinContent => -1.,
+                        AvailableSpace::MaxContent => -2.,
+                        AvailableSpace::Definite(value) => value,
+                    },
+                )),
+            ],
+        );
+
+        match result {
+            Ok(result) => {
+                let size = result.j().unwrap_or_default();
+                let width = MeasureOutput::get_width(size);
+                let height = MeasureOutput::get_height(size);
+                Size::<f32>::new(width, height).into()
+            }
+            Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
+        }
     }
 }
 
@@ -66,46 +111,12 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
 
         let jvm = env.get_java_vm().unwrap();
 
+        let func = MeasureFunction {jvm, measure};
+
         let ret = mason
             .new_node_with_measure_func(
                 *style.clone(),
-                MeasureFunc::Boxed(Box::new(move |known_dimensions, available_space| {
-                    let vm = jvm.attach_current_thread();
-                    let mut env = vm.unwrap();
-                    let result = env.call_method(
-                        measure.as_obj(),
-                        "measure",
-                        "(JJ)J",
-                        &[
-                            JValue::from(MeasureOutput::make(
-                                known_dimensions.width.unwrap_or(f32::NAN),
-                                known_dimensions.height.unwrap_or(f32::NAN),
-                            )),
-                            JValue::from(MeasureOutput::make(
-                                match available_space.width {
-                                    AvailableSpace::MinContent => -1.,
-                                    AvailableSpace::MaxContent => -2.,
-                                    AvailableSpace::Definite(value) => value,
-                                },
-                                match available_space.height {
-                                    AvailableSpace::MinContent => -1.,
-                                    AvailableSpace::MaxContent => -2.,
-                                    AvailableSpace::Definite(value) => value,
-                                },
-                            )),
-                        ],
-                    );
-
-                    match result {
-                        Ok(result) => {
-                            let size = result.j().unwrap_or_default();
-                            let width = MeasureOutput::get_width(size);
-                            let height = MeasureOutput::get_height(size);
-                            Size::<f32>::new(width, height).into()
-                        }
-                        Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
-                    }
-                })),
+                MeasureFunc::Boxed(Box::new(func)),
             )
             .map(|v| Box::into_raw(Box::new(v)) as jlong)
             .unwrap_or_else(|| 0);
@@ -1446,47 +1457,10 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetMeasur
         let node = Box::from_raw(node as *mut Node);
         let measure = env.new_global_ref(measure).unwrap();
         let jvm = env.get_java_vm().unwrap();
+        let func = MeasureFunction {jvm, measure};
         mason.set_measure_func(
             *node,
-            Some(MeasureFunc::Boxed(Box::new(
-                move |known_dimensions, available_space| {
-                    let vm = jvm.attach_current_thread();
-                    let mut env = vm.unwrap();
-                    let result = env.call_method(
-                        measure.as_obj(),
-                        "measure",
-                        "(JJ)J",
-                        &[
-                            JValue::from(MeasureOutput::make(
-                                known_dimensions.width.unwrap_or(f32::NAN),
-                                known_dimensions.height.unwrap_or(f32::NAN),
-                            )),
-                            JValue::from(MeasureOutput::make(
-                                match available_space.width {
-                                    AvailableSpace::MinContent => -1.,
-                                    AvailableSpace::MaxContent => -2.,
-                                    AvailableSpace::Definite(value) => value,
-                                },
-                                match available_space.height {
-                                    AvailableSpace::MinContent => -1.,
-                                    AvailableSpace::MaxContent => -2.,
-                                    AvailableSpace::Definite(value) => value,
-                                },
-                            )),
-                        ],
-                    );
-
-                    match result {
-                        Ok(result) => {
-                            let size = result.j().unwrap_or_default();
-                            let width = MeasureOutput::get_width(size);
-                            let height = MeasureOutput::get_height(size);
-                            Size::<f32>::new(width, height).into()
-                        }
-                        Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
-                    }
-                },
-            ))),
+            Some(MeasureFunc::Boxed(Box::new(func))),
         );
 
         Box::leak(mason);

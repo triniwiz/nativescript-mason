@@ -4,12 +4,13 @@ use std::ffi::{c_float, c_int, c_longlong, c_short, c_void};
 
 use mason_core::style::Style;
 use mason_core::tree::{Measurable, MeasureFunc};
-use mason_core::{Mason, MeasureOutput, Node, Size};
+use mason_core::{Mason, MeasureOutput, Node, Size, AvailableSpace as TaffAvailableSpace};
 
 use crate::style::{
     to_vec_non_repeated_track_sizing_function, to_vec_track_sizing_function,
     CMasonNonRepeatedTrackSizingFunctionArray, CMasonTrackSizingFunctionArray,
 };
+
 
 #[repr(C)]
 pub enum AvailableSpace {
@@ -40,6 +41,46 @@ impl Default for NodeArray {
         Self {
             array: std::ptr::null_mut(),
             length: 0,
+        }
+    }
+}
+
+struct MeasureFunction {
+    measure_data: c_longlong,
+    measure: Option<extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong>,
+}
+
+impl Measurable for MeasureFunction {
+    fn measure(&self, known_dimensions: mason_core::geometry::Size<Option<f32>>, available_space: mason_core::geometry::Size<TaffAvailableSpace>) -> mason_core::geometry::Size<f32> {
+        match self.measure.as_ref() {
+            None => Size::<f32>::new(0., 0.).into(),
+            Some(measure) => {
+                let measure_data = self.measure_data as *mut c_void;
+                let available_space_width = match available_space.width {
+                    TaffAvailableSpace::MinContent => -1.,
+                    TaffAvailableSpace::MaxContent => -2.,
+                    TaffAvailableSpace::Definite(value) => value,
+                };
+
+                let available_space_height = match available_space.height {
+                    TaffAvailableSpace::MinContent => -1.,
+                    TaffAvailableSpace::MaxContent => -2.,
+                    TaffAvailableSpace::Definite(value) => value,
+                };
+
+                let size = measure(
+                    measure_data,
+                    known_dimensions.width.unwrap_or(f32::NAN),
+                    known_dimensions.height.unwrap_or(f32::NAN),
+                    available_space_width,
+                    available_space_height,
+                );
+
+                let width = MeasureOutput::get_width(size);
+                let height = MeasureOutput::get_height(size);
+
+                Size::<f32>::new(width, height).into()
+            }
         }
     }
 }
@@ -107,45 +148,14 @@ pub extern "C" fn mason_node_new_node_with_measure_func(
         // casting to long and back to to pass the pointer along
         let measure_data = measure_data as c_longlong;
 
+        let func = MeasureFunction {measure_data, measure};
         let ret = mason
             .new_node_with_measure_func(
                 *style.clone(),
-                MeasureFunc::Boxed(Box::new(
-                    move |known_dimensions, available_space| match measure {
-                        None => known_dimensions.map(|v| v.unwrap_or(0.0)),
-                        Some(measure) => {
-                            let measure_data = measure_data as *mut c_void;
-
-                            let available_space_width = match available_space.width {
-                                mason_core::AvailableSpace::MinContent => -1.,
-                                mason_core::AvailableSpace::MaxContent => -2.,
-                                mason_core::AvailableSpace::Definite(value) => value,
-                            };
-
-                            let available_space_height = match available_space.height {
-                                mason_core::AvailableSpace::MinContent => -1.,
-                                mason_core::AvailableSpace::MaxContent => -2.,
-                                mason_core::AvailableSpace::Definite(value) => value,
-                            };
-
-                            let size = measure(
-                                measure_data,
-                                known_dimensions.width.unwrap_or(f32::NAN),
-                                known_dimensions.height.unwrap_or(f32::NAN),
-                                available_space_width,
-                                available_space_height,
-                            );
-
-                            let width = MeasureOutput::get_width(size);
-                            let height = MeasureOutput::get_height(size);
-
-                            Size::<f32>::new(width, height).into()
-                        }
-                    },
-                )),
+                MeasureFunc::Boxed(Box::new(func)),
             )
             .map(|v| Box::into_raw(Box::new(v)))
-            .unwrap_or_else(|| std::ptr::null_mut()) as *mut c_void;
+            .unwrap_or_else(std::ptr::null_mut) as *mut c_void;
 
         Box::leak(mason);
         Box::leak(style);
@@ -1319,44 +1329,15 @@ pub extern "C" fn mason_node_set_measure_func(
     if mason.is_null() || node.is_null() {
         return;
     }
+
     unsafe {
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
         let measure_data = measure_data as c_longlong;
+        let func = MeasureFunction { measure_data, measure };
         mason.set_measure_func(
             *node,
-            Some(MeasureFunc::Boxed(Box::new(
-                move |known_dimensions, available_space| match measure.as_ref() {
-                    None => known_dimensions.map(|v| v.unwrap_or(0.0)),
-                    Some(measure) => {
-                        let measure_data = measure_data as *mut c_void;
-                        let available_space_width = match available_space.width {
-                            mason_core::AvailableSpace::MinContent => -1.,
-                            mason_core::AvailableSpace::MaxContent => -2.,
-                            mason_core::AvailableSpace::Definite(value) => value,
-                        };
-
-                        let available_space_height = match available_space.height {
-                            mason_core::AvailableSpace::MinContent => -1.,
-                            mason_core::AvailableSpace::MaxContent => -2.,
-                            mason_core::AvailableSpace::Definite(value) => value,
-                        };
-
-                        let size = measure(
-                            measure_data,
-                            known_dimensions.width.unwrap_or(f32::NAN),
-                            known_dimensions.height.unwrap_or(f32::NAN),
-                            available_space_width,
-                            available_space_height,
-                        );
-
-                        let width = MeasureOutput::get_width(size);
-                        let height = MeasureOutput::get_height(size);
-
-                        Size::<f32>::new(width, height).into()
-                    }
-                },
-            ))),
+            Some(MeasureFunc::Boxed(Box::new(func))),
         );
 
         Box::leak(mason);

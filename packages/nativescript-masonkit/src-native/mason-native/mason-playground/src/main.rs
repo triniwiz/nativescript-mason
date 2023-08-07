@@ -73,8 +73,8 @@ fn flex_example() {
     let mut style = Style::default();
 
     let root_size = Size::<Dimension>::new_with_dim(
-        Dimension::Points(1179.0),
-        Dimension::Points(2556.0)
+        Dimension::Length(1179.0),
+        Dimension::Length(2556.0)
     );
 
    // style.set_size(root_size);
@@ -85,27 +85,27 @@ fn flex_example() {
 
     let mut child_a_style = Style::default();
 
-    let size = Size::<Dimension>::new_with_dim(Dimension::Points(1500.), Dimension::Points(3000.));
+    let size = Size::<Dimension>::new_with_dim(Dimension::Length(1500.), Dimension::Length(3000.));
 
     child_a_style.set_size(size);
 
-    let child_a = mason.new_node_with_measure_func(child_a_style, MeasureFunc::Boxed(Box::new(|known,available|{
+    let child_a = mason.new_node_with_measure_func(child_a_style, MeasureFunc::Raw(|known,available|{
 
         println!("{:?} {:?}", &known, &available);
 
         known.unwrap_or(Size::<f32>::new(f32::NAN,f32::NAN).into())
-    }))).unwrap();
+    })).unwrap();
 
     let mut child_b_style = Style::default();
 
     child_b_style.set_size(size);
 
-    let child_b = mason.new_node_with_measure_func(child_b_style, MeasureFunc::Boxed(Box::new(|known,available|{
+    let child_b = mason.new_node_with_measure_func(child_b_style, MeasureFunc::Raw(|known,available|{
 
         println!("{:?} {:?}", &known, &available);
 
         known.unwrap_or(Size::<f32>::new(f32::NAN,f32::NAN).into())
-    }))).unwrap();
+    })).unwrap();
 
     // mason.add_children(root, &[child_a, child_b]);
 
