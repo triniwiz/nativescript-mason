@@ -9,9 +9,9 @@
 #include <stdlib.h>
 
 typedef enum CMasonDimensionType {
+  MasonDimensionAuto,
   MasonDimensionPoints,
   MasonDimensionPercent,
-  MasonDimensionAuto,
 } CMasonDimensionType;
 
 typedef enum CMasonGridPlacementType {
@@ -21,9 +21,9 @@ typedef enum CMasonGridPlacementType {
 } CMasonGridPlacementType;
 
 typedef enum CMasonLengthPercentageAutoType {
+  MasonLengthPercentageAutoAuto,
   MasonLengthPercentageAutoPoints,
   MasonLengthPercentageAutoPercent,
-  MasonLengthPercentageAutoAuto,
 } CMasonLengthPercentageAutoType;
 
 typedef enum CMasonLengthPercentageType {

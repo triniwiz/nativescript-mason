@@ -5,9 +5,9 @@ use jni::sys::{
 };
 use jni::JNIEnv;
 
-use mason_core::{AvailableSpace, Mason, MeasureFunc, MeasureOutput, Node, Size};
-
 use crate::style::{to_vec_non_repeated_track_sizing_function, to_vec_track_sizing_function};
+use mason_core::tree::MeasureFunc;
+use mason_core::{AvailableSpace, Mason, MeasureOutput, Node, Size};
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeDestroy(
@@ -135,10 +135,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
         let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
         let ret = match env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
             Ok(array) => {
-                let data = std::slice::from_raw_parts_mut(
-                    array.as_ptr() as *mut jlong,
-                    array.len(),
-                );
+                let data =
+                    std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, array.len());
                 let data: Vec<Node> = data
                     .iter()
                     .map(|v| {
@@ -419,6 +417,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
     grid_row_end_value: jshort,
     grid_template_rows: jobjectArray,
     grid_template_columns: jobjectArray,
+    overflow_x: jint,
+    overflow_y: jint,
+    scrollbar_width: jfloat,
 ) {
     if taffy == 0 || node == 0 || style == 0 {
         return;
@@ -513,6 +514,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
             grid_row_end_value,
             grid_template_rows,
             grid_template_columns,
+            overflow_x,
+            overflow_y,
+            scrollbar_width,
         );
 
         mason.set_style(*node, *style.clone());
@@ -607,6 +611,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     grid_row_end_value: jshort,
     grid_template_rows: jobjectArray,
     grid_template_columns: jobjectArray,
+    overflow_x: jint,
+    overflow_y: jint,
+    scrollbar_width: jfloat,
 ) -> jfloatArray {
     if taffy == 0 || node == 0 || style == 0 {
         return env.new_float_array(0_i32).unwrap().into_raw();
@@ -702,6 +709,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             grid_row_end_value,
             grid_template_rows,
             grid_template_columns,
+            overflow_x,
+            overflow_y,
+            scrollbar_width,
         );
 
         mason.set_style(*node, *(style.clone()));
@@ -716,6 +726,66 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         Box::leak(mason);
         Box::leak(node);
         Box::leak(style);
+
+        result.into_raw()
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeAndLayout(
+    env: &mut JNIEnv,
+    _: JObject,
+    taffy: jlong,
+    node: jlong,
+) -> jfloatArray {
+    if taffy == 0 || node == 0 {
+        return env.new_float_array(0_i32).unwrap().into_raw();
+    }
+
+    unsafe {
+        let mut mason = Box::from_raw(taffy as *mut Mason);
+        let node = Box::from_raw(node as *mut Node);
+
+        mason.compute(*node);
+
+        let output = mason.layout(*node);
+
+        let result = env.new_float_array(output.len() as i32).unwrap();
+        env.set_float_array_region(&result, 0, &output).unwrap();
+
+        Box::leak(mason);
+        Box::leak(node);
+
+        result.into_raw()
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeWithSizeAndLayout(
+    env: &mut JNIEnv,
+    _: JObject,
+    taffy: jlong,
+    node: jlong,
+    width: jfloat,
+    height: jfloat,
+) -> jfloatArray {
+    if taffy == 0 || node == 0 {
+        return env.new_float_array(0_i32).unwrap().into_raw();
+    }
+
+    unsafe {
+        let mut mason = Box::from_raw(taffy as *mut Mason);
+        let node = Box::from_raw(node as *mut Node);
+
+        mason.compute_wh(*node, width, height);
+
+        let output = mason.layout(*node);
+
+        let result = env.new_float_array(output.len() as i32).unwrap();
+        env.set_float_array_region(&result, 0, &output).unwrap();
+
+        Box::leak(mason);
+        Box::leak(node);
 
         result.into_raw()
     }
@@ -808,6 +878,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     grid_row_end_value: jshort,
     grid_template_rows: jobjectArray,
     grid_template_columns: jobjectArray,
+    overflow_x: jint,
+    overflow_y: jint,
+    scrollbar_width: jfloat,
 ) -> jfloatArray {
     if taffy == 0 || node == 0 || style == 0 {
         return env.new_float_array(0_i32).unwrap().into_raw();
@@ -903,6 +976,9 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
             grid_row_end_value,
             grid_template_rows,
             grid_template_columns,
+            overflow_x,
+            overflow_y,
+            scrollbar_width,
         );
 
         mason.set_style(*node, *style.clone());
@@ -964,10 +1040,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetChildr
 
         let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
         if let Ok(array) = env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
-            let data = std::slice::from_raw_parts_mut(
-                array.as_ptr() as *mut jlong,
-                array.len()
-            );
+            let data = std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, array.len());
             let data: Vec<Node> = data
                 .iter()
                 .map(|v| {
@@ -1000,10 +1073,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChildr
 
         let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
         if let Ok(array) = env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
-            let data = std::slice::from_raw_parts_mut(
-                array.as_ptr() as *mut jlong,
-                array.len()
-            );
+            let data = std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, array.len());
             let data: Vec<Node> = data
                 .iter()
                 .map(|v| {

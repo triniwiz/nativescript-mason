@@ -1,14 +1,15 @@
+use taffy::geometry::Point;
 use taffy::prelude::*;
 use taffy::style::{
     AlignContent, AlignItems, AlignSelf, Dimension, Display, FlexDirection, FlexWrap,
-    JustifyContent, LengthPercentage, LengthPercentageAuto, MinTrackSizingFunction, Position,
-    TrackSizingFunction,
+    JustifyContent, LengthPercentage, LengthPercentageAuto, MinTrackSizingFunction, Overflow,
+    Position, TrackSizingFunction,
 };
 
 use crate::{
     align_content_from_enum, align_items_from_enum, align_self_from_enum, display_from_enum,
     flex_direction_from_enum, flex_wrap_from_enum, grid_auto_flow_from_enum,
-    justify_content_from_enum, position_from_enum, Rect, Size,
+    justify_content_from_enum, overflow_from_enum, position_from_enum, Rect, Size,
 };
 
 #[derive(Clone, PartialEq, Debug, Default)]
@@ -16,10 +17,10 @@ pub struct Style {
     pub(crate) style: taffy::style::Style,
 }
 
-const fn dimension_with_auto(t: i32, v: f32) -> LengthPercentageAuto {
+pub const fn dimension_with_auto(t: i32, v: f32) -> LengthPercentageAuto {
     match t {
         0 => LengthPercentageAuto::Auto,
-        1 => LengthPercentageAuto::Points(v),
+        1 => LengthPercentageAuto::Length(v),
         2 => LengthPercentageAuto::Percent(v),
         _ => panic!(),
     }
@@ -27,7 +28,7 @@ const fn dimension_with_auto(t: i32, v: f32) -> LengthPercentageAuto {
 
 const fn dimension(t: i32, v: f32) -> LengthPercentage {
     match t {
-        0 => LengthPercentage::Points(v),
+        0 => LengthPercentage::Length(v),
         1 => LengthPercentage::Percent(v),
         _ => panic!(),
     }
@@ -44,7 +45,7 @@ pub fn min_max_from_values(
             0 => MinTrackSizingFunction::AUTO,
             1 => MinTrackSizingFunction::MIN_CONTENT,
             2 => MinTrackSizingFunction::MAX_CONTENT,
-            3 => MinTrackSizingFunction::from_points(min_value),
+            3 => MinTrackSizingFunction::from_length(min_value),
             4 => MinTrackSizingFunction::from_percent(min_value),
             _ => panic!(),
         },
@@ -52,10 +53,10 @@ pub fn min_max_from_values(
             0 => MaxTrackSizingFunction::AUTO,
             1 => MaxTrackSizingFunction::MIN_CONTENT,
             2 => MaxTrackSizingFunction::MAX_CONTENT,
-            3 => MaxTrackSizingFunction::from_points(max_value),
+            3 => MaxTrackSizingFunction::from_length(max_value),
             4 => MaxTrackSizingFunction::from_percent(max_value),
             5 => MaxTrackSizingFunction::from_flex(max_value),
-            6 => MaxTrackSizingFunction::fit_content(LengthPercentage::Points(max_value)),
+            6 => MaxTrackSizingFunction::fit_content(LengthPercentage::Length(max_value)),
             7 => MaxTrackSizingFunction::fit_content(LengthPercentage::Percent(max_value)),
             _ => panic!(),
         },
@@ -617,6 +618,38 @@ impl Style {
         }
     }
 
+    pub fn set_scrollbar_width(&mut self, value: f32) {
+        self.style.scrollbar_width = value;
+    }
+
+    pub fn get_scrollbar_width(&self) -> f32 {
+        self.style.scrollbar_width
+    }
+
+    pub fn set_overflow(&mut self, value: Point<Overflow>) {
+        self.style.overflow = value
+    }
+
+    pub fn get_overflow(&self) -> Point<Overflow> {
+        self.style.overflow
+    }
+
+    pub fn set_overflow_x(&mut self, value: Overflow) {
+        self.style.overflow.x = value
+    }
+
+    pub fn get_overflow_x(&self) -> Overflow {
+        self.style.overflow.x
+    }
+
+    pub fn set_overflow_y(&mut self, value: Overflow) {
+        self.style.overflow.y = value
+    }
+
+    pub fn get_overflow_y(&self) -> Overflow {
+        self.style.overflow.y
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn from_ffi(
         display: i32,
@@ -697,6 +730,9 @@ impl Style {
         grid_row_end_value: i16,
         grid_template_rows: Vec<TrackSizingFunction>,
         grid_template_columns: Vec<TrackSizingFunction>,
+        overflow_x: i32,
+        overflow_y: i32,
+        scrollbar_width: f32,
     ) -> Self {
         Style::from_taffy(taffy::style::Style {
             display: match display {
@@ -705,7 +741,11 @@ impl Style {
                 2 => Display::Grid,
                 _ => panic!(),
             },
-
+            scrollbar_width: scrollbar_width,
+            overflow: Point {
+                x: overflow_from_enum(overflow_x),
+                y: overflow_from_enum(overflow_y),
+            },
             position: match position {
                 0 => Position::Relative,
                 1 => Position::Absolute,
@@ -908,6 +948,9 @@ impl Style {
         grid_row_end_value: i16,
         grid_template_rows: Vec<TrackSizingFunction>,
         grid_template_columns: Vec<TrackSizingFunction>,
+        overflow_x: i32,
+        overflow_y: i32,
+        scrollbar_width: f32,
     ) {
         style.style.display = display_from_enum(display).unwrap_or_else(|| panic!());
 
@@ -936,6 +979,15 @@ impl Style {
             _ => panic!(),
         },
         */
+
+        style.style.scrollbar_width = scrollbar_width;
+
+        if overflow_x > 0 || overflow_y > 0 {
+            style.style.overflow = Point {
+                x: overflow_from_enum(overflow_x),
+                y: overflow_from_enum(overflow_y),
+            }
+        }
 
         if align_items == -1 {
             style.style.align_items = None;

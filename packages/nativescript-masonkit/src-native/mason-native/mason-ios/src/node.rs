@@ -3,7 +3,8 @@ extern crate mason_core;
 use std::ffi::{c_float, c_int, c_longlong, c_short, c_void};
 
 use mason_core::style::Style;
-use mason_core::{Mason, MeasureFunc, MeasureOutput, Node, Size};
+use mason_core::tree::{Measurable, MeasureFunc};
+use mason_core::{Mason, MeasureOutput, Node, Size};
 
 use crate::style::{
     to_vec_non_repeated_track_sizing_function, to_vec_track_sizing_function,
@@ -148,75 +149,6 @@ pub extern "C" fn mason_node_new_node_with_measure_func(
 
         Box::leak(mason);
         Box::leak(style);
-
-        ret
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_node_new_node_with_children(
-    mason: *mut c_void,
-    style: *mut c_void,
-    children: *const c_void,
-    children_size: usize,
-) -> *mut c_void {
-    if mason.is_null() || style.is_null() {
-        return std::ptr::null_mut();
-    }
-    unsafe {
-        let mut mason = Box::from_raw(mason as *mut Mason);
-        let style = Box::from_raw(style as *mut Style);
-
-        let data = std::slice::from_raw_parts(children as *const *mut Node, children_size as usize);
-
-        let data: Vec<Node> = data.iter().map(|v| *(*v)).collect();
-
-        let ret = mason
-            .new_node_with_children(*style.clone(), &data)
-            .map(|v| Box::into_raw(Box::new(v)))
-            .unwrap_or_else(std::ptr::null_mut) as *mut c_void;
-
-        Box::leak(mason);
-        Box::leak(style);
-
-        ret
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_node_get_child_count(mason: *mut c_void, node: *mut c_void) -> usize {
-    if mason.is_null() || node.is_null() {
-        return 0;
-    }
-    unsafe {
-        let mason = Box::from_raw(mason as *mut Mason);
-        let node = Box::from_raw(node as *mut Node);
-        let ret = mason.child_count(*node);
-        Box::leak(mason);
-        Box::leak(node);
-        ret
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_node_layout(
-    mason: *mut c_void,
-    node: *mut c_void,
-    layout: extern "C" fn(*const c_float) -> *mut c_void,
-) -> *mut c_void {
-    if mason.is_null() || node.is_null() {
-        return layout(std::ptr::null_mut());
-    }
-    unsafe {
-        let mason = Box::from_raw(mason as *mut Mason);
-        let node = Box::from_raw(node as *mut Node);
-
-        let output = mason.layout(*node);
-
-        let ret = layout(output.as_ptr());
-
-        Box::leak(mason);
-        Box::leak(node);
 
         ret
     }
@@ -428,6 +360,9 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
     grid_row_end_value: c_short,
     grid_template_rows: *mut CMasonTrackSizingFunctionArray,
     grid_template_columns: *mut CMasonTrackSizingFunctionArray,
+    overflow_x: i32,
+    overflow_y: i32,
+    scrollbar_width: f32,
 ) {
     if mason.is_null() || node.is_null() || style.is_null() {
         return;
@@ -523,10 +458,12 @@ pub extern "C" fn mason_node_update_and_set_style_with_values(
             grid_row_end_value,
             grid_template_rows,
             grid_template_columns,
+            overflow_x,
+            overflow_y,
+            scrollbar_width,
         );
 
         mason.set_style(*node, *style.clone());
-
 
         Box::leak(mason);
         Box::leak(node);
@@ -617,6 +554,9 @@ pub extern "C" fn mason_node_update_style_with_values_compute_and_layout(
     grid_row_end_value: i16,
     grid_template_rows: *mut CMasonTrackSizingFunctionArray,
     grid_template_columns: *mut CMasonTrackSizingFunctionArray,
+    overflow_x: i32,
+    overflow_y: i32,
+    scrollbar_width: f32,
     layout: extern "C" fn(*const c_float) -> *mut c_void,
 ) -> *mut c_void {
     if mason.is_null() || node.is_null() || style.is_null() {
@@ -713,6 +653,9 @@ pub extern "C" fn mason_node_update_style_with_values_compute_and_layout(
             grid_row_end_value,
             grid_template_rows,
             grid_template_columns,
+            overflow_x,
+            overflow_y,
+            scrollbar_width,
         );
 
         let n = *node;
@@ -818,6 +761,9 @@ pub extern "C" fn mason_node_update_style_with_values_size_compute_and_layout(
     grid_row_end_value: i16,
     grid_template_rows: *mut CMasonTrackSizingFunctionArray,
     grid_template_columns: *mut CMasonTrackSizingFunctionArray,
+    overflow_x: i32,
+    overflow_y: i32,
+    scrollbar_width: f32,
     layout: extern "C" fn(*const c_float) -> *mut c_void,
 ) -> *mut c_void {
     if mason.is_null() || node.is_null() || style.is_null() {
@@ -914,6 +860,9 @@ pub extern "C" fn mason_node_update_style_with_values_size_compute_and_layout(
             grid_row_end_value,
             grid_template_rows,
             grid_template_columns,
+            overflow_x,
+            overflow_y,
+            scrollbar_width,
         );
 
         let n = *node;
