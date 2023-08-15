@@ -19,6 +19,11 @@
             "glob": "**/*",
             "input": "packages/nativescript-masonkit/platforms/",
             "output": "./platforms/"
+          },
+          {
+            "glob": "**/*",
+            "input": "packages/nativescript-masonkit/pods/",
+            "output": "./pods/"
           }
         ],
         "dependsOn": [

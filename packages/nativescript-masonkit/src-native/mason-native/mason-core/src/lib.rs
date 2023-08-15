@@ -115,6 +115,7 @@ pub const fn display_from_enum(value: i32) -> Option<Display> {
         0 => Some(Display::None),
         1 => Some(Display::Flex),
         2 => Some(Display::Grid),
+        3 => Some(Display::Block),
         _ => None,
     }
 }

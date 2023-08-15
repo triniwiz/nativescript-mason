@@ -1743,14 +1743,6 @@ pub unsafe fn to_vec_track_sizing_function(
         .collect::<Vec<TrackSizingFunction>>()
 }
 
-fn overflow_to_c_overflow(value: Overflow) -> CMasonOverflowType {
-    match value {
-        Overflow::Visible => CMasonOverflowType::Visible,
-        Overflow::Hidden => CMasonOverflowType::Hidden,
-        Overflow::Scroll => CMasonOverflowType::Scroll,
-    }
-}
-
 pub extern "C" fn mason_style_set_scrollbar_width(style: i64, value: f32) {
     mason_core::ffi::style_set_scrollbar_width(style as _, value);
 }
@@ -1763,30 +1755,28 @@ pub extern "C" fn mason_style_set_overflow(style: i64, value: i32) {
     mason_core::ffi::style_set_overflow(style as _, value);
 }
 
-pub extern "C" fn mason_style_get_overflow(style: i64) -> CMasonOverflowPoint {
-    let out = mason_core::ffi::style_get_overflow(style as _);
-    let val = CMasonOverflowPoint {
-        x: overflow_to_c_overflow(out.x),
-        y: overflow_to_c_overflow(out.y),
-    };
-
-    val
-}
-
 pub extern "C" fn mason_style_set_overflow_x(style: i64, value: i32) {
     mason_core::ffi::style_set_overflow_x(style as _, value);
 }
 
-pub extern "C" fn mason_style_get_overflow_x(style: i64) -> CMasonOverflowType {
-    overflow_to_c_overflow(mason_core::ffi::style_get_overflow_x(style as _))
+fn overflow_to_int(value: Overflow) -> i32 {
+    match value {
+        Overflow::Visible => 0,
+        Overflow::Hidden => 1,
+        Overflow::Scroll => 2,
+    }
+}
+
+pub extern "C" fn mason_style_get_overflow_x(style: i64) -> i32 {
+    overflow_to_int(mason_core::ffi::style_get_overflow_x(style as _))
 }
 
 pub extern "C" fn mason_style_set_overflow_y(style: i64, value: i32) {
     mason_core::ffi::style_set_overflow_y(style as _, value);
 }
 
-pub extern "C" fn mason_style_get_overflow_y(style: i64) -> CMasonOverflowType {
-    overflow_to_c_overflow(mason_core::ffi::style_get_overflow_y(style as _))
+pub extern "C" fn mason_style_get_overflow_y(style: i64) -> i32 {
+    overflow_to_int(mason_core::ffi::style_get_overflow_y(style as _))
 }
 
 #[no_mangle]

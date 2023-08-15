@@ -1045,6 +1045,26 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
+  var overflowX: Overflow
+    get() {
+      return style.overflowX
+    }
+    set(value) {
+      style.overflowX = value
+      checkAndUpdateStyle()
+    }
+
+  var overflowY: Overflow
+    get() {
+      return style.overflowY
+    }
+    set(value) {
+      style.overflowY = value
+      checkAndUpdateStyle()
+    }
+
+
+
   var alignItems: AlignItems
     get() {
       return style.alignItems
@@ -1115,6 +1135,21 @@ class View @JvmOverloads constructor(
     }
     set(value) {
       style.flexShrink = value
+      checkAndUpdateStyle()
+    }
+
+
+  fun setScrollBarWidth(value: Float) {
+    style.setScrollBarWidth(value)
+    checkAndUpdateStyle()
+  }
+
+  var scrollBarWidth: Dimension
+    get() {
+      return style.scrollBarWidth
+    }
+    set(value) {
+      style.scrollBarWidth = value
       checkAndUpdateStyle()
     }
 
@@ -1970,6 +2005,12 @@ class View @JvmOverloads constructor(
       }
     }
 
+    @JvmStatic
+    fun createBlockView(context: Context): View {
+      return View(context).apply {
+        style.display = Display.Block
+      }
+    }
   }
 
   internal class ViewMeasureFunc(private val node: WeakReference<Node>) : MeasureFunc {

@@ -160,7 +160,8 @@ enum class Direction {
 enum class Display {
   None,
   Flex,
-  Grid;
+  Grid,
+  Block;
 
   val cssValue: String
     get() {
@@ -168,6 +169,7 @@ enum class Display {
         None -> "none"
         Flex -> "flex"
         Grid -> "grid"
+        Block -> "block"
       }
     }
 
@@ -177,6 +179,7 @@ enum class Display {
         0 -> None
         1 -> Flex
         2 -> Grid
+        3 -> Block
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -341,14 +344,16 @@ enum class JustifyContent(val value: Int) {
   }
 }
 
-enum class Overflow {
-  Visible,
-  Hidden,
-  Scroll;
+enum class Overflow(val value: Int) {
+  Unset(-1),
+  Visible(0),
+  Hidden(1),
+  Scroll(2);
 
   val cssValue: String
     get() {
       return when (this) {
+        Unset -> "unset"
         Visible -> "visible"
         Hidden -> "hidden"
         Scroll -> "scroll"
@@ -358,6 +363,7 @@ enum class Overflow {
   companion object {
     fun fromInt(value: Int): Overflow {
       return when (value) {
+        -1 -> Unset
         0 -> Visible
         1 -> Hidden
         2 -> Scroll
@@ -645,7 +651,19 @@ class Style internal constructor() {
       isDirty = true
     }
 
-  var overflow: Overflow = Overflow.Hidden
+  var overflow: Overflow = Overflow.Unset
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var overflowX: Overflow = Overflow.Unset
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var overflowY: Overflow = Overflow.Unset
     set(value) {
       field = value
       isDirty = true
@@ -986,6 +1004,18 @@ class Style internal constructor() {
       field = value
       isDirty = true
     }
+
+
+  var scrollBarWidth: Dimension = Dimension.Points(0f)
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  fun setScrollBarWidth(value: Float) {
+    scrollBarWidth = Dimension.Points(value)
+  }
+
 
   fun setFlexBasis(value: Float, type: Int) {
     when (type) {
@@ -1633,7 +1663,10 @@ class Style internal constructor() {
         gridRow.end.type,
         gridRow.end.placementValue,
         gridTemplateRows,
-        gridTemplateColumns
+        gridTemplateColumns,
+        overflowX.ordinal,
+        overflowY.ordinal,
+        scrollBarWidth.value
       )
       isDirty = false
     }
@@ -1648,6 +1681,7 @@ class Style internal constructor() {
     ret += "inset: ${inset.cssValue}, \n"
     ret += "flexDirection: ${flexDirection.cssValue}, \n"
     ret += "flexWrap: ${flexWrap.cssValue}, \n"
+    ret += "overflow: ${overflow.cssValue}, \n"
     ret += "alignItems: ${alignItems.cssValue}, \n"
     ret += "alignSelf: ${alignSelf.cssValue}, \n"
     ret += "alignContent: ${alignContent.cssValue}, \n"
@@ -1689,6 +1723,10 @@ class Style internal constructor() {
     }, \n"
     ret += "gridTemplateRows: ${gridTemplateRows.cssValue}, \n"
     ret += "gridTemplateColumns: ${gridTemplateColumns.cssValue} \n"
+
+    ret += "overflowX: ${overflowX.cssValue} \n"
+    ret += "overflowY: ${overflowY.cssValue} \n"
+    ret += "scrollBarWidth: ${scrollBarWidth.cssValue} \n"
     ret += ")"
 
     return ret
@@ -1796,7 +1834,10 @@ class Style internal constructor() {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
   ): Long
 
 
@@ -1891,7 +1932,10 @@ class Style internal constructor() {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
   )
 
 }

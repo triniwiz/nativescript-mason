@@ -906,6 +906,10 @@ pub(crate) mod ffi {
 
         fn mason_style_get_overflow_y(style: i64) -> i32;
 
+        fn mason_style_set_scrollbar_width(style: i64, value: f32);
+
+        fn mason_style_get_scrollbar_width(style: i64) -> f32;
+
         #[allow(clippy::too_many_arguments)]
         fn mason_style_update_with_values(
             style: i64,

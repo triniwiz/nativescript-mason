@@ -169,7 +169,10 @@ class Node private constructor(private var nativePtr: Long) {
         style.gridRow.end.type,
         style.gridRow.end.placementValue,
         style.gridTemplateRows,
-        style.gridTemplateColumns
+        style.gridTemplateColumns,
+        style.overflowX.ordinal,
+        style.overflowY.ordinal,
+        style.scrollBarWidth.value
       )
       style.isDirty = false
     } else {
@@ -302,7 +305,10 @@ class Node private constructor(private var nativePtr: Long) {
           style.gridRow.end.type,
           style.gridRow.end.placementValue,
           style.gridTemplateRows,
-          style.gridTemplateColumns
+          style.gridTemplateColumns,
+          style.overflowX.ordinal,
+          style.overflowY.ordinal,
+          style.scrollBarWidth.value
         ), 0
       ).second
     }
@@ -401,7 +407,10 @@ class Node private constructor(private var nativePtr: Long) {
         style.gridRow.end.type,
         style.gridRow.end.placementValue,
         style.gridTemplateRows,
-        style.gridTemplateColumns
+        style.gridTemplateColumns,
+        style.overflowX.ordinal,
+        style.overflowY.ordinal,
+        style.scrollBarWidth.value
       ), 0
     ).second
   }
@@ -896,7 +905,10 @@ class Node private constructor(private var nativePtr: Long) {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
   )
 
 
@@ -993,7 +1005,10 @@ class Node private constructor(private var nativePtr: Long) {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
 
   ): FloatArray
 
@@ -1092,6 +1107,9 @@ class Node private constructor(private var nativePtr: Long) {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
   ): FloatArray
 }

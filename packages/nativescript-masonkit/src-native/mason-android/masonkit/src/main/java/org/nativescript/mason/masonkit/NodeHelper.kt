@@ -67,6 +67,33 @@ object NodeHelper {
     checkAndUpdateStyle(node)
   }
 
+  fun getOverflowX(node: Node): Overflow {
+    return node.style.overflowX
+  }
+
+  fun setOverflowX(node: Node, overflow: Overflow) {
+    node.style.overflowX = overflow
+    checkAndUpdateStyle(node)
+  }
+
+  fun getOverflowY(node: Node): Overflow {
+    return node.style.overflowY
+  }
+
+  fun setOverflowY(node: Node, overflow: Overflow) {
+    node.style.overflowY = overflow
+    checkAndUpdateStyle(node)
+  }
+
+  fun getScrollBarWidth(node: Node): Float {
+    return node.style.scrollBarWidth.value
+  }
+
+  fun setScrollBarWidth(node: Node, scrollBarWidth: Float) {
+    node.style.scrollBarWidth = Dimension.Points(scrollBarWidth)
+    checkAndUpdateStyle(node)
+  }
+
 
   fun getAlignItems(node: Node): AlignItems {
     return node.style.alignItems

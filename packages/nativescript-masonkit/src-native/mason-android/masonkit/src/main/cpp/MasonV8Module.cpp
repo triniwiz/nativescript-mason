@@ -437,8 +437,9 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 gridRowEndType, gridRowEndValue,
 
                 std::move(gridTemplateRows), std::move(gridTemplateColumns),
-                overflowX,overflowY
-                scrollbarWidth,);
+                overflowX,
+                overflowY,
+                scrollbarWidth);
         })
 
         CREATE_FUNCTION("isDirty", {

@@ -982,11 +982,19 @@ impl Style {
 
         style.style.scrollbar_width = scrollbar_width;
 
-        if overflow_x > 0 || overflow_y > 0 {
+        if _overflow > -1 {
             style.style.overflow = Point {
-                x: overflow_from_enum(overflow_x),
-                y: overflow_from_enum(overflow_y),
+                x: overflow_from_enum(_overflow),
+                y: overflow_from_enum(_overflow),
             }
+        }
+
+        if overflow_x > -1 {
+            style.style.overflow.x = overflow_from_enum(overflow_x)
+        }
+
+        if overflow_y > -1 {
+            style.style.overflow.x = overflow_from_enum(overflow_y)
         }
 
         if align_items == -1 {

@@ -1,4 +1,4 @@
-declare const __non_webpack_require__, JSIModule;
+declare const __non_webpack_require__;
 
 import { Length, Utils } from '@nativescript/core';
 import { TSCViewBase } from './common';
@@ -6,12 +6,22 @@ import { TSCViewBase } from './common';
 import { AlignSelf as AlignSelfType } from '.';
 import { parseUnit } from '@nativescript/core/css/parser';
 
+const enum Overflow {
+  Visible = 0,
+
+  Hidden = 1,
+
+  Scroll = 2,
+}
+
 const enum Display {
   None = 0,
 
   Flex = 1,
 
   Grid = 2,
+
+  Block = 3,
 }
 
 const enum TSCGridTrackRepetition {
@@ -92,6 +102,10 @@ export const enum AlignContent {
   SpaceAround = 5,
 
   SpaceEvenly = 6,
+
+  FlexStart = 7,
+
+  FlexEnd = 8,
 }
 
 export const enum AlignItems {
@@ -106,6 +120,10 @@ export const enum AlignItems {
   Baseline = 3,
 
   Stretch = 4,
+
+  FlexStart = 5,
+
+  FlexEnd = 6,
 }
 
 export const enum AlignSelf {
@@ -120,6 +138,10 @@ export const enum AlignSelf {
   Baseline = 3,
 
   Stretch = 4,
+
+  FlexStart = 5,
+
+  FlexEnd = 6,
 }
 
 export const enum JustifyContent {
@@ -138,6 +160,10 @@ export const enum JustifyContent {
   SpaceAround = 5,
 
   SpaceEvenly = 6,
+
+  FlexStart = 7,
+
+  FlexEnd = 8,
 }
 
 export const enum JustifyItems {
@@ -152,6 +178,10 @@ export const enum JustifyItems {
   Baseline = 3,
 
   Stretch = 4,
+
+  FlexStart = 5,
+
+  FlexEnd = 6,
 }
 
 export const enum JustifySelf {
@@ -166,6 +196,10 @@ export const enum JustifySelf {
   Baseline = 3,
 
   Stretch = 4,
+
+  FlexStart = 5,
+
+  FlexEnd = 6,
 }
 
 type TSCView = TSCViewBase & {
@@ -178,12 +212,12 @@ type TSCView = TSCViewBase & {
   android: org.nativescript.mason.masonkit.View;
 };
 
-export let JSIEnabled = false;
+export let UseV8Module = false;
 
 if (global.isAndroid) {
   try {
-    __non_webpack_require__('system_lib://libmasonnativev8.so');
-    // JSIEnabled = true;
+    // __non_webpack_require__('system_lib://libmasonnativev8.so');
+    //UseV8Module = true;
   } catch (error) {
     console.warn('Failed to enable on FastAPI');
   }
@@ -191,12 +225,11 @@ if (global.isAndroid) {
 
 if (global.isIOS) {
   TSCMason.alwaysEnable = true;
-  if (!JSIEnabled) {
+  if (!UseV8Module) {
     try {
       //@ts-ignore
-      const module = new global.JSIModule();
-      // module.install()
-      // JSIEnabled = true;
+      // new global.MasonV8ModuleInstaller.install();
+      //UseV8Module = true;
     } catch (error) {
       console.warn('Failed to enable on FastAPI');
     }
@@ -216,8 +249,9 @@ export function _forceStyleUpdate(instance: TSCView) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (JSIEnabled) {
-    global.__Mason_updateNodeAndStyle(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr);
+
+  if (UseV8Module) {
+    MasonV8Module.updateNodeAndStyle(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -234,8 +268,8 @@ export function _markDirty(instance: TSCView) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (JSIEnabled) {
-    global.__Mason_markDirty(instance._masonPtr, instance._masonNodePtr);
+  if (UseV8Module) {
+    MasonV8Module.markDirty(instance._masonPtr, instance._masonNodePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -256,8 +290,8 @@ export function _isDirty(instance: TSCView) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (JSIEnabled) {
-    return global.__Mason_isDirty(instance._masonPtr, instance._masonNodePtr);
+  if (UseV8Module) {
+    return MasonV8Module.isDirty(instance._masonPtr, instance._masonNodePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -509,7 +543,7 @@ export function _setDisplay(value, instance: TSCView, initial = false) {
   }
 
   if (instance._hasNativeView) {
-    if (JSIEnabled) {
+    if (UseV8Module) {
       let nativeValue = -1;
 
       switch (value) {
@@ -525,7 +559,7 @@ export function _setDisplay(value, instance: TSCView, initial = false) {
       }
 
       if (nativeValue !== -1) {
-        global.__Mason_setDisplay(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+        MasonV8Module.setDisplay(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       }
     } else {
       if (global.isAndroid) {
@@ -578,8 +612,8 @@ export function _getDisplay(instance: TSCView) {
     return instance.style.display;
   }
 
-  if (JSIEnabled) {
-    const value = global.__Mason_getDisplay(instance._masonStylePtr);
+  if (UseV8Module) {
+    const value = MasonV8Module.getDisplay(instance._masonStylePtr);
     switch (value) {
       case 0:
         return 'none';
@@ -628,8 +662,8 @@ export function _setMinWidth(value, instance: TSCView, initial = false) {
     return;
   }
   const val = _toMasonDimension(value);
-  if (JSIEnabled) {
-    global.__Mason_setMinWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setMinWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -650,8 +684,8 @@ export function _getMinWidth(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.minWidth;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getMinWidth(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getMinWidth(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -676,8 +710,8 @@ export function _setMinHeight(value, instance: TSCView, initial = false) {
     return;
   }
   const val = _toMasonDimension(value);
-  if (JSIEnabled) {
-    global.__Mason_setMinHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setMinHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -698,8 +732,8 @@ export function _getMinHeight(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.minHeight;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getMinHeight(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getMinHeight(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -724,8 +758,8 @@ export function _setWidth(value, instance: TSCView, initial = false) {
     return;
   }
   const val = _toMasonDimension(value);
-  if (JSIEnabled) {
-    global.__Mason_setWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -746,8 +780,8 @@ export function _getWidth(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.width;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getWidth(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getWidth(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -773,8 +807,8 @@ export function _setHeight(value, instance: TSCView, initial = false) {
   }
   const val = _toMasonDimension(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -795,8 +829,8 @@ export function _getHeight(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.height;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getHeight(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getHeight(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -822,8 +856,8 @@ export function _setMaxWidth(value, instance: TSCView, initial = false) {
   }
   const val = _toMasonDimension(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setMaxWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setMaxWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -844,8 +878,8 @@ export function _getMaxWidth(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.maxWidth;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getMaxWidth(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getMaxWidth(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -870,8 +904,8 @@ export function _setMaxHeight(value, instance: TSCView, initial = false) {
     return;
   }
   const val = _toMasonDimension(value);
-  if (JSIEnabled) {
-    global.__Mason_setMaxHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setMaxHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -892,8 +926,8 @@ export function _getMaxHeight(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.maxHeight;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getMaxHeight(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getMaxHeight(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -921,7 +955,7 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
     let nativeValue = null;
     switch (value) {
       case 'column':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = FlexDirection.Column;
         } else {
           if (global.isAndroid) {
@@ -932,7 +966,7 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
         }
         break;
       case 'row':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = FlexDirection.Row;
         } else {
           if (global.isAndroid) {
@@ -943,7 +977,7 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
         }
         break;
       case 'column-reverse':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = FlexDirection.ColumnReverse;
         } else {
           if (global.isAndroid) {
@@ -954,7 +988,7 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
         }
         break;
       case 'row-reverse':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = FlexDirection.RowReverse;
         } else {
           if (global.isAndroid) {
@@ -967,8 +1001,8 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
     }
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (JSIEnabled) {
-        global.__Mason_setFlexDirection(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+      if (UseV8Module) {
+        MasonV8Module.setFlexDirection(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
           const nodeOrView = getMasonInstance(instance);
@@ -989,8 +1023,8 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
 
 export function _getFlexDirection(instance: TSCView) {
   if (instance._hasNativeView) {
-    if (JSIEnabled) {
-      const value = global.__Mason_getFlexDirection(instance._masonStylePtr);
+    if (UseV8Module) {
+      const value = MasonV8Module.getFlexDirection(instance._masonStylePtr);
       switch (value) {
         case FlexDirection.Row:
           return 'row';
@@ -1046,8 +1080,8 @@ export function _getPosition(instance: TSCView) {
     return instance.style.position;
   }
 
-  if (JSIEnabled) {
-    const value = global.__Mason_getPosition(instance._masonStylePtr);
+  if (UseV8Module) {
+    const value = MasonV8Module.getPosition(instance._masonStylePtr);
     switch (value) {
       case 0:
         return 'relative';
@@ -1092,7 +1126,7 @@ export function _setPosition(value, instance: TSCView, initial = false) {
     let nativeValue = null;
     switch (value) {
       case 'absolute':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = PositionType.Absolute;
         } else {
           if (global.isAndroid) {
@@ -1104,7 +1138,7 @@ export function _setPosition(value, instance: TSCView, initial = false) {
 
         break;
       case 'relative':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = PositionType.Relative;
         } else {
           if (global.isAndroid) {
@@ -1118,8 +1152,8 @@ export function _setPosition(value, instance: TSCView, initial = false) {
     }
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (JSIEnabled) {
-        global.__Mason_setPosition(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+      if (UseV8Module) {
+        MasonV8Module.setPosition(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
           const nodeOrView = getMasonInstance(instance);
@@ -1147,7 +1181,7 @@ export function _setFlexWrap(value, instance: TSCView, initial = false) {
 
     switch (value) {
       case 'no-wrap':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = FlexWrap.NoWrap;
         } else {
           if (global.isAndroid) {
@@ -1160,7 +1194,7 @@ export function _setFlexWrap(value, instance: TSCView, initial = false) {
         }
         break;
       case 'wrap':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = FlexWrap.Wrap;
         } else {
           if (global.isAndroid) {
@@ -1174,7 +1208,7 @@ export function _setFlexWrap(value, instance: TSCView, initial = false) {
 
         break;
       case 'wrap-reverse':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = FlexWrap.WrapReverse;
         } else {
           if (global.isAndroid) {
@@ -1190,8 +1224,8 @@ export function _setFlexWrap(value, instance: TSCView, initial = false) {
     }
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (JSIEnabled) {
-        global.__Mason_setFlexWrap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+      if (UseV8Module) {
+        MasonV8Module.setFlexWrap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
           const nodeOrView = getMasonInstance(instance);
@@ -1212,8 +1246,8 @@ export function _setFlexWrap(value, instance: TSCView, initial = false) {
 
 export function _getFlexWrap(instance: TSCView) {
   if (instance._hasNativeView) {
-    if (JSIEnabled) {
-      const value = global.__Mason_getFlexWrap(instance._masonStylePtr);
+    if (UseV8Module) {
+      const value = MasonV8Module.getFlexWrap(instance._masonStylePtr);
       switch (value) {
         case 0:
           return 'no-wrap';
@@ -1265,14 +1299,14 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
     let nativeValue = null;
     switch (value) {
       case 'normal':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignItems.Normal;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Normal;
         }
         break;
       case 'baseline':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignItems.Baseline;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Baseline;
@@ -1280,7 +1314,7 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'center':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignItems.Center;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Center;
@@ -1288,8 +1322,15 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'flex-end':
+        if (UseV8Module || global.isIOS) {
+          nativeValue = AlignItems.FlexEnd;
+        } else {
+          nativeValue = org.nativescript.mason.masonkit.AlignItems.FlexEnd;
+        }
+
+        break;
       case 'end':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignItems.End;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.End;
@@ -1297,8 +1338,15 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'flex-start':
+        if (UseV8Module || global.isIOS) {
+          nativeValue = AlignItems.FlexStart;
+        } else {
+          nativeValue = org.nativescript.mason.masonkit.AlignItems.FlexStart;
+        }
+
+        break;
       case 'start':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignItems.Start;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Start;
@@ -1306,7 +1354,7 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'stretch':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignItems.Stretch;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignItems.Stretch;
@@ -1315,8 +1363,8 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
     }
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (JSIEnabled) {
-        global.__Mason_setAlignItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+      if (UseV8Module) {
+        MasonV8Module.setAlignItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
           const nodeOrView = getMasonInstance(instance);
@@ -1337,8 +1385,8 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
 
 export function _getAlignItems(instance: TSCView) {
   if (instance._hasNativeView) {
-    if (JSIEnabled) {
-      const value = global.__Mason_getAlignItems(instance._masonStylePtr);
+    if (UseV8Module) {
+      const value = MasonV8Module.getAlignItems(instance._masonStylePtr);
       switch (value) {
         case AlignItems.Normal:
           return 'normal';
@@ -1408,14 +1456,14 @@ export function _setAlignSelf(value, instance: TSCView, initial = false) {
     let nativeValue = null;
     switch (value) {
       case 'normal':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignSelf.Normal;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignSelf.Normal;
         }
         break;
       case 'baseline':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignSelf.Baseline;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignSelf.Baseline;
@@ -1423,7 +1471,7 @@ export function _setAlignSelf(value, instance: TSCView, initial = false) {
 
         break;
       case 'center':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignSelf.Center;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignSelf.Center;
@@ -1431,8 +1479,15 @@ export function _setAlignSelf(value, instance: TSCView, initial = false) {
 
         break;
       case 'flex-end':
+        if (UseV8Module || global.isIOS) {
+          nativeValue = AlignSelf.FlexEnd;
+        } else {
+          nativeValue = org.nativescript.mason.masonkit.AlignSelf.FlexEnd;
+        }
+
+        break;
       case 'end':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignSelf.End;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignSelf.End;
@@ -1440,8 +1495,15 @@ export function _setAlignSelf(value, instance: TSCView, initial = false) {
 
         break;
       case 'flex-start':
+        if (UseV8Module || global.isIOS) {
+          nativeValue = AlignSelf.FlexStart;
+        } else {
+          nativeValue = org.nativescript.mason.masonkit.AlignSelf.FlexStart;
+        }
+
+        break;
       case 'start':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignSelf.Start;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignSelf.Start;
@@ -1449,7 +1511,7 @@ export function _setAlignSelf(value, instance: TSCView, initial = false) {
 
         break;
       case 'stretch':
-        if (JSIEnabled || global.isIOS) {
+        if (UseV8Module || global.isIOS) {
           nativeValue = AlignSelf.Stretch;
         } else {
           nativeValue = org.nativescript.mason.masonkit.AlignSelf.Stretch;
@@ -1458,8 +1520,8 @@ export function _setAlignSelf(value, instance: TSCView, initial = false) {
     }
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (JSIEnabled) {
-        global.__Mason_setAlignSelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+      if (UseV8Module) {
+        MasonV8Module.setAlignSelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
           const nodeOrView = getMasonInstance(instance);
@@ -1480,8 +1542,8 @@ export function _setAlignSelf(value, instance: TSCView, initial = false) {
 
 export function _getAlignSelf(instance: TSCView): AlignSelfType {
   if (instance._hasNativeView) {
-    if (JSIEnabled) {
-      const value = global.__Mason_getAlignSelf(instance._masonStylePtr);
+    if (UseV8Module) {
+      const value = MasonV8Module.getAlignSelf(instance._masonStylePtr);
       switch (value) {
         case AlignSelf.Normal:
           return 'normal';
@@ -1551,7 +1613,7 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
     let nativeValue = null;
     switch (value) {
       case 'normal':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = AlignContent.Normal;
         } else {
           if (global.isAndroid) {
@@ -1564,7 +1626,7 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'space-around':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = AlignContent.SpaceAround;
         } else {
           if (global.isAndroid) {
@@ -1577,7 +1639,7 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'space-between':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = AlignContent.SpaceBetween;
         } else {
           if (global.isAndroid) {
@@ -1590,7 +1652,7 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'space-evenly':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = AlignContent.SpaceEvenly;
         } else {
           if (global.isAndroid) {
@@ -1603,7 +1665,7 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'center':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = AlignContent.Center;
         } else {
           if (global.isAndroid) {
@@ -1616,8 +1678,20 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'flex-end':
+        if (UseV8Module) {
+          nativeValue = AlignContent.FlexEnd;
+        } else {
+          if (global.isAndroid) {
+            nativeValue = org.nativescript.mason.masonkit.AlignContent.FlexEnd;
+          }
+
+          if (global.isIOS) {
+            nativeValue = AlignContent.FlexEnd;
+          }
+        }
+        break;
       case 'end':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = AlignContent.End;
         } else {
           if (global.isAndroid) {
@@ -1630,8 +1704,20 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'flex-start':
+        if (UseV8Module) {
+          nativeValue = AlignContent.FlexStart;
+        } else {
+          if (global.isAndroid) {
+            nativeValue = org.nativescript.mason.masonkit.AlignContent.FlexStart;
+          }
+
+          if (global.isIOS) {
+            nativeValue = AlignContent.FlexStart;
+          }
+        }
+        break;
       case 'start':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = AlignContent.Start;
         } else {
           if (global.isAndroid) {
@@ -1644,7 +1730,7 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'stretch':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = AlignContent.Stretch;
         } else {
           if (global.isAndroid) {
@@ -1659,8 +1745,8 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
     }
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (JSIEnabled) {
-        global.__Mason_setAlignContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+      if (UseV8Module) {
+        MasonV8Module.setAlignContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
           const nodeOrView = getMasonInstance(instance);
@@ -1681,8 +1767,8 @@ export function _setAlignContent(value, instance: TSCView, initial = false) {
 
 export function _getAlignContent(instance: TSCView) {
   if (instance._hasNativeView) {
-    if (JSIEnabled) {
-      const value = global.__Mason_getAlignContent(instance._masonStylePtr);
+    if (UseV8Module) {
+      const value = MasonV8Module.getAlignContent(instance._masonStylePtr);
       switch (value) {
         case AlignContent.Normal:
           return 'normal';
@@ -1765,14 +1851,14 @@ export function _setJustifyItems(value, instance: TSCView, initial = false) {
     let nativeValue = null;
     switch (value) {
       case 'normal':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyItems.Normal;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifyItems.Normal;
         }
         break;
       case 'baseline':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyItems.Baseline;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifyItems.Baseline;
@@ -1780,7 +1866,7 @@ export function _setJustifyItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'center':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyItems.Center;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifyItems.Center;
@@ -1788,8 +1874,15 @@ export function _setJustifyItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'flex-end':
+        if (UseV8Module) {
+          nativeValue = JustifyItems.FlexEnd;
+        } else {
+          nativeValue = org.nativescript.mason.masonkit.JustifyItems.FlexEnd;
+        }
+
+        break;
       case 'end':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyItems.End;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifyItems.End;
@@ -1797,8 +1890,15 @@ export function _setJustifyItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'flex-start':
+        if (UseV8Module) {
+          nativeValue = JustifyItems.FlexStart;
+        } else {
+          nativeValue = org.nativescript.mason.masonkit.JustifyItems.FlexStart;
+        }
+
+        break;
       case 'start':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyItems.Start;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifyItems.Start;
@@ -1806,7 +1906,7 @@ export function _setJustifyItems(value, instance: TSCView, initial = false) {
 
         break;
       case 'stretch':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyItems.Stretch;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifyItems.Stretch;
@@ -1815,8 +1915,8 @@ export function _setJustifyItems(value, instance: TSCView, initial = false) {
     }
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (JSIEnabled) {
-        global.__Mason_setJustifyItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+      if (UseV8Module) {
+        MasonV8Module.setJustifyItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
           const nodeOrView = getMasonInstance(instance);
@@ -1837,8 +1937,8 @@ export function _setJustifyItems(value, instance: TSCView, initial = false) {
 
 export function _getJustifyItems(instance: TSCView) {
   if (instance._hasNativeView) {
-    if (JSIEnabled) {
-      const value = global.__Mason_getJustifyItems(instance._masonStylePtr);
+    if (UseV8Module) {
+      const value = MasonV8Module.getJustifyItems(instance._masonStylePtr);
       switch (value) {
         case JustifyItems.Normal:
           return 'normal';
@@ -1909,14 +2009,14 @@ export function _setJustifySelf(value, instance: TSCView, initial = false) {
     let nativeValue = null;
     switch (value) {
       case 'normal':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifySelf.Normal;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifySelf.Normal;
         }
         break;
       case 'baseline':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifySelf.Baseline;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifySelf.Baseline;
@@ -1924,7 +2024,7 @@ export function _setJustifySelf(value, instance: TSCView, initial = false) {
 
         break;
       case 'center':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifySelf.Center;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifySelf.Center;
@@ -1932,8 +2032,15 @@ export function _setJustifySelf(value, instance: TSCView, initial = false) {
 
         break;
       case 'flex-end':
+        if (UseV8Module) {
+          nativeValue = JustifySelf.FlexEnd;
+        } else {
+          nativeValue = org.nativescript.mason.masonkit.JustifySelf.FlexEnd;
+        }
+
+        break;
       case 'end':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifySelf.End;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifySelf.End;
@@ -1941,8 +2048,15 @@ export function _setJustifySelf(value, instance: TSCView, initial = false) {
 
         break;
       case 'flex-start':
+        if (UseV8Module) {
+          nativeValue = JustifySelf.FlexStart;
+        } else {
+          nativeValue = org.nativescript.mason.masonkit.JustifySelf.FlexStart;
+        }
+
+        break;
       case 'start':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifySelf.Start;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifySelf.Start;
@@ -1950,7 +2064,7 @@ export function _setJustifySelf(value, instance: TSCView, initial = false) {
 
         break;
       case 'stretch':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifySelf.Stretch;
         } else {
           nativeValue = org.nativescript.mason.masonkit.JustifySelf.Stretch;
@@ -1959,8 +2073,8 @@ export function _setJustifySelf(value, instance: TSCView, initial = false) {
     }
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (JSIEnabled) {
-        global.__Mason_setJustifySelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+      if (UseV8Module) {
+        MasonV8Module.setJustifySelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
           const nodeOrView = getMasonInstance(instance);
@@ -1981,8 +2095,8 @@ export function _setJustifySelf(value, instance: TSCView, initial = false) {
 
 export function _getJustifySelf(instance: TSCView) {
   if (instance._hasNativeView) {
-    if (JSIEnabled) {
-      const value = global.__Mason_getJustifySelf(instance._masonStylePtr);
+    if (UseV8Module) {
+      const value = MasonV8Module.getJustifySelf(instance._masonStylePtr);
       switch (value) {
         case JustifySelf.Normal:
           return 'normal';
@@ -2053,7 +2167,7 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
     let nativeValue = null;
     switch (value) {
       case 'normal':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyContent.Normal;
         } else {
           if (global.isAndroid) {
@@ -2066,7 +2180,7 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'space-around':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyContent.SpaceAround;
         } else {
           if (global.isAndroid) {
@@ -2079,7 +2193,7 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'space-between':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyContent.SpaceBetween;
         } else {
           if (global.isAndroid) {
@@ -2092,7 +2206,7 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'space-evenly':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyContent.SpaceEvenly;
         } else {
           if (global.isAndroid) {
@@ -2105,7 +2219,7 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'center':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyContent.Center;
         } else {
           if (global.isAndroid) {
@@ -2118,8 +2232,20 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'flex-end':
+        if (UseV8Module) {
+          nativeValue = JustifyContent.FlexEnd;
+        } else {
+          if (global.isAndroid) {
+            nativeValue = org.nativescript.mason.masonkit.JustifyContent.FlexEnd;
+          }
+
+          if (global.isIOS) {
+            nativeValue = JustifyContent.FlexEnd;
+          }
+        }
+        break;
       case 'end':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyContent.End;
         } else {
           if (global.isAndroid) {
@@ -2132,8 +2258,20 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'flex-start':
+        if (UseV8Module) {
+          nativeValue = JustifyContent.FlexStart;
+        } else {
+          if (global.isAndroid) {
+            nativeValue = org.nativescript.mason.masonkit.JustifyContent.FlexStart;
+          }
+
+          if (global.isIOS) {
+            nativeValue = JustifyContent.FlexStart;
+          }
+        }
+        break;
       case 'start':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyContent.Start;
         } else {
           if (global.isAndroid) {
@@ -2146,7 +2284,7 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
         }
         break;
       case 'stretch':
-        if (JSIEnabled) {
+        if (UseV8Module) {
           nativeValue = JustifyContent.Stretch;
         } else {
           if (global.isAndroid) {
@@ -2161,8 +2299,8 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
     }
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (JSIEnabled) {
-        global.__Mason_setJustifyContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+      if (UseV8Module) {
+        MasonV8Module.setJustifyContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
           const nodeOrView = getMasonInstance(instance);
@@ -2183,8 +2321,8 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
 
 export function _getJustifyContent(instance: TSCView) {
   if (instance._hasNativeView) {
-    if (JSIEnabled) {
-      const value = global.__Mason_getJustifyContent(instance._masonStylePtr);
+    if (UseV8Module) {
+      const value = MasonV8Module.getJustifyContent(instance._masonStylePtr);
       switch (value) {
         case JustifyContent.Normal:
           return 'normal';
@@ -2264,8 +2402,8 @@ export function _setLeft(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentageAuto(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setInsetLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setInsetLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2289,8 +2427,8 @@ export function _setRight(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentageAuto(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setInsetRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setInsetRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2314,8 +2452,8 @@ export function _setTop(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentageAuto(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setInsetTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setInsetTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2339,8 +2477,8 @@ export function _setBottom(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentageAuto(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setInsetBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setInsetBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2364,8 +2502,8 @@ export function _setMarginLeft(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentageAuto(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setMarginLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setMarginLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2389,8 +2527,8 @@ export function _setMarginRight(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentageAuto(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setMarginRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setMarginRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2414,8 +2552,8 @@ export function _setMarginTop(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentageAuto(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setMarginTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setMarginTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2438,8 +2576,8 @@ export function _setMarginBottom(value, instance: TSCView, initial = false) {
   }
   const val = _toLengthPercentageAuto(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setMarginBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setMarginBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2463,8 +2601,8 @@ export function _setPaddingLeft(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentage(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setPaddingLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setPaddingLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2488,8 +2626,8 @@ export function _setPaddingRight(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentage(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setPaddingRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setPaddingRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2513,8 +2651,8 @@ export function _setPaddingTop(value, instance: TSCView, initial = false) {
 
   const val = _toLengthPercentage(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setPaddingTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setPaddingTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2537,8 +2675,8 @@ export function _setPaddingBottom(value, instance: TSCView, initial = false) {
   }
   const val = _toLengthPercentage(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setPaddingBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setPaddingBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2561,8 +2699,8 @@ export function _setBorderLeft(value, instance: TSCView, initial = false) {
   }
   const val = _toLengthPercentage(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setBorderLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setBorderLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2585,8 +2723,8 @@ export function _setBorderRight(value, instance: TSCView, initial = false) {
   }
   const val = _toLengthPercentage(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setBorderRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setBorderRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2609,8 +2747,8 @@ export function _setBorderTop(value, instance: TSCView, initial = false) {
   }
   const val = _toLengthPercentage(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setBorderTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setBorderTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2633,8 +2771,8 @@ export function _setBorderBottom(value, instance: TSCView, initial = false) {
   }
   const val = _toLengthPercentage(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setBorderBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setBorderBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2656,10 +2794,10 @@ export function _setFlexBasis(value, instance: TSCView, initial = false) {
     return;
   }
 
-  if (JSIEnabled) {
+  if (UseV8Module) {
     const val = _toMasonDimension(value);
 
-    global.__Mason_setFlexBasis(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+    MasonV8Module.setFlexBasis(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const val = _toMasonDimension(value);
@@ -2681,8 +2819,8 @@ export function _getFlexBasis(instance: TSCView) {
   if (!instance._hasNativeView) {
     return (instance as any).style.flexBasis;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getFlexBasis(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getFlexBasis(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2712,8 +2850,8 @@ export function _setGap(value, instance: TSCView, initial = false) {
   const width = _toLengthPercentage(value.width);
   const height = _toLengthPercentage(value.height);
 
-  if (JSIEnabled) {
-    global.__Mason_setGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, width.value, width.native_type, height.value, height.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, width.value, width.native_type, height.value, height.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2734,8 +2872,8 @@ export function _getGap(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.gap;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getGap(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getGap(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2760,12 +2898,268 @@ export function _getGap(instance: TSCView) {
   }
 }
 
+function toOverflowValue(value: any) {
+  let nativeValue = 0;
+  switch (value) {
+    case 0:
+      nativeValue = Overflow.Visible;
+      break;
+    case 1:
+      nativeValue = Overflow.Hidden;
+      break;
+    case 2:
+      nativeValue = Overflow.Scroll;
+      break;
+    default:
+      nativeValue = Overflow.Visible;
+  }
+
+  return nativeValue;
+}
+
+function toOverflowJSValue(value: any) {
+  if (__IOS__) {
+    return toOverflowValue(value);
+  }
+  let nativeValue = 0;
+  switch (value) {
+    case org.nativescript.mason.masonkit.Overflow.Visible:
+      nativeValue = Overflow.Visible;
+      break;
+    case org.nativescript.mason.masonkit.Overflow.Hidden:
+      nativeValue = Overflow.Hidden;
+      break;
+    case org.nativescript.mason.masonkit.Overflow.Scroll:
+      nativeValue = Overflow.Scroll;
+      break;
+    default:
+      nativeValue = Overflow.Visible;
+  }
+
+  return nativeValue;
+}
+
+function toOverflowJavaValue(value: any) {
+  let nativeValue = org.nativescript.mason.masonkit.Overflow.Visible;
+  switch (value) {
+    case 0:
+      nativeValue = org.nativescript.mason.masonkit.Overflow.Visible;
+      break;
+    case 1:
+      nativeValue = org.nativescript.mason.masonkit.Overflow.Hidden;
+      break;
+    case 2:
+      nativeValue = org.nativescript.mason.masonkit.Overflow.Scroll;
+      break;
+    default:
+      nativeValue = org.nativescript.mason.masonkit.Overflow.Visible;
+  }
+
+  return nativeValue;
+}
+
+export function _setOverflow(value, instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  if (UseV8Module) {
+    const nativeValue = toOverflowValue(value);
+    MasonV8Module.setOverflow(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setOverflow(nodeOrView, toOverflowJavaValue(value));
+      } else {
+        (nodeOrView as org.nativescript.mason.masonkit.View).setOverflow(toOverflowJavaValue(value));
+      }
+    }
+
+    if (global.isIOS) {
+      // const nativeValue = toOverflowValue(value);
+      // TODO
+      //instance.ios.setOverflow(nativeValue);
+    }
+  }
+}
+
+export function _getOverflow(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.flexGrow;
+  }
+  if (UseV8Module) {
+    return MasonV8Module.getOverflow(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        return toOverflowJSValue(org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getOverflow(nodeOrView));
+      } else {
+        return toOverflowJSValue((nodeOrView as org.nativescript.mason.masonkit.View).getOverflow());
+      }
+    }
+
+    if (global.isIOS) {
+      // TODO
+      // return toOverflowValue(instance.ios.getOverflow());
+    }
+  }
+}
+
+export function _setOverflowX(value, instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  if (UseV8Module) {
+    const nativeValue = toOverflowValue(value);
+    MasonV8Module.setOverflowX(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setOverflowX(nodeOrView, toOverflowJavaValue(value));
+      } else {
+        (nodeOrView as org.nativescript.mason.masonkit.View).setOverflowX(toOverflowJavaValue(value));
+      }
+    }
+
+    if (global.isIOS) {
+      // const nativeValue = toOverflowValue(value);
+      // TODO
+      //instance.ios.setOverflowX(nativeValue);
+    }
+  }
+}
+
+export function _getOverflowX(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.flexGrow;
+  }
+  if (UseV8Module) {
+    return MasonV8Module.getOverflowX(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        return toOverflowJSValue(org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getOverflowX(nodeOrView));
+      } else {
+        return toOverflowJSValue((nodeOrView as org.nativescript.mason.masonkit.View).getOverflowX());
+      }
+    }
+
+    if (global.isIOS) {
+      // TODO
+      // return toOverflowValue(instance.ios.getOverflowX());
+    }
+  }
+}
+
+export function _setOverflowY(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  if (UseV8Module) {
+    const nativeValue = toOverflowValue(value);
+    MasonV8Module.setOverflowY(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setOverflowY(nodeOrView, toOverflowJavaValue(value));
+      } else {
+        (nodeOrView as org.nativescript.mason.masonkit.View).setOverflowY(toOverflowJavaValue(value));
+      }
+    }
+
+    if (global.isIOS) {
+      // const nativeValue = toOverflowValue(value);
+      // TODO
+      //instance.ios.setOverflowY(nativeValue);
+    }
+  }
+}
+
+export function _getOverflowY(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.flexGrow;
+  }
+  if (UseV8Module) {
+    return MasonV8Module.getOverflowY(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        return toOverflowJSValue(org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getOverflowY(nodeOrView));
+      } else {
+        return toOverflowJSValue((nodeOrView as org.nativescript.mason.masonkit.View).getOverflowY());
+      }
+    }
+
+    if (global.isIOS) {
+      // TODO
+      // return toOverflowValue(instance.ios.getOverflowY());
+    }
+  }
+}
+
+export function _setScrollbarWidth(value, instance: TSCView, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  value = _toMasonDimension(value).value;
+
+  if (UseV8Module) {
+    MasonV8Module.setScrollbarWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        return org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setScrollBarWidth(nodeOrView, value);
+      } else {
+        return (nodeOrView as org.nativescript.mason.masonkit.View).setScrollBarWidth(value);
+      }
+    }
+
+    if (global.isIOS) {
+      // TODO
+      // instance.ios.setScrollBarWidth(value)
+    }
+  }
+}
+
+export function getScrollbarWidth(instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return instance.style.flexGrow;
+  }
+  if (UseV8Module) {
+    return MasonV8Module.getScrollbarWidth(instance._masonStylePtr);
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        return org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getScrollBarWidth(nodeOrView);
+      } else {
+        return (nodeOrView as org.nativescript.mason.masonkit.View).getScrollBarWidth();
+      }
+    }
+
+    if (global.isIOS) {
+      // TODO
+      // return nstance.ios.getScrollBarWidth();
+    }
+  }
+}
+
 export function _setFlexGrow(value, instance: TSCView, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (JSIEnabled) {
-    global.__Mason_setFlexGrow(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setFlexGrow(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2786,8 +3180,8 @@ export function _getFlexGrow(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.flexGrow;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getFlexGrow(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getFlexGrow(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2813,8 +3207,8 @@ export function _setFlexShrink(value, instance: TSCView, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (JSIEnabled) {
-    global.__Mason_setFlexShrink(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setFlexShrink(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2835,8 +3229,8 @@ export function _getFlexShrink(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.flexShrink;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getFlexShrink(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getFlexShrink(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2862,8 +3256,8 @@ export function _setAspectRatio(value, instance: TSCView, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (JSIEnabled) {
-    global.__Mason_setAspectRatio(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setAspectRatio(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const val = Number.isNaN(value) ? null : value;
@@ -2886,8 +3280,8 @@ export function _getAspectRatio(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.aspectRatio;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getAspectRatio(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getAspectRatio(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -2946,7 +3340,7 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
   }
 
   if (parsedType === 0) {
-    if (!JSIEnabled) {
+    if (!UseV8Module) {
       if (global.isAndroid) {
         parsedType = org.nativescript.mason.masonkit.GridPlacement.Auto;
         nativeValue = org.nativescript.mason.masonkit.GridPlacement.Auto.INSTANCE;
@@ -2957,7 +3351,7 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
       }
     }
   } else if (parsedType === 1) {
-    if (!JSIEnabled) {
+    if (!UseV8Module) {
       const isValid = !Number.isNaN(parsedValue);
       if (global.isAndroid) {
         parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
@@ -2973,7 +3367,7 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
       }
     }
   } else {
-    if (!JSIEnabled) {
+    if (!UseV8Module) {
       const isValid = !Number.isNaN(parsedValue);
       if (global.isAndroid) {
         parsedType = org.nativescript.mason.masonkit.GridPlacement.Span;
@@ -3004,8 +3398,8 @@ export function _setGridColumnStart(value, instance: TSCView, initial = false) {
     return;
   }
 
-  if (JSIEnabled) {
-    global.__Mason_setColumnStart(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setColumnStart(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3033,8 +3427,8 @@ export function _setGridColumnEnd(value, instance: TSCView, initial = false) {
     return;
   }
 
-  if (JSIEnabled) {
-    global.__Mason_setColumnEnd(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setColumnEnd(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3062,8 +3456,8 @@ export function _setGridRowStart(value, instance: TSCView, initial = false) {
     return;
   }
 
-  if (JSIEnabled) {
-    global.__Mason_setRowStart(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setRowStart(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3092,8 +3486,8 @@ export function _setGridRowEnd(value, instance: TSCView, initial = false) {
     return;
   }
 
-  if (JSIEnabled) {
-    global.__Mason_setRowEnd(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setRowEnd(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3122,8 +3516,8 @@ export function _setRowGap(value, instance: TSCView, initial = false) {
     return;
   }
 
-  if (JSIEnabled) {
-    global.__Mason_setRowGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setRowGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3144,8 +3538,8 @@ export function _getRowGap(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.gap;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getRowGap(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getRowGap(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3177,8 +3571,8 @@ export function _setColumnGap(value, instance: TSCView, initial = false) {
     return;
   }
 
-  if (JSIEnabled) {
-    global.__Mason_setColumnGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setColumnGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3199,8 +3593,8 @@ export function _getColumnGap(instance: TSCView) {
   if (!instance._hasNativeView) {
     return instance.style.gap;
   }
-  if (JSIEnabled) {
-    return global.__Mason_getColumnGap(instance._masonStylePtr);
+  if (UseV8Module) {
+    return MasonV8Module.getColumnGap(instance._masonStylePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3457,8 +3851,8 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: TSCV
     return;
   }
 
-  if (JSIEnabled) {
-    global.__Mason_setGridTemplateRows(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setGridTemplateRows(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
@@ -3558,8 +3952,8 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: T
     return;
   }
 
-  if (JSIEnabled) {
-    global.__Mason_setGridTemplateColumns(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setGridTemplateColumns(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
@@ -3683,8 +4077,8 @@ export function _setGridAutoRows(value, instance: TSCView, initial = false) {
 
   const values = _parseGridAutoRowsColumns(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setGridAutoRows(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, values, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setGridAutoRows(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, values, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
@@ -3727,8 +4121,8 @@ export function _setGridAutoColumns(value, instance: TSCView, initial = false) {
 
   const values = _parseGridAutoRowsColumns(value);
 
-  if (JSIEnabled) {
-    global.__Mason_setGridAutoColumns(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, values, !instance._inBatch);
+  if (UseV8Module) {
+    MasonV8Module.setGridAutoColumns(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, values, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
