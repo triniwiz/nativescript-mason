@@ -1,7 +1,6 @@
 package org.nativescript.mason.masonkit
 
 import android.os.Build
-import android.util.Log
 import android.view.ViewGroup
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
@@ -197,7 +196,7 @@ class Node private constructor(private var nativePtr: Long) {
   var inBatch = false
     set(value) {
       if (field && !value) {
-        updateNodeStyle()
+        //updateNodeStyle()
       }
       field = value
     }
@@ -1112,4 +1111,17 @@ class Node private constructor(private var nativePtr: Long) {
     overflowY: Int,
     scrollBarWidth: Float
   ): FloatArray
+
+  private external fun nativeComputeWithSizeAndLayout(
+    mason: Long,
+    node: Long,
+    style: Long,
+    width: Float,
+    height: Float): FloatArray
+
+  private external fun nativeComputeAndLayout(
+    mason: Long,
+    node: Long,
+    style: Long): FloatArray
+
 }

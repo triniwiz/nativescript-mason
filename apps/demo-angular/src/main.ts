@@ -10,7 +10,7 @@ java.lang.Thread.setDefaultUncaughtExceptionHandler(
         handler.uncaughtException(t, e);
       }
     },
-  })
+  }),
 );
 
 runNativeScriptAngularApp({

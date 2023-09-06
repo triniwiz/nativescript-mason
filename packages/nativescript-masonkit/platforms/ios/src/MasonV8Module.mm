@@ -1,4 +1,5 @@
 #import "MasonV8Module.h"
+#import "Mason/Mason-Swift.h"
 
 using namespace std;
 
@@ -148,7 +149,10 @@ toTrackSizingFunction(v8::Isolate *isolate, v8::Local<v8::Array> &array) {
 
             minMax.max_type = max_type;
             minMax.max_value = max_value;
-            buffer.emplace_back(minMax);
+            
+            single.single = minMax;
+            
+            buffer.emplace_back(single);
         }
     }
 
@@ -162,34 +166,33 @@ void installV8Module(v8::Isolate *isolate) {
 
         CREATE_FUNCTION("updateNodeAndStyle", {
                 MASON_ENTER_WITH_NODE_AND_STYLE
-
-                mason_node_update_and_set_style(mason, node, style);
+                [MasonReexports node_set_style:mason :node :style];
                 RETURN_UNDEFINED
         })
 
         // Width
-        MASON_SET_DIMENSION_PROPERTY("setWidth", mason_style_set_width)
-        MASON_GET_DIMENSION_PROPERTY("getWidth", mason_style_get_width)
+        MASON_SET_DIMENSION_PROPERTY("setWidth", style_set_width)
+        MASON_GET_DIMENSION_PROPERTY("getWidth", style_get_width)
 
-        MASON_SET_DIMENSION_PROPERTY("setMinWidth", mason_style_set_min_width)
-        MASON_GET_DIMENSION_PROPERTY("getMinWidth", mason_style_get_min_width)
+        MASON_SET_DIMENSION_PROPERTY("setMinWidth", style_set_min_width)
+        MASON_GET_DIMENSION_PROPERTY("getMinWidth", style_get_min_width)
 
-        MASON_SET_DIMENSION_PROPERTY("setMaxWidth", mason_style_set_min_width)
-        MASON_GET_DIMENSION_PROPERTY("getMaxWidth", mason_style_get_min_width)
+        MASON_SET_DIMENSION_PROPERTY("setMaxWidth", style_set_min_width)
+        MASON_GET_DIMENSION_PROPERTY("getMaxWidth", style_get_min_width)
 
         // Height
-        MASON_SET_DIMENSION_PROPERTY("setHeight", mason_style_set_height)
-        MASON_GET_DIMENSION_PROPERTY("getHeight", mason_style_get_height)
+        MASON_SET_DIMENSION_PROPERTY("setHeight", style_set_height)
+        MASON_GET_DIMENSION_PROPERTY("getHeight", style_get_height)
 
-        MASON_SET_DIMENSION_PROPERTY("setMinHeight", mason_style_set_min_width)
-        MASON_GET_DIMENSION_PROPERTY("getMinHeight", mason_style_get_min_width)
+        MASON_SET_DIMENSION_PROPERTY("setMinHeight", style_set_min_width)
+        MASON_GET_DIMENSION_PROPERTY("getMinHeight", style_get_min_width)
 
-        MASON_SET_DIMENSION_PROPERTY("setMaxHeight", mason_style_set_min_width)
-        MASON_GET_DIMENSION_PROPERTY("getMaxHeight", mason_style_get_min_width)
+        MASON_SET_DIMENSION_PROPERTY("setMaxHeight", style_set_min_width)
+        MASON_GET_DIMENSION_PROPERTY("getMaxHeight", style_get_min_width)
 
         CREATE_FUNCTION("compute", {
                 MASON_ENTER_WITH_NODE
-                mason_node_compute(mason, node);
+                [MasonReexports node_compute:mason :node];
                 RETURN_UNDEFINED
         })
 
@@ -198,21 +201,19 @@ void installV8Module(v8::Isolate *isolate) {
 
                 GET_FLOAT_ARG(2, width);
                 GET_FLOAT_ARG(3, height);
-
-                mason_node_compute_wh(mason, node, width, height);
-
+                [MasonReexports node_compute_wh:mason :node width:width height:height];
                 RETURN_UNDEFINED
         })
 
         CREATE_FUNCTION("computeMaxContent", {
                 MASON_ENTER_WITH_NODE
-                mason_node_compute_max_content(mason, node);
+                [MasonReexports node_compute_max_content:mason :node];
                 RETURN_UNDEFINED
         })
 
         CREATE_FUNCTION("computeMinContent", {
                 MASON_ENTER_WITH_NODE
-                mason_node_compute_min_content(mason, node);
+                [MasonReexports node_compute_min_content:mason :node];
                 RETURN_UNDEFINED
         })
 
@@ -331,6 +332,7 @@ void installV8Module(v8::Isolate *isolate) {
                 CMasonNonRepeatedTrackSizingFunctionArray gridAutoColumns = {};
                 gridAutoColumns.array = gridAutoColumnsBuffer.data();
                 gridAutoColumns.length = gridAutoColumnsBuffer.size();
+            
 
                 GET_INT_ARG(68, gridAutoFlow)
 
@@ -363,68 +365,72 @@ void installV8Module(v8::Isolate *isolate) {
 
                 gridTemplateColumns.array = gridTemplateColumnsBuffer.data();
                 gridTemplateColumns.length = gridTemplateColumnsBuffer.size();
+            
+                 GET_INT_ARG(79, overflowX)
+                 GET_INT_ARG(80, overflowY)
+                 GET_FLOAT_ARG(81, scrollbarWidth)
+            
+            [MasonReexports style_update_with_values
+                     :style
+                     :display
+                     :position
+                     :direction
+                     :flexDirection
+                     :flexWrap
+                     :overflow
+                     :alignItems
+                     :alignSelf
+                     :alignContent
+                     :justifyItems
+                     :justifySelf
+                     :justifyContent
 
-                mason_style_update_with_values(
-                style,
-                display,
-                position,
-                direction,
-                flexDirection,
-                flexWrap,
-                overflow,
-                alignItems,
-                alignSelf,
-                alignContent,
-                justifyItems,
-                justifySelf,
-                justifyContent,
+                     :insetLeftType :insetLeftValue
+                     :insetRightType :insetRightValue
+                     :insetTopType :insetTopValue
+                     :insetBottomType :insetBottomValue
 
-                insetLeftType, insetLeftValue,
-                insetRightType, insetRightValue,
-                insetTopType, insetTopValue,
-                insetBottomType, insetBottomValue,
+                     :marginLeftType :marginLeftValue
+                     :marginRightType :marginRightValue
+                     :marginTopType :marginTopValue
+                     :marginBottomType :marginBottomValue
 
-                marginLeftType, marginLeftValue,
-                marginRightType, marginRightValue,
-                marginTopType, marginTopValue,
-                marginBottomType, marginBottomValue,
+                     :paddingLeftType :paddingLeftValue
+                     :paddingRightType :paddingRightValue
+                     :paddingTopType :paddingTopValue
+                     :paddingBottomType :paddingBottomValue
 
-                paddingLeftType, paddingLeftValue,
-                paddingRightType, paddingRightValue,
-                paddingTopType, paddingTopValue,
-                paddingBottomType, paddingBottomValue,
+                     :borderLeftType :borderLeftValue
+                     :borderRightType :borderRightValue
+                     :borderTopType :borderTopValue
+                     :borderBottomType :borderBottomValue
 
-                borderLeftType, borderLeftValue,
-                borderRightType, borderRightValue,
-                borderTopType, borderTopValue,
-                borderBottomType, borderBottomValue,
+                     :flexGrow :flexShrink
+                     :flexBasisType :flexBasisValue
 
-                flexGrow, flexShrink,
-                flexBasisType, flexBasisValue,
+                     :widthType :widthValue
+                     :heightType :heightValue
 
-                widthType, widthValue,
-                heightType, heightValue,
+                     :minWidthType :minWidthValue
+                     :minHeightType :minHeightValue
 
-                minWidthType, minWidthValue,
-                minHeightType, minHeightValue,
+                     :maxWidthType :maxWidthValue
+                     :maxHeightType :maxHeightValue
 
-                maxWidthType, maxWidthValue,
-                maxHeightType, maxHeightValue,
-
-                gapRowType, gapRowValue,
-                gapColumnType, gapColumnValue,
-                aspectRatio,
-                &gridAutoRows,
-                &gridAutoColumns,
-                gridAutoFlow,
-
-                gridColumnStartType, gridColumnStartValue,
-                gridColumnEndType, gridColumnEndValue,
-
-                gridRowStartType, gridRowStartValue,
-                gridRowEndType, gridRowEndValue,
-
-                &gridTemplateRows, &gridTemplateColumns);
+                     :gapRowType :gapRowValue
+                     :gapColumnType :gapColumnValue
+                     :aspectRatio
+                     :&gridAutoRows :&gridAutoColumns
+                     :gridAutoFlow
+                     :gridColumnStartType :gridColumnStartValue
+                     :gridColumnEndType :gridColumnEndValue
+                     :gridRowStartType  :gridRowStartValue
+                     :gridRowEndType   :gridRowEndValue
+                     :&gridTemplateRows
+                     :&gridTemplateColumns
+                     :overflowX
+                     :overflowY
+                     scrollBarWidth:scrollbarWidth];
 
                     for(int i = 0; i < gridTemplateRowsBuffer.size();i++){
                         auto it = gridTemplateRowsBuffer[i];
@@ -440,136 +446,149 @@ void installV8Module(v8::Isolate *isolate) {
 
         CREATE_FUNCTION("isDirty", {
                 MASON_ENTER_WITH_NODE
-                auto value = mason_node_dirty(mason, node);
+                auto value = [MasonReexports node_dirty:mason :node];
                 info.GetReturnValue().Set(value);
         })
 
         CREATE_FUNCTION("markDirty", {
                 MASON_ENTER_WITH_NODE
-                mason_node_mark_dirty(mason, node);
+                [MasonReexports node_mark_dirty:mason :node];
         })
+        
+        
+        MASON_SET_NUMBER_PROPERTY("setScrollbarWidth", style_set_scrollbar_width)
+        MASON_GET_NUMBER_PROPERTY("getScrollbarWidth", style_get_scrollbar_width)
+
+        MASON_SET_NUMBER_PROPERTY("setOverflow", style_set_overflow)
+
+        MASON_SET_NUMBER_PROPERTY("setOverflowX", style_set_overflow_x)
+        MASON_GET_NUMBER_PROPERTY("getOverflowX", style_get_overflow_x)
+
+        MASON_SET_NUMBER_PROPERTY("setOverflowY", style_set_overflow_y)
+        MASON_GET_NUMBER_PROPERTY("getOverflowY", style_get_overflow_y)
 
 
-        MASON_SET_NUMBER_PROPERTY("setDisplay", mason_style_set_display)
-        MASON_GET_NUMBER_PROPERTY("getDisplay", mason_style_get_display)
+        MASON_SET_NUMBER_PROPERTY("setDisplay", style_set_display)
+        MASON_GET_NUMBER_PROPERTY("getDisplay", style_get_display)
 
-        MASON_SET_NUMBER_PROPERTY("setPosition", mason_style_set_position)
-        MASON_GET_NUMBER_PROPERTY("getPosition", mason_style_get_position)
+        MASON_SET_NUMBER_PROPERTY("setPosition", style_set_position)
+        MASON_GET_NUMBER_PROPERTY("getPosition", style_get_position)
 
-        MASON_SET_NUMBER_PROPERTY("setFlexWrap", mason_style_set_flex_wrap)
-        MASON_GET_NUMBER_PROPERTY("getFlexWrap", mason_style_get_flex_wrap)
+        MASON_SET_NUMBER_PROPERTY("setFlexWrap", style_set_flex_wrap)
+        MASON_GET_NUMBER_PROPERTY("getFlexWrap", style_get_flex_wrap)
 
-        MASON_SET_NUMBER_PROPERTY("setAlignItems", mason_style_set_align_items)
-        MASON_GET_NUMBER_PROPERTY("getAlignItems", mason_style_get_align_items)
+        MASON_SET_NUMBER_PROPERTY("setAlignItems", style_set_align_items)
+        MASON_GET_NUMBER_PROPERTY("getAlignItems", style_get_align_items)
 
-        MASON_SET_NUMBER_PROPERTY("setAlignContent", mason_style_set_align_content)
-        MASON_GET_NUMBER_PROPERTY("getAlignContent", mason_style_get_align_content)
+        MASON_SET_NUMBER_PROPERTY("setAlignContent", style_set_align_content)
+        MASON_GET_NUMBER_PROPERTY("getAlignContent", style_get_align_content)
 
-        MASON_SET_NUMBER_PROPERTY("setAlignSelf", mason_style_set_align_self)
-        MASON_GET_NUMBER_PROPERTY("getAlignSelf", mason_style_get_align_self)
+        MASON_SET_NUMBER_PROPERTY("setAlignSelf", style_set_align_self)
+        MASON_GET_NUMBER_PROPERTY("getAlignSelf", style_get_align_self)
 
-        MASON_SET_NUMBER_PROPERTY("setJustifyItems", mason_style_set_justify_items)
-        MASON_GET_NUMBER_PROPERTY("getJustifyItems", mason_style_get_justify_items)
+        MASON_SET_NUMBER_PROPERTY("setJustifyItems", style_set_justify_items)
+        MASON_GET_NUMBER_PROPERTY("getJustifyItems", style_get_justify_items)
 
-        MASON_SET_NUMBER_PROPERTY("setJustifySelf", mason_style_set_justify_self)
-        MASON_GET_NUMBER_PROPERTY("getJustifySelf", mason_style_get_justify_self)
+        MASON_SET_NUMBER_PROPERTY("setJustifySelf", style_set_justify_self)
+        MASON_GET_NUMBER_PROPERTY("getJustifySelf", style_get_justify_self)
 
-        MASON_SET_NUMBER_PROPERTY("setJustifyContent", mason_style_set_justify_content)
-        MASON_GET_NUMBER_PROPERTY("getJustifyContent", mason_style_get_justify_content)
+        MASON_SET_NUMBER_PROPERTY("setJustifyContent", style_set_justify_content)
+        MASON_GET_NUMBER_PROPERTY("getJustifyContent", style_get_justify_content)
 
-        MASON_SET_LENGTH_PROPERTY("setInset", mason_style_set_inset)
+        MASON_SET_LENGTH_PROPERTY("setInset", style_set_inset)
 
-        MASON_SET_LENGTH_PROPERTY("setInsetTop", mason_style_set_inset_top)
-        MASON_GET_LENGTH_PROPERTY("getInsetTop", mason_style_get_inset_top)
+        MASON_SET_LENGTH_PROPERTY("setInsetTop", style_set_inset_top)
+        MASON_GET_LENGTH_PROPERTY("getInsetTop", style_get_inset_top)
 
-        MASON_SET_LENGTH_PROPERTY("setInsetLeft", mason_style_set_inset_left)
-        MASON_GET_LENGTH_PROPERTY("getInsetLeft", mason_style_get_inset_left)
+        MASON_SET_LENGTH_PROPERTY("setInsetLeft", style_set_inset_left)
+        MASON_GET_LENGTH_PROPERTY("getInsetLeft", style_get_inset_left)
 
-        MASON_SET_LENGTH_PROPERTY("setInsetBottom", mason_style_set_inset_bottom)
-        MASON_GET_LENGTH_PROPERTY("getInsetBottom", mason_style_get_inset_bottom)
+        MASON_SET_LENGTH_PROPERTY("setInsetBottom", style_set_inset_bottom)
+        MASON_GET_LENGTH_PROPERTY("getInsetBottom", style_get_inset_bottom)
 
-        MASON_SET_LENGTH_PROPERTY("setInsetRight", mason_style_set_inset_right)
-        MASON_GET_LENGTH_PROPERTY("getInsetRight", mason_style_get_inset_right)
-
-
-        MASON_SET_LENGTH_PROPERTY_ALL_SIDES("setInset", mason_style_set_margin)
-
-        MASON_SET_LENGTH_PROPERTY("setMarginTop", mason_style_set_margin_top)
-        MASON_GET_LENGTH_PROPERTY("getMarginTop", mason_style_get_margin_top)
-
-        MASON_SET_LENGTH_PROPERTY("setMarginLeft", mason_style_set_margin_left)
-        MASON_GET_LENGTH_PROPERTY("getMarginLeft", mason_style_get_margin_left)
-
-        MASON_SET_LENGTH_PROPERTY("setMarginBottom", mason_style_set_margin_bottom)
-        MASON_GET_LENGTH_PROPERTY("getMarginBottom", mason_style_get_margin_bottom)
-
-        MASON_SET_LENGTH_PROPERTY("setMarginRight", mason_style_set_margin_right)
-        MASON_GET_LENGTH_PROPERTY("getMarginRight", mason_style_get_margin_right)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO_ALL_SIDES("setPadding", mason_style_set_padding)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingTop", mason_style_set_padding_top)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingTop", mason_style_get_padding_top)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingLeft", mason_style_set_padding_left)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingLeft", mason_style_get_padding_left)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingBottom", mason_style_set_padding_bottom)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingBottom", mason_style_get_padding_bottom)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingRight", mason_style_set_padding_right)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingRight", mason_style_get_padding_right)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO_ALL_SIDES("setBorder", mason_style_set_border)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorderTop", mason_style_set_border_top)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getBorderTop", mason_style_get_border_top)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorderLeft", mason_style_set_border_left)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getBorderLeft", mason_style_get_border_left)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorderBottom", mason_style_set_border_bottom)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getBorderBottom", mason_style_get_border_bottom)
-
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorderRight", mason_style_set_border_right)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getBorderRight", mason_style_get_border_right)
-
-        MASON_SET_FLOAT_PROPERTY("setFlexGrow", mason_style_set_flex_grow)
-        MASON_GET_NUMBER_PROPERTY("getFlexGrow", mason_style_get_flex_grow)
-
-        MASON_SET_FLOAT_PROPERTY("setFlexShrink", mason_style_set_flex_shrink)
-        MASON_GET_NUMBER_PROPERTY("getFlexShrink", mason_style_get_flex_shrink)
-
-        MASON_SET_DIMENSION_PROPERTY("setFlexBasis", mason_style_set_flex_basis)
-        MASON_GET_DIMENSION_PROPERTY("getFlexBasis", mason_style_get_flex_basis)
+        MASON_SET_LENGTH_PROPERTY("setInsetRight", style_set_inset_right)
+        MASON_GET_LENGTH_PROPERTY("getInsetRight", style_get_inset_right)
 
 
-        MASON_SET_SIZE_PROPERTY("setGap", mason_style_set_gap)
-        MASON_GET_SIZE_PROPERTY("getGap", mason_style_get_gap)
+        MASON_SET_LENGTH_PROPERTY_ALL_SIDES("setInset", style_set_margin)
+
+        MASON_SET_LENGTH_PROPERTY("setMarginTop", style_set_margin_top)
+        MASON_GET_LENGTH_PROPERTY("getMarginTop", style_get_margin_top)
+
+        MASON_SET_LENGTH_PROPERTY("setMarginLeft", style_set_margin_left)
+        MASON_GET_LENGTH_PROPERTY("getMarginLeft", style_get_margin_left)
+
+        MASON_SET_LENGTH_PROPERTY("setMarginBottom", style_set_margin_bottom)
+        MASON_GET_LENGTH_PROPERTY("getMarginBottom", style_get_margin_bottom)
+
+        MASON_SET_LENGTH_PROPERTY("setMarginRight", style_set_margin_right)
+        MASON_GET_LENGTH_PROPERTY("getMarginRight", style_get_margin_right)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO_ALL_SIDES("setPadding", style_set_padding)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingTop", style_set_padding_top)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingTop", style_get_padding_top)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingLeft", style_set_padding_left)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingLeft", style_get_padding_left)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingBottom", style_set_padding_bottom)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingBottom", style_get_padding_bottom)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingRight", style_set_padding_right)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingRight", style_get_padding_right)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO_ALL_SIDES("setBorder", style_set_border)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorderTop", style_set_border_top)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getBorderTop", style_get_border_top)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorderLeft", style_set_border_left)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getBorderLeft", style_get_border_left)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorderBottom", style_set_border_bottom)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getBorderBottom", style_get_border_bottom)
+
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorderRight", style_set_border_right)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getBorderRight", style_get_border_right)
+
+        MASON_SET_FLOAT_PROPERTY("setFlexGrow", style_set_flex_grow)
+        MASON_GET_NUMBER_PROPERTY("getFlexGrow", style_get_flex_grow)
+
+        MASON_SET_FLOAT_PROPERTY("setFlexShrink", style_set_flex_shrink)
+        MASON_GET_NUMBER_PROPERTY("getFlexShrink", style_get_flex_shrink)
+
+        MASON_SET_DIMENSION_PROPERTY("setFlexBasis", style_set_flex_basis)
+        MASON_GET_DIMENSION_PROPERTY("getFlexBasis", style_get_flex_basis)
 
 
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setRowGap", mason_style_set_row_gap)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getRowGap", mason_style_get_row_gap)
+        MASON_SET_SIZE_PROPERTY("setGap", style_set_gap)
+        MASON_GET_SIZE_PROPERTY("getGap", style_get_gap)
 
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setColumnGap", mason_style_set_column_gap)
-        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getColumnGap", mason_style_get_column_gap)
 
-        MASON_SET_FLOAT_PROPERTY("setAspectRatio", mason_style_set_aspect_ratio)
-        MASON_GET_NUMBER_PROPERTY("getAspectRatio", mason_style_get_aspect_ratio)
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setRowGap", style_set_row_gap)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getRowGap", style_get_row_gap)
 
-        MASON_SET_NUMBER_PROPERTY("setFlexDirection", mason_style_set_flex_direction)
-        MASON_GET_NUMBER_PROPERTY("getFlexDirection", mason_style_get_flex_direction)
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setColumnGap", style_set_column_gap)
+        MASON_GET_LENGTH_PROPERTY_NO_AUTO("getColumnGap", style_get_column_gap)
 
-        MASON_SET_NUMBER_PROPERTY("setAutoFlow", mason_style_set_grid_auto_flow)
-        MASON_GET_NUMBER_PROPERTY("getAutoFlow", mason_style_get_grid_auto_flow)
+        MASON_SET_FLOAT_PROPERTY("setAspectRatio", style_set_aspect_ratio)
+        MASON_GET_NUMBER_PROPERTY("getAspectRatio", style_get_aspect_ratio)
+
+        MASON_SET_NUMBER_PROPERTY("setFlexDirection", style_set_flex_direction)
+        MASON_GET_NUMBER_PROPERTY("getFlexDirection", style_get_flex_direction)
+
+        MASON_SET_NUMBER_PROPERTY("setAutoFlow", style_set_grid_auto_flow)
+        MASON_GET_NUMBER_PROPERTY("getAutoFlow", style_get_grid_auto_flow)
 
 
         CREATE_FUNCTION("getGridAutoRows", {
                 MASON_ENTER_WITH_NODE_AND_STYLE
-                auto rows = mason_style_get_grid_auto_rows(style);
-                auto parsed = mason_util_parse_non_repeated_track_sizing_function(rows);
-                mason_destroy_non_repeated_track_sizing_function_array(rows);
-                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed));
+                auto rows = [MasonReexports style_get_grid_auto_rows:style];
+                auto parsed = [MasonReexports util_parse_non_repeated_track_sizing_function:rows];
+            
+                [MasonReexports destroyWithNonRepeatedTrackSizingFunctionArray:rows];
+                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed.UTF8String));
         })
 
         CREATE_FUNCTION("setGridAutoRows", {
@@ -581,16 +600,17 @@ void installV8Module(v8::Isolate *isolate) {
                 val.array = value.data();
                 val.length = value.size();
 
-                mason_style_set_grid_auto_rows(style, &val);
+               [MasonReexports style_set_grid_auto_rows:style :&val];
                 MASON_UPDATE_NODE(info[4])
         })
 
         CREATE_FUNCTION("getGridAutoColumns", {
                 MASON_ENTER_WITH_NODE_AND_STYLE
-                auto columns = mason_style_get_grid_auto_columns(style);
-                auto parsed = mason_util_parse_non_repeated_track_sizing_function(columns);
-                mason_destroy_non_repeated_track_sizing_function_array(columns);
-                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed));
+                auto columns =[MasonReexports style_get_grid_auto_columns:style];
+                auto parsed = [MasonReexports util_parse_non_repeated_track_sizing_function:columns];
+                [MasonReexports destroyWithNonRepeatedTrackSizingFunctionArray:columns];
+        
+                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed.UTF8String));
         })
 
         CREATE_FUNCTION("setGridAutoColumns", {
@@ -602,17 +622,17 @@ void installV8Module(v8::Isolate *isolate) {
                 val.array = value.data();
                 val.length = value.size();
 
-                mason_style_set_grid_auto_columns(style, &val);
+                [MasonReexports style_set_grid_auto_columns:style :&val];
                 MASON_UPDATE_NODE(info[4])
         })
 
         CREATE_FUNCTION("getArea", {
                 MASON_ENTER_WITH_STYLE
-                auto row_start = mason_style_get_grid_row_start(style);
-                auto row_end = mason_style_get_grid_row_start(style);
+                auto row_start = [MasonReexports style_get_grid_row_start:style];
+                auto row_end = [MasonReexports style_get_grid_row_start:style];
 
-                auto col_start = mason_style_get_grid_column_start(style);
-                auto col_end = mason_style_get_grid_column_start(style);
+                auto col_start = [MasonReexports style_get_grid_column_start:style];
+                auto col_end = [MasonReexports style_get_grid_column_start:style];
 
                 v8::Local<v8::Object> object = v8::Object::New((isolate));
                 object->Set(context, STRING_TO_V8_VALUE("col_start_type"), v8::Int32::New(isolate, (int) col_start.value_type)).Check();
@@ -725,12 +745,12 @@ void installV8Module(v8::Isolate *isolate) {
                 auto columnEndValue = (short) object->Get(context,
                 STRING_TO_V8_VALUE("col_end_value")).ToLocalChecked()->Int32Value(context).FromJust();
 
-                mason_style_set_grid_area(
-                style,
-                jsToGridPlacement(rowStartValue, rowStartType),
-                jsToGridPlacement(rowEndValue, rowEndType),
-                jsToGridPlacement(columnStartValue, columnStartType),
-                jsToGridPlacement(columnEndValue, columnEndType));
+               [MasonReexports style_set_grid_area
+                :style
+                :jsToGridPlacement(rowStartValue, rowStartType)
+                :jsToGridPlacement(rowEndValue, rowEndType)
+                :jsToGridPlacement(columnStartValue, columnStartType)
+                :jsToGridPlacement(columnEndValue, columnEndType)];
 
                 MASON_UPDATE_NODE(info[4])
 
@@ -739,8 +759,8 @@ void installV8Module(v8::Isolate *isolate) {
         CREATE_FUNCTION("getColumn", {
                 MASON_ENTER_WITH_STYLE
 
-                auto col_start = mason_style_get_grid_column_start(style);
-                auto col_end = mason_style_get_grid_column_start(style);
+                auto col_start = [MasonReexports style_get_grid_column_start:style];
+                auto col_end = [MasonReexports style_get_grid_column_start:style];
 
 
                 v8::Local<v8::Object> object = v8::Object::New((isolate));
@@ -793,8 +813,6 @@ void installV8Module(v8::Isolate *isolate) {
 
                 auto object = info[3].As<v8::Object>();
 
-
-
                 auto columnStartType = (int) object->Get(context,
                 STRING_TO_V8_VALUE("col_start_value")).ToLocalChecked()->Int32Value(context).FromJust();
                 auto columnStartValue = (short) object->Get(context,
@@ -805,10 +823,10 @@ void installV8Module(v8::Isolate *isolate) {
                 auto columnEndValue = (short) object->Get(context,
                 STRING_TO_V8_VALUE("col_end_value")).ToLocalChecked()->Int32Value(context).FromJust();
 
-                mason_style_set_grid_column(
-                style,
-                jsToGridPlacement(columnStartValue, columnStartType),
-                jsToGridPlacement(columnEndValue, columnEndType));
+                [MasonReexports style_set_grid_column
+                :style
+                :jsToGridPlacement(columnStartValue, columnStartType)
+                :jsToGridPlacement(columnEndValue, columnEndType)];
 
                 MASON_UPDATE_NODE(info[4])
 
@@ -818,8 +836,8 @@ void installV8Module(v8::Isolate *isolate) {
         CREATE_FUNCTION("getRow", {
                 MASON_ENTER_WITH_STYLE
 
-                auto row_start = mason_style_get_grid_row_start(style);
-                auto row_end = mason_style_get_grid_row_start(style);
+                auto row_start = [MasonReexports style_get_grid_row_start:style];
+                auto row_end = [MasonReexports style_get_grid_row_start:style];
 
 
                 v8::Local<v8::Object> object = v8::Object::New((isolate));
@@ -884,42 +902,42 @@ void installV8Module(v8::Isolate *isolate) {
                 auto rowEndValue = (short) object->Get(context,
                 STRING_TO_V8_VALUE("row_end_value")).ToLocalChecked()->Int32Value(context).FromJust();
 
-                mason_style_set_grid_row(
-                style,
-                jsToGridPlacement(rowStartValue, rowStartType),
-                jsToGridPlacement(rowEndValue, rowEndType));
+                [MasonReexports style_set_grid_row
+                :style
+                :jsToGridPlacement(rowStartValue, rowStartType)
+                :jsToGridPlacement(rowEndValue, rowEndType)];
 
                 MASON_UPDATE_NODE(info[4])
 
         })
 
 
-        MASON_GET_GRID_PROPERTY("getColumnStart", mason_style_get_grid_column_start)
-        MASON_GET_GRID_PROPERTY("getColumnEnd", mason_style_get_grid_column_end)
-        MASON_GET_GRID_PROPERTY("getRowStart", mason_style_get_grid_row_start)
-        MASON_GET_GRID_PROPERTY("getRowEnd", mason_style_get_grid_row_end)
+        MASON_GET_GRID_PROPERTY("getColumnStart", style_get_grid_column_start)
+        MASON_GET_GRID_PROPERTY("getColumnEnd", style_get_grid_column_end)
+        MASON_GET_GRID_PROPERTY("getRowStart", style_get_grid_row_start)
+        MASON_GET_GRID_PROPERTY("getRowEnd", style_get_grid_row_end)
 
-        MASON_SET_GRID_PROPERTY("setColumnStart", mason_style_set_grid_column_start)
-        MASON_SET_GRID_PROPERTY("setColumnEnd", mason_style_set_grid_column_end)
-        MASON_SET_GRID_PROPERTY("setRowStart", mason_style_set_grid_row_start)
-        MASON_SET_GRID_PROPERTY("setRowEnd", mason_style_set_grid_row_end)
+        MASON_SET_GRID_PROPERTY("setColumnStart", style_set_grid_column_start)
+        MASON_SET_GRID_PROPERTY("setColumnEnd", style_set_grid_column_end)
+        MASON_SET_GRID_PROPERTY("setRowStart", style_set_grid_row_start)
+        MASON_SET_GRID_PROPERTY("setRowEnd", style_set_grid_row_end)
 
 
         CREATE_FUNCTION("getGridTemplateRows", {
                 MASON_ENTER_WITH_STYLE
-                auto rows = mason_style_get_grid_template_rows(style);
-                auto parsed = mason_util_parse_auto_repeating_track_sizing_function(rows);
-                mason_destroy_track_sizing_function_array(rows);
-                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed));
+                auto rows = [MasonReexports style_get_grid_template_rows:style];
+                auto parsed = [MasonReexports util_parse_auto_repeating_track_sizing_function:rows];
+                [MasonReexports destroyWithTrackSizingFunctionArray:rows];
+                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed.UTF8String));
 
         })
 
         CREATE_FUNCTION("getGridTemplateColumns", {
                 MASON_ENTER_WITH_STYLE
-                auto columns = mason_style_get_grid_template_columns(style);
-                auto parsed = mason_util_parse_auto_repeating_track_sizing_function(columns);
-                mason_destroy_track_sizing_function_array(columns);
-                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed));
+                auto columns = [MasonReexports style_get_grid_template_columns:style];
+                auto parsed = [MasonReexports util_parse_auto_repeating_track_sizing_function:columns];
+                [MasonReexports destroyWithTrackSizingFunctionArray:columns];
+                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed.UTF8String));
         })
 
         CREATE_FUNCTION("setGridTemplateRows", {
@@ -931,7 +949,7 @@ void installV8Module(v8::Isolate *isolate) {
                 rows.array = value.data();
                 rows.length = value.size();
 
-                mason_style_set_grid_template_rows(style, &rows);
+                [MasonReexports style_set_grid_template_rows:style :&rows];
 
                     for(int i = 0; i < value.size();i++){
                         auto it = value[i];
@@ -951,7 +969,7 @@ void installV8Module(v8::Isolate *isolate) {
                 columns.array = value.data();
                 columns.length = value.size();
 
-                mason_style_set_grid_template_columns(style, &columns);
+               [MasonReexports style_set_grid_template_columns:style :&columns];
 
                     for(int i = 0; i < value.size();i++){
                         auto it = value[i];

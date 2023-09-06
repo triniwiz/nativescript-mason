@@ -168,6 +168,60 @@ pub extern "C" fn mason_node_new_node_with_measure_func(
 }
 
 #[no_mangle]
+pub extern "C" fn mason_node_new_node_with_children(
+    mason: *mut c_void,
+    style: *mut c_void,
+    children: *const c_void,
+    children_size: usize,
+) -> *mut c_void {
+    if mason.is_null() || style.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mut mason = Box::from_raw(mason as *mut Mason);
+        let style = Box::from_raw(style as *mut Style);
+
+        let data = std::slice::from_raw_parts(children as *const *mut Node, children_size as usize);
+
+        let data: Vec<Node> = data.iter().map(|v| *(*v)).collect();
+
+        let ret = mason
+            .new_node_with_children(*style.clone(), &data)
+            .map(|v| Box::into_raw(Box::new(v)))
+            .unwrap_or_else(std::ptr::null_mut) as *mut c_void;
+
+        Box::leak(mason);
+        Box::leak(style);
+
+        ret
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_layout(
+    mason: *mut c_void,
+    node: *mut c_void,
+    layout: extern "C" fn(*const c_float) -> *mut c_void,
+) -> *mut c_void {
+    if mason.is_null() || node.is_null() {
+        return layout(std::ptr::null_mut());
+    }
+    unsafe {
+        let mason = Box::from_raw(mason as *mut Mason);
+        let node = Box::from_raw(node as *mut Node);
+
+        let output = mason.layout(*node);
+
+        let ret = layout(output.as_ptr());
+
+        Box::leak(mason);
+        Box::leak(node);
+
+        ret
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn mason_node_compute_wh(
     mason: *mut c_void,
     node: *mut c_void,

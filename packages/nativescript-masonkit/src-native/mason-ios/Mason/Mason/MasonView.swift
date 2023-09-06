@@ -90,6 +90,14 @@ extension UIView {
         return view
     }
     
+    @objc public static func createBlockView() -> UIView{
+        let view = UIView(frame: .zero)
+        view.mason.configure { node in
+            node.style.display = .Block
+        }
+        return view
+    }
+    
     @objc public var mason: MasonNode {
        // UIView.swizzleForMason()
         guard let mason = objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) as? MasonNode else {
@@ -233,6 +241,28 @@ extension UIView {
     }
     
     
+    @objc public var overflowX: Overflow {
+        get{
+            return style.overflowX
+        }
+        set(value) {
+            style.overflowX = value
+            checkAndUpdateStyle()
+        }
+    }
+    
+    
+    @objc public var overflowY: Overflow {
+        get{
+            return style.overflowY
+        }
+        set(value) {
+            style.overflowY = value
+            checkAndUpdateStyle()
+        }
+    }
+    
+    
     @objc public var alignItems: AlignItems{
         get{
             return style.alignItems
@@ -316,6 +346,32 @@ extension UIView {
         }
     }
     
+   
+    
+    public var scrollBarWidth: MasonDimension {
+        get {
+            return style.scrollBarWidth
+        }
+        set(value) {
+            style.scrollBarWidth = value
+            checkAndUpdateStyle()
+        }
+    }
+    
+    func setScrollBarWidth(value: Float) {
+        style.setScrollBarWidth(value);
+        checkAndUpdateStyle()
+    }
+    
+    @objc public var scrollBarWidthCompat: MasonDimensionCompat {
+        get {
+            return MasonDimensionCompat(value: style.scrollBarWidth)
+        }
+        set(value) {
+            style.scrollBarWidth = value.dimension
+            checkAndUpdateStyle()
+        }
+    }
     
     func setFlexBasis(value: Float, type: Int) {
         style.setFlexBasis(value, type)

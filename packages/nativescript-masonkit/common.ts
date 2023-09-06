@@ -1,5 +1,5 @@
-import { AddChildFromBuilder, ViewBase, CssProperty, Style, Length as NSLength, ShorthandProperty, CSSType, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, CustomLayoutView, heightProperty, minHeightProperty, minWidthProperty, widthProperty, View, PropertyChangeData, getViewById } from '@nativescript/core';
-import { Display, FlexDirection, FlexWrap, Gap, Length, Position, AlignContent, AlignItems, AlignSelf, JustifyContent, JustifyItems, JustifySelf, GridAutoFlow, LengthAuto } from '.';
+import { AddChildFromBuilder, ViewBase, CssProperty, Style, Length as NSLength, ShorthandProperty, CSSType, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, CustomLayoutView, heightProperty, minHeightProperty, minWidthProperty, widthProperty, View, PropertyChangeData, getViewById, CoreTypes } from '@nativescript/core';
+import { Display, FlexDirection, FlexWrap, Gap, Length, Position, AlignContent, AlignItems, AlignSelf, JustifyContent, JustifyItems, JustifySelf, GridAutoFlow, LengthAuto, Overflow } from '.';
 import {
   _forceStyleUpdate,
   _getAlignContent,
@@ -72,6 +72,15 @@ import {
   _setTop,
   _setWidth,
   _toMasonDimension,
+  _setGridAutoFlow,
+  _setOverflow,
+  _setOverflowX,
+  _setOverflowY,
+  _setScrollbarWidth,
+  getScrollbarWidth,
+  _getOverflow,
+  _getOverflowX,
+  _getOverflowY,
 } from './helpers';
 
 // let widgetMasonView: typeof org.nativescript.mason.masonkit.View;
@@ -102,7 +111,7 @@ export function applyMixins(
     override?: boolean;
     overrideIfExists?: string;
     omit?: (string | symbol)[];
-  }
+  },
 ) {
   const omits = options && options.omit ? options.omit : [];
   baseCtors.forEach((baseCtor) => {
@@ -488,12 +497,12 @@ export function overrideViewBase() {
     get gap() {
       return _getGap(this as any);
     }
-  
+
     set gap(value) {
       this.style.gap = value;
       _setGap(value, this as any);
     }
-  
+
     */
 
     set rowGap(value) {
@@ -637,7 +646,9 @@ export function overrideViewBase() {
       this.style.gridAutoFlow = value;
     }
 
-    [gridAutoFlowProperty.setNative](value) {}
+    [gridAutoFlowProperty.setNative](value) {
+      _setGridAutoFlow(value, this as any);
+    }
 
     get gridAutoFlow() {
       return this.style.gridAutoFlow;
@@ -712,6 +723,54 @@ export function overrideViewBase() {
         _setGridTemplateColumns(templates, this as any);
       }
     }
+
+    get scrollBarWidth() {
+      return getScrollbarWidth(this as any);
+    }
+
+    set scrollBarWidth(value: number | CoreTypes.LengthType) {
+      this.style.scrollBarWidth = value;
+    }
+
+    [scrollBarWidthProperty.setNative](value) {
+      _setScrollbarWidth(value, this as any);
+    }
+
+    get overflow() {
+      return _getOverflow(this as any);
+    }
+
+    set overflow(value: Overflow) {
+      this.style.overflow = value;
+    }
+
+    [overflowProperty.setNative](value) {
+      _setOverflow(value, this as any);
+    }
+
+    get overflowX() {
+      return _getOverflowX(this as any);
+    }
+
+    set overflowX(value: Overflow) {
+      this.style.overflowX = value;
+    }
+
+    [overflowXProperty.setNative](value) {
+      _setOverflowX(value, this as any);
+    }
+
+    get overflowY() {
+      return _getOverflowY(this as any);
+    }
+
+    set overflowY(value: Overflow) {
+      this.style.overflowY = value;
+    }
+
+    [overflowYProperty.setNative](value) {
+      _setOverflowY(value, this as any);
+    }
   }
   applyMixins(NSView, [ViewOverride], { overrideIfExists: '_isMasonViewOrChild' });
 }
@@ -724,6 +783,56 @@ export function installMixins() {
 }
 
 const emptyArray = new Array();
+
+export const scrollBarWidthProperty = new CssProperty<Style, number>({
+  name: 'scrollBarWidth',
+  cssName: 'scroll-bar-width',
+  defaultValue: 0,
+  valueConverter: parseFloat,
+});
+
+function overflowConverter(value) {
+  if (typeof value === 'number') {
+    switch (value) {
+      case 0:
+        return 'visible';
+      case 1:
+        return 'hidden';
+      case 2:
+        return 'scroll';
+    }
+  }
+
+  switch (value) {
+    case 'visible':
+    case 'hidden':
+    case 'scroll':
+      return value;
+    default:
+      return 'visible';
+  }
+}
+
+export const overflowProperty = new CssProperty<Style, Overflow>({
+  name: 'overflow',
+  cssName: 'overflow',
+  defaultValue: 'visible',
+  valueConverter: overflowConverter,
+});
+
+export const overflowXProperty = new CssProperty<Style, Overflow>({
+  name: 'overflowX',
+  cssName: 'overflow-x',
+  defaultValue: 'visible',
+  valueConverter: overflowConverter,
+});
+
+export const overflowYProperty = new CssProperty<Style, Overflow>({
+  name: 'overflow',
+  cssName: 'overflow-y',
+  defaultValue: 'visible',
+  valueConverter: overflowConverter,
+});
 
 export const flexGrowProperty = new CssProperty<Style, number>({
   name: 'flexGrow',
@@ -752,6 +861,8 @@ export const displayProperty = new CssProperty<Style, Display>({
           return 'flex';
         case 2:
           return 'grid';
+        case 3:
+          return 'block';
       }
     }
 
@@ -759,6 +870,7 @@ export const displayProperty = new CssProperty<Style, Display>({
       case 'none':
       case 'flex':
       case 'grid':
+      case 'block':
         return value;
       default:
         // todo throw???
@@ -1520,7 +1632,7 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
     _setFlexBasis(value, this as any);
   }
 
-  // faster setter/getter 
+  // faster setter/getter
   //@ts-ignore
   get gap() {
     return _getGap(this as any);
@@ -1872,5 +1984,10 @@ gridRowEndProperty.register(Style);
 gridTemplateRowsProperty.register(Style);
 
 gridTemplateColumnsProperty.register(Style);
+
+overflowProperty.register(Style);
+overflowXProperty.register(Style);
+overflowYProperty.register(Style);
+scrollBarWidthProperty.register(Style);
 
 installMixins();

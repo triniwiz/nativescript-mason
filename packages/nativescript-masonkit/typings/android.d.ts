@@ -1608,7 +1608,7 @@ declare module org {
             param72: number,
             param73: number,
             param74: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>,
-            param75: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>
+            param75: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>,
           ): void;
           public setScrollBarWidth(param0: number): void;
           public setGridTemplateColumns(param0: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;

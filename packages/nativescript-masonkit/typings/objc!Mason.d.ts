@@ -71,11 +71,11 @@ interface CMasonDimension {
 declare var CMasonDimension: interop.StructType<CMasonDimension>;
 
 declare const enum CMasonDimensionType {
-  MasonDimensionPoints = 0,
+  MasonDimensionAuto = 0,
 
-  MasonDimensionPercent = 1,
+  MasonDimensionPoints = 1,
 
-  MasonDimensionAuto = 2,
+  MasonDimensionPercent = 2,
 }
 
 interface CMasonGridPlacement {
@@ -105,11 +105,11 @@ interface CMasonLengthPercentageAuto {
 declare var CMasonLengthPercentageAuto: interop.StructType<CMasonLengthPercentageAuto>;
 
 declare const enum CMasonLengthPercentageAutoType {
-  MasonLengthPercentageAutoPoints = 0,
+  MasonLengthPercentageAutoAuto = 0,
 
-  MasonLengthPercentageAutoPercent = 1,
+  MasonLengthPercentageAutoPoints = 1,
 
-  MasonLengthPercentageAutoAuto = 2,
+  MasonLengthPercentageAutoPercent = 2,
 }
 
 interface CMasonLengthPercentageSize {
@@ -158,6 +158,8 @@ declare const enum Display {
   Flex = 1,
 
   Grid = 2,
+
+  Block = 3,
 }
 
 declare const enum FlexDirection {
@@ -681,7 +683,9 @@ declare class MasonReexports extends NSObject {
 
   static style_get_min_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
 
-  static style_get_overflow(style: interop.Pointer | interop.Reference<any>): number;
+  static style_get_overflow_x(style: interop.Pointer | interop.Reference<any>): number;
+
+  static style_get_overflow_y(style: interop.Pointer | interop.Reference<any>): number;
 
   static style_get_padding_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
 
@@ -695,6 +699,8 @@ declare class MasonReexports extends NSObject {
 
   static style_get_row_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
 
+  static style_get_scrollbar_width(style: interop.Pointer | interop.Reference<any>): number;
+
   static style_get_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
 
   static style_set_align_content(style: interop.Pointer | interop.Reference<any>, align_content: number): void;
@@ -707,7 +713,7 @@ declare class MasonReexports extends NSObject {
 
   static style_set_border(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
 
-  static style_set_border_bottom(style: interop.Pointer | interop.Reference<any>, value: number): void;
+  static style_set_border_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
 
   static style_set_border_left(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
 
@@ -791,6 +797,10 @@ declare class MasonReexports extends NSObject {
 
   static style_set_overflow(style: interop.Pointer | interop.Reference<any>, overflow: number): void;
 
+  static style_set_overflow_x(style: interop.Pointer | interop.Reference<any>, overflow: number): void;
+
+  static style_set_overflow_y(style: interop.Pointer | interop.Reference<any>, overflow: number): void;
+
   static style_set_padding(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
 
   static style_set_padding_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
@@ -804,6 +814,8 @@ declare class MasonReexports extends NSObject {
   static style_set_position(style: interop.Pointer | interop.Reference<any>, position: number): void;
 
   static style_set_row_gap(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
+
+  static style_set_scrollbar_width(style: interop.Pointer | interop.Reference<any>, value: number): void;
 
   static style_set_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
 
@@ -879,6 +891,10 @@ declare class MasonStyle extends NSObject {
 
   overflow: Overflow;
 
+  overflowX: Overflow;
+
+  overflowY: Overflow;
+
   paddingCompat: MasonLengthPercentageRectCompat;
 
   position: Position;
@@ -950,6 +966,8 @@ declare class MasonStyle extends NSObject {
   setPaddingWithValueType(value: number, type: number): void;
 
   setRowGap(value: number, type: number): void;
+
+  setScrollBarWidth(value: number): void;
 
   setSizeHeight(value: number, type: number): void;
 
@@ -1053,11 +1071,13 @@ interface NodeArray {
 declare var NodeArray: interop.StructType<NodeArray>;
 
 declare const enum Overflow {
-  Visible = 0,
+  Unset = 0,
 
-  Hidden = 1,
+  Visible = 1,
 
-  Scroll = 2,
+  Hidden = 2,
+
+  Scroll = 3,
 }
 
 declare const enum Position {
@@ -1138,8 +1158,6 @@ declare function mason_node_destroy(node: interop.Pointer | interop.Reference<an
 declare function mason_node_dirty(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): boolean;
 
 declare function mason_node_get_child_at(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, index: number): interop.Pointer | interop.Reference<any>;
-
-declare function mason_node_get_child_count(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): number;
 
 declare function mason_node_get_children(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): NodeArray;
 
@@ -1263,7 +1281,9 @@ declare function mason_style_get_min_height(style: interop.Pointer | interop.Ref
 
 declare function mason_style_get_min_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
 
-declare function mason_style_get_overflow(_style: interop.Pointer | interop.Reference<any>): number;
+declare function mason_style_get_overflow_x(style: interop.Pointer | interop.Reference<any>): number;
+
+declare function mason_style_get_overflow_y(style: interop.Pointer | interop.Reference<any>): number;
 
 declare function mason_style_get_padding_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
 
@@ -1276,6 +1296,8 @@ declare function mason_style_get_padding_top(style: interop.Pointer | interop.Re
 declare function mason_style_get_position(style: interop.Pointer | interop.Reference<any>): number;
 
 declare function mason_style_get_row_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
+
+declare function mason_style_get_scrollbar_width(style: interop.Pointer | interop.Reference<any>): number;
 
 declare function mason_style_get_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
 
@@ -1375,7 +1397,11 @@ declare function mason_style_set_min_height(style: interop.Pointer | interop.Ref
 
 declare function mason_style_set_min_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
 
-declare function mason_style_set_overflow(_style: interop.Pointer | interop.Reference<any>, _overflow: number): void;
+declare function mason_style_set_overflow(style: interop.Pointer | interop.Reference<any>, value: number): void;
+
+declare function mason_style_set_overflow_x(style: interop.Pointer | interop.Reference<any>, value: number): void;
+
+declare function mason_style_set_overflow_y(style: interop.Pointer | interop.Reference<any>, value: number): void;
 
 declare function mason_style_set_padding(style: interop.Pointer | interop.Reference<any>, left_value: number, left_value_type: CMasonLengthPercentageType, right_value: number, right_value_type: CMasonLengthPercentageType, top_value: number, top_value_type: CMasonLengthPercentageType, bottom_value: number, bottom_value_type: CMasonLengthPercentageType): void;
 
@@ -1390,6 +1416,8 @@ declare function mason_style_set_padding_top(style: interop.Pointer | interop.Re
 declare function mason_style_set_position(style: interop.Pointer | interop.Reference<any>, position: number): void;
 
 declare function mason_style_set_row_gap(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
+
+declare function mason_style_set_scrollbar_width(style: interop.Pointer | interop.Reference<any>, value: number): void;
 
 declare function mason_style_set_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
 

@@ -98,12 +98,27 @@ public class MasonReexports: NSObject {
         return mason_style_set_flex_wrap( style, flex_wrap)
     }
     
-    public static func style_get_overflow(_  style: UnsafeMutableRawPointer) -> Int32 {
-        return mason_style_get_overflow( style)
+    public static func style_set_overflow(_  style: UnsafeMutableRawPointer, _ overflow: Int32) {
+        
+        return mason_style_set_overflow( style, overflow)
     }
     
-    public static func style_set_overflow(_  style: UnsafeMutableRawPointer, _ overflow: Int32) {
-        return mason_style_set_overflow( style, overflow)
+    public static func style_set_overflow_x(_  style: UnsafeMutableRawPointer, _ overflow: Int32) {
+        
+        return mason_style_set_overflow_y( style, overflow)
+    }
+    
+    public static func style_set_overflow_y(_  style: UnsafeMutableRawPointer, _ overflow: Int32) {
+        
+        return mason_style_set_overflow_y( style, overflow)
+    }
+    
+    public static func style_get_overflow_x(_  style: UnsafeMutableRawPointer) -> Int32 {
+        return mason_style_get_overflow_x( style)
+    }
+    
+    public static func style_get_overflow_y(_  style: UnsafeMutableRawPointer) -> Int32 {
+        return mason_style_get_overflow_y( style)
     }
     
     public static func style_get_align_items(_  style: UnsafeMutableRawPointer) -> Int32 {
@@ -329,6 +344,14 @@ public class MasonReexports: NSObject {
         return mason_style_get_flex_basis(style)
     }
     
+    public static func style_set_scrollbar_width(_  style: UnsafeMutableRawPointer,_ value: Float) {
+        return mason_style_set_scrollbar_width(style, value)
+    }
+    
+    public static func style_get_scrollbar_width(_  style: UnsafeMutableRawPointer) -> Float {
+        return mason_style_get_scrollbar_width(style)
+    }
+    
     public static func style_get_width(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
         return mason_style_get_width( style)
     }
@@ -528,7 +551,7 @@ public class MasonReexports: NSObject {
     }
     
     public static func util_parse_non_repeated_track_sizing_function(_ value: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>) -> String {
-       let parsed = mason_util_parse_non_repeated_track_sizing_function(value)
+        let parsed = mason_util_parse_non_repeated_track_sizing_function(value)
         guard let parsed  = parsed else {return String()}
         let ret = NSString(cString: parsed, encoding: NSUTF8StringEncoding) as? String ?? String()
         mason_util_destroy_string(parsed)
@@ -536,7 +559,7 @@ public class MasonReexports: NSObject {
     }
     
     public static func util_parse_auto_repeating_track_sizing_function(_ value: UnsafeMutablePointer<CMasonTrackSizingFunctionArray>) -> String {
-       let parsed =  mason_util_parse_auto_repeating_track_sizing_function(value)
+        let parsed =  mason_util_parse_auto_repeating_track_sizing_function(value)
         guard let parsed  = parsed else {return String()}
         let ret = NSString(cString: parsed, encoding: NSUTF8StringEncoding) as? String ?? String()
         mason_util_destroy_string(parsed)
@@ -544,7 +567,7 @@ public class MasonReexports: NSObject {
     }
     
     public static func util_create_non_repeated_track_sizing_function_with_type_value(_ track_type: Int32, _ track_value: Float) -> CMasonMinMax {
-       return mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type, track_value)
+        return mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type, track_value)
     }
     
     public static func style_update_with_values(_ style: UnsafeMutableRawPointer,
@@ -635,7 +658,11 @@ public class MasonReexports: NSObject {
                                                 _ gridRowEndType: Int32,
                                                 _ gridRowEndValue: Int16,
                                                 _ gridTemplateRows: UnsafeMutablePointer<CMasonTrackSizingFunctionArray>,
-                                                gridTemplateColumns: UnsafeMutablePointer<CMasonTrackSizingFunctionArray>
+                                                _ gridTemplateColumns: UnsafeMutablePointer<CMasonTrackSizingFunctionArray>,
+                                                _ overflowX: Int32,
+                                                _ overflowY: Int32,
+                                                scrollBarWidth: Float
+                                                
     ){
         mason_style_update_with_values(style, display,
                                        position,
@@ -697,7 +724,10 @@ public class MasonReexports: NSObject {
                                        gridRowEndType,
                                        gridRowEndValue,
                                        gridTemplateRows,
-                                       gridTemplateColumns
+                                       gridTemplateColumns,
+                                       overflowX,
+                                       overflowY,
+                                       scrollBarWidth
                                        
         )
     }

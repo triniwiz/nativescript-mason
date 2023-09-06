@@ -788,6 +788,7 @@ public enum Display: Int, RawRepresentable {
     case None
     case Flex
     case Grid
+    case Block
     
     public typealias RawValue = Int32
     
@@ -799,6 +800,8 @@ public enum Display: Int, RawRepresentable {
             return 1
         case .Grid:
             return 2
+        case .Block:
+            return 3
         }
     }
     
@@ -811,6 +814,8 @@ public enum Display: Int, RawRepresentable {
             self = .Flex
         case 2:
             self = .Grid
+        case 3:
+            self = .Block
         default:
             return nil
         }
@@ -825,6 +830,8 @@ public enum Display: Int, RawRepresentable {
             return "flex"
         case .Grid:
             return "grid"
+        case .Block:
+            return "block"
         }
     }
 }
@@ -1139,6 +1146,7 @@ public enum JustifyContent: Int, RawRepresentable {
 
 @objc(Overflow)
 public enum Overflow: Int, RawRepresentable {
+    case Unset
     case Visible
     case Hidden
     case Scroll
@@ -1153,6 +1161,8 @@ public enum Overflow: Int, RawRepresentable {
             return 1
         case .Scroll:
             return 2
+        case .Unset:
+             return -1
         }
     }
     
@@ -1165,6 +1175,8 @@ public enum Overflow: Int, RawRepresentable {
             self = .Hidden
         case 2:
             self = .Scroll
+        case -1:
+            self = .Unset
         default:
             return nil
         }
@@ -1178,6 +1190,8 @@ public enum Overflow: Int, RawRepresentable {
             return "hidden"
         case .Scroll:
             return "scroll"
+        case .Unset:
+             return "unset"
         }
     }
 }

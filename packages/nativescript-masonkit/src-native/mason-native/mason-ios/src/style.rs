@@ -2,9 +2,9 @@ use std::ffi::{c_float, c_int, c_void};
 
 use mason_core::style::{min_max_from_values, Style};
 use mason_core::{
-    Dimension, GridPlacement, GridTrackRepetition, LengthPercentage, LengthPercentageAuto,
-    MaxTrackSizingFunction, MinTrackSizingFunction, NonRepeatedTrackSizingFunction, Overflow, Rect,
-    Size, TrackSizingFunction,
+    align_content_from_enum, Dimension, GridPlacement, GridTrackRepetition, LengthPercentage,
+    LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction,
+    NonRepeatedTrackSizingFunction, Overflow, Rect, Size, TrackSizingFunction,
 };
 
 #[repr(C)]
@@ -803,7 +803,12 @@ impl Into<GridPlacement> for CMasonGridPlacement {
 
 #[no_mangle]
 pub extern "C" fn mason_style_init() -> *mut c_void {
-    Style::default().into_raw() as _
+    let mut style = Style::default();
+    style.set_align_content(align_content_from_enum(0));
+    style.set_flex_basis(Dimension::Auto);
+    style.set_flex_grow(0.0);
+    style.set_flex_shrink(1.0);
+    style.into_raw() as _
 }
 
 #[no_mangle]
@@ -1743,19 +1748,23 @@ pub unsafe fn to_vec_track_sizing_function(
         .collect::<Vec<TrackSizingFunction>>()
 }
 
-pub extern "C" fn mason_style_set_scrollbar_width(style: i64, value: f32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_scrollbar_width(style: *mut c_void, value: f32) {
     mason_core::ffi::style_set_scrollbar_width(style as _, value);
 }
 
-pub extern "C" fn mason_style_get_scrollbar_width(style: i64) -> f32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_scrollbar_width(style: *mut c_void) -> f32 {
     mason_core::ffi::style_get_scrollbar_width(style as _)
 }
 
-pub extern "C" fn mason_style_set_overflow(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow(style: *mut c_void, value: i32) {
     mason_core::ffi::style_set_overflow(style as _, value);
 }
 
-pub extern "C" fn mason_style_set_overflow_x(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow_x(style: *mut c_void, value: i32) {
     mason_core::ffi::style_set_overflow_x(style as _, value);
 }
 
@@ -1767,15 +1776,18 @@ fn overflow_to_int(value: Overflow) -> i32 {
     }
 }
 
-pub extern "C" fn mason_style_get_overflow_x(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_overflow_x(style: *mut c_void) -> i32 {
     overflow_to_int(mason_core::ffi::style_get_overflow_x(style as _))
 }
 
-pub extern "C" fn mason_style_set_overflow_y(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow_y(style: *mut c_void, value: i32) {
     mason_core::ffi::style_set_overflow_y(style as _, value);
 }
 
-pub extern "C" fn mason_style_get_overflow_y(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_overflow_y(style: *mut c_void) -> i32 {
     overflow_to_int(mason_core::ffi::style_get_overflow_y(style as _))
 }
 

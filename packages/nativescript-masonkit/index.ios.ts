@@ -58,6 +58,7 @@ export class TSCView extends TSCViewBase {
 
   public onLayout(left: number, top: number, right: number, bottom: number): void {
     super.onLayout(left, top, right, bottom);
+
     const nativeView = this.nativeView;
     if (nativeView) {
       this.eachLayoutChild((child) => {
@@ -185,6 +186,15 @@ export class Grid extends TSCView {
 export class Flex extends TSCView {
   createNativeView() {
     const view = (UIView as any).createFlexView() as any;
+    this._hasNativeView = true;
+    return view;
+  }
+}
+
+@CSSType('Box')
+export class Box extends TSCView {
+  createNativeView() {
+    const view = (UIView as any).createBlockView() as any;
     this._hasNativeView = true;
     return view;
   }

@@ -1,6 +1,6 @@
 declare const __non_webpack_require__;
 
-import { Length, Utils } from '@nativescript/core';
+import { Length, Utils, isIOS } from '@nativescript/core';
 import { TSCViewBase } from './common';
 
 import { AlignSelf as AlignSelfType } from '.';
@@ -38,6 +38,13 @@ const enum GridPlacementCompatType {
   Line = 1,
 
   Span = 2,
+}
+
+const enum GridAutoFlow {
+  Row,
+  Column,
+  RowDense,
+  ColumnDense,
 }
 
 export const enum FlexWrap {
@@ -556,6 +563,9 @@ export function _setDisplay(value, instance: TSCView, initial = false) {
         case 'grid':
           nativeValue = Display.Grid;
           break;
+        case 'block':
+          nativeValue = Display.Block;
+          break;
       }
 
       if (nativeValue !== -1) {
@@ -570,6 +580,9 @@ export function _setDisplay(value, instance: TSCView, initial = false) {
             break;
           case 'grid':
             nativeValue = org.nativescript.mason.masonkit.Display.Grid;
+            break;
+          case 'block':
+            nativeValue = org.nativescript.mason.masonkit.Display.Block;
             break;
           case 'none':
             nativeValue = org.nativescript.mason.masonkit.Display.None;
@@ -593,6 +606,9 @@ export function _setDisplay(value, instance: TSCView, initial = false) {
             break;
           case 'grid':
             nativeValue = Display.Grid;
+            break;
+          case 'block':
+            nativeValue = Display.Block;
             break;
           case 'none':
             nativeValue = Display.None;
@@ -621,6 +637,8 @@ export function _getDisplay(instance: TSCView) {
         return 'flex';
       case 2:
         return 'grid';
+      case 3:
+        return 'block';
     }
   } else {
     if (global.isAndroid) {
@@ -639,6 +657,8 @@ export function _getDisplay(instance: TSCView) {
           return 'flex';
         case org.nativescript.mason.masonkit.Display.Grid:
           return 'grid';
+        case org.nativescript.mason.masonkit.Display.Block:
+          return 'block';
       }
     }
 
@@ -650,6 +670,8 @@ export function _getDisplay(instance: TSCView) {
           return 'flex';
         case Display.Grid:
           return 'grid';
+        case Display.Block:
+          return 'block';
       }
     }
   }
@@ -2919,24 +2941,28 @@ function toOverflowValue(value: any) {
 
 function toOverflowJSValue(value: any) {
   if (__IOS__) {
-    return toOverflowValue(value);
-  }
-  let nativeValue = 0;
-  switch (value) {
-    case org.nativescript.mason.masonkit.Overflow.Visible:
-      nativeValue = Overflow.Visible;
-      break;
-    case org.nativescript.mason.masonkit.Overflow.Hidden:
-      nativeValue = Overflow.Hidden;
-      break;
-    case org.nativescript.mason.masonkit.Overflow.Scroll:
-      nativeValue = Overflow.Scroll;
-      break;
-    default:
-      nativeValue = Overflow.Visible;
+    switch (value) {
+      case Overflow.Visible:
+        return 'visible';
+      case Overflow.Hidden:
+        return 'hidden';
+      case Overflow.Scroll:
+        return 'scroll';
+      default:
+        return 'visible';
+    }
   }
 
-  return nativeValue;
+  switch (value) {
+    case org.nativescript.mason.masonkit.Overflow.Visible:
+      return 'visible';
+    case org.nativescript.mason.masonkit.Overflow.Hidden:
+      return 'hidden';
+    case org.nativescript.mason.masonkit.Overflow.Scroll:
+      return 'scroll';
+    default:
+      return 'visible';
+  }
 }
 
 function toOverflowJavaValue(value: any) {
@@ -2977,9 +3003,8 @@ export function _setOverflow(value, instance: TSCView) {
     }
 
     if (global.isIOS) {
-      // const nativeValue = toOverflowValue(value);
-      // TODO
-      //instance.ios.setOverflow(nativeValue);
+      const nativeValue = toOverflowValue(value);
+      instance.ios.overflow = nativeValue;
     }
   }
 }
@@ -3001,8 +3026,7 @@ export function _getOverflow(instance: TSCView) {
     }
 
     if (global.isIOS) {
-      // TODO
-      // return toOverflowValue(instance.ios.getOverflow());
+      return toOverflowJSValue(instance.ios.overflow);
     }
   }
 }
@@ -3026,9 +3050,9 @@ export function _setOverflowX(value, instance: TSCView) {
     }
 
     if (global.isIOS) {
-      // const nativeValue = toOverflowValue(value);
+      const nativeValue = toOverflowValue(value);
       // TODO
-      //instance.ios.setOverflowX(nativeValue);
+      instance.ios.overflowX = nativeValue;
     }
   }
 }
@@ -3050,8 +3074,7 @@ export function _getOverflowX(instance: TSCView) {
     }
 
     if (global.isIOS) {
-      // TODO
-      // return toOverflowValue(instance.ios.getOverflowX());
+      return toOverflowJSValue(instance.ios.overflowX);
     }
   }
 }
@@ -3075,9 +3098,9 @@ export function _setOverflowY(value, instance: TSCView, initial = false) {
     }
 
     if (global.isIOS) {
-      // const nativeValue = toOverflowValue(value);
+      const nativeValue = toOverflowValue(value);
       // TODO
-      //instance.ios.setOverflowY(nativeValue);
+      instance.ios.overflowY = nativeValue;
     }
   }
 }
@@ -3099,8 +3122,7 @@ export function _getOverflowY(instance: TSCView) {
     }
 
     if (global.isIOS) {
-      // TODO
-      // return toOverflowValue(instance.ios.getOverflowY());
+      return toOverflowJSValue(instance.ios.overflowY);
     }
   }
 }
@@ -3125,8 +3147,7 @@ export function _setScrollbarWidth(value, instance: TSCView, initial = false) {
     }
 
     if (global.isIOS) {
-      // TODO
-      // instance.ios.setScrollBarWidth(value)
+      instance.ios.scrollBarWidthCompat = MasonDimensionCompat.alloc().initWithPoints(value);
     }
   }
 }
@@ -3148,8 +3169,7 @@ export function getScrollbarWidth(instance: TSCView) {
     }
 
     if (global.isIOS) {
-      // TODO
-      // return nstance.ios.getScrollBarWidth();
+      return _parseDimension(instance.ios.scrollBarWidthCompat);
     }
   }
 }
@@ -4068,6 +4088,114 @@ export function _parseGridAutoRowsColumns(value: string): Array<MinMaxType> {
     });
   }
   return array;
+}
+
+function toGridAutoFlow(value) {
+  if (isIOS || UseV8Module) {
+    switch (value) {
+      case 'row':
+        return FlexGridAutoFlowWrap.Row;
+      case 'column':
+        return FlexGridAutoFlowWrap.Column;
+      case 'row dense':
+        return FlexGridAutoFlowWrap.RowDense;
+      case 'column dense':
+        return FlexGridAutoFlowWrap.ColumnDense;
+      default:
+        return FlexGridAutoFlowWrap.Row;
+    }
+  }
+
+  switch (value) {
+    case 'row':
+      return org.nativescript.mason.masonkit.GridAutoFlow.Row;
+    case 'column':
+      return org.nativescript.mason.masonkit.GridAutoFlow.Column;
+    case 'row dense':
+      return org.nativescript.mason.masonkit.GridAutoFlow.RowDense;
+    case 'column dense':
+      return org.nativescript.mason.masonkit.GridAutoFlow.ColumnDense;
+    default:
+      return org.nativescript.mason.masonkit.GridAutoFlow.Row;
+  }
+}
+
+export function _setGridAutoFlow(value, instance: TSCView) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  const nativeValue = toGridAutoFlow(value);
+
+  if (UseV8Module) {
+    MasonV8Module.setGridAutoFlow(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridAutoFlow(nodeOrView, nativeValue as org.nativescript.mason.masonkit.GridAutoFlow);
+      } else {
+        nodeOrView.setGridAutoFlow(nativeValue as org.nativescript.mason.masonkit.GridAutoFlow);
+      }
+    }
+
+    if (isIOS) {
+      instance.ios.gridAutoFlow = nativeValue as FlexGridAutoFlowWrap;
+    }
+  }
+}
+
+function parseGridAutoFlow(value) {
+  if (isIOS || UseV8Module) {
+    switch (value) {
+      case FlexGridAutoFlowWrap.Row:
+        return 'row';
+      case FlexGridAutoFlowWrap.Column:
+        return 'column';
+      case FlexGridAutoFlowWrap.RowDense:
+        return 'row dense';
+      case FlexGridAutoFlowWrap.ColumnDense:
+        return 'column dense';
+      default:
+        return 'row';
+    }
+  }
+
+  switch (value) {
+    case org.nativescript.mason.masonkit.GridAutoFlow.Row:
+      return 'row';
+    case org.nativescript.mason.masonkit.GridAutoFlow.Column:
+      return 'column';
+    case org.nativescript.mason.masonkit.GridAutoFlow.RowDense:
+      return 'row dense';
+    case org.nativescript.mason.masonkit.GridAutoFlow.ColumnDense:
+      return 'column dense';
+    default:
+      return 'row';
+  }
+}
+
+export function _getGridAutoFlow(instance) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  if (UseV8Module) {
+    return parseGridAutoFlow(MasonV8Module.getGridAutoFlow(instance._masonStylePtr));
+  } else {
+    if (global.isAndroid) {
+      const nodeOrView = getMasonInstance(instance);
+      if (instance._isMasonChild) {
+        return parseGridAutoFlow(org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getGridAutoFlow(nodeOrView));
+      } else {
+        return parseGridAutoFlow(nodeOrView.getGridAutoFlow());
+      }
+    }
+
+    if (isIOS) {
+      return parseGridAutoFlow(instance.ios.gridAutoFlow);
+    }
+  }
 }
 
 export function _setGridAutoRows(value, instance: TSCView, initial = false) {
