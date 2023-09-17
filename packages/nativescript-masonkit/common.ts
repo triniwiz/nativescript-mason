@@ -484,6 +484,10 @@ export function overrideViewBase() {
       return _getFlexBasis(this as any);
     }
 
+    set flexBasis(value) {
+      this.style.flexBasis = value;
+    }
+
     [flexBasisProperty.setNative](value) {
       _setFlexBasis(value, this as any);
     }
