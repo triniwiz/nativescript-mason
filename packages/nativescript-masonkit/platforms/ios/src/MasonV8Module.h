@@ -63,17 +63,17 @@ functionBody }); \
 #define MASON_ENTER_WITH_STYLE \
   auto style = reinterpret_cast<void *>(info[0].As<v8::BigInt>()->Int64Value());
 
-#define MASON_UPDATE_NODE(arg)                           \
-  if (arg->BooleanValue(isolate))                        \
-  {                                                      \
-    [MasonReexports node_set_style:mason :node :style]; \
+#define MASON_UPDATE_NODE(arg)                        \
+  if (arg->BooleanValue(isolate))                     \
+  {                                                   \
+    [MasonReexports node_set_style:mason:node:style]; \
   }
 
 #define MASON_SET_NUMBER_PROPERTY(name, setter)           \
   CREATE_FUNCTION(name, {                                 \
     MASON_ENTER_WITH_NODE_AND_STYLE                       \
     auto value = info[3]->Int32Value(context).FromJust(); \
-    [MasonReexports setter:style :value];                                 \
+    [MasonReexports setter:style:value];                  \
     MASON_UPDATE_NODE(info[4])                            \
     RETURN_UNDEFINED                                      \
   })
@@ -82,77 +82,77 @@ functionBody }); \
   CREATE_FUNCTION(name, {                                  \
     MASON_ENTER_WITH_NODE_AND_STYLE                        \
     auto value = info[3]->NumberValue(context).FromJust(); \
-    [MasonReexports setter:style :value];                                   \
+    [MasonReexports setter:style:value];                   \
     MASON_UPDATE_NODE(info[4])                             \
     RETURN_UNDEFINED                                       \
   })
 
-#define MASON_GET_NUMBER_PROPERTY(name, getter) \
-  CREATE_FUNCTION(name, {                       \
-    MASON_ENTER_WITH_STYLE                      \
-    info.GetReturnValue().Set([MasonReexports getter:style]);   \
+#define MASON_GET_NUMBER_PROPERTY(name, getter)               \
+  CREATE_FUNCTION(name, {                                     \
+    MASON_ENTER_WITH_STYLE                                    \
+    info.GetReturnValue().Set([MasonReexports getter:style]); \
   });
 
-#define MASON_SET_LENGTH_PROPERTY(name, setter)                     \
-  CREATE_FUNCTION(name, {                                           \
-    MASON_ENTER_WITH_NODE_AND_STYLE                                 \
-    auto value = info[3]->Int32Value(context).FromJust();           \
-    auto value_type = info[4]->Int32Value(context).FromJust();      \
-    [MasonReexports setter:style :value :jsToLengthPercentageAutoType(value_type)]; \
-    MASON_UPDATE_NODE(info[5])                                      \
-    RETURN_UNDEFINED                                                \
+#define MASON_SET_LENGTH_PROPERTY(name, setter)                                   \
+  CREATE_FUNCTION(name, {                                                         \
+    MASON_ENTER_WITH_NODE_AND_STYLE                                               \
+    auto value = info[3]->NumberValue(context).FromJust();                        \
+    auto value_type = info[4]->Int32Value(context).FromJust();                    \
+    [MasonReexports setter:style:value:jsToLengthPercentageAutoType(value_type)]; \
+    MASON_UPDATE_NODE(info[5])                                                    \
+    RETURN_UNDEFINED                                                              \
   })
 
-#define MASON_SET_LENGTH_PROPERTY_ALL_SIDES(name, setter)                                                                                                                                                              \
-  CREATE_FUNCTION(name, {                                                                                                                                                                                              \
-    MASON_ENTER_WITH_NODE_AND_STYLE                                                                                                                                                                                    \
-    auto value = info[3]->Int32Value(context).FromJust();                                                                                                                                                              \
-    auto value_type = info[4]->Int32Value(context).FromJust();                                                                                                                                                         \
-    [MasonReexports setter:style :value :jsToLengthPercentageAutoType(value_type)]; \
-    MASON_UPDATE_NODE(info[5])                                                                                                                                                                                         \
-    RETURN_UNDEFINED                                                                                                                                                                                                   \
+#define MASON_SET_LENGTH_PROPERTY_ALL_SIDES(name, setter)                         \
+  CREATE_FUNCTION(name, {                                                         \
+    MASON_ENTER_WITH_NODE_AND_STYLE                                               \
+    auto value = info[3]->NumberValue(context).FromJust();                        \
+    auto value_type = info[4]->Int32Value(context).FromJust();                    \
+    [MasonReexports setter:style:value:jsToLengthPercentageAutoType(value_type)]; \
+    MASON_UPDATE_NODE(info[5])                                                    \
+    RETURN_UNDEFINED                                                              \
   })
 
-#define MASON_SET_LENGTH_PROPERTY_NO_AUTO(name, setter)         \
-  CREATE_FUNCTION(name, {                                       \
-    MASON_ENTER_WITH_NODE_AND_STYLE                             \
-    auto value = info[3]->Int32Value(context).FromJust();       \
-    auto value_type = info[4]->Int32Value(context).FromJust();  \
-    [MasonReexports setter:style :value :jsToLengthPercentageType(value_type)]; \
-    MASON_UPDATE_NODE(info[5])                                  \
-    RETURN_UNDEFINED                                            \
+#define MASON_SET_LENGTH_PROPERTY_NO_AUTO(name, setter)                       \
+  CREATE_FUNCTION(name, {                                                     \
+    MASON_ENTER_WITH_NODE_AND_STYLE                                           \
+    auto value = info[3]->NumberValue(context).FromJust();                    \
+    auto value_type = info[4]->Int32Value(context).FromJust();                \
+    [MasonReexports setter:style:value:jsToLengthPercentageType(value_type)]; \
+    MASON_UPDATE_NODE(info[5])                                                \
+    RETURN_UNDEFINED                                                          \
   })
 
-#define MASON_SET_LENGTH_PROPERTY_NO_AUTO_ALL_SIDES(name, setter)                                                                                                                                      \
-  CREATE_FUNCTION(name, {                                                                                                                                                                              \
-    MASON_ENTER_WITH_NODE_AND_STYLE                                                                                                                                                                    \
-    auto value = info[3]->Int32Value(context).FromJust();                                                                                                                                              \
-    auto value_type = info[4]->Int32Value(context).FromJust();                                                                                                                                         \
-   [MasonReexports setter:style :value :jsToLengthPercentageType(value_type)]; \
-    MASON_UPDATE_NODE(info[5])                                                                                                                                                                         \
-    RETURN_UNDEFINED                                                                                                                                                                                   \
+#define MASON_SET_LENGTH_PROPERTY_NO_AUTO_ALL_SIDES(name, setter)             \
+  CREATE_FUNCTION(name, {                                                     \
+    MASON_ENTER_WITH_NODE_AND_STYLE                                           \
+    auto value = info[3]->NumberValue(context).FromJust();                    \
+    auto value_type = info[4]->Int32Value(context).FromJust();                \
+    [MasonReexports setter:style:value:jsToLengthPercentageType(value_type)]; \
+    MASON_UPDATE_NODE(info[5])                                                \
+    RETURN_UNDEFINED                                                          \
   })
 
-#define MASON_GET_LENGTH_PROPERTY(name, getter)                                  \
-  CREATE_FUNCTION(name, {                                                        \
-    MASON_ENTER_WITH_STYLE                                                       \
+#define MASON_GET_LENGTH_PROPERTY(name, getter)                                                  \
+  CREATE_FUNCTION(name, {                                                                        \
+    MASON_ENTER_WITH_STYLE                                                                       \
     info.GetReturnValue().Set(lengthPercentageAutoToJS(isolate, [MasonReexports getter:style])); \
   });
 
-#define MASON_GET_LENGTH_PROPERTY_NO_AUTO(name, getter)                      \
-  CREATE_FUNCTION(name, {                                                    \
-    MASON_ENTER_WITH_STYLE                                                   \
+#define MASON_GET_LENGTH_PROPERTY_NO_AUTO(name, getter)                                      \
+  CREATE_FUNCTION(name, {                                                                    \
+    MASON_ENTER_WITH_STYLE                                                                   \
     info.GetReturnValue().Set(lengthPercentageToJS(isolate, [MasonReexports getter:style])); \
   });
 
-#define MASON_SET_DIMENSION_PROPERTY(name, setter)             \
-  CREATE_FUNCTION(name, {                                      \
-    MASON_ENTER_WITH_NODE_AND_STYLE                            \
-    auto value = info[3]->Int32Value(context).FromJust();      \
-    auto value_type = info[4]->Int32Value(context).FromJust(); \
-    [MasonReexports setter:style :value :jsToDimensionType(value_type)];\
-    MASON_UPDATE_NODE(info[5])                                 \
-    RETURN_UNDEFINED                                           \
+#define MASON_SET_DIMENSION_PROPERTY(name, setter)                     \
+  CREATE_FUNCTION(name, {                                              \
+    MASON_ENTER_WITH_NODE_AND_STYLE                                    \
+    auto value = info[3]->NumberValue(context).FromJust();             \
+    auto value_type = info[4]->Int32Value(context).FromJust();         \
+    [MasonReexports setter:style:value:jsToDimensionType(value_type)]; \
+    MASON_UPDATE_NODE(info[5])                                         \
+    RETURN_UNDEFINED                                                   \
   })
 
 #define STRING_TO_V8_VALUE(value) \
@@ -161,55 +161,55 @@ functionBody }); \
 #define DOUBLE_TO_V8_VALUE(value) \
   v8::Number::New(isolate, value)
 
-#define MASON_GET_DIMENSION_PROPERTY(name, getter)                    \
-  CREATE_FUNCTION(name, {                                             \
-    MASON_ENTER_WITH_STYLE                                            \
+#define MASON_GET_DIMENSION_PROPERTY(name, getter)                                    \
+  CREATE_FUNCTION(name, {                                                             \
+    MASON_ENTER_WITH_STYLE                                                            \
     info.GetReturnValue().Set(dimensionToJS(isolate, [MasonReexports getter:style])); \
   });
 
-#define MASON_SET_SIZE_PROPERTY(name, setter)                                                                  \
-  CREATE_FUNCTION(name, {                                                                                      \
-    MASON_ENTER_WITH_NODE_AND_STYLE                                                                            \
-    auto width = info[3]->NumberValue(context).FromJust();                                                     \
-    auto width_type = info[4]->Int32Value(context).FromJust();                                                 \
-    auto height = info[3]->NumberValue(context).FromJust();                                                    \
-    auto height_type = info[4]->Int32Value(context).FromJust();                                                \
-    [MasonReexports setter:style :width :jsToLengthPercentageType(width_type) :height :jsToLengthPercentageType(height_type)]; \
-    MASON_UPDATE_NODE(info[7])                                                                                 \
-    RETURN_UNDEFINED                                                                                           \
+#define MASON_SET_SIZE_PROPERTY(name, setter)                                                                              \
+  CREATE_FUNCTION(name, {                                                                                                  \
+    MASON_ENTER_WITH_NODE_AND_STYLE                                                                                        \
+    auto width = info[3]->NumberValue(context).FromJust();                                                                 \
+    auto width_type = info[4]->Int32Value(context).FromJust();                                                             \
+    auto height = info[3]->NumberValue(context).FromJust();                                                                \
+    auto height_type = info[4]->Int32Value(context).FromJust();                                                            \
+    [MasonReexports setter:style:width:jsToLengthPercentageType(width_type):height:jsToLengthPercentageType(height_type)]; \
+    MASON_UPDATE_NODE(info[7])                                                                                             \
+    RETURN_UNDEFINED                                                                                                       \
   })
 
-#define MASON_GET_SIZE_PROPERTY(name, getter)                    \
-  CREATE_FUNCTION(name, {                                        \
-    MASON_ENTER_WITH_STYLE                                       \
+#define MASON_GET_SIZE_PROPERTY(name, getter)                                    \
+  CREATE_FUNCTION(name, {                                                        \
+    MASON_ENTER_WITH_STYLE                                                       \
     info.GetReturnValue().Set(sizeToJS(isolate, [MasonReexports getter:style])); \
   });
 
-#define MASON_GET_GRID_PROPERTY(name, getter)                             \
-  CREATE_FUNCTION(name, {                                                 \
-    MASON_ENTER_WITH_STYLE                                                \
+#define MASON_GET_GRID_PROPERTY(name, getter)                                             \
+  CREATE_FUNCTION(name, {                                                                 \
+    MASON_ENTER_WITH_STYLE                                                                \
     info.GetReturnValue().Set(gridPlacementToJS(isolate, [MasonReexports getter:style])); \
   });
 
-#define MASON_SET_GRID_PROPERTY(name, setter)                    \
-  CREATE_FUNCTION(name, {                                        \
-    MASON_ENTER_WITH_NODE_AND_STYLE                              \
-    auto object = info[3].As<v8::Object>();                      \
-    auto value = (short)object->Get(context,                     \
-                                    STRING_TO_V8_VALUE("value")) \
-                     .ToLocalChecked()                           \
-                     ->Int32Value(context)                       \
-                     .FromJust();                                \
-    auto type = (int)object->Get(context,                        \
-                                 STRING_TO_V8_VALUE("type"))     \
-                    .ToLocalChecked()                            \
-                    ->Int32Value(context)                        \
-                    .FromJust();                                 \
-    if (type >= 0 && type < 3)                                   \
-    {                                                            \
-      [MasonReexports setter:style :jsToGridPlacement(value, type)];             \
-      MASON_UPDATE_NODE(info[4])                                 \
-    }                                                            \
+#define MASON_SET_GRID_PROPERTY(name, setter)                       \
+  CREATE_FUNCTION(name, {                                           \
+    MASON_ENTER_WITH_NODE_AND_STYLE                                 \
+    auto object = info[3].As<v8::Object>();                         \
+    auto value = (short)object->Get(context,                        \
+                                    STRING_TO_V8_VALUE("value"))    \
+                     .ToLocalChecked()                              \
+                     ->Int32Value(context)                          \
+                     .FromJust();                                   \
+    auto type = (int)object->Get(context,                           \
+                                 STRING_TO_V8_VALUE("type"))        \
+                    .ToLocalChecked()                               \
+                    ->Int32Value(context)                           \
+                    .FromJust();                                    \
+    if (type >= 0 && type < 3)                                      \
+    {                                                               \
+      [MasonReexports setter:style:jsToGridPlacement(value, type)]; \
+      MASON_UPDATE_NODE(info[4])                                    \
+    }                                                               \
   })
 
 inline static v8::Local<v8::Value>

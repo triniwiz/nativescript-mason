@@ -105,7 +105,7 @@ functionBody }); \
 #define MASON_SET_LENGTH_PROPERTY(name, setter)                     \
   CREATE_FUNCTION(name, {                                           \
     MASON_ENTER_WITH_NODE_AND_STYLE                                 \
-    auto value = info[3]->Int32Value(context).FromJust();           \
+    auto value = info[3]->NumberValue(context).FromJust();           \
     auto value_type = info[4]->Int32Value(context).FromJust();      \
     setter(style, value, jsToLengthPercentageAutoType(value_type)); \
     MASON_UPDATE_NODE(info[5])                                      \
@@ -115,7 +115,7 @@ functionBody }); \
 #define MASON_SET_LENGTH_PROPERTY_NO_AUTO(name, setter)         \
   CREATE_FUNCTION(name, {                                       \
     MASON_ENTER_WITH_NODE_AND_STYLE                             \
-    auto value = info[3]->Int32Value(context).FromJust();       \
+    auto value = info[3]->NumberValue(context).FromJust();       \
     auto value_type = info[4]->Int32Value(context).FromJust();  \
     setter(style, value, jsToLengthPercentageType(value_type)); \
     MASON_UPDATE_NODE(info[5])                                  \
@@ -137,7 +137,7 @@ functionBody }); \
 #define MASON_SET_DIMENSION_PROPERTY(name, setter)             \
   CREATE_FUNCTION(name, {                                      \
     MASON_ENTER_WITH_NODE_AND_STYLE                            \
-    auto value = info[3]->Int32Value(context).FromJust();      \
+    auto value = info[3]->NumberValue(context).FromJust();      \
     auto value_type = info[4]->Int32Value(context).FromJust(); \
     setter(style, value, jsToDimensionType(value_type));       \
     MASON_UPDATE_NODE(info[5])                                 \
