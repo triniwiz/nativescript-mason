@@ -1,4 +1,6 @@
-import { AddChildFromBuilder, CSSType, CoreTypes, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View, ViewBase, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, getViewById, heightProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, widthProperty } from '@nativescript/core';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+import { AddChildFromBuilder, CSSType, CoreTypes, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View, ViewBase, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, getViewById, heightProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, unsetValue, widthProperty } from '@nativescript/core';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position } from '.';
 import {
@@ -78,6 +80,7 @@ import {
   _setWidth,
   getScrollbarWidth,
 } from './helpers';
+import { isNullOrUndefined } from '@nativescript/core/utils/types';
 
 // let widgetMasonView: typeof org.nativescript.mason.masonkit.View;
 
@@ -287,12 +290,12 @@ export function overrideViewBase() {
       this.style.flexWrap = value as any;
     }
 
-    [flexWrapProperty.setNative](value) {
-      _setFlexWrap(value, this as any);
-    }
-
     get flexWrap() {
       return _getFlexWrap(this as any);
+    }
+
+    [flexWrapProperty.setNative](value) {
+      _setFlexWrap(value, this as any);
     }
 
     set alignItems(value) {
@@ -325,48 +328,48 @@ export function overrideViewBase() {
       this.style.alignContent = value as any;
     }
 
-    [alignContentProperty.setNative](value) {
-      _setAlignContent(value, this as any);
-    }
-
     get alignContent() {
       return _getAlignContent(this as any);
+    }
+
+    [alignContentProperty.setNative](value) {
+      _setAlignContent(value, this as any);
     }
 
     set justifyItems(value) {
       this.style.justifyItems = value as any;
     }
 
-    [justifyItemsProperty.setNative](value) {
-      _setJustifyItems(value, this as any);
-    }
-
     get justifyItems() {
       return _getJustifyItems(this as any);
+    }
+
+    [justifyItemsProperty.setNative](value) {
+      _setJustifyItems(value, this as any);
     }
 
     set justifySelf(value) {
       this.style.justifySelf = value as any;
     }
 
-    [justifySelfProperty.setNative](value) {
-      _setJustifySelf(value, this as any);
-    }
-
     get justifySelf() {
       return _getJustifySelf(this as any);
+    }
+
+    [justifySelfProperty.setNative](value) {
+      _setJustifySelf(value, this as any);
     }
 
     set justifyContent(value) {
       this.style.justifyContent = value as any;
     }
 
-    [justifyContentProperty.setNative](value) {
-      _setJustifyContent(value, this as any);
-    }
-
     get justifyContent() {
       return _getJustifyContent(this as any);
+    }
+
+    [justifyContentProperty.setNative](value) {
+      _setJustifyContent(value, this as any);
     }
 
     //@ts-ignore
@@ -466,6 +469,21 @@ export function overrideViewBase() {
       _setFlexGrow(value, this as any);
     }
 
+    get flex() {
+      return this.style.flex;
+    }
+
+    set flex(value) {
+      this.style.flex = value;
+    }
+
+    get flexFlow() {
+      return this.style.flexFlow;
+    }
+
+    set flexFlow(value) {
+      this.style.flexFlow = value;
+    }
     //@ts-ignore
     get flexShrink() {
       return _getFlexShrink(this as any);
@@ -576,12 +594,12 @@ export function overrideViewBase() {
       this.style.width = value;
     }
 
-    [widthProperty.setNative](value) {
-      _setWidth(value, this as any);
-    }
-
     get width() {
       return _getWidth(this as any);
+    }
+
+    [widthProperty.setNative](value) {
+      _setWidth(value, this as any);
     }
 
     //@ts-ignore
@@ -589,13 +607,13 @@ export function overrideViewBase() {
       this.style.height = value;
     }
 
-    [heightProperty.setNative](value) {
-      _setHeight(value, this as any);
-    }
-
     //@ts-ignore
     get height() {
       return _getHeight(this as any);
+    }
+
+    [heightProperty.setNative](value) {
+      _setHeight(value, this as any);
     }
 
     set maxWidth(value) {
@@ -620,13 +638,13 @@ export function overrideViewBase() {
       this.style.gridAutoRows = value;
     }
 
-    [gridAutoRowsProperty.setNative](value) {
-      _setGridAutoRows(value, this as any);
-    }
-
     //@ts-ignore
     get gridAutoRows() {
       return this.style.gridAutoRows;
+    }
+
+    [gridAutoRowsProperty.setNative](value) {
+      _setGridAutoRows(value, this as any);
     }
 
     //@ts-ignore
@@ -634,72 +652,72 @@ export function overrideViewBase() {
       this.style.gridAutoColumns = value;
     }
 
-    [gridAutoColumnsProperty.setNative](value) {
-      _setGridAutoColumns(value, this as any);
-    }
-
     get gridAutoColumns() {
       return this.style.gridAutoColumns;
+    }
+
+    [gridAutoColumnsProperty.setNative](value) {
+      _setGridAutoColumns(value, this as any);
     }
 
     set gridAutoFlow(value) {
       this.style.gridAutoFlow = value;
     }
 
-    [gridAutoFlowProperty.setNative](value) {
-      _setGridAutoFlow(value, this as any);
-    }
-
     get gridAutoFlow() {
       return this.style.gridAutoFlow;
+    }
+
+    [gridAutoFlowProperty.setNative](value) {
+      _setGridAutoFlow(value, this as any);
     }
 
     set gridColumnStart(value) {
       this.style.gridColumnStart = value;
     }
 
-    [gridColumnStartProperty.setNative](value) {
-      _setGridColumnStart(value, this as any);
-    }
-
     get gridColumnStart() {
       return this.style.gridColumnStart;
+    }
+
+    [gridColumnStartProperty.setNative](value) {
+      _setGridColumnStart(value, this as any);
     }
 
     set gridColumnEnd(value) {
       this.style.gridColumnEnd = value;
     }
 
-    [gridColumnEndProperty.setNative](value) {
-      _setGridColumnEnd(value, this as any);
-    }
-
     get gridColumnEnd() {
       return this.style.gridColumnEnd;
+    }
+
+    [gridColumnEndProperty.setNative](value) {
+      _setGridColumnEnd(value, this as any);
     }
 
     set gridRowStart(value) {
       this.style.gridRowStart = value;
     }
 
-    [gridRowStartProperty.setNative](value) {
-      _setGridRowStart(value, this as any);
-    }
-
     get gridRowStart() {
       return this.style.gridRowStart;
+    }
+
+    [gridRowStartProperty.setNative](value) {
+      _setGridRowStart(value, this as any);
     }
 
     set gridRowEnd(value) {
       this.style.gridRowEnd = value;
     }
 
-    [gridRowEndProperty.setNative](value) {
-      _setGridRowEnd(value, this as any);
-    }
-
     get gridRowEnd() {
       return this.style.gridRowEnd;
+    }
+
+    [gridRowEndProperty.setNative](value) {
+      _setGridRowEnd(value, this as any);
     }
 
     set gridTemplateRows(value) {
@@ -782,7 +800,7 @@ export function installMixins() {
   }
 }
 
-const emptyArray = new Array();
+const emptyArray = [];
 
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',
@@ -1357,6 +1375,92 @@ export const gridTemplateColumnsProperty = new CssProperty<Style, string>({
   defaultValue: '',
 });
 
+// flex-flow: <flex-direction> || <flex-wrap>
+const flexFlowProperty = new ShorthandProperty({
+  name: 'flexFlow',
+  cssName: 'flex-flow',
+  getter: function () {
+    return `${this.flexDirection} ${this.flexWrap}`;
+  },
+  converter: function (value) {
+    const properties = [];
+    if (value === unsetValue) {
+      properties.push([flexDirectionProperty, value]);
+      properties.push([flexWrapProperty, value]);
+    } else {
+      const trimmed = value && value.trim();
+      if (trimmed) {
+        const values = trimmed.split(/\s+/);
+        if (values.length >= 1) {
+          properties.push([flexDirectionProperty, values[0]]);
+        }
+        if (value.length >= 2) {
+          properties.push([flexWrapProperty, values[1]]);
+        }
+      }
+    }
+    return properties;
+  },
+});
+
+// flex: inital | auto | none | <flex-grow> <flex-shrink> || <flex-basis>
+const flexProperty = new ShorthandProperty({
+  name: 'flex',
+  cssName: 'flex',
+  getter: function () {
+    return `${this.flexGrow} ${this.flexShrink} ${this.flexBasis}`;
+  },
+  converter: function (value) {
+    const properties = [];
+    if (value === unsetValue) {
+      properties.push([flexGrowProperty, value]);
+      properties.push([flexShrinkProperty, value]);
+    } else if (typeof value === 'number') {
+      properties.push([flexGrowProperty, value]);
+      properties.push([flexShrinkProperty, 1]);
+      properties.push([flexBasisProperty, 'auto']);
+    } else {
+      const trimmed = value && value.trim();
+      if (trimmed) {
+        const values = trimmed.split(/\s+/);
+        if (values.length === 1) {
+          switch (values[0]) {
+            case 'inital':
+              properties.push([flexGrowProperty, 0]);
+              properties.push([flexShrinkProperty, 1]);
+              properties.push([flexBasisProperty, 'auto']);
+              break;
+            case 'auto':
+              properties.push([flexGrowProperty, 1]);
+              properties.push([flexShrinkProperty, 1]);
+              properties.push([flexBasisProperty, 'auto']);
+              break;
+            case 'none':
+              properties.push([flexGrowProperty, 0]);
+              properties.push([flexShrinkProperty, 0]);
+              properties.push([flexBasisProperty, 'auto']);
+              break;
+            default:
+              properties.push([flexGrowProperty, values[0]]);
+              properties.push([flexShrinkProperty, 1]);
+              properties.push([flexBasisProperty, 'auto']);
+          }
+        }
+        if (values.length >= 2) {
+          properties.push([flexGrowProperty, values[0]]);
+          properties.push([flexShrinkProperty, values[1]]);
+        }
+
+        if (value.length >= 3) {
+          properties.push({ property: flexBasisProperty, value: values[2] });
+        }
+      }
+    }
+
+    return properties;
+  },
+});
+
 @CSSType('TSCView')
 export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder {
   android: org.nativescript.mason.masonkit.View;
@@ -1521,5 +1625,8 @@ overflowProperty.register(Style);
 overflowXProperty.register(Style);
 overflowYProperty.register(Style);
 scrollBarWidthProperty.register(Style);
+
+flexFlowProperty.register(Style);
+flexProperty.register(Style);
 
 installMixins();

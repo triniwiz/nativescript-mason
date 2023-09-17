@@ -1,6 +1,7 @@
 import { CoreTypes } from '@nativescript/core';
 
 import { TSCViewBase } from './common';
+import { LengthPercentage } from '@nativescript/core/css/parser';
 
 export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit;
 
@@ -43,6 +44,8 @@ export class TSCView extends TSCViewBase {
   position: Position;
   flexDirection: FlexDirection;
   flexWrap: FlexWrap;
+  flex: string | 'auto' | 'none' | number | 'initial';
+  flexFlow: string;
   width: Length;
   height: Length;
   maxWidth: Length;
@@ -56,6 +59,7 @@ export class TSCView extends TSCViewBase {
   rowGap: Length;
   columnGap: Length;
   aspectRatio: number;
+  flexBasis: Length;
   alignItems: AlignItems;
   alignSelf: import('@nativescript/core/ui/layouts/flexbox-layout').AlignSelf;
   alignContent: AlignContent;
@@ -96,10 +100,12 @@ declare module '@nativescript/core/ui/styling/style' {
     position: Position;
     flexDirection: FlexDirection;
     flexWrap: FlexWrap;
-    width: Length;
-    height: Length;
-    maxWidth: Length;
-    maxHeight: Length;
+    flex: string | 'auto' | 'none' | number | 'initial';
+    flexFlow: string;
+    width: LengthPercentage | string | number;
+    height: LengthPercentage | string | number;
+    maxWidth: LengthPercentage | string | number;
+    maxHeight: LengthPercentage | string | number;
     left: Length;
     right: Length;
     top: Length;
@@ -109,6 +115,7 @@ declare module '@nativescript/core/ui/styling/style' {
     rowGap: Length;
     columnGap: Length;
     aspectRatio: number;
+    flexBasis: LengthPercentage | string | number;
     alignItems: AlignItems;
     alignSelf: AlignSelf;
     alignContent: AlignContent;
