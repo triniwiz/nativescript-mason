@@ -695,12 +695,12 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeGetSize(
                 output[1] = 0.0;
             }
             Dimension::Length(points) => {
-                output[0] = points;
-                output[1] = 1.0;
+                output[0] = 1.0;
+                output[1] = points;
             }
             Dimension::Percent(percent) => {
-                output[0] = percent;
-                output[1] = 2.0;
+                output[0] = 2.0;
+                output[1] = percent;
             }
         }
 
@@ -710,12 +710,12 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeGetSize(
                 output[3] = 0.0;
             }
             Dimension::Length(points) => {
-                output[2] = points;
-                output[3] = 0.0;
+                output[2] = 1.0;
+                output[3] = points;
             }
             Dimension::Percent(percent) => {
-                output[2] = percent;
-                output[3] = 2.0;
+                output[2] = 2.0;
+                output[3] = percent;
             }
         }
 
