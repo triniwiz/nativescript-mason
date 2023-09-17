@@ -196,7 +196,7 @@ class Node private constructor(private var nativePtr: Long) {
   var inBatch = false
     set(value) {
       if (field && !value) {
-        //updateNodeStyle()
+        updateNodeStyle()
       }
       field = value
     }

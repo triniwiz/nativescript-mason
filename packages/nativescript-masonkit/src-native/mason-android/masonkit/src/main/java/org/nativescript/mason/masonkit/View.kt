@@ -255,38 +255,6 @@ class View @JvmOverloads constructor(
         MeasureSpec.makeMeasureSpec(r - l, MeasureSpec.EXACTLY),
         MeasureSpec.makeMeasureSpec(b - t, MeasureSpec.EXACTLY)
       )
-
-//      val margin = node.style.margin;
-//      val parentWidth = (this.parent as android.view.ViewGroup).measuredWidth;
-//      val parentHeight = (this.parent as android.view.ViewGroup).measuredHeight;
-//
-//      this.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-//        setMargins(margin.left.let {
-//          var ret = it.value
-//          if (it.type == 2) {
-//            ret = it.value * parentWidth.toFloat();
-//          }
-//          ret.toInt()
-//        }, margin.top.let {
-//          var ret = it.value
-//          if (it.type == 2) {
-//            ret = it.value * parentHeight.toFloat();
-//          }
-//          ret.toInt()
-//        }, margin.right.let {
-//          var ret = it.value
-//          if (it.type == 2) {
-//            ret = it.value * parentWidth.toFloat();
-//          }
-//          ret.toInt()
-//        }, margin.bottom.let {
-//          var ret = it.value
-//          if (it.type == 2) {
-//            ret = it.value.toInt() * parentHeight.toFloat();
-//          }
-//          ret.toInt()
-//        })
-//      }
     }
 
     applyLayoutRecursive(node, 0F, 0F)
@@ -407,9 +375,55 @@ class View @JvmOverloads constructor(
       node.layout()
     }
 
+    val resolvedWidth = android.view.View.resolveSizeAndState(layout.width.roundToInt(), widthMeasureSpec, 0)
+    val resolvedHeight = android.view.View.resolveSizeAndState(layout.height.roundToInt(), heightMeasureSpec, 0)
+
+    if (parent !is View) {
+      this.layoutParams.width = layout.width.roundToInt();
+      this.layoutParams.height = layout.height.roundToInt();
+      
+      val margin = node.style.margin;
+      val parentWidth = (this.parent as android.view.ViewGroup).measuredWidth;
+      val parentHeight = (this.parent as android.view.ViewGroup).measuredHeight;
+
+      this.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+        this.topMargin = margin.top.let {
+          var ret = it.value
+          if (it.type == 2) {
+            ret = it.value * parentHeight.toFloat();
+          }
+          ret.toInt()
+        }
+
+        this.leftMargin = margin.left.let {
+          var ret = it.value
+          if (it.type == 2) {
+            ret = it.value * parentWidth.toFloat();
+          }
+          ret.toInt()
+        }
+
+        this.rightMargin = margin.right.let {
+          var ret = it.value
+          if (it.type == 2) {
+            ret = it.value * parentWidth.toFloat();
+          }
+          ret.toInt()
+        }
+
+        this.bottomMargin = margin.bottom.let {
+          var ret = it.value
+          if (it.type == 2) {
+            ret = it.value.toInt() * parentHeight.toFloat();
+          }
+          ret.toInt()
+        }
+      }
+    }
+
     setMeasuredDimension(
-      layout.width.roundToInt(),
-      layout.height.roundToInt()
+      resolvedWidth ,
+      resolvedHeight,
     )
   }
 
