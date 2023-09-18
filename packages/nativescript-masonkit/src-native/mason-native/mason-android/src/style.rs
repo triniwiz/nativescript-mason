@@ -34,7 +34,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInit(
     style.set_align_content(align_content_from_enum(0));
     style.set_flex_basis(Dimension::Auto);
     style.set_flex_grow(0.0);
-    style.set_flex_shrink(1.0);
+    style.set_flex_shrink(0.0);
     style.into_raw() as jlong
 }
 
