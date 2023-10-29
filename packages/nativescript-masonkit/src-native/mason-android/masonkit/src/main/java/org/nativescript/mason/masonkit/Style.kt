@@ -585,6 +585,7 @@ sealed class TrackSizingFunction(val isRepeating: Boolean = false) {
           builder.append(")")
           return builder.toString()
         }
+
         is Single -> value.cssValue
       }
     }
@@ -623,6 +624,7 @@ class Style internal constructor() {
   var display: Display = Display.Flex
     set(value) {
       field = value
+//      nativeSetDisplay(getNativePtr(), value.ordinal);
       isDirty = true
     }
 
@@ -1070,11 +1072,6 @@ class Style internal constructor() {
     minSize = Size(minSize.width, value)
   }
 
-  var size: Size<Dimension> = autoSize
-    set(value) {
-      field = value
-      isDirty = true
-    }
 
   fun setSizeWidth(value: Float, type: Int) {
     val width = when (type) {
@@ -1570,6 +1567,70 @@ class Style internal constructor() {
 
   }
 
+  fun getNativeMargins(): Rect<LengthPercentageAuto> {
+    if (getNativePtr() === 0L) return LengthPercentageAutoZeroRect;
+    val nativeMargins: FloatArray = nativeGetMargins(getNativePtr());
+    if (nativeMargins.isEmpty()) return LengthPercentageAutoZeroRect;
+
+    var marginLeft: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginEnd: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginTop: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
+
+    LengthPercentageAuto.fromTypeValue(nativeMargins[0].toInt(), nativeMargins[1])?.let {
+      marginLeft = it
+    }
+
+    LengthPercentageAuto.fromTypeValue(nativeMargins[2].toInt(), nativeMargins[3])?.let {
+      marginEnd = it
+    }
+
+    LengthPercentageAuto.fromTypeValue(nativeMargins[4].toInt(), nativeMargins[5])?.let {
+      marginTop = it
+    }
+
+    LengthPercentageAuto.fromTypeValue(nativeMargins[6].toInt(), nativeMargins[7])?.let {
+      marginBottom = it
+    }
+
+    return Rect(marginLeft, marginEnd, marginTop, marginBottom)
+  }
+
+  fun getNativeSize(): Size<Dimension> {
+    if (getNativePtr() === 0L) return autoSize;
+    val nativeSize: FloatArray = nativeGetSize(getNativePtr());
+    if (nativeSize.isEmpty()) return autoSize;
+    val width = Dimension.fromTypeValue(nativeSize[0].toInt(), nativeSize[1]);
+    val height = Dimension.fromTypeValue(nativeSize[2].toInt(), nativeSize[3]);
+    return Size(width as Dimension, height as Dimension)
+  }
+
+
+  var size: Size<Dimension> = autoSize
+    set(value) {
+      field = value
+      isDirty = true
+      nativeSetSize(
+        getNativePtr(),
+        value.width.type,
+        value.width.value,
+        value.height.type,
+        value.height.value
+      );
+    }
+
+  private external fun nativeGetSize(style: Long): FloatArray
+  private external fun nativeSetSize(
+    style: Long,
+    width_type: Int,
+    width: Float,
+    height_type: Int,
+    height: Float
+  )
+
+  private external fun nativeGetMargins(style: Long): FloatArray
+
+  private external fun nativeSetDisplay(style: Long, display: Int);
 
   fun getNativePtr(): Long {
     if (nativePtr == 0L) {

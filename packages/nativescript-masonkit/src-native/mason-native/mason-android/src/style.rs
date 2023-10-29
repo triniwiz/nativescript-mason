@@ -5,8 +5,8 @@ use jni::JNIEnv;
 
 use mason_core::style::{dimension_with_auto, min_max_from_values, Style};
 use mason_core::{
-    align_content_from_enum, Dimension, GridTrackRepetition, NonRepeatedTrackSizingFunction,
-    TrackSizingFunction,
+    align_content_from_enum, display_from_enum, Dimension, GridTrackRepetition,
+    LengthPercentageAuto, NonRepeatedTrackSizingFunction, TrackSizingFunction,
 };
 
 use crate::TRACK_SIZING_FUNCTION;
@@ -729,6 +729,94 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeGetSize(
 }
 
 #[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeGetMargins(
+    env: JNIEnv,
+    _: JObject,
+    style: jlong,
+) -> jfloatArray {
+    if style == 0 {
+        return env.new_float_array(0_i32).unwrap().into_raw();
+    }
+    unsafe {
+        let style: Box<Style> = Box::from_raw(style as *mut Style);
+
+        let top = style.get_margin_top();
+        let left = style.get_margin_left();
+        let bottom = style.get_margin_bottom();
+        let right = style.get_margin_right();
+
+        let mut output = vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+        match top {
+            LengthPercentageAuto::Auto => {
+                output[0] = 0.0;
+                output[1] = 0.0;
+            }
+            LengthPercentageAuto::Length(points) => {
+                output[0] = 1.0;
+                output[1] = points;
+            }
+            LengthPercentageAuto::Percent(percent) => {
+                output[0] = 2.0;
+                output[1] = percent;
+            }
+        }
+
+        match left {
+            LengthPercentageAuto::Auto => {
+                output[2] = 0.0;
+                output[3] = 0.0;
+            }
+            LengthPercentageAuto::Length(points) => {
+                output[2] = 1.0;
+                output[3] = points;
+            }
+            LengthPercentageAuto::Percent(percent) => {
+                output[2] = 2.0;
+                output[3] = percent;
+            }
+        }
+
+        match bottom {
+            LengthPercentageAuto::Auto => {
+                output[4] = 0.0;
+                output[5] = 0.0;
+            }
+            LengthPercentageAuto::Length(points) => {
+                output[4] = 1.0;
+                output[5] = points;
+            }
+            LengthPercentageAuto::Percent(percent) => {
+                output[4] = 2.0;
+                output[5] = percent;
+            }
+        }
+
+        match right {
+            LengthPercentageAuto::Auto => {
+                output[6] = 0.0;
+                output[7] = 0.0;
+            }
+            LengthPercentageAuto::Length(points) => {
+                output[6] = 1.0;
+                output[7] = points;
+            }
+            LengthPercentageAuto::Percent(percent) => {
+                output[6] = 2.0;
+                output[7] = percent;
+            }
+        }
+
+        let result = env.new_float_array(output.len() as i32).unwrap();
+        env.set_float_array_region(&result, 0, &output).unwrap();
+
+        Box::leak(style);
+
+        result.into_raw()
+    }
+}
+
+#[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeSetSize(
     _: JNIEnv,
     _: JObject,
@@ -745,6 +833,23 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeSetSize(
         let mut style: Box<Style> = Box::from_raw(style as *mut Style);
         Style::set_size_width(&mut style, dimension_with_auto(width_type, width).into());
         Style::set_size_height(&mut style, dimension_with_auto(height_type, height).into());
+        Box::leak(style);
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeSetDisplay(
+    _: JNIEnv,
+    _: JObject,
+    style: jlong,
+    display: jint,
+) {
+    if style == 0 {
+        return;
+    }
+    unsafe {
+        let mut style: Box<Style> = Box::from_raw(style as *mut Style);
+        Style::set_display(&mut style, display_from_enum(display).unwrap());
         Box::leak(style);
     }
 }

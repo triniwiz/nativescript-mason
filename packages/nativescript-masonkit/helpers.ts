@@ -223,8 +223,8 @@ export let UseV8Module = false;
 
 if (global.isAndroid) {
   try {
-    // __non_webpack_require__('system_lib://libmasonnativev8.so');
-    //UseV8Module = true;
+    __non_webpack_require__('system_lib://libmasonnativev8.so');
+    UseV8Module = true;
   } catch (error) {
     console.warn('Failed to enable on FastAPI');
   }
@@ -235,8 +235,8 @@ if (global.isIOS) {
   if (!UseV8Module) {
     try {
       //@ts-ignore
-      // new global.MasonV8ModuleInstaller.install();
-      //UseV8Module = true;
+      new global.MasonV8ModuleInstaller.install();
+      UseV8Module = true;
     } catch (error) {
       console.warn('Failed to enable on FastAPI');
     }
@@ -409,6 +409,11 @@ export function _toMasonDimension(value): { value: number; type: 'auto' | 'point
   }
 
   let typeOf = typeof value;
+
+  if (typeOf === 'number') {
+    return { value: Utils.layout.toDevicePixels(value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
+  }
+
   if (typeOf === 'string') {
     value = parseUnit(value).value;
     typeOf = 'object';
@@ -422,9 +427,6 @@ export function _toMasonDimension(value): { value: number; type: 'auto' | 'point
       case 'dip':
         return { value: Utils.layout.toDevicePixels(value.value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
     }
-  }
-  if (typeOf === 'number') {
-    return { value: Utils.layout.toDevicePixels(value), type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
   }
 
   return { value: value, type: 'points', native_type: 1 /* MasonDimensionCompatType.Points */ };
@@ -2185,6 +2187,9 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
   if (initial && value === 'normal') {
     return;
   }
+
+  if (!value) value = 'normal';
+
   if (instance._hasNativeView) {
     let nativeValue = null;
     switch (value) {
@@ -2320,22 +2325,20 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
         break;
     }
 
-    if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (UseV8Module) {
-        MasonV8Module.setJustifyContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      } else {
-        if (global.isAndroid) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setJustifyContent(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setJustifyContent(nativeValue);
-          }
+    if (UseV8Module) {
+      MasonV8Module.setJustifyContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
+    } else {
+      if (global.isAndroid) {
+        const nodeOrView = getMasonInstance(instance);
+        if (instance._isMasonChild) {
+          org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setJustifyContent(nodeOrView, nativeValue);
+        } else {
+          nodeOrView.setJustifyContent(nativeValue);
         }
+      }
 
-        if (global.isIOS) {
-          instance.ios.justifyContent = nativeValue;
-        }
+      if (global.isIOS) {
+        instance.ios.justifyContent = nativeValue;
       }
     }
   }

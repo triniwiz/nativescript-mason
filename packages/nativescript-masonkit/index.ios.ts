@@ -94,11 +94,12 @@ export class TSCView extends TSCViewBase {
         } else {
           let width;
           switch (typeof this.width) {
-            case 'object':
+            case 'object': {
               const parent = this.parent as any;
               const mw = parent?.getMeasuredWidth?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.width ?? 0) || specWidth;
               width = parseLength(this.width, mw);
               break;
+            }
             case 'string':
               width = -2;
               break;
@@ -109,11 +110,13 @@ export class TSCView extends TSCViewBase {
 
           let height;
           switch (typeof this.height) {
-            case 'object':
+            case 'object': {
               const parent = this.parent as any;
               const mh = parent?.getMeasuredHeight?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.height ?? 0) || specHeight;
               height = parseLength(this.height, mh);
               break;
+            }
+
             case 'string':
               height = -2;
               break;
@@ -139,17 +142,12 @@ export class TSCView extends TSCViewBase {
     (view as any)._masonParent = this;
     super._addViewToNativeVisualTree(view, atIndex);
 
-    // if (nativeView && view.nativeViewProtected) {
-    //   console.log(view.nativeViewProtected);
-    //   nativeView.addSubview(view.nativeViewProtected);
-    // }
-
     const index = atIndex ?? Infinity;
     if (nativeView && view.nativeViewProtected) {
       view['_hasNativeView'] = true;
       view['_isMasonChild'] = true;
 
-      if (index >= nativeView.subviews.count) {
+      if (index >= this._children.length) {
         nativeView.addSubview(view.nativeViewProtected);
       } else {
         nativeView.insertSubviewAtIndex(view.nativeViewProtected, index);
@@ -165,10 +163,8 @@ export class TSCView extends TSCViewBase {
     (view as any)._isMasonView = false;
     (view as any)._isMasonChild = false;
     super._removeViewFromNativeVisualTree(view);
-    if (view.nativeViewProtected) {
-      if ((view.nativeViewProtected as UIView).superview === nativeView) {
-        (view.nativeViewProtected as UIView).removeFromSuperview();
-      }
+    if (view.nativeViewProtected && (view.nativeViewProtected as UIView).superview === nativeView) {
+      (view.nativeViewProtected as UIView).removeFromSuperview();
     }
   }
 }

@@ -1,8 +1,9 @@
 extern crate core;
 
 use std::ffi::c_void;
+use std::sync::Arc;
 
-use jni::objects::{GlobalRef, JClass, JMethodID, JObject};
+use jni::objects::{GlobalRef, JClass, JMethodID, JObject, JValue};
 use jni::sys::{jint, jlong};
 use jni::JNIEnv;
 use jni::JavaVM;
@@ -145,6 +146,12 @@ pub struct CMasonNonRepeatedTrackSizingFunction(NonRepeatedTrackSizingFunction);
 #[derive(Clone, PartialEq, Debug)]
 pub struct CMasonTrackSizingFunction(TrackSizingFunction);
 
+static mut JVM: Option<Arc<JavaVM>> = None;
+
+fn get_java_vm() -> Option<Arc<JavaVM>> {
+    unsafe { JVM.clone() }
+}
+
 #[no_mangle]
 pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint {
     {
@@ -226,6 +233,10 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     auto_repeat_grid_track_repetition_count,
                 )
             });
+        }
+
+        unsafe {
+            JVM = Some(Arc::new(vm));
         }
 
         log::info!("Mason library loaded");
@@ -1598,7 +1609,7 @@ fn mason_style_get_justify_content(style: i64) -> i32 {
 }
 
 fn mason_style_set_justify_content(style: i64, value: i32) {
-    mason_core::ffi::style_set_position(style as _, value)
+    mason_core::ffi::style_set_justify_content(style as _, value)
 }
 
 fn mason_style_set_inset(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
@@ -1913,7 +1924,16 @@ fn mason_style_set_max_height(style: i64, value: f32, value_type: CMasonDimensio
 }
 
 pub fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64) {
-    mason_core::ffi::node_update_and_set_style(mason as _, node as _, style as _)
+    mason_core::ffi::node_update_and_set_style(mason as _, node as _, style as _);
+
+    let jvm = get_java_vm().expect("JavaVM reference not found");
+    let vm = jvm.attach_current_thread();
+    let mut env = vm.unwrap();
+    let clazz = env
+        .find_class("org/nativescript/mason/masonkit/Node")
+        .unwrap();
+    env.call_static_method(&clazz, "requestLayout", "(J)V", &[JValue::Long(node)])
+        .unwrap();
 }
 
 pub fn mason_style_set_scrollbar_width(style: i64, value: f32) {
