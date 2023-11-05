@@ -1,7 +1,7 @@
 use std::ffi::{c_char, CString};
 
 use mason_core::{
-    auto, fit_content, flex, max_content, min_content, percent, points, LengthPercentage,
+    auto, fit_content, flex, length, max_content, min_content, percent, LengthPercentage,
     NonRepeatedTrackSizingFunction,
 };
 
@@ -20,10 +20,10 @@ pub extern "C" fn mason_util_create_non_repeated_track_sizing_function_with_type
         0 => auto(),
         1 => min_content(),
         2 => max_content(),
-        3 => points(track_value),
+        3 => length(track_value),
         4 => percent(track_value),
         5 => flex(track_value),
-        6 => fit_content(LengthPercentage::Points(track_value)),
+        6 => fit_content(LengthPercentage::Length(track_value)),
         7 => fit_content(LengthPercentage::Percent(track_value)),
         _ => panic!(),
     };

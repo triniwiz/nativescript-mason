@@ -9,9 +9,9 @@
 #include <stdlib.h>
 
 typedef enum CMasonDimensionType {
+  MasonDimensionAuto,
   MasonDimensionPoints,
   MasonDimensionPercent,
-  MasonDimensionAuto,
 } CMasonDimensionType;
 
 typedef enum CMasonGridPlacementType {
@@ -21,9 +21,9 @@ typedef enum CMasonGridPlacementType {
 } CMasonGridPlacementType;
 
 typedef enum CMasonLengthPercentageAutoType {
+  MasonLengthPercentageAutoAuto,
   MasonLengthPercentageAutoPoints,
   MasonLengthPercentageAutoPercent,
-  MasonLengthPercentageAutoAuto,
 } CMasonLengthPercentageAutoType;
 
 typedef enum CMasonLengthPercentageType {
@@ -131,14 +131,16 @@ void *mason_node_new_node(void *mason, void *style);
 void *mason_node_new_node_with_measure_func(void *mason,
                                             void *style,
                                             void *measure_data,
-                                            long long (*measure)(const void*, float, float, float, float));
+                                            long long (*measure)(const void*,
+                                                                 float,
+                                                                 float,
+                                                                 float,
+                                                                 float));
 
 void *mason_node_new_node_with_children(void *mason,
                                         void *style,
                                         const void *children,
                                         uintptr_t children_size);
-
-uintptr_t mason_node_get_child_count(void *mason, void *node);
 
 void *mason_node_layout(void *mason, void *node, void *(*layout)(const float*));
 
@@ -239,7 +241,10 @@ void mason_node_update_and_set_style_with_values(void *mason,
                                                  int grid_row_end_type,
                                                  short grid_row_end_value,
                                                  struct CMasonTrackSizingFunctionArray *grid_template_rows,
-                                                 struct CMasonTrackSizingFunctionArray *grid_template_columns);
+                                                 struct CMasonTrackSizingFunctionArray *grid_template_columns,
+                                                 int32_t overflow_x,
+                                                 int32_t overflow_y,
+                                                 float scrollbar_width);
 
 void *mason_node_update_style_with_values_compute_and_layout(void *mason,
                                                              void *node,
@@ -322,6 +327,9 @@ void *mason_node_update_style_with_values_compute_and_layout(void *mason,
                                                              int16_t grid_row_end_value,
                                                              struct CMasonTrackSizingFunctionArray *grid_template_rows,
                                                              struct CMasonTrackSizingFunctionArray *grid_template_columns,
+                                                             int32_t overflow_x,
+                                                             int32_t overflow_y,
+                                                             float scrollbar_width,
                                                              void *(*layout)(const float*));
 
 void *mason_node_update_style_with_values_size_compute_and_layout(void *mason,
@@ -407,6 +415,9 @@ void *mason_node_update_style_with_values_size_compute_and_layout(void *mason,
                                                                   int16_t grid_row_end_value,
                                                                   struct CMasonTrackSizingFunctionArray *grid_template_rows,
                                                                   struct CMasonTrackSizingFunctionArray *grid_template_columns,
+                                                                  int32_t overflow_x,
+                                                                  int32_t overflow_y,
+                                                                  float scrollbar_width,
                                                                   void *(*layout)(const float*));
 
 void *mason_node_update_set_style_compute_and_layout(void *mason,
@@ -494,10 +505,6 @@ int mason_style_get_flex_direction(void *style);
 void mason_style_set_flex_wrap(void *style, int wrap);
 
 int mason_style_get_flex_wrap(void *style);
-
-void mason_style_set_overflow(void *_style, int _overflow);
-
-int mason_style_get_overflow(void *_style);
 
 void mason_style_set_align_items(void *style, int align);
 
@@ -774,6 +781,20 @@ struct CMasonTrackSizingFunctionArray *mason_style_get_grid_template_columns(voi
 void mason_style_set_grid_template_columns(void *style,
                                            struct CMasonTrackSizingFunctionArray *value);
 
+void mason_style_set_scrollbar_width(void *style, float value);
+
+float mason_style_get_scrollbar_width(void *style);
+
+void mason_style_set_overflow(void *style, int32_t value);
+
+void mason_style_set_overflow_x(void *style, int32_t value);
+
+int32_t mason_style_get_overflow_x(void *style);
+
+void mason_style_set_overflow_y(void *style, int32_t value);
+
+int32_t mason_style_get_overflow_y(void *style);
+
 void *mason_style_init_with_values(int display,
                                    int position_type,
                                    int direction,
@@ -851,7 +872,10 @@ void *mason_style_init_with_values(int display,
                                    int32_t grid_row_end_type,
                                    int16_t grid_row_end_value,
                                    const struct CMasonTrackSizingFunctionArray *grid_template_rows,
-                                   const struct CMasonTrackSizingFunctionArray *grid_template_columns);
+                                   const struct CMasonTrackSizingFunctionArray *grid_template_columns,
+                                   int32_t overflow_x,
+                                   int32_t overflow_y,
+                                   float scrollbar_width);
 
 void mason_style_update_with_values(void *style,
                                     int display,
@@ -931,7 +955,10 @@ void mason_style_update_with_values(void *style,
                                     int32_t grid_row_end_type,
                                     int16_t grid_row_end_value,
                                     struct CMasonTrackSizingFunctionArray *grid_template_rows,
-                                    struct CMasonTrackSizingFunctionArray *grid_template_columns);
+                                    struct CMasonTrackSizingFunctionArray *grid_template_columns,
+                                    int32_t overflow_x,
+                                    int32_t overflow_y,
+                                    float scrollbar_width);
 
 struct CMasonMinMax mason_util_create_non_repeated_track_sizing_function_with_type_value(int32_t track_type,
                                                                                          float track_value);

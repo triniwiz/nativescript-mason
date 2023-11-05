@@ -43,7 +43,29 @@
           "target": "build.all",
           "projects": "dependencies"
         }
-      ]
+      ],
+      "configurations": {
+        "detox": {
+          "executor": "@nativescript/nx:build",
+          "options": {
+            "platform": "android",
+            "detox": true
+          },
+          "dependsOn": [
+            {
+              "target": "build.all",
+              "projects": "dependencies"
+            }
+          ]
+        }
+      }
+    },
+    "e2e": {
+      "executor": "@nrwl/workspace:run-commands",
+      "options": {
+        "commands": ["maestro test ./e2e/"],
+        "cwd": "apps/demo-angular"
+      }
     },
     "clean": {
       "executor": "@nativescript/nx:build",

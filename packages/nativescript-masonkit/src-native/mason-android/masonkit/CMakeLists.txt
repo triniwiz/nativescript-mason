@@ -70,8 +70,6 @@ include_directories(
         ${PROJECT_SOURCE_DIR}/src/main/cpp/include/libc++
         ${PROJECT_SOURCE_DIR}/src/main/cpp/include
         ${PROJECT_SOURCE_DIR}/src/main/cpp
-        ${PROJECT_SOURCE_DIR}/src/main/jsi
-        ${PROJECT_SOURCE_DIR}/src/main/v8runtime
 )
 include_directories(
         masonnativev8
@@ -89,9 +87,9 @@ add_custom_command(
 
         #COMMAND cargo +nightly build -Z build-std='std,panic_abort' -Z build-std-features='panic_immediate_abort' --manifest-path ${CARGO_MANIFEST} --target ${RUST_BUILD_TARGET} ${RUST_BUILD_TYPE} -p mason-android
 
-        COMMAND cargo +nightly build -Z build-std='std' --manifest-path ${CARGO_MANIFEST} --target ${RUST_BUILD_TARGET} ${RUST_BUILD_TYPE} -p mason-android
+        #COMMAND cargo +nightly build -Z build-std='std' --manifest-path ${CARGO_MANIFEST} --target ${RUST_BUILD_TARGET} ${RUST_BUILD_TYPE} -p mason-android
 
-       # COMMAND cargo build --manifest-path ${CARGO_MANIFEST} --target ${RUST_BUILD_TARGET} ${RUST_BUILD_TYPE} -p mason-android
+        COMMAND cargo build --manifest-path ${CARGO_MANIFEST} --target ${RUST_BUILD_TARGET} ${RUST_BUILD_TYPE} -p mason-android
 
         DEPENDS ${MASON_ANDROID_SOURCE_FILE}
         USES_TERMINAL
@@ -104,20 +102,8 @@ add_library(
         SHARED
 
         src/main/cpp/rust/cxx.cc
-
-        src/main/cpp/jsi/jsi.cpp
-        src/main/cpp/jsi/jsilib-posix.cpp
-        src/main/cpp/jsi/jsilib-windows.cpp
-
-
-        src/main/cpp/v8runtime/HostProxy.cpp
-        src/main/cpp/v8runtime/JSIV8ValueConverter.cpp
-        src/main/cpp/v8runtime/V8PointerValue.cpp
-        src/main/cpp/v8runtime/V8Runtime.cpp
-        src/main/cpp/v8runtime/V8RuntimeFactory.cpp
-        src/main/cpp/MasonJSIModule.cpp
-        src/main/cpp/JSIRuntime.cpp
-
+        src/main/cpp/MasonV8Module.cpp
+        src/main/cpp/Install.cpp
 
         ${MASON_ANDROID_BRIDGE_CPP}
 )

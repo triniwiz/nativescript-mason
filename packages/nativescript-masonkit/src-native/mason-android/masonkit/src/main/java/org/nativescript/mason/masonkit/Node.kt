@@ -21,16 +21,33 @@ class Node private constructor(private var nativePtr: Long) {
   private var children = mutableListOf<Node>()
 
   constructor() : this(0) {
-    nativePtr = nativeNewNodeWithMeasureFunc(
-      Mason.instance.nativePtr, style.getNativePtr(), MeasureFuncImpl(
-        WeakReference(
-          View.ViewMeasureFunc(
-            WeakReference(this)
+    nativePtr = nativeNewNode(
+      Mason.instance.nativePtr,
+      style.getNativePtr()
+    )
+    nodes[nativePtr] = this;
+  }
+
+  constructor(withMeasureFunction: Boolean) : this(0) {
+    if (withMeasureFunction) {
+      nativePtr = nativeNewNodeWithMeasureFunc(
+        Mason.instance.nativePtr, style.getNativePtr(), MeasureFuncImpl(
+          WeakReference(
+            View.ViewMeasureFunc(
+              WeakReference(this)
+            )
           )
         )
       )
-    )
+    } else {
+      nativePtr = nativeNewNode(
+        Mason.instance.nativePtr,
+        style.getNativePtr()
+      )
+    }
+    nodes[nativePtr] = this;
   }
+
 
   constructor(style: Style) : this(
     nativeNewNode(
@@ -38,6 +55,7 @@ class Node private constructor(private var nativePtr: Long) {
       style.getNativePtr()
     )
   ) {
+    nodes[this.nativePtr] = this;
     this.style = style
   }
 
@@ -54,6 +72,8 @@ class Node private constructor(private var nativePtr: Long) {
     children.forEach {
       it.owner = this
     }
+
+    nodes[this.nativePtr] = this;
 
     this.children.addAll(children)
 
@@ -77,115 +97,18 @@ class Node private constructor(private var nativePtr: Long) {
     }
 
   internal fun updateNodeStyle() {
-    if (style.isDirty) {
-      nativeUpdateAndSetStyle(
-        Mason.instance.nativePtr, nativePtr, style.getNativePtr(),
-        style.display.ordinal,
-        style.position.ordinal,
-        style.direction.ordinal,
-        style.flexDirection.ordinal,
-        style.flexWrap.ordinal,
-        style.overflow.ordinal,
-        style.alignItems.value,
-        style.alignSelf.value,
-        style.alignContent.value,
-        style.justifyItems.value,
-        style.justifySelf.value,
-        style.justifyContent.value,
-
-        style.inset.left.type,
-        style.inset.left.value,
-        style.inset.right.type,
-        style.inset.right.value,
-        style.inset.top.type,
-        style.inset.top.value,
-        style.inset.bottom.type,
-        style.inset.bottom.value,
-
-        style.margin.left.type,
-        style.margin.left.value,
-        style.margin.right.type,
-        style.margin.right.value,
-        style.margin.top.type,
-        style.margin.top.value,
-        style.margin.bottom.type,
-        style.margin.bottom.value,
-
-        style.padding.left.type,
-        style.padding.left.value,
-        style.padding.right.type,
-        style.padding.right.value,
-        style.padding.top.type,
-        style.padding.top.value,
-        style.padding.bottom.type,
-        style.padding.bottom.value,
-
-        style.border.left.type,
-        style.border.left.value,
-        style.border.right.type,
-        style.border.right.value,
-        style.border.top.type,
-        style.border.top.value,
-        style.border.bottom.type,
-        style.border.bottom.value,
-
-        style.flexGrow,
-        style.flexShrink,
-
-        style.flexBasis.type,
-        style.flexBasis.value,
-
-        style.size.width.type,
-        style.size.width.value,
-        style.size.height.type,
-        style.size.height.value,
-
-        style.minSize.width.type,
-        style.minSize.width.value,
-        style.minSize.height.type,
-        style.minSize.height.value,
-
-        style.maxSize.width.type,
-        style.maxSize.width.value,
-        style.maxSize.height.type,
-        style.maxSize.height.value,
-
-        style.gap.width.type,
-        style.gap.width.value,
-        style.gap.height.type,
-        style.gap.height.value,
-
-        style.aspectRatio ?: Float.NaN,
-
-        style.gridAutoRows,
-        style.gridAutoColumns,
-        style.gridAutoFlow.ordinal,
-        style.gridColumn.start.type,
-        style.gridColumn.start.placementValue,
-        style.gridColumn.end.type,
-        style.gridColumn.end.placementValue,
-        style.gridRow.start.type,
-        style.gridRow.start.placementValue,
-        style.gridRow.end.type,
-        style.gridRow.end.placementValue,
-        style.gridTemplateRows,
-        style.gridTemplateColumns
-      )
-      style.isDirty = false
-    } else {
-      nativeSetStyle(Mason.instance.nativePtr, nativePtr, style.getNativePtr())
-    }
-
     val view = data as? android.view.View
 
     view?.let {
+      if (it.parent == null) return
+
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) {
-        it.requestLayout()
+          it.requestLayout()
         return
       }
 
       if (!it.isInLayout) {
-        it.requestLayout()
+          it.requestLayout()
       }
     }
 
@@ -209,199 +132,20 @@ class Node private constructor(private var nativePtr: Long) {
   fun computeAndLayout(width: Float? = null, height: Float? = null): Layout {
     if (width != null && height != null) {
       return Layout.fromFloatArray(
-        nativeUpdateSetStyleComputeWithSizeAndLayout(
+        nativeComputeWithSizeAndLayout(
           Mason.instance.nativePtr,
           nativePtr,
           style.getNativePtr(),
-          width, height,
-          style.display.ordinal,
-          style.position.ordinal,
-          style.direction.ordinal,
-          style.flexDirection.ordinal,
-          style.flexWrap.ordinal,
-          style.overflow.ordinal,
-          style.alignItems.value,
-          style.alignSelf.value,
-          style.alignContent.value,
-          style.justifyItems.value,
-          style.justifySelf.value,
-          style.justifyContent.value,
-
-          style.inset.left.type,
-          style.inset.left.value,
-          style.inset.right.type,
-          style.inset.right.value,
-          style.inset.top.type,
-          style.inset.top.value,
-          style.inset.bottom.type,
-          style.inset.bottom.value,
-
-          style.margin.left.type,
-          style.margin.left.value,
-          style.margin.right.type,
-          style.margin.right.value,
-          style.margin.top.type,
-          style.margin.top.value,
-          style.margin.bottom.type,
-          style.margin.bottom.value,
-
-          style.padding.left.type,
-          style.padding.left.value,
-          style.padding.right.type,
-          style.padding.right.value,
-          style.padding.top.type,
-          style.padding.top.value,
-          style.padding.bottom.type,
-          style.padding.bottom.value,
-
-          style.border.left.type,
-          style.border.left.value,
-          style.border.right.type,
-          style.border.right.value,
-          style.border.top.type,
-          style.border.top.value,
-          style.border.bottom.type,
-          style.border.bottom.value,
-
-          style.flexGrow,
-          style.flexShrink,
-
-          style.flexBasis.type,
-          style.flexBasis.value,
-
-          style.size.width.type,
-          style.size.width.value,
-          style.size.height.type,
-          style.size.height.value,
-
-          style.minSize.width.type,
-          style.minSize.width.value,
-          style.minSize.height.type,
-          style.minSize.height.value,
-
-          style.maxSize.width.type,
-          style.maxSize.width.value,
-          style.maxSize.height.type,
-          style.maxSize.height.value,
-
-          style.gap.width.type,
-          style.gap.width.value,
-          style.gap.height.type,
-          style.gap.height.value,
-
-          style.aspectRatio ?: Float.NaN,
-          style.gridAutoRows,
-          style.gridAutoColumns,
-          style.gridAutoFlow.ordinal,
-          style.gridColumn.start.type,
-          style.gridColumn.start.placementValue,
-          style.gridColumn.end.type,
-          style.gridColumn.end.placementValue,
-          style.gridRow.start.type,
-          style.gridRow.start.placementValue,
-          style.gridRow.end.type,
-          style.gridRow.end.placementValue,
-          style.gridTemplateRows,
-          style.gridTemplateColumns
+          width, height
         ), 0
       ).second
     }
 
     return Layout.fromFloatArray(
-      nativeUpdateSetStyleComputeAndLayout(
+      nativeComputeAndLayout(
         Mason.instance.nativePtr,
         nativePtr,
-        style.getNativePtr(),
-        style.display.ordinal,
-        style.position.ordinal,
-        style.direction.ordinal,
-        style.flexDirection.ordinal,
-        style.flexWrap.ordinal,
-        style.overflow.ordinal,
-        style.alignItems.value,
-        style.alignSelf.value,
-        style.alignContent.value,
-        style.justifyItems.value,
-        style.justifySelf.value,
-        style.justifyContent.value,
-
-        style.inset.left.type,
-        style.inset.left.value,
-        style.inset.right.type,
-        style.inset.right.value,
-        style.inset.top.type,
-        style.inset.top.value,
-        style.inset.bottom.type,
-        style.inset.bottom.value,
-
-        style.margin.left.type,
-        style.margin.left.value,
-        style.margin.right.type,
-        style.margin.right.value,
-        style.margin.top.type,
-        style.margin.top.value,
-        style.margin.bottom.type,
-        style.margin.bottom.value,
-
-        style.padding.left.type,
-        style.padding.left.value,
-        style.padding.right.type,
-        style.padding.right.value,
-        style.padding.top.type,
-        style.padding.top.value,
-        style.padding.bottom.type,
-        style.padding.bottom.value,
-
-        style.border.left.type,
-        style.border.left.value,
-        style.border.right.type,
-        style.border.right.value,
-        style.border.top.type,
-        style.border.top.value,
-        style.border.bottom.type,
-        style.border.bottom.value,
-
-        style.flexGrow,
-        style.flexShrink,
-
-        style.flexBasis.type,
-        style.flexBasis.value,
-
-        style.size.width.type,
-        style.size.width.value,
-        style.size.height.type,
-        style.size.height.value,
-
-        style.minSize.width.type,
-        style.minSize.width.value,
-        style.minSize.height.type,
-        style.minSize.height.value,
-
-        style.maxSize.width.type,
-        style.maxSize.width.value,
-        style.maxSize.height.type,
-        style.maxSize.height.value,
-
-        style.gap.width.type,
-        style.gap.width.value,
-        style.gap.height.type,
-        style.gap.height.value,
-
-        style.aspectRatio ?: Float.NaN,
-
-        style.gridAutoRows,
-        style.gridAutoColumns,
-        style.gridAutoFlow.ordinal,
-        style.gridColumn.start.type,
-        style.gridColumn.start.placementValue,
-        style.gridColumn.end.type,
-        style.gridColumn.end.placementValue,
-        style.gridRow.start.type,
-        style.gridRow.start.placementValue,
-        style.gridRow.end.type,
-        style.gridRow.end.placementValue,
-        style.gridTemplateRows,
-        style.gridTemplateColumns
+        style.getNativePtr()
       ), 0
     ).second
   }
@@ -492,11 +236,6 @@ class Node private constructor(private var nativePtr: Long) {
 
     nativeAddChild(Mason.instance.nativePtr, nativePtr, child.nativePtr)
 
-    if (nodes.containsKey(child.nativePtr)) {
-      val parent = this
-      return nodes[child.nativePtr]?.apply { owner = parent }
-    }
-
     child.owner = this
 
     children.add(child)
@@ -512,22 +251,11 @@ class Node private constructor(private var nativePtr: Long) {
     }
 
     if (index == -1) {
-      nativeAddChild(Mason.instance.nativePtr, nativePtr, child.nativePtr)
-
-      child.owner = this
-
-      children.add(child)
-      nodes[child.nativePtr] = child
+      this.addChild(child);
       return
     }
 
     nativeAddChildAt(Mason.instance.nativePtr, nativePtr, child.nativePtr, index)
-
-    if (nodes.containsKey(child.nativePtr)) {
-      val parent = this
-      nodes[child.nativePtr]?.apply { owner = parent }
-      return
-    }
 
     child.owner = this
 
@@ -551,11 +279,6 @@ class Node private constructor(private var nativePtr: Long) {
       referenceChild.nativePtr
     )
 
-    if (nodes.containsKey(child.nativePtr)) {
-      val parent = this
-      nodes[child.nativePtr]?.apply { owner = parent }
-      return
-    }
     child.owner = this
     val index = children.indexOf(referenceChild)
     if (index != -1) {
@@ -577,11 +300,6 @@ class Node private constructor(private var nativePtr: Long) {
       referenceChild.nativePtr
     )
 
-    if (nodes.containsKey(child.nativePtr)) {
-      val parent = this
-      nodes[child.nativePtr]?.apply { owner = parent }
-      return
-    }
     child.owner = this
     val index = children.indexOf(referenceChild)
     if (index != -1) {
@@ -677,11 +395,11 @@ class Node private constructor(private var nativePtr: Long) {
   @Throws(Throwable::class)
   protected fun finalize() {
     if (nativePtr != 0L) {
-      owner?.removeChild(this)
       nativeDestroy(nativePtr)
+      nodes.remove(nativePtr);
       nativePtr = 0
+      owner?.removeChild(this)
     }
-
   }
 
   companion object {
@@ -691,6 +409,13 @@ class Node private constructor(private var nativePtr: Long) {
 
     @JvmStatic
     internal val nodes = WeakHashMap<Long, Node>()
+
+    @JvmStatic
+    fun requestLayout(node:Long) {
+        nodes.get(node)?.let {
+            it.updateNodeStyle();
+        }
+    }
 
     @JvmStatic
     private external fun nativeNewNode(mason: Long, style: Long): Long
@@ -897,7 +622,10 @@ class Node private constructor(private var nativePtr: Long) {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
   )
 
 
@@ -994,7 +722,10 @@ class Node private constructor(private var nativePtr: Long) {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
 
   ): FloatArray
 
@@ -1093,6 +824,26 @@ class Node private constructor(private var nativePtr: Long) {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
   ): FloatArray
+
+  private external fun nativeComputeWithSizeAndLayout(
+    mason: Long,
+    node: Long,
+    style: Long,
+    width: Float,
+    height: Float
+  ): FloatArray
+
+  private external fun nativeComputeAndLayout(
+    mason: Long,
+    node: Long,
+    style: Long
+  ): FloatArray
+
+
+
 }

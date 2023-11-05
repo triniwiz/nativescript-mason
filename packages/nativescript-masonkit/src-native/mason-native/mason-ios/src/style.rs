@@ -2,9 +2,9 @@ use std::ffi::{c_float, c_int, c_void};
 
 use mason_core::style::{min_max_from_values, Style};
 use mason_core::{
-    points, Dimension, GridPlacement, GridTrackRepetition, LengthPercentage, LengthPercentageAuto,
-    MaxTrackSizingFunction, MinTrackSizingFunction, NonRepeatedTrackSizingFunction, Rect, Size,
-    TrackSizingFunction,
+    align_content_from_enum, Dimension, GridPlacement, GridTrackRepetition, LengthPercentage,
+    LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction,
+    NonRepeatedTrackSizingFunction, Overflow, Rect, Size, TrackSizingFunction,
 };
 
 #[repr(C)]
@@ -34,9 +34,9 @@ pub struct AvailableSpace {
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum CMasonDimensionType {
+    MasonDimensionAuto,
     MasonDimensionPoints,
     MasonDimensionPercent,
-    MasonDimensionAuto,
 }
 
 #[repr(C)]
@@ -65,9 +65,9 @@ pub struct CMasonDimensionSize {
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum CMasonLengthPercentageAutoType {
+    MasonLengthPercentageAutoAuto,
     MasonLengthPercentageAutoPoints,
     MasonLengthPercentageAutoPercent,
-    MasonLengthPercentageAutoAuto,
 }
 
 #[repr(C)]
@@ -149,6 +149,21 @@ pub struct CMasonNonRepeatedTrackSizingFunctionArray {
     pub length: usize,
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CMasonOverflowType {
+    Visible,
+    Hidden,
+    Scroll,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonOverflowPoint {
+    x: CMasonOverflowType,
+    y: CMasonOverflowType,
+}
+
 impl From<Vec<CMasonMinMax>> for CMasonNonRepeatedTrackSizingFunctionArray {
     fn from(value: Vec<CMasonMinMax>) -> Self {
         let mut box_slice = value.into_boxed_slice();
@@ -207,7 +222,6 @@ impl From<TrackSizingFunction> for CMasonTrackSizingFunction {
                     }
                 };
 
-
                 CMasonTrackSizingFunction::Repeat(
                     rep,
                     count,
@@ -235,7 +249,7 @@ impl Into<TrackSizingFunction> for CMasonTrackSizingFunction {
                     value.max_value,
                 ))
             }
-            CMasonTrackSizingFunction::Repeat(repetition, count,tracks) => {
+            CMasonTrackSizingFunction::Repeat(repetition, count, tracks) => {
                 TrackSizingFunction::Repeat(
                     match repetition {
                         0 => GridTrackRepetition::AutoFill,
@@ -344,7 +358,7 @@ impl From<NonRepeatedTrackSizingFunction> for CMasonMinMax {
 
         match value.min {
             MinTrackSizingFunction::Fixed(length) => match length {
-                LengthPercentage::Points(points) => {
+                LengthPercentage::Length(points) => {
                     min_type = 3;
                     min_value = points;
                 }
@@ -360,7 +374,7 @@ impl From<NonRepeatedTrackSizingFunction> for CMasonMinMax {
 
         match value.max {
             MaxTrackSizingFunction::Fixed(length) => match length {
-                LengthPercentage::Points(points) => {
+                LengthPercentage::Length(points) => {
                     max_type = 3;
                     max_value = points;
                 }
@@ -372,7 +386,7 @@ impl From<NonRepeatedTrackSizingFunction> for CMasonMinMax {
             MaxTrackSizingFunction::MinContent => max_type = 1,
             MaxTrackSizingFunction::MaxContent => max_type = 2,
             MaxTrackSizingFunction::FitContent(fit) => match fit {
-                LengthPercentage::Points(points) => {
+                LengthPercentage::Length(points) => {
                     max_type = 6;
                     max_value = points;
                 }
@@ -451,7 +465,7 @@ impl From<Dimension> for CMasonDimension {
     fn from(dimension: Dimension) -> Self {
         match dimension {
             Dimension::Auto => CMasonDimension::auto(),
-            Dimension::Points(points) => {
+            Dimension::Length(points) => {
                 CMasonDimension::new(points, CMasonDimensionType::MasonDimensionPoints)
             }
             Dimension::Percent(percent) => {
@@ -464,7 +478,7 @@ impl From<Dimension> for CMasonDimension {
 impl Into<Dimension> for CMasonDimension {
     fn into(self) -> Dimension {
         match self.value_type {
-            CMasonDimensionType::MasonDimensionPoints => Dimension::Points(self.value),
+            CMasonDimensionType::MasonDimensionPoints => Dimension::Length(self.value),
             CMasonDimensionType::MasonDimensionPercent => Dimension::Percent(self.value),
             CMasonDimensionType::MasonDimensionAuto => Dimension::Auto,
         }
@@ -475,7 +489,7 @@ impl From<&Dimension> for CMasonDimension {
     fn from(dimension: &Dimension) -> Self {
         match dimension {
             Dimension::Auto => CMasonDimension::auto(),
-            Dimension::Points(points) => {
+            Dimension::Length(points) => {
                 CMasonDimension::new(*points, CMasonDimensionType::MasonDimensionPoints)
             }
             Dimension::Percent(percent) => {
@@ -489,10 +503,10 @@ impl From<&Dimension> for CMasonDimension {
 //     fn from(dimension: CMasonDimension) -> Self {
 //         match dimension.value_type {
 //             CMasonDimensionType::Auto => Dimension::Auto,
-//             CMasonDimensionType::Points => Dimension::Points(dimension.value),
+//             CMasonDimensionType::Length => Dimension::Length(dimension.value),
 //             CMasonDimensionType::Percent => Dimension::Percent(dimension.value),
 //             // making cpp happy
-//             _ => Dimension::Points(0.),
+//             _ => Dimension::Length(0.),
 //         }
 //     }
 // }
@@ -521,7 +535,7 @@ impl From<LengthPercentageAuto> for CMasonDimension {
     fn from(value: LengthPercentageAuto) -> Self {
         match value {
             LengthPercentageAuto::Auto => CMasonDimension::auto(),
-            LengthPercentageAuto::Points(points) => {
+            LengthPercentageAuto::Length(points) => {
                 CMasonDimension::new(points, CMasonDimensionType::MasonDimensionPoints)
             }
             LengthPercentageAuto::Percent(percent) => {
@@ -536,7 +550,7 @@ impl Into<LengthPercentageAuto> for CMasonDimension {
     fn into(self) -> LengthPercentageAuto {
         match self.value_type {
             CMasonDimensionType::MasonDimensionAuto => LengthPercentageAuto::Auto,
-            CMasonDimensionType::MasonDimensionPoints => LengthPercentageAuto::Points(self.value),
+            CMasonDimensionType::MasonDimensionPoints => LengthPercentageAuto::Length(self.value),
             CMasonDimensionType::MasonDimensionPercent => LengthPercentageAuto::Percent(self.value),
         }
     }
@@ -587,7 +601,7 @@ impl From<LengthPercentageAuto> for CMasonLengthPercentageAuto {
     fn from(value: LengthPercentageAuto) -> Self {
         match value {
             LengthPercentageAuto::Auto => CMasonLengthPercentageAuto::auto(),
-            LengthPercentageAuto::Points(points) => CMasonLengthPercentageAuto::new(
+            LengthPercentageAuto::Length(points) => CMasonLengthPercentageAuto::new(
                 points,
                 CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPoints,
             ),
@@ -603,7 +617,7 @@ impl From<&LengthPercentageAuto> for CMasonLengthPercentageAuto {
     fn from(value: &LengthPercentageAuto) -> Self {
         match value {
             LengthPercentageAuto::Auto => CMasonLengthPercentageAuto::auto(),
-            LengthPercentageAuto::Points(points) => CMasonLengthPercentageAuto::new(
+            LengthPercentageAuto::Length(points) => CMasonLengthPercentageAuto::new(
                 *points,
                 CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPoints,
             ),
@@ -622,13 +636,13 @@ impl From<CMasonLengthPercentageAuto> for LengthPercentageAuto {
                 LengthPercentageAuto::Auto
             }
             CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPoints => {
-                LengthPercentageAuto::Points(value.value)
+                LengthPercentageAuto::Length(value.value)
             }
             CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPercent => {
                 LengthPercentageAuto::Percent(value.value)
             }
             // making cpp happy
-            _ => LengthPercentageAuto::Points(0.),
+            _ => LengthPercentageAuto::Length(0.),
         }
     }
 }
@@ -683,7 +697,7 @@ impl CMasonLengthPercentage {
 impl From<LengthPercentage> for CMasonLengthPercentage {
     fn from(value: LengthPercentage) -> Self {
         match value {
-            LengthPercentage::Points(points) => CMasonLengthPercentage::new(
+            LengthPercentage::Length(points) => CMasonLengthPercentage::new(
                 points,
                 CMasonLengthPercentageType::MasonLengthPercentagePoints,
             ),
@@ -698,7 +712,7 @@ impl From<LengthPercentage> for CMasonLengthPercentage {
 impl From<&LengthPercentage> for CMasonLengthPercentage {
     fn from(value: &LengthPercentage) -> Self {
         match value {
-            LengthPercentage::Points(points) => CMasonLengthPercentage::new(
+            LengthPercentage::Length(points) => CMasonLengthPercentage::new(
                 *points,
                 CMasonLengthPercentageType::MasonLengthPercentagePoints,
             ),
@@ -714,13 +728,13 @@ impl From<CMasonLengthPercentage> for LengthPercentage {
     fn from(value: CMasonLengthPercentage) -> Self {
         match value.value_type {
             CMasonLengthPercentageType::MasonLengthPercentagePoints => {
-                LengthPercentage::Points(value.value)
+                LengthPercentage::Length(value.value)
             }
             CMasonLengthPercentageType::MasonLengthPercentagePercent => {
                 LengthPercentage::Percent(value.value)
             }
             // making cpp happy
-            _ => LengthPercentage::Points(0.),
+            _ => LengthPercentage::Length(0.),
         }
     }
 }
@@ -789,7 +803,12 @@ impl Into<GridPlacement> for CMasonGridPlacement {
 
 #[no_mangle]
 pub extern "C" fn mason_style_init() -> *mut c_void {
-    Style::default().into_raw() as _
+    let mut style = Style::default();
+    style.set_align_content(align_content_from_enum(0));
+    style.set_flex_basis(Dimension::Auto);
+    style.set_flex_grow(0.0);
+    style.set_flex_shrink(1.0);
+    style.into_raw() as _
 }
 
 #[no_mangle]
@@ -851,17 +870,6 @@ pub extern "C" fn mason_style_set_flex_wrap(style: *mut c_void, wrap: c_int) {
 #[no_mangle]
 pub extern "C" fn mason_style_get_flex_wrap(style: *mut c_void) -> c_int {
     mason_core::ffi::style_get_flex_wrap(style)
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_set_overflow(_style: *mut c_void, _overflow: c_int) {
-    // todo
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_get_overflow(_style: *mut c_void) -> c_int {
-    // todo
-    0
 }
 
 #[no_mangle]
@@ -1690,9 +1698,10 @@ pub unsafe fn to_vec_track_sizing_function(
             return vec![];
         }
     }
-    let value: &CMasonTrackSizingFunctionArray = unsafe {&*value};
+    let value: &CMasonTrackSizingFunctionArray = unsafe { &*value };
 
-    let slice: &mut [CMasonTrackSizingFunction] = unsafe { std::slice::from_raw_parts_mut(value.array, value.length) };
+    let slice: &mut [CMasonTrackSizingFunction] =
+        unsafe { std::slice::from_raw_parts_mut(value.array, value.length) };
 
     slice
         .iter()
@@ -1737,6 +1746,49 @@ pub unsafe fn to_vec_track_sizing_function(
             }
         })
         .collect::<Vec<TrackSizingFunction>>()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_scrollbar_width(style: *mut c_void, value: f32) {
+    mason_core::ffi::style_set_scrollbar_width(style as _, value);
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_scrollbar_width(style: *mut c_void) -> f32 {
+    mason_core::ffi::style_get_scrollbar_width(style as _)
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow(style: *mut c_void, value: i32) {
+    mason_core::ffi::style_set_overflow(style as _, value);
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow_x(style: *mut c_void, value: i32) {
+    mason_core::ffi::style_set_overflow_x(style as _, value);
+}
+
+fn overflow_to_int(value: Overflow) -> i32 {
+    match value {
+        Overflow::Visible => 0,
+        Overflow::Hidden => 1,
+        Overflow::Scroll => 2,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_overflow_x(style: *mut c_void) -> i32 {
+    overflow_to_int(mason_core::ffi::style_get_overflow_x(style as _))
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow_y(style: *mut c_void, value: i32) {
+    mason_core::ffi::style_set_overflow_y(style as _, value);
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_overflow_y(style: *mut c_void) -> i32 {
+    overflow_to_int(mason_core::ffi::style_get_overflow_y(style as _))
 }
 
 #[no_mangle]
@@ -1819,6 +1871,9 @@ pub extern "C" fn mason_style_init_with_values(
     grid_row_end_value: i16,
     grid_template_rows: *const CMasonTrackSizingFunctionArray,
     grid_template_columns: *const CMasonTrackSizingFunctionArray,
+    overflow_x: i32,
+    overflow_y: i32,
+    scrollbar_width: f32,
 ) -> *mut c_void {
     let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
     let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
@@ -1905,6 +1960,9 @@ pub extern "C" fn mason_style_init_with_values(
         grid_row_end_value,
         grid_template_rows,
         grid_template_columns,
+        overflow_x,
+        overflow_y,
+        scrollbar_width,
     ))) as *mut c_void
 }
 
@@ -1989,6 +2047,9 @@ pub extern "C" fn mason_style_update_with_values(
     grid_row_end_value: i16,
     grid_template_rows: *mut CMasonTrackSizingFunctionArray,
     grid_template_columns: *mut CMasonTrackSizingFunctionArray,
+    overflow_x: i32,
+    overflow_y: i32,
+    scrollbar_width: f32,
 ) {
     let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
     let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
@@ -2077,6 +2138,9 @@ pub extern "C" fn mason_style_update_with_values(
             grid_row_end_value,
             grid_template_rows,
             grid_template_columns,
+            overflow_x,
+            overflow_y,
+            scrollbar_width,
         );
         Box::leak(style);
     }

@@ -35,7 +35,7 @@ android {
   defaultConfig {
     minSdk 17
     targetSdk 33
-
+    multiDexEnabled true
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     consumerProguardFiles "consumer-rules.pro"
 
@@ -48,6 +48,7 @@ android {
     }
     ndk {
       abiFilters 'x86','x86_64', 'armeabi-v7a', 'arm64-v8a'
+      //abiFilters 'x86_64'
     }
   }
 
@@ -71,7 +72,7 @@ android {
     }
   }
 
-  ndkVersion '21.1.6352462'
+  ndkVersion '21.4.7075529'
 }
 
 dependencies {
@@ -83,6 +84,7 @@ dependencies {
   testImplementation 'junit:junit:4.13.2'
   androidTestImplementation 'androidx.test.ext:junit:1.1.4'
   androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
+  implementation 'androidx.multidex:multidex:2.0.1'
 
 }
 
@@ -122,7 +124,7 @@ tasks.whenTaskAdded { task ->
 
 for (target in targets) {
   tasks.register("copy_libc++_shared${target.capitalize()}", Copy) {
-    def ndkDir = android.ndkDirectory
+    def ndkDir = project.ndkDirectory
     // hostTag, abi and archTriple from: https://developer.android.com/ndk/guides/other_build_systems
 
     def hostTag

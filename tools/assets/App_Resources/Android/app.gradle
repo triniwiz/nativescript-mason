@@ -10,7 +10,11 @@ android {
   defaultConfig {
     minSdkVersion 21
     targetSdkVersion 33
+    multiDexEnabled true
     generatedDensities = []
+    testBuildType System.getProperty('testBuildType', 'debug')
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+
   }
   aaptOptions {
     additionalParameters "--no-version-vectors"
@@ -22,4 +26,11 @@ android {
     pickFirst 'lib/x86_64/libc++_shared.so'
     pickFirst 'lib/x86/libc++_shared.so'
   }
+}
+
+dependencies {
+  androidTestImplementation('com.wix:detox:+') { transitive = true }
+  androidTestImplementation 'com.squareup.okhttp3:okhttp:+'
+  implementation project(":masonkit")
+  implementation 'androidx.multidex:multidex:2.0.1'
 }

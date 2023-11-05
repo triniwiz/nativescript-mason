@@ -13,7 +13,7 @@ import UIKit
 public class TSCMason: NSObject {
     public internal (set) var nativePtr: UnsafeMutableRawPointer!
     public override init() {
-        nativePtr = mason_init_with_capacity(512)
+        nativePtr = mason_init();
     }
     
     deinit {

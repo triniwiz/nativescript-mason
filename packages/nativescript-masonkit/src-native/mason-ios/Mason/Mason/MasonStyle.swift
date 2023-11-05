@@ -87,7 +87,19 @@ public class MasonStyle: NSObject {
         }
     }
     
-    public var overflow = Overflow.Hidden{
+    public var overflow = Overflow.Unset{
+        didSet {
+            isDirty = true
+        }
+    }
+    
+    public var overflowX = Overflow.Unset{
+        didSet {
+            isDirty = true
+        }
+    }
+    
+    public var overflowY = Overflow.Unset{
         didSet {
             isDirty = true
         }
@@ -408,6 +420,16 @@ public class MasonStyle: NSObject {
         default: break
             //noop
         }
+    }
+    
+    public var scrollBarWidth = MasonDimension.Points(0.0) {
+        didSet {
+            isDirty = true
+        }
+    }
+    
+    public func setScrollBarWidth(_ value: Float) {
+        scrollBarWidth = MasonDimension.Points(value);
     }
     
     
@@ -755,6 +777,9 @@ public class MasonStyle: NSObject {
         ret += "display: \(display.cssValue), "
         ret += "position: \(position.cssValue), "
         ret += "flexDirection: \(flexDirection.cssValue), "
+        ret += "overflow: \(overflow.cssValue), "
+        ret += "overflowX: \(overflowX.cssValue), "
+        ret += "overflowY: \(overflowY.cssValue), "
         ret += "flexWrap: \(flexWrap.cssValue), "
         ret += "alignItems: \(alignItems.cssValue), "
         ret += "alignSelf: \(alignSelf.cssValue), "
@@ -780,6 +805,7 @@ public class MasonStyle: NSObject {
         ret += "gridRow: \(gridRow.start.cssValue) \\ \(gridRow.end.cssValue),"
         ret += "gridTemplateRows: \(gridTemplateRows),"
         ret += "gridTemplateColumns: \(gridTemplateColumns),"
+        ret += "scrollBarWidth: \(scrollBarWidth),"
         ret += ")"
         
         return ret

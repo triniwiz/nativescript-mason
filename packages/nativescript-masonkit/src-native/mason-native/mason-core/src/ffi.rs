@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 use std::ffi::c_void;
 
+use taffy::geometry::Point;
 use taffy::prelude::*;
+use taffy::style::Overflow;
 
 use crate::style::Style;
 use crate::{
@@ -9,7 +11,8 @@ use crate::{
     align_self_from_enum, align_self_to_enum, display_from_enum, display_to_enum,
     flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum,
     grid_auto_flow_from_enum, grid_auto_flow_to_enum, justify_content_from_enum,
-    justify_content_to_enum, position_from_enum, position_to_enum, Mason, Node, Rect, Size,
+    justify_content_to_enum, overflow_from_enum, overflow_to_enum, position_from_enum,
+    position_to_enum, Mason, Node, Rect, Size,
 };
 
 pub fn assert_pointer_address(pointer: *const c_void, pointer_type: &str) {
@@ -1428,6 +1431,113 @@ pub fn style_get_height(style: *const c_void) -> Dimension {
     }
 }
 
+pub fn style_set_scrollbar_width(style: *mut c_void, value: f32) {
+    assert_pointer_address(style, "style");
+
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_scrollbar_width(value);
+
+        Box::leak(style);
+    }
+}
+
+pub fn style_get_scrollbar_width(style: *const c_void) -> f32 {
+    assert_pointer_address(style, "style");
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let scrollbar_width = style.get_scrollbar_width();
+
+        Box::leak(style);
+
+        scrollbar_width
+    }
+}
+
+pub fn style_set_overflow(style: *mut c_void, value: i32) {
+    assert_pointer_address(style, "style");
+
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_overflow(Point {
+            x: overflow_from_enum(value),
+            y: overflow_from_enum(value),
+        });
+
+        Box::leak(style);
+    }
+}
+
+pub fn style_get_overflow(style: *const c_void) -> taffy::geometry::Point<Overflow> {
+    assert_pointer_address(style, "style");
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let overflow = style.get_overflow();
+
+        Box::leak(style);
+
+        overflow
+    }
+}
+
+pub fn style_set_overflow_x(style: *mut c_void, value: i32) {
+    assert_pointer_address(style, "style");
+
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_overflow_x(overflow_from_enum(value));
+
+        Box::leak(style);
+    }
+}
+
+pub fn style_get_overflow_x(style: *const c_void) -> Overflow {
+    assert_pointer_address(style, "style");
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let overflow = style.get_overflow_x();
+
+        Box::leak(style);
+
+        overflow
+    }
+}
+
+pub fn style_set_overflow_y(style: *mut c_void, value: i32) {
+    assert_pointer_address(style, "style");
+
+    unsafe {
+        let mut style = Box::from_raw(style as *mut Style);
+
+        style.set_overflow_y(overflow_from_enum(value));
+
+        Box::leak(style);
+    }
+}
+
+pub fn style_get_overflow_y(style: *const c_void) -> Overflow {
+    assert_pointer_address(style, "style");
+
+    unsafe {
+        let style = Box::from_raw(style as *mut Style);
+
+        let overflow = style.get_overflow_y();
+
+        Box::leak(style);
+
+        overflow
+    }
+}
+
 pub fn node_update_and_set_style(mason: *mut c_void, node: *const c_void, style: *const c_void) {
     assert_pointer_address(mason, "mason");
     assert_pointer_address(node, "node");
@@ -1547,7 +1657,7 @@ pub fn parse_non_repeated_track_sizing_function_value<'a>(
             MAX_CONTENT.into()
         }
         (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::FitContent(value)) => match value {
-            LengthPercentage::Points(value) => format!("fit-content({:.0}px)", value).into(),
+            LengthPercentage::Length(value) => format!("fit-content({:.0}px)", value).into(),
             LengthPercentage::Percent(value) => format!("fit-content({:.3}%)", value).into(),
         },
         (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Fraction(value)) => {
@@ -1559,7 +1669,7 @@ pub fn parse_non_repeated_track_sizing_function_value<'a>(
                 Cow::from(match min {
                     MinTrackSizingFunction::Fixed(value) => {
                         return match value {
-                            LengthPercentage::Points(value) => format!("{}px", value),
+                            LengthPercentage::Length(value) => format!("{}px", value),
                             LengthPercentage::Percent(value) => format!("{}%", value),
                         }
                         .into();
@@ -1571,7 +1681,7 @@ pub fn parse_non_repeated_track_sizing_function_value<'a>(
                 Cow::from(match max {
                     MaxTrackSizingFunction::Fixed(value) => {
                         return match value {
-                            LengthPercentage::Points(value) => format!("{}px", value),
+                            LengthPercentage::Length(value) => format!("{}px", value),
                             LengthPercentage::Percent(value) => format!("{}%", value),
                         }
                         .into();
@@ -1591,7 +1701,6 @@ pub fn parse_non_repeated_track_sizing_function_value<'a>(
 }
 
 pub fn parse_track_sizing_function_value(value: &TrackSizingFunction) -> String {
-
     let mut ret = String::new();
     match value {
         TrackSizingFunction::Single(value) => {

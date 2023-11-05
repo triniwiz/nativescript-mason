@@ -160,7 +160,8 @@ enum class Direction {
 enum class Display {
   None,
   Flex,
-  Grid;
+  Grid,
+  Block;
 
   val cssValue: String
     get() {
@@ -168,6 +169,7 @@ enum class Display {
         None -> "none"
         Flex -> "flex"
         Grid -> "grid"
+        Block -> "block"
       }
     }
 
@@ -177,6 +179,7 @@ enum class Display {
         0 -> None
         1 -> Flex
         2 -> Grid
+        3 -> Block
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -341,14 +344,16 @@ enum class JustifyContent(val value: Int) {
   }
 }
 
-enum class Overflow {
-  Visible,
-  Hidden,
-  Scroll;
+enum class Overflow(val value: Int) {
+  Unset(-1),
+  Visible(0),
+  Hidden(1),
+  Scroll(2);
 
   val cssValue: String
     get() {
       return when (this) {
+        Unset -> "unset"
         Visible -> "visible"
         Hidden -> "hidden"
         Scroll -> "scroll"
@@ -358,6 +363,7 @@ enum class Overflow {
   companion object {
     fun fromInt(value: Int): Overflow {
       return when (value) {
+        -1 -> Unset
         0 -> Visible
         1 -> Hidden
         2 -> Scroll
@@ -579,6 +585,7 @@ sealed class TrackSizingFunction(val isRepeating: Boolean = false) {
           builder.append(")")
           return builder.toString()
         }
+
         is Single -> value.cssValue
       }
     }
@@ -617,6 +624,7 @@ class Style internal constructor() {
   var display: Display = Display.Flex
     set(value) {
       field = value
+//      nativeSetDisplay(getNativePtr(), value.ordinal);
       isDirty = true
     }
 
@@ -645,7 +653,19 @@ class Style internal constructor() {
       isDirty = true
     }
 
-  var overflow: Overflow = Overflow.Hidden
+  var overflow: Overflow = Overflow.Unset
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var overflowX: Overflow = Overflow.Unset
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  var overflowY: Overflow = Overflow.Unset
     set(value) {
       field = value
       isDirty = true
@@ -987,6 +1007,18 @@ class Style internal constructor() {
       isDirty = true
     }
 
+
+  var scrollBarWidth: Dimension = Dimension.Points(0f)
+    set(value) {
+      field = value
+      isDirty = true
+    }
+
+  fun setScrollBarWidth(value: Float) {
+    scrollBarWidth = Dimension.Points(value)
+  }
+
+
   fun setFlexBasis(value: Float, type: Int) {
     when (type) {
       0 -> Dimension.Auto
@@ -1040,11 +1072,6 @@ class Style internal constructor() {
     minSize = Size(minSize.width, value)
   }
 
-  var size: Size<Dimension> = autoSize
-    set(value) {
-      field = value
-      isDirty = true
-    }
 
   fun setSizeWidth(value: Float, type: Int) {
     val width = when (type) {
@@ -1195,7 +1222,7 @@ class Style internal constructor() {
       isDirty = true
     }
 
-  var gridColumn: Line<GridPlacement> = autoLine
+  var gridColumn: Line<GridPlacement> = Line(GridPlacement.Auto, GridPlacement.Auto)
     set(value) {
       field = value
       isDirty = true
@@ -1219,12 +1246,11 @@ class Style internal constructor() {
     }
 
 
-  var gridRow: Line<GridPlacement> = autoLine
+  var gridRow: Line<GridPlacement> = Line(GridPlacement.Auto, GridPlacement.Auto)
     set(value) {
       field = value
       isDirty = true
     }
-
 
   var gridRowStart: GridPlacement
     get() {
@@ -1541,101 +1567,74 @@ class Style internal constructor() {
 
   }
 
+  fun getNativeMargins(): Rect<LengthPercentageAuto> {
+    if (getNativePtr() === 0L) return LengthPercentageAutoZeroRect;
+    val nativeMargins: FloatArray = nativeGetMargins(getNativePtr());
+    if (nativeMargins.isEmpty()) return LengthPercentageAutoZeroRect;
+
+    var marginLeft: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginEnd: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginTop: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
+
+    LengthPercentageAuto.fromTypeValue(nativeMargins[0].toInt(), nativeMargins[1])?.let {
+      marginLeft = it
+    }
+
+    LengthPercentageAuto.fromTypeValue(nativeMargins[2].toInt(), nativeMargins[3])?.let {
+      marginEnd = it
+    }
+
+    LengthPercentageAuto.fromTypeValue(nativeMargins[4].toInt(), nativeMargins[5])?.let {
+      marginTop = it
+    }
+
+    LengthPercentageAuto.fromTypeValue(nativeMargins[6].toInt(), nativeMargins[7])?.let {
+      marginBottom = it
+    }
+
+    return Rect(marginLeft, marginEnd, marginTop, marginBottom)
+  }
+
+  fun getNativeSize(): Size<Dimension> {
+    if (getNativePtr() === 0L) return autoSize;
+    val nativeSize: FloatArray = nativeGetSize(getNativePtr());
+    if (nativeSize.isEmpty()) return autoSize;
+    val width = Dimension.fromTypeValue(nativeSize[0].toInt(), nativeSize[1]);
+    val height = Dimension.fromTypeValue(nativeSize[2].toInt(), nativeSize[3]);
+    return Size(width as Dimension, height as Dimension)
+  }
+
+
+  var size: Size<Dimension> = autoSize
+    set(value) {
+      field = value
+      isDirty = true
+      nativeSetSize(
+        getNativePtr(),
+        value.width.type,
+        value.width.value,
+        value.height.type,
+        value.height.value
+      );
+    }
+
+  private external fun nativeGetSize(style: Long): FloatArray
+  private external fun nativeSetSize(
+    style: Long,
+    width_type: Int,
+    width: Float,
+    height_type: Int,
+    height: Float
+  )
+
+  private external fun nativeGetMargins(style: Long): FloatArray
+
+  private external fun nativeSetDisplay(style: Long, display: Int);
 
   fun getNativePtr(): Long {
     if (nativePtr == 0L) {
-      nativePtr = nativeInitWithValues(
-        display.ordinal,
-        position.ordinal,
-        direction.ordinal,
-        flexDirection.ordinal,
-        flexWrap.ordinal,
-        overflow.ordinal,
-        alignItems.value,
-        alignSelf.value,
-        alignContent.value,
-        justifyItems.value,
-        justifySelf.value,
-        justifyContent.value,
-
-        inset.left.type,
-        inset.left.value,
-        inset.right.type,
-        inset.right.value,
-        inset.top.type,
-        inset.top.value,
-        inset.bottom.type,
-        inset.bottom.value,
-
-        margin.left.type,
-        margin.left.value,
-        margin.right.type,
-        margin.right.value,
-        margin.top.type,
-        margin.top.value,
-        margin.bottom.type,
-        margin.bottom.value,
-
-        padding.left.type,
-        padding.left.value,
-        padding.right.type,
-        padding.right.value,
-        padding.top.type,
-        padding.top.value,
-        padding.bottom.type,
-        padding.bottom.value,
-
-        border.left.type,
-        border.left.value,
-        border.right.type,
-        border.right.value,
-        border.top.type,
-        border.top.value,
-        border.bottom.type,
-        border.bottom.value,
-
-        flexGrow,
-        flexShrink,
-
-        flexBasis.type,
-        flexBasis.value,
-
-        size.width.type,
-        size.width.value,
-        size.height.type,
-        size.height.value,
-
-        minSize.width.type,
-        minSize.width.value,
-        minSize.height.type,
-        minSize.height.value,
-
-        maxSize.width.type,
-        maxSize.width.value,
-        maxSize.height.type,
-        maxSize.height.value,
-
-        gap.width.type,
-        gap.width.value,
-        gap.height.type,
-        gap.height.value,
-
-        aspectRatio ?: Float.NaN,
-
-        gridAutoRows,
-        gridAutoColumns,
-        gridAutoFlow.ordinal,
-        gridColumn.start.type,
-        gridColumn.start.placementValue,
-        gridColumn.end.type,
-        gridColumn.end.placementValue,
-        gridRow.start.type,
-        gridRow.start.placementValue,
-        gridRow.end.type,
-        gridRow.end.placementValue,
-        gridTemplateRows,
-        gridTemplateColumns
-      )
+      nativePtr = nativeInit()
       isDirty = false
     }
 
@@ -1649,6 +1648,7 @@ class Style internal constructor() {
     ret += "inset: ${inset.cssValue}, \n"
     ret += "flexDirection: ${flexDirection.cssValue}, \n"
     ret += "flexWrap: ${flexWrap.cssValue}, \n"
+    ret += "overflow: ${overflow.cssValue}, \n"
     ret += "alignItems: ${alignItems.cssValue}, \n"
     ret += "alignSelf: ${alignSelf.cssValue}, \n"
     ret += "alignContent: ${alignContent.cssValue}, \n"
@@ -1690,6 +1690,10 @@ class Style internal constructor() {
     }, \n"
     ret += "gridTemplateRows: ${gridTemplateRows.cssValue}, \n"
     ret += "gridTemplateColumns: ${gridTemplateColumns.cssValue} \n"
+
+    ret += "overflowX: ${overflowX.cssValue} \n"
+    ret += "overflowY: ${overflowY.cssValue} \n"
+    ret += "scrollBarWidth: ${scrollBarWidth.cssValue} \n"
     ret += ")"
 
     return ret
@@ -1797,7 +1801,10 @@ class Style internal constructor() {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
   ): Long
 
 
@@ -1892,7 +1899,10 @@ class Style internal constructor() {
     gridRowEndType: Int,
     gridRowEndValue: Short,
     gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: Array<TrackSizingFunction>,
+    overflowX: Int,
+    overflowY: Int,
+    scrollBarWidth: Float
   )
 
 }

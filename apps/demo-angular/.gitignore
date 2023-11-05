@@ -1,3 +1,6 @@
 hooks
 platforms
 !webpack.config.js
+artifacts
+e2e/tests/*
+src/tests/*

@@ -6068,32 +6068,6 @@
           },
           {
             "kind": "Function",
-            "name": "style_get_overflow",
-            "printedName": "style_get_overflow(_:)",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Int32",
-                "printedName": "Swift.Int32",
-                "usr": "s:s5Int32V"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "UnsafeMutableRawPointer",
-                "printedName": "Swift.UnsafeMutableRawPointer",
-                "usr": "s:Sv"
-              }
-            ],
-            "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_overflow:",
-            "mangledName": "$s5Mason0A9ReexportsC18style_get_overflowys5Int32VSvFZ",
-            "moduleName": "Mason",
-            "static": true,
-            "declAttributes": ["Final", "AccessControl", "ObjC"],
-            "funcSelfKind": "NonMutating"
-          },
-          {
-            "kind": "Function",
             "name": "style_set_overflow",
             "printedName": "style_set_overflow(_:_:)",
             "children": [
@@ -6118,6 +6092,120 @@
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_overflow::",
             "mangledName": "$s5Mason0A9ReexportsC18style_set_overflowyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_overflow_x",
+            "printedName": "style_set_overflow_x(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_overflow_x::",
+            "mangledName": "$s5Mason0A9ReexportsC20style_set_overflow_xyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_set_overflow_y",
+            "printedName": "style_set_overflow_y(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_overflow_y::",
+            "mangledName": "$s5Mason0A9ReexportsC20style_set_overflow_yyySv_s5Int32VtFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_overflow_x",
+            "printedName": "style_get_overflow_x(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_overflow_x:",
+            "mangledName": "$s5Mason0A9ReexportsC20style_get_overflow_xys5Int32VSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_overflow_y",
+            "printedName": "style_get_overflow_y(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_overflow_y:",
+            "mangledName": "$s5Mason0A9ReexportsC20style_get_overflow_yys5Int32VSvFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -7831,6 +7919,63 @@
           },
           {
             "kind": "Function",
+            "name": "style_set_scrollbar_width",
+            "printedName": "style_set_scrollbar_width(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_set_scrollbar_width::",
+            "mangledName": "$s5Mason0A9ReexportsC25style_set_scrollbar_widthyySv_SftFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "style_get_scrollbar_width",
+            "printedName": "style_get_scrollbar_width(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "UnsafeMutableRawPointer",
+                "printedName": "Swift.UnsafeMutableRawPointer",
+                "usr": "s:Sv"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_get_scrollbar_width:",
+            "mangledName": "$s5Mason0A9ReexportsC25style_get_scrollbar_widthySfSvFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "style_get_width",
             "printedName": "style_get_width(_:)",
             "children": [
@@ -9334,7 +9479,7 @@
           {
             "kind": "Function",
             "name": "style_update_with_values",
-            "printedName": "style_update_with_values(_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:gridTemplateColumns:)",
+            "printedName": "style_update_with_values(_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:_:scrollBarWidth:)",
             "children": [
               {
                 "kind": "TypeNominal",
@@ -9846,11 +9991,29 @@
                   }
                 ],
                 "usr": "s:Sp"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int32",
+                "printedName": "Swift.Int32",
+                "usr": "s:s5Int32V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
               }
             ],
             "declKind": "Func",
-            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_update_with_values::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::gridTemplateColumns:",
-            "mangledName": "$s5Mason0A9ReexportsC24style_update_with_values______________________________________________________________________________19gridTemplateColumnsySv_s5Int32VA12GSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGS3fAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGS2fSpySo41CMasonNonRepeatedTrackSizingFunctionArrayVGAj2Gs5Int16VAglglgLSpySo0knopQ0VGAOtFZ",
+            "usr": "c:@M@Mason@objc(cs)MasonReexports(cm)style_update_with_values:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::scrollBarWidth:",
+            "mangledName": "$s5Mason0A9ReexportsC24style_update_with_values_________________________________________________________________________________14scrollBarWidthySv_s5Int32VA12GSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGS3fAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGSfAGS2fSpySo41CMasonNonRepeatedTrackSizingFunctionArrayVGAj2Gs5Int16VAglglgLSpySo0knopQ0VGAo2GSftFZ",
             "moduleName": "Mason",
             "static": true,
             "declAttributes": ["Final", "AccessControl", "ObjC"],
@@ -14369,6 +14532,174 @@
           },
           {
             "kind": "Var",
+            "name": "overflowX",
+            "printedName": "overflowX",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Overflow",
+                "printedName": "Mason.Overflow",
+                "usr": "c:@M@Mason@E@Overflow"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(py)overflowX",
+            "mangledName": "$s5Mason0A5StyleC9overflowXAA8OverflowOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Overflow",
+                    "printedName": "Mason.Overflow",
+                    "usr": "c:@M@Mason@E@Overflow"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)overflowX",
+                "mangledName": "$s5Mason0A5StyleC9overflowXAA8OverflowOvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Overflow",
+                    "printedName": "Mason.Overflow",
+                    "usr": "c:@M@Mason@E@Overflow"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setOverflowX:",
+                "mangledName": "$s5Mason0A5StyleC9overflowXAA8OverflowOvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC9overflowXAA8OverflowOvM",
+                "mangledName": "$s5Mason0A5StyleC9overflowXAA8OverflowOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "overflowY",
+            "printedName": "overflowY",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Overflow",
+                "printedName": "Mason.Overflow",
+                "usr": "c:@M@Mason@E@Overflow"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(py)overflowY",
+            "mangledName": "$s5Mason0A5StyleC9overflowYAA8OverflowOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Overflow",
+                    "printedName": "Mason.Overflow",
+                    "usr": "c:@M@Mason@E@Overflow"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)overflowY",
+                "mangledName": "$s5Mason0A5StyleC9overflowYAA8OverflowOvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Overflow",
+                    "printedName": "Mason.Overflow",
+                    "usr": "c:@M@Mason@E@Overflow"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setOverflowY:",
+                "mangledName": "$s5Mason0A5StyleC9overflowYAA8OverflowOvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC9overflowYAA8OverflowOvM",
+                "mangledName": "$s5Mason0A5StyleC9overflowYAA8OverflowOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "alignItems",
             "printedName": "alignItems",
             "children": [
@@ -16811,6 +17142,112 @@
             "declKind": "Func",
             "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setFlexBasis::",
             "mangledName": "$s5Mason0A5StyleC12setFlexBasisyySf_SitF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "scrollBarWidth",
+            "printedName": "scrollBarWidth",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "MasonDimension",
+                "printedName": "Mason.MasonDimension",
+                "usr": "s:5Mason0A9DimensionO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvp",
+            "mangledName": "$s5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonDimension",
+                    "printedName": "Mason.MasonDimension",
+                    "usr": "s:5Mason0A9DimensionO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvg",
+                "mangledName": "$s5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonDimension",
+                    "printedName": "Mason.MasonDimension",
+                    "usr": "s:5Mason0A9DimensionO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvs",
+                "mangledName": "$s5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvM",
+                "mangledName": "$s5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "setScrollBarWidth",
+            "printedName": "setScrollBarWidth(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Float",
+                "printedName": "Swift.Float",
+                "usr": "s:Sf"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setScrollBarWidth:",
+            "mangledName": "$s5Mason0A5StyleC17setScrollBarWidthyySfF",
             "moduleName": "Mason",
             "declAttributes": ["AccessControl", "ObjC"],
             "funcSelfKind": "NonMutating"
@@ -23500,6 +23937,45 @@
           },
           {
             "kind": "Var",
+            "name": "Block",
+            "printedName": "Block",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.Display.Type) -> Mason.Display",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Display",
+                    "printedName": "Mason.Display",
+                    "usr": "c:@M@Mason@E@Display"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.Display.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Display",
+                        "printedName": "Mason.Display",
+                        "usr": "c:@M@Mason@E@Display"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@Display@DisplayBlock",
+            "mangledName": "$s5Mason7DisplayO5BlockyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 3
+          },
+          {
+            "kind": "Var",
             "name": "rawValue",
             "printedName": "rawValue",
             "children": [
@@ -25285,6 +25761,45 @@
         "children": [
           {
             "kind": "Var",
+            "name": "Unset",
+            "printedName": "Unset",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.Overflow.Type) -> Mason.Overflow",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Overflow",
+                    "printedName": "Mason.Overflow",
+                    "usr": "c:@M@Mason@E@Overflow"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.Overflow.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Overflow",
+                        "printedName": "Mason.Overflow",
+                        "usr": "c:@M@Mason@E@Overflow"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@Overflow@OverflowUnset",
+            "mangledName": "$s5Mason8OverflowO5UnsetyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 0
+          },
+          {
+            "kind": "Var",
             "name": "Visible",
             "printedName": "Visible",
             "children": [
@@ -25320,7 +25835,7 @@
             "mangledName": "$s5Mason8OverflowO7VisibleyA2CmF",
             "moduleName": "Mason",
             "declAttributes": ["ObjC"],
-            "fixedbinaryorder": 0
+            "fixedbinaryorder": 1
           },
           {
             "kind": "Var",
@@ -25359,7 +25874,7 @@
             "mangledName": "$s5Mason8OverflowO6HiddenyA2CmF",
             "moduleName": "Mason",
             "declAttributes": ["ObjC"],
-            "fixedbinaryorder": 1
+            "fixedbinaryorder": 2
           },
           {
             "kind": "Var",
@@ -25398,7 +25913,7 @@
             "mangledName": "$s5Mason8OverflowO6ScrollyA2CmF",
             "moduleName": "Mason",
             "declAttributes": ["ObjC"],
-            "fixedbinaryorder": 2
+            "fixedbinaryorder": 3
           },
           {
             "kind": "Var",
@@ -27149,6 +27664,27 @@
             "funcSelfKind": "NonMutating"
           },
           {
+            "kind": "Function",
+            "name": "createBlockView",
+            "printedName": "createBlockView()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UIView",
+                "printedName": "UIKit.UIView",
+                "usr": "c:objc(cs)UIView"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(cm)createBlockView",
+            "mangledName": "$sSo6UIViewC5MasonE15createBlockViewAByFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
             "kind": "Var",
             "name": "mason",
             "printedName": "mason",
@@ -27665,8 +28201,8 @@
           },
           {
             "kind": "Var",
-            "name": "position",
-            "printedName": "position",
+            "name": "_position",
+            "printedName": "_position",
             "children": [
               {
                 "kind": "TypeNominal",
@@ -27676,8 +28212,8 @@
               }
             ],
             "declKind": "Var",
-            "usr": "c:@CM@Mason@@objc(cs)UIView(py)position",
-            "mangledName": "$sSo6UIViewC5MasonE8positionAC8PositionOvp",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)_position",
+            "mangledName": "$sSo6UIViewC5MasonE9_positionAC8PositionOvp",
             "moduleName": "Mason",
             "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
             "isFromExtension": true,
@@ -27695,8 +28231,8 @@
                   }
                 ],
                 "declKind": "Accessor",
-                "usr": "c:@CM@Mason@@objc(cs)UIView(im)position",
-                "mangledName": "$sSo6UIViewC5MasonE8positionAC8PositionOvg",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)_position",
+                "mangledName": "$sSo6UIViewC5MasonE9_positionAC8PositionOvg",
                 "moduleName": "Mason",
                 "declAttributes": ["Dynamic", "ObjC"],
                 "isFromExtension": true,
@@ -27720,8 +28256,8 @@
                   }
                 ],
                 "declKind": "Accessor",
-                "usr": "c:@CM@Mason@@objc(cs)UIView(im)setPosition:",
-                "mangledName": "$sSo6UIViewC5MasonE8positionAC8PositionOvs",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)set_position:",
+                "mangledName": "$sSo6UIViewC5MasonE9_positionAC8PositionOvs",
                 "moduleName": "Mason",
                 "declAttributes": ["Dynamic", "ObjC"],
                 "isFromExtension": true,
@@ -27986,6 +28522,138 @@
                 "declKind": "Accessor",
                 "usr": "c:@CM@Mason@@objc(cs)UIView(im)setOverflow:",
                 "mangledName": "$sSo6UIViewC5MasonE8overflowAC8OverflowOvs",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "set"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "overflowX",
+            "printedName": "overflowX",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Overflow",
+                "printedName": "Mason.Overflow",
+                "usr": "c:@M@Mason@E@Overflow"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)overflowX",
+            "mangledName": "$sSo6UIViewC5MasonE9overflowXAC8OverflowOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Overflow",
+                    "printedName": "Mason.Overflow",
+                    "usr": "c:@M@Mason@E@Overflow"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)overflowX",
+                "mangledName": "$sSo6UIViewC5MasonE9overflowXAC8OverflowOvg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Overflow",
+                    "printedName": "Mason.Overflow",
+                    "usr": "c:@M@Mason@E@Overflow"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)setOverflowX:",
+                "mangledName": "$sSo6UIViewC5MasonE9overflowXAC8OverflowOvs",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "set"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "overflowY",
+            "printedName": "overflowY",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Overflow",
+                "printedName": "Mason.Overflow",
+                "usr": "c:@M@Mason@E@Overflow"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)overflowY",
+            "mangledName": "$sSo6UIViewC5MasonE9overflowYAC8OverflowOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Overflow",
+                    "printedName": "Mason.Overflow",
+                    "usr": "c:@M@Mason@E@Overflow"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)overflowY",
+                "mangledName": "$sSo6UIViewC5MasonE9overflowYAC8OverflowOvg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Overflow",
+                    "printedName": "Mason.Overflow",
+                    "usr": "c:@M@Mason@E@Overflow"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)setOverflowY:",
+                "mangledName": "$sSo6UIViewC5MasonE9overflowYAC8OverflowOvs",
                 "moduleName": "Mason",
                 "declAttributes": ["Dynamic", "ObjC"],
                 "isFromExtension": true,
@@ -28514,6 +29182,155 @@
                 "declKind": "Accessor",
                 "usr": "c:@CM@Mason@@objc(cs)UIView(im)setFlexShrink:",
                 "mangledName": "$sSo6UIViewC5MasonE10flexShrinkSfvs",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "set"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "scrollBarWidth",
+            "printedName": "scrollBarWidth",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "MasonDimension",
+                "printedName": "Mason.MasonDimension",
+                "usr": "s:5Mason0A9DimensionO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:So6UIViewC5MasonE14scrollBarWidthAC0B9DimensionOvp",
+            "mangledName": "$sSo6UIViewC5MasonE14scrollBarWidthAC0B9DimensionOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Custom", "AccessControl"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonDimension",
+                    "printedName": "Mason.MasonDimension",
+                    "usr": "s:5Mason0A9DimensionO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE14scrollBarWidthAC0B9DimensionOvg",
+                "mangledName": "$sSo6UIViewC5MasonE14scrollBarWidthAC0B9DimensionOvg",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonDimension",
+                    "printedName": "Mason.MasonDimension",
+                    "usr": "s:5Mason0A9DimensionO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE14scrollBarWidthAC0B9DimensionOvs",
+                "mangledName": "$sSo6UIViewC5MasonE14scrollBarWidthAC0B9DimensionOvs",
+                "moduleName": "Mason",
+                "isFromExtension": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:So6UIViewC5MasonE14scrollBarWidthAC0B9DimensionOvM",
+                "mangledName": "$sSo6UIViewC5MasonE14scrollBarWidthAC0B9DimensionOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "isFromExtension": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "scrollBarWidthCompat",
+            "printedName": "scrollBarWidthCompat",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "MasonDimensionCompat",
+                "printedName": "Mason.MasonDimensionCompat",
+                "usr": "c:@M@Mason@objc(cs)MasonDimensionCompat"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@CM@Mason@@objc(cs)UIView(py)scrollBarWidthCompat",
+            "mangledName": "$sSo6UIViewC5MasonE20scrollBarWidthCompatAC0b9DimensionF0Cvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Dynamic", "Custom", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonDimensionCompat",
+                    "printedName": "Mason.MasonDimensionCompat",
+                    "usr": "c:@M@Mason@objc(cs)MasonDimensionCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)scrollBarWidthCompat",
+                "mangledName": "$sSo6UIViewC5MasonE20scrollBarWidthCompatAC0b9DimensionF0Cvg",
+                "moduleName": "Mason",
+                "declAttributes": ["Dynamic", "ObjC"],
+                "isFromExtension": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonDimensionCompat",
+                    "printedName": "Mason.MasonDimensionCompat",
+                    "usr": "c:@M@Mason@objc(cs)MasonDimensionCompat"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@CM@Mason@@objc(cs)UIView(im)setScrollBarWidthCompat:",
+                "mangledName": "$sSo6UIViewC5MasonE20scrollBarWidthCompatAC0b9DimensionF0Cvs",
                 "moduleName": "Mason",
                 "declAttributes": ["Dynamic", "ObjC"],
                 "isFromExtension": true,
@@ -31903,1141 +32720,1183 @@
   },
   "ConstValues": [
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonLine.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonLine.swift",
       "kind": "StringLiteral",
       "offset": 1224,
       "length": 23,
       "value": "\"Mason.LineGridPlacementCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinMax.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinMax.swift",
       "kind": "StringLiteral",
       "offset": 139,
       "length": 6,
       "value": "\"Mason.MinMax\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TSCMason.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TSCMason.swift",
       "kind": "BooleanLiteral",
-      "offset": 534,
+      "offset": 518,
       "length": 5,
       "value": "false"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TSCMason.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TSCMason.swift",
       "kind": "BooleanLiteral",
-      "offset": 637,
+      "offset": 621,
       "length": 5,
       "value": "false"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
       "offset": 447,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
       "offset": 1234,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
       "offset": 1300,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "IntegerLiteral",
       "offset": 1366,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MaxSizing.swift",
       "kind": "StringLiteral",
       "offset": 337,
       "length": 9,
       "value": "\"Mason.MaxSizing\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
       "kind": "StringLiteral",
       "offset": 160,
       "length": 24,
       "value": "\"Mason.MasonDimensionSizeCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
       "kind": "StringLiteral",
       "offset": 800,
       "length": 35,
       "value": "\"Mason.MasonLengthPercentageAutoSizeCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
       "kind": "StringLiteral",
       "offset": 1530,
       "length": 31,
       "value": "\"Mason.MasonLengthPercentageSizeCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
       "kind": "IntegerLiteral",
       "offset": 3128,
       "length": 1,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
       "kind": "IntegerLiteral",
       "offset": 3243,
       "length": 1,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
       "kind": "IntegerLiteral",
       "offset": 3350,
       "length": 1,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
       "kind": "IntegerLiteral",
       "offset": 3434,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
       "kind": "IntegerLiteral",
       "offset": 3540,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonSize.swift",
       "kind": "IntegerLiteral",
       "offset": 3638,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
       "offset": 1397,
       "length": 5,
       "value": "false"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
       "offset": 1422,
       "length": 5,
       "value": "false"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
       "offset": 1455,
       "length": 5,
       "value": "false"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
       "offset": 1586,
       "length": 5,
       "value": "false"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "Array",
       "offset": 1807,
       "length": 2,
       "value": "[]"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "Dictionary",
       "offset": 1900,
       "length": 3,
       "value": "[]"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonNode.swift",
       "kind": "BooleanLiteral",
       "offset": 1927,
       "length": 5,
       "value": "false"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
       "kind": "IntegerLiteral",
       "offset": 380,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
       "kind": "IntegerLiteral",
       "offset": 804,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
       "kind": "IntegerLiteral",
       "offset": 870,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
       "kind": "IntegerLiteral",
       "offset": 936,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MinSizing.swift",
       "kind": "StringLiteral",
       "offset": 269,
       "length": 9,
       "value": "\"Mason.MinSizing\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TrackSizingFunction.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/TrackSizingFunction.swift",
       "kind": "StringLiteral",
       "offset": 167,
       "length": 19,
       "value": "\"Mason.TrackSizingFunction\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
       "kind": "IntegerLiteral",
       "offset": 1552,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
       "kind": "StringLiteral",
       "offset": 158,
       "length": 20,
       "value": "\"Mason.MasonDimensionCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
       "kind": "IntegerLiteral",
       "offset": 3054,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
       "kind": "StringLiteral",
       "offset": 1625,
       "length": 31,
       "value": "\"Mason.MasonLengthPercentageAutoCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
       "kind": "IntegerLiteral",
       "offset": 4348,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
       "kind": "StringLiteral",
       "offset": 3123,
       "length": 27,
       "value": "\"Mason.MasonLengthPercentageCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonCompat.swift",
       "kind": "StringLiteral",
       "offset": 4409,
       "length": 19,
       "value": "\"Mason.GridPlacementCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
       "kind": "StringLiteral",
       "offset": 160,
       "length": 24,
       "value": "\"Mason.MasonDimensionRectCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
       "kind": "StringLiteral",
       "offset": 1135,
       "length": 35,
       "value": "\"Mason.MasonLengthPercentageAutoRectCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
       "kind": "StringLiteral",
       "offset": 2259,
       "length": 31,
       "value": "\"Mason.MasonLengthPercentageRectCompat\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
       "kind": "IntegerLiteral",
       "offset": 4453,
       "length": 1,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
       "kind": "IntegerLiteral",
       "offset": 4568,
       "length": 1,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
       "kind": "IntegerLiteral",
       "offset": 4675,
       "length": 1,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
       "kind": "IntegerLiteral",
       "offset": 4759,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
       "kind": "IntegerLiteral",
       "offset": 4865,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
       "kind": "IntegerLiteral",
       "offset": 4963,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
       "offset": 906,
       "length": 5,
       "value": "false"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
       "offset": 1220,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
       "offset": 1331,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
       "offset": 1459,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
       "offset": 1574,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
       "offset": 1682,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 1790,
+      "offset": 1789,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 1903,
+      "offset": 1897,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 2014,
+      "offset": 2005,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 2130,
+      "offset": 2118,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 2247,
+      "offset": 2229,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 2362,
+      "offset": 2345,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 2483,
+      "offset": 2462,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 2607,
+      "offset": 2577,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 5185,
+      "offset": 2698,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 6916,
+      "offset": 2822,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 8649,
+      "offset": 5400,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 10341,
+      "offset": 7131,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "kind": "BooleanLiteral",
+      "offset": 8864,
+      "length": 4,
+      "value": "true"
+    },
+    {
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "kind": "BooleanLiteral",
+      "offset": 10556,
+      "length": 4,
+      "value": "true"
+    },
+    {
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 10298,
+      "offset": 10513,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 10445,
+      "offset": 10660,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 10402,
+      "offset": 10617,
       "length": 1,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 10559,
+      "offset": 10774,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 11078,
+      "offset": 11299,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "kind": "FloatLiteral",
+      "offset": 11253,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 12225,
+      "offset": 11537,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 13767,
+      "offset": 12684,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 14898,
+      "offset": 14226,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 16011,
+      "offset": 15357,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 16124,
+      "offset": 16470,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "kind": "BooleanLiteral",
+      "offset": 16583,
+      "length": 4,
+      "value": "true"
+    },
+    {
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 16082,
+      "offset": 16541,
       "length": 2,
       "value": "[]"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 16240,
+      "offset": 16699,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 16198,
+      "offset": 16657,
       "length": 2,
       "value": "[]"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 16366,
+      "offset": 16825,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 16482,
+      "offset": 16941,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 17844,
+      "offset": 18303,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 19162,
+      "offset": 19621,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 19120,
+      "offset": 19579,
       "length": 2,
       "value": "[]"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 19295,
+      "offset": 19754,
       "length": 4,
       "value": "true"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 19253,
+      "offset": 19712,
       "length": 2,
       "value": "[]"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 229,
       "length": 6,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 245,
       "length": 7,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 906,
       "length": 6,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 922,
       "length": 7,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 1576,
       "length": 7,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 5950,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 8877,
       "length": 1,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 11999,
       "length": 2,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 12011,
       "length": 5,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 12026,
       "length": 3,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 12039,
       "length": 6,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 12055,
       "length": 8,
       "value": "3"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 12073,
       "length": 7,
       "value": "4"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 12090,
       "length": 9,
       "value": "5"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 12109,
       "length": 7,
       "value": "6"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 13629,
       "length": 2,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 13641,
       "length": 5,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 13656,
       "length": 3,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 13669,
       "length": 6,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 13685,
       "length": 8,
       "value": "3"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 13703,
       "length": 7,
       "value": "4"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 13720,
       "length": 9,
       "value": "5"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 13739,
       "length": 7,
       "value": "6"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15266,
       "length": 2,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15278,
       "length": 5,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15293,
       "length": 3,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15306,
       "length": 6,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15322,
       "length": 7,
       "value": "3"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15339,
       "length": 12,
       "value": "4"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15361,
       "length": 11,
       "value": "5"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15382,
       "length": 11,
       "value": "6"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15403,
       "length": 9,
       "value": "7"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 15422,
       "length": 7,
       "value": "8"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 17281,
       "length": 3,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 17294,
       "length": 3,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 18095,
       "length": 4,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
       "offset": 18109,
       "length": 4,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 18923,
+      "offset": 18123,
+      "length": 5,
+      "value": "3"
+    },
+    {
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 19070,
       "length": 6,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 18939,
+      "offset": 19086,
       "length": 10,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 18959,
+      "offset": 19106,
       "length": 13,
       "value": "3"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 19967,
+      "offset": 20114,
       "length": 2,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 19979,
+      "offset": 20126,
       "length": 5,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 19994,
+      "offset": 20141,
       "length": 3,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20007,
+      "offset": 20154,
       "length": 6,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20023,
+      "offset": 20170,
       "length": 8,
       "value": "3"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20041,
+      "offset": 20188,
       "length": 7,
       "value": "4"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20058,
+      "offset": 20205,
       "length": 9,
       "value": "5"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 20077,
+      "offset": 20224,
       "length": 7,
       "value": "6"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21601,
+      "offset": 21748,
       "length": 2,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21613,
+      "offset": 21760,
       "length": 5,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21628,
+      "offset": 21775,
       "length": 3,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21641,
+      "offset": 21788,
       "length": 6,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21657,
+      "offset": 21804,
       "length": 8,
       "value": "3"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21675,
+      "offset": 21822,
       "length": 7,
       "value": "4"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21692,
+      "offset": 21839,
       "length": 9,
       "value": "5"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 21711,
+      "offset": 21858,
       "length": 7,
       "value": "6"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23241,
+      "offset": 23388,
       "length": 2,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23253,
+      "offset": 23400,
       "length": 5,
       "value": "0"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23268,
+      "offset": 23415,
       "length": 3,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23281,
+      "offset": 23428,
       "length": 6,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23297,
+      "offset": 23444,
       "length": 7,
       "value": "3"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23314,
+      "offset": 23461,
       "length": 12,
       "value": "4"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23336,
+      "offset": 23483,
       "length": 11,
       "value": "5"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23357,
+      "offset": 23504,
       "length": 11,
       "value": "6"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23378,
+      "offset": 23525,
       "length": 9,
       "value": "7"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 23397,
+      "offset": 23544,
       "length": 7,
       "value": "8"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 25256,
-      "length": 6,
+      "offset": 25401,
+      "length": 7,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 25272,
+      "offset": 25418,
       "length": 6,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 26106,
+      "offset": 25434,
+      "length": 6,
+      "value": "3"
+    },
+    {
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "kind": "IntegerLiteral",
+      "offset": 26404,
       "length": 8,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 26826,
+      "offset": 27124,
       "length": 4,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 26840,
+      "offset": 27138,
       "length": 11,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 27704,
+      "offset": 28002,
       "length": 6,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 27720,
+      "offset": 28018,
       "length": 8,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 27738,
+      "offset": 28036,
       "length": 11,
       "value": "3"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 30417,
+      "offset": 30715,
       "length": 4,
       "value": "1"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "IntegerLiteral",
-      "offset": 30431,
+      "offset": 30729,
       "length": 4,
       "value": "2"
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/Enums.swift",
       "kind": "StringLiteral",
-      "offset": 31083,
+      "offset": 31381,
       "length": 19,
       "value": "\"Mason.GridTrackRepetition\""
     },
     {
-      "filePath": "/Users/triniwiz/Desktop/oss/mason/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonView.swift",
+      "filePath": "/Users/ammarahmed/Repos/nativescript/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonView.swift",
       "kind": "IntegerLiteral",
       "offset": 181,
       "length": 1,

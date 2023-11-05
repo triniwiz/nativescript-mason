@@ -9,25 +9,32 @@ export class TSCView extends TSCViewBase {
     org.nativescript.mason.masonkit.Mason.setShared(false);
   }
   __masonStylePtr = BigIntZero;
+  __masonNodePtr = BigIntZero;
+  __masonPtr = BigIntZero;
+
+  loadPtrs() {
+    //@ts-ignore
+    const ptrs = this.android?.getMasonPtrs().split(':');
+    this.__masonPtr = BigInt(ptrs[0]);
+    this.__masonNodePtr = BigInt(ptrs[1]);
+    this.__masonStylePtr = BigInt(ptrs[2]);
+  }
+
   get _masonStylePtr() {
     if (this.__masonStylePtr === BigIntZero) {
-      this.__masonStylePtr = BigInt((this.android as any)?.getMasonStylePtr?.()?.toString?.() ?? '0');
+      this.loadPtrs();
     }
     return this.__masonStylePtr;
   }
-
-  __masonNodePtr = BigIntZero;
   get _masonNodePtr() {
     if (this.__masonNodePtr === BigIntZero) {
-      this.__masonNodePtr = BigInt((this.android as any)?.getMasonNodePtr?.()?.toString?.() ?? '0');
+      this.loadPtrs();
     }
     return this.__masonNodePtr;
   }
-
-  __masonPtr = BigIntZero;
   get _masonPtr() {
     if (this.__masonPtr === BigIntZero) {
-      this.__masonPtr = BigInt(org.nativescript.mason.masonkit.Mason.getInstance().getNativePtr().toString());
+      this.loadPtrs();
     }
     return this.__masonPtr;
   }
@@ -89,6 +96,15 @@ export class Grid extends TSCView {
 export class Flex extends TSCView {
   createNativeView() {
     const view = org.nativescript.mason.masonkit.View.createFlexView(this._context) as any;
+    this._hasNativeView = true;
+    return view;
+  }
+}
+
+@CSSType('Box')
+export class Box extends TSCView {
+  createNativeView() {
+    const view = org.nativescript.mason.masonkit.View.createBlockView(this._context) as any;
     this._hasNativeView = true;
     return view;
   }

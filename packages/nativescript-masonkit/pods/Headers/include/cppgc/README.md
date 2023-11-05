@@ -41,38 +41,38 @@ The space for an object is chosen depending on a number of criteria, e.g.:
 Oilpan supports two kinds of GCs:
 
 1. **Conservative GC.**
-A GC is called conservative when it is executed while the regular native stack is not empty.
-In this case, the native stack might contain references to objects in Oilpan's heap, which should be kept alive.
-The GC scans the native stack and treats the pointers discovered via the native stack as part of the root set.
-This kind of GC is considered imprecise because values on stack other than references may accidentally appear as references to on-heap object, which means these objects will be kept alive despite being in practice unreachable from the application as an actual reference.
+   A GC is called conservative when it is executed while the regular native stack is not empty.
+   In this case, the native stack might contain references to objects in Oilpan's heap, which should be kept alive.
+   The GC scans the native stack and treats the pointers discovered via the native stack as part of the root set.
+   This kind of GC is considered imprecise because values on stack other than references may accidentally appear as references to on-heap object, which means these objects will be kept alive despite being in practice unreachable from the application as an actual reference.
 
 2. **Precise GC.**
-A precise GC is triggered at the end of an event loop, which is controlled by an embedder via a platform.
-At this point, it is guaranteed that there are no on-stack references pointing to Oilpan's heap.
-This means there is no risk of confusing other value types with references.
-Oilpan has precise knowledge of on-heap object layouts, and so it knows exactly where pointers lie in memory.
-Oilpan can just start marking from the regular root set and collect all garbage precisely.
+   A precise GC is triggered at the end of an event loop, which is controlled by an embedder via a platform.
+   At this point, it is guaranteed that there are no on-stack references pointing to Oilpan's heap.
+   This means there is no risk of confusing other value types with references.
+   Oilpan has precise knowledge of on-heap object layouts, and so it knows exactly where pointers lie in memory.
+   Oilpan can just start marking from the regular root set and collect all garbage precisely.
 
 ## Atomic, incremental and concurrent garbage collection
 
 Oilpan has three modes of operation:
 
 1. **Atomic GC.**
-The entire GC cycle, including all its phases (e.g. see [Marking](#Marking-phase) and [Sweeping](#Sweeping-phase)), are executed back to back in a single pause.
-This mode of operation is also known as Stop-The-World (STW) garbage collection.
-It results in the most jank (due to a single long pause), but is overall the most efficient (e.g. no need for write barriers).
+   The entire GC cycle, including all its phases (e.g. see [Marking](#Marking-phase) and [Sweeping](#Sweeping-phase)), are executed back to back in a single pause.
+   This mode of operation is also known as Stop-The-World (STW) garbage collection.
+   It results in the most jank (due to a single long pause), but is overall the most efficient (e.g. no need for write barriers).
 
 2. **Incremental GC.**
-Garbage collection work is split up into multiple steps which are interleaved with the mutator, i.e. user code chunked into tasks.
-Each step is a small chunk of work that is executed either as dedicated tasks between mutator tasks or, as needed, during mutator tasks.
-Using incremental GC introduces the need for write barriers that record changes to the object graph so that a consistent state is observed and no objects are accidentally considered dead and reclaimed.
-The incremental steps are followed by a smaller atomic pause to finalize garbage collection.
-The smaller pause times, due to smaller chunks of work, helps with reducing jank.
+   Garbage collection work is split up into multiple steps which are interleaved with the mutator, i.e. user code chunked into tasks.
+   Each step is a small chunk of work that is executed either as dedicated tasks between mutator tasks or, as needed, during mutator tasks.
+   Using incremental GC introduces the need for write barriers that record changes to the object graph so that a consistent state is observed and no objects are accidentally considered dead and reclaimed.
+   The incremental steps are followed by a smaller atomic pause to finalize garbage collection.
+   The smaller pause times, due to smaller chunks of work, helps with reducing jank.
 
 3. **Concurrent GC.**
-This is the most common type of GC.
-It builds on top of incremental GC and offloads much of the garbage collection work away from the mutator thread and on to background threads.
-Using concurrent GC allows the mutator thread to spend less time on GC and more on the actual mutator.
+   This is the most common type of GC.
+   It builds on top of incremental GC and offloads much of the garbage collection work away from the mutator thread and on to background threads.
+   Using concurrent GC allows the mutator thread to spend less time on GC and more on the actual mutator.
 
 ## Marking phase
 
@@ -101,8 +101,8 @@ Thus, raw pointers shall not be used to reference on-heap objects (except for ra
 The sweeping phase consists of the following steps:
 
 1. Invoke pre-finalizers.
-At this point, no destructors have been invoked and no memory has been reclaimed.
-Pre-finalizers are allowed to access any other on-heap objects, even those that may get destructed.
+   At this point, no destructors have been invoked and no memory has been reclaimed.
+   Pre-finalizers are allowed to access any other on-heap objects, even those that may get destructed.
 
 2. Sweeping invokes destructors of the dead (unreachable) objects and reclaims memory to be reused by future allocations.
 
@@ -125,9 +125,9 @@ Even with concurrent sweeping, destructors are guaranteed to run on the thread t
 
 Notes:
 
-* Weak processing runs only when the holder object of the WeakMember outlives the pointed object.
-If the holder object and the pointed object die at the same time, weak processing doesn't run.
-It is wrong to write code assuming that the weak processing always runs.
+- Weak processing runs only when the holder object of the WeakMember outlives the pointed object.
+  If the holder object and the pointed object die at the same time, weak processing doesn't run.
+  It is wrong to write code assuming that the weak processing always runs.
 
-* Pre-finalizers are heavy because the thread needs to scan all pre-finalizers at each sweeping phase to determine which pre-finalizers should be invoked (the thread needs to invoke pre-finalizers of dead objects).
-Adding pre-finalizers to frequently created objects should be avoided.
+- Pre-finalizers are heavy because the thread needs to scan all pre-finalizers at each sweeping phase to determine which pre-finalizers should be invoked (the thread needs to invoke pre-finalizers of dead objects).
+  Adding pre-finalizers to frequently created objects should be avoided.
