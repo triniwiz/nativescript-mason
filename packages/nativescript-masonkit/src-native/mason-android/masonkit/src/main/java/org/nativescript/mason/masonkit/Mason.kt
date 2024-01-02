@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import com.google.gson.Gson
+import dalvik.annotation.optimization.CriticalNative
 
 
 class Mason private constructor() {
@@ -44,9 +45,17 @@ class Mason private constructor() {
         .registerTypeAdapter(LengthPercentageSerializer::class.java, LengthPercentageSerializer())
         .registerTypeAdapter(LengthPercentageAutoSerializer::class.java, LengthPercentageAutoSerializer())
         .create()
+
+    @JvmStatic
+    @CriticalNative
+    private external fun nativeInit(): Long
+
+    @JvmStatic
+    @CriticalNative
+    private external fun nativeInitWithCapacity(capacity: Int): Long
+
+    @JvmStatic
+    @CriticalNative
+    private external fun nativeClear(mason: Long)
   }
-
-  private external fun nativeInit(): Long
-
-  private external fun nativeClear(mason: Long)
 }

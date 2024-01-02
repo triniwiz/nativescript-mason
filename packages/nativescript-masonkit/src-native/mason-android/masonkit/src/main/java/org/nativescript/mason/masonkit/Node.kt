@@ -3,6 +3,8 @@ package org.nativescript.mason.masonkit
 import android.os.Build
 import android.util.Log
 import android.view.ViewGroup
+import dalvik.annotation.optimization.CriticalNative
+import dalvik.annotation.optimization.FastNative
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 
@@ -103,12 +105,12 @@ class Node private constructor(private var nativePtr: Long) {
       if (it.parent == null) return
 
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) {
-          it.requestLayout()
+        it.requestLayout()
         return
       }
 
       if (!it.isInLayout) {
-          it.requestLayout()
+        it.requestLayout()
       }
     }
 
@@ -396,7 +398,7 @@ class Node private constructor(private var nativePtr: Long) {
   protected fun finalize() {
     if (nativePtr != 0L) {
       nativeDestroy(nativePtr)
-      nodes.remove(nativePtr);
+      nodes.remove(nativePtr)
       nativePtr = 0
       owner?.removeChild(this)
     }
@@ -411,12 +413,13 @@ class Node private constructor(private var nativePtr: Long) {
     internal val nodes = WeakHashMap<Long, Node>()
 
     @JvmStatic
-    fun requestLayout(node:Long) {
-        nodes.get(node)?.let {
-            it.updateNodeStyle();
-        }
+    fun requestLayout(node: Long) {
+      nodes[node]?.let {
+        it.updateNodeStyle();
+      }
     }
 
+    @CriticalNative
     @JvmStatic
     private external fun nativeNewNode(mason: Long, style: Long): Long
 
@@ -434,85 +437,137 @@ class Node private constructor(private var nativePtr: Long) {
       measure: Any
     ): Long
 
-  }
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeDestroy(
+      mason: Long,
+    )
 
-  private external fun nativeDestroy(
-    mason: Long,
-  )
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeCompute(mason: Long, node: Long)
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeComputeSize(mason: Long, node: Long, size: Long)
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeComputeWH(mason: Long, node: Long, width: Float, height: Float)
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeComputeMaxContent(mason: Long, node: Long)
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeComputeMinContent(mason: Long, node: Long)
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeAddChild(
+      mason: Long,
+      node: Long,
+      child: Long
+    )
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeAddChildAt(
+      mason: Long,
+      node: Long,
+      child: Long,
+      index: Int
+    )
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeReplaceChildAt(
+      mason: Long,
+      node: Long,
+      child: Long,
+      index: Int
+    ): Long
+
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeInsertChildBefore(
+      mason: Long,
+      node: Long,
+      child: Long,
+      reference: Long
+    )
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeInsertChildAfter(
+      mason: Long,
+      node: Long,
+      child: Long,
+      reference: Long
+    )
+
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeGetChildAt(mason: Long, node: Long, index: Int): Long
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeGetChildCount(mason: Long, node: Long): Int
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeMarkDirty(mason: Long, node: Long)
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeDirty(mason: Long, node: Long): Boolean
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeRemoveChildren(
+      mason: Long,
+      node: Long,
+    )
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeRemoveChildAt(
+      mason: Long,
+      node: Long,
+      index: Int
+    ): Long
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeRemoveChild(
+      mason: Long,
+      node: Long,
+      child: Long,
+    ): Long
+
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeSetStyle(mason: Long, node: Long, style: Long)
+
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeRemoveContext(
+      mason: Long,
+      node: Long
+    )
+
+  }
 
   private external fun nativeLayout(
     mason: Long,
     node: Long,
   ): FloatArray
 
-  private external fun nativeCompute(mason: Long, node: Long)
-
-  private external fun nativeComputeWH(mason: Long, node: Long, width: Float, height: Float)
-
-  private external fun nativeComputeMaxContent(mason: Long, node: Long)
-
-  private external fun nativeComputeMinContent(mason: Long, node: Long)
-
-  private external fun nativeAddChild(
-    mason: Long,
-    node: Long,
-    child: Long
-  )
-
-  private external fun nativeAddChildAt(
-    mason: Long,
-    node: Long,
-    child: Long,
-    index: Int
-  )
-
-  private external fun nativeReplaceChildAt(
-    mason: Long,
-    node: Long,
-    child: Long,
-    index: Int
-  ): Long
-
-
-  private external fun nativeInsertChildBefore(
-    mason: Long,
-    node: Long,
-    child: Long,
-    reference: Long
-  )
-
-  private external fun nativeInsertChildAfter(
-    mason: Long,
-    node: Long,
-    child: Long,
-    reference: Long
-  )
-
-
-  private external fun nativeGetChildAt(mason: Long, node: Long, index: Int): Long
-
-  private external fun nativeGetChildCount(mason: Long, node: Long): Int
-
-  private external fun nativeMarkDirty(mason: Long, node: Long)
-
-  private external fun nativeDirty(mason: Long, node: Long): Boolean
-
-  private external fun nativeRemoveChildren(
-    mason: Long,
-    node: Long,
-  )
-
-  private external fun nativeRemoveChildAt(
-    mason: Long,
-    node: Long,
-    index: Int
-  ): Long
-
-  private external fun nativeRemoveChild(
-    mason: Long,
-    node: Long,
-    child: Long,
-  ): Long
 
   private external fun nativeGetChildren(
     mason: Long,
@@ -525,12 +580,6 @@ class Node private constructor(private var nativePtr: Long) {
     measureFunc: Any
   )
 
-  private external fun nativeRemoveContext(
-    mason: Long,
-    node: Long
-  )
-
-  private external fun nativeSetStyle(mason: Long, node: Long, style: Long)
 
   private external fun nativeUpdateAndSetStyle(
     mason: Long, node: Long, style: Long, display: Int,
@@ -843,7 +892,6 @@ class Node private constructor(private var nativePtr: Long) {
     node: Long,
     style: Long
   ): FloatArray
-
 
 
 }

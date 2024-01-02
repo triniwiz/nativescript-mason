@@ -1,5 +1,5 @@
 use std::ffi::{c_float, c_int, c_void};
-use jni::objects::{JObject, JObjectArray};
+use jni::objects::{JClass, JObject, JObjectArray};
 use jni::signature::ReturnType;
 use jni::sys::{jfloat, jfloatArray, jint, jlong, jobjectArray, jshort};
 use jni::JNIEnv;
@@ -127,11 +127,6 @@ impl From<Vec<CMasonMinMax>> for CMasonNonRepeatedTrackSizingFunctionArray {
         array
     }
 }
-
-
-
-
-
 
 
 #[repr(C)]
@@ -271,7 +266,6 @@ impl Into<TrackSizingFunction> for &CMasonTrackSizingFunction {
 }
 
 
-
 #[no_mangle]
 pub extern "C" fn mason_destroy_track_sizing_function_array(
     array: *mut CMasonTrackSizingFunctionArray,
@@ -294,7 +288,6 @@ pub extern "C" fn mason_style_get_grid_auto_columns(
 
     Box::into_raw(Box::new(ret.into()))
 }
-
 
 
 #[no_mangle]
@@ -566,12 +559,8 @@ pub extern "C" fn mason_style_update_with_values(
 }
 
 
-
-
 #[no_mangle]
-pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeDestroy(
-    _: JNIEnv,
-    _: JObject,
+pub extern "system" fn StyleNativeDestroy(
     style: jlong,
 ) {
     if style == 0 {
@@ -583,9 +572,30 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeDestroy(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeInit(
-    _: JNIEnv,
-    _: JObject,
+pub extern "system" fn StyleNativeDestroyNormal(
+    _env: JNIEnv, _: JClass, style: jlong,
+) {
+    if style == 0 {
+        return;
+    }
+    unsafe {
+        let _ = Box::from_raw(style as *mut Style);
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeInit() -> jlong {
+    let mut style: Style = Style::default();
+    style.set_align_content(align_content_from_enum(0));
+    style.set_flex_basis(Dimension::Auto);
+    style.set_flex_grow(0.0);
+    style.set_flex_shrink(0.0);
+    style.into_raw() as jlong
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeInitNormal(
+    _env: JNIEnv, _: JClass,
 ) -> jlong {
     let mut style: Style = Style::default();
     style.set_align_content(align_content_from_enum(0));

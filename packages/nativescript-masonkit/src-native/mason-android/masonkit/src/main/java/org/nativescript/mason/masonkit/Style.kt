@@ -1,5 +1,7 @@
 package org.nativescript.mason.masonkit
 
+import dalvik.annotation.optimization.CriticalNative
+
 
 enum class AlignItems(val value: Int) {
   Normal(-1),
@@ -1703,13 +1705,18 @@ class Style internal constructor() {
     init {
       Mason.initLib()
     }
+
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeDestroy(
+      style: Long,
+    )
+
+    @CriticalNative
+    @JvmStatic
+    private external fun nativeInit(): Long
   }
-
-  private external fun nativeDestroy(
-    style: Long,
-  )
-
-  private external fun nativeInit(): Long
 
   private external fun nativeInitWithValues(
     display: Int,
