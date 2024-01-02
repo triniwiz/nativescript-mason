@@ -1,1 +1,18 @@
 dependencies {implementation 'com.google.code.gson:gson:2.10'}
+
+android {
+  defaultConfig {
+    multiDexEnabled true
+  }      
+      packagingOptions {
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+        pickFirst 'lib/x86_64/libc++_shared.so'
+        pickFirst 'lib/x86/libc++_shared.so'
+
+         pickFirst 'lib/armeabi-v7a/libNativeScript.so'
+        pickFirst 'lib/arm64-v8a/libNativeScript.so'
+        pickFirst 'lib/x86_64/libNativeScript.so'
+        pickFirst 'lib/x86/libNativeScript.so'
+      }          
+}

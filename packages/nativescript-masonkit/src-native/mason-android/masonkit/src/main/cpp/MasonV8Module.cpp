@@ -8,188 +8,169 @@
 
 using namespace std;
 
-[[maybe_unused]] rust::Vec<CMasonNonRepeatedTrackSizingFunction>
-toNonRepeatedTrackSizingFunction(v8::Isolate *isolate, v8::Local<v8::Array> &array)
-{
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  auto len = array->Length();
 
-  auto auto_vec = rust::Vec<CMasonNonRepeatedTrackSizingFunction>();
+using namespace std;
 
-  if (len == 0)
-  {
-    return std::move(auto_vec);
-  }
-
-  auto_vec.reserve(len);
-
-  for (int i = 0; i < len; i++)
-  {
-    auto value = array->Get(context, i).ToLocalChecked().As<v8::Object>();
-
-    // object {type: number, min_type: number, min_value: number, max_type: number, max_value: number};
-    auto min_type = value->Get(context,
-                               STRING_TO_V8_VALUE("min_type"))
-                        .ToLocalChecked()
-                        ->Int32Value(
-                            context)
-                        .FromJust();
-    auto min_value = (float)value->Get(context, STRING_TO_V8_VALUE(
-                                                    "min_value"))
-                         .ToLocalChecked()
-                         ->NumberValue(context)
-                         .FromJust();
-
-    auto max_type = value->Get(context,
-                               STRING_TO_V8_VALUE("max_type"))
-                        .ToLocalChecked()
-                        ->Int32Value(
-                            context)
-                        .FromJust();
-    auto max_value = (float)value->Get(context, STRING_TO_V8_VALUE(
-                                                    "max_value"))
-                         .ToLocalChecked()
-                         ->NumberValue(context)
-                         .FromJust();
-
-    CMasonMinMax minMax = {};
-    minMax.min_type = min_type;
-    minMax.min_value = min_value;
-    minMax.max_type = max_type;
-    minMax.max_value = max_value;
-
-    mason_util_create_non_repeated_track_sizing_function(minMax, -1, auto_vec);
-  }
-
-  return std::move(auto_vec);
+void destroy_c_mason_track_sizing_function(CMasonTrackSizingFunction tracking) {
+    switch (tracking.tag) {
+        case Repeat: {
+            auto array = tracking.repeat._2;
+            if (array != nullptr) {
+                free(array->array);
+                free(array);
+            };
+        }
+            break;
+        default:
+            break;
+    }
 }
 
-[[maybe_unused]] rust::Vec<CMasonTrackSizingFunction>
-toTrackSizingFunction(v8::Isolate *isolate, v8::Local<v8::Array> &array)
-{
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  auto len = array->Length();
+std::vector<CMasonMinMax>
+toNonRepeatedTrackSizingFunction(v8::Isolate *isolate, v8::Local<v8::Array> &array) {
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    auto len = array->Length();
 
-  auto auto_vec = rust::Vec<CMasonTrackSizingFunction>();
+    std::vector<CMasonMinMax> buffer;
 
-  if (len == 0)
-  {
-    return std::move(auto_vec);
-  }
+    if (len == 0) {
+        return buffer;
+    }
 
-  auto_vec.reserve(len);
+    buffer.reserve(len);
 
-  for (int i = 0; i < len; i++)
-  {
-    auto object = array->Get(context, i).ToLocalChecked().As<v8::Object>();
-    bool is_repeating = object->Get(context, STRING_TO_V8_VALUE(
-                                                 "is_repeating"))
-                            .ToLocalChecked()
-                            ->BooleanValue(isolate);
-    auto repeating_type = object->Get(context, STRING_TO_V8_VALUE(
-                                                   "repeating_type"))
-                              .ToLocalChecked()
-                              ->Int32Value(context)
-                              .FromJust();
-    auto repeating_count = (short)object->Get(context, STRING_TO_V8_VALUE(
-                                                           "repeating_count"))
-                               .ToLocalChecked()
-                               ->Int32Value(context)
-                               .FromJust();
 
-    auto value = object->Get(context, STRING_TO_V8_VALUE("value"));
-    if (is_repeating)
-    {
-      auto value_array = value.ToLocalChecked().As<v8::Array>();
-      auto repeating_length = value_array->Length();
+    for (int i = 0; i < len; i++) {
+        auto value = array->Get(context, i).ToLocalChecked().As<v8::Object>();
 
-      rust::Vec<CMasonMinMax> vec;
-      vec.reserve(repeating_length);
+        // object {type: number, min_type: number, min_value: number, max_type: number, max_value: number};
+        auto min_type = value->Get(context,
+                                   STRING_TO_V8_VALUE("min_type")).ToLocalChecked()->Int32Value(
+                context).FromJust();
+        auto min_value = (float) value->Get(context, STRING_TO_V8_VALUE(
+                "min_value")).ToLocalChecked()->NumberValue(context).FromJust();
 
-      for (int j = 0; j < repeating_length; j++)
-      {
-        auto repeat_object = value_array->Get(context, i).ToLocalChecked().As<v8::Object>();
+        auto max_type = value->Get(context,
+                                   STRING_TO_V8_VALUE("max_type")).ToLocalChecked()->Int32Value(
+                context).FromJust();
+        auto max_value = (float) value->Get(context, STRING_TO_V8_VALUE(
+                "max_value")).ToLocalChecked()->NumberValue(context).FromJust();
 
-        auto min_type = repeat_object->Get(context, STRING_TO_V8_VALUE(
-                                                        "min_type"))
-                            .ToLocalChecked()
-                            ->Int32Value(context)
-                            .FromJust();
-        auto min_value = (float)repeat_object->Get(context, STRING_TO_V8_VALUE(
-                                                                "min_value"))
-                             .ToLocalChecked()
-                             ->NumberValue(context)
-                             .FromJust();
-
-        auto max_type = repeat_object->Get(context, STRING_TO_V8_VALUE(
-                                                        "max_type"))
-                            .ToLocalChecked()
-                            ->Int32Value(context)
-                            .FromJust();
-        auto max_value = (float)repeat_object->Get(context, STRING_TO_V8_VALUE(
-                                                                "max_value"))
-                             .ToLocalChecked()
-                             ->NumberValue(context)
-                             .FromJust();
-
-        CMasonMinMax minMax{};
+        CMasonMinMax minMax;
         minMax.min_type = min_type;
         minMax.min_value = min_value;
-
         minMax.max_type = max_type;
         minMax.max_value = max_value;
 
-        vec.emplace_back(minMax);
-      }
-
-      mason_util_create_auto_repeating_track_sizing_function(
-          repeating_type, repeating_count, std::move(vec), -1, auto_vec);
+        buffer.push_back(minMax);
     }
-    else
-    {
-      auto single_object = value.ToLocalChecked().As<v8::Object>();
 
-      auto min_type = single_object->Get(context, STRING_TO_V8_VALUE(
-                                                      "min_type"))
-                          .ToLocalChecked()
-                          ->Int32Value(context)
-                          .FromJust();
-      auto min_value = (float)single_object->Get(context, STRING_TO_V8_VALUE(
-                                                              "min_value"))
-                           .ToLocalChecked()
-                           ->NumberValue(context)
-                           .FromJust();
-
-      auto max_type = single_object->Get(context, STRING_TO_V8_VALUE(
-                                                      "max_type"))
-                          .ToLocalChecked()
-                          ->Int32Value(context)
-                          .FromJust();
-      auto max_value = (float)single_object->Get(context, STRING_TO_V8_VALUE(
-                                                              "max_value"))
-                           .ToLocalChecked()
-                           ->NumberValue(context)
-                           .FromJust();
-
-      CMasonMinMax minMax{};
-      minMax.min_type = min_type;
-      minMax.min_value = min_value;
-
-      minMax.max_type = max_type;
-      minMax.max_value = max_value;
-
-      mason_util_create_single_track_sizing_function(minMax, -1, auto_vec);
-    }
-  }
-
-  return std::move(auto_vec);
+    return buffer;
 }
 
-void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
-{
+std::vector<CMasonTrackSizingFunction>
+toTrackSizingFunction(v8::Isolate *isolate, v8::Local<v8::Array> &jsArray) {
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    auto len = jsArray->Length();
 
-  CREATE_V8_MODULE("MasonV8Module", [](v8::Local<v8::Object> moduleObject)
-                   {
+    std::vector<CMasonTrackSizingFunction> buffer;
+
+    if (len == 0) {
+        return buffer;
+    }
+
+    buffer.reserve(len);
+
+    for (int i = 0; i < len; i++) {
+        auto object = jsArray->Get(context, i).ToLocalChecked().As<v8::Object>();
+        bool is_repeating = object->Get(context, STRING_TO_V8_VALUE(
+                "is_repeating")).ToLocalChecked()->BooleanValue(isolate);
+        auto repeating_type = object->Get(context, STRING_TO_V8_VALUE(
+                "repeating_type")).ToLocalChecked()->Int32Value(context).FromJust();
+        auto repeating_count = (short) object->Get(context, STRING_TO_V8_VALUE(
+                "repeating_count")).ToLocalChecked()->Int32Value(context).FromJust();
+
+        auto value = object->Get(context, STRING_TO_V8_VALUE("value"));
+        if (is_repeating) {
+            auto value_array = value.ToLocalChecked().As<v8::Array>();
+            auto repeating_length = value_array->Length();
+
+            auto min_max_size = sizeof(CMasonMinMax);
+            auto tracks = (CMasonMinMax *) malloc(repeating_length * min_max_size);
+
+            for (int j = 0; j < repeating_length; j++) {
+                auto repeat_object = value_array->Get(context, i).ToLocalChecked().As<v8::Object>();
+
+                auto min_type = repeat_object->Get(context, STRING_TO_V8_VALUE(
+                        "min_type")).ToLocalChecked()->Int32Value(context).FromJust();
+                auto min_value = (float) repeat_object->Get(context, STRING_TO_V8_VALUE(
+                        "min_value")).ToLocalChecked()->NumberValue(context).FromJust();
+
+                auto max_type = repeat_object->Get(context, STRING_TO_V8_VALUE(
+                        "max_type")).ToLocalChecked()->Int32Value(context).FromJust();
+                auto max_value = (float) repeat_object->Get(context, STRING_TO_V8_VALUE(
+                        "max_value")).ToLocalChecked()->NumberValue(context).FromJust();
+
+                CMasonMinMax minMax;
+                minMax.min_type = min_type;
+                minMax.min_value = min_value;
+
+                minMax.max_type = max_type;
+                minMax.max_value = max_value;
+
+                tracks[i * min_max_size] = minMax;;
+            }
+
+            CMasonTrackSizingFunction repeat;
+            repeat.tag = Repeat;
+            Repeat_Body body;
+            body._0 = repeating_type;
+            auto array = (CMasonNonRepeatedTrackSizingFunctionArray *) malloc(
+                    sizeof(CMasonNonRepeatedTrackSizingFunctionArray));
+            array->array = tracks;
+            array->length = repeating_length;
+            body._1 = repeating_count;
+            body._2 = array;
+            repeat.repeat = body;
+            buffer.emplace_back(repeat);
+
+        } else {
+
+            CMasonTrackSizingFunction single;
+            single.tag = Single;
+
+            auto single_object = value.ToLocalChecked().As<v8::Object>();
+
+            auto min_type = single_object->Get(context, STRING_TO_V8_VALUE(
+                    "min_type")).ToLocalChecked()->Int32Value(context).FromJust();
+            auto min_value = (float) single_object->Get(context, STRING_TO_V8_VALUE(
+                    "min_value")).ToLocalChecked()->NumberValue(context).FromJust();
+
+            auto max_type = single_object->Get(context, STRING_TO_V8_VALUE(
+                    "max_type")).ToLocalChecked()->Int32Value(context).FromJust();
+            auto max_value = (float) single_object->Get(context, STRING_TO_V8_VALUE(
+                    "max_value")).ToLocalChecked()->NumberValue(context).FromJust();
+
+            CMasonMinMax minMax;
+            minMax.min_type = min_type;
+            minMax.min_value = min_value;
+
+            minMax.max_type = max_type;
+            minMax.max_value = max_value;
+
+            single.single = minMax;
+
+            buffer.emplace_back(single);
+        }
+    }
+
+    return buffer;
+}
+
+
+void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
+
+    CREATE_V8_MODULE("MasonV8Module", [](v8::Local<v8::Object> moduleObject) {
         CREATE_FUNCTION("updateNodeAndStyle", {
                 MASON_ENTER_WITH_NODE_AND_STYLE
                 mason_node_update_and_set_style(mason, node, style);
@@ -345,12 +326,26 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 GET_FLOAT_ARG(65, aspectRatio)
 
                 auto gridAutoRowsValue = info[66].As<v8::Array>();
-                auto gridAutoRows = toNonRepeatedTrackSizingFunction(isolate,
+                auto gridAutoRowsBuffer = toNonRepeatedTrackSizingFunction(isolate,
                 gridAutoRowsValue);
 
+
+                CMasonNonRepeatedTrackSizingFunctionArray gridAutoRows = {};
+                gridAutoRows.array = gridAutoRowsBuffer.data();
+                gridAutoRows.length = gridAutoRowsBuffer.size();
+
                 auto gridAutoColumnsValue = info[67].As<v8::Array>();
-                auto gridAutoColumns = toNonRepeatedTrackSizingFunction(isolate,
+                auto gridAutoColumnsBuffer = toNonRepeatedTrackSizingFunction(isolate,
                 gridAutoColumnsValue);
+
+
+                CMasonNonRepeatedTrackSizingFunctionArray gridAutoColumns = {};
+                gridAutoColumns.array = gridAutoColumnsBuffer.data();
+                gridAutoColumns.length = gridAutoColumnsBuffer.size();
+
+
+
+
 
                 GET_INT_ARG(68, gridAutoFlow)
 
@@ -369,8 +364,23 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 auto gridTemplateRowsValue = info[77].As<v8::Array>();;
                 auto gridTemplateColumnsValue = info[78].As<v8::Array>();;
 
-                auto gridTemplateRows = toTrackSizingFunction(isolate, gridTemplateRowsValue);
-                auto gridTemplateColumns = toTrackSizingFunction(isolate, gridTemplateColumnsValue);
+                auto gridTemplateRowsBuffer = toTrackSizingFunction(isolate, gridTemplateRowsValue);
+
+                CMasonTrackSizingFunctionArray gridTemplateRows = {};
+
+                gridTemplateRows.array = gridTemplateRowsBuffer.data();
+                gridTemplateRows.length = gridTemplateRowsBuffer.size();
+
+
+                auto gridTemplateColumnsBuffer = toTrackSizingFunction(isolate, gridTemplateColumnsValue);
+
+
+                CMasonTrackSizingFunctionArray gridTemplateColumns = {};
+
+                gridTemplateColumns.array = gridTemplateColumnsBuffer.data();
+                gridTemplateColumns.length = gridTemplateColumnsBuffer.size();
+
+
 
                 GET_INT_ARG(79, overflowX)
                 GET_INT_ARG(80, overflowY)
@@ -426,8 +436,8 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 gapRowType, gapRowValue,
                 gapColumnType, gapColumnValue,
                 aspectRatio,
-                std::move(gridAutoRows),
-                std::move(gridAutoColumns),
+                &gridAutoRows,
+                &gridAutoColumns,
                 gridAutoFlow,
 
                 gridColumnStartType, gridColumnStartValue,
@@ -436,10 +446,25 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 gridRowStartType, gridRowStartValue,
                 gridRowEndType, gridRowEndValue,
 
-                std::move(gridTemplateRows), std::move(gridTemplateColumns),
+                &gridTemplateRows, &gridTemplateColumns,
                 overflowX,
                 overflowY,
                 scrollbarWidth);
+
+
+
+
+                for (int i = 0; i < gridTemplateRowsBuffer.size();i++){
+                    auto it = gridTemplateRowsBuffer[i];
+                    destroy_c_mason_track_sizing_function(it);
+                }
+
+                for (int i = 0; i < gridTemplateColumnsBuffer.size();i++){
+                    auto it = gridTemplateColumnsBuffer[i];
+                    destroy_c_mason_track_sizing_function(it);
+                }
+
+
         })
 
         CREATE_FUNCTION("isDirty", {
@@ -505,7 +530,7 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
         MASON_SET_LENGTH_PROPERTY("setInsetRight", mason_style_set_inset_right)
         MASON_GET_LENGTH_PROPERTY("getInsetRight", mason_style_get_inset_right)
 
-        MASON_SET_LENGTH_PROPERTY("setInset", mason_style_set_margin)
+        MASON_SET_LENGTH_PROPERTY("setMargin", mason_style_set_margin)
 
         MASON_SET_LENGTH_PROPERTY("setMarginTop", mason_style_set_margin_top)
         MASON_GET_LENGTH_PROPERTY("getMarginTop", mason_style_get_margin_top)
@@ -577,30 +602,43 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
         CREATE_FUNCTION("getGridAutoRows", {
                 MASON_ENTER_WITH_NODE_AND_STYLE
                 auto rows = mason_style_get_grid_auto_rows(style);
-                auto parsed = mason_util_parse_non_repeated_track_sizing_function_value(rows);
-                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed.c_str()));
+                auto parsed = mason_util_parse_non_repeated_track_sizing_function(rows);
+                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed));
+                mason_util_destroy_string(parsed);
         })
 
         CREATE_FUNCTION("setGridAutoRows", {
                 MASON_ENTER_WITH_NODE_AND_STYLE
                 auto array = info[3].As<v8::Array>();
                 auto value = toNonRepeatedTrackSizingFunction(isolate, array);
-                mason_style_set_grid_auto_rows(style, std::move(value));
+
+                CMasonNonRepeatedTrackSizingFunctionArray val;
+                val.array = value.data();
+                val.length = value.size();
+
+                mason_style_set_grid_auto_rows(style, &val);
                 MASON_UPDATE_NODE(info[4])
         })
 
         CREATE_FUNCTION("getGridAutoColumns", {
                 MASON_ENTER_WITH_NODE_AND_STYLE
                 auto columns = mason_style_get_grid_auto_columns(style);
-                auto parsed = mason_util_parse_non_repeated_track_sizing_function_value(columns);
-                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed.c_str()));
+                auto parsed = mason_util_parse_non_repeated_track_sizing_function(columns);
+                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed));
+                mason_util_destroy_string(parsed);
         })
 
         CREATE_FUNCTION("setGridAutoColumns", {
                 MASON_ENTER_WITH_NODE_AND_STYLE
                 auto array = info[3].As<v8::Array>();
                 auto value = toNonRepeatedTrackSizingFunction(isolate, array);
-                mason_style_set_grid_auto_columns(style, std::move(value));
+
+
+                CMasonNonRepeatedTrackSizingFunctionArray val;
+                val.array = value.data();
+                val.length = value.size();
+
+                mason_style_set_grid_auto_columns(style, &val);
                 MASON_UPDATE_NODE(info[4])
         })
 
@@ -629,33 +667,39 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 if (col_start.value == col_end.value &&
                 col_start.value_type == col_end.value_type)
                 {
-                    if (col_start.value_type == CMasonGridPlacementType::Auto) {
+                    if (col_start.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_start.value;
-                        if (col_start.value_type == CMasonGridPlacementType::Span) {
+                        if (col_start.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
                 }
                 else
                 {
-                    if (col_start.value_type == CMasonGridPlacementType::Auto) {
+                    if (col_start.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_start.value;
-                        if (col_start.value_type == CMasonGridPlacementType::Span) {
+                        if (col_start.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
 
                     ss << " / ";
 
-                    if (col_end.value_type == CMasonGridPlacementType::Auto) {
+                    if (col_end.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_end.value;
-                        if (col_end.value_type == CMasonGridPlacementType::Span) {
+                        if (col_end.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
@@ -666,33 +710,39 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 if (row_start.value == row_end.value &&
                 row_start.value_type == row_end.value_type)
                 {
-                    if (row_start.value_type == CMasonGridPlacementType::Auto) {
+                    if (row_start.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_start.value;
-                        if (row_start.value_type == CMasonGridPlacementType::Span) {
+                        if (row_start.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
                 }
                 else
                 {
-                    if (row_start.value_type == CMasonGridPlacementType::Auto) {
+                    if (row_start.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_start.value;
-                        if (row_start.value_type == CMasonGridPlacementType::Span) {
+                        if (row_start.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
 
                     row_ss << " / ";
 
-                    if (row_end.value_type == CMasonGridPlacementType::Auto) {
+                    if (row_end.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_end.value;
-                        if (row_end.value_type == CMasonGridPlacementType::Span) {
+                        if (row_end.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
@@ -779,33 +829,39 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 if (col_start.value == col_end.value &&
                 col_start.value_type == col_end.value_type)
                 {
-                    if (col_start.value_type == CMasonGridPlacementType::Auto) {
+                    if (col_start.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_start.value;
-                        if (col_start.value_type == CMasonGridPlacementType::Span) {
+                        if (col_start.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
                 }
                 else
                 {
-                    if (col_start.value_type == CMasonGridPlacementType::Auto) {
+                    if (col_start.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_start.value;
-                        if (col_start.value_type == CMasonGridPlacementType::Span) {
+                        if (col_start.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
 
                     ss << " / ";
 
-                    if (col_end.value_type == CMasonGridPlacementType::Auto) {
+                    if (col_end.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_end.value;
-                        if (col_end.value_type == CMasonGridPlacementType::Span) {
+                        if (col_end.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
@@ -868,33 +924,39 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 if (row_start.value == row_end.value &&
                 row_start.value_type == row_end.value_type)
                 {
-                    if (row_start.value_type == CMasonGridPlacementType::Auto) {
+                    if (row_start.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_start.value;
-                        if (row_start.value_type == CMasonGridPlacementType::Span) {
+                        if (row_start.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
                 }
                 else
                 {
-                    if (row_start.value_type == CMasonGridPlacementType::Auto) {
+                    if (row_start.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_start.value;
-                        if (row_start.value_type == CMasonGridPlacementType::Span) {
+                        if (row_start.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
 
                     row_ss << " / ";
 
-                    if (row_end.value_type == CMasonGridPlacementType::Auto) {
+                    if (row_end.value_type ==
+                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_end.value;
-                        if (row_end.value_type == CMasonGridPlacementType::Span) {
+                        if (row_end.value_type ==
+                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
@@ -954,14 +1016,16 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
                 MASON_ENTER_WITH_STYLE
                 auto rows = mason_style_get_grid_template_rows(style);
                 auto parsed = mason_util_parse_auto_repeating_track_sizing_function(rows);
-                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed.c_str()));
+                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed));
+                mason_util_destroy_string(parsed);
         })
 
         CREATE_FUNCTION("getGridTemplateColumns", {
                 MASON_ENTER_WITH_STYLE
                 auto columns = mason_style_get_grid_template_columns(style);
                 auto parsed = mason_util_parse_auto_repeating_track_sizing_function(columns);
-                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed.c_str()));
+                info.GetReturnValue().Set(STRING_TO_V8_VALUE(parsed));
+                mason_util_destroy_string(parsed);
         })
 
         CREATE_FUNCTION("setGridTemplateRows", {
@@ -969,7 +1033,19 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
 
                 auto array = info[3].As<v8::Array>();
                 auto value = toTrackSizingFunction(isolate, array);
-                mason_style_set_grid_template_rows(style, std::move(value));
+
+                CMasonTrackSizingFunctionArray rows = {};
+                rows.array = value.data();
+                rows.length = value.size();
+
+                mason_style_set_grid_template_rows(style, &rows);
+
+                for (int i = 0; i < value.size();i++){
+                    auto it = value[i];
+                    destroy_c_mason_track_sizing_function(it);
+                }
+
+
                 MASON_UPDATE_NODE(info[4])
         })
 
@@ -978,7 +1054,21 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
 
                 auto array = info[3].As<v8::Array>();
                 auto value = toTrackSizingFunction(isolate, array);
-                mason_style_set_grid_template_columns(style, std::move(value));
+
+                CMasonTrackSizingFunctionArray columns = {};
+                columns.array = value.data();
+                columns.length = value.size();
+
+
+                mason_style_set_grid_template_columns(style, &columns);
+
+
+                for (int i = 0; i < value.size();i++){
+                    auto it = value[i];
+                    destroy_c_mason_track_sizing_function(it);
+                }
+
+
                 MASON_UPDATE_NODE(info[4])
         })
 
@@ -991,5 +1081,6 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate)
         CREATE_FUNCTION("getComputedLayout", {
                 MASON_ENTER_WITH_NODE
                 // TODO
-        }) });
+        })
+    });
 }

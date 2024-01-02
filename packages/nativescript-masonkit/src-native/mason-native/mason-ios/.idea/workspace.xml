@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="d4b88a73-826e-49cf-b065-b01e4cb0b004" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../../mason-android/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../mason-android/.idea/gradle.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../mason-android/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../mason-android/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../mason-android/masonkit/src/main/cpp/MasonV8Module.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../../mason-android/masonkit/src/main/cpp/MasonV8Module.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-android/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-android/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-core/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-core/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-core/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-core/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-core/src/style.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-core/src/style.rs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../../../../.." />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="ufvkk0qc" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 5
+}]]></component>
+  <component name="ProjectId" id="2ZReDmC9R6nxvflmWCp4gGL1xXC" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-native/mason-ios",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager" selected="Cargo.Test mason-ios">
+    <configuration name="Run mason-playground" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="run --package mason-playground --bin mason-playground" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test mason-ios" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="test --workspace" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="d4b88a73-826e-49cf-b065-b01e4cb0b004" name="Changes" comment="" />
+      <created>1702389201783</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1702389201783</updated>
+      <workItem from="1702389202784" duration="44000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

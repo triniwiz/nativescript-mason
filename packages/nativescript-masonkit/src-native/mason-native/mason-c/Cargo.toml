@@ -1,0 +1,8 @@
+[package]
+name = "mason-c"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+mason-core = { path = "../mason-core" }

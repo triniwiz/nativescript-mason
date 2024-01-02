@@ -122,20 +122,20 @@ void mason_destroy(void *mason);
 
 void mason_clear(void *mason);
 
+void *mason_node_get_style(void *mason, void *node);
+
+bool mason_node_is_equal(void *node_a, void *node_b);
+
 void mason_node_array_destroy(struct NodeArray array);
 
 void mason_node_destroy(void *node);
 
 void *mason_node_new_node(void *mason, void *style);
 
-void *mason_node_new_node_with_measure_func(void *mason,
-                                            void *style,
-                                            void *measure_data,
-                                            long long (*measure)(const void*,
-                                                                 float,
-                                                                 float,
-                                                                 float,
-                                                                 float));
+void *mason_node_new_node_with_context(void *mason,
+                                       void *style,
+                                       void *measure_data,
+                                       long long (*measure)(const void*, float, float, float, float));
 
 void *mason_node_new_node_with_children(void *mason,
                                         void *style,
@@ -471,12 +471,12 @@ void *mason_node_remove_child(void *mason, void *node, void *child);
 
 struct NodeArray mason_node_get_children(void *mason, void *node);
 
-void mason_node_set_measure_func(void *mason,
-                                 void *node,
-                                 void *measure_data,
-                                 long long (*measure)(const void*, float, float, float, float));
+void mason_node_set_context(void *mason,
+                            void *node,
+                            void *measure_data,
+                            long long (*measure)(const void*, float, float, float, float));
 
-void mason_node_remove_measure_func(void *mason, void *node);
+void mason_node_remove_context(void *mason, void *node);
 
 void mason_destroy_non_repeated_track_sizing_function_array(struct CMasonNonRepeatedTrackSizingFunctionArray *array);
 

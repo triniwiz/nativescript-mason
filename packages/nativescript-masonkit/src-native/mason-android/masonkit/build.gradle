@@ -1,11 +1,7 @@
 plugins {
   id 'com.android.library'
   id 'org.jetbrains.kotlin.android'
- // id 'org.mozilla.rust-android-gradle.rust-android'
 }
-import org.apache.tools.ant.taskdefs.condition.Os
-
-
 
 def NDK_PATH = ""
 def hasNdkDirectory = project.hasProperty("ndkDirectory")
@@ -27,8 +23,6 @@ if(!hasNdkDirectory){
 }
 println "Runtime using NDK_PATH: " + NDK_PATH
 
-
-
 android {
   namespace 'org.nativescript.mason.masonkit'
   compileSdk 33
@@ -41,14 +35,14 @@ android {
 
     externalNativeBuild {
       cmake {
+        cppFlags "-std=c++17"
         arguments "-DANDROID_TOOLCHAIN=clang",
-          "-DANDROID_STL=c++_shared",
+          "-DANDROID_STL=c++_static",
           "-DANDROID_NDK_ROOT=${System.getenv("ANDROID_NDK_ROOT")}"
       }
     }
     ndk {
       abiFilters 'x86','x86_64', 'armeabi-v7a', 'arm64-v8a'
-      //abiFilters 'x86_64'
     }
   }
 
@@ -72,7 +66,7 @@ android {
     }
   }
 
-  ndkVersion '21.4.7075529'
+  ndkVersion "22.1.7171670"
 }
 
 dependencies {
@@ -87,74 +81,3 @@ dependencies {
   implementation 'androidx.multidex:multidex:2.0.1'
 
 }
-
-
-/*
-cargo {
-  module = "../../mason-native"
-  libname = "masonnative"
-  targets = ["arm64"]
-  //targets = ["arm", "arm64", "x86", "x86_64"]
-  apiLevels = [
-    "arm"   : 17,
-    "arm64" : 21,
-    "x86"   : 17,
-    "x86_64": 21
-  ]
-  profile = 'release'
-
-  extraCargoBuildArguments = ['-Z', "build-std=std,panic_abort", '-Z', 'build-std-features=panic_immediate_abort', '-p', 'mason-android']
-  rustupChannel = "nightly"
-}
-*/
-
-
-def targets = ["arm", "arm64", "x86", "x86_64"]
-tasks.whenTaskAdded { task ->
-//  if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
-//    task.dependsOn 'cargoBuild'
-//  }
-
-  for (target in targets) {
-    if (task.name == "cargoBuild${target.capitalize()}") {
-      task.dependsOn "copy_libc++_shared${target.capitalize()}"
-    }
-  }
-}
-
-for (target in targets) {
-  tasks.register("copy_libc++_shared${target.capitalize()}", Copy) {
-    def ndkDir = project.ndkDirectory
-    // hostTag, abi and archTriple from: https://developer.android.com/ndk/guides/other_build_systems
-
-    def hostTag
-    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-      if (Os.isArch("x86_64") || Os.isArch("amd64")) {
-        hostTag = "windows-x86_64"
-      } else {
-        hostTag = "windows"
-      }
-    } else if (Os.isFamily(Os.FAMILY_MAC)) {
-      hostTag = "darwin-x86_64"
-    } else {
-      hostTag = "linux-x86_64"
-    }
-
-    def (abi, archTriple) = [
-      arm   : ['armeabi-v7a', 'arm-linux-androideabi'],
-      arm64 : ['arm64-v8a', 'aarch64-linux-android'],
-      x86   : ['x86', 'i686-linux-android'],
-      x86_64: ['x86_64', 'x86_64-linux-android'],
-    ][target]
-
-    def from_path = "$ndkDir/toolchains/llvm/prebuilt/$hostTag/sysroot/usr/lib/$archTriple/libc++_shared.so"
-    def into_path = layout.buildDirectory.dir("rustJniLibs/android/$abi")
-
-    assert file(from_path).exists()
-
-    from from_path
-    into into_path
-  }
-}
-
-

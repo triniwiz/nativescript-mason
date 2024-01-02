@@ -31,6 +31,6 @@ android {
 dependencies {
   androidTestImplementation('com.wix:detox:+') { transitive = true }
   androidTestImplementation 'com.squareup.okhttp3:okhttp:+'
-  implementation project(":masonkit")
+  // implementation project(":masonkit")
   implementation 'androidx.multidex:multidex:2.0.1'
 }

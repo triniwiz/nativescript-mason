@@ -741,7 +741,7 @@ impl Style {
                 2 => Display::Grid,
                 _ => panic!(),
             },
-            scrollbar_width: scrollbar_width,
+            scrollbar_width,
             overflow: Point {
                 x: overflow_from_enum(overflow_x),
                 y: overflow_from_enum(overflow_y),
@@ -773,14 +773,6 @@ impl Style {
                 _ => panic!(),
             },
 
-            /*
-            overflow: match overflow {
-                0 => Overflow::Visible,
-                1 => Overflow::Hidden,
-                2 => Overflow::Scroll,
-                _ => panic!(),
-            },
-            */
             align_items: align_items_from_enum(align_items),
 
             align_self: align_self_from_enum(align_self),
@@ -970,15 +962,6 @@ impl Style {
         if let Some(flex_wrap) = flex_wrap_from_enum(flex_wrap) {
             style.style.flex_wrap = flex_wrap;
         }
-
-        /*
-        overflow: match overflow {
-            0 => Overflow::Visible,
-            1 => Overflow::Hidden,
-            2 => Overflow::Scroll,
-            _ => panic!(),
-        },
-        */
 
         style.style.scrollbar_width = scrollbar_width;
 

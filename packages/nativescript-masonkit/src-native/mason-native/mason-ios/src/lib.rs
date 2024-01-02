@@ -6,9 +6,10 @@ pub mod node;
 pub mod style;
 pub mod util;
 
+
 #[no_mangle]
 pub extern "C" fn mason_init() -> *mut c_void {
-    Mason::new().into_raw() as *mut c_void
+    Mason::default().into_raw() as *mut c_void
 }
 
 #[no_mangle]
@@ -37,4 +38,3 @@ pub extern "C" fn mason_clear(mason: *mut c_void) {
         Box::leak(mason);
     }
 }
-

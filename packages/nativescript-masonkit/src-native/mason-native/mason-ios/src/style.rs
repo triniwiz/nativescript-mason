@@ -1773,6 +1773,7 @@ fn overflow_to_int(value: Overflow) -> i32 {
         Overflow::Visible => 0,
         Overflow::Hidden => 1,
         Overflow::Scroll => 2,
+        Overflow::Clip => 3
     }
 }
 

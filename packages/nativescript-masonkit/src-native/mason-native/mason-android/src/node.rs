@@ -1,13 +1,12 @@
-use jni::objects::{GlobalRef, JClass, JObject, JPrimitiveArray, JValue, ReleaseMode};
+use jni::objects::{JClass, JObject, JPrimitiveArray, ReleaseMode};
 use jni::sys::{
     jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, jobjectArray, jshort, JNI_FALSE,
     JNI_TRUE,
 };
-use jni::{JavaVM, JNIEnv};
+use jni::JNIEnv;
 
-use crate::style::{to_vec_non_repeated_track_sizing_function, to_vec_track_sizing_function};
-use mason_core::tree::{Measurable, MeasureFunc};
-use mason_core::{AvailableSpace, Mason, MeasureOutput, Node, Size};
+use crate::style::{to_vec_non_repeated_track_sizing_function_jni, to_vec_track_sizing_function_jni};
+use mason_core::{AvailableSpace, Mason, MeasureOutput, Node, NodeContext, Size};
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeDestroy(
@@ -23,50 +22,6 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeDestroy(
     }
 }
 
-struct MeasureFunction {
-    jvm: JavaVM,
-    measure: GlobalRef
-}
-
-impl Measurable for MeasureFunction {
-    fn measure(&self, known_dimensions: mason_core::geometry::Size<Option<f32>>, available_space: mason_core::geometry::Size<mason_core::AvailableSpace>) -> mason_core::geometry::Size<f32> {
-        let vm = self.jvm.attach_current_thread();
-        let mut env = vm.unwrap();
-        let result = env.call_method(
-            self.measure.as_obj(),
-            "measure",
-            "(JJ)J",
-            &[
-                JValue::from(MeasureOutput::make(
-                    known_dimensions.width.unwrap_or(f32::NAN),
-                    known_dimensions.height.unwrap_or(f32::NAN),
-                )),
-                JValue::from(MeasureOutput::make(
-                    match available_space.width {
-                        AvailableSpace::MinContent => -1.,
-                        AvailableSpace::MaxContent => -2.,
-                        AvailableSpace::Definite(value) => value,
-                    },
-                    match available_space.height {
-                        AvailableSpace::MinContent => -1.,
-                        AvailableSpace::MaxContent => -2.,
-                        AvailableSpace::Definite(value) => value,
-                    },
-                )),
-            ],
-        );
-
-        match result {
-            Ok(result) => {
-                let size = result.j().unwrap_or_default();
-                let width = MeasureOutput::get_width(size);
-                let height = MeasureOutput::get_height(size);
-                Size::<f32>::new(width, height).into()
-            }
-            Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
-        }
-    }
-}
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNode(
@@ -94,7 +49,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNode(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWithMeasureFunc(
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWithContext(
     env: JNIEnv,
     _: JClass,
     taffy: jlong,
@@ -111,12 +66,12 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
 
         let jvm = env.get_java_vm().unwrap();
 
-        let func = MeasureFunction {jvm, measure};
+        let context = NodeContext::new(jvm, measure);
 
         let ret = mason
-            .new_node_with_measure_func(
+            .new_node_with_context(
                 *style.clone(),
-                MeasureFunc::Boxed(Box::new(func)),
+                context,
             )
             .map(|v| Box::into_raw(Box::new(v)) as jlong)
             .unwrap_or_else(|| 0);
@@ -440,10 +395,10 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
         let node = Box::from_raw(node as *mut Node);
         let mut style = Box::from_raw(style as *mut mason_core::style::Style);
 
-        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
-        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
-        let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
-        let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
+        let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_rows);
+        let grid_auto_columns = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
+        let grid_template_rows = to_vec_track_sizing_function_jni(env, grid_template_rows);
+        let grid_template_columns = to_vec_track_sizing_function_jni(env, grid_template_columns);
 
         mason_core::style::Style::update_from_ffi(
             &mut style,
@@ -635,10 +590,10 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         let node = Box::from_raw(node as *mut Node);
         let mut style = Box::from_raw(style as *mut mason_core::style::Style);
 
-        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
-        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
-        let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
-        let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
+        let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_rows);
+        let grid_auto_columns = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
+        let grid_template_rows = to_vec_track_sizing_function_jni(env, grid_template_rows);
+        let grid_template_columns = to_vec_track_sizing_function_jni(env, grid_template_columns);
 
         mason_core::style::Style::update_from_ffi(
             &mut style,
@@ -902,10 +857,10 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         let node = Box::from_raw(node as *mut Node);
         let mut style = Box::from_raw(style as *mut mason_core::style::Style);
 
-        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(env, grid_auto_rows);
-        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(env, grid_auto_columns);
-        let grid_template_rows = to_vec_track_sizing_function(env, grid_template_rows);
-        let grid_template_columns = to_vec_track_sizing_function(env, grid_template_columns);
+        let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_rows);
+        let grid_auto_columns = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
+        let grid_template_rows = to_vec_track_sizing_function_jni(env, grid_template_rows);
+        let grid_template_columns = to_vec_track_sizing_function_jni(env, grid_template_columns);
 
         mason_core::style::Style::update_from_ffi(
             &mut style,
@@ -1442,7 +1397,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeGetChildr
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetMeasureFunc(
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetContext(
     env: JNIEnv,
     _: JObject,
     taffy: jlong,
@@ -1457,11 +1412,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetMeasur
         let node = Box::from_raw(node as *mut Node);
         let measure = env.new_global_ref(measure).unwrap();
         let jvm = env.get_java_vm().unwrap();
-        let func = MeasureFunction {jvm, measure};
-        mason.set_measure_func(
-            *node,
-            Some(MeasureFunc::Boxed(Box::new(func))),
-        );
+        let context = NodeContext::new(jvm, measure);
+        mason.set_node_context(*node, Some(context));
 
         Box::leak(mason);
         Box::leak(node);
@@ -1469,7 +1421,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetMeasur
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeRemoveMeasureFunc(
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeRemoveContext(
     _: JNIEnv,
     _: JObject,
     taffy: jlong,
@@ -1481,7 +1433,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeRemoveMea
     unsafe {
         let mut mason = Box::from_raw(taffy as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
-        mason.set_measure_func(*node, None);
+        mason.set_node_context(*node, None);
         Box::leak(mason);
         Box::leak(node);
     }

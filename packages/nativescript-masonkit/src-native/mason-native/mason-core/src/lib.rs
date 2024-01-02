@@ -1,18 +1,18 @@
 extern crate core;
 
+use std::ffi::{c_float, c_longlong, c_void};
 pub use taffy::geometry::Line;
-pub use taffy::geometry::*;
-pub use taffy::prelude::*;
+use taffy::{NodeId, TraversePartialTree};
 pub use taffy::style::{
     AlignContent, AlignItems, AlignSelf, Dimension, Display, FlexDirection, FlexWrap, GridAutoFlow,
-    GridPlacement, JustifyContent, MaxTrackSizingFunction, MinTrackSizingFunction, Overflow,
-    Position,
+    GridPlacement, JustifyContent, MaxTrackSizingFunction, MinTrackSizingFunction, Position,
+    AvailableSpace, LengthPercentage, LengthPercentageAuto,
+    GridTrackRepetition, NonRepeatedTrackSizingFunction, TrackSizingFunction,
 };
-pub use taffy::style_helpers::{auto, length, max_content, min_content, minmax, percent};
-pub use taffy::*;
-
+pub use taffy::style_helpers::*;
+pub use taffy::Overflow;
 use style::Style;
-pub use taffy::tree::MeasureFunc;
+
 
 pub const fn align_content_from_enum(value: i32) -> Option<AlignContent> {
     match value {
@@ -57,20 +57,22 @@ pub const fn align_items_from_enum(value: i32) -> Option<AlignItems> {
 }
 
 pub const fn overflow_from_enum(value: i32) -> Overflow {
-    return match value {
+    match value {
         0 => Overflow::Visible,
         1 => Overflow::Hidden,
         2 => Overflow::Scroll,
+        3 => Overflow::Clip,
         _ => panic!(),
-    };
+    }
 }
 
 pub const fn overflow_to_enum(value: Overflow) -> i32 {
-    return match value {
+    match value {
         Overflow::Visible => 0,
         Overflow::Hidden => 1,
         Overflow::Scroll => 2,
-    };
+        Overflow::Clip => 3,
+    }
 }
 
 pub const fn align_items_to_enum(value: AlignItems) -> i32 {
@@ -253,19 +255,126 @@ impl MeasureOutput {
     }
 }
 
-#[derive(Default)]
+
+#[cfg(not(target_os = "android"))]
+pub struct NodeContext {
+    data: *mut c_void,
+    measure: Option<extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong>,
+}
+
+#[cfg(target_os = "android")]
+pub struct NodeContext {
+    jvm: jni::JavaVM,
+    measure: jni::objects::GlobalRef,
+}
+
+impl NodeContext {
+    #[cfg(not(target_os = "android"))]
+    pub fn new(data: *mut c_void,
+               measure: Option<extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong>) -> Self {
+        Self { data, measure }
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn new(jvm: jni::JavaVM,
+               measure: jni::objects::GlobalRef) -> Self {
+        Self { jvm, measure }
+    }
+    #[cfg(target_os = "android")]
+    fn measure(&self, known_dimensions: taffy::Size<Option<f32>>,
+               available_space: taffy::Size<AvailableSpace>) -> taffy::geometry::Size<f32> {
+        let vm = self.jvm.attach_current_thread();
+        let mut env = vm.unwrap();
+        let result = env.call_method(
+            self.measure.as_obj(),
+            "measure",
+            "(JJ)J",
+            &[
+                jni::objects::JValue::from(MeasureOutput::make(
+                    known_dimensions.width.unwrap_or(f32::NAN),
+                    known_dimensions.height.unwrap_or(f32::NAN),
+                )),
+                jni::objects::JValue::from(MeasureOutput::make(
+                    match available_space.width {
+                        AvailableSpace::MinContent => -1.,
+                        AvailableSpace::MaxContent => -2.,
+                        AvailableSpace::Definite(value) => value,
+                    },
+                    match available_space.height {
+                        AvailableSpace::MinContent => -1.,
+                        AvailableSpace::MaxContent => -2.,
+                        AvailableSpace::Definite(value) => value,
+                    },
+                )),
+            ],
+        );
+
+        match result {
+            Ok(result) => {
+                let size = result.j().unwrap_or_default();
+                let width = MeasureOutput::get_width(size);
+                let height = MeasureOutput::get_height(size);
+                Size::<f32>::new(width, height).into()
+            }
+            Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
+        }
+    }
+
+
+    #[cfg(not(target_os = "android"))]
+    pub fn measure(
+        &self,
+        known_dimensions: taffy::geometry::Size<Option<f32>>,
+        available_space: taffy::geometry::Size<AvailableSpace>,
+    ) -> taffy::geometry::Size<f32> {
+        match self.measure.as_ref() {
+            None => known_dimensions.map(|v| v.unwrap_or(0.0)),
+            Some(measure) => {
+                let measure_data = self.data;
+                let available_space_width = match available_space.width {
+                    AvailableSpace::MinContent => -1.,
+                    AvailableSpace::MaxContent => -2.,
+                    AvailableSpace::Definite(value) => value,
+                };
+
+                let available_space_height = match available_space.height {
+                    AvailableSpace::MinContent => -1.,
+                    AvailableSpace::MaxContent => -2.,
+                    AvailableSpace::Definite(value) => value,
+                };
+
+                let size = measure(
+                    measure_data,
+                    known_dimensions.width.unwrap_or(f32::NAN),
+                    known_dimensions.height.unwrap_or(f32::NAN),
+                    available_space_width,
+                    available_space_height,
+                );
+
+                let width = MeasureOutput::get_width(size);
+                let height = MeasureOutput::get_height(size);
+
+                Size::<f32>::new(width, height).into()
+            }
+        }
+    }
+}
+
+
 pub struct Mason {
-    pub(crate) taffy: Taffy,
+    pub(crate) taffy: taffy::TaffyTree<NodeContext>,
+}
+
+impl Default for Mason {
+    fn default() -> Self {
+        Self::with_capacity(128)
+    }
 }
 
 impl Mason {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            taffy: Taffy::with_capacity(capacity),
+            taffy: taffy::TaffyTree::with_capacity(capacity)
         }
     }
 
@@ -277,6 +386,11 @@ impl Mason {
         self.taffy.new_leaf(style.style).map(Node::from_taffy).ok()
     }
 
+    pub fn new_node_with_context(&mut self, style: Style, context: NodeContext) -> Option<Node> {
+        self.taffy.new_leaf_with_context(style.style, context).map(Node::from_taffy).ok()
+    }
+
+
     pub fn is_children_same(&self, node: Node, children: &[Node]) -> bool {
         let children: Vec<NodeId> = children.iter().map(|v| v.node).collect();
         self.taffy
@@ -285,19 +399,8 @@ impl Mason {
             .unwrap_or(false)
     }
 
-    pub fn new_node_with_measure_func(
-        &mut self,
-        style: Style,
-        measure: MeasureFunc,
-    ) -> Option<Node> {
-        self.taffy
-            .new_leaf_with_measure(style.style, measure)
-            .map(Node::from_taffy)
-            .ok()
-    }
-
     pub fn new_node_with_children(&mut self, style: Style, children: &[Node]) -> Option<Node> {
-        let children: Vec<taffy::tree::NodeId> = children.iter().map(|v| v.node).collect();
+        let children: Vec<NodeId> = children.iter().map(|v| v.node).collect();
         self.taffy
             .new_with_children(style.style, children.as_slice())
             .map(Node::from_taffy)
@@ -320,9 +423,16 @@ impl Mason {
     }
 
     pub fn compute(&mut self, node: Node) {
-        let _ = self
-            .taffy
-            .compute_layout(node.node, taffy::geometry::Size::MAX_CONTENT);
+        let _ = self.taffy.compute_layout_with_measure(node.node, taffy::geometry::Size::max_content(), |known_dimensions, available_space, _node_id, node_context| {
+            match node_context {
+                None => {
+                    taffy::Size { width: f32::NAN, height: f32::NAN }
+                }
+                Some(context) => {
+                    context.measure(known_dimensions, available_space)
+                }
+            }
+        });
     }
 
     pub fn compute_wh(&mut self, node: Node, width: f32, height: f32) {
@@ -340,15 +450,38 @@ impl Mason {
                 _ => AvailableSpace::Definite(height),
             },
         };
-        let _ = self.taffy.compute_layout(node.node, size);
+
+        //  let _ = self.taffy.compute_layout_with_measure(node.node, size);
+
+        let _ = self.taffy.compute_layout_with_measure(node.node, size, |known_dimensions, available_space, _node_id, node_context| {
+            match node_context {
+                None => {
+                    taffy::Size { width: f32::NAN, height: f32::NAN }
+                }
+                Some(context) => {
+                    context.measure(known_dimensions, available_space)
+                }
+            }
+        });
     }
 
     pub fn compute_size(&mut self, node: Node, size: Size<AvailableSpace>) {
-        let _ = self.taffy.compute_layout(node.node, size.size);
+        // let _ = self.taffy.compute_layout_with_measure(node.node, size.size);
+
+        let _ = self.taffy.compute_layout_with_measure(node.node, size.size, |known_dimensions, available_space, _node_id, node_context| {
+            match node_context {
+                None => {
+                    taffy::Size { width: f32::NAN, height: f32::NAN }
+                }
+                Some(context) => {
+                    context.measure(known_dimensions, available_space)
+                }
+            }
+        });
     }
 
     pub fn child_count(&self, node: Node) -> usize {
-        self.taffy.child_count(node.node).unwrap_or_default()
+        self.taffy.child_count(node.node)
     }
 
     pub fn child_at_index(&self, node: Node, index: usize) -> Option<Node> {
@@ -359,7 +492,7 @@ impl Mason {
     }
 
     pub fn set_children(&mut self, node: Node, children: &[Node]) {
-        let children: Vec<taffy::tree::NodeId> = children.iter().map(|v| v.node).collect();
+        let children: Vec<NodeId> = children.iter().map(|v| v.node).collect();
         let _ = self.taffy.set_children(node.node, children.as_slice()).ok();
     }
 
@@ -370,42 +503,30 @@ impl Mason {
     }
 
     pub fn add_child(&mut self, node: Node, child: Node) {
-        self.taffy.add_child(node.node, child.node).unwrap()
+        let _ = self.taffy.add_child(node.node, child.node);
     }
 
     pub fn add_child_at_index(&mut self, node: Node, child: Node, index: usize) {
-        let count = self.taffy.child_count(node.node).unwrap_or_default();
-
-        if index >= count {
-            return;
-        }
-
-        let mut children = self.taffy.children(node.node).unwrap();
-
-        children.insert(index, child.node);
-
-        self.taffy.set_children(node.node, &children).unwrap();
+        let _ = self.taffy.insert_child_at_index(node.node, index, child.node);
     }
 
     pub fn insert_child_before(&mut self, node: Node, child: Node, reference_node: Node) {
-        let mut children = self.taffy.children(node.node).unwrap();
-        if let Some(position) = children.iter().position(|v| *v == reference_node.node) {
-            children.insert(position, child.node);
-            self.taffy.set_children(node.node, &children).unwrap();
+        if let Ok(children) = self.taffy.children(node.node) {
+            if let Some(position) = children.iter().position(|v| *v == reference_node.node) {
+                let _ = self.taffy.insert_child_at_index(node.node, position, child.node);
+            }
         }
     }
 
     pub fn insert_child_after(&mut self, node: Node, child: Node, reference_node: Node) {
-        let mut children = self.taffy.children(node.node).unwrap();
+        let children = self.taffy.children(node.node).unwrap();
         if let Some(position) = children.iter().position(|v| *v == reference_node.node) {
             let new_position = position + 1;
             if new_position == children.len() {
-                children.push(child.node);
+                let _ = self.taffy.add_child(node.node, child.node);
             } else {
-                children.insert(new_position, child.node);
+                let _ = self.taffy.insert_child_at_index(node.node, new_position, child.node);
             }
-
-            self.taffy.set_children(node.node, &children).unwrap();
         }
     }
 
@@ -436,14 +557,11 @@ impl Mason {
     }
 
     pub fn remove_children(&mut self, node: Node) {
-        if self.taffy.child_count(node.node).unwrap_or_default() == 0 {
-            return;
-        }
-        let _ = self.taffy.remove(node.node);
+        let _ = self.taffy.set_children(node.node, &[]);
     }
 
     pub fn is_node_same(&self, first: Node, second: Node) -> bool {
-        first == second
+        first.node == second.node
     }
 
     pub fn dirty(&self, node: Node) -> bool {
@@ -462,8 +580,8 @@ impl Mason {
     //     parent.map(Node::from_taffy)
     // }
 
-    pub fn set_measure_func(&mut self, node: Node, measure: Option<MeasureFunc>) {
-        self.taffy.set_measure(node.node, measure).unwrap()
+    pub fn set_node_context(&mut self, node: Node, context: Option<NodeContext>) {
+        let _ = self.taffy.set_node_context(node.node, context);
     }
 
     pub fn children(&self, node: Node) -> Option<Vec<Node>> {
@@ -496,23 +614,24 @@ impl Mason {
     //     self.taffy.needs_measure(node.node)
     // }
 
-    fn copy_output(taffy: &Taffy, node: taffy::tree::NodeId, output: &mut Vec<f32>) {
-        let layout = taffy.layout(node).unwrap();
+    fn copy_output(taffy: &taffy::TaffyTree<NodeContext>, node: NodeId, output: &mut Vec<f32>) {
+        if let Ok(layout) = taffy.layout(node) {
+            if let Ok(children) = taffy.children(node) {
+                let len = children.len();
+                output.reserve(len * 6);
 
-        let children = taffy.children(node).unwrap();
+                output.push(layout.order as f32);
+                output.push(layout.location.x);
+                output.push(layout.location.y);
+                output.push(layout.size.width);
+                output.push(layout.size.height);
 
-        output.reserve(children.len() * 6);
+                output.push(len as f32);
 
-        output.push(layout.order as f32);
-        output.push(layout.location.x);
-        output.push(layout.location.y);
-        output.push(layout.size.width);
-        output.push(layout.size.height);
-
-        output.push(children.len() as f32);
-
-        for child in &children {
-            Mason::copy_output(taffy, *child, output);
+                for child in children {
+                    Mason::copy_output(taffy, child, output);
+                }
+            }
         }
     }
 }
@@ -574,13 +693,13 @@ impl<T> Size<T> {
 
     pub fn min_content() -> Size<AvailableSpace> {
         Size {
-            size: taffy::geometry::Size::MIN_CONTENT,
+            size: taffy::geometry::Size::min_content(),
         }
     }
 
     pub fn max_content() -> Size<AvailableSpace> {
         Size {
-            size: taffy::geometry::Size::MAX_CONTENT,
+            size: taffy::geometry::Size::max_content(),
         }
     }
 
@@ -593,13 +712,22 @@ impl<T> Size<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug)]
 pub struct Node {
-    node: taffy::tree::NodeId,
+    node: NodeId,
 }
 
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node
+    }
+}
+
+impl Eq for Node {}
+
 impl Node {
-    pub fn from_taffy(node: taffy::tree::NodeId) -> Self {
+    pub fn from_taffy(node: NodeId) -> Self {
         Self { node }
     }
 }

@@ -1,5 +1,5 @@
 #import <NativeScript/runtime/Runtime.h>
-#import "include/mason_native.h"
+#import "cpp/include/mason_native.h"
 #import <sstream>
 
 using namespace std;

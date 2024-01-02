@@ -1,5 +1,5 @@
 [workspace]
-members = ["mason-core", "mason-android", "mason-ios", "mason-playground"]
+members = ["mason-core", "mason-android", "mason-ios", "mason-playground", "mason-c"]
 
 [profile.release]
 panic = "abort"

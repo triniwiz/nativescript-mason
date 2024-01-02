@@ -1,4 +1,4 @@
-module JSIModule {
-    header "JSIModule.h"
+module MasonV8Module {
+    header "MasonV8Module.h"
     export *
 }

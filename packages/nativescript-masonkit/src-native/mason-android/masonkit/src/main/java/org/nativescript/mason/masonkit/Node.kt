@@ -30,7 +30,7 @@ class Node private constructor(private var nativePtr: Long) {
 
   constructor(withMeasureFunction: Boolean) : this(0) {
     if (withMeasureFunction) {
-      nativePtr = nativeNewNodeWithMeasureFunc(
+      nativePtr = nativeNewNodeWithContext(
         Mason.instance.nativePtr, style.getNativePtr(), MeasureFuncImpl(
           WeakReference(
             View.ViewMeasureFunc(
@@ -81,7 +81,7 @@ class Node private constructor(private var nativePtr: Long) {
   }
 
   constructor(style: Style, measure: MeasureFunc) : this(
-    nativeNewNodeWithMeasureFunc(
+    nativeNewNodeWithContext(
       Mason.instance.nativePtr, style.getNativePtr(), MeasureFuncImpl(
         WeakReference(measure)
       )
@@ -380,7 +380,7 @@ class Node private constructor(private var nativePtr: Long) {
   }
 
   fun setMeasureFunction(measure: MeasureFunc) {
-    nativeSetMeasureFunc(
+    nativeSetContext(
       Mason.instance.nativePtr,
       nativePtr,
       MeasureFuncImpl(WeakReference(measure))
@@ -388,7 +388,7 @@ class Node private constructor(private var nativePtr: Long) {
   }
 
   fun removeMeasureFunction() {
-    nativeRemoveMeasureFunc(Mason.instance.nativePtr, nativePtr)
+    nativeRemoveContext(Mason.instance.nativePtr, nativePtr)
   }
 
   @Synchronized
@@ -428,7 +428,7 @@ class Node private constructor(private var nativePtr: Long) {
     ): Long
 
     @JvmStatic
-    private external fun nativeNewNodeWithMeasureFunc(
+    private external fun nativeNewNodeWithContext(
       mason: Long,
       style: Long,
       measure: Any
@@ -519,13 +519,13 @@ class Node private constructor(private var nativePtr: Long) {
     node: Long
   ): LongArray
 
-  private external fun nativeSetMeasureFunc(
+  private external fun nativeSetContext(
     mason: Long,
     node: Long,
     measureFunc: Any
   )
 
-  private external fun nativeRemoveMeasureFunc(
+  private external fun nativeRemoveContext(
     mason: Long,
     node: Long
   )

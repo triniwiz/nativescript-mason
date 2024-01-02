@@ -101,7 +101,7 @@ public class MasonNode: NSObject {
         
         super.init()
         
-        nativePtr = mason_node_new_node_with_measure_func(TSCMason.instance.nativePtr, style.nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
+        nativePtr = mason_node_new_node_with_context(TSCMason.instance.nativePtr, style.nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
         
     }
     
@@ -874,13 +874,13 @@ public class MasonNode: NSObject {
     
     
     func removeMeasureFunction(){
-        mason_node_remove_measure_func(TSCMason.instance.nativePtr, nativePtr)
+        mason_node_remove_context(TSCMason.instance.nativePtr, nativePtr)
         self.measureFunc = nil
     }
     
     func setMeasureFunction(_ measureFunc: @escaping MeasureFunc) {
         self.measureFunc = measureFunc
-        mason_node_set_measure_func(TSCMason.instance.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
+        mason_node_set_context(TSCMason.instance.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
     }
     
     public var isLeaf: Bool {

@@ -1648,56 +1648,55 @@ const FLEX_UNIT: &str = "fr";
 pub fn parse_non_repeated_track_sizing_function_value<'a>(
     value: NonRepeatedTrackSizingFunction,
 ) -> Cow<'a, str> {
-    return match (value.min, value.max) {
-        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Auto) => AUTO.into(),
-        (MinTrackSizingFunction::MinContent, MaxTrackSizingFunction::MinContent) => {
-            MIN_CONTENT.into()
-        }
-        (MinTrackSizingFunction::MaxContent, MaxTrackSizingFunction::MaxContent) => {
-            MAX_CONTENT.into()
-        }
-        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::FitContent(value)) => match value {
+    if let (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Auto) = (value.min, value.max) {
+        AUTO.into()
+    } else if let (MinTrackSizingFunction::MinContent, MaxTrackSizingFunction::MinContent) = (value.min, value.max) {
+        MIN_CONTENT.into()
+    } else if let (MinTrackSizingFunction::MaxContent, MaxTrackSizingFunction::MaxContent) = (value.min, value.max) {
+        MAX_CONTENT.into()
+    } else if let (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::FitContent(value)) = (value.min, value.max) {
+        match value {
             LengthPercentage::Length(value) => format!("fit-content({:.0}px)", value).into(),
             LengthPercentage::Percent(value) => format!("fit-content({:.3}%)", value).into(),
-        },
-        (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Fraction(value)) => {
-            (value.to_string() + FLEX_UNIT).into()
         }
-        (min, max) => {
-            format!(
-                "minmax({}, {})",
-                Cow::from(match min {
-                    MinTrackSizingFunction::Fixed(value) => {
-                        return match value {
-                            LengthPercentage::Length(value) => format!("{}px", value),
-                            LengthPercentage::Percent(value) => format!("{}%", value),
-                        }
+    } else if let (MinTrackSizingFunction::Auto, MaxTrackSizingFunction::Fraction(value)) = (value.min, value.max) {
+        (value.to_string() + FLEX_UNIT).into()
+    } else if let (min, max) = (value.min, value.max) {
+        format!(
+            "minmax({}, {})",
+            Cow::from(match min {
+                MinTrackSizingFunction::Fixed(value) => {
+                    return match value {
+                        LengthPercentage::Length(value) => format!("{}px", value),
+                        LengthPercentage::Percent(value) => format!("{}%", value),
+                    }
                         .into();
+                }
+                MinTrackSizingFunction::MinContent => MIN_CONTENT,
+                MinTrackSizingFunction::MaxContent => MAX_CONTENT,
+                MinTrackSizingFunction::Auto => AUTO,
+            }),
+            Cow::from(match max {
+                MaxTrackSizingFunction::Fixed(value) => {
+                    return match value {
+                        LengthPercentage::Length(value) => format!("{}px", value),
+                        LengthPercentage::Percent(value) => format!("{}%", value),
                     }
-                    MinTrackSizingFunction::MinContent => MIN_CONTENT,
-                    MinTrackSizingFunction::MaxContent => MAX_CONTENT,
-                    MinTrackSizingFunction::Auto => AUTO,
-                }),
-                Cow::from(match max {
-                    MaxTrackSizingFunction::Fixed(value) => {
-                        return match value {
-                            LengthPercentage::Length(value) => format!("{}px", value),
-                            LengthPercentage::Percent(value) => format!("{}%", value),
-                        }
                         .into();
-                    }
-                    MaxTrackSizingFunction::MinContent => MIN_CONTENT,
-                    MaxTrackSizingFunction::MaxContent => MAX_CONTENT,
-                    MaxTrackSizingFunction::FitContent(_) => panic!(), // invalid should not hit here
-                    MaxTrackSizingFunction::Auto => AUTO,
-                    MaxTrackSizingFunction::Fraction(value) => {
-                        return format!("{value}fr",).into();
-                    }
-                })
-            )
+                }
+                MaxTrackSizingFunction::MinContent => MIN_CONTENT,
+                MaxTrackSizingFunction::MaxContent => MAX_CONTENT,
+                MaxTrackSizingFunction::FitContent(_) => panic!(), // invalid should not hit here
+                MaxTrackSizingFunction::Auto => AUTO,
+                MaxTrackSizingFunction::Fraction(value) => {
+                    return format!("{value}fr", ).into();
+                }
+            })
+        )
             .into()
-        }
-    };
+    } else {
+        unreachable!()
+    }
 }
 
 pub fn parse_track_sizing_function_value(value: &TrackSizingFunction) -> String {

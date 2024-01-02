@@ -1,6 +1,8 @@
 import { CoreTypes, CSSType, Screen, Utils, View, ViewBase } from '@nativescript/core';
 import { TSCViewBase } from './common';
 
+const BigIntZero = BigInt(0);
+
 function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit, parent = 0) {
   switch (length.unit) {
     case '%':
@@ -13,26 +15,26 @@ function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | 
 }
 
 export class TSCView extends TSCViewBase {
-  __masonStylePtr = 0;
+  __masonStylePtr = BigIntZero;
+  __masonNodePtr = BigIntZero;
+  __masonPtr = BigIntZero;
   get _masonStylePtr() {
-    if (this.__masonStylePtr === 0) {
-      this.__masonStylePtr = String(this.ios?.masonStylePtr ?? 0) as any; // cast as string for now
+    if (this.__masonStylePtr === BigIntZero) {
+      this.__masonStylePtr = BigInt(String(this.ios?.masonStylePtr ?? 0));
     }
     return this.__masonStylePtr;
   }
 
-  __masonNodePtr = 0;
   get _masonNodePtr() {
-    if (this.__masonNodePtr === 0) {
-      this.__masonNodePtr = String(this.ios?.masonNodePtr ?? 0) as any; // cast as string for now
+    if (this.__masonNodePtr === BigIntZero) {
+      this.__masonNodePtr = BigInt(this.ios?.masonNodePtr ?? 0);
     }
     return this.__masonNodePtr;
   }
 
-  __masonPtr = 0;
   get _masonPtr() {
-    if (this.__masonPtr === 0) {
-      this.__masonPtr = String((UIView as any).masonPtr ?? 0) as any; // cast as string for now
+    if (this.__masonPtr === BigIntZero) {
+      this.__masonPtr = BigInt((UIView as any).masonPtr ?? 0);
     }
     return this.__masonPtr;
   }
@@ -51,6 +53,7 @@ export class TSCView extends TSCViewBase {
     super.disposeNativeView();
   }
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   //@ts-ignore
   get ios() {
     return this.nativeViewProtected as UIView;
@@ -60,14 +63,18 @@ export class TSCView extends TSCViewBase {
     super.onLayout(left, top, right, bottom);
 
     const nativeView = this.nativeView;
+
     if (nativeView) {
+      const insets = this.getSafeAreaInsets();
       this.eachLayoutChild((child) => {
         const layout = child.ios.mason.layout();
 
-        child.setMeasuredDimension(layout.width, layout.height);
+        // child.setMeasuredDimension(layout.width, layout.height);
 
-        View.layoutChild(this as any, child, layout.x, layout.y, layout.width, layout.height);
-        return true;
+        const left = layout.x + insets.left;
+        const top = layout.y + insets.top;
+        View.layoutChild(this as any, child, left, top, layout.width + left, layout.height + top);
+        //    return true;
       });
     }
   }
@@ -129,7 +136,10 @@ export class TSCView extends TSCViewBase {
       }
 
       const layout = this.ios.mason.layout();
-      this.setMeasuredDimension(layout.width, layout.height);
+      const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
+      const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
+
+      this.setMeasuredDimension(w, h);
     }
   }
 
@@ -145,7 +155,7 @@ export class TSCView extends TSCViewBase {
     const index = atIndex ?? Infinity;
     if (nativeView && view.nativeViewProtected) {
       view['_hasNativeView'] = true;
-      view['_isMasonChild'] = true;
+      view['_isMasonChild'] = !!(view as any)._masonParent;
 
       if (index >= this._children.length) {
         nativeView.addSubview(view.nativeViewProtected);

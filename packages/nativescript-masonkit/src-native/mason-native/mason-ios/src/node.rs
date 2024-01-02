@@ -3,8 +3,7 @@ extern crate mason_core;
 use std::ffi::{c_float, c_int, c_longlong, c_short, c_void};
 
 use mason_core::style::Style;
-use mason_core::tree::{Measurable, MeasureFunc};
-use mason_core::{AvailableSpace as TaffAvailableSpace, Mason, MeasureOutput, Node, Size};
+use mason_core::{AvailableSpace as TaffAvailableSpace, Mason, MeasureOutput, Node, NodeContext, Size};
 
 use crate::style::{
     to_vec_non_repeated_track_sizing_function, to_vec_track_sizing_function,
@@ -44,49 +43,46 @@ impl Default for NodeArray {
     }
 }
 
-struct MeasureFunction {
-    measure_data: c_longlong,
-    measure: Option<extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong>,
-}
 
-impl Measurable for MeasureFunction {
-    fn measure(
-        &self,
-        known_dimensions: mason_core::geometry::Size<Option<f32>>,
-        available_space: mason_core::geometry::Size<TaffAvailableSpace>,
-    ) -> mason_core::geometry::Size<f32> {
-        match self.measure.as_ref() {
-            None => known_dimensions.map(|v| v.unwrap_or(0.0)),
-            Some(measure) => {
-                let measure_data = self.measure_data as *mut c_void;
-                let available_space_width = match available_space.width {
-                    TaffAvailableSpace::MinContent => -1.,
-                    TaffAvailableSpace::MaxContent => -2.,
-                    TaffAvailableSpace::Definite(value) => value,
-                };
+#[no_mangle]
+pub extern "C" fn mason_node_get_style(mason: *mut c_void, node: *mut c_void) -> *mut c_void {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
 
-                let available_space_height = match available_space.height {
-                    TaffAvailableSpace::MinContent => -1.,
-                    TaffAvailableSpace::MaxContent => -2.,
-                    TaffAvailableSpace::Definite(value) => value,
-                };
+    unsafe {
+        let mason = Box::from_raw(mason as *mut Mason);
+        let node = Box::from_raw(node as *mut Node);
+        let style = mason.style(*node);
+        Box::leak(mason);
+        Box::leak(node);
 
-                let size = measure(
-                    measure_data,
-                    known_dimensions.width.unwrap_or(f32::NAN),
-                    known_dimensions.height.unwrap_or(f32::NAN),
-                    available_space_width,
-                    available_space_height,
-                );
-
-                let width = MeasureOutput::get_width(size);
-                let height = MeasureOutput::get_height(size);
-
-                Size::<f32>::new(width, height).into()
-            }
+        if let Some(style) = style {
+            return Box::into_raw(
+                Box::new(
+                    style
+                )
+            ) as *mut c_void;
         }
     }
+
+
+    std::ptr::null_mut()
 }
+
+#[no_mangle]
+pub extern "C" fn mason_node_is_equal(node_a: *mut c_void, node_b: *mut c_void) -> bool {
+    if node_a.is_null() || node_b.is_null() {
+        return false;
+    }
+
+    let a = unsafe { Box::from_raw(node_a as *mut Node) };
+
+    let b = unsafe { Box::from_raw(node_b as *mut Node) };
+
+    (&*a) == (&*b)
+}
+
 
 #[no_mangle]
 pub extern "C" fn mason_node_array_destroy(array: NodeArray) {
@@ -135,7 +131,7 @@ pub extern "C" fn mason_node_new_node(mason: *mut c_void, style: *mut c_void) ->
 }
 
 #[no_mangle]
-pub extern "C" fn mason_node_new_node_with_measure_func(
+pub extern "C" fn mason_node_new_node_with_context(
     mason: *mut c_void,
     style: *mut c_void,
     measure_data: *mut c_void,
@@ -148,15 +144,12 @@ pub extern "C" fn mason_node_new_node_with_measure_func(
     unsafe {
         let mut mason = Box::from_raw(mason as *mut Mason);
         let style = Box::from_raw(style as *mut Style);
-        // casting to long and back to to pass the pointer along
-        let measure_data = measure_data as c_longlong;
 
-        let func = MeasureFunction {
+        let context = NodeContext::new(
             measure_data,
             measure,
-        };
-        let ret = mason
-            .new_node_with_measure_func(*style.clone(), MeasureFunc::Boxed(Box::new(func)))
+        );
+        let ret = mason.new_node_with_context(*style.clone(), context)
             .map(|v| Box::into_raw(Box::new(v)))
             .unwrap_or_else(std::ptr::null_mut) as *mut c_void;
 
@@ -1376,8 +1369,9 @@ pub extern "C" fn mason_node_get_children(mason: *mut c_void, node: *mut c_void)
     }
 }
 
+
 #[no_mangle]
-pub extern "C" fn mason_node_set_measure_func(
+pub extern "C" fn mason_node_set_context(
     mason: *mut c_void,
     node: *mut c_void,
     measure_data: *mut c_void,
@@ -1390,12 +1384,11 @@ pub extern "C" fn mason_node_set_measure_func(
     unsafe {
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
-        let measure_data = measure_data as c_longlong;
-        let func = MeasureFunction {
+        let context = NodeContext::new(
             measure_data,
             measure,
-        };
-        mason.set_measure_func(*node, Some(MeasureFunc::Boxed(Box::new(func))));
+        );
+        mason.set_node_context(*node, Some(context));
 
         Box::leak(mason);
         Box::leak(node);
@@ -1403,14 +1396,14 @@ pub extern "C" fn mason_node_set_measure_func(
 }
 
 #[no_mangle]
-pub extern "C" fn mason_node_remove_measure_func(mason: *mut c_void, node: *mut c_void) {
+pub extern "C" fn mason_node_remove_context(mason: *mut c_void, node: *mut c_void) {
     if mason.is_null() || node.is_null() {
         return;
     }
     unsafe {
         let mut mason = Box::from_raw(mason as *mut Mason);
         let node = Box::from_raw(node as *mut Node);
-        mason.set_measure_func(*node, None);
+        mason.set_node_context(*node, None);
         Box::leak(mason);
         Box::leak(node);
     }

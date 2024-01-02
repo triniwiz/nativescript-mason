@@ -8,7 +8,7 @@
     "@triniwiz/nativescript-masonkit": "file:../../dist/packages/nativescript-masonkit"
   },
   "devDependencies": {
-    "@nativescript/android": "^8.5.1",
-    "@nativescript/ios": "^8.5.2"
+    "@nativescript/android": "^8.6.2",
+    "@nativescript/ios": "^8.6.3"
   }
 }

@@ -6,18 +6,18 @@ project(masonnativev8)
 set(CMAKE_CXX_STANDARD 17)
 
 
-option(ENABLE_LTO "Enable cross language linking time optimization" ON)
-if (ENABLE_LTO)
-  include(CheckIPOSupported)
-  check_ipo_supported(RESULT supported OUTPUT error)
-  if (supported)
-    message(STATUS "IPO / LTO enabled")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-    add_link_options(-fuse-ld=lld)
-  else ()
-    message(STATUS "IPO / LTO not supported: <${error}>")
-  endif ()
-endif ()
+#option(ENABLE_LTO "Enable cross language linking time optimization" ON)
+#if (ENABLE_LTO)
+#  include(CheckIPOSupported)
+#  check_ipo_supported(RESULT supported OUTPUT error)
+#  if (supported)
+#    message(STATUS "IPO / LTO enabled")
+#    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+#    add_link_options(-fuse-ld=lld)
+#  else ()
+#    message(STATUS "IPO / LTO not supported: <${error}>")
+#  endif ()
+#endif ()
 
 
 if ("${ANDROID_ABI}" MATCHES "armeabi-v7a$")
@@ -30,39 +30,16 @@ elseif ("${ANDROID_ABI}" MATCHES "x86$")
   set(RUST_BUILD_TARGET "i686-linux-android")
 endif ()
 
-get_filename_component(PROJECT_ROOT_DIR ${PROJECT_SOURCE_DIR} DIRECTORY)
 
-get_filename_component(PROJECT_NATIVE_ROOT_DIR ${PROJECT_ROOT_DIR} DIRECTORY)
-
-set(PROJECT_NATIVE_ROOT_DIR ${PROJECT_NATIVE_ROOT_DIR}/mason-native)
-
-
-set(CARGO_MANIFEST ${PROJECT_NATIVE_ROOT_DIR}/Cargo.toml)
-set(CARGO_TARGET_DIR ${PROJECT_NATIVE_ROOT_DIR}/target)
-set(CURRENT_TARGET_DIR ${CARGO_TARGET_DIR}/${RUST_BUILD_TARGET})
-
-set(MASON_ANDROID_SOURCE_FILE ${PROJECT_NATIVE_ROOT_DIR}/mason-android/src/lib.rs)
-set(MASON_ANDROID_BRIDGE_CPP ${CARGO_TARGET_DIR}/cxxbridge/mason-android/src/lib.rs.cc)
 
 set(COMMON_CMAKE_ARGUMENTS "-std=c++17 -Werror -Wno-unused-result -mstackrealign -fexceptions -fno-builtin-stpcpy -fno-rtti -DV8_31BIT_SMIS_ON_64BIT_ARCH -DV8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH -DV8_EMBEDDED_BUILTINS")
-
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(RUST_BUILD_TYPE)
-  set(MASON_ANDROID_LIB ${CURRENT_TARGET_DIR}/debug)
-else ()
-  set(RUST_BUILD_TYPE --release)
-  set(MASON_ANDROID_LIB ${CURRENT_TARGET_DIR}/release)
-  set(COMMON_CMAKE_ARGUMENTS "${COMMON_CMAKE_ARGUMENTS} -O3")
-endif ()
-
-
-set(MASON_ANDROID_LIB ${MASON_ANDROID_LIB}/${CMAKE_STATIC_LIBRARY_PREFIX}masonandroid${CMAKE_SHARED_LIBRARY_SUFFIX})
 
 if ("${ANDROID_ABI}" MATCHES "arm64-v8a$" OR "${ANDROID_ABI}" MATCHES "x86_64$")
   # Enable pointer compression on 64 bit platforms
   set(COMMON_CMAKE_ARGUMENTS "${COMMON_CMAKE_ARGUMENTS} -DV8_COMPRESS_POINTERS")
 endif ()
 
+set(CPP_DIR ../../../platforms/ios/src/cpp)
 
 include_directories(
         masonnativev8
@@ -70,30 +47,12 @@ include_directories(
         ${PROJECT_SOURCE_DIR}/src/main/cpp/include/libc++
         ${PROJECT_SOURCE_DIR}/src/main/cpp/include
         ${PROJECT_SOURCE_DIR}/src/main/cpp
-)
-include_directories(
-        masonnativev8
-        PUBLIC
-        ${CARGO_TARGET_DIR}/cxxbridge
-)
+        ${CPP_DIR}
+        ${CPP_DIR}/include
 
+)
 
 set(CMAKE_CXX_FLAGS ${COMMON_CMAKE_ARGUMENTS})
-
-
-# Add a custom command that builds the rust crate and generates C++ bridge code
-add_custom_command(
-        OUTPUT ${MASON_ANDROID_BRIDGE_CPP} ${MASON_ANDROID_LIB}
-
-        #COMMAND cargo +nightly build -Z build-std='std,panic_abort' -Z build-std-features='panic_immediate_abort' --manifest-path ${CARGO_MANIFEST} --target ${RUST_BUILD_TARGET} ${RUST_BUILD_TYPE} -p mason-android
-
-        #COMMAND cargo +nightly build -Z build-std='std' --manifest-path ${CARGO_MANIFEST} --target ${RUST_BUILD_TARGET} ${RUST_BUILD_TYPE} -p mason-android
-
-        COMMAND cargo build --manifest-path ${CARGO_MANIFEST} --target ${RUST_BUILD_TARGET} ${RUST_BUILD_TYPE} -p mason-android
-
-        DEPENDS ${MASON_ANDROID_SOURCE_FILE}
-        USES_TERMINAL
-)
 
 
 add_library(
@@ -101,15 +60,14 @@ add_library(
 
         SHARED
 
-        src/main/cpp/rust/cxx.cc
         src/main/cpp/MasonV8Module.cpp
         src/main/cpp/Install.cpp
-
-        ${MASON_ANDROID_BRIDGE_CPP}
+#        ${CPP_DIR}/Caches.cpp
+#        ${CPP_DIR}/Helpers.cpp
+#        ${CPP_DIR}/MasonImpl.cpp
+#        ${CPP_DIR}/MasonNodeImpl.cpp
+#        ${CPP_DIR}/MasonStyleImpl.cpp
 )
-
-
-message("CARGO_TARGET_DIR " ${CARGO_TARGET_DIR})
 
 
 set_target_properties(
@@ -140,7 +98,7 @@ if ("${ANDROID_ABI}" MATCHES "armeabi-v7a" OR "${ANDROID_ABI}" MATCHES "x86" AND
           ${system-log}
           ${PROJECT_SOURCE_DIR}/src/main/libs/${ANDROID_ABI}/libNativeScript.so
           ${ANDROID_NDK_ROOT}/sources/cxx-stl/llvm-libc++/libs/${ANDROID_ABI}/libandroid_support.a
-          ${MASON_ANDROID_LIB}
+          ${PROJECT_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libmasonnative.so
           android
           )
 
@@ -148,15 +106,7 @@ else ()
   target_link_libraries(masonnativev8
           ${system-log}
           ${PROJECT_SOURCE_DIR}/src/main/libs/${ANDROID_ABI}/libNativeScript.so
-          ${MASON_ANDROID_LIB}
+          ${PROJECT_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libmasonnative.so
           android
           )
 endif ()
-
-
-add_custom_command(TARGET masonnativev8
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${MASON_ANDROID_LIB}
-        ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libmasonandroid.so
-        )

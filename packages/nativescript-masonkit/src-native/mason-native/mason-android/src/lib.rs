@@ -1,6 +1,6 @@
 extern crate core;
 
-use std::ffi::c_void;
+use std::ffi::{c_char, c_void, CString};
 use std::sync::Arc;
 
 use jni::objects::{GlobalRef, JClass, JMethodID, JObject, JValue};
@@ -9,24 +9,6 @@ use jni::JNIEnv;
 use jni::JavaVM;
 use once_cell::sync::OnceCell;
 
-use ffi::AvailableSpace;
-use ffi::CMasonDimension;
-use ffi::CMasonDimensionRect;
-use ffi::CMasonDimensionSize;
-use ffi::CMasonDimensionType;
-use ffi::CMasonGridPlacement;
-use ffi::CMasonGridPlacementType;
-use ffi::CMasonLengthPercentage;
-use ffi::CMasonLengthPercentageAuto;
-use ffi::CMasonLengthPercentageAutoRect;
-use ffi::CMasonLengthPercentageAutoSize;
-use ffi::CMasonLengthPercentageAutoType;
-use ffi::CMasonLengthPercentageRect;
-use ffi::CMasonLengthPercentageSize;
-use ffi::CMasonLengthPercentageType;
-use ffi::CMasonMinMax;
-use ffi::CMasonOverflowPoint;
-use ffi::CMasonOverflowType;
 use mason_core::style::{min_max_from_values, Style};
 use mason_core::{
     align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
@@ -40,10 +22,9 @@ use mason_core::{
 };
 use mason_core::{Dimension, LengthPercentage, LengthPercentageAuto, Rect};
 
-use crate::ffi::AvailableSpaceType;
-
 mod node;
 pub mod style;
+pub mod util;
 
 #[derive(Clone)]
 pub struct MinMaxCacheItem {
@@ -250,7 +231,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativeInit(
     _: JNIEnv,
     _: JObject,
 ) -> jlong {
-    Mason::new().into_raw() as jlong
+    Mason::default().into_raw() as jlong
 }
 
 #[no_mangle]
@@ -304,15 +285,18 @@ fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
     }
 }
 
-fn mason_init() -> i64 {
-    Mason::new().into_raw() as i64
+#[no_mangle]
+pub extern "C" fn mason_init() -> i64 {
+    Mason::default().into_raw() as i64
 }
 
-fn mason_init_with_capacity(capacity: i32) -> i64 {
+#[no_mangle]
+pub extern "C" fn mason_init_with_capacity(capacity: i32) -> i64 {
     Mason::with_capacity(capacity as usize).into_raw() as i64
 }
 
-fn mason_clear(mason: i64) {
+#[no_mangle]
+pub extern "C" fn mason_clear(mason: i64) {
     if mason == 0 {
         return;
     }
@@ -323,7 +307,8 @@ fn mason_clear(mason: i64) {
     }
 }
 
-fn mason_util_create_non_repeated_track_sizing_function(
+#[no_mangle]
+pub extern "C" fn mason_util_create_non_repeated_track_sizing_function(
     min_max: CMasonMinMax,
     index: isize,
     store: &mut Vec<CMasonNonRepeatedTrackSizingFunction>,
@@ -341,7 +326,8 @@ fn mason_util_create_non_repeated_track_sizing_function(
     }
 }
 
-fn mason_util_create_single_track_sizing_function(
+#[no_mangle]
+pub extern "C" fn mason_util_create_single_track_sizing_function(
     min_max: CMasonMinMax,
     index: isize,
     store: &mut Vec<CMasonTrackSizingFunction>,
@@ -360,7 +346,8 @@ fn mason_util_create_single_track_sizing_function(
     }
 }
 
-fn mason_util_create_auto_repeating_track_sizing_function(
+#[no_mangle]
+pub extern "C" fn mason_util_create_auto_repeating_track_sizing_function(
     grid_track_repetition: i32,
     grid_track_repetition_count: u16,
     values: Vec<CMasonMinMax>,
@@ -394,619 +381,152 @@ fn mason_util_create_auto_repeating_track_sizing_function(
     }
 }
 
-#[cxx::bridge]
-pub(crate) mod ffi {
 
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonMinMax {
-        pub min_type: i32,
-        pub min_value: f32,
-        pub max_type: i32,
-        pub max_value: f32,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub enum AvailableSpaceType {
-        Definite,
-        MinContent,
-        MaxContent,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct AvailableSpace {
-        pub(crate) value: f32,
-        pub(crate) space_type: AvailableSpaceType,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub enum CMasonDimensionType {
-        Auto,
-        Points,
-        Percent,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonDimension {
-        pub value: f32,
-        pub value_type: CMasonDimensionType,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonDimensionRect {
-        pub left: CMasonDimension,
-        pub right: CMasonDimension,
-        pub top: CMasonDimension,
-        pub bottom: CMasonDimension,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonDimensionSize {
-        pub width: CMasonDimension,
-        pub height: CMasonDimension,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub enum CMasonLengthPercentageAutoType {
-        Auto,
-        Points,
-        Percent,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonLengthPercentageAuto {
-        pub value: f32,
-        pub value_type: CMasonLengthPercentageAutoType,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonLengthPercentageAutoRect {
-        pub left: CMasonLengthPercentageAuto,
-        pub right: CMasonLengthPercentageAuto,
-        pub top: CMasonLengthPercentageAuto,
-        pub bottom: CMasonLengthPercentageAuto,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonLengthPercentageAutoSize {
-        pub width: CMasonLengthPercentageAuto,
-        pub height: CMasonLengthPercentageAuto,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub enum CMasonLengthPercentageType {
-        Points,
-        Percent,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonLengthPercentage {
-        pub value: f32,
-        pub value_type: CMasonLengthPercentageType,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonLengthPercentageRect {
-        pub left: CMasonLengthPercentage,
-        pub right: CMasonLengthPercentage,
-        pub top: CMasonLengthPercentage,
-        pub bottom: CMasonLengthPercentage,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonLengthPercentageSize {
-        pub width: CMasonLengthPercentage,
-        pub height: CMasonLengthPercentage,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub enum CMasonGridPlacementType {
-        Auto,
-        Line,
-        Span,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonGridPlacement {
-        pub value: i16,
-        pub value_type: CMasonGridPlacementType,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub enum CMasonOverflowType {
-        Visible,
-        Hidden,
-        Scroll,
-    }
-
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    pub struct CMasonOverflowPoint {
-        x: CMasonOverflowType,
-        y: CMasonOverflowType,
-    }
-
-    extern "Rust" {
-
-        type CMasonNonRepeatedTrackSizingFunction;
-
-        type CMasonTrackSizingFunction;
-
-        fn mason_init() -> i64;
-
-        fn mason_init_with_capacity(capacity: i32) -> i64;
-
-        fn mason_clear(mason: i64);
-
-        fn mason_util_parse_non_repeated_track_sizing_function_value(
-            value: &Vec<CMasonNonRepeatedTrackSizingFunction>,
-        ) -> String;
-
-        fn mason_util_parse_auto_repeating_track_sizing_function(
-            value: &Vec<CMasonTrackSizingFunction>,
-        ) -> String;
-
-        fn mason_util_create_non_repeated_track_sizing_function(
-            min_max: CMasonMinMax,
-            index: isize,
-            store: &mut Vec<CMasonNonRepeatedTrackSizingFunction>,
-        );
-
-        fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
-            track_type: i32,
-            track_value: f32,
-            index: isize,
-            store: &mut Vec<CMasonNonRepeatedTrackSizingFunction>,
-        );
-
-        fn mason_util_create_single_track_sizing_function(
-            min_max: CMasonMinMax,
-            index: isize,
-            store: &mut Vec<CMasonTrackSizingFunction>,
-        );
-
-        fn mason_util_create_auto_repeating_track_sizing_function(
-            grid_track_repetition: i32,
-            grid_track_repetition_count: u16,
-            values: Vec<CMasonMinMax>,
-            index: isize,
-            store: &mut Vec<CMasonTrackSizingFunction>,
-        );
-
-        fn mason_style_set_display(style: i64, display: i32);
-
-        fn mason_style_get_display(style: i64) -> i32;
-
-        fn mason_style_set_width(style: i64, value: f32, value_type: CMasonDimensionType);
-
-        fn mason_style_get_width(style: i64) -> CMasonDimension;
-
-        fn mason_style_set_height(style: i64, value: f32, value_type: CMasonDimensionType);
-
-        fn mason_style_get_height(style: i64) -> CMasonDimension;
-
-        fn mason_node_compute(mason: i64, node: i64);
-
-        fn mason_node_compute_min_content(mason: i64, node: i64);
-
-        fn mason_node_compute_max_content(mason: i64, node: i64);
-
-        fn mason_node_compute_wh(mason: i64, node: i64, width: f32, height: f32);
-
-        fn mason_node_mark_dirty(mason: i64, node: i64);
-
-        fn mason_node_dirty(mason: i64, node: i64) -> bool;
-
-        fn mason_style_get_position(style: i64) -> i32;
-
-        fn mason_style_set_position(style: i64, value: i32);
-
-        fn mason_style_get_flex_wrap(style: i64) -> i32;
-
-        fn mason_style_set_flex_wrap(style: i64, value: i32);
-
-        fn mason_style_get_align_items(style: i64) -> i32;
-
-        fn mason_style_set_align_items(style: i64, value: i32);
-
-        fn mason_style_get_align_self(style: i64) -> i32;
-
-        fn mason_style_set_align_self(style: i64, value: i32);
-
-        fn mason_style_get_align_content(style: i64) -> i32;
-
-        fn mason_style_set_align_content(style: i64, value: i32);
-
-        fn mason_style_get_justify_content(style: i64) -> i32;
-
-        fn mason_style_set_justify_content(style: i64, value: i32);
-
-        fn mason_style_set_inset(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_set_inset_lrtb(
-            style: i64,
-            left_value: f32,
-            left_value_type: CMasonLengthPercentageAutoType,
-            right_value: f32,
-            right_value_type: CMasonLengthPercentageAutoType,
-            top_value: f32,
-            top_value_type: CMasonLengthPercentageAutoType,
-            bottom_value: f32,
-            bottom_value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_get_inset_left(style: i64) -> CMasonLengthPercentageAuto;
-
-        fn mason_style_set_inset_left(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_get_inset_right(style: i64) -> CMasonLengthPercentageAuto;
-
-        fn mason_style_set_inset_right(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_get_inset_top(style: i64) -> CMasonLengthPercentageAuto;
-
-        fn mason_style_set_inset_top(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_get_inset_bottom(style: i64) -> CMasonLengthPercentageAuto;
-
-        fn mason_style_set_inset_bottom(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_set_margin(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_get_margin_left(style: i64) -> CMasonLengthPercentageAuto;
-
-        fn mason_style_set_margin_left(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_get_margin_right(style: i64) -> CMasonLengthPercentageAuto;
-
-        fn mason_style_set_margin_right(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_get_margin_top(style: i64) -> CMasonLengthPercentageAuto;
-
-        fn mason_style_set_margin_top(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_get_margin_bottom(style: i64) -> CMasonLengthPercentageAuto;
-
-        fn mason_style_set_margin_bottom(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageAutoType,
-        );
-
-        fn mason_style_set_border(style: i64, value: f32, value_type: CMasonLengthPercentageType);
-
-        fn mason_style_get_border_left(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_border_left(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_get_border_right(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_border_right(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_get_border_top(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_border_top(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_get_border_bottom(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_border_bottom(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_set_flex_grow(style: i64, grow: f32);
-
-        fn mason_style_get_flex_grow(style: i64) -> f32;
-
-        fn mason_style_set_flex_shrink(style: i64, shrink: f32);
-
-        fn mason_style_get_flex_shrink(style: i64) -> f32;
-
-        fn mason_style_get_flex_basis(style: i64) -> CMasonDimension;
-
-        fn mason_style_set_flex_basis(style: i64, value: f32, value_type: CMasonDimensionType);
-
-        fn mason_style_get_gap(style: i64) -> CMasonLengthPercentageSize;
-
-        fn mason_style_set_gap(
-            style: i64,
-            width_value: f32,
-            width_type: CMasonLengthPercentageType,
-            height_value: f32,
-            height_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_set_row_gap(style: i64, value: f32, value_type: CMasonLengthPercentageType);
-
-        fn mason_style_get_row_gap(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_column_gap(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_get_column_gap(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_aspect_ratio(style: i64, ratio: f32);
-
-        fn mason_style_get_aspect_ratio(style: i64) -> f32;
-
-        fn mason_style_set_padding(style: i64, value: f32, value_type: CMasonLengthPercentageType);
-
-        fn mason_style_get_padding_left(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_padding_left(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_get_padding_right(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_padding_right(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_get_padding_top(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_padding_top(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_get_padding_bottom(style: i64) -> CMasonLengthPercentage;
-
-        fn mason_style_set_padding_bottom(
-            style: i64,
-            value: f32,
-            value_type: CMasonLengthPercentageType,
-        );
-
-        fn mason_style_get_flex_direction(style: i64) -> i32;
-
-        fn mason_style_set_flex_direction(style: i64, value: i32);
-
-        fn mason_style_get_min_width(style: i64) -> CMasonDimension;
-
-        fn mason_style_set_min_width(style: i64, value: f32, value_type: CMasonDimensionType);
-
-        fn mason_style_get_min_height(style: i64) -> CMasonDimension;
-
-        fn mason_style_set_min_height(style: i64, value: f32, value_type: CMasonDimensionType);
-
-        fn mason_style_get_max_width(style: i64) -> CMasonDimension;
-
-        fn mason_style_set_max_width(style: i64, value: f32, value_type: CMasonDimensionType);
-
-        fn mason_style_get_max_height(style: i64) -> CMasonDimension;
-
-        fn mason_style_set_max_height(style: i64, value: f32, value_type: CMasonDimensionType);
-
-        fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64);
-
-        fn mason_style_get_justify_items(style: i64) -> i32;
-
-        fn mason_style_set_justify_items(style: i64, value: i32);
-
-        fn mason_style_get_justify_self(style: i64) -> i32;
-
-        fn mason_style_set_justify_self(style: i64, value: i32);
-
-        fn mason_style_get_grid_auto_rows(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction>;
-
-        fn mason_style_set_grid_auto_rows(
-            style: i64,
-            value: Vec<CMasonNonRepeatedTrackSizingFunction>,
-        );
-
-        fn mason_style_get_grid_auto_columns(
-            style: i64,
-        ) -> Vec<CMasonNonRepeatedTrackSizingFunction>;
-
-        fn mason_style_set_grid_auto_columns(
-            style: i64,
-            value: Vec<CMasonNonRepeatedTrackSizingFunction>,
-        );
-
-        fn mason_style_get_grid_auto_flow(style: i64) -> i32;
-
-        fn mason_style_set_grid_auto_flow(style: i64, value: i32);
-
-        fn mason_style_set_grid_area(
-            style: i64,
-            row_start: CMasonGridPlacement,
-            row_end: CMasonGridPlacement,
-            column_start: CMasonGridPlacement,
-            column_end: CMasonGridPlacement,
-        );
-
-        fn mason_style_get_grid_column_start(style: i64) -> CMasonGridPlacement;
-
-        fn mason_style_set_grid_column(
-            style: i64,
-            start: CMasonGridPlacement,
-            end: CMasonGridPlacement,
-        );
-
-        fn mason_style_set_grid_column_start(style: i64, value: CMasonGridPlacement);
-
-        fn mason_style_get_grid_column_end(style: i64) -> CMasonGridPlacement;
-
-        fn mason_style_set_grid_column_end(style: i64, value: CMasonGridPlacement);
-
-        fn mason_style_get_grid_row_start(style: i64) -> CMasonGridPlacement;
-
-        fn mason_style_set_grid_row(
-            style: i64,
-            start: CMasonGridPlacement,
-            end: CMasonGridPlacement,
-        );
-
-        fn mason_style_set_grid_row_start(style: i64, value: CMasonGridPlacement);
-
-        fn mason_style_get_grid_row_end(style: i64) -> CMasonGridPlacement;
-
-        fn mason_style_set_grid_row_end(style: i64, value: CMasonGridPlacement);
-
-        fn mason_style_get_grid_template_rows(style: i64) -> Vec<CMasonTrackSizingFunction>;
-
-        fn mason_style_set_grid_template_rows(style: i64, value: Vec<CMasonTrackSizingFunction>);
-
-        fn mason_style_get_grid_template_columns(style: i64) -> Vec<CMasonTrackSizingFunction>;
-
-        fn mason_style_set_grid_template_columns(style: i64, value: Vec<CMasonTrackSizingFunction>);
-
-        fn mason_style_set_overflow(style: i64, value: i32);
-
-        fn mason_style_set_overflow_x(style: i64, value: i32);
-
-        fn mason_style_set_overflow_y(style: i64, value: i32);
-
-        fn mason_style_get_overflow_x(style: i64) -> i32;
-
-        fn mason_style_get_overflow_y(style: i64) -> i32;
-
-        fn mason_style_set_scrollbar_width(style: i64, value: f32);
-
-        fn mason_style_get_scrollbar_width(style: i64) -> f32;
-
-        #[allow(clippy::too_many_arguments)]
-        fn mason_style_update_with_values(
-            style: i64,
-            display: i32,
-            position: i32,
-            direction: i32,
-            flex_direction: i32,
-            flex_wrap: i32,
-            overflow: i32,
-            align_items: i32,
-            align_self: i32,
-            align_content: i32,
-            justify_items: i32,
-            justify_self: i32,
-            justify_content: i32,
-            inset_left_type: i32,
-            inset_left_value: f32,
-            inset_right_type: i32,
-            inset_right_value: f32,
-            inset_top_type: i32,
-            inset_top_value: f32,
-            inset_bottom_type: i32,
-            inset_bottom_value: f32,
-            margin_left_type: i32,
-            margin_left_value: f32,
-            margin_right_type: i32,
-            margin_right_value: f32,
-            margin_top_type: i32,
-            margin_top_value: f32,
-            margin_bottom_type: i32,
-            margin_bottom_value: f32,
-            padding_left_type: i32,
-            padding_left_value: f32,
-            padding_right_type: i32,
-            padding_right_value: f32,
-            padding_top_type: i32,
-            padding_top_value: f32,
-            padding_bottom_type: i32,
-            padding_bottom_value: f32,
-            border_left_type: i32,
-            border_left_value: f32,
-            border_right_type: i32,
-            border_right_value: f32,
-            border_top_type: i32,
-            border_top_value: f32,
-            border_bottom_type: i32,
-            border_bottom_value: f32,
-            flex_grow: f32,
-            flex_shrink: f32,
-            flex_basis_type: i32,
-            flex_basis_value: f32,
-            width_type: i32,
-            width_value: f32,
-            height_type: i32,
-            height_value: f32,
-            min_width_type: i32,
-            min_width_value: f32,
-            min_height_type: i32,
-            min_height_value: f32,
-            max_width_type: i32,
-            max_width_value: f32,
-            max_height_type: i32,
-            max_height_value: f32,
-            gap_row_type: i32,
-            gap_row_value: f32,
-            gap_column_type: i32,
-            gap_column_value: f32,
-            aspect_ratio: f32,
-            mut grid_auto_rows: Vec<CMasonNonRepeatedTrackSizingFunction>,
-            mut grid_auto_columns: Vec<CMasonNonRepeatedTrackSizingFunction>,
-            grid_auto_flow: i32,
-            grid_column_start_type: i32,
-            grid_column_start_value: i16,
-            grid_column_end_type: i32,
-            grid_column_end_value: i16,
-            grid_row_start_type: i32,
-            grid_row_start_value: i16,
-            grid_row_end_type: i32,
-            grid_row_end_value: i16,
-            mut grid_template_rows: Vec<CMasonTrackSizingFunction>,
-            mut grid_template_columns: Vec<CMasonTrackSizingFunction>,
-            overflow_x: i32,
-            overflow_y: i32,
-            scrollbar_width: f32,
-        );
-    }
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonMinMax {
+    pub min_type: i32,
+    pub min_value: f32,
+    pub max_type: i32,
+    pub max_value: f32,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum AvailableSpaceType {
+    Definite,
+    MinContent,
+    MaxContent,
+}
+
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct AvailableSpace {
+    pub(crate) value: f32,
+    pub(crate) space_type: AvailableSpaceType,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CMasonDimensionType {
+    CMasonDimensionTypeAuto,
+    CMasonDimensionTypePoints,
+    CMasonDimensionTypePercent,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonDimension {
+    pub value: f32,
+    pub value_type: CMasonDimensionType,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonDimensionRect {
+    pub left: CMasonDimension,
+    pub right: CMasonDimension,
+    pub top: CMasonDimension,
+    pub bottom: CMasonDimension,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonDimensionSize {
+    pub width: CMasonDimension,
+    pub height: CMasonDimension,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CMasonLengthPercentageAutoType {
+    CMasonLengthPercentageAutoTypeAuto,
+    CMasonLengthPercentageAutoTypePoints,
+    CMasonLengthPercentageAutoTypePercent,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageAuto {
+    pub value: f32,
+    pub value_type: CMasonLengthPercentageAutoType,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageAutoRect {
+    pub left: CMasonLengthPercentageAuto,
+    pub right: CMasonLengthPercentageAuto,
+    pub top: CMasonLengthPercentageAuto,
+    pub bottom: CMasonLengthPercentageAuto,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageAutoSize {
+    pub width: CMasonLengthPercentageAuto,
+    pub height: CMasonLengthPercentageAuto,
+}
+
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CMasonLengthPercentageType {
+    CMasonLengthPercentageTypePoints,
+    CMasonLengthPercentageTypePercent,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentage {
+    pub value: f32,
+    pub value_type: CMasonLengthPercentageType,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageRect {
+    pub left: CMasonLengthPercentage,
+    pub right: CMasonLengthPercentage,
+    pub top: CMasonLengthPercentage,
+    pub bottom: CMasonLengthPercentage,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonLengthPercentageSize {
+    pub width: CMasonLengthPercentage,
+    pub height: CMasonLengthPercentage,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CMasonGridPlacementType {
+    CMasonGridPlacementTypeAuto,
+    CMasonGridPlacementTypeLine,
+    CMasonGridPlacementTypeSpan,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonGridPlacement {
+    pub value: i16,
+    pub value_type: CMasonGridPlacementType,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CMasonOverflowType {
+    Visible,
+    Hidden,
+    Scroll,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct CMasonOverflowPoint {
+    x: CMasonOverflowType,
+    y: CMasonOverflowType,
 }
 
 impl CMasonMinMax {
@@ -1048,9 +568,6 @@ impl Into<mason_core::AvailableSpace> for AvailableSpace {
             AvailableSpaceType::Definite => mason_core::AvailableSpace::Definite(self.value),
             AvailableSpaceType::MinContent => mason_core::AvailableSpace::MinContent,
             AvailableSpaceType::MaxContent => mason_core::AvailableSpace::MaxContent,
-
-            // making cpp happy
-            _ => mason_core::AvailableSpace::MinContent,
         }
     }
 }
@@ -1063,7 +580,7 @@ impl CMasonDimension {
     pub fn auto() -> Self {
         Self {
             value: 0.,
-            value_type: CMasonDimensionType::Auto,
+            value_type: CMasonDimensionType::CMasonDimensionTypeAuto,
         }
     }
 }
@@ -1072,9 +589,9 @@ impl From<Dimension> for CMasonDimension {
     fn from(dimension: Dimension) -> Self {
         match dimension {
             Dimension::Auto => CMasonDimension::auto(),
-            Dimension::Length(length) => CMasonDimension::new(length, CMasonDimensionType::Points),
+            Dimension::Length(length) => CMasonDimension::new(length, CMasonDimensionType::CMasonDimensionTypePoints),
             Dimension::Percent(percent) => {
-                CMasonDimension::new(percent, CMasonDimensionType::Percent)
+                CMasonDimension::new(percent, CMasonDimensionType::CMasonDimensionTypePercent)
             }
         }
     }
@@ -1084,9 +601,9 @@ impl From<&Dimension> for CMasonDimension {
     fn from(dimension: &Dimension) -> Self {
         match dimension {
             Dimension::Auto => CMasonDimension::auto(),
-            Dimension::Length(points) => CMasonDimension::new(*points, CMasonDimensionType::Points),
+            Dimension::Length(points) => CMasonDimension::new(*points, CMasonDimensionType::CMasonDimensionTypePoints),
             Dimension::Percent(percent) => {
-                CMasonDimension::new(*percent, CMasonDimensionType::Percent)
+                CMasonDimension::new(*percent, CMasonDimensionType::CMasonDimensionTypePercent)
             }
         }
     }
@@ -1095,11 +612,9 @@ impl From<&Dimension> for CMasonDimension {
 impl From<CMasonDimension> for Dimension {
     fn from(dimension: CMasonDimension) -> Self {
         match dimension.value_type {
-            CMasonDimensionType::Auto => Dimension::Auto,
-            CMasonDimensionType::Points => Dimension::Length(dimension.value),
-            CMasonDimensionType::Percent => Dimension::Percent(dimension.value),
-            // making cpp happy
-            _ => Dimension::Length(0.),
+            CMasonDimensionType::CMasonDimensionTypeAuto => Dimension::Auto,
+            CMasonDimensionType::CMasonDimensionTypePoints => Dimension::Length(dimension.value),
+            CMasonDimensionType::CMasonDimensionTypePercent => Dimension::Percent(dimension.value),
         }
     }
 }
@@ -1160,7 +675,7 @@ impl CMasonLengthPercentageAuto {
     pub fn auto() -> Self {
         Self {
             value: 0.,
-            value_type: CMasonLengthPercentageAutoType::Auto,
+            value_type: CMasonLengthPercentageAutoType::CMasonLengthPercentageAutoTypeAuto,
         }
     }
 }
@@ -1170,10 +685,10 @@ impl From<LengthPercentageAuto> for CMasonLengthPercentageAuto {
         match value {
             LengthPercentageAuto::Auto => CMasonLengthPercentageAuto::auto(),
             LengthPercentageAuto::Length(points) => {
-                CMasonLengthPercentageAuto::new(points, CMasonLengthPercentageAutoType::Points)
+                CMasonLengthPercentageAuto::new(points, CMasonLengthPercentageAutoType::CMasonLengthPercentageAutoTypePoints)
             }
             LengthPercentageAuto::Percent(percent) => {
-                CMasonLengthPercentageAuto::new(percent, CMasonLengthPercentageAutoType::Percent)
+                CMasonLengthPercentageAuto::new(percent, CMasonLengthPercentageAutoType::CMasonLengthPercentageAutoTypePercent)
             }
         }
     }
@@ -1184,10 +699,10 @@ impl From<&LengthPercentageAuto> for CMasonLengthPercentageAuto {
         match value {
             LengthPercentageAuto::Auto => CMasonLengthPercentageAuto::auto(),
             LengthPercentageAuto::Length(points) => {
-                CMasonLengthPercentageAuto::new(*points, CMasonLengthPercentageAutoType::Points)
+                CMasonLengthPercentageAuto::new(*points, CMasonLengthPercentageAutoType::CMasonLengthPercentageAutoTypePoints)
             }
             LengthPercentageAuto::Percent(percent) => {
-                CMasonLengthPercentageAuto::new(*percent, CMasonLengthPercentageAutoType::Percent)
+                CMasonLengthPercentageAuto::new(*percent, CMasonLengthPercentageAutoType::CMasonLengthPercentageAutoTypePercent)
             }
         }
     }
@@ -1196,11 +711,9 @@ impl From<&LengthPercentageAuto> for CMasonLengthPercentageAuto {
 impl From<CMasonLengthPercentageAuto> for LengthPercentageAuto {
     fn from(value: CMasonLengthPercentageAuto) -> Self {
         match value.value_type {
-            CMasonLengthPercentageAutoType::Auto => LengthPercentageAuto::Auto,
-            CMasonLengthPercentageAutoType::Points => LengthPercentageAuto::Length(value.value),
-            CMasonLengthPercentageAutoType::Percent => LengthPercentageAuto::Percent(value.value),
-            // making cpp happy
-            _ => LengthPercentageAuto::Length(0.),
+            CMasonLengthPercentageAutoType::CMasonLengthPercentageAutoTypeAuto => LengthPercentageAuto::Auto,
+            CMasonLengthPercentageAutoType::CMasonLengthPercentageAutoTypePoints => LengthPercentageAuto::Length(value.value),
+            CMasonLengthPercentageAutoType::CMasonLengthPercentageAutoTypePercent => LengthPercentageAuto::Percent(value.value),
         }
     }
 }
@@ -1256,10 +769,10 @@ impl From<LengthPercentage> for CMasonLengthPercentage {
     fn from(value: LengthPercentage) -> Self {
         match value {
             LengthPercentage::Length(points) => {
-                CMasonLengthPercentage::new(points, CMasonLengthPercentageType::Points)
+                CMasonLengthPercentage::new(points, CMasonLengthPercentageType::CMasonLengthPercentageTypePoints)
             }
             LengthPercentage::Percent(percent) => {
-                CMasonLengthPercentage::new(percent, CMasonLengthPercentageType::Percent)
+                CMasonLengthPercentage::new(percent, CMasonLengthPercentageType::CMasonLengthPercentageTypePercent)
             }
         }
     }
@@ -1269,10 +782,10 @@ impl From<&LengthPercentage> for CMasonLengthPercentage {
     fn from(value: &LengthPercentage) -> Self {
         match value {
             LengthPercentage::Length(points) => {
-                CMasonLengthPercentage::new(*points, CMasonLengthPercentageType::Points)
+                CMasonLengthPercentage::new(*points, CMasonLengthPercentageType::CMasonLengthPercentageTypePoints)
             }
             LengthPercentage::Percent(percent) => {
-                CMasonLengthPercentage::new(*percent, CMasonLengthPercentageType::Percent)
+                CMasonLengthPercentage::new(*percent, CMasonLengthPercentageType::CMasonLengthPercentageTypePercent)
             }
         }
     }
@@ -1281,10 +794,8 @@ impl From<&LengthPercentage> for CMasonLengthPercentage {
 impl From<CMasonLengthPercentage> for LengthPercentage {
     fn from(value: CMasonLengthPercentage) -> Self {
         match value.value_type {
-            CMasonLengthPercentageType::Points => LengthPercentage::Length(value.value),
-            CMasonLengthPercentageType::Percent => LengthPercentage::Percent(value.value),
-            // making cpp happy
-            _ => LengthPercentage::Length(0.),
+            CMasonLengthPercentageType::CMasonLengthPercentageTypePoints => LengthPercentage::Length(value.value),
+            CMasonLengthPercentageType::CMasonLengthPercentageTypePercent => LengthPercentage::Percent(value.value),
         }
     }
 }
@@ -1321,15 +832,15 @@ impl From<GridPlacement> for CMasonGridPlacement {
         match value {
             GridPlacement::Auto => CMasonGridPlacement {
                 value: 0,
-                value_type: CMasonGridPlacementType::Auto,
+                value_type: CMasonGridPlacementType::CMasonGridPlacementTypeAuto,
             },
             GridPlacement::Line(value) => CMasonGridPlacement {
                 value: value.as_i16(),
-                value_type: CMasonGridPlacementType::Line,
+                value_type: CMasonGridPlacementType::CMasonGridPlacementTypeLine,
             },
             GridPlacement::Span(value) => CMasonGridPlacement {
                 value: value as i16,
-                value_type: CMasonGridPlacementType::Span,
+                value_type: CMasonGridPlacementType::CMasonGridPlacementTypeSpan,
             },
         }
     }
@@ -1338,11 +849,9 @@ impl From<GridPlacement> for CMasonGridPlacement {
 impl Into<GridPlacement> for CMasonGridPlacement {
     fn into(self) -> GridPlacement {
         match self.value_type {
-            CMasonGridPlacementType::Auto => GridPlacement::Auto,
-            CMasonGridPlacementType::Line => GridPlacement::Line(self.value.into()),
-            CMasonGridPlacementType::Span => GridPlacement::Span(self.value.try_into().unwrap()),
-            // making cxx happy
-            _ => GridPlacement::Auto,
+            CMasonGridPlacementType::CMasonGridPlacementTypeAuto => GridPlacement::Auto,
+            CMasonGridPlacementType::CMasonGridPlacementTypeLine => GridPlacement::Line(self.value.into()),
+            CMasonGridPlacementType::CMasonGridPlacementTypeSpan => GridPlacement::Span(self.value.try_into().unwrap()),
         }
     }
 }
@@ -1351,7 +860,9 @@ pub fn assert_pointer_address(pointer: i64, pointer_type: &str) {
     assert_ne!(pointer, 0, "Invalid {:} pointer address", pointer_type);
 }
 
-fn mason_util_parse_non_repeated_track_sizing_function_value(
+/*
+#[no_mangle]
+pub extern "C" fn mason_util_parse_non_repeated_track_sizing_function_value(
     value: &[CMasonNonRepeatedTrackSizingFunction],
 ) -> String {
     let mut ret = String::new();
@@ -1365,8 +876,11 @@ fn mason_util_parse_non_repeated_track_sizing_function_value(
     }
     ret
 }
+*/
 
-fn mason_util_parse_auto_repeating_track_sizing_function(
+/*
+#[no_mangle]
+pub extern "C" fn mason_util_parse_auto_repeating_track_sizing_function(
     value: &[CMasonTrackSizingFunction],
 ) -> String {
     let mut ret = String::new();
@@ -1378,46 +892,56 @@ fn mason_util_parse_auto_repeating_track_sizing_function(
         ret.push_str(string.as_str());
     }
     ret
-}
+} */
 
-fn mason_style_get_grid_auto_rows(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction> {
-    mason_core::ffi::style_get_grid_auto_rows(style as _)
-        .into_iter()
-        .map(CMasonNonRepeatedTrackSizingFunction)
-        .collect()
-}
+// #[no_mangle]
+// pub extern "C" fn mason_style_get_grid_auto_rows(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction> {
+//     mason_core::ffi::style_get_grid_auto_rows(style as _)
+//         .into_iter()
+//         .map(CMasonNonRepeatedTrackSizingFunction)
+//         .collect()
+// }
 
-fn mason_style_set_grid_auto_rows(style: i64, value: Vec<CMasonNonRepeatedTrackSizingFunction>) {
-    mason_core::ffi::style_set_grid_auto_rows(style as _, value.into_iter().map(|v| v.0).collect())
-}
 
-fn mason_style_get_grid_auto_columns(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction> {
-    mason_core::ffi::style_get_grid_auto_columns(style as _)
-        .into_iter()
-        .map(CMasonNonRepeatedTrackSizingFunction)
-        .collect()
-}
+// #[no_mangle]
+// pub extern "C" fn mason_style_set_grid_auto_rows(style: i64, value: Vec<CMasonNonRepeatedTrackSizingFunction>) {
+//     mason_core::ffi::style_set_grid_auto_rows(style as _, value.into_iter().map(|v| v.0).collect())
+// }
 
-fn mason_style_set_grid_auto_columns(style: i64, value: Vec<CMasonNonRepeatedTrackSizingFunction>) {
-    mason_core::ffi::style_set_grid_auto_columns(
-        style as _,
-        value.into_iter().map(|v| v.0).collect(),
-    )
-}
 
-fn mason_style_get_grid_auto_flow(style: i64) -> i32 {
+// #[no_mangle]
+// pub extern "C" fn mason_style_get_grid_auto_columns(style: i64) -> Vec<CMasonNonRepeatedTrackSizingFunction> {
+//     mason_core::ffi::style_get_grid_auto_columns(style as _)
+//         .into_iter()
+//         .map(CMasonNonRepeatedTrackSizingFunction)
+//         .collect()
+// }
+
+// #[no_mangle]
+// pub extern "C" fn mason_style_set_grid_auto_columns(style: i64, value: Vec<CMasonNonRepeatedTrackSizingFunction>) {
+//     mason_core::ffi::style_set_grid_auto_columns(
+//         style as _,
+//         value.into_iter().map(|v| v.0).collect(),
+//     )
+// }
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_auto_flow(style: i64) -> i32 {
     mason_core::ffi::style_get_grid_auto_flow(style as _)
 }
 
-fn mason_style_set_grid_auto_flow(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_auto_flow(style: i64, value: i32) {
     mason_core::ffi::style_set_grid_auto_flow(style as _, value)
 }
 
-fn mason_style_get_grid_column_start(style: i64) -> CMasonGridPlacement {
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_column_start(style: i64) -> CMasonGridPlacement {
     mason_core::ffi::style_get_grid_column_start(style as _).into()
 }
 
-fn mason_style_set_grid_area(
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_area(
     style: i64,
     row_start: CMasonGridPlacement,
     row_end: CMasonGridPlacement,
@@ -1433,192 +957,235 @@ fn mason_style_set_grid_area(
     )
 }
 
-fn mason_style_set_grid_column(style: i64, start: CMasonGridPlacement, end: CMasonGridPlacement) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_column(style: i64, start: CMasonGridPlacement, end: CMasonGridPlacement) {
     mason_core::ffi::style_set_grid_column(style as _, start.into(), end.into())
 }
 
-fn mason_style_set_grid_column_start(style: i64, value: CMasonGridPlacement) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_column_start(style: i64, value: CMasonGridPlacement) {
     mason_core::ffi::style_set_grid_column_start(style as _, value.into())
 }
 
-fn mason_style_get_grid_column_end(style: i64) -> CMasonGridPlacement {
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_column_end(style: i64) -> CMasonGridPlacement {
     mason_core::ffi::style_get_grid_column_end(style as _).into()
 }
 
-fn mason_style_set_grid_column_end(style: i64, value: CMasonGridPlacement) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_column_end(style: i64, value: CMasonGridPlacement) {
     mason_core::ffi::style_set_grid_column_end(style as _, value.into())
 }
 
-fn mason_style_get_grid_row_start(style: i64) -> CMasonGridPlacement {
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_row_start(style: i64) -> CMasonGridPlacement {
     mason_core::ffi::style_get_grid_row_start(style as _).into()
 }
 
-fn mason_style_set_grid_row(style: i64, start: CMasonGridPlacement, end: CMasonGridPlacement) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_row(style: i64, start: CMasonGridPlacement, end: CMasonGridPlacement) {
     mason_core::ffi::style_set_grid_row(style as _, start.into(), end.into())
 }
 
-fn mason_style_set_grid_row_start(style: i64, value: CMasonGridPlacement) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_row_start(style: i64, value: CMasonGridPlacement) {
     mason_core::ffi::style_set_grid_row_start(style as _, value.into())
 }
 
-fn mason_style_get_grid_row_end(style: i64) -> CMasonGridPlacement {
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_row_end(style: i64) -> CMasonGridPlacement {
     mason_core::ffi::style_get_grid_row_end(style as _).into()
 }
 
-fn mason_style_set_grid_row_end(style: i64, value: CMasonGridPlacement) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_grid_row_end(style: i64, value: CMasonGridPlacement) {
     mason_core::ffi::style_set_grid_row_end(style as _, value.into())
 }
 
-fn mason_style_get_grid_template_rows(style: i64) -> Vec<CMasonTrackSizingFunction> {
-    mason_core::ffi::style_get_grid_template_rows(style as _)
-        .into_iter()
-        .map(CMasonTrackSizingFunction)
-        .collect()
-}
+// #[no_mangle]
+// pub extern "C" fn mason_style_get_grid_template_rows(style: i64) -> Vec<CMasonTrackSizingFunction> {
+//     mason_core::ffi::style_get_grid_template_rows(style as _)
+//         .into_iter()
+//         .map(CMasonTrackSizingFunction)
+//         .collect()
+// }
 
-fn mason_style_set_grid_template_rows(style: i64, value: Vec<CMasonTrackSizingFunction>) {
-    mason_core::ffi::style_set_grid_template_rows(
-        style as _,
-        value.into_iter().map(|v| v.0).collect(),
-    )
-}
+// #[no_mangle]
+// pub extern "C" fn mason_style_set_grid_template_rows(style: i64, value: Vec<CMasonTrackSizingFunction>) {
+//     mason_core::ffi::style_set_grid_template_rows(
+//         style as _,
+//         value.into_iter().map(|v| v.0).collect(),
+//     )
+// }
 
-fn mason_style_get_grid_template_columns(style: i64) -> Vec<CMasonTrackSizingFunction> {
-    mason_core::ffi::style_get_grid_template_columns(style as _)
-        .into_iter()
-        .map(CMasonTrackSizingFunction)
-        .collect()
-}
+// #[no_mangle]
+// pub extern "C" fn mason_style_get_grid_template_columns(style: i64) -> Vec<CMasonTrackSizingFunction> {
+//     mason_core::ffi::style_get_grid_template_columns(style as _)
+//         .into_iter()
+//         .map(CMasonTrackSizingFunction)
+//         .collect()
+// }
 
-fn mason_style_set_grid_template_columns(style: i64, value: Vec<CMasonTrackSizingFunction>) {
-    mason_core::ffi::style_set_grid_template_columns(
-        style as _,
-        value.into_iter().map(|v| v.0).collect(),
-    )
-}
+// #[no_mangle]
+// pub extern "C" fn mason_style_set_grid_template_columns(style: i64, value: Vec<CMasonTrackSizingFunction>) {
+//     mason_core::ffi::style_set_grid_template_columns(
+//         style as _,
+//         value.into_iter().map(|v| v.0).collect(),
+//     )
+// }
 
-pub fn mason_style_set_width(style: i64, value: f32, value_type: CMasonDimensionType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_width(style: i64, value: f32, value_type: CMasonDimensionType) {
     let width = CMasonDimension::new(value, value_type);
     mason_core::ffi::style_set_width(style as _, width.into())
 }
 
-pub fn mason_style_get_width(style: i64) -> CMasonDimension {
+#[no_mangle]
+pub extern "C" fn mason_style_get_width(style: i64) -> CMasonDimension {
     mason_core::ffi::style_get_width(style as _).into()
 }
 
-pub fn mason_style_set_height(style: i64, value: f32, value_type: CMasonDimensionType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_height(style: i64, value: f32, value_type: CMasonDimensionType) {
     let height = CMasonDimension::new(value, value_type);
 
     mason_core::ffi::style_set_height(style as _, height.into())
 }
 
-pub fn mason_style_get_height(style: i64) -> CMasonDimension {
+#[no_mangle]
+pub extern "C" fn mason_style_get_height(style: i64) -> CMasonDimension {
     mason_core::ffi::style_get_height(style as _).into()
 }
 
-pub fn mason_node_mark_dirty(mason: i64, node: i64) {
+#[no_mangle]
+pub extern "C" fn mason_node_mark_dirty(mason: i64, node: i64) {
     mason_core::ffi::node_mark_dirty(mason as _, node as _)
 }
 
-pub fn mason_node_dirty(mason: i64, node: i64) -> bool {
+#[no_mangle]
+pub extern "C" fn mason_node_dirty(mason: i64, node: i64) -> bool {
     mason_core::ffi::node_dirty(mason as _, node as _)
 }
 
-pub fn mason_style_set_display(style: i64, display: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_display(style: i64, display: i32) {
     mason_core::ffi::style_set_display(style as _, display)
 }
 
-pub fn mason_style_get_display(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_display(style: i64) -> i32 {
     mason_core::ffi::style_get_display(style as _)
 }
 
-pub fn mason_node_compute(mason: i64, node: i64) {
+#[no_mangle]
+pub extern "C" fn mason_node_compute(mason: i64, node: i64) {
     mason_core::ffi::node_compute(mason as _, node as _);
 }
 
-pub fn mason_node_compute_min_content(mason: i64, node: i64) {
+#[no_mangle]
+pub extern "C" fn mason_node_compute_min_content(mason: i64, node: i64) {
     mason_core::ffi::node_compute_min_content(mason as _, node as _)
 }
 
-pub fn mason_node_compute_max_content(mason: i64, node: i64) {
+#[no_mangle]
+pub extern "C" fn mason_node_compute_max_content(mason: i64, node: i64) {
     mason_core::ffi::node_compute_max_content(mason as _, node as _)
 }
 
-pub fn mason_node_compute_wh(mason: i64, node: i64, width: f32, height: f32) {
+#[no_mangle]
+pub extern "C" fn mason_node_compute_wh(mason: i64, node: i64, width: f32, height: f32) {
     mason_core::ffi::node_compute_wh(mason as _, node as _, width, height)
 }
 
-pub fn mason_style_get_position(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_position(style: i64) -> i32 {
     mason_core::ffi::style_get_position(style as _)
 }
 
-pub fn mason_style_set_position(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_position(style: i64, value: i32) {
     mason_core::ffi::style_set_position(style as _, value)
 }
 
-pub fn mason_style_get_flex_wrap(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_wrap(style: i64) -> i32 {
     mason_core::ffi::style_get_flex_wrap(style as _)
 }
 
-pub fn mason_style_set_flex_wrap(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_wrap(style: i64, value: i32) {
     mason_core::ffi::style_set_flex_wrap(style as _, value)
 }
 
-fn mason_style_get_align_items(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_align_items(style: i64) -> i32 {
     mason_core::ffi::style_get_align_items(style as _)
 }
 
-fn mason_style_set_align_items(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_align_items(style: i64, value: i32) {
     mason_core::ffi::style_set_align_items(style as _, value);
 }
 
-fn mason_style_get_align_self(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_align_self(style: i64) -> i32 {
     mason_core::ffi::style_get_align_self(style as _)
 }
 
-fn mason_style_set_align_self(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_align_self(style: i64, value: i32) {
     mason_core::ffi::style_set_align_self(style as _, value)
 }
 
-fn mason_style_get_align_content(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_align_content(style: i64) -> i32 {
     mason_core::ffi::style_get_align_content(style as _)
 }
 
-fn mason_style_set_align_content(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_align_content(style: i64, value: i32) {
     mason_core::ffi::style_set_align_content(style as _, value)
 }
 
-fn mason_style_get_justify_items(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_justify_items(style: i64) -> i32 {
     mason_core::ffi::style_get_justify_items(style as _)
 }
 
-fn mason_style_set_justify_items(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_justify_items(style: i64, value: i32) {
     mason_core::ffi::style_set_justify_items(style as _, value);
 }
 
-fn mason_style_get_justify_self(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_justify_self(style: i64) -> i32 {
     mason_core::ffi::style_get_justify_self(style as _)
 }
 
-fn mason_style_set_justify_self(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_justify_self(style: i64, value: i32) {
     mason_core::ffi::style_set_justify_self(style as _, value)
 }
 
-fn mason_style_get_justify_content(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_justify_content(style: i64) -> i32 {
     mason_core::ffi::style_get_justify_content(style as _)
 }
 
-fn mason_style_set_justify_content(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_justify_content(style: i64, value: i32) {
     mason_core::ffi::style_set_justify_content(style as _, value)
 }
 
-fn mason_style_set_inset(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_inset(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     let inset = CMasonLengthPercentageAuto::new(value, value_type);
     mason_core::ffi::style_set_inset(style as _, inset.into());
 }
 
 #[allow(clippy::too_many_arguments)]
-fn mason_style_set_inset_lrtb(
+#[no_mangle]
+pub extern "C" fn mason_style_set_inset_lrtb(
     style: i64,
     left_value: f32,
     left_value_type: CMasonLengthPercentageAutoType,
@@ -1641,38 +1208,46 @@ fn mason_style_set_inset_lrtb(
     mason_core::ffi::style_set_inset_lrtb(style as _, left, right, top, bottom);
 }
 
-fn mason_style_get_inset_left(style: i64) -> CMasonLengthPercentageAuto {
+#[no_mangle]
+pub extern "C" fn mason_style_get_inset_left(style: i64) -> CMasonLengthPercentageAuto {
     mason_core::ffi::style_get_inset_left(style as _).into()
 }
 
-fn mason_style_set_inset_left(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_inset_left(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     let val = CMasonLengthPercentageAuto::new(value, value_type);
     mason_core::ffi::style_set_inset_left(style as _, val.into())
 }
 
-fn mason_style_get_inset_right(style: i64) -> CMasonLengthPercentageAuto {
+#[no_mangle]
+pub extern "C" fn mason_style_get_inset_right(style: i64) -> CMasonLengthPercentageAuto {
     mason_core::ffi::style_get_inset_right(style as _).into()
 }
 
-fn mason_style_set_inset_right(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_inset_right(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     let val = CMasonLengthPercentageAuto::new(value, value_type);
     mason_core::ffi::style_set_inset_right(style as _, val.into())
 }
 
-fn mason_style_get_inset_top(style: i64) -> CMasonLengthPercentageAuto {
+#[no_mangle]
+pub extern "C" fn mason_style_get_inset_top(style: i64) -> CMasonLengthPercentageAuto {
     mason_core::ffi::style_get_inset_top(style as _).into()
 }
 
-fn mason_style_set_inset_top(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_inset_top(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     let val = CMasonLengthPercentageAuto::new(value, value_type);
     mason_core::ffi::style_set_inset_top(style as _, val.into())
 }
 
-fn mason_style_get_inset_bottom(style: i64) -> CMasonLengthPercentageAuto {
+#[no_mangle]
+pub extern "C" fn mason_style_get_inset_bottom(style: i64) -> CMasonLengthPercentageAuto {
     mason_core::ffi::style_get_inset_bottom(style as _).into()
 }
 
-fn mason_style_set_inset_bottom(
+#[no_mangle]
+pub extern "C" fn mason_style_set_inset_bottom(
     style: i64,
     value: f32,
     value_type: CMasonLengthPercentageAutoType,
@@ -1681,25 +1256,30 @@ fn mason_style_set_inset_bottom(
     mason_core::ffi::style_set_inset_bottom(style as _, val.into())
 }
 
-fn mason_style_set_margin(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     let margin = CMasonLengthPercentageAuto::new(value, value_type);
     mason_core::ffi::style_set_margin(style as _, margin.into())
 }
 
-fn mason_style_get_margin_left(style: i64) -> CMasonLengthPercentageAuto {
+#[no_mangle]
+pub extern "C" fn mason_style_get_margin_left(style: i64) -> CMasonLengthPercentageAuto {
     mason_core::ffi::style_get_margin_left(style as _).into()
 }
 
-fn mason_style_set_margin_left(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin_left(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     let val = CMasonLengthPercentageAuto::new(value, value_type);
     mason_core::ffi::style_set_margin_left(style as _, val.into())
 }
 
-fn mason_style_get_margin_right(style: i64) -> CMasonLengthPercentageAuto {
+#[no_mangle]
+pub extern "C" fn mason_style_get_margin_right(style: i64) -> CMasonLengthPercentageAuto {
     mason_core::ffi::style_get_margin_right(style as _).into()
 }
 
-fn mason_style_set_margin_right(
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin_right(
     style: i64,
     value: f32,
     value_type: CMasonLengthPercentageAutoType,
@@ -1708,20 +1288,24 @@ fn mason_style_set_margin_right(
     mason_core::ffi::style_set_margin_right(style as _, val.into())
 }
 
-fn mason_style_get_margin_top(style: i64) -> CMasonLengthPercentageAuto {
+#[no_mangle]
+pub extern "C" fn mason_style_get_margin_top(style: i64) -> CMasonLengthPercentageAuto {
     mason_core::ffi::style_get_margin_top(style as _).into()
 }
 
-fn mason_style_set_margin_top(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin_top(style: i64, value: f32, value_type: CMasonLengthPercentageAutoType) {
     let val = CMasonLengthPercentageAuto::new(value, value_type);
     mason_core::ffi::style_set_margin_top(style as _, val.into())
 }
 
-fn mason_style_get_margin_bottom(style: i64) -> CMasonLengthPercentageAuto {
+#[no_mangle]
+pub extern "C" fn mason_style_get_margin_bottom(style: i64) -> CMasonLengthPercentageAuto {
     mason_core::ffi::style_get_margin_bottom(style as _).into()
 }
 
-fn mason_style_set_margin_bottom(
+#[no_mangle]
+pub extern "C" fn mason_style_set_margin_bottom(
     style: i64,
     value: f32,
     value_type: CMasonLengthPercentageAutoType,
@@ -1730,77 +1314,94 @@ fn mason_style_set_margin_bottom(
     mason_core::ffi::style_set_margin_bottom(style as _, val.into())
 }
 
-fn mason_style_set_border(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_border(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let border = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_border(style as _, border.into())
 }
 
-fn mason_style_get_border_left(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_border_left(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_border_left(style as _).into()
 }
 
-fn mason_style_set_border_left(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_border_left(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let val = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_border_left(style as _, val.into())
 }
 
-fn mason_style_get_border_right(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_border_right(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_border_right(style as _).into()
 }
 
-fn mason_style_set_border_right(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_border_right(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let val = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_border_right(style as _, val.into())
 }
 
-fn mason_style_get_border_top(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_border_top(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_border_top(style as _).into()
 }
 
-fn mason_style_set_border_top(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_border_top(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let val = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_border_top(style as _, val.into())
 }
 
-fn mason_style_get_border_bottom(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_border_bottom(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_border_bottom(style as _).into()
 }
 
-fn mason_style_set_border_bottom(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_border_bottom(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let val = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_border_bottom(style as _, val.into())
 }
 
-fn mason_style_set_flex_grow(style: i64, grow: f32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_grow(style: i64, grow: f32) {
     mason_core::ffi::style_set_flex_grow(style as _, grow)
 }
 
-fn mason_style_get_flex_grow(style: i64) -> f32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_grow(style: i64) -> f32 {
     mason_core::ffi::style_get_flex_grow(style as _)
 }
 
-fn mason_style_set_flex_shrink(style: i64, shrink: f32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_shrink(style: i64, shrink: f32) {
     mason_core::ffi::style_set_flex_shrink(style as _, shrink)
 }
 
-fn mason_style_get_flex_shrink(style: i64) -> f32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_shrink(style: i64) -> f32 {
     mason_core::ffi::style_get_flex_shrink(style as _)
 }
 
-fn mason_style_get_flex_basis(style: i64) -> CMasonDimension {
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_basis(style: i64) -> CMasonDimension {
     mason_core::ffi::style_get_flex_basis(style as _).into()
 }
 
-fn mason_style_set_flex_basis(style: i64, value: f32, value_type: CMasonDimensionType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_basis(style: i64, value: f32, value_type: CMasonDimensionType) {
     let basis = CMasonDimension::new(value, value_type);
     mason_core::ffi::style_set_flex_basis(style as _, basis.into())
 }
 
-fn mason_style_get_gap(style: i64) -> CMasonLengthPercentageSize {
+#[no_mangle]
+pub extern "C" fn mason_style_get_gap(style: i64) -> CMasonLengthPercentageSize {
     mason_core::ffi::style_get_gap(style as _).into()
 }
 
-fn mason_style_set_gap(
+#[no_mangle]
+pub extern "C" fn mason_style_set_gap(
     style: i64,
     width_value: f32,
     width_type: CMasonLengthPercentageType,
@@ -1812,118 +1413,144 @@ fn mason_style_set_gap(
     mason_core::ffi::style_set_gap(style as _, width.into(), height.into())
 }
 
-fn mason_style_set_row_gap(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_row_gap(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let width = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_row_gap(style as _, width.into())
 }
 
-fn mason_style_get_row_gap(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_row_gap(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_row_gap(style as _).into()
 }
 
-fn mason_style_set_column_gap(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_column_gap(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let height = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_column_gap(style as _, height.into())
 }
 
-fn mason_style_get_column_gap(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_column_gap(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_column_gap(style as _).into()
 }
 
-fn mason_style_set_aspect_ratio(style: i64, ratio: f32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_aspect_ratio(style: i64, ratio: f32) {
     mason_core::ffi::style_set_aspect_ratio(style as _, ratio)
 }
 
-fn mason_style_get_aspect_ratio(style: i64) -> f32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_aspect_ratio(style: i64) -> f32 {
     mason_core::ffi::style_get_aspect_ratio(style as _)
 }
 
-fn mason_style_set_padding(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let padding = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_padding(style as _, padding.into());
 }
 
-fn mason_style_get_padding_left(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_padding_left(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_padding_left(style as _).into()
 }
 
-fn mason_style_set_padding_left(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding_left(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let val = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_padding_left(style as _, val.into())
 }
 
-fn mason_style_get_padding_right(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_padding_right(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_padding_right(style as _).into()
 }
 
-fn mason_style_set_padding_right(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding_right(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let val = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_padding_right(style as _, val.into())
 }
 
-fn mason_style_get_padding_top(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_padding_top(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_padding_top(style as _).into()
 }
 
-fn mason_style_set_padding_top(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding_top(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let val = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_padding_top(style as _, val.into())
 }
 
-fn mason_style_get_padding_bottom(style: i64) -> CMasonLengthPercentage {
+#[no_mangle]
+pub extern "C" fn mason_style_get_padding_bottom(style: i64) -> CMasonLengthPercentage {
     mason_core::ffi::style_get_padding_bottom(style as _).into()
 }
 
-fn mason_style_set_padding_bottom(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_padding_bottom(style: i64, value: f32, value_type: CMasonLengthPercentageType) {
     let val = CMasonLengthPercentage::new(value, value_type);
     mason_core::ffi::style_set_padding_bottom(style as _, val.into())
 }
 
-fn mason_style_get_flex_direction(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_flex_direction(style: i64) -> i32 {
     mason_core::ffi::style_get_flex_direction(style as _)
 }
 
-fn mason_style_set_flex_direction(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_flex_direction(style: i64, value: i32) {
     mason_core::ffi::style_set_flex_direction(style as _, value)
 }
 
-fn mason_style_get_min_width(style: i64) -> CMasonDimension {
+#[no_mangle]
+pub extern "C" fn mason_style_get_min_width(style: i64) -> CMasonDimension {
     mason_core::ffi::style_get_min_width(style as _).into()
 }
 
-fn mason_style_set_min_width(style: i64, value: f32, value_type: CMasonDimensionType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_min_width(style: i64, value: f32, value_type: CMasonDimensionType) {
     let val = CMasonDimension::new(value, value_type);
     mason_core::ffi::style_set_min_width(style as _, val.into())
 }
 
-fn mason_style_get_min_height(style: i64) -> CMasonDimension {
+#[no_mangle]
+pub extern "C" fn mason_style_get_min_height(style: i64) -> CMasonDimension {
     mason_core::ffi::style_get_min_height(style as _).into()
 }
 
-fn mason_style_set_min_height(style: i64, value: f32, value_type: CMasonDimensionType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_min_height(style: i64, value: f32, value_type: CMasonDimensionType) {
     let val = CMasonDimension::new(value, value_type);
     mason_core::ffi::style_set_min_height(style as _, val.into())
 }
 
-fn mason_style_get_max_width(style: i64) -> CMasonDimension {
+#[no_mangle]
+pub extern "C" fn mason_style_get_max_width(style: i64) -> CMasonDimension {
     mason_core::ffi::style_get_max_width(style as _).into()
 }
 
-fn mason_style_set_max_width(style: i64, value: f32, value_type: CMasonDimensionType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_max_width(style: i64, value: f32, value_type: CMasonDimensionType) {
     let val = CMasonDimension::new(value, value_type);
     mason_core::ffi::style_set_max_width(style as _, val.into())
 }
 
-fn mason_style_get_max_height(style: i64) -> CMasonDimension {
+#[no_mangle]
+pub extern "C" fn mason_style_get_max_height(style: i64) -> CMasonDimension {
     mason_core::ffi::style_get_max_height(style as _).into()
 }
 
-fn mason_style_set_max_height(style: i64, value: f32, value_type: CMasonDimensionType) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_max_height(style: i64, value: f32, value_type: CMasonDimensionType) {
     let val = CMasonDimension::new(value, value_type);
     mason_core::ffi::style_set_max_height(style as _, val.into())
 }
 
-pub fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64) {
+#[no_mangle]
+pub extern "C" fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64) {
     mason_core::ffi::node_update_and_set_style(mason as _, node as _, style as _);
 
     let jvm = get_java_vm().expect("JavaVM reference not found");
@@ -1936,15 +1563,18 @@ pub fn mason_node_update_and_set_style(mason: i64, node: i64, style: i64) {
         .unwrap();
 }
 
-pub fn mason_style_set_scrollbar_width(style: i64, value: f32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_scrollbar_width(style: i64, value: f32) {
     mason_core::ffi::style_set_scrollbar_width(style as _, value);
 }
 
-pub fn mason_style_get_scrollbar_width(style: i64) -> f32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_scrollbar_width(style: i64) -> f32 {
     mason_core::ffi::style_get_scrollbar_width(style as _)
 }
 
-pub fn mason_style_set_overflow(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow(style: i64, value: i32) {
     mason_core::ffi::style_set_overflow(style as _, value);
 }
 
@@ -1953,27 +1583,35 @@ fn overflow_to_int(value: Overflow) -> i32 {
         Overflow::Visible => 0,
         Overflow::Hidden => 1,
         Overflow::Scroll => 2,
+        Overflow::Clip => 3
     }
 }
 
-pub fn mason_style_set_overflow_x(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow_x(style: i64, value: i32) {
     mason_core::ffi::style_set_overflow_x(style as _, value);
 }
 
-pub fn mason_style_get_overflow_x(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_overflow_x(style: i64) -> i32 {
     overflow_to_int(mason_core::ffi::style_get_overflow_x(style as _))
 }
 
-pub fn mason_style_set_overflow_y(style: i64, value: i32) {
+#[no_mangle]
+pub extern "C" fn mason_style_set_overflow_y(style: i64, value: i32) {
     mason_core::ffi::style_set_overflow_y(style as _, value);
 }
 
-pub fn mason_style_get_overflow_y(style: i64) -> i32 {
+#[no_mangle]
+pub extern "C" fn mason_style_get_overflow_y(style: i64) -> i32 {
     overflow_to_int(mason_core::ffi::style_get_overflow_y(style as _))
 }
 
+/*
+
 #[allow(clippy::too_many_arguments)]
-pub fn mason_style_update_with_values(
+#[no_mangle]
+pub extern "C" fn mason_style_update_with_values(
     style: i64,
     display: i32,
     position: i32,
@@ -2146,3 +1784,5 @@ pub fn mason_style_update_with_values(
         Box::leak(style);
     }
 }
+
+*/

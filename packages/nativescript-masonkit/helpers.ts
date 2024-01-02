@@ -211,9 +211,9 @@ export const enum JustifySelf {
 
 type TSCView = TSCViewBase & {
   _hasNativeView: boolean;
-  _masonPtr: any;
-  _masonNodePtr: any;
-  _masonStylePtr: any;
+  _masonPtr: bigint;
+  _masonNodePtr: bigint;
+  _masonStylePtr: bigint;
   _inBatch: boolean;
   ios: UIView;
   android: org.nativescript.mason.masonkit.View;
@@ -223,6 +223,7 @@ export let UseV8Module = false;
 
 if (global.isAndroid) {
   try {
+    java.lang.System.loadLibrary('masonnative');
     __non_webpack_require__('system_lib://libmasonnativev8.so');
     UseV8Module = true;
   } catch (error) {
@@ -234,8 +235,8 @@ if (global.isIOS) {
   TSCMason.alwaysEnable = true;
   if (!UseV8Module) {
     try {
-      //@ts-ignore
-      new global.MasonV8ModuleInstaller.install();
+      const installer = global.MasonV8ModuleInstaller.new();
+      installer.install();
       UseV8Module = true;
     } catch (error) {
       console.warn('Failed to enable on FastAPI');

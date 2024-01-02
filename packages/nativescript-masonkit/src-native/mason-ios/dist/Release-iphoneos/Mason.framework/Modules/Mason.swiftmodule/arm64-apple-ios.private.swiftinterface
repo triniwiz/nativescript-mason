@@ -1,5 +1,5 @@
 // swift-interface-format-version: 1.0
-// swift-compiler-version: Apple Swift version 5.7.2 (swiftlang-5.7.2.135.5 clang-1400.0.29.51)
+// swift-compiler-version: Apple Swift version 5.8.1 (swiftlang-5.8.0.124.5 clang-1403.0.22.11.100)
 // swift-module-flags: -target arm64-apple-ios9.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -module-name Mason
 // swift-module-flags-ignorable: -enable-bare-slash-regex
 import Foundation
@@ -35,8 +35,8 @@ public struct Line<T> {
   @objc public var jsonValue: Swift.String? {
     @objc get
   }
-  required public init(from decoder: Swift.Decoder) throws
-  public func encode(to encoder: Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
   @objc deinit
 }
 @_inheritsConvenienceInitializers @objc(TSCMason) @objcMembers public class TSCMason : ObjectiveC.NSObject {
@@ -72,8 +72,8 @@ public struct Line<T> {
   @objc public var jsonValue: Swift.String? {
     @objc get
   }
-  required public init(from decoder: Swift.Decoder) throws
-  public func encode(to encoder: Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
   @objc deinit
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionSizeCompat) public class MasonDimensionSizeCompat : ObjectiveC.NSObject {
@@ -179,8 +179,8 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public var jsonValue: Swift.String? {
     @objc get
   }
-  required public init(from decoder: Swift.Decoder) throws
-  public func encode(to encoder: Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
   @objc deinit
 }
 @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonLayout) @objcMembers public class MasonLayout : ObjectiveC.NSObject, Swift.Codable {
@@ -194,8 +194,8 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
     @objc get
   }
   @objc deinit
-  public func encode(to encoder: Swift.Encoder) throws
-  required public init(from decoder: Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
 }
 @_inheritsConvenienceInitializers @objcMembers @objc(MasonReexports) public class MasonReexports : ObjectiveC.NSObject {
   @objc public static func node_set_style(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer, _ style: Swift.UnsafeMutableRawPointer)
@@ -770,8 +770,8 @@ public enum MasonDimension : Swift.Codable {
   public var jsonValue: Swift.String? {
     get
   }
-  public init(from decoder: Swift.Decoder) throws
-  public func encode(to encoder: Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
 }
 public func MasonLengthPercentageFromPoints(value: Swift.Float) -> Mason.MasonLengthPercentage
 public func MasonLengthPercentageFromPercent(value: Swift.Float) -> Mason.MasonLengthPercentage
@@ -785,8 +785,8 @@ public enum MasonLengthPercentage : Swift.Codable {
   public var jsonValue: Swift.String? {
     get
   }
-  public init(from decoder: Swift.Decoder) throws
-  public func encode(to encoder: Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
 }
 public func MasonLengthPercentageAutoFromPoints(value: Swift.Float) -> Mason.MasonLengthPercentageAuto
 public func MasonLengthPercentageAutoFromPercent(value: Swift.Float) -> Mason.MasonLengthPercentageAuto
@@ -802,8 +802,8 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   public var jsonValue: Swift.String? {
     get
   }
-  public init(from decoder: Swift.Decoder) throws
-  public func encode(to encoder: Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
 }
 @objc(AlignItems) public enum AlignItems : Swift.Int, Swift.RawRepresentable {
   case Normal = -1
@@ -979,8 +979,8 @@ public enum GridPlacement : Swift.Codable {
   public var jsonValue: Swift.String? {
     get
   }
-  public init(from decoder: Swift.Decoder) throws
-  public func encode(to encoder: Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
 }
 @objc(GridPlacementCompatType) public enum GridPlacementCompatType : Swift.Int, Swift.RawRepresentable {
   case Auto
