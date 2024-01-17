@@ -6,10 +6,11 @@
 //}
 
 android {
-  compileSdkVersion 33
+  compileSdkVersion 34
+  buildToolsVersion "34.0.0"
   defaultConfig {
     minSdkVersion 21
-    targetSdkVersion 33
+    targetSdkVersion 34
     multiDexEnabled true
     generatedDensities = []
     testBuildType System.getProperty('testBuildType', 'debug')
