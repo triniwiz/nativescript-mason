@@ -37,7 +37,7 @@ android {
       cmake {
         cppFlags "-std=c++17"
         arguments "-DANDROID_TOOLCHAIN=clang",
-          "-DANDROID_STL=c++_static",
+          "-DANDROID_STL=c++_shared",
           "-DANDROID_NDK_ROOT=${System.getenv("ANDROID_NDK_ROOT")}"
       }
     }

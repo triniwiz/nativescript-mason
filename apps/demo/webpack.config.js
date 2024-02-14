@@ -5,7 +5,7 @@ module.exports = (env) => {
   webpack.init(env);
   webpack.useConfig('typescript');
 
-  webpack.Utils.addCopyRule('**/*.so');
+  //  webpack.Utils.addCopyRule('**/*.so');
 
   webpack.chainWebpack((config) => {
     // shared demo code

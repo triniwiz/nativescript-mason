@@ -6,7 +6,7 @@
   </Page.actionBar>
 
 
-    <!-- <ui:Flex class="flex-example" color="white">
+  <!-- <ui:Flex class="flex-example" color="white">
     <Label text="a" class="a"/>
     <Label text="b" class="b"/>
   </ui:Flex> -->
@@ -18,7 +18,7 @@
 
 
 
-  <ui:Grid class="wrapper-5">
+  <!-- <ui:Grid class="wrapper-5">
 
     <ui:Grid class="box a">
     <Label text="A" />
@@ -35,7 +35,7 @@
      <ui:Grid class="box d">
     <Label text="D" />
     </ui:Grid>
-  </ui:Grid>
+  </ui:Grid> -->
 
  
 
@@ -67,7 +67,7 @@
 
     <ui:Container class="box e">
       <Label
-        textWrap="true"
+        wrapText="true"
         text="Each of the boxes on the left has a grid area of 3 columns and 3 rows (we're counting the gutter col/row). So each covers the same size area as box A."></Label>
       <Label text="The align-self property is used to align the content inside the grid-area."></Label>
     </ui:Container> 
@@ -75,7 +75,7 @@
   </ui:Container>  -->
 
 
-  <!-- <ui:Grid class="grid-example">
+  <ui:Grid class="grid-example">
 
     <Label text="A" color="green" class="a" backgroundColor="red"/>
 
@@ -89,7 +89,7 @@
 
     <Label text="F" class="f" backgroundColor="pink"/>
 
-  </ui:Grid> -->
+  </ui:Grid>
 
 
   <!-- <ui:TSCView id="root" flexDirection="column">

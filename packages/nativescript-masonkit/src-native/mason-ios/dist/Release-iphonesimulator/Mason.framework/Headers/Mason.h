@@ -6,7 +6,18 @@
 //
 
 #import <Foundation/Foundation.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+//#import "mason_ios.h"
 #import "mason_native.h"
+#ifdef __cplusplus
+}
+#endif
+
+
+
 
 //! Project version number for Mason.
 FOUNDATION_EXPORT double MasonVersionNumber;

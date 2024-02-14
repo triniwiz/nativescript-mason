@@ -1,11 +1,12 @@
 [workspace]
 members = ["mason-core", "mason-android", "mason-ios", "mason-playground", "mason-c"]
+resolver = "2"
 
 [profile.release]
 panic = "abort"
 codegen-units = 1
 lto = true
-opt-level = "z"
+opt-level = 3
 debug = false
 incremental = false
 strip = true

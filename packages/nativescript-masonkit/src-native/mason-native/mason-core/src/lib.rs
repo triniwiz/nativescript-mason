@@ -1,18 +1,19 @@
 extern crate core;
 
 use std::ffi::{c_float, c_longlong, c_void};
-pub use taffy::geometry::Line;
+
 use taffy::{NodeId, TraversePartialTree};
+pub use taffy::geometry::Line;
+pub use taffy::Overflow;
 pub use taffy::style::{
-    AlignContent, AlignItems, AlignSelf, Dimension, Display, FlexDirection, FlexWrap, GridAutoFlow,
-    GridPlacement, JustifyContent, MaxTrackSizingFunction, MinTrackSizingFunction, Position,
-    AvailableSpace, LengthPercentage, LengthPercentageAuto,
-    GridTrackRepetition, NonRepeatedTrackSizingFunction, TrackSizingFunction,
+    AlignContent, AlignItems, AlignSelf, AvailableSpace, Dimension, Display, FlexDirection,
+    FlexWrap, GridAutoFlow, GridPlacement, GridTrackRepetition, JustifyContent, LengthPercentage,
+    LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction,
+    NonRepeatedTrackSizingFunction, Position, TrackSizingFunction,
 };
 pub use taffy::style_helpers::*;
-pub use taffy::Overflow;
-use style::Style;
 
+pub use style::Style;
 
 pub const fn align_content_from_enum(value: i32) -> Option<AlignContent> {
     match value {
@@ -230,10 +231,9 @@ pub const fn grid_auto_flow_to_enum(value: GridAutoFlow) -> i32 {
     }
 }
 
-pub mod ffi;
 pub mod style;
 
-pub struct MeasureOutput {}
+pub struct MeasureOutput;
 
 impl MeasureOutput {
     pub fn make(width: f32, height: f32) -> i64 {
@@ -255,7 +255,6 @@ impl MeasureOutput {
     }
 }
 
-
 #[cfg(not(target_os = "android"))]
 pub struct NodeContext {
     data: *mut c_void,
@@ -270,19 +269,25 @@ pub struct NodeContext {
 
 impl NodeContext {
     #[cfg(not(target_os = "android"))]
-    pub fn new(data: *mut c_void,
-               measure: Option<extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong>) -> Self {
+    pub fn new(
+        data: *mut c_void,
+        measure: Option<
+            extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong,
+        >,
+    ) -> Self {
         Self { data, measure }
     }
 
     #[cfg(target_os = "android")]
-    pub fn new(jvm: jni::JavaVM,
-               measure: jni::objects::GlobalRef) -> Self {
+    pub fn new(jvm: jni::JavaVM, measure: jni::objects::GlobalRef) -> Self {
         Self { jvm, measure }
     }
     #[cfg(target_os = "android")]
-    fn measure(&self, known_dimensions: taffy::Size<Option<f32>>,
-               available_space: taffy::Size<AvailableSpace>) -> taffy::geometry::Size<f32> {
+    fn measure(
+        &self,
+        known_dimensions: taffy::Size<Option<f32>>,
+        available_space: taffy::Size<AvailableSpace>,
+    ) -> taffy::geometry::Size<f32> {
         let vm = self.jvm.attach_current_thread();
         let mut env = vm.unwrap();
         let result = env.call_method(
@@ -319,7 +324,6 @@ impl NodeContext {
             Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
         }
     }
-
 
     #[cfg(not(target_os = "android"))]
     pub fn measure(
@@ -360,7 +364,6 @@ impl NodeContext {
     }
 }
 
-
 pub struct Mason {
     pub(crate) taffy: taffy::TaffyTree<NodeContext>,
 }
@@ -374,7 +377,7 @@ impl Default for Mason {
 impl Mason {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            taffy: taffy::TaffyTree::with_capacity(capacity)
+            taffy: taffy::TaffyTree::with_capacity(capacity),
         }
     }
 
@@ -387,9 +390,11 @@ impl Mason {
     }
 
     pub fn new_node_with_context(&mut self, style: Style, context: NodeContext) -> Option<Node> {
-        self.taffy.new_leaf_with_context(style.style, context).map(Node::from_taffy).ok()
+        self.taffy
+            .new_leaf_with_context(style.style, context)
+            .map(Node::from_taffy)
+            .ok()
     }
-
 
     pub fn is_children_same(&self, node: Node, children: &[Node]) -> bool {
         let children: Vec<NodeId> = children.iter().map(|v| v.node).collect();
@@ -423,61 +428,58 @@ impl Mason {
     }
 
     pub fn compute(&mut self, node: Node) {
-        let _ = self.taffy.compute_layout_with_measure(node.node, taffy::geometry::Size::max_content(), |known_dimensions, available_space, _node_id, node_context| {
-            match node_context {
-                None => {
-                    taffy::Size { width: f32::NAN, height: f32::NAN }
-                }
-                Some(context) => {
-                    context.measure(known_dimensions, available_space)
-                }
-            }
-        });
+        let _ = self.taffy.compute_layout_with_measure(
+            node.node,
+            taffy::geometry::Size::max_content(),
+            |known_dimensions, available_space, _node_id, node_context| match node_context {
+                None => known_dimensions.unwrap_or(taffy::Size {
+                    width: f32::NAN,
+                    height: f32::NAN,
+                }),
+                Some(context) => context.measure(known_dimensions, available_space),
+            },
+        );
     }
 
     pub fn compute_wh(&mut self, node: Node, width: f32, height: f32) {
-        let min_size = Size::<AvailableSpace>::min_content();
-        let max_size = Size::<AvailableSpace>::max_content();
         let size = taffy::geometry::Size {
             width: match width {
-                x if x == -1.0 => min_size.size.width,
-                x if x == -2.0 => max_size.size.width,
+                x if x == -1.0 => AvailableSpace::MinContent,
+                x if x == -2.0 => AvailableSpace::MaxContent,
                 _ => AvailableSpace::Definite(width),
             },
             height: match height {
-                x if x == -1.0 => min_size.size.height,
-                x if x == -2.0 => max_size.size.height,
+                x if x == -1.0 => AvailableSpace::MinContent,
+                x if x == -2.0 => AvailableSpace::MaxContent,
                 _ => AvailableSpace::Definite(height),
             },
         };
 
-        //  let _ = self.taffy.compute_layout_with_measure(node.node, size);
-
-        let _ = self.taffy.compute_layout_with_measure(node.node, size, |known_dimensions, available_space, _node_id, node_context| {
-            match node_context {
-                None => {
-                    taffy::Size { width: f32::NAN, height: f32::NAN }
-                }
-                Some(context) => {
-                    context.measure(known_dimensions, available_space)
-                }
-            }
-        });
+        let _ = self.taffy.compute_layout_with_measure(
+            node.node,
+            size,
+            |known_dimensions, available_space, _node_id, node_context| match node_context {
+                None => known_dimensions.unwrap_or(taffy::Size {
+                    width: f32::NAN,
+                    height: f32::NAN,
+                }),
+                Some(context) => context.measure(known_dimensions, available_space),
+            },
+        );
     }
 
     pub fn compute_size(&mut self, node: Node, size: Size<AvailableSpace>) {
-        // let _ = self.taffy.compute_layout_with_measure(node.node, size.size);
-
-        let _ = self.taffy.compute_layout_with_measure(node.node, size.size, |known_dimensions, available_space, _node_id, node_context| {
-            match node_context {
-                None => {
-                    taffy::Size { width: f32::NAN, height: f32::NAN }
-                }
-                Some(context) => {
-                    context.measure(known_dimensions, available_space)
-                }
-            }
-        });
+        let _ = self.taffy.compute_layout_with_measure(
+            node.node,
+            size.size,
+            |known_dimensions, available_space, _node_id, node_context| match node_context {
+                None => known_dimensions.unwrap_or(taffy::Size {
+                    width: f32::NAN,
+                    height: f32::NAN,
+                }),
+                Some(context) => context.measure(known_dimensions, available_space),
+            },
+        );
     }
 
     pub fn child_count(&self, node: Node) -> usize {
@@ -507,13 +509,17 @@ impl Mason {
     }
 
     pub fn add_child_at_index(&mut self, node: Node, child: Node, index: usize) {
-        let _ = self.taffy.insert_child_at_index(node.node, index, child.node);
+        let _ = self
+            .taffy
+            .insert_child_at_index(node.node, index, child.node);
     }
 
     pub fn insert_child_before(&mut self, node: Node, child: Node, reference_node: Node) {
         if let Ok(children) = self.taffy.children(node.node) {
             if let Some(position) = children.iter().position(|v| *v == reference_node.node) {
-                let _ = self.taffy.insert_child_at_index(node.node, position, child.node);
+                let _ = self
+                    .taffy
+                    .insert_child_at_index(node.node, position, child.node);
             }
         }
     }
@@ -525,7 +531,9 @@ impl Mason {
             if new_position == children.len() {
                 let _ = self.taffy.add_child(node.node, child.node);
             } else {
-                let _ = self.taffy.insert_child_at_index(node.node, new_position, child.node);
+                let _ = self
+                    .taffy
+                    .insert_child_at_index(node.node, new_position, child.node);
             }
         }
     }
@@ -712,19 +720,10 @@ impl<T> Size<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Node {
     node: NodeId,
 }
-
-
-impl PartialEq for Node {
-    fn eq(&self, other: &Self) -> bool {
-        self.node == other.node
-    }
-}
-
-impl Eq for Node {}
 
 impl Node {
     pub fn from_taffy(node: NodeId) -> Self {
@@ -755,12 +754,21 @@ impl Layout {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct Point<T> {
     point: taffy::geometry::Point<T>,
 }
 
+impl<T> Into<taffy::geometry::Point<T>> for Point<T> {
+    fn into(self) -> taffy::Point<T> {
+        self.point
+    }
+}
+
 impl<T> Point<T> {
+    pub fn new(x: T, y: T) -> Point <T> {
+        Self { point: taffy::geometry::Point { x, y } }
+    }
     pub fn from_taffy(point: taffy::geometry::Point<T>) -> Self {
         Self { point }
     }

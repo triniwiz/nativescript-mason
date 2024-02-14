@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AddChildFromBuilder, CSSType, CoreTypes, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View, ViewBase, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, getViewById, heightProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, unsetValue, widthProperty } from '@nativescript/core';
-import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
-import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position } from '.';
+import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
+import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent } from '.';
 import {
   _forceStyleUpdate,
   _getAlignContent,
@@ -189,6 +189,7 @@ export function applyMixins(
 
 let mixinInstalled = false;
 export function overrideViewBase() {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const NSView = require('@nativescript/core').View;
   class ViewOverride extends View {
     get _isMasonViewOrChild() {
@@ -800,8 +801,6 @@ export function installMixins() {
   }
 }
 
-const emptyArray = [];
-
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',
   cssName: 'scroll-bar-width',
@@ -1005,13 +1004,13 @@ export const gridGapProperty = new ShorthandProperty<Style, Gap>({
     }
     return `${this.rowGap} ${this.columnGap}`;
   },
-  converter(value) {
+  converter(value): any[] {
     if (typeof value === 'string') {
       const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
 
       const length = values.length;
       if (length === 0) {
-        return emptyArray;
+        return [];
       }
 
       if (length === 1) {
@@ -1033,7 +1032,7 @@ export const gridGapProperty = new ShorthandProperty<Style, Gap>({
       }
     }
 
-    return emptyArray;
+    return [];
   },
 });
 
@@ -1052,7 +1051,7 @@ export const gapProperty = new ShorthandProperty<Style, Gap>({
 
       const length = values.length;
       if (length === 0) {
-        return emptyArray;
+        return [];
       }
 
       if (length === 1) {
@@ -1073,7 +1072,7 @@ export const gapProperty = new ShorthandProperty<Style, Gap>({
       }
     }
 
-    return emptyArray;
+    return [];
   },
 });
 
@@ -1083,17 +1082,17 @@ export const aspectRatioProperty = new CssProperty<Style, number>({
   defaultValue: Number.NaN,
 });
 
-// export const alignItemsProperty = new CssProperty<Style, AlignItems>({
-//   name: 'alignItems',
-//   cssName: 'align-items',
-//   defaultValue: 'normal',
-// });
+export const alignItemsProperty = new CssProperty<Style, AlignItems>({
+  name: 'alignItems',
+  cssName: 'align-items',
+  defaultValue: 'normal',
+});
 
-// export const alignSelfProperty = new CssProperty<Style, AlignSelf>({
-//   name: 'alignSelf',
-//   cssName: 'align-self',
-//   defaultValue: 'normal',
-// });
+export const alignSelfProperty = new CssProperty<Style, AlignSelf>({
+  name: 'alignSelf',
+  cssName: 'align-self',
+  defaultValue: 'normal',
+});
 
 export const alignContentProperty = new CssProperty<Style, AlignContent>({
   name: 'alignContent',
@@ -1113,11 +1112,11 @@ export const justifySelfProperty = new CssProperty<Style, JustifySelf>({
   defaultValue: 'normal',
 });
 
-// export const justifyContentProperty = new CssProperty<Style, JustifyContent>({
-//   name: 'justifyContent',
-//   cssName: 'justify-content',
-//   defaultValue: 'normal',
-// });
+export const justifyContentProperty = new CssProperty<Style, JustifyContent>({
+  name: 'justifyContent',
+  cssName: 'justify-content',
+  defaultValue: 'normal',
+});
 
 export const gridAutoRowsProperty = new CssProperty<Style, string>({
   name: 'gridAutoRows',
@@ -1191,7 +1190,7 @@ export const gridAreaProperty = new ShorthandProperty<Style, string>({
 
       const length = values.length;
       if (length === 0) {
-        return emptyArray;
+        return [];
       }
 
       if (length === 1) {
@@ -1248,7 +1247,7 @@ export const gridAreaProperty = new ShorthandProperty<Style, string>({
       }
     }
 
-    return emptyArray;
+    return [];
   },
 });
 
@@ -1279,7 +1278,7 @@ export const gridColumnProperty = new ShorthandProperty<Style, string>({
 
       const length = values.length;
       if (length === 0) {
-        return emptyArray;
+        return [];
       }
 
       if (length === 1) {
@@ -1304,7 +1303,7 @@ export const gridColumnProperty = new ShorthandProperty<Style, string>({
       }
     }
 
-    return emptyArray;
+    return [];
   },
 });
 
@@ -1335,7 +1334,7 @@ export const gridRowProperty = new ShorthandProperty<Style, string>({
 
       const length = values.length;
       if (length === 0) {
-        return emptyArray;
+        return [];
       }
 
       if (length === 1) {
@@ -1359,7 +1358,7 @@ export const gridRowProperty = new ShorthandProperty<Style, string>({
       }
     }
 
-    return emptyArray;
+    return [];
   },
 });
 
@@ -1461,11 +1460,12 @@ const flexProperty = new ShorthandProperty({
   },
 });
 
+export const BigIntZero = BigInt(0);
+
 @CSSType('TSCView')
 export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder {
   android: org.nativescript.mason.masonkit.View;
   ios: UIView;
-
   gridGap: Gap;
   gap: Gap;
   gridArea: string;
@@ -1475,6 +1475,9 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   _children: any[] = [];
   _isMasonView = false;
   _isMasonChild = false;
+  __masonStylePtr = BigIntZero;
+  __masonNodePtr = BigIntZero;
+  __masonPtr = BigIntZero;
 
   constructor() {
     super();
@@ -1506,20 +1509,74 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   }
 
   public eachChild(callback: (child: ViewBase) => boolean) {
-    this._children.forEach((child) => {
+    for (const child of this._children) {
       callback(child);
-    });
+    }
   }
 
   public eachChildView(callback: (child: View) => boolean): void {
-    this._children.forEach((view, key) => {
-      callback(view as any);
-    });
+    for (const view of this._children) {
+      callback(view);
+    }
   }
 
   _addChildFromBuilder(name: string, value: any): void {
     this._children.push(value);
+    if (!(value instanceof TSCViewBase) && !Object.hasOwn(value, '_isMasonChild')) {
+      value.loadPtrs = function () {
+        // @ts-ignore
+        if (global.isIOS) {
+          if (!this.nativeView) {
+            return;
+          }
+          const ptrs = this.nativeView?.masonPtrs?.split?.(':');
+          this.__masonPtr = BigInt(ptrs[0]);
+          this.__masonNodePtr = BigInt(ptrs[1]);
+          this.__masonStylePtr = BigInt(ptrs[2]);
+        }
+      };
+
+      Object.defineProperties(value, {
+        __masonPtr: {
+          value: BigIntZero,
+          writable: true,
+        },
+        __masonNodePtr: {
+          value: BigIntZero,
+          writable: true,
+        },
+        __masonStylePtr: {
+          value: BigIntZero,
+          writable: true,
+        },
+        _masonStylePtr: {
+          get: function () {
+            if (this.__masonStylePtr === BigIntZero) {
+              this.loadPtrs();
+            }
+            return this.__masonStylePtr;
+          },
+        },
+        _masonNodePtr: {
+          get: function () {
+            if (this.__masonNodePtr === BigIntZero) {
+              this.loadPtrs();
+            }
+            return this.__masonNodePtr;
+          },
+        },
+        _masonPtr: {
+          get: function () {
+            if (this.__masonPtr === BigIntZero) {
+              this.loadPtrs();
+            }
+            return this.__masonPtr;
+          },
+        },
+      });
+    }
     value._isMasonChild = true;
+
     this._addView(value);
   }
 
@@ -1542,26 +1599,36 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
     return getViewById(this, id);
   }
 
-  addChild(child: View) {
+  addChild(child: any) {
     this._children.push(child);
+    child._isMasonChild = true;
     this._addView(child);
   }
 
-  insertChild(child: View, atIndex: number) {
+  insertChild(child: any, atIndex: number) {
     this._children.splice(atIndex, 0, child);
+    child._isMasonChild = true;
     this._addView(child, atIndex);
   }
 
-  removeChild(child: View) {
+  removeChild(child: any) {
     const index = this._children.indexOf(child);
-    this._children.splice(index, 1);
-    this._removeView(child);
+    if (index > -1) {
+      this._children.splice(index, 1);
+      child._isMasonChild = false;
+      this._removeView(child);
+    }
   }
 
   removeChildren() {
-    while (this.getChildrenCount() !== 0) {
-      this.removeChild(this._children[this.getChildrenCount() - 1]);
+    if (this._children.length === 0) {
+      return;
     }
+    for (const child of this._children) {
+      child._isMasonChild = false;
+      this._removeView(child);
+    }
+    this._children.splice(0);
   }
 }
 
@@ -1573,9 +1640,9 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
 // flexWrapProperty.register(Style);
 // flexGrowProperty.register(Style);
 // flexShrinkProperty.register(Style);
-// alignItemsProperty.register(Style);
-// alignSelfProperty.register(Style);
-// justifyContentProperty.register(Style);
+alignItemsProperty.register(Style);
+alignSelfProperty.register(Style);
+justifyContentProperty.register(Style);
 
 displayProperty.register(Style);
 maxWidthProperty.register(Style);

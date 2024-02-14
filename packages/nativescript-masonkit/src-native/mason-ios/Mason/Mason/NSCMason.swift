@@ -8,10 +8,10 @@
 import Foundation
 import UIKit
 
-@objc(TSCMason)
+@objc(NSCMason)
 @objcMembers
-public class TSCMason: NSObject {
-    public internal (set) var nativePtr: UnsafeMutableRawPointer!
+public class NSCMason: NSObject {
+    public internal (set) var nativePtr: OpaquePointer?
     public override init() {
         nativePtr = mason_init();
     }
@@ -24,7 +24,7 @@ public class TSCMason: NSObject {
         mason_clear(nativePtr)
     }
     
-    public static let instance = TSCMason()
+    public static let instance = NSCMason()
     
     public static var shared = false
     

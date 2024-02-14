@@ -5,13 +5,13 @@ use jni::sys::{
 };
 use jni::JNIEnv;
 
-use crate::style::{to_vec_non_repeated_track_sizing_function_jni, to_vec_track_sizing_function_jni};
+use crate::style::{
+    to_vec_non_repeated_track_sizing_function_jni, to_vec_track_sizing_function_jni,
+};
 use mason_core::{AvailableSpace, Mason, MeasureOutput, Node, NodeContext, Size};
 
 #[no_mangle]
-pub extern "system" fn NodeNativeDestroy(
-    node: jlong,
-) {
+pub extern "system" fn NodeNativeDestroy(node: jlong) {
     if node == 0 {
         return;
     }
@@ -21,11 +21,7 @@ pub extern "system" fn NodeNativeDestroy(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeDestroyNormal(
-    _env: JNIEnv,
-    _: JClass,
-    node: jlong,
-) {
+pub extern "system" fn NodeNativeDestroyNormal(_env: JNIEnv, _: JClass, node: jlong) {
     if node == 0 {
         return;
     }
@@ -34,9 +30,7 @@ pub extern "system" fn NodeNativeDestroyNormal(
     }
 }
 
-
-fn native_new_node(taffy: jlong,
-                   style: jlong) -> jlong {
+fn native_new_node(taffy: jlong, style: jlong) -> jlong {
     if taffy == 0 || style == 0 {
         return 0;
     }
@@ -56,10 +50,7 @@ fn native_new_node(taffy: jlong,
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeNewNode(
-    taffy: jlong,
-    style: jlong,
-) -> jlong {
+pub extern "system" fn NodeNativeNewNode(taffy: jlong, style: jlong) -> jlong {
     native_new_node(taffy, style)
 }
 
@@ -72,7 +63,6 @@ pub extern "system" fn NodeNativeNewNodeNormal(
 ) -> jlong {
     native_new_node(taffy, style)
 }
-
 
 #[no_mangle]
 pub extern "system" fn NodeNativeNewNodeWithContext(
@@ -95,10 +85,7 @@ pub extern "system" fn NodeNativeNewNodeWithContext(
         let context = NodeContext::new(jvm, measure);
 
         let ret = mason
-            .new_node_with_context(
-                *style.clone(),
-                context,
-            )
+            .new_node_with_context(*style.clone(), context)
             .map(|v| Box::into_raw(Box::new(v)) as jlong)
             .unwrap_or_else(|| 0);
 
@@ -173,10 +160,7 @@ fn native_get_child_count(taffy: jlong, node: jlong) -> jint {
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeGetChildCount(
-    taffy: jlong,
-    node: jlong,
-) -> jint {
+pub extern "system" fn NodeNativeGetChildCount(taffy: jlong, node: jlong) -> jint {
     native_get_child_count(taffy, node)
 }
 
@@ -212,10 +196,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeLayout(
     }
 }
 
-fn native_compute_wh(taffy: jlong,
-                     node: jlong,
-                     width: jfloat,
-                     height: jfloat) {
+fn native_compute_wh(taffy: jlong, node: jlong, width: jfloat, height: jfloat) {
     if taffy == 0 || node == 0 {
         return;
     }
@@ -250,11 +231,7 @@ pub extern "system" fn NodeNativeComputeWHNormal(
     native_compute_wh(taffy, node, width, height)
 }
 
-fn native_compute_size(
-    taffy: jlong,
-    node: jlong,
-    size: jlong,
-) {
+fn native_compute_size(taffy: jlong, node: jlong, size: jlong) {
     if taffy == 0 || node == 0 || size == 0 {
         return;
     }
@@ -270,11 +247,7 @@ fn native_compute_size(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeComputeSize(
-    taffy: jlong,
-    node: jlong,
-    size: jlong,
-) {
+pub extern "system" fn NodeNativeComputeSize(taffy: jlong, node: jlong, size: jlong) {
     native_compute_size(taffy, node, size)
 }
 
@@ -289,10 +262,7 @@ pub extern "system" fn NodeNativeComputeSizeNormal(
     native_compute_size(taffy, node, size)
 }
 
-fn native_compute_max_content(
-    taffy: jlong,
-    node: jlong,
-) {
+fn native_compute_max_content(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
@@ -307,13 +277,9 @@ fn native_compute_max_content(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeComputeMaxContent(
-    taffy: jlong,
-    node: jlong,
-) {
+pub extern "system" fn NodeNativeComputeMaxContent(taffy: jlong, node: jlong) {
     native_compute_max_content(taffy, node)
 }
-
 
 #[no_mangle]
 pub extern "system" fn NodeNativeComputeMaxContentNormal(
@@ -325,11 +291,7 @@ pub extern "system" fn NodeNativeComputeMaxContentNormal(
     native_compute_max_content(taffy, node)
 }
 
-
-fn native_compute_min_content(
-    taffy: jlong,
-    node: jlong,
-) {
+fn native_compute_min_content(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
@@ -344,10 +306,7 @@ fn native_compute_min_content(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeComputeMinContent(
-    taffy: jlong,
-    node: jlong,
-) {
+pub extern "system" fn NodeNativeComputeMinContent(taffy: jlong, node: jlong) {
     native_compute_min_content(taffy, node)
 }
 
@@ -361,11 +320,7 @@ pub extern "system" fn NodeNativeComputeMinContentNormal(
     native_compute_min_content(taffy, node)
 }
 
-
-fn native_compute(
-    taffy: jlong,
-    node: jlong,
-) {
+fn native_compute(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
@@ -379,10 +334,7 @@ fn native_compute(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeCompute(
-    taffy: jlong,
-    node: jlong,
-) {
+pub extern "system" fn NodeNativeCompute(taffy: jlong, node: jlong) {
     native_compute(taffy, node)
 }
 
@@ -396,11 +348,7 @@ pub extern "system" fn NodeNativeComputeNormal(
     native_compute(taffy, node)
 }
 
-fn native_set_style(
-    taffy: jlong,
-    node: jlong,
-    style: jlong,
-) {
+fn native_set_style(taffy: jlong, node: jlong, style: jlong) {
     if taffy == 0 || node == 0 || style == 0 {
         return;
     }
@@ -416,11 +364,7 @@ fn native_set_style(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeSetStyle(
-    taffy: jlong,
-    node: jlong,
-    style: jlong,
-) {
+pub extern "system" fn NodeNativeSetStyle(taffy: jlong, node: jlong, style: jlong) {
     native_set_style(taffy, node, style)
 }
 
@@ -533,7 +477,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateAnd
         let mut style = Box::from_raw(style as *mut mason_core::style::Style);
 
         let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_rows);
-        let grid_auto_columns = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
+        let grid_auto_columns =
+            to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
         let grid_template_rows = to_vec_track_sizing_function_jni(env, grid_template_rows);
         let grid_template_columns = to_vec_track_sizing_function_jni(env, grid_template_columns);
 
@@ -728,7 +673,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         let mut style = Box::from_raw(style as *mut mason_core::style::Style);
 
         let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_rows);
-        let grid_auto_columns = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
+        let grid_auto_columns =
+            to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
         let grid_template_rows = to_vec_track_sizing_function_jni(env, grid_template_rows);
         let grid_template_columns = to_vec_track_sizing_function_jni(env, grid_template_columns);
 
@@ -995,7 +941,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
         let mut style = Box::from_raw(style as *mut mason_core::style::Style);
 
         let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_rows);
-        let grid_auto_columns = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
+        let grid_auto_columns =
+            to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
         let grid_template_rows = to_vec_track_sizing_function_jni(env, grid_template_rows);
         let grid_template_columns = to_vec_track_sizing_function_jni(env, grid_template_columns);
 
@@ -1102,12 +1049,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeUpdateSet
     }
 }
 
-
-fn native_get_child_at(
-    taffy: jlong,
-    node: jlong,
-    index: jint,
-) -> jlong {
+fn native_get_child_at(taffy: jlong, node: jlong, index: jint) -> jlong {
     if taffy == 0 || node == 0 {
         return 0;
     }
@@ -1125,14 +1067,9 @@ fn native_get_child_at(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeGetChildAt(
-    taffy: jlong,
-    node: jlong,
-    index: jint,
-) -> jlong {
+pub extern "system" fn NodeNativeGetChildAt(taffy: jlong, node: jlong, index: jint) -> jlong {
     native_get_child_at(taffy, node, index)
 }
-
 
 #[no_mangle]
 pub extern "system" fn NodeNativeGetChildAtNormal(
@@ -1211,11 +1148,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChildr
     }
 }
 
-fn native_add_child(
-    taffy: jlong,
-    node: jlong,
-    child: jlong,
-) {
+fn native_add_child(taffy: jlong, node: jlong, child: jlong) {
     if taffy == 0 || node == 0 || child == 0 {
         return;
     }
@@ -1233,14 +1166,9 @@ fn native_add_child(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeAddChild(
-    taffy: jlong,
-    node: jlong,
-    child: jlong,
-) {
+pub extern "system" fn NodeNativeAddChild(taffy: jlong, node: jlong, child: jlong) {
     native_add_child(taffy, node, child)
 }
-
 
 #[no_mangle]
 pub extern "system" fn NodeNativeAddChildNormal(
@@ -1253,12 +1181,7 @@ pub extern "system" fn NodeNativeAddChildNormal(
     native_add_child(taffy, node, child)
 }
 
-fn native_replace_child_at(
-    taffy: jlong,
-    node: jlong,
-    child: jlong,
-    index: jint,
-) -> jlong {
+fn native_replace_child_at(taffy: jlong, node: jlong, child: jlong, index: jint) -> jlong {
     if taffy == 0 || node == 0 || child == 0 {
         return 0;
     }
@@ -1285,7 +1208,6 @@ fn native_replace_child_at(
     }
 }
 
-
 #[no_mangle]
 pub extern "system" fn NodeNativeReplaceChildAt(
     taffy: jlong,
@@ -1308,12 +1230,7 @@ pub extern "system" fn NodeNativeReplaceChildAtNormal(
     native_replace_child_at(taffy, node, child, index)
 }
 
-fn native_add_child_at(
-    taffy: jlong,
-    node: jlong,
-    child: jlong,
-    index: jint,
-) {
+fn native_add_child_at(taffy: jlong, node: jlong, child: jlong, index: jint) {
     if taffy == 0 || node == 0 || child == 0 {
         return;
     }
@@ -1331,12 +1248,7 @@ fn native_add_child_at(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeAddChildAt(
-    taffy: jlong,
-    node: jlong,
-    child: jlong,
-    index: jint,
-) {
+pub extern "system" fn NodeNativeAddChildAt(taffy: jlong, node: jlong, child: jlong, index: jint) {
     native_add_child_at(taffy, node, child, index)
 }
 
@@ -1352,13 +1264,7 @@ pub extern "system" fn NodeNativeAddChildAtNormal(
     native_add_child_at(taffy, node, child, index)
 }
 
-
-fn native_insert_child_before(
-    taffy: jlong,
-    node: jlong,
-    child: jlong,
-    reference: jlong,
-) {
+fn native_insert_child_before(taffy: jlong, node: jlong, child: jlong, reference: jlong) {
     if taffy == 0 || node == 0 || child == 0 || reference == 0 {
         return;
     }
@@ -1398,12 +1304,7 @@ pub extern "system" fn NodeNativeInsertChildBeforeNormal(
     native_insert_child_before(taffy, node, child, reference)
 }
 
-fn native_insert_child_after(
-    taffy: jlong,
-    node: jlong,
-    child: jlong,
-    reference: jlong,
-) {
+fn native_insert_child_after(taffy: jlong, node: jlong, child: jlong, reference: jlong) {
     if taffy == 0 || node == 0 || child == 0 || reference == 0 {
         return;
     }
@@ -1443,10 +1344,7 @@ pub extern "system" fn NodeNativeInsertChildAfterNormal(
     native_insert_child_after(taffy, node, child, reference)
 }
 
-fn native_dirty(
-    taffy: jlong,
-    node: jlong,
-) -> jboolean {
+fn native_dirty(taffy: jlong, node: jlong) -> jboolean {
     if taffy == 0 || node == 0 {
         return JNI_FALSE;
     }
@@ -1466,10 +1364,7 @@ fn native_dirty(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeDirty(
-    taffy: jlong,
-    node: jlong,
-) -> jboolean {
+pub extern "system" fn NodeNativeDirty(taffy: jlong, node: jlong) -> jboolean {
     native_dirty(taffy, node)
 }
 
@@ -1483,10 +1378,7 @@ pub extern "system" fn NodeNativeDirtyNormal(
     native_dirty(taffy, node)
 }
 
-fn native_mark_dirty(
-    taffy: jlong,
-    node: jlong,
-) {
+fn native_mark_dirty(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
@@ -1500,13 +1392,9 @@ fn native_mark_dirty(
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeMarkDirty(
-    taffy: jlong,
-    node: jlong,
-) {
+pub extern "system" fn NodeNativeMarkDirty(taffy: jlong, node: jlong) {
     native_mark_dirty(taffy, node)
 }
-
 
 #[no_mangle]
 pub extern "system" fn NodeNativeMarkDirtyNormal(
@@ -1563,10 +1451,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeIsChildre
     }
 }
 
-fn native_remove_children(
-    taffy: jlong,
-    node: jlong,
-) {
+fn native_remove_children(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
@@ -1581,12 +1466,8 @@ fn native_remove_children(
     }
 }
 
-
 #[no_mangle]
-pub extern "system" fn NodeNativeRemoveChildren(
-    taffy: jlong,
-    node: jlong,
-) {
+pub extern "system" fn NodeNativeRemoveChildren(taffy: jlong, node: jlong) {
     native_remove_children(taffy, node)
 }
 
@@ -1600,12 +1481,7 @@ pub extern "system" fn NodeNativeRemoveChildrenNormal(
     native_remove_children(taffy, node)
 }
 
-
-fn native_remove_child_at(
-    taffy: jlong,
-    node: jlong,
-    index: jint,
-) -> jlong {
+fn native_remove_child_at(taffy: jlong, node: jlong, index: jint) -> jlong {
     if taffy == 0 || node == 0 {
         return 0;
     }
@@ -1625,16 +1501,10 @@ fn native_remove_child_at(
     }
 }
 
-
 #[no_mangle]
-pub extern "system" fn NodeNativeRemoveChildAt(
-    taffy: jlong,
-    node: jlong,
-    index: jint,
-) -> jlong {
+pub extern "system" fn NodeNativeRemoveChildAt(taffy: jlong, node: jlong, index: jint) -> jlong {
     native_remove_child_at(taffy, node, index)
 }
-
 
 #[no_mangle]
 pub extern "system" fn NodeNativeRemoveChildAtNormal(
@@ -1647,12 +1517,7 @@ pub extern "system" fn NodeNativeRemoveChildAtNormal(
     native_remove_child_at(taffy, node, index)
 }
 
-
-fn native_remove_child(
-    taffy: jlong,
-    node: jlong,
-    child: jlong,
-) -> jlong {
+fn native_remove_child(taffy: jlong, node: jlong, child: jlong) -> jlong {
     if taffy == 0 || node == 0 || child == 0 {
         return 0;
     }
@@ -1679,16 +1544,10 @@ fn native_remove_child(
     }
 }
 
-
 #[no_mangle]
-pub extern "system" fn NodeNativeRemoveChild(
-    taffy: jlong,
-    node: jlong,
-    child: jlong,
-) -> jlong {
+pub extern "system" fn NodeNativeRemoveChild(taffy: jlong, node: jlong, child: jlong) -> jlong {
     native_remove_child(taffy, node, child)
 }
-
 
 #[no_mangle]
 pub extern "system" fn NodeNativeRemoveChildNormal(
@@ -1759,10 +1618,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetContex
     }
 }
 
-fn native_remove_context(
-    taffy: jlong,
-    node: jlong,
-) {
+fn native_remove_context(taffy: jlong, node: jlong) {
     if taffy == 0 || node == 0 {
         return;
     }
@@ -1775,15 +1631,10 @@ fn native_remove_context(
     }
 }
 
-
 #[no_mangle]
-pub extern "system" fn NodeNativeRemoveContext(
-    taffy: jlong,
-    node: jlong,
-) {
+pub extern "system" fn NodeNativeRemoveContext(taffy: jlong, node: jlong) {
     native_remove_context(taffy, node)
 }
-
 
 #[no_mangle]
 pub extern "system" fn NodeNativeRemoveContextNormal(

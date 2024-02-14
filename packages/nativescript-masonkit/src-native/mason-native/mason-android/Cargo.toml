@@ -8,6 +8,7 @@ name = "masonnative"
 crate-type = ["cdylib"]
 
 [dependencies]
+mason-c = { path = "../mason-c" }
 mason-core = { path = "../mason-core" }
 jni = "0.21.1"
 log = "0.4.20"

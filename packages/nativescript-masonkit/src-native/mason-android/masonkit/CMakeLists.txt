@@ -41,11 +41,14 @@ endif ()
 
 set(CPP_DIR ../../../platforms/ios/src/cpp)
 
+add_definitions(-DTARGET_OS_ANDROID)
+
 include_directories(
         masonnativev8
         PUBLIC
         ${PROJECT_SOURCE_DIR}/src/main/cpp/include/libc++
         ${PROJECT_SOURCE_DIR}/src/main/cpp/include
+        ${PROJECT_SOURCE_DIR}/src/main/cpp/include/v8
         ${PROJECT_SOURCE_DIR}/src/main/cpp
         ${CPP_DIR}
         ${CPP_DIR}/include
@@ -60,13 +63,9 @@ add_library(
 
         SHARED
 
-        src/main/cpp/MasonV8Module.cpp
-        src/main/cpp/Install.cpp
-#        ${CPP_DIR}/Caches.cpp
-#        ${CPP_DIR}/Helpers.cpp
-#        ${CPP_DIR}/MasonImpl.cpp
-#        ${CPP_DIR}/MasonNodeImpl.cpp
-#        ${CPP_DIR}/MasonStyleImpl.cpp
+        ${CPP_DIR}/MasonV8Module.cpp
+        ${CPP_DIR}/Install.cpp
+        ${CPP_DIR}/OneByteStringResource.cpp
 )
 
 
@@ -110,3 +109,10 @@ else ()
           android
           )
 endif ()
+
+#add_custom_command(TARGET masonnativev8
+#        POST_BUILD
+#        COMMAND ${CMAKE_COMMAND} -E copy
+#        ${PROJECT_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libmasonnative.so
+#        ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libmasonnative.so
+#        )

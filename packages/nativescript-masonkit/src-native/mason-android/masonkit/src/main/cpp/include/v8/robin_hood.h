@@ -206,7 +206,7 @@ static Counts& counts() {
 
 // workaround missing "is_trivially_copyable" in g++ < 5.0
 // See https://stackoverflow.com/a/31798726/48181
-#if defined(__GNUC__) && __GNUC__ < 5
+#if defined(__GNUC__) && __GNUC__ < 5 && !defined(__clang__)
 #    define ROBIN_HOOD_IS_TRIVIALLY_COPYABLE(...) __has_trivial_copy(__VA_ARGS__)
 #else
 #    define ROBIN_HOOD_IS_TRIVIALLY_COPYABLE(...) std::is_trivially_copyable<__VA_ARGS__>::value
@@ -390,7 +390,7 @@ public:
     }
 
     BulkPoolAllocator&
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-bridges)
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
     operator=(const BulkPoolAllocator& ROBIN_HOOD_UNUSED(o) /*unused*/) noexcept {
         // does not do anything
         return *this;
@@ -1608,7 +1608,7 @@ namespace detail {
 
         // Creates a copy of the given map. Copy constructor of each entry is used.
         // Not sure why clang-tidy thinks this doesn't handle self assignment, it does
-        // NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-bridges)
+        // NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
         Table& operator=(Table const& o) {
             ROBIN_HOOD_TRACE(this)
             if (&o == this) {

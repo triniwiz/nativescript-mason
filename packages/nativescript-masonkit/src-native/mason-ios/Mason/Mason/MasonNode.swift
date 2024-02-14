@@ -29,7 +29,7 @@ private func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRawP
 @objc(MasonNode)
 @objcMembers
 public class MasonNode: NSObject {
-    public internal (set) var nativePtr: UnsafeMutableRawPointer!
+    public internal (set) var nativePtr: OpaquePointer?
     
     public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
     
@@ -37,7 +37,7 @@ public class MasonNode: NSObject {
     
     public var style: MasonStyle {
         willSet {
-            mason_node_set_style(TSCMason.instance.nativePtr, nativePtr, newValue.nativePtr)
+            mason_node_set_style(NSCMason.instance.nativePtr, nativePtr, newValue.nativePtr)
         }
     }
     
@@ -56,32 +56,32 @@ public class MasonNode: NSObject {
     public internal (set) var owner: MasonNode? = nil
     public internal (set) var children: [MasonNode] = []
     // todo create weakmap
-    internal var nodes: [UnsafeMutableRawPointer: MasonNode] = [:]
+    internal var nodes: [OpaquePointer?: MasonNode] = [:]
     
     var inBatch = false
     
     
-    internal init(_ nativePtr: UnsafeMutableRawPointer) {
+    internal init(_ nativePtr: OpaquePointer) {
         self.nativePtr = nativePtr
         style = MasonStyle()
     }
     
     public override init() {
         style = MasonStyle()
-        nativePtr = mason_node_new_node(TSCMason.instance.nativePtr, style.nativePtr)
+        nativePtr = mason_node_new_node(NSCMason.instance.nativePtr, style.nativePtr)
     }
     
     public init(style: MasonStyle) {
         self.style = style
-        nativePtr = mason_node_new_node(TSCMason.instance.nativePtr, style.nativePtr)
+        nativePtr = mason_node_new_node(NSCMason.instance.nativePtr, style.nativePtr)
     }
     
     public init(style: MasonStyle, children: [MasonNode]) {
         var childrenMap = children.map { node in
-            node.nativePtr!
+            node.nativePtr
         }
         
-        nativePtr = mason_node_new_node_with_children(TSCMason.instance.nativePtr, style.nativePtr, &childrenMap, UInt(childrenMap.count))
+        nativePtr = mason_node_new_node_with_children(NSCMason.instance.nativePtr, style.nativePtr, &childrenMap, UInt(childrenMap.count))
         
         self.style = style
         self.children = children
@@ -101,7 +101,7 @@ public class MasonNode: NSObject {
         
         super.init()
         
-        nativePtr = mason_node_new_node_with_context(TSCMason.instance.nativePtr, style.nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
+        nativePtr = mason_node_new_node_with_context(NSCMason.instance.nativePtr, style.nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
         
     }
     
@@ -187,7 +187,7 @@ public class MasonNode: NSObject {
                             }
                             
                             mason_node_update_and_set_style_with_values(
-                                TSCMason.instance.nativePtr,
+                                NSCMason.instance.nativePtr,
                                 nativePtr,
                                 style.nativePtr,
                                 style.display.rawValue,
@@ -298,7 +298,7 @@ public class MasonNode: NSObject {
     
     @discardableResult public func layout() -> MasonLayout {
         
-        let points = mason_node_layout(TSCMason.instance.nativePtr,
+        let points = mason_node_layout(NSCMason.instance.nativePtr,
                                        nativePtr, create_layout)
         
         
@@ -307,11 +307,11 @@ public class MasonNode: NSObject {
     }
     
     public var isDirty: Bool {
-        return mason_node_dirty(TSCMason.instance.nativePtr, nativePtr)
+        return mason_node_dirty(NSCMason.instance.nativePtr, nativePtr)
     }
     
     public func markDirty(){
-        mason_node_mark_dirty(TSCMason.instance.nativePtr, nativePtr)
+        mason_node_mark_dirty(NSCMason.instance.nativePtr, nativePtr)
     }
     
     @discardableResult func computeAndLayout(size: MasonSize<Float>? = nil) -> MasonLayout {
@@ -362,7 +362,7 @@ public class MasonNode: NSObject {
                             
                             
                             points = mason_node_update_style_with_values_size_compute_and_layout(
-                                TSCMason.instance.nativePtr,
+                                NSCMason.instance.nativePtr,
                                 nativePtr,
                                 style.nativePtr,
                                 size!.width, size!.height,
@@ -515,7 +515,7 @@ public class MasonNode: NSObject {
                             
                             
                             points = mason_node_update_style_with_values_compute_and_layout(
-                                TSCMason.instance.nativePtr, nativePtr, style.nativePtr,
+                                NSCMason.instance.nativePtr, nativePtr, style.nativePtr,
                                 style.display.rawValue,
                                 style.position.rawValue,
                                 style.direction.rawValue,
@@ -665,19 +665,19 @@ public class MasonNode: NSObject {
     }
     
     public func compute() {
-        mason_node_compute(TSCMason.instance.nativePtr, nativePtr)
+        mason_node_compute(NSCMason.instance.nativePtr, nativePtr)
     }
     
     public func compute(_ width: Float, _ height: Float) {
-        mason_node_compute_wh(TSCMason.instance.nativePtr, nativePtr, width, height)
+        mason_node_compute_wh(NSCMason.instance.nativePtr, nativePtr, width, height)
     }
     
     public func computeMaxContent() {
-        mason_node_compute_max_content(TSCMason.instance.nativePtr, nativePtr)
+        mason_node_compute_max_content(NSCMason.instance.nativePtr, nativePtr)
     }
     
     public func computeMinContent() {
-        mason_node_compute_min_content(TSCMason.instance.nativePtr, nativePtr)
+        mason_node_compute_min_content(NSCMason.instance.nativePtr, nativePtr)
     }
     
     public func computeWithSize(_ width: Float, _ height: Float){
@@ -694,7 +694,7 @@ public class MasonNode: NSObject {
     public func computeWithViewSize(layout: Bool){
         guard let view = data as? UIView else{return}
         MasonNode.attachNodesFromView(view)
-        compute(Float(view.frame.size.width) * TSCMason.scale, Float(view.frame.size.height) * TSCMason.scale)
+        compute(Float(view.frame.size.width) * NSCMason.scale, Float(view.frame.size.height) * NSCMason.scale)
         if(layout){
             MasonNode.applyToView(view)
         }
@@ -727,8 +727,8 @@ public class MasonNode: NSObject {
         }
         
         
-        if (TSCMason.shared) {
-            let child = mason_node_get_child_at(TSCMason.instance.nativePtr, nativePtr, UInt(index))
+        if (NSCMason.shared) {
+            let child = mason_node_get_child_at(NSCMason.instance.nativePtr, nativePtr, UInt(index))
             if (child == nil) {
                 return nil
             }
@@ -737,9 +737,9 @@ public class MasonNode: NSObject {
         return children[index]
     }
     
-    func setChildren(_ children: [UnsafeMutableRawPointer]){
+    func setChildren(_ children: [OpaquePointer?]){
         // todo ensure data is set
-        mason_node_set_children(TSCMason.instance.nativePtr, nativePtr, children, UInt(children.count))
+        mason_node_set_children(NSCMason.instance.nativePtr, nativePtr, children, UInt(children.count))
     }
     
     
@@ -752,8 +752,8 @@ public class MasonNode: NSObject {
         self.children.removeAll()
     }
     
-    func addChildren(_ children: [UnsafeMutableRawPointer]){
-        mason_node_add_children(TSCMason.instance.nativePtr, nativePtr, children, UInt(children.count))
+    func addChildren(_ children: [OpaquePointer?]){
+        mason_node_add_children(NSCMason.instance.nativePtr, nativePtr, children, UInt(children.count))
     }
     
     public func addChildren(_ children: [MasonNode]){
@@ -762,7 +762,7 @@ public class MasonNode: NSObject {
             return node.nativePtr
         }
         
-        mason_node_add_children(TSCMason.instance.nativePtr, nativePtr, map, UInt(map.count))
+        mason_node_add_children(NSCMason.instance.nativePtr, nativePtr, map, UInt(map.count))
     }
     
     func addChild(_ child: MasonNode) {
@@ -770,7 +770,7 @@ public class MasonNode: NSObject {
             return
         }
         
-        mason_node_add_child(TSCMason.instance.nativePtr, nativePtr, childPtr)
+        mason_node_add_child(NSCMason.instance.nativePtr, nativePtr, childPtr)
         
         guard let existing = nodes[childPtr] else {
             child.owner = self
@@ -789,7 +789,7 @@ public class MasonNode: NSObject {
     func addChildAt(_ child: MasonNode, _ index: Int) {
         
         if (index == -1) {
-            mason_node_add_child(TSCMason.instance.nativePtr, nativePtr, child.nativePtr)
+            mason_node_add_child(NSCMason.instance.nativePtr, nativePtr, child.nativePtr)
             
             children.append(child)
             
@@ -802,7 +802,7 @@ public class MasonNode: NSObject {
             return
         }
         
-        mason_node_add_child_at(TSCMason.instance.nativePtr, nativePtr, child.nativePtr, UInt(index))
+        mason_node_add_child_at(NSCMason.instance.nativePtr, nativePtr, UnsafeMutableRawPointer(child.nativePtr), UInt(index))
         
         guard let childPtr = child.nativePtr else {
             return
@@ -819,7 +819,7 @@ public class MasonNode: NSObject {
     
     
     @discardableResult func removeChild(child: MasonNode) -> MasonNode? {
-        let removedNode = mason_node_remove_child(TSCMason.instance.nativePtr, nativePtr, child.nativePtr)
+        let removedNode = mason_node_remove_child(NSCMason.instance.nativePtr, nativePtr, child.nativePtr)
         
         if (removedNode == nil) {
             return nil
@@ -843,7 +843,7 @@ public class MasonNode: NSObject {
     
     
     func removeAllChildren() {
-        mason_node_remove_children(TSCMason.instance.nativePtr, nativePtr)
+        mason_node_remove_children(NSCMason.instance.nativePtr, nativePtr)
         children.forEach { child in
             child.owner = nil
             nodes[child.nativePtr] = nil
@@ -857,7 +857,7 @@ public class MasonNode: NSObject {
         if(index < 0){
             return nil
         }
-        guard let removedNode = mason_node_remove_child_at(TSCMason.instance.nativePtr, nativePtr, UInt(index)) else {return nil}
+        guard let removedNode = mason_node_remove_child_at(NSCMason.instance.nativePtr, nativePtr, UInt(index)) else {return nil}
         
         let node = nodes[removedNode]
         
@@ -874,13 +874,13 @@ public class MasonNode: NSObject {
     
     
     func removeMeasureFunction(){
-        mason_node_remove_context(TSCMason.instance.nativePtr, nativePtr)
+        mason_node_remove_context(NSCMason.instance.nativePtr, nativePtr)
         self.measureFunc = nil
     }
     
     func setMeasureFunction(_ measureFunc: @escaping MeasureFunc) {
         self.measureFunc = measureFunc
-        mason_node_set_context(TSCMason.instance.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
+        mason_node_set_context(NSCMason.instance.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
     }
     
     public var isLeaf: Bool {
@@ -924,19 +924,19 @@ public class MasonNode: NSObject {
             var subviewsToInclude = Array<UIView>()
             subviewsToInclude.reserveCapacity(count)
             
-            var nodesToInclude = Array<UnsafeMutableRawPointer>()
+            var nodesToInclude = Array<OpaquePointer?>()
             nodesToInclude.reserveCapacity(count)
             
             for subview in view.subviews {
                 let mason = subview.mason
                 if(mason.isEnabled && mason.includeInLayout){
                     subviewsToInclude.append(subview)
-                    nodesToInclude.append(mason.nativePtr!)
+                    nodesToInclude.append(mason.nativePtr)
                     mason.owner = view.mason
                 }
             }
             
-            if(!mason_node_is_children_same(TSCMason.instance.nativePtr, node.nativePtr, &nodesToInclude, UInt(nodesToInclude.count))){
+            if(!mason_node_is_children_same(NSCMason.instance.nativePtr, node.nativePtr, &nodesToInclude, UInt(nodesToInclude.count))){
                 node.removeAllChildren()
                 node.setChildren(nodesToInclude)
             }
@@ -965,9 +965,9 @@ public class MasonNode: NSObject {
         
         let heightIsZero = mason.style.size.height.isZero
         
-        var width = CGFloat(layout.width.isNaN ? 0 : layout.width/TSCMason.scale)
+        var width = CGFloat(layout.width.isNaN ? 0 : layout.width/NSCMason.scale)
         
-        var height = CGFloat(layout.height.isNaN ? 0 : layout.height/TSCMason.scale)
+        var height = CGFloat(layout.height.isNaN ? 0 : layout.height/NSCMason.scale)
         
         var hasPercentDimensions = false
         
@@ -1001,13 +1001,14 @@ public class MasonNode: NSObject {
             layout = mason.layout()
             widthIsNan = layout.width.isNaN
             heightIsNan = layout.height.isNaN
+            
+            width = CGFloat(layout.width.isNaN ? 0 : layout.width/NSCMason.scale)
+            
+            height = CGFloat(layout.height.isNaN ? 0 : layout.height/NSCMason.scale)
+            
         }
         
-        
-        width = CGFloat(layout.width.isNaN ? 0 : layout.width/TSCMason.scale)
-        
-        height = CGFloat(layout.height.isNaN ? 0 : layout.height/TSCMason.scale)
-        
+    
         if (widthIsZero) {
             width = 0
             widthIsNan = false
@@ -1026,9 +1027,9 @@ public class MasonNode: NSObject {
         }
         
         
-        let x = CGFloat(layout.x.isNaN ? 0 : layout.x/TSCMason.scale)
+        let x = CGFloat(layout.x.isNaN ? 0 : layout.x/NSCMason.scale)
         
-        let y = CGFloat(layout.y.isNaN ? 0 : layout.y/TSCMason.scale)
+        let y = CGFloat(layout.y.isNaN ? 0 : layout.y/NSCMason.scale)
         
         let point = CGPoint(x: x, y: y)
         
@@ -1062,7 +1063,7 @@ public class MasonNode: NSObject {
         
         var size: CGSize = .zero
         
-        let scale = CGFloat(TSCMason.scale)
+        let scale = CGFloat(NSCMason.scale)
         
         
         let widthIsZero = node.style.size.width.isZero
@@ -1122,7 +1123,6 @@ public class MasonNode: NSObject {
                     let root = view.rootView
                     if(root != nil){
                         size.height = (root!.frame.size.height.isNaN ? 0 : root!.frame.size.height * CGFloat(value)) * scale
-                        print(size.height)
                         heightIsNan = false
                     }
                 }

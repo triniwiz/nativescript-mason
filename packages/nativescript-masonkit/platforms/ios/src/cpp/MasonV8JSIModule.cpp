@@ -2,8 +2,7 @@
 // Created by Osei Fortune on 14/12/2022.
 //
 
-#include "MasonV8Module.h"
-#include <android/log.h>
+#include "MasonV8JSIModule.h"
 #include "map"
 
 using namespace std;
@@ -118,7 +117,7 @@ toTrackSizingFunction(v8::Isolate *isolate, v8::Local<v8::Array> &jsArray) {
                 minMax.max_type = max_type;
                 minMax.max_value = max_value;
 
-                tracks[i * min_max_size] = minMax;;
+                tracks[i * min_max_size] = minMax;
             }
 
             CMasonTrackSizingFunction repeat;
@@ -168,12 +167,15 @@ toTrackSizingFunction(v8::Isolate *isolate, v8::Local<v8::Array> &jsArray) {
 }
 
 
-void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
+void MasonV8JSIModule::install(v8::Isolate *isolate) {
+
 
     CREATE_V8_MODULE("MasonV8Module", [](v8::Local<v8::Object> moduleObject) {
         CREATE_FUNCTION("updateNodeAndStyle", {
-                MASON_ENTER_WITH_NODE_AND_STYLE
-                mason_node_update_and_set_style(mason, node, style);
+                MASON_ENTER_WITH_NODE_AND_STYLE_ADDRESS
+                #ifdef __ANDROID__
+                mason_node_update_and_set_style_android(mason, node, style);
+                #endif
                 RETURN_UNDEFINED
         })
 
@@ -530,7 +532,7 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
         MASON_SET_LENGTH_PROPERTY("setInsetRight", mason_style_set_inset_right)
         MASON_GET_LENGTH_PROPERTY("getInsetRight", mason_style_get_inset_right)
 
-        MASON_SET_LENGTH_PROPERTY("setMargin", mason_style_set_margin)
+        MASON_SET_LENGTH_PROPERTY_LRTB("setMargin", mason_style_set_margin)
 
         MASON_SET_LENGTH_PROPERTY("setMarginTop", mason_style_set_margin_top)
         MASON_GET_LENGTH_PROPERTY("getMarginTop", mason_style_get_margin_top)
@@ -544,7 +546,7 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
         MASON_SET_LENGTH_PROPERTY("setMarginRight", mason_style_set_margin_right)
         MASON_GET_LENGTH_PROPERTY("getMarginRight", mason_style_get_margin_right)
 
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPadding", mason_style_set_padding)
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO_LRTB("setPadding", mason_style_set_padding)
 
         MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingTop", mason_style_set_padding_top)
         MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingTop", mason_style_get_padding_top)
@@ -558,7 +560,7 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
         MASON_SET_LENGTH_PROPERTY_NO_AUTO("setPaddingRight", mason_style_set_padding_right)
         MASON_GET_LENGTH_PROPERTY_NO_AUTO("getPaddingRight", mason_style_get_padding_right)
 
-        MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorder", mason_style_set_border)
+        MASON_SET_LENGTH_PROPERTY_NO_AUTO_LRTB("setBorder", mason_style_set_border)
 
         MASON_SET_LENGTH_PROPERTY_NO_AUTO("setBorderTop", mason_style_set_border_top)
         MASON_GET_LENGTH_PROPERTY_NO_AUTO("getBorderTop", mason_style_get_border_top)
@@ -668,12 +670,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                 col_start.value_type == col_end.value_type)
                 {
                     if (col_start.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_start.value;
                         if (col_start.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
@@ -681,12 +683,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                 else
                 {
                     if (col_start.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_start.value;
                         if (col_start.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
@@ -694,12 +696,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                     ss << " / ";
 
                     if (col_end.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_end.value;
                         if (col_end.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
@@ -711,12 +713,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                 row_start.value_type == row_end.value_type)
                 {
                     if (row_start.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_start.value;
                         if (row_start.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
@@ -724,12 +726,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                 else
                 {
                     if (row_start.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_start.value;
                         if (row_start.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
@@ -737,12 +739,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                     row_ss << " / ";
 
                     if (row_end.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_end.value;
                         if (row_end.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
@@ -830,12 +832,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                 col_start.value_type == col_end.value_type)
                 {
                     if (col_start.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_start.value;
                         if (col_start.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
@@ -843,12 +845,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                 else
                 {
                     if (col_start.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_start.value;
                         if (col_start.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
@@ -856,12 +858,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                     ss << " / ";
 
                     if (col_end.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         ss << "auto";
                     } else {
                         ss << col_end.value;
                         if (col_end.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             ss << " span";
                         }
                     }
@@ -925,12 +927,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                 row_start.value_type == row_end.value_type)
                 {
                     if (row_start.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_start.value;
                         if (row_start.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
@@ -938,12 +940,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                 else
                 {
                     if (row_start.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_start.value;
                         if (row_start.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }
@@ -951,12 +953,12 @@ void MasonV8ModuleInstaller::installV8Module(v8::Isolate *isolate) {
                     row_ss << " / ";
 
                     if (row_end.value_type ==
-                        CMasonGridPlacementType::CMasonGridPlacementTypeAuto) {
+                        CMasonGridPlacementType::MasonGridPlacementTypeAuto) {
                         row_ss << "auto";
                     } else {
                         row_ss << row_end.value;
                         if (row_end.value_type ==
-                            CMasonGridPlacementType::CMasonGridPlacementTypeSpan) {
+                            CMasonGridPlacementType::MasonGridPlacementTypeSpan) {
                             row_ss << " span";
                         }
                     }

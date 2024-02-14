@@ -2,8 +2,7 @@
 // Created by Osei Fortune on 14/12/2022.
 //
 
-#include "MasonV8Module.h"
-#include <android/log.h>
+#include "MasonV8JSIModule.h"
 
 extern "C" void NSMain(const v8::FunctionCallbackInfo<v8::Value> &args)
 {
@@ -18,5 +17,5 @@ extern "C" void NSMain(const v8::FunctionCallbackInfo<v8::Value> &args)
     return;
   }
 
-  MasonV8ModuleInstaller::installV8Module(isolate);
+  MasonV8JSIModule::install(isolate);
 }

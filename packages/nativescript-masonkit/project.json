@@ -22,8 +22,8 @@
           },
           {
             "glob": "**/*",
-            "input": "packages/nativescript-masonkit/pods/",
-            "output": "./pods/"
+            "input": "packages/nativescript-masonkit/src-native/pods/",
+            "output": "./src-native/pods/"
           }
         ],
         "dependsOn": [

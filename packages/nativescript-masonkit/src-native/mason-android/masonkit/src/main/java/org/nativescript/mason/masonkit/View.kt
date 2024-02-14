@@ -386,11 +386,11 @@ class View @JvmOverloads constructor(
       this.layoutParams.width = layout.width.roundToInt();
       this.layoutParams.height = layout.height.roundToInt();
 
-      val margin = node.style.getNativeMargins();
-      val parentWidth = (this.parent as android.view.ViewGroup).measuredWidth;
-      val parentHeight = (this.parent as android.view.ViewGroup).measuredHeight;
+      val margin = node.style.getNativeMargins()
+      val parentWidth = (this.parent as ViewGroup).measuredWidth;
+      val parentHeight = (this.parent as ViewGroup).measuredHeight;
 
-      this.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+      this.updateLayoutParams<MarginLayoutParams> {
         this.topMargin = margin.top.let {
           var ret = it.value
           if (it.type == 2) {

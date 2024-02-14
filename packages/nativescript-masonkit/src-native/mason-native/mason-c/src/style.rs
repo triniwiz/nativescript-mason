@@ -1,11 +1,13 @@
-use std::ffi::{c_float, c_int, c_void};
+use std::ffi::{c_float, c_int};
 
-use mason_core::style::{min_max_from_values, Style};
+use mason_core::style::min_max_from_values;
 use mason_core::{
     align_content_from_enum, Dimension, GridPlacement, GridTrackRepetition, LengthPercentage,
     LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction,
-    NonRepeatedTrackSizingFunction, Overflow, Rect, Size, TrackSizingFunction,
+    NonRepeatedTrackSizingFunction, Overflow, Rect, Size, Style, TrackSizingFunction,
 };
+
+use crate::{ffi, CMasonStyle};
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -27,8 +29,8 @@ pub enum AvailableSpaceType {
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct AvailableSpace {
-    pub(crate) value: f32,
-    pub(crate) space_type: AvailableSpaceType,
+    pub value: f32,
+    pub space_type: AvailableSpaceType,
 }
 
 #[repr(C)]
@@ -441,9 +443,6 @@ impl Into<mason_core::AvailableSpace> for AvailableSpace {
             AvailableSpaceType::Definite => mason_core::AvailableSpace::Definite(self.value),
             AvailableSpaceType::MinContent => mason_core::AvailableSpace::MinContent,
             AvailableSpaceType::MaxContent => mason_core::AvailableSpace::MaxContent,
-
-            // making cpp happy
-            _ => mason_core::AvailableSpace::MinContent,
         }
     }
 }
@@ -641,8 +640,6 @@ impl From<CMasonLengthPercentageAuto> for LengthPercentageAuto {
             CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPercent => {
                 LengthPercentageAuto::Percent(value.value)
             }
-            // making cpp happy
-            _ => LengthPercentageAuto::Length(0.),
         }
     }
 }
@@ -733,8 +730,6 @@ impl From<CMasonLengthPercentage> for LengthPercentage {
             CMasonLengthPercentageType::MasonLengthPercentagePercent => {
                 LengthPercentage::Percent(value.value)
             }
-            // making cpp happy
-            _ => LengthPercentage::Length(0.),
         }
     }
 }
@@ -795,157 +790,155 @@ impl Into<GridPlacement> for CMasonGridPlacement {
             CMasonGridPlacementType::MasonGridPlacementTypeSpan => {
                 GridPlacement::Span(self.value.try_into().unwrap())
             }
-            // making cxx happy
-            _ => GridPlacement::Auto,
         }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_init() -> *mut c_void {
+pub extern "C" fn mason_style_init() -> *mut CMasonStyle {
     let mut style = Style::default();
     style.set_align_content(align_content_from_enum(0));
     style.set_flex_basis(Dimension::Auto);
     style.set_flex_grow(0.0);
     style.set_flex_shrink(1.0);
-    style.into_raw() as _
+    Box::into_raw(Box::new(CMasonStyle(style)))
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_destroy(style: *mut c_void) {
+pub extern "C" fn mason_style_destroy(style: *mut CMasonStyle) {
     if style.is_null() {
         return;
     }
     unsafe {
-        let _ = Box::from_raw(style as *mut Style);
+        let _ = Box::from_raw(style);
     }
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_display(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_display(style)
+pub extern "C" fn mason_style_get_display(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_display(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_display(style: *mut c_void, display: c_int) {
-    mason_core::ffi::style_set_display(style, display);
+pub extern "C" fn mason_style_set_display(style: *mut CMasonStyle, display: c_int) {
+    ffi::style_set_display(style, display);
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_position(style: *mut c_void, position: c_int) {
-    mason_core::ffi::style_set_position(style, position);
+pub extern "C" fn mason_style_set_position(style: *mut CMasonStyle, position: c_int) {
+    ffi::style_set_position(style, position);
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_position(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_position(style)
+pub extern "C" fn mason_style_get_position(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_position(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_direction(_style: *mut c_void, _direction: c_int) {
+pub extern "C" fn mason_style_set_direction(_style: *mut CMasonStyle, _direction: c_int) {
     // todo
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_direction(_style: *mut c_void) -> c_int {
+pub extern "C" fn mason_style_get_direction(_style: *mut CMasonStyle) -> c_int {
     // todo
     0
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_flex_direction(style: *mut c_void, direction: c_int) {
-    mason_core::ffi::style_set_flex_direction(style, direction)
+pub extern "C" fn mason_style_set_flex_direction(style: *mut CMasonStyle, direction: c_int) {
+    ffi::style_set_flex_direction(style, direction)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_flex_direction(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_flex_direction(style)
+pub extern "C" fn mason_style_get_flex_direction(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_flex_direction(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_flex_wrap(style: *mut c_void, wrap: c_int) {
-    mason_core::ffi::style_set_flex_wrap(style, wrap)
+pub extern "C" fn mason_style_set_flex_wrap(style: *mut CMasonStyle, wrap: c_int) {
+    ffi::style_set_flex_wrap(style, wrap)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_flex_wrap(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_flex_wrap(style)
+pub extern "C" fn mason_style_get_flex_wrap(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_flex_wrap(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_align_items(style: *mut c_void, align: c_int) {
-    mason_core::ffi::style_set_align_items(style, align)
+pub extern "C" fn mason_style_set_align_items(style: *mut CMasonStyle, align: c_int) {
+    ffi::style_set_align_items(style, align)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_align_items(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_align_items(style)
+pub extern "C" fn mason_style_get_align_items(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_align_items(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_align_self(style: *mut c_void, align: c_int) {
-    mason_core::ffi::style_set_align_self(style, align)
+pub extern "C" fn mason_style_set_align_self(style: *mut CMasonStyle, align: c_int) {
+    ffi::style_set_align_self(style, align)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_align_self(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_align_self(style)
+pub extern "C" fn mason_style_get_align_self(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_align_self(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_align_content(style: *mut c_void, align: c_int) {
-    mason_core::ffi::style_set_align_content(style, align)
+pub extern "C" fn mason_style_set_align_content(style: *mut CMasonStyle, align: c_int) {
+    ffi::style_set_align_content(style, align)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_align_content(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_align_content(style)
+pub extern "C" fn mason_style_get_align_content(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_align_content(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_justify_items(style: *mut c_void, align: c_int) {
-    mason_core::ffi::style_set_justify_items(style, align)
+pub extern "C" fn mason_style_set_justify_items(style: *mut CMasonStyle, align: c_int) {
+    ffi::style_set_justify_items(style, align)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_justify_items(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_justify_items(style)
+pub extern "C" fn mason_style_get_justify_items(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_justify_items(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_justify_self(style: *mut c_void, align: c_int) {
-    mason_core::ffi::style_set_justify_self(style, align)
+pub extern "C" fn mason_style_set_justify_self(style: *mut CMasonStyle, align: c_int) {
+    ffi::style_set_justify_self(style, align)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_justify_self(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_justify_self(style)
+pub extern "C" fn mason_style_get_justify_self(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_justify_self(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_justify_content(style: *mut c_void, justify: c_int) {
-    mason_core::ffi::style_set_justify_content(style, justify)
+pub extern "C" fn mason_style_set_justify_content(style: *mut CMasonStyle, justify: c_int) {
+    ffi::style_set_justify_content(style, justify)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_justify_content(style: *mut c_void) -> c_int {
-    mason_core::ffi::style_get_justify_content(style)
+pub extern "C" fn mason_style_get_justify_content(style: *mut CMasonStyle) -> c_int {
+    ffi::style_get_justify_content(style)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_inset(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let val = CMasonLengthPercentageAuto::new(value, value_type);
 
-    mason_core::ffi::style_set_inset(style, val.into());
+    ffi::style_set_inset(style, val.into());
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_inset_lrtb(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     left_value: c_float,
     left_value_type: CMasonLengthPercentageAutoType,
     right_value: c_float,
@@ -964,72 +957,78 @@ pub extern "C" fn mason_style_set_inset_lrtb(
     let bottom: LengthPercentageAuto =
         CMasonLengthPercentageAuto::new(bottom_value, bottom_value_type).into();
 
-    mason_core::ffi::style_set_inset_lrtb(style, left, right, top, bottom);
+    ffi::style_set_inset_lrtb(style, left, right, top, bottom);
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_inset_left(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let left = CMasonLengthPercentageAuto::new(value, value_type);
-    mason_core::ffi::style_set_inset_left(style, left.into());
+    ffi::style_set_inset_left(style, left.into());
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_inset_left(style: *mut c_void) -> CMasonLengthPercentageAuto {
-    mason_core::ffi::style_get_inset_left(style).into()
+pub extern "C" fn mason_style_get_inset_left(
+    style: *mut CMasonStyle,
+) -> CMasonLengthPercentageAuto {
+    ffi::style_get_inset_left(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_inset_right(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let right = CMasonLengthPercentageAuto::new(value, value_type);
-    mason_core::ffi::style_set_inset_right(style, right.into())
+    ffi::style_set_inset_right(style, right.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_inset_right(style: *mut c_void) -> CMasonLengthPercentageAuto {
-    mason_core::ffi::style_get_inset_right(style).into()
+pub extern "C" fn mason_style_get_inset_right(
+    style: *mut CMasonStyle,
+) -> CMasonLengthPercentageAuto {
+    ffi::style_get_inset_right(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_inset_top(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let right = CMasonLengthPercentageAuto::new(value, value_type);
-    mason_core::ffi::style_set_inset_top(style, right.into())
+    ffi::style_set_inset_top(style, right.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_inset_top(style: *mut c_void) -> CMasonLengthPercentageAuto {
-    mason_core::ffi::style_get_inset_top(style).into()
+pub extern "C" fn mason_style_get_inset_top(style: *mut CMasonStyle) -> CMasonLengthPercentageAuto {
+    ffi::style_get_inset_top(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_inset_bottom(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let right = CMasonLengthPercentageAuto::new(value, value_type);
-    mason_core::ffi::style_set_inset_bottom(style, right.into())
+    ffi::style_set_inset_bottom(style, right.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_inset_bottom(style: *mut c_void) -> CMasonLengthPercentageAuto {
-    mason_core::ffi::style_get_inset_bottom(style).into()
+pub extern "C" fn mason_style_get_inset_bottom(
+    style: *mut CMasonStyle,
+) -> CMasonLengthPercentageAuto {
+    ffi::style_get_inset_bottom(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     left_value: c_float,
     left_value_type: CMasonLengthPercentageAutoType,
     right_value: c_float,
@@ -1044,78 +1043,80 @@ pub extern "C" fn mason_style_set_margin(
     let top = CMasonLengthPercentageAuto::new(top_value, top_value_type);
     let bottom = CMasonLengthPercentageAuto::new(bottom_value, bottom_value_type);
 
-    mason_core::ffi::style_set_margin_lrtb(
-        style,
-        left.into(),
-        right.into(),
-        top.into(),
-        bottom.into(),
-    )
+    ffi::style_set_margin_lrtb(style, left.into(), right.into(), top.into(), bottom.into())
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin_left(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let left = CMasonLengthPercentageAuto::new(value, value_type);
-    mason_core::ffi::style_set_margin_left(style, left.into());
+    ffi::style_set_margin_left(style, left.into());
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_margin_left(style: *mut c_void) -> CMasonLengthPercentageAuto {
-    mason_core::ffi::style_get_margin_left(style).into()
+pub extern "C" fn mason_style_get_margin_left(
+    style: *mut CMasonStyle,
+) -> CMasonLengthPercentageAuto {
+    ffi::style_get_margin_left(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin_right(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let right = CMasonLengthPercentageAuto::new(value, value_type);
-    mason_core::ffi::style_set_margin_right(style, right.into());
+    ffi::style_set_margin_right(style, right.into());
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_margin_right(style: *mut c_void) -> CMasonLengthPercentageAuto {
-    mason_core::ffi::style_get_margin_right(style).into()
+pub extern "C" fn mason_style_get_margin_right(
+    style: *mut CMasonStyle,
+) -> CMasonLengthPercentageAuto {
+    ffi::style_get_margin_right(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin_top(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let top = CMasonLengthPercentageAuto::new(value, value_type);
-    mason_core::ffi::style_set_margin_top(style, top.into());
+    ffi::style_set_margin_top(style, top.into());
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_margin_top(style: *mut c_void) -> CMasonLengthPercentageAuto {
-    mason_core::ffi::style_get_margin_top(style).into()
+pub extern "C" fn mason_style_get_margin_top(
+    style: *mut CMasonStyle,
+) -> CMasonLengthPercentageAuto {
+    ffi::style_get_margin_top(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_margin_bottom(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageAutoType,
 ) {
     let bottom = CMasonLengthPercentageAuto::new(value, value_type);
-    mason_core::ffi::style_set_margin_bottom(style, bottom.into());
+    ffi::style_set_margin_bottom(style, bottom.into());
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_margin_bottom(style: *mut c_void) -> CMasonLengthPercentageAuto {
-    mason_core::ffi::style_get_margin_bottom(style).into()
+pub extern "C" fn mason_style_get_margin_bottom(
+    style: *mut CMasonStyle,
+) -> CMasonLengthPercentageAuto {
+    ffi::style_get_margin_bottom(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     left_value: c_float,
     left_value_type: CMasonLengthPercentageType,
     right_value: c_float,
@@ -1130,78 +1131,74 @@ pub extern "C" fn mason_style_set_padding(
     let top = CMasonLengthPercentage::new(top_value, top_value_type);
     let bottom = CMasonLengthPercentage::new(bottom_value, bottom_value_type);
 
-    mason_core::ffi::style_set_padding_lrtb(
-        style,
-        left.into(),
-        right.into(),
-        top.into(),
-        bottom.into(),
-    );
+    ffi::style_set_padding_lrtb(style, left.into(), right.into(), top.into(), bottom.into());
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding_left(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let left = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_padding_left(style, left.into())
+    ffi::style_set_padding_left(style, left.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_padding_left(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_padding_left(style).into()
+pub extern "C" fn mason_style_get_padding_left(style: *mut CMasonStyle) -> CMasonLengthPercentage {
+    ffi::style_get_padding_left(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding_right(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let right = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_padding_right(style, right.into())
+    ffi::style_set_padding_right(style, right.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_padding_right(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_padding_right(style).into()
+pub extern "C" fn mason_style_get_padding_right(style: *mut CMasonStyle) -> CMasonLengthPercentage {
+    ffi::style_get_padding_right(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding_top(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let top = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_padding_top(style, top.into())
+    ffi::style_set_padding_top(style, top.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_padding_top(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_padding_top(style).into()
+pub extern "C" fn mason_style_get_padding_top(style: *mut CMasonStyle) -> CMasonLengthPercentage {
+    ffi::style_get_padding_top(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_padding_bottom(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let bottom = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_padding_bottom(style, bottom.into())
+    ffi::style_set_padding_bottom(style, bottom.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_padding_bottom(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_padding_bottom(style).into()
+pub extern "C" fn mason_style_get_padding_bottom(
+    style: *mut CMasonStyle,
+) -> CMasonLengthPercentage {
+    ffi::style_get_padding_bottom(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     left_value: c_float,
     left_value_type: CMasonLengthPercentageType,
     right_value: c_float,
@@ -1215,208 +1212,202 @@ pub extern "C" fn mason_style_set_border(
     let right = CMasonLengthPercentage::new(right_value, right_value_type);
     let top = CMasonLengthPercentage::new(top_value, top_value_type);
     let bottom = CMasonLengthPercentage::new(bottom_value, bottom_value_type);
-    mason_core::ffi::style_set_border_lrtb(
-        style,
-        left.into(),
-        right.into(),
-        top.into(),
-        bottom.into(),
-    )
+    ffi::style_set_border_lrtb(style, left.into(), right.into(), top.into(), bottom.into())
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border_left(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let left = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_border_left(style, left.into())
+    ffi::style_set_border_left(style, left.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_border_left(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_border_left(style).into()
+pub extern "C" fn mason_style_get_border_left(style: *mut CMasonStyle) -> CMasonLengthPercentage {
+    ffi::style_get_border_left(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border_right(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let right = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_border_right(style, right.into())
+    ffi::style_set_border_right(style, right.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_border_right(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_border_right(style).into()
+pub extern "C" fn mason_style_get_border_right(style: *mut CMasonStyle) -> CMasonLengthPercentage {
+    ffi::style_get_border_right(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border_top(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let top = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_border_top(style, top.into())
+    ffi::style_set_border_top(style, top.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_border_top(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_border_top(style).into()
+pub extern "C" fn mason_style_get_border_top(style: *mut CMasonStyle) -> CMasonLengthPercentage {
+    ffi::style_get_border_top(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_border_bottom(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let bottom = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_border_bottom(style, bottom.into())
+    ffi::style_set_border_bottom(style, bottom.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_border_bottom(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_border_bottom(style).into()
+pub extern "C" fn mason_style_get_border_bottom(style: *mut CMasonStyle) -> CMasonLengthPercentage {
+    ffi::style_get_border_bottom(style).into()
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_flex_grow(style: *mut c_void, grow: c_float) {
-    mason_core::ffi::style_set_flex_grow(style, grow)
+pub extern "C" fn mason_style_set_flex_grow(style: *mut CMasonStyle, grow: c_float) {
+    ffi::style_set_flex_grow(style, grow)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_flex_grow(style: *mut c_void) -> c_float {
-    mason_core::ffi::style_get_flex_grow(style)
+pub extern "C" fn mason_style_get_flex_grow(style: *mut CMasonStyle) -> c_float {
+    ffi::style_get_flex_grow(style)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_flex_shrink(style: *mut c_void, shrink: c_float) {
-    mason_core::ffi::style_set_flex_shrink(style, shrink)
+pub extern "C" fn mason_style_set_flex_shrink(style: *mut CMasonStyle, shrink: c_float) {
+    ffi::style_set_flex_shrink(style, shrink)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_flex_shrink(style: *mut c_void) -> c_float {
-    mason_core::ffi::style_get_flex_shrink(style)
+pub extern "C" fn mason_style_get_flex_shrink(style: *mut CMasonStyle) -> c_float {
+    ffi::style_get_flex_shrink(style)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_flex_basis(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonDimensionType,
 ) {
     let basis: Dimension = CMasonDimension::new(value, value_type).into();
-    mason_core::ffi::style_set_flex_basis(style, basis)
+    ffi::style_set_flex_basis(style, basis)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_flex_basis(style: *mut c_void) -> CMasonDimension {
-    mason_core::ffi::style_get_flex_basis(style).into()
+pub extern "C" fn mason_style_get_flex_basis(style: *mut CMasonStyle) -> CMasonDimension {
+    ffi::style_get_flex_basis(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_width(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonDimensionType,
 ) {
     let width = CMasonDimension::new(value, value_type);
-    mason_core::ffi::style_set_width(style, width.into())
+    ffi::style_set_width(style, width.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_width(style: *mut c_void) -> CMasonDimension {
-    mason_core::ffi::style_get_width(style).into()
+pub extern "C" fn mason_style_get_width(style: *mut CMasonStyle) -> CMasonDimension {
+    ffi::style_get_width(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_height(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonDimensionType,
 ) {
     let height = CMasonDimension::new(value, value_type);
-    mason_core::ffi::style_set_height(style, height.into())
+    ffi::style_set_height(style, height.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_height(style: *mut c_void) -> CMasonDimension {
-    mason_core::ffi::style_get_height(style).into()
+pub extern "C" fn mason_style_get_height(style: *mut CMasonStyle) -> CMasonDimension {
+    ffi::style_get_height(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_min_width(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonDimensionType,
 ) {
     let width = CMasonDimension::new(value, value_type);
-    mason_core::ffi::style_set_min_width(style, width.into())
+    ffi::style_set_min_width(style, width.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_min_width(style: *mut c_void) -> CMasonDimension {
-    mason_core::ffi::style_get_min_width(style).into()
+pub extern "C" fn mason_style_get_min_width(style: *mut CMasonStyle) -> CMasonDimension {
+    ffi::style_get_min_width(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_min_height(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonDimensionType,
 ) {
     let height = CMasonDimension::new(value, value_type);
-    mason_core::ffi::style_set_min_height(style, height.into())
+    ffi::style_set_min_height(style, height.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_min_height(style: *mut c_void) -> CMasonDimension {
-    mason_core::ffi::style_get_min_height(style).into()
+pub extern "C" fn mason_style_get_min_height(style: *mut CMasonStyle) -> CMasonDimension {
+    ffi::style_get_min_height(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_max_width(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonDimensionType,
 ) {
     let width = CMasonDimension::new(value, value_type);
-    mason_core::ffi::style_set_max_width(style, width.into())
+    ffi::style_set_max_width(style, width.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_max_width(style: *mut c_void) -> CMasonDimension {
-    mason_core::ffi::style_get_max_width(style).into()
+pub extern "C" fn mason_style_get_max_width(style: *mut CMasonStyle) -> CMasonDimension {
+    ffi::style_get_max_width(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_max_height(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonDimensionType,
 ) {
     let height = CMasonDimension::new(value, value_type);
-    mason_core::ffi::style_set_max_height(style, height.into())
+    ffi::style_set_max_height(style, height.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_max_height(style: *mut c_void) -> CMasonDimension {
-    mason_core::ffi::style_get_max_height(style).into()
+pub extern "C" fn mason_style_get_max_height(style: *mut CMasonStyle) -> CMasonDimension {
+    ffi::style_get_max_height(style).into()
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_gap(style: *mut c_void) -> CMasonLengthPercentageSize {
-    mason_core::ffi::style_get_gap(style).into()
+pub extern "C" fn mason_style_get_gap(style: *mut CMasonStyle) -> CMasonLengthPercentageSize {
+    ffi::style_get_gap(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_gap(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     width_value: f32,
     width_type: CMasonLengthPercentageType,
     height_value: f32,
@@ -1424,54 +1415,54 @@ pub extern "C" fn mason_style_set_gap(
 ) {
     let width = CMasonLengthPercentage::new(width_value, width_type);
     let height = CMasonLengthPercentage::new(height_value, height_type);
-    mason_core::ffi::style_set_gap(style, width.into(), height.into())
+    ffi::style_set_gap(style, width.into(), height.into())
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_row_gap(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let width = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_row_gap(style, width.into())
+    ffi::style_set_row_gap(style, width.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_row_gap(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_row_gap(style).into()
+pub extern "C" fn mason_style_get_row_gap(style: *mut CMasonStyle) -> CMasonLengthPercentage {
+    ffi::style_get_row_gap(style).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_column_gap(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: c_float,
     value_type: CMasonLengthPercentageType,
 ) {
     let height = CMasonLengthPercentage::new(value, value_type);
-    mason_core::ffi::style_set_column_gap(style, height.into())
+    ffi::style_set_column_gap(style, height.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_column_gap(style: *mut c_void) -> CMasonLengthPercentage {
-    mason_core::ffi::style_get_column_gap(style).into()
+pub extern "C" fn mason_style_get_column_gap(style: *mut CMasonStyle) -> CMasonLengthPercentage {
+    ffi::style_get_column_gap(style).into()
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_aspect_ratio(style: *mut c_void, ratio: c_float) {
-    mason_core::ffi::style_set_aspect_ratio(style, ratio)
+pub extern "C" fn mason_style_set_aspect_ratio(style: *mut CMasonStyle, ratio: c_float) {
+    ffi::style_set_aspect_ratio(style, ratio)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_aspect_ratio(style: *mut c_void) -> c_float {
-    mason_core::ffi::style_get_aspect_ratio(style)
+pub extern "C" fn mason_style_get_aspect_ratio(style: *mut CMasonStyle) -> c_float {
+    ffi::style_get_aspect_ratio(style)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_grid_auto_rows(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
 ) -> *mut CMasonNonRepeatedTrackSizingFunctionArray {
-    let ret: Vec<CMasonMinMax> = mason_core::ffi::style_get_grid_auto_rows(style as _)
+    let ret: Vec<CMasonMinMax> = ffi::style_get_grid_auto_rows(style as _)
         .into_iter()
         .map(|v| v.into())
         .collect();
@@ -1481,12 +1472,12 @@ pub extern "C" fn mason_style_get_grid_auto_rows(
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_auto_rows(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
 ) {
     let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
 
-    mason_core::ffi::style_set_grid_auto_rows(
+    ffi::style_set_grid_auto_rows(
         style as _,
         slice
             .iter()
@@ -1497,9 +1488,9 @@ pub extern "C" fn mason_style_set_grid_auto_rows(
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_grid_auto_columns(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
 ) -> *mut CMasonNonRepeatedTrackSizingFunctionArray {
-    let ret: Vec<CMasonMinMax> = mason_core::ffi::style_get_grid_auto_columns(style as _)
+    let ret: Vec<CMasonMinMax> = ffi::style_get_grid_auto_columns(style as _)
         .into_iter()
         .map(|v| v.into())
         .collect();
@@ -1509,12 +1500,12 @@ pub extern "C" fn mason_style_get_grid_auto_columns(
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_auto_columns(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
 ) {
     let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
 
-    mason_core::ffi::style_set_grid_auto_columns(
+    ffi::style_set_grid_auto_columns(
         style as _,
         slice
             .iter()
@@ -1524,24 +1515,24 @@ pub extern "C" fn mason_style_set_grid_auto_columns(
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_grid_auto_flow(style: *mut c_void) -> i32 {
-    mason_core::ffi::style_get_grid_auto_flow(style as _)
+pub extern "C" fn mason_style_get_grid_auto_flow(style: *mut CMasonStyle) -> i32 {
+    ffi::style_get_grid_auto_flow(style as _)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_grid_auto_flow(style: *mut c_void, value: i32) {
-    mason_core::ffi::style_set_grid_auto_flow(style as _, value)
+pub extern "C" fn mason_style_set_grid_auto_flow(style: *mut CMasonStyle, value: i32) {
+    ffi::style_set_grid_auto_flow(style as _, value)
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_area(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     row_start: CMasonGridPlacement,
     row_end: CMasonGridPlacement,
     column_start: CMasonGridPlacement,
     column_end: CMasonGridPlacement,
 ) {
-    mason_core::ffi::style_set_grid_area(
+    ffi::style_set_grid_area(
         style as _,
         row_start.into(),
         row_end.into(),
@@ -1551,72 +1542,83 @@ pub extern "C" fn mason_style_set_grid_area(
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_grid_column_start(style: *mut c_void) -> CMasonGridPlacement {
-    mason_core::ffi::style_get_grid_column_start(style as _).into()
+pub extern "C" fn mason_style_get_grid_column_start(
+    style: *mut CMasonStyle,
+) -> CMasonGridPlacement {
+    ffi::style_get_grid_column_start(style as _).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_column(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     start: CMasonGridPlacement,
     end: CMasonGridPlacement,
 ) {
-    mason_core::ffi::style_set_grid_column(style as _, start.into(), end.into())
+    ffi::style_set_grid_column(style as _, start.into(), end.into())
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_column_start(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: CMasonGridPlacement,
 ) {
-    mason_core::ffi::style_set_grid_column_start(style as _, value.into())
+    ffi::style_set_grid_column_start(style as _, value.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_grid_column_end(style: *mut c_void) -> CMasonGridPlacement {
-    mason_core::ffi::style_get_grid_column_end(style as _).into()
+pub extern "C" fn mason_style_get_grid_column_end(style: *mut CMasonStyle) -> CMasonGridPlacement {
+    ffi::style_get_grid_column_end(style as _).into()
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_grid_column_end(style: *mut c_void, value: CMasonGridPlacement) {
-    mason_core::ffi::style_set_grid_column_end(style as _, value.into())
+pub extern "C" fn mason_style_set_grid_column_end(
+    style: *mut CMasonStyle,
+    value: CMasonGridPlacement,
+) {
+    ffi::style_set_grid_column_end(style as _, value.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_grid_row_start(style: *mut c_void) -> CMasonGridPlacement {
-    mason_core::ffi::style_get_grid_row_start(style as _).into()
+pub extern "C" fn mason_style_get_grid_row_start(style: *mut CMasonStyle) -> CMasonGridPlacement {
+    ffi::style_get_grid_row_start(style as _).into()
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_row(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     start: CMasonGridPlacement,
     end: CMasonGridPlacement,
 ) {
-    mason_core::ffi::style_set_grid_row(style as _, start.into(), end.into())
+    ffi::style_set_grid_row(style as _, start.into(), end.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_grid_row_start(style: *mut c_void, value: CMasonGridPlacement) {
-    mason_core::ffi::style_set_grid_row_start(style as _, value.into())
+pub extern "C" fn mason_style_set_grid_row_start(
+    style: *mut CMasonStyle,
+    value: CMasonGridPlacement,
+) {
+    ffi::style_set_grid_row_start(style as _, value.into())
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_grid_row_end(style: *mut c_void) -> CMasonGridPlacement {
-    mason_core::ffi::style_get_grid_row_end(style as _).into()
+pub extern "C" fn mason_style_get_grid_row_end(style: *mut CMasonStyle) -> CMasonGridPlacement {
+    ffi::style_get_grid_row_end(style as _).into()
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_grid_row_end(style: *mut c_void, value: CMasonGridPlacement) {
-    mason_core::ffi::style_set_grid_row_end(style as _, value.into())
+pub extern "C" fn mason_style_set_grid_row_end(
+    style: *mut CMasonStyle,
+    value: CMasonGridPlacement,
+) {
+    ffi::style_set_grid_row_end(style as _, value.into())
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_grid_template_rows(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
 ) -> *mut CMasonTrackSizingFunctionArray {
     Box::into_raw(Box::new(
-        mason_core::ffi::style_get_grid_template_rows(style as _)
+        ffi::style_get_grid_template_rows(style as _)
             .into_iter()
             .map(|v| v.into())
             .collect::<Vec<CMasonTrackSizingFunction>>()
@@ -1626,23 +1628,18 @@ pub extern "C" fn mason_style_get_grid_template_rows(
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_template_rows(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: *mut CMasonTrackSizingFunctionArray,
 ) {
-    unsafe {
-        mason_core::ffi::style_set_grid_template_rows(
-            style as _,
-            to_vec_track_sizing_function(value),
-        )
-    }
+    unsafe { ffi::style_set_grid_template_rows(style as _, to_vec_track_sizing_function(value)) }
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_get_grid_template_columns(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
 ) -> *mut CMasonTrackSizingFunctionArray {
     Box::into_raw(Box::new(
-        mason_core::ffi::style_get_grid_template_columns(style as _)
+        ffi::style_get_grid_template_columns(style as _)
             .into_iter()
             .map(|v| v.into())
             .collect::<Vec<CMasonTrackSizingFunction>>()
@@ -1652,15 +1649,10 @@ pub extern "C" fn mason_style_get_grid_template_columns(
 
 #[no_mangle]
 pub extern "C" fn mason_style_set_grid_template_columns(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     value: *mut CMasonTrackSizingFunctionArray,
 ) {
-    unsafe {
-        mason_core::ffi::style_set_grid_template_columns(
-            style as _,
-            to_vec_track_sizing_function(value),
-        )
-    }
+    unsafe { ffi::style_set_grid_template_columns(style as _, to_vec_track_sizing_function(value)) }
 }
 
 pub fn to_vec_non_repeated_track_sizing_function(
@@ -1749,23 +1741,23 @@ pub unsafe fn to_vec_track_sizing_function(
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_scrollbar_width(style: *mut c_void, value: f32) {
-    mason_core::ffi::style_set_scrollbar_width(style as _, value);
+pub extern "C" fn mason_style_set_scrollbar_width(style: *mut CMasonStyle, value: f32) {
+    ffi::style_set_scrollbar_width(style as _, value);
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_scrollbar_width(style: *mut c_void) -> f32 {
-    mason_core::ffi::style_get_scrollbar_width(style as _)
+pub extern "C" fn mason_style_get_scrollbar_width(style: *mut CMasonStyle) -> f32 {
+    ffi::style_get_scrollbar_width(style as _)
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_overflow(style: *mut c_void, value: i32) {
-    mason_core::ffi::style_set_overflow(style as _, value);
+pub extern "C" fn mason_style_set_overflow(style: *mut CMasonStyle, value: i32) {
+    ffi::style_set_overflow(style as _, value);
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_overflow_x(style: *mut c_void, value: i32) {
-    mason_core::ffi::style_set_overflow_x(style as _, value);
+pub extern "C" fn mason_style_set_overflow_x(style: *mut CMasonStyle, value: i32) {
+    ffi::style_set_overflow_x(style as _, value);
 }
 
 fn overflow_to_int(value: Overflow) -> i32 {
@@ -1773,22 +1765,23 @@ fn overflow_to_int(value: Overflow) -> i32 {
         Overflow::Visible => 0,
         Overflow::Hidden => 1,
         Overflow::Scroll => 2,
+        Overflow::Clip => 3,
     }
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_overflow_x(style: *mut c_void) -> i32 {
-    overflow_to_int(mason_core::ffi::style_get_overflow_x(style as _))
+pub extern "C" fn mason_style_get_overflow_x(style: *mut CMasonStyle) -> i32 {
+    overflow_to_int(ffi::style_get_overflow_x(style as _))
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_overflow_y(style: *mut c_void, value: i32) {
-    mason_core::ffi::style_set_overflow_y(style as _, value);
+pub extern "C" fn mason_style_set_overflow_y(style: *mut CMasonStyle, value: i32) {
+    ffi::style_set_overflow_y(style as _, value);
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_overflow_y(style: *mut c_void) -> i32 {
-    overflow_to_int(mason_core::ffi::style_get_overflow_y(style as _))
+pub extern "C" fn mason_style_get_overflow_y(style: *mut CMasonStyle) -> i32 {
+    overflow_to_int(ffi::style_get_overflow_y(style as _))
 }
 
 #[no_mangle]
@@ -1874,14 +1867,14 @@ pub extern "C" fn mason_style_init_with_values(
     overflow_x: i32,
     overflow_y: i32,
     scrollbar_width: f32,
-) -> *mut c_void {
+) -> *mut CMasonStyle {
     let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
     let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
     let grid_template_rows = unsafe { to_vec_track_sizing_function(grid_template_rows as *mut _) };
     let grid_template_columns =
         unsafe { to_vec_track_sizing_function(grid_template_columns as *mut _) };
 
-    Box::into_raw(Box::new(Style::from_ffi(
+    Box::into_raw(Box::new(CMasonStyle(Style::from_ffi(
         display,
         position_type,
         direction,
@@ -1963,12 +1956,12 @@ pub extern "C" fn mason_style_init_with_values(
         overflow_x,
         overflow_y,
         scrollbar_width,
-    ))) as *mut c_void
+    ))))
 }
 
 #[no_mangle]
 pub extern "C" fn mason_style_update_with_values(
-    style: *mut c_void,
+    style: *mut CMasonStyle,
     display: c_int,
     position_type: c_int,
     direction: c_int,
@@ -2057,9 +2050,9 @@ pub extern "C" fn mason_style_update_with_values(
     let grid_template_columns = unsafe { to_vec_track_sizing_function(grid_template_columns) };
 
     unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
+        let style = &mut(*style).0;
         Style::update_from_ffi(
-            &mut style,
+            style,
             display,
             position_type,
             direction,
@@ -2142,6 +2135,5 @@ pub extern "C" fn mason_style_update_with_values(
             overflow_y,
             scrollbar_width,
         );
-        Box::leak(style);
     }
 }

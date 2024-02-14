@@ -1,5 +1,5 @@
 // swift-interface-format-version: 1.0
-// swift-compiler-version: Apple Swift version 5.8.1 (swiftlang-5.8.0.124.5 clang-1403.0.22.11.100)
+// swift-compiler-version: Apple Swift version 5.9.2 (swiftlang-5.9.2.2.56 clang-1500.1.0.2.5)
 // swift-module-flags: -target arm64-apple-ios9.0-simulator -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -module-name Mason
 // swift-module-flags-ignorable: -enable-bare-slash-regex
 import Foundation
@@ -8,6 +8,7 @@ import Swift
 import UIKit
 import _Concurrency
 import _StringProcessing
+import _SwiftConcurrencyShims
 public struct Line<T> {
   public init(_ start: T, _ end: T)
 }
@@ -39,14 +40,14 @@ public struct Line<T> {
   public func encode(to encoder: any Swift.Encoder) throws
   @objc deinit
 }
-@_inheritsConvenienceInitializers @objc(TSCMason) @objcMembers public class TSCMason : ObjectiveC.NSObject {
-  @objc public var nativePtr: Swift.UnsafeMutableRawPointer! {
+@_inheritsConvenienceInitializers @objc(NSCMason) @objcMembers public class NSCMason : ObjectiveC.NSObject {
+  @objc public var nativePtr: Swift.OpaquePointer? {
     get
   }
   @objc override dynamic public init()
   @objc deinit
   @objc public func clear()
-  @objc public static let instance: Mason.TSCMason
+  @objc public static let instance: Mason.NSCMason
   @objc public static var shared: Swift.Bool
   @objc public static var alwaysEnable: Swift.Bool
 }
@@ -107,7 +108,7 @@ public let MasonDimensionSizeZero: Mason.MasonSize<Mason.MasonDimension>
 public let MasonLengthPercentageAutoSizeZero: Mason.MasonSize<Mason.MasonLengthPercentageAuto>
 public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPercentage>
 @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonNode) @objcMembers public class MasonNode : ObjectiveC.NSObject {
-  @objc public var nativePtr: Swift.UnsafeMutableRawPointer! {
+  @objc public var nativePtr: Swift.OpaquePointer? {
     get
   }
   public typealias MeasureFunc = (CoreFoundation.CGSize?, CoreFoundation.CGSize) -> CoreFoundation.CGSize
@@ -198,132 +199,132 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   required public init(from decoder: any Swift.Decoder) throws
 }
 @_inheritsConvenienceInitializers @objcMembers @objc(MasonReexports) public class MasonReexports : ObjectiveC.NSObject {
-  @objc public static func node_set_style(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer, _ style: Swift.UnsafeMutableRawPointer)
-  @objc public static func node_compute(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer)
-  @objc public static func node_compute_wh(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer, width: Swift.Float, height: Swift.Float)
-  @objc public static func node_compute_max_content(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer)
-  @objc public static func node_compute_min_content(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer)
-  @objc public static func node_dirty(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer) -> Swift.Bool
-  @objc public static func node_mark_dirty(_ mason: Swift.UnsafeMutableRawPointer, _ node: Swift.UnsafeMutableRawPointer)
-  @objc public static func style_get_display(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_display(_ style: Swift.UnsafeMutableRawPointer, _ display: Swift.Int32)
-  @objc public static func style_get_position(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_position(_ style: Swift.UnsafeMutableRawPointer, _ position: Swift.Int32)
-  @objc public static func style_get_direction(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_direction(_ style: Swift.UnsafeMutableRawPointer, _ direction: Swift.Int32)
-  @objc public static func style_get_flex_direction(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_flex_direction(_ style: Swift.UnsafeMutableRawPointer, _ flex_direction: Swift.Int32)
-  @objc public static func style_get_flex_wrap(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_flex_wrap(_ style: Swift.UnsafeMutableRawPointer, _ flex_wrap: Swift.Int32)
-  @objc public static func style_set_overflow(_ style: Swift.UnsafeMutableRawPointer, _ overflow: Swift.Int32)
-  @objc public static func style_set_overflow_x(_ style: Swift.UnsafeMutableRawPointer, _ overflow: Swift.Int32)
-  @objc public static func style_set_overflow_y(_ style: Swift.UnsafeMutableRawPointer, _ overflow: Swift.Int32)
-  @objc public static func style_get_overflow_x(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_get_overflow_y(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_get_align_items(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_align_items(_ style: Swift.UnsafeMutableRawPointer, _ align_items: Swift.Int32)
-  @objc public static func style_get_align_self(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_align_self(_ style: Swift.UnsafeMutableRawPointer, _ align_self: Swift.Int32)
-  @objc public static func style_get_align_content(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_align_content(_ style: Swift.UnsafeMutableRawPointer, _ align_content: Swift.Int32)
-  @objc public static func style_get_justify_items(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_justify_items(_ style: Swift.UnsafeMutableRawPointer, _ align_items: Swift.Int32)
-  @objc public static func style_get_justify_self(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_justify_self(_ style: Swift.UnsafeMutableRawPointer, _ align_self: Swift.Int32)
-  @objc public static func style_get_justify_content(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_justify_content(_ style: Swift.UnsafeMutableRawPointer, _ justify_content: Swift.Int32)
-  @objc public static func style_set_inset(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_get_inset_left(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentageAuto
-  @objc public static func style_set_inset_left(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_get_inset_right(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentageAuto
-  @objc public static func style_set_inset_right(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_get_inset_top(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentageAuto
-  @objc public static func style_set_inset_top(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_get_inset_bottom(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentageAuto
-  @objc public static func style_set_inset_bottom(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_set_margin(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_get_margin_left(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentageAuto
-  @objc public static func style_set_margin_left(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_get_margin_right(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentageAuto
-  @objc public static func style_set_margin_right(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_get_margin_top(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentageAuto
-  @objc public static func style_set_margin_top(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_get_margin_bottom(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentageAuto
-  @objc public static func style_set_margin_bottom(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
-  @objc public static func style_set_padding(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_padding_left(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_padding_left(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_padding_right(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_padding_right(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_padding_top(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_padding_top(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_padding_bottom(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_padding_bottom(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_set_border(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_border_left(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_border_left(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_border_right(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_border_right(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_border_top(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_border_top(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_border_bottom(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_border_bottom(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_flex_grow(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Float
-  @objc public static func style_set_flex_grow(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float)
-  @objc public static func style_set_border_bottom(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float)
-  @objc public static func style_get_flex_shrink(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Float
-  @objc public static func style_set_flex_shrink(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float)
-  @objc public static func style_set_flex_basis(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
-  @objc public static func style_get_flex_basis(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonDimension
-  @objc public static func style_set_scrollbar_width(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float)
-  @objc public static func style_get_scrollbar_width(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Float
-  @objc public static func style_get_width(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonDimension
-  @objc public static func style_set_width(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
-  @objc public static func style_get_height(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonDimension
-  @objc public static func style_set_height(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
-  @objc public static func style_get_min_width(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonDimension
-  @objc public static func style_set_min_width(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
-  @objc public static func style_get_min_height(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonDimension
-  @objc public static func style_set_min_height(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
-  @objc public static func style_get_max_width(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonDimension
-  @objc public static func style_set_max_width(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
-  @objc public static func style_get_max_height(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonDimension
-  @objc public static func style_set_max_height(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
-  @objc public static func style_get_gap(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentageSize
-  @objc public static func style_set_gap(_ style: Swift.UnsafeMutableRawPointer, _ width_value: Swift.Float, _ width_type: Mason.CMasonLengthPercentageType, _ height_value: Swift.Float, _ height_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_row_gap(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_row_gap(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_column_gap(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonLengthPercentage
-  @objc public static func style_set_column_gap(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
-  @objc public static func style_get_aspect_ratio(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Float
-  @objc public static func style_set_aspect_ratio(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Float)
-  @objc public static func style_get_grid_auto_rows(_ style: Swift.UnsafeMutableRawPointer) -> Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>
-  @objc public static func style_set_grid_auto_rows(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>)
-  @objc public static func style_get_grid_auto_columns(_ style: Swift.UnsafeMutableRawPointer) -> Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>
-  @objc public static func style_set_grid_auto_columns(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>)
-  @objc public static func style_get_grid_auto_flow(_ style: Swift.UnsafeMutableRawPointer) -> Swift.Int32
-  @objc public static func style_set_grid_auto_flow(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.Int32)
-  @objc public static func style_set_grid_area(_ style: Swift.UnsafeMutableRawPointer, _ row_start: Mason.CMasonGridPlacement, _ row_end: Mason.CMasonGridPlacement, _ column_start: Mason.CMasonGridPlacement, _ column_end: Mason.CMasonGridPlacement)
-  @objc public static func style_set_grid_column(_ style: Swift.UnsafeMutableRawPointer, _ start: Mason.CMasonGridPlacement, _ end: Mason.CMasonGridPlacement)
-  @objc public static func style_get_grid_column_start(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonGridPlacement
-  @objc public static func style_set_grid_column_start(_ style: Swift.UnsafeMutableRawPointer, _ value: Mason.CMasonGridPlacement)
-  @objc public static func style_get_grid_column_end(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonGridPlacement
-  @objc public static func style_set_grid_column_end(_ style: Swift.UnsafeMutableRawPointer, _ value: Mason.CMasonGridPlacement)
-  @objc public static func style_set_grid_row(_ style: Swift.UnsafeMutableRawPointer, _ start: Mason.CMasonGridPlacement, _ end: Mason.CMasonGridPlacement)
-  @objc public static func style_get_grid_row_start(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonGridPlacement
-  @objc public static func style_set_grid_row_start(_ style: Swift.UnsafeMutableRawPointer, _ value: Mason.CMasonGridPlacement)
-  @objc public static func style_get_grid_row_end(_ style: Swift.UnsafeMutableRawPointer) -> Mason.CMasonGridPlacement
-  @objc public static func style_set_grid_row_end(_ style: Swift.UnsafeMutableRawPointer, _ value: Mason.CMasonGridPlacement)
-  @objc public static func style_get_grid_template_rows(_ style: Swift.UnsafeMutableRawPointer) -> Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>
-  @objc public static func style_set_grid_template_rows(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>)
-  @objc public static func style_get_grid_template_columns(_ style: Swift.UnsafeMutableRawPointer) -> Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>
-  @objc public static func style_set_grid_template_columns(_ style: Swift.UnsafeMutableRawPointer, _ value: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>)
+  @objc public static func node_set_style(_ mason: Swift.OpaquePointer?, _ node: Swift.OpaquePointer?, _ style: Swift.OpaquePointer?)
+  @objc public static func node_compute(_ mason: Swift.OpaquePointer?, _ node: Swift.OpaquePointer?)
+  @objc public static func node_compute_wh(_ mason: Swift.OpaquePointer?, _ node: Swift.OpaquePointer?, width: Swift.Float, height: Swift.Float)
+  @objc public static func node_compute_max_content(_ mason: Swift.OpaquePointer?, _ node: Swift.OpaquePointer?)
+  @objc public static func node_compute_min_content(_ mason: Swift.OpaquePointer?, _ node: Swift.OpaquePointer?)
+  @objc public static func node_dirty(_ mason: Swift.OpaquePointer?, _ node: Swift.OpaquePointer?) -> Swift.Bool
+  @objc public static func node_mark_dirty(_ mason: Swift.OpaquePointer?, _ node: Swift.OpaquePointer?)
+  @objc public static func style_get_display(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_display(_ style: Swift.OpaquePointer?, _ display: Swift.Int32)
+  @objc public static func style_get_position(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_position(_ style: Swift.OpaquePointer?, _ position: Swift.Int32)
+  @objc public static func style_get_direction(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_direction(_ style: Swift.OpaquePointer?, _ direction: Swift.Int32)
+  @objc public static func style_get_flex_direction(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_flex_direction(_ style: Swift.OpaquePointer?, _ flex_direction: Swift.Int32)
+  @objc public static func style_get_flex_wrap(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_flex_wrap(_ style: Swift.OpaquePointer?, _ flex_wrap: Swift.Int32)
+  @objc public static func style_set_overflow(_ style: Swift.OpaquePointer?, _ overflow: Swift.Int32)
+  @objc public static func style_set_overflow_x(_ style: Swift.OpaquePointer?, _ overflow: Swift.Int32)
+  @objc public static func style_set_overflow_y(_ style: Swift.OpaquePointer?, _ overflow: Swift.Int32)
+  @objc public static func style_get_overflow_x(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_get_overflow_y(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_get_align_items(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_align_items(_ style: Swift.OpaquePointer?, _ align_items: Swift.Int32)
+  @objc public static func style_get_align_self(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_align_self(_ style: Swift.OpaquePointer?, _ align_self: Swift.Int32)
+  @objc public static func style_get_align_content(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_align_content(_ style: Swift.OpaquePointer?, _ align_content: Swift.Int32)
+  @objc public static func style_get_justify_items(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_justify_items(_ style: Swift.OpaquePointer?, _ align_items: Swift.Int32)
+  @objc public static func style_get_justify_self(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_justify_self(_ style: Swift.OpaquePointer?, _ align_self: Swift.Int32)
+  @objc public static func style_get_justify_content(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_justify_content(_ style: Swift.OpaquePointer?, _ justify_content: Swift.Int32)
+  @objc public static func style_set_inset(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_get_inset_left(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentageAuto
+  @objc public static func style_set_inset_left(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_get_inset_right(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentageAuto
+  @objc public static func style_set_inset_right(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_get_inset_top(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentageAuto
+  @objc public static func style_set_inset_top(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_get_inset_bottom(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentageAuto
+  @objc public static func style_set_inset_bottom(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_set_margin(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_get_margin_left(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentageAuto
+  @objc public static func style_set_margin_left(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_get_margin_right(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentageAuto
+  @objc public static func style_set_margin_right(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_get_margin_top(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentageAuto
+  @objc public static func style_set_margin_top(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_get_margin_bottom(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentageAuto
+  @objc public static func style_set_margin_bottom(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageAutoType)
+  @objc public static func style_set_padding(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_padding_left(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_padding_left(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_padding_right(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_padding_right(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_padding_top(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_padding_top(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_padding_bottom(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_padding_bottom(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_set_border(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_border_left(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_border_left(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_border_right(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_border_right(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_border_top(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_border_top(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_border_bottom(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_border_bottom(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_flex_grow(_ style: Swift.OpaquePointer?) -> Swift.Float
+  @objc public static func style_set_flex_grow(_ style: Swift.OpaquePointer?, _ value: Swift.Float)
+  @objc public static func style_set_border_bottom(_ style: Swift.OpaquePointer?, _ value: Swift.Float)
+  @objc public static func style_get_flex_shrink(_ style: Swift.OpaquePointer?) -> Swift.Float
+  @objc public static func style_set_flex_shrink(_ style: Swift.OpaquePointer?, _ value: Swift.Float)
+  @objc public static func style_set_flex_basis(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
+  @objc public static func style_get_flex_basis(_ style: Swift.OpaquePointer?) -> Mason.CMasonDimension
+  @objc public static func style_set_scrollbar_width(_ style: Swift.OpaquePointer?, _ value: Swift.Float)
+  @objc public static func style_get_scrollbar_width(_ style: Swift.OpaquePointer?) -> Swift.Float
+  @objc public static func style_get_width(_ style: Swift.OpaquePointer?) -> Mason.CMasonDimension
+  @objc public static func style_set_width(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
+  @objc public static func style_get_height(_ style: Swift.OpaquePointer?) -> Mason.CMasonDimension
+  @objc public static func style_set_height(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
+  @objc public static func style_get_min_width(_ style: Swift.OpaquePointer?) -> Mason.CMasonDimension
+  @objc public static func style_set_min_width(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
+  @objc public static func style_get_min_height(_ style: Swift.OpaquePointer?) -> Mason.CMasonDimension
+  @objc public static func style_set_min_height(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
+  @objc public static func style_get_max_width(_ style: Swift.OpaquePointer?) -> Mason.CMasonDimension
+  @objc public static func style_set_max_width(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
+  @objc public static func style_get_max_height(_ style: Swift.OpaquePointer?) -> Mason.CMasonDimension
+  @objc public static func style_set_max_height(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonDimensionType)
+  @objc public static func style_get_gap(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentageSize
+  @objc public static func style_set_gap(_ style: Swift.OpaquePointer?, _ width_value: Swift.Float, _ width_type: Mason.CMasonLengthPercentageType, _ height_value: Swift.Float, _ height_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_row_gap(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_row_gap(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_column_gap(_ style: Swift.OpaquePointer?) -> Mason.CMasonLengthPercentage
+  @objc public static func style_set_column_gap(_ style: Swift.OpaquePointer?, _ value: Swift.Float, _ value_type: Mason.CMasonLengthPercentageType)
+  @objc public static func style_get_aspect_ratio(_ style: Swift.OpaquePointer?) -> Swift.Float
+  @objc public static func style_set_aspect_ratio(_ style: Swift.OpaquePointer?, _ value: Swift.Float)
+  @objc public static func style_get_grid_auto_rows(_ style: Swift.OpaquePointer?) -> Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>
+  @objc public static func style_set_grid_auto_rows(_ style: Swift.OpaquePointer?, _ value: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>)
+  @objc public static func style_get_grid_auto_columns(_ style: Swift.OpaquePointer?) -> Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>
+  @objc public static func style_set_grid_auto_columns(_ style: Swift.OpaquePointer?, _ value: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>)
+  @objc public static func style_get_grid_auto_flow(_ style: Swift.OpaquePointer?) -> Swift.Int32
+  @objc public static func style_set_grid_auto_flow(_ style: Swift.OpaquePointer?, _ value: Swift.Int32)
+  @objc public static func style_set_grid_area(_ style: Swift.OpaquePointer?, _ row_start: Mason.CMasonGridPlacement, _ row_end: Mason.CMasonGridPlacement, _ column_start: Mason.CMasonGridPlacement, _ column_end: Mason.CMasonGridPlacement)
+  @objc public static func style_set_grid_column(_ style: Swift.OpaquePointer?, _ start: Mason.CMasonGridPlacement, _ end: Mason.CMasonGridPlacement)
+  @objc public static func style_get_grid_column_start(_ style: Swift.OpaquePointer?) -> Mason.CMasonGridPlacement
+  @objc public static func style_set_grid_column_start(_ style: Swift.OpaquePointer?, _ value: Mason.CMasonGridPlacement)
+  @objc public static func style_get_grid_column_end(_ style: Swift.OpaquePointer?) -> Mason.CMasonGridPlacement
+  @objc public static func style_set_grid_column_end(_ style: Swift.OpaquePointer?, _ value: Mason.CMasonGridPlacement)
+  @objc public static func style_set_grid_row(_ style: Swift.OpaquePointer?, _ start: Mason.CMasonGridPlacement, _ end: Mason.CMasonGridPlacement)
+  @objc public static func style_get_grid_row_start(_ style: Swift.OpaquePointer?) -> Mason.CMasonGridPlacement
+  @objc public static func style_set_grid_row_start(_ style: Swift.OpaquePointer?, _ value: Mason.CMasonGridPlacement)
+  @objc public static func style_get_grid_row_end(_ style: Swift.OpaquePointer?) -> Mason.CMasonGridPlacement
+  @objc public static func style_set_grid_row_end(_ style: Swift.OpaquePointer?, _ value: Mason.CMasonGridPlacement)
+  @objc public static func style_get_grid_template_rows(_ style: Swift.OpaquePointer?) -> Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>
+  @objc public static func style_set_grid_template_rows(_ style: Swift.OpaquePointer?, _ value: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>)
+  @objc public static func style_get_grid_template_columns(_ style: Swift.OpaquePointer?) -> Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>
+  @objc public static func style_set_grid_template_columns(_ style: Swift.OpaquePointer?, _ value: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>)
   @objc public static func destroy(nonRepeatedTrackSizingFunctionArray: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>)
   @objc public static func destroy(trackSizingFunctionArray: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>)
   @objc public static func util_parse_non_repeated_track_sizing_function(_ value: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>) -> Swift.String
   @objc public static func util_parse_auto_repeating_track_sizing_function(_ value: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>) -> Swift.String
   @objc public static func util_create_non_repeated_track_sizing_function_with_type_value(_ track_type: Swift.Int32, _ track_value: Swift.Float) -> Mason.CMasonMinMax
-  @objc public static func style_update_with_values(_ style: Swift.UnsafeMutableRawPointer, _ display: Swift.Int32, _ position: Swift.Int32, _ direction: Swift.Int32, _ flexDirection: Swift.Int32, _ flexWrap: Swift.Int32, _ overflow: Swift.Int32, _ alignItems: Swift.Int32, _ alignSelf: Swift.Int32, _ alignContent: Swift.Int32, _ justifyItems: Swift.Int32, _ justifySelf: Swift.Int32, _ justifyContent: Swift.Int32, _ insetLeftType: Swift.Int32, _ insetLeftValue: Swift.Float, _ insetRightType: Swift.Int32, _ insetRightValue: Swift.Float, _ insetTopType: Swift.Int32, _ insetTopValue: Swift.Float, _ insetBottomType: Swift.Int32, _ insetBottomValue: Swift.Float, _ marginLeftType: Swift.Int32, _ marginLeftValue: Swift.Float, _ marginRightType: Swift.Int32, _ marginRightValue: Swift.Float, _ marginTopType: Swift.Int32, _ marginTopValue: Swift.Float, _ marginBottomType: Swift.Int32, _ marginBottomValue: Swift.Float, _ paddingLeftType: Swift.Int32, _ paddingLeftValue: Swift.Float, _ paddingRightType: Swift.Int32, _ paddingRightValue: Swift.Float, _ paddingTopType: Swift.Int32, _ paddingTopValue: Swift.Float, _ paddingBottomType: Swift.Int32, _ paddingBottomValue: Swift.Float, _ borderLeftType: Swift.Int32, _ borderLeftValue: Swift.Float, _ borderRightType: Swift.Int32, _ borderRightValue: Swift.Float, _ borderTopType: Swift.Int32, _ borderTopValue: Swift.Float, _ borderBottomType: Swift.Int32, _ borderBottomValue: Swift.Float, _ flexGrow: Swift.Float, _ flexShrink: Swift.Float, _ flexBasisType: Swift.Int32, _ flexBasisValue: Swift.Float, _ widthType: Swift.Int32, _ widthValue: Swift.Float, _ heightType: Swift.Int32, _ heightValue: Swift.Float, _ minWidthType: Swift.Int32, _ minWidthValue: Swift.Float, _ minHeightType: Swift.Int32, _ minHeightValue: Swift.Float, _ maxWidthType: Swift.Int32, _ maxWidthValue: Swift.Float, _ maxHeightType: Swift.Int32, _ maxHeightValue: Swift.Float, _ gapRowType: Swift.Int32, _ gapRowValue: Swift.Float, _ gapColumnType: Swift.Int32, _ gapColumnValue: Swift.Float, _ aspectRatio: Swift.Float, _ gridAutoRows: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>, _ gridAutoColumns: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>, _ gridAutoFlow: Swift.Int32, _ gridColumnStartType: Swift.Int32, _ gridColumnStartValue: Swift.Int16, _ gridColumnEndType: Swift.Int32, _ gridColumnEndValue: Swift.Int16, _ gridRowStartType: Swift.Int32, _ gridRowStartValue: Swift.Int16, _ gridRowEndType: Swift.Int32, _ gridRowEndValue: Swift.Int16, _ gridTemplateRows: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>, _ gridTemplateColumns: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>, _ overflowX: Swift.Int32, _ overflowY: Swift.Int32, scrollBarWidth: Swift.Float)
+  @objc public static func style_update_with_values(_ style: Swift.OpaquePointer?, _ display: Swift.Int32, _ position: Swift.Int32, _ direction: Swift.Int32, _ flexDirection: Swift.Int32, _ flexWrap: Swift.Int32, _ overflow: Swift.Int32, _ alignItems: Swift.Int32, _ alignSelf: Swift.Int32, _ alignContent: Swift.Int32, _ justifyItems: Swift.Int32, _ justifySelf: Swift.Int32, _ justifyContent: Swift.Int32, _ insetLeftType: Swift.Int32, _ insetLeftValue: Swift.Float, _ insetRightType: Swift.Int32, _ insetRightValue: Swift.Float, _ insetTopType: Swift.Int32, _ insetTopValue: Swift.Float, _ insetBottomType: Swift.Int32, _ insetBottomValue: Swift.Float, _ marginLeftType: Swift.Int32, _ marginLeftValue: Swift.Float, _ marginRightType: Swift.Int32, _ marginRightValue: Swift.Float, _ marginTopType: Swift.Int32, _ marginTopValue: Swift.Float, _ marginBottomType: Swift.Int32, _ marginBottomValue: Swift.Float, _ paddingLeftType: Swift.Int32, _ paddingLeftValue: Swift.Float, _ paddingRightType: Swift.Int32, _ paddingRightValue: Swift.Float, _ paddingTopType: Swift.Int32, _ paddingTopValue: Swift.Float, _ paddingBottomType: Swift.Int32, _ paddingBottomValue: Swift.Float, _ borderLeftType: Swift.Int32, _ borderLeftValue: Swift.Float, _ borderRightType: Swift.Int32, _ borderRightValue: Swift.Float, _ borderTopType: Swift.Int32, _ borderTopValue: Swift.Float, _ borderBottomType: Swift.Int32, _ borderBottomValue: Swift.Float, _ flexGrow: Swift.Float, _ flexShrink: Swift.Float, _ flexBasisType: Swift.Int32, _ flexBasisValue: Swift.Float, _ widthType: Swift.Int32, _ widthValue: Swift.Float, _ heightType: Swift.Int32, _ heightValue: Swift.Float, _ minWidthType: Swift.Int32, _ minWidthValue: Swift.Float, _ minHeightType: Swift.Int32, _ minHeightValue: Swift.Float, _ maxWidthType: Swift.Int32, _ maxWidthValue: Swift.Float, _ maxHeightType: Swift.Int32, _ maxHeightValue: Swift.Float, _ gapRowType: Swift.Int32, _ gapRowValue: Swift.Float, _ gapColumnType: Swift.Int32, _ gapColumnValue: Swift.Float, _ aspectRatio: Swift.Float, _ gridAutoRows: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>, _ gridAutoColumns: Swift.UnsafeMutablePointer<Mason.CMasonNonRepeatedTrackSizingFunctionArray>, _ gridAutoFlow: Swift.Int32, _ gridColumnStartType: Swift.Int32, _ gridColumnStartValue: Swift.Int16, _ gridColumnEndType: Swift.Int32, _ gridColumnEndValue: Swift.Int16, _ gridRowStartType: Swift.Int32, _ gridRowStartValue: Swift.Int16, _ gridRowEndType: Swift.Int32, _ gridRowEndValue: Swift.Int16, _ gridTemplateRows: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>, _ gridTemplateColumns: Swift.UnsafeMutablePointer<Mason.CMasonTrackSizingFunctionArray>, _ overflowX: Swift.Int32, _ overflowY: Swift.Int32, scrollBarWidth: Swift.Float)
   @objc override dynamic public init()
   @objc deinit
 }
@@ -452,7 +453,7 @@ public let MasonDimensionRectZero: Mason.MasonRect<Mason.MasonDimension>
 public let MasonLengthPercentageAutoRectZero: Mason.MasonRect<Mason.MasonLengthPercentageAuto>
 public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPercentage>
 @_inheritsConvenienceInitializers @objc(MasonStyle) @objcMembers public class MasonStyle : ObjectiveC.NSObject {
-  @objc public var nativePtr: Swift.UnsafeMutableRawPointer! {
+  @objc public var nativePtr: Swift.OpaquePointer? {
     get
   }
   @objc override dynamic public init()
@@ -1014,13 +1015,16 @@ extension UIKit.UIView {
   @objc @_Concurrency.MainActor(unsafe) dynamic public var mason: Mason.MasonNode {
     @objc get
   }
-  @objc @_Concurrency.MainActor(unsafe) public static var masonPtr: Swift.Int {
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var masonPtr: Swift.Int64 {
     @objc get
   }
-  @objc @_Concurrency.MainActor(unsafe) dynamic public var masonNodePtr: Swift.Int {
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var masonNodePtr: Swift.Int64 {
     @objc get
   }
-  @objc @_Concurrency.MainActor(unsafe) dynamic public var masonStylePtr: Swift.Int {
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var masonStylePtr: Swift.Int64 {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor(unsafe) dynamic public var masonPtrs: Swift.String {
     @objc get
   }
   @objc @_Concurrency.MainActor(unsafe) dynamic public var isMasonEnabled: Swift.Bool {

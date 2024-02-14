@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="3f03656e-3129-451f-8a30-095fda558d1b" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../../../../apps/demo-angular/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../apps/demo-angular/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../apps/demo/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../apps/demo/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../apps/demo/src/plugin-demos/nativescript-masonkit.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../apps/demo/src/plugin-demos/nativescript-masonkit.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../common.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../common.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../helpers.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../helpers.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../index.ios.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../index.ios.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/android/masonkit-release.aar" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/android/masonkit-release.aar" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/Info.plist" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/Info.plist" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Headers/Mason-Swift.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Headers/Mason-Swift.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.abi.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.abi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.private.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.private.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/dSYMs/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64/dSYMs/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Headers/Mason-Swift.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Headers/Mason-Swift.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.abi.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.abi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.private.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.private.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.abi.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.abi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.private.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.private.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/_CodeSignature/CodeResources" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/_CodeSignature/CodeResources" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/dSYMs/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/Mason.xcframework/ios-arm64_x86_64-simulator/dSYMs/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../platforms/ios/src/cpp/include/mason_native.h" beforeDir="false" afterPath="$PROJECT_DIR$/../../platforms/ios/src/cpp/include/mason_native.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/APIDesign.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/DEPS" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/DIR_METADATA" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/OWNERS" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/DEPS" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/OWNERS" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/allocation.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/common.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/cross-thread-persistent.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/custom-space.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/default-platform.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/ephemeron-pair.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/explicit-management.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/garbage-collected.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/heap-consistency.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/heap-state.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/heap-statistics.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/heap.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/api-constants.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/atomic-entry-flag.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/caged-heap-local-data.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/compiler-specific.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/finalizer-trait.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/gc-info.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/logging.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/name-trait.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/persistent-node.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/pointer-policies.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/internal/write-barrier.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/liveness-broker.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/macros.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/member.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/name-provider.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/object-size-trait.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/persistent.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/platform.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/prefinalizer.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/process-heap-statistics.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/sentinel-pointer.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/source-location.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/testing.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/trace-trait.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/type-traits.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/cppgc/visitor.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/js_protocol-1.2.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/js_protocol-1.3.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/js_protocol.pdl" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/libffi.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/libffi/arm64/ffi.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/libffi/arm64/ffitarget.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/libffi/x86_64/ffi.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/libffi/x86_64/ffitarget.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/libplatform/DEPS" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/libplatform/libplatform-export.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/libplatform/libplatform.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/libplatform/v8-tracing.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-array-buffer.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-callbacks.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-container.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-context.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-cppgc.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-data.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-date.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-debug.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-embedder-heap.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-embedder-state-scope.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-exception.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-extension.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-external.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-fast-api-calls.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-forward.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-function-callback.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-function.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-initialization.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-inspector-protocol.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-inspector.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-internal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-isolate.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-json.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-local-handle.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-locker.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-maybe.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-memory-span.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-message.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-metrics.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-microtask-queue.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-microtask.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-object.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-persistent-handle.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-platform.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-primitive-object.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-primitive.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-profiler.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-promise.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-proxy.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-regexp.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-script.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-snapshot.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-statistics.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-template.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-traced-handle.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-typed-array.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-unwinder-state.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-unwinder.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-util.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-value-serializer-version.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-value-serializer.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-value.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-version-string.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-version.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-wasm-trap-handler-posix.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-wasm-trap-handler-win.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-wasm.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8-weak-callback-info.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/include/v8config.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/InspectorServer.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/JsV8InspectorClient.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/base/trace_event/common/trace_event_common.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/base64.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/address-region.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/atomic-utils.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/atomicops.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/atomicops_internals_atomicword_compat.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/base-export.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/bits.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/build_config.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/compiler-specific.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/export-template.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/flags.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/immediate-crash.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/lazy-instance.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/logging.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/macros.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/memory.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/once.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/optional.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/platform/mutex.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/platform/platform.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/platform/semaphore.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/platform/v8-time.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/platform/wrappers.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/safe_conversions.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/safe_conversions_impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/template-utils.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/base/v8-fallthrough.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/common/checks.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/common/globals.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/debug/debug-interface.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/debug/interface-types.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/init/v8.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/custom-preview.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/injected-script.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/inspected-context.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/CSS.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Console.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/DOM.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Debugger.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Forward.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/HeapProfiler.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Log.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Network.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Overlay.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Page.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Profiler.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Protocol.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Runtime.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Schema.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/protocol/Security.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/remote-object-id.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/search-util.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/string-16.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/string-util.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-console-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-console-message.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-console.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-css-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-debugger-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-debugger-id.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-debugger-script.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-debugger.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-dom-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-heap-profiler-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-inspector-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-inspector-session-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-log-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-network-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-ns-debugger-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-overlay-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-page-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-profiler-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-regex.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-runtime-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-schema-agent-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-stack-trace-impl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-string-conversions.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/v8-value-utils.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/inspector/value-mirror.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/libplatform/default-platform.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/logging/tracing-flags.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/numbers/conversions.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/tracing/trace-event.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/utils/allocation.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/src/utils/vector.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/cbor.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/dispatch.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/error_support.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/export.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/find_by_first.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/frontend_channel.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/glue.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/json.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/json_platform.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/maybe.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/parser_handler.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/protocol_core.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/serializable.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/serializer_traits.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/span.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/third_party/inspector_protocol/crdtp/status.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/utils.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/inspector/v8-inspector-platform.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/jsi/decorator.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/jsi/instrumentation.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/jsi/jsi-inl.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/jsi/jsi.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/jsi/jsilib.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/jsi/threadsafe.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/ArgConverter.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/ArrayAdapter.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Caches.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/ClassBuilder.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Common.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/ConcurrentMap.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/ConcurrentQueue.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Console.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Constants.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/DataWrapper.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/DictionaryAdapter.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/ExtVector.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/FFICall.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/FastEnumerationAdapter.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/FunctionReference.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Helpers.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/InlineFunctions.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Interop.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/KnownUnknownClassPair.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Metadata.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/MetadataBuilder.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/MetadataInlines.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/ModuleInternal.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/NSDataAdapter.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/NativeScriptException.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/ObjectManager.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/OneByteStringResource.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Pointer.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/PromiseProxy.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Reference.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Runtime.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/RuntimeConfig.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/SetTimeout.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/SimpleAllocator.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/StringHasher.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/SymbolIterator.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/SymbolLoader.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/TNSDerivedClass.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/TSHelpers.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Tasks.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/UnmanagedType.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/WeakRef.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/Worker.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/runtime/robin_hood.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/v8runtime/HostProxy.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/v8runtime/JSIV8ValueConverter.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/v8runtime/V8PointerValue.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/v8runtime/V8Runtime.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/v8runtime/V8RuntimeConfig.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/Headers/v8runtime/V8RuntimeFactory.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pods/NativeScript.podspec" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../project.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../project.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-android/.idea/deploymentTargetDropDown.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-android/.idea/deploymentTargetDropDown.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-android/masonkit/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-android/masonkit/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-android/masonkit/src/main/cpp/include/mason_native.h" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-android/masonkit/src/main/cpp/include/mason_native.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-android/masonkit/src/main/java/org/nativescript/mason/masonkit/View.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-android/masonkit/src/main/java/org/nativescript/mason/masonkit/View.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-android/masonkit/src/main/jniLibs/arm64-v8a/libmasonnative.so" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-android/masonkit/src/main/jniLibs/arm64-v8a/libmasonnative.so" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-android/masonkit/src/main/jniLibs/armeabi-v7a/libmasonnative.so" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-android/masonkit/src/main/jniLibs/armeabi-v7a/libmasonnative.so" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-android/masonkit/src/main/jniLibs/x86/libmasonnative.so" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-android/masonkit/src/main/jniLibs/x86/libmasonnative.so" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-android/masonkit/src/main/jniLibs/x86_64/libmasonnative.so" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-android/masonkit/src/main/jniLibs/x86_64/libmasonnative.so" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/Mason.xcodeproj/project.pbxproj" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/Mason.xcodeproj/project.pbxproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/Mason.xcodeproj/project.xcworkspace/xcuserdata/triniwiz.xcuserdatad/UserInterfaceState.xcuserstate" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/Mason.xcodeproj/project.xcworkspace/xcuserdata/triniwiz.xcuserdatad/UserInterfaceState.xcuserstate" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/Mason.xcodeproj/xcuserdata/triniwiz.xcuserdatad/xcschemes/xcschememanagement.plist" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/Mason.xcodeproj/xcuserdata/triniwiz.xcuserdatad/xcschemes/xcschememanagement.plist" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/Mason/MasonNode.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/Mason/MasonNode.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/Mason/MasonView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/Mason/MasonView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/Mason/TSCMason.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/Mason/NSCMason.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/MasonDemo/ViewController.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/MasonDemo/ViewController.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/libs/arm64-iphoneos/libmasonnative.a" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/libs/arm64-iphoneos/libmasonnative.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/libs/arm64-iphonesimulator/libmasonnative.a" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/libs/arm64-iphonesimulator/libmasonnative.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/libs/arm64-maccatalyst/libmasonnative.a" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/libs/arm64-maccatalyst/libmasonnative.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/libs/x86_64-iphonesimulator/libmasonnative.a" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/libs/x86_64-iphonesimulator/libmasonnative.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/Mason/libs/x86_64-maccatalyst/libmasonnative.a" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/Mason/libs/x86_64-maccatalyst/libmasonnative.a" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/Info.plist" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/Info.plist" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Headers/Mason-Swift.h" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Headers/Mason-Swift.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.abi.json" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.abi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.private.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.private.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/dSYMs/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64/dSYMs/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Headers/Mason-Swift.h" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Headers/Mason-Swift.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.abi.json" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.abi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.private.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.private.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.abi.json" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.abi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.private.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.private.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/_CodeSignature/CodeResources" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/Mason.framework/_CodeSignature/CodeResources" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/dSYMs/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Mason.xcframework/ios-arm64_x86_64-simulator/dSYMs/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Headers/Mason-Swift.h" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Headers/Mason-Swift.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.abi.json" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.abi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.private.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.private.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.swiftmodule" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphoneos/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios.swiftmodule" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework.dSYM/Contents/Resources/DWARF/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Headers/Mason-Swift.h" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Headers/Mason-Swift.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Mason" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Mason" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/Project/arm64-apple-ios-simulator.swiftsourceinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/Project/x86_64-apple-ios-simulator.swiftsourceinfo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.abi.json" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.abi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.private.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.private.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftmodule" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/arm64-apple-ios-simulator.swiftmodule" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.abi.json" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.abi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.private.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.private.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftinterface" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftinterface" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftmodule" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/Modules/Mason.swiftmodule/x86_64-apple-ios-simulator.swiftmodule" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/_CodeSignature/CodeResources" beforeDir="false" afterPath="$PROJECT_DIR$/../mason-ios/dist/Release-iphonesimulator/Mason.framework/_CodeSignature/CodeResources" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/mason-native.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/mason-native.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build-headers.sh" beforeDir="false" afterPath="$PROJECT_DIR$/build-headers.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/copy-ios.sh" beforeDir="false" afterPath="$PROJECT_DIR$/copy-ios.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-android/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/mason-android/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-android/cbindgen.toml" beforeDir="false" afterPath="$PROJECT_DIR$/mason-c/cbindgen.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-android/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mason-android/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-android/src/style.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mason-android/src/style.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-android/src/util.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-c/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mason-c/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-c/src/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mason-c/src/node.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-c/src/style.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mason-c/src/style.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-core/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/mason-core/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-core/src/ffi.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mason-core/src/ffi.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-core/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mason-core/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-ios/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/mason-ios/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-ios/cbindgen.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-ios/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mason-ios/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-ios/src/node.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-ios/src/style.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-ios/src/util.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mason-playground/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/mason-playground/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../tsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../tsconfig.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../workspace.json" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../../../.." />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="jjf28v4d" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
+  <component name="ProjectId" id="2c9WMrsvvgZNxNnRxrc1Vz4KHSJ" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-native/mason-ios",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/mason-ios" />
+      <recent name="$PROJECT_DIR$/mason-android" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/mason-c" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Cargo.Test mason-native">
+    <configuration name="Run mason-playground" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="run --package mason-playground --bin mason-playground" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test mason-native" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="test --workspace" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="3f03656e-3129-451f-8a30-095fda558d1b" name="Changes" comment="" />
+      <created>1707524229944</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1707524229944</updated>
+      <workItem from="1707524230965" duration="1854000" />
+      <workItem from="1707527074657" duration="11931000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>
