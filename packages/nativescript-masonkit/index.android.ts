@@ -53,12 +53,12 @@ export class TSCView extends TSCViewBase {
     super.disposeNativeView();
   }
 
-  //@ts-ignore
+  // @ts-ignore
   get android() {
     return this.nativeViewProtected as org.nativescript.mason.masonkit.View;
   }
 
-  public _addViewToNativeVisualTree(child: ViewBase, atIndex: number = Number.MAX_VALUE): boolean {
+  public _addViewToNativeVisualTree(child: ViewBase, atIndex = -1): boolean {
     // super._addViewToNativeVisualTree(child);
     const nativeView = this.nativeViewProtected as org.nativescript.mason.masonkit.View;
 
@@ -67,7 +67,7 @@ export class TSCView extends TSCViewBase {
     if (nativeView && child.nativeViewProtected) {
       child['_hasNativeView'] = true;
       child['_isMasonChild'] = true;
-      (nativeView as any).addView(child.nativeViewProtected, -1);
+      (nativeView as any).addView(child.nativeViewProtected, atIndex ?? -1);
 
       return true;
     }

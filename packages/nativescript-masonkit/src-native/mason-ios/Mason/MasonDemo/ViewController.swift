@@ -131,15 +131,18 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             i+=1
         } while i < 1000
         
+     
         
-        testLayout()
+       // flexIssue()
         
-        // showFlexExample()
+       // testLayout()
         
-    // showGridExample()
+       //  showFlexExample()
+        
+     showGridExample()
          // animationExample()
         
-        //wrapper6()
+       // wrapper6()
         
        // imageExample()
     }
@@ -244,7 +247,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         wrapper6.configure { node in
             node.isEnabled = true
             node.style.display = .Grid
-            // node.style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
+             node.style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
             node.style.gap = MasonSize(.Points(10 * scale), .Points(10 * scale))
             node.style.gridTemplateColumns = [
                 TrackSizingFunction.AutoRepeat(.Count(6), [.Points(points: 150 * scale)])
@@ -301,8 +304,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(6))
             node.style.alignSelf = AlignSelf.Stretch
         }
-        
+        // MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
         wrapper6.mason.computeWithMaxContent()
+       // wrapper6.mason.computeWithSize(scale * Float(view.bounds.width), scale * Float(view.bounds.height))
         
     }
     
@@ -333,6 +337,48 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         }
         
         
+    }
+    
+    func flexIssue(){
+        view.subviews.forEach { view in
+            view.removeFromSuperview()
+        }
+        
+        let root = UIView(frame: .zero)
+        root.backgroundColor = .red
+        root.configure({ node in
+           // node.style.size = MasonSize( .Points(width * scale), .Points(height * scale))
+            node.isEnabled = true
+            node.style.display = .Flex
+        })
+        
+        
+        let child = UIView(frame: .zero)
+        child.backgroundColor = .blue
+        child.configure({ node in
+            node.isEnabled = true
+            node.style.display = .Flex
+        })
+        
+        root.addSubview(child)
+        
+        
+        let child1 = UILabel(frame: .zero)
+        child1.backgroundColor = .green
+        child1.configure({ node in
+            node.isEnabled = true
+        })
+        child1.text = "1"
+        
+        child.addSubview(child1)
+        
+        view!.addSubview(root)
+      // root.mason.computeWithMaxContent()
+        root.mason.computeWithSize(scale * Float(view.bounds.width), -2)
+        
+        print(child1.frame, child.frame)
+        
+       // print(root.mason.l)
     }
     
     func showFlexExample(){
@@ -438,6 +484,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         root.addSubview(childB)
         root.addSubview(childC)
         root.addSubview(childD)
+    
         
         root.mason.computeWithMaxContent()
         
@@ -513,7 +560,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             mason.style.justifyContent = .Start
             mason.style.display = .Flex
             
-            mason.style.size = MasonSize(MasonDimension.Points(Float(view.bounds.size.width) * scale), MasonDimension.Points(Float(view.bounds.size.height) * scale))
+//            mason.style.size = MasonSize(MasonDimension.Points(Float(view.bounds.size.width) * scale), MasonDimension.Points(Float(view.bounds.size.height) * scale))
             
         }
         
@@ -714,8 +761,12 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         root.addSubview(imageView1)
         
-        root.mason.computeWithMaxContent()
+      //  root.mason.computeWithMaxContent()
+       
         
+       // root.mason.computeWithSize(Float(view.bounds.size.width) * scale, Float(view.bounds.size.height) * scale)
+        
+      
         
         DispatchQueue.global().async { [self] in
             do {
@@ -727,7 +778,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
                 
                 DispatchQueue.main.async {
                     imageView1.image = image
-                    root.mason.computeWithMaxContent()
+                   // root.mason.computeWithMaxContent()
+                    root.mason.computeWithSize(Float(self.view.bounds.size.width) * self.scale, Float(self.view.bounds.size.height) * self.scale)
                 }
             }catch{
                 print(error)

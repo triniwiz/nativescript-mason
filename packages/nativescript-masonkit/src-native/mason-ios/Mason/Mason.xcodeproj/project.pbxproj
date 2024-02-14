@@ -25,7 +25,7 @@
 		F18483DD29356C7800EC35F4 /* MasonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483DC29356C7800EC35F4 /* MasonStyle.swift */; };
 		F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483DE29356CBF00EC35F4 /* Enums.swift */; };
 		F18483E129356CD400EC35F4 /* MasonNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E029356CD400EC35F4 /* MasonNode.swift */; };
-		F18483E329357AC900EC35F4 /* TSCMason.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E229357AC900EC35F4 /* TSCMason.swift */; };
+		F18483E329357AC900EC35F4 /* NSCMason.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E229357AC900EC35F4 /* NSCMason.swift */; };
 		F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E62935935600EC35F4 /* MasonLayout.swift */; };
 		F18483E92935A19500EC35F4 /* MeasureOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E82935A19500EC35F4 /* MeasureOutput.swift */; };
 		F18483EB2937047C00EC35F4 /* mason_native.h in Headers */ = {isa = PBXBuildFile; fileRef = F18483EA2937047C00EC35F4 /* mason_native.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -94,7 +94,7 @@
 		F18483DC29356C7800EC35F4 /* MasonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonStyle.swift; sourceTree = "<group>"; };
 		F18483DE29356CBF00EC35F4 /* Enums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enums.swift; sourceTree = "<group>"; };
 		F18483E029356CD400EC35F4 /* MasonNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonNode.swift; sourceTree = "<group>"; };
-		F18483E229357AC900EC35F4 /* TSCMason.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSCMason.swift; sourceTree = "<group>"; };
+		F18483E229357AC900EC35F4 /* NSCMason.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCMason.swift; sourceTree = "<group>"; };
 		F18483E62935935600EC35F4 /* MasonLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonLayout.swift; sourceTree = "<group>"; };
 		F18483E82935A19500EC35F4 /* MeasureOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasureOutput.swift; sourceTree = "<group>"; };
 		F18483EA2937047C00EC35F4 /* mason_native.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mason_native.h; path = include/mason_native.h; sourceTree = "<group>"; };
@@ -190,7 +190,7 @@
 				F18483DC29356C7800EC35F4 /* MasonStyle.swift */,
 				F18483DE29356CBF00EC35F4 /* Enums.swift */,
 				F18483E029356CD400EC35F4 /* MasonNode.swift */,
-				F18483E229357AC900EC35F4 /* TSCMason.swift */,
+				F18483E229357AC900EC35F4 /* NSCMason.swift */,
 				F18483E62935935600EC35F4 /* MasonLayout.swift */,
 				F18483E82935A19500EC35F4 /* MeasureOutput.swift */,
 				F14AA650293B650900B1510E /* Reexports.swift */,
@@ -450,7 +450,7 @@
 			files = (
 				F1E4F95E296266A60091913B /* MasonLine.swift in Sources */,
 				F1E4F958296241FD0091913B /* MinMax.swift in Sources */,
-				F18483E329357AC900EC35F4 /* TSCMason.swift in Sources */,
+				F18483E329357AC900EC35F4 /* NSCMason.swift in Sources */,
 				F18483E92935A19500EC35F4 /* MeasureOutput.swift in Sources */,
 				F1848391293534D800EC35F4 /* Mason.docc in Sources */,
 				F1E4F95C296242700091913B /* MaxSizing.swift in Sources */,

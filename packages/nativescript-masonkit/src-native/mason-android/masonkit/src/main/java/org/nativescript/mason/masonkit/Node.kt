@@ -414,9 +414,7 @@ class Node private constructor(private var nativePtr: Long) {
 
     @JvmStatic
     fun requestLayout(node: Long) {
-      nodes[node]?.let {
-        it.updateNodeStyle();
-      }
+      nodes[node]?.updateNodeStyle()
     }
 
     @CriticalNative

@@ -1,14 +1,13 @@
 use std::ffi::{c_char, CString};
 
 use mason_core::{
-    auto, fit_content, flex, length, max_content, min_content, percent, LengthPercentage,
-    NonRepeatedTrackSizingFunction,
+    auto, fit_content, flex, length, LengthPercentage, max_content, min_content, NonRepeatedTrackSizingFunction,
+    percent,
 };
 
+use crate::ffi;
 use crate::style::CMasonMinMax;
-
 use crate::style::CMasonNonRepeatedTrackSizingFunctionArray;
-
 use crate::style::CMasonTrackSizingFunctionArray;
 
 #[no_mangle]
@@ -42,7 +41,7 @@ pub extern "C" fn mason_util_parse_non_repeated_track_sizing_function(
 
         for (i, val) in slice.iter().enumerate() {
             let value: NonRepeatedTrackSizingFunction = (*val).into();
-            let parsed = mason_core::ffi::parse_non_repeated_track_sizing_function_value(value);
+            let parsed = ffi::parse_non_repeated_track_sizing_function_value(value);
             if i != 0 {
                 ret.push(' ');
             }
@@ -67,7 +66,7 @@ pub extern "C" fn mason_util_parse_auto_repeating_track_sizing_function(
         }
         let value = &val.into();
 
-        let string = mason_core::ffi::parse_track_sizing_function_value(value);
+        let string = ffi::parse_track_sizing_function_value(value);
         ret.push_str(string.as_str());
     }
 

@@ -7,7 +7,7 @@
 
 import Foundation
 
-//private func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRawPointer? {
+//private func create_layout(_ floats: UnsafePointer<Float>?) -> OpaquePointer?? {
 //    let layout = MasonLayout.fromFloatPoint(floats!).1
 //    return Unmanaged.passRetained(layout).toOpaque()
 //}
@@ -17,11 +17,11 @@ import Foundation
 public class MasonReexports: NSObject {
     
     
-    public static func node_set_style(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer, _  style: UnsafeMutableRawPointer){
+    public static func node_set_style(_ mason: OpaquePointer?, _ node: OpaquePointer?, _  style: OpaquePointer?){
         mason_node_set_style(mason, node, style)
     }
     
-    //    @objc public static func computed_layout(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer, _ layout: @escaping ((UnsafePointer<Float>?)-> UnsafeMutableRawPointer?)){
+    //    @objc public static func computed_layout(_ mason: OpaquePointer?, _ node: OpaquePointer?, _ layout: @escaping ((UnsafePointer<Float>?)-> OpaquePointer??)){
     //        mason_node_layout(mason, node) { ptr in
     //            return layout(ptr)
     //        }
@@ -34,490 +34,490 @@ public class MasonReexports: NSObject {
     //        return layout
     //    }
     //
-    @objc public static func node_compute(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer){
+    @objc public static func node_compute(_ mason: OpaquePointer?, _ node: OpaquePointer?){
         mason_node_compute(mason, node)
     }
     
-    public static func node_compute_wh(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer, width: Float, height: Float){
+    public static func node_compute_wh(_ mason: OpaquePointer?, _ node: OpaquePointer?, width: Float, height: Float){
         mason_node_compute_wh(mason, node, width, height)
     }
     
-    public static func node_compute_max_content(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer){
+    public static func node_compute_max_content(_ mason: OpaquePointer?, _ node: OpaquePointer?){
         mason_node_compute_max_content(mason, node)
     }
     
-    public static func node_compute_min_content(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer){
+    public static func node_compute_min_content(_ mason: OpaquePointer?, _ node: OpaquePointer?){
         mason_node_compute_min_content(mason, node)
     }
     
-    public static func node_dirty(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer) -> Bool {
+    public static func node_dirty(_ mason: OpaquePointer?, _ node: OpaquePointer?) -> Bool {
         return mason_node_dirty(mason, node)
     }
     
-    public static func node_mark_dirty(_ mason: UnsafeMutableRawPointer, _ node: UnsafeMutableRawPointer) {
+    public static func node_mark_dirty(_ mason: OpaquePointer?, _ node: OpaquePointer?) {
         mason_node_mark_dirty(mason, node)
     }
     
-    public static func style_get_display(_  style: UnsafeMutableRawPointer) -> Int32 {
-        return mason_style_get_display( style)
+    public static func style_get_display(_  style: OpaquePointer?) -> Int32 {
+        return mason_style_get_display(style)
     }
     
-    public static func style_set_display(_  style: UnsafeMutableRawPointer, _ display: Int32) {
+    public static func style_set_display(_  style: OpaquePointer?, _ display: Int32) {
         return mason_style_set_display( style, display)
     }
     
-    public static func style_get_position(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_position(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_position( style)
     }
     
-    public static func style_set_position(_  style: UnsafeMutableRawPointer, _ position: Int32) {
+    public static func style_set_position(_  style: OpaquePointer?, _ position: Int32) {
         return mason_style_set_position( style, position)
     }
     
-    public static func style_get_direction(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_direction(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_direction( style)
     }
     
-    public static func style_set_direction(_  style: UnsafeMutableRawPointer, _ direction: Int32) {
+    public static func style_set_direction(_  style: OpaquePointer?, _ direction: Int32) {
         return mason_style_set_direction( style, direction)
     }
     
-    public static func style_get_flex_direction(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_flex_direction(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_flex_direction( style)
     }
     
-    public static func style_set_flex_direction(_  style: UnsafeMutableRawPointer, _ flex_direction: Int32) {
+    public static func style_set_flex_direction(_  style: OpaquePointer?, _ flex_direction: Int32) {
         return mason_style_set_flex_direction( style, flex_direction)
     }
     
-    public static func style_get_flex_wrap(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_flex_wrap(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_flex_wrap( style)
     }
     
-    public static func style_set_flex_wrap(_  style: UnsafeMutableRawPointer, _ flex_wrap: Int32) {
+    public static func style_set_flex_wrap(_  style: OpaquePointer?, _ flex_wrap: Int32) {
         return mason_style_set_flex_wrap( style, flex_wrap)
     }
     
-    public static func style_set_overflow(_  style: UnsafeMutableRawPointer, _ overflow: Int32) {
+    public static func style_set_overflow(_  style: OpaquePointer?, _ overflow: Int32) {
         
         return mason_style_set_overflow( style, overflow)
     }
     
-    public static func style_set_overflow_x(_  style: UnsafeMutableRawPointer, _ overflow: Int32) {
+    public static func style_set_overflow_x(_  style: OpaquePointer?, _ overflow: Int32) {
         
         return mason_style_set_overflow_y( style, overflow)
     }
     
-    public static func style_set_overflow_y(_  style: UnsafeMutableRawPointer, _ overflow: Int32) {
+    public static func style_set_overflow_y(_  style: OpaquePointer?, _ overflow: Int32) {
         
         return mason_style_set_overflow_y( style, overflow)
     }
     
-    public static func style_get_overflow_x(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_overflow_x(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_overflow_x( style)
     }
     
-    public static func style_get_overflow_y(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_overflow_y(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_overflow_y( style)
     }
     
-    public static func style_get_align_items(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_align_items(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_align_items( style)
     }
     
-    public static func style_set_align_items(_  style: UnsafeMutableRawPointer, _ align_items: Int32) {
+    public static func style_set_align_items(_  style: OpaquePointer?, _ align_items: Int32) {
         return mason_style_set_align_items( style, align_items)
     }
     
-    public static func style_get_align_self(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_align_self(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_align_self( style)
     }
     
-    public static func style_set_align_self(_  style: UnsafeMutableRawPointer, _ align_self: Int32) {
+    public static func style_set_align_self(_  style: OpaquePointer?, _ align_self: Int32) {
         return mason_style_set_align_self( style, align_self)
     }
     
-    public static func style_get_align_content(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_align_content(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_align_content( style)
     }
     
-    public static func style_set_align_content(_  style: UnsafeMutableRawPointer, _ align_content: Int32) {
+    public static func style_set_align_content(_  style: OpaquePointer?, _ align_content: Int32) {
         return mason_style_set_align_content( style, align_content)
     }
     
-    public static func style_get_justify_items(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_justify_items(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_justify_items( style)
     }
     
-    public static func style_set_justify_items(_  style: UnsafeMutableRawPointer, _ align_items: Int32) {
+    public static func style_set_justify_items(_  style: OpaquePointer?, _ align_items: Int32) {
         return mason_style_set_justify_items( style, align_items)
     }
     
-    public static func style_get_justify_self(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_justify_self(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_justify_self( style)
     }
     
-    public static func style_set_justify_self(_  style: UnsafeMutableRawPointer, _ align_self: Int32) {
+    public static func style_set_justify_self(_  style: OpaquePointer?, _ align_self: Int32) {
         return mason_style_set_justify_self( style, align_self)
     }
     
-    public static func style_get_justify_content(_  style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_justify_content(_  style: OpaquePointer?) -> Int32 {
         return mason_style_get_justify_content( style)
     }
     
-    public static func style_set_justify_content(_  style: UnsafeMutableRawPointer, _ justify_content: Int32) {
+    public static func style_set_justify_content(_  style: OpaquePointer?, _ justify_content: Int32) {
         return mason_style_set_justify_content( style, justify_content)
     }
     
-    public static func style_set_inset(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_inset(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_inset(style, value, value_type)
     }
     
-    public static func style_get_inset_left(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentageAuto {
+    public static func style_get_inset_left(_  style: OpaquePointer?) -> CMasonLengthPercentageAuto {
         return mason_style_get_inset_left( style)
     }
     
-    public static func style_set_inset_left(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_inset_left(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_inset_left(style, value, value_type)
     }
     
-    public static func style_get_inset_right(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentageAuto {
+    public static func style_get_inset_right(_  style: OpaquePointer?) -> CMasonLengthPercentageAuto {
         return mason_style_get_inset_right( style)
     }
     
-    public static func style_set_inset_right(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_inset_right(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_inset_right(style, value, value_type)
     }
     
     
-    public static func style_get_inset_top(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentageAuto {
+    public static func style_get_inset_top(_  style: OpaquePointer?) -> CMasonLengthPercentageAuto {
         return mason_style_get_inset_top( style)
     }
     
     
-    public static func style_set_inset_top(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_inset_top(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_inset_top(style, value, value_type)
     }
     
     
-    public static func style_get_inset_bottom(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentageAuto {
+    public static func style_get_inset_bottom(_  style: OpaquePointer?) -> CMasonLengthPercentageAuto {
         return mason_style_get_inset_bottom( style)
     }
     
-    public static func style_set_inset_bottom(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_inset_bottom(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_inset_bottom(style, value, value_type)
     }
     
-    public static func style_set_margin(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_margin(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_margin(style, value, value_type,value, value_type,value, value_type,value, value_type)
     }
     
-    public static func style_get_margin_left(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentageAuto {
+    public static func style_get_margin_left(_  style: OpaquePointer?) -> CMasonLengthPercentageAuto {
         return mason_style_get_margin_left( style)
     }
     
-    public static func style_set_margin_left(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_margin_left(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_margin_left(style, value, value_type)
     }
     
-    public static func style_get_margin_right(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentageAuto {
+    public static func style_get_margin_right(_  style: OpaquePointer?) -> CMasonLengthPercentageAuto {
         return mason_style_get_margin_right( style)
     }
     
-    public static func style_set_margin_right(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_margin_right(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_margin_right(style, value, value_type)
     }
     
-    public static func style_get_margin_top(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentageAuto {
+    public static func style_get_margin_top(_  style: OpaquePointer?) -> CMasonLengthPercentageAuto {
         return mason_style_get_margin_top( style)
     }
     
-    public static func style_set_margin_top(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_margin_top(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_margin_top(style, value, value_type)
     }
     
-    public static func style_get_margin_bottom(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentageAuto {
+    public static func style_get_margin_bottom(_  style: OpaquePointer?) -> CMasonLengthPercentageAuto {
         return mason_style_get_margin_bottom( style)
     }
     
-    public static func style_set_margin_bottom(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
+    public static func style_set_margin_bottom(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageAutoType) {
         return mason_style_set_margin_bottom(style, value, value_type)
     }
     
-    public static func style_set_padding(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_padding(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_padding(style, value, value_type,value, value_type,value, value_type,value, value_type)
     }
     
-    public static func style_get_padding_left(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_padding_left(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_padding_left( style)
     }
     
-    public static func style_set_padding_left(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_padding_left(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_padding_left(style, value, value_type)
     }
     
-    public static func style_get_padding_right(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_padding_right(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_padding_right( style)
     }
     
-    public static func style_set_padding_right(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_padding_right(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_padding_right(style, value, value_type)
     }
     
-    public static func style_get_padding_top(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_padding_top(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_padding_top( style)
     }
     
-    public static func style_set_padding_top(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_padding_top(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_padding_top(style, value, value_type)
     }
     
-    public static func style_get_padding_bottom(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_padding_bottom(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_padding_bottom( style)
     }
     
-    public static func style_set_padding_bottom(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_padding_bottom(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_padding_bottom(style, value, value_type)
     }
     
-    public static func style_set_border(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_border(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_border(style, value, value_type,value, value_type,value, value_type,value, value_type)
     }
     
-    public static func style_get_border_left(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_border_left(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_border_left( style)
     }
     
-    public static func style_set_border_left(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_border_left(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_border_left(style, value, value_type)
     }
     
-    public static func style_get_border_right(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_border_right(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_border_right( style)
     }
     
-    public static func style_set_border_right(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_border_right(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_border_right(style, value, value_type)
     }
     
-    public static func style_get_border_top(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_border_top(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_border_top( style)
     }
     
-    public static func style_set_border_top(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_border_top(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_border_top(style, value, value_type)
     }
     
-    public static func style_get_border_bottom(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_border_bottom(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_border_bottom( style)
     }
     
-    public static func style_set_border_bottom(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_border_bottom(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_border_bottom(style, value, value_type)
     }
     
-    public static func style_get_flex_grow(_  style: UnsafeMutableRawPointer) -> Float {
+    public static func style_get_flex_grow(_  style: OpaquePointer?) -> Float {
         return mason_style_get_flex_grow(style)
     }
     
-    public static func style_set_flex_grow(_  style: UnsafeMutableRawPointer,_ value: Float) {
+    public static func style_set_flex_grow(_  style: OpaquePointer?,_ value: Float) {
         return mason_style_set_flex_grow(style, value)
     }
     
-    public static func style_set_border_bottom(_  style: UnsafeMutableRawPointer,_ value: Float) {
+    public static func style_set_border_bottom(_  style: OpaquePointer?,_ value: Float) {
         return mason_style_set_flex_grow(style, value)
     }
     
-    public static func style_get_flex_shrink(_  style: UnsafeMutableRawPointer) -> Float {
+    public static func style_get_flex_shrink(_  style: OpaquePointer?) -> Float {
         return mason_style_get_flex_shrink( style)
     }
     
-    public static func style_set_flex_shrink(_  style: UnsafeMutableRawPointer,_ value: Float) {
+    public static func style_set_flex_shrink(_  style: OpaquePointer?,_ value: Float) {
         return mason_style_set_flex_shrink(style, value)
     }
     
-    public static func style_set_flex_basis(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+    public static func style_set_flex_basis(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonDimensionType) {
         return mason_style_set_flex_basis(style, value, value_type)
     }
     
-    public static func style_get_flex_basis(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
+    public static func style_get_flex_basis(_  style: OpaquePointer?) -> CMasonDimension {
         return mason_style_get_flex_basis(style)
     }
     
-    public static func style_set_scrollbar_width(_  style: UnsafeMutableRawPointer,_ value: Float) {
+    public static func style_set_scrollbar_width(_  style: OpaquePointer?,_ value: Float) {
         return mason_style_set_scrollbar_width(style, value)
     }
     
-    public static func style_get_scrollbar_width(_  style: UnsafeMutableRawPointer) -> Float {
+    public static func style_get_scrollbar_width(_  style: OpaquePointer?) -> Float {
         return mason_style_get_scrollbar_width(style)
     }
     
-    public static func style_get_width(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
+    public static func style_get_width(_  style: OpaquePointer?) -> CMasonDimension {
         return mason_style_get_width( style)
     }
     
-    public static func style_set_width(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+    public static func style_set_width(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonDimensionType) {
         return mason_style_set_width(style, value, value_type)
     }
     
-    public static func style_get_height(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
+    public static func style_get_height(_  style: OpaquePointer?) -> CMasonDimension {
         return mason_style_get_height( style)
     }
     
-    public static func style_set_height(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+    public static func style_set_height(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonDimensionType) {
         return mason_style_set_height(style, value, value_type)
     }
     
-    public static func style_get_min_width(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
+    public static func style_get_min_width(_  style: OpaquePointer?) -> CMasonDimension {
         return mason_style_get_min_width( style)
     }
     
-    public static func style_set_min_width(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+    public static func style_set_min_width(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonDimensionType) {
         return mason_style_set_min_width(style, value, value_type)
     }
     
-    public static func style_get_min_height(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
+    public static func style_get_min_height(_  style: OpaquePointer?) -> CMasonDimension {
         return mason_style_get_min_height( style)
     }
     
-    public static func style_set_min_height(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+    public static func style_set_min_height(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonDimensionType) {
         return mason_style_set_min_height(style, value, value_type)
     }
     
-    public static func style_get_max_width(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
+    public static func style_get_max_width(_  style: OpaquePointer?) -> CMasonDimension {
         return mason_style_get_max_width( style)
     }
     
-    public static func style_set_max_width(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+    public static func style_set_max_width(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonDimensionType) {
         return mason_style_set_max_width(style, value, value_type)
     }
     
-    public static func style_get_max_height(_  style: UnsafeMutableRawPointer) -> CMasonDimension {
+    public static func style_get_max_height(_  style: OpaquePointer?) -> CMasonDimension {
         return mason_style_get_max_height( style)
     }
     
-    public static func style_set_max_height(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonDimensionType) {
+    public static func style_set_max_height(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonDimensionType) {
         return mason_style_set_max_height(style, value, value_type)
     }
     
-    public static func style_get_gap(_ style: UnsafeMutableRawPointer) -> CMasonLengthPercentageSize {
+    public static func style_get_gap(_ style: OpaquePointer?) -> CMasonLengthPercentageSize {
         return mason_style_get_gap( style)
     }
     
-    public static func style_set_gap(_  style: UnsafeMutableRawPointer,_ width_value: Float, _ width_type: CMasonLengthPercentageType, _ height_value: Float, _ height_type: CMasonLengthPercentageType) {
+    public static func style_set_gap(_  style: OpaquePointer?,_ width_value: Float, _ width_type: CMasonLengthPercentageType, _ height_value: Float, _ height_type: CMasonLengthPercentageType) {
         return mason_style_set_gap(style, width_value, width_type, height_value, height_type)
     }
     
-    public static func style_get_row_gap(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_row_gap(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_row_gap( style)
     }
     
-    public static func style_set_row_gap(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_row_gap(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_row_gap(style, value, value_type)
     }
     
-    public static func style_get_column_gap(_  style: UnsafeMutableRawPointer) -> CMasonLengthPercentage {
+    public static func style_get_column_gap(_  style: OpaquePointer?) -> CMasonLengthPercentage {
         return mason_style_get_column_gap( style)
     }
     
-    public static func style_set_column_gap(_  style: UnsafeMutableRawPointer,_ value: Float, _ value_type: CMasonLengthPercentageType) {
+    public static func style_set_column_gap(_  style: OpaquePointer?,_ value: Float, _ value_type: CMasonLengthPercentageType) {
         return mason_style_set_column_gap(style, value, value_type)
     }
     
-    public static func style_get_aspect_ratio(_  style: UnsafeMutableRawPointer) -> Float {
+    public static func style_get_aspect_ratio(_  style: OpaquePointer?) -> Float {
         return mason_style_get_aspect_ratio( style)
     }
     
-    public static func style_set_aspect_ratio(_  style: UnsafeMutableRawPointer,_ value: Float) {
+    public static func style_set_aspect_ratio(_  style: OpaquePointer?,_ value: Float) {
         return mason_style_set_aspect_ratio(style, value)
     }
     
     
-    public static func style_get_grid_auto_rows(_  style: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray> {
+    public static func style_get_grid_auto_rows(_  style: OpaquePointer?) -> UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray> {
         return mason_style_get_grid_auto_rows(style)
     }
     
     public static func style_set_grid_auto_rows(
-        _ style: UnsafeMutableRawPointer,
+        _ style: OpaquePointer?,
         _ value: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>
     ) {
         mason_style_set_grid_auto_rows(style, value)
     }
     
-    public static func style_get_grid_auto_columns(_ style: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>  {
+    public static func style_get_grid_auto_columns(_ style: OpaquePointer?) -> UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>  {
         return mason_style_get_grid_auto_columns(style)
     }
     
     public static func style_set_grid_auto_columns(
-        _ style: UnsafeMutableRawPointer,
+        _ style: OpaquePointer?,
         _ value: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>
     ) {
         mason_style_set_grid_auto_columns(style, value)
     }
     
-    public static func style_get_grid_auto_flow(_ style: UnsafeMutableRawPointer) -> Int32 {
+    public static func style_get_grid_auto_flow(_ style: OpaquePointer?) -> Int32 {
         return mason_style_get_grid_auto_flow(style)
     }
     
-    public static func style_set_grid_auto_flow(_ style: UnsafeMutableRawPointer,_ value: Int32) {
+    public static func style_set_grid_auto_flow(_ style: OpaquePointer?,_ value: Int32) {
         mason_style_set_grid_auto_flow(style, value)
     }
     
-    public static func style_set_grid_area(_ style: UnsafeMutableRawPointer, _ row_start: CMasonGridPlacement, _ row_end: CMasonGridPlacement, _ column_start: CMasonGridPlacement, _ column_end: CMasonGridPlacement) {
+    public static func style_set_grid_area(_ style: OpaquePointer?, _ row_start: CMasonGridPlacement, _ row_end: CMasonGridPlacement, _ column_start: CMasonGridPlacement, _ column_end: CMasonGridPlacement) {
         mason_style_set_grid_area(style, row_start, row_end, column_start, column_end)
     }
     
-    public static func style_set_grid_column(_ style: UnsafeMutableRawPointer, _ start: CMasonGridPlacement, _ end: CMasonGridPlacement) {
+    public static func style_set_grid_column(_ style: OpaquePointer?, _ start: CMasonGridPlacement, _ end: CMasonGridPlacement) {
         mason_style_set_grid_column(style, start, end)
     }
     
-    public static func style_get_grid_column_start(_ style: UnsafeMutableRawPointer) -> CMasonGridPlacement {
+    public static func style_get_grid_column_start(_ style: OpaquePointer?) -> CMasonGridPlacement {
         return mason_style_get_grid_column_start(style)
     }
     
     public static func style_set_grid_column_start(
-        _ style: UnsafeMutableRawPointer,
+        _ style: OpaquePointer?,
         _ value: CMasonGridPlacement
     ) {
         mason_style_set_grid_column_start(style, value)
     }
     
-    public static func style_get_grid_column_end(_ style: UnsafeMutableRawPointer) -> CMasonGridPlacement {
+    public static func style_get_grid_column_end(_ style: OpaquePointer?) -> CMasonGridPlacement {
         return mason_style_get_grid_column_end(style)
     }
     
-    public static func style_set_grid_column_end(_ style: UnsafeMutableRawPointer, _ value: CMasonGridPlacement) {
+    public static func style_set_grid_column_end(_ style: OpaquePointer?, _ value: CMasonGridPlacement) {
         mason_style_set_grid_column_end(style, value)
     }
     
-    public static func style_set_grid_row(_ style: UnsafeMutableRawPointer, _ start: CMasonGridPlacement, _ end: CMasonGridPlacement) {
+    public static func style_set_grid_row(_ style: OpaquePointer?, _ start: CMasonGridPlacement, _ end: CMasonGridPlacement) {
         mason_style_set_grid_row(style, start, end)
     }
     
-    public static func style_get_grid_row_start(_ style: UnsafeMutableRawPointer) -> CMasonGridPlacement {
+    public static func style_get_grid_row_start(_ style: OpaquePointer?) -> CMasonGridPlacement {
         return mason_style_get_grid_row_start(style)
     }
     
-    public static func style_set_grid_row_start(_ style: UnsafeMutableRawPointer, _ value: CMasonGridPlacement) {
+    public static func style_set_grid_row_start(_ style: OpaquePointer?, _ value: CMasonGridPlacement) {
         mason_style_set_grid_row_start(style, value)
     }
     
-    public static func style_get_grid_row_end(_ style: UnsafeMutableRawPointer) -> CMasonGridPlacement {
+    public static func style_get_grid_row_end(_ style: OpaquePointer?) -> CMasonGridPlacement {
         return mason_style_get_grid_row_end(style)
     }
     
-    public static func style_set_grid_row_end(_ style: UnsafeMutableRawPointer, _ value: CMasonGridPlacement) {
+    public static func style_set_grid_row_end(_ style: OpaquePointer?, _ value: CMasonGridPlacement) {
         mason_style_set_grid_row_end(style, value)
     }
     
     public static func style_get_grid_template_rows(
-        _ style: UnsafeMutableRawPointer
+        _ style: OpaquePointer?
     )-> UnsafeMutablePointer<CMasonTrackSizingFunctionArray> {
         return mason_style_get_grid_template_rows(style)
     }
     
     public static func style_set_grid_template_rows(
-        _ style: UnsafeMutableRawPointer,
+        _ style: OpaquePointer?,
         _ value: UnsafeMutablePointer<CMasonTrackSizingFunctionArray>
     ) {
         mason_style_set_grid_template_rows(
@@ -527,13 +527,13 @@ public class MasonReexports: NSObject {
     }
     
     public static func style_get_grid_template_columns(
-        _ style: UnsafeMutableRawPointer
+        _ style: OpaquePointer?
     ) -> UnsafeMutablePointer<CMasonTrackSizingFunctionArray>{
         return mason_style_get_grid_template_columns(style)
     }
     
     public static func style_set_grid_template_columns(
-        _ style: UnsafeMutableRawPointer,
+        _ style: OpaquePointer?,
         _ value: UnsafeMutablePointer<CMasonTrackSizingFunctionArray>
     ) {
         mason_style_set_grid_template_columns(
@@ -570,7 +570,7 @@ public class MasonReexports: NSObject {
         return mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type, track_value)
     }
     
-    public static func style_update_with_values(_ style: UnsafeMutableRawPointer,
+    public static func style_update_with_values(_ style: OpaquePointer?,
                                                 _ display: Int32,
                                                 _ position: Int32,
                                                 _ direction: Int32,

@@ -90,7 +90,7 @@
 .wrapper-6 {
   display: grid;
   background: no-repeat url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/12005/grid.png);
-  grid-gap: 10px;
+  grid-gap: 10;
   grid-template-columns: repeat(6, 150px);
   grid-template-rows: repeat(4, 150px);
   background-color: #fff;

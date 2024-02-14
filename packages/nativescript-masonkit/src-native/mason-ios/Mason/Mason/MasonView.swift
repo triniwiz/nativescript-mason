@@ -105,7 +105,7 @@ extension UIView {
             mason.data = self
             mason.includeInLayout = true
             mason.setDefaultMeasureFunction()
-            mason.isEnabled = TSCMason.alwaysEnable
+            mason.isEnabled = NSCMason.alwaysEnable
             objc_setAssociatedObject(
                 self, &MasonAssociatedKeys.masonEnabled, mason, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             return mason
@@ -113,18 +113,37 @@ extension UIView {
         return mason
     }
     
-    @objc static public var masonPtr: Int {
-        return Int(bitPattern: TSCMason.instance.nativePtr)
+    @objc public var masonPtr: Int64 {
+        if(NSCMason.instance.nativePtr == nil){
+            return 0
+        }
+        guard let ptr = UnsafeRawPointer(NSCMason.instance.nativePtr) else {return 0}
+        
+        return Int64(Int(bitPattern: ptr))
     }
     
-    @objc public var masonNodePtr: Int {
-        return Int(bitPattern: mason.nativePtr)
+    @objc public var masonNodePtr: Int64 {
+        if(mason.nativePtr == nil){
+            return 0
+        }
+        guard let ptr = UnsafeRawPointer(mason.nativePtr) else {return 0}
+        
+        return Int64(Int(bitPattern: ptr))
     }
     
-    @objc public var masonStylePtr: Int {
-        return Int(bitPattern: mason.style.nativePtr)
+    @objc public var masonStylePtr: Int64 {
+        if(mason.style.nativePtr == nil){
+            return 0
+        }
+        guard let ptr = UnsafeRawPointer(mason.style.nativePtr) else {return 0}
+        
+        return Int64(Int(bitPattern: ptr))
     }
     
+    
+    @objc public var masonPtrs: String {
+        return "\(masonPtr):\(masonNodePtr):\(masonStylePtr)"
+    }
     @objc public var isMasonEnabled: Bool {
         return objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) != nil
     }

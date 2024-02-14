@@ -1,15 +1,18 @@
-use std::ffi::{c_float, c_int, c_void};
 use jni::objects::{JClass, JObject, JObjectArray};
 use jni::signature::ReturnType;
 use jni::sys::{jfloat, jfloatArray, jint, jlong, jobjectArray, jshort};
 use jni::JNIEnv;
+use std::ffi::{c_float, c_int, c_void};
 
 use mason_core::style::{dimension_with_auto, min_max_from_values, Style};
-use mason_core::{align_content_from_enum, display_from_enum, Dimension, GridTrackRepetition, LengthPercentageAuto, NonRepeatedTrackSizingFunction, TrackSizingFunction, MinTrackSizingFunction, LengthPercentage, MaxTrackSizingFunction};
+use mason_core::{
+    align_content_from_enum, display_from_enum, Dimension, GridTrackRepetition, LengthPercentage,
+    LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction,
+    NonRepeatedTrackSizingFunction, TrackSizingFunction,
+};
 
 use crate::TRACK_SIZING_FUNCTION;
 
-#[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CMasonMinMax {
     pub min_type: i32,
@@ -17,7 +20,6 @@ pub struct CMasonMinMax {
     pub max_type: i32,
     pub max_value: f32,
 }
-
 
 impl CMasonMinMax {
     pub fn new(min_type: i32, min_value: f32, max_type: i32, max_value: f32) -> Self {
@@ -95,26 +97,12 @@ impl Into<NonRepeatedTrackSizingFunction> for CMasonMinMax {
     }
 }
 
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct CMasonNonRepeatedTrackSizingFunctionArray {
     pub array: *mut CMasonMinMax,
     pub length: usize,
 }
-
-#[no_mangle]
-pub extern "C" fn mason_style_get_grid_auto_rows(
-    style: i64,
-) -> *mut CMasonNonRepeatedTrackSizingFunctionArray {
-    let ret: Vec<CMasonMinMax> = mason_core::ffi::style_get_grid_auto_rows(style as _)
-        .into_iter()
-        .map(|v| v.into())
-        .collect();
-
-    Box::into_raw(Box::new(ret.into()))
-}
-
 
 impl From<Vec<CMasonMinMax>> for CMasonNonRepeatedTrackSizingFunctionArray {
     fn from(value: Vec<CMasonMinMax>) -> Self {
@@ -127,7 +115,6 @@ impl From<Vec<CMasonMinMax>> for CMasonNonRepeatedTrackSizingFunctionArray {
         array
     }
 }
-
 
 #[repr(C)]
 #[derive(Debug)]
@@ -153,7 +140,6 @@ impl Drop for CMasonTrackSizingFunctionArray {
         let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(self.array, self.length)) };
     }
 }
-
 
 #[repr(C)]
 #[derive(Debug)]
@@ -265,304 +251,8 @@ impl Into<TrackSizingFunction> for &CMasonTrackSizingFunction {
     }
 }
 
-
 #[no_mangle]
-pub extern "C" fn mason_destroy_track_sizing_function_array(
-    array: *mut CMasonTrackSizingFunctionArray,
-) {
-    if array.is_null() {
-        return;
-    }
-    let _ = unsafe { Box::from_raw(array) };
-}
-
-
-#[no_mangle]
-pub extern "C" fn mason_style_get_grid_auto_columns(
-    style: i64,
-) -> *mut CMasonNonRepeatedTrackSizingFunctionArray {
-    let ret: Vec<CMasonMinMax> = mason_core::ffi::style_get_grid_auto_columns(style as _)
-        .into_iter()
-        .map(|v| v.into())
-        .collect();
-
-    Box::into_raw(Box::new(ret.into()))
-}
-
-
-#[no_mangle]
-pub extern "C" fn mason_style_set_grid_auto_rows(
-    style: i64,
-    value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
-) {
-    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
-
-    mason_core::ffi::style_set_grid_auto_rows(
-        style as _,
-        slice
-            .iter()
-            .map(|v| min_max_from_values((*v).min_type, v.min_value, v.max_type, v.max_value))
-            .collect(),
-    )
-}
-
-
-#[no_mangle]
-pub extern "C" fn mason_style_set_grid_auto_columns(
-    style: i64,
-    value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
-) {
-    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
-
-    mason_core::ffi::style_set_grid_auto_columns(
-        style as _,
-        slice
-            .iter()
-            .map(|v| min_max_from_values((*v).min_type, v.min_value, v.max_type, v.max_value))
-            .collect(),
-    )
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_get_grid_template_rows(
-    style: i64,
-) -> *mut CMasonTrackSizingFunctionArray {
-    Box::into_raw(Box::new(
-        mason_core::ffi::style_get_grid_template_rows(style as _)
-            .into_iter()
-            .map(|v| v.into())
-            .collect::<Vec<CMasonTrackSizingFunction>>()
-            .into(),
-    ))
-}
-
-
-#[no_mangle]
-pub extern "C" fn mason_style_get_grid_template_columns(
-    style: i64,
-) -> *mut CMasonTrackSizingFunctionArray {
-    Box::into_raw(Box::new(
-        mason_core::ffi::style_get_grid_template_columns(style as _)
-            .into_iter()
-            .map(|v| v.into())
-            .collect::<Vec<CMasonTrackSizingFunction>>()
-            .into(),
-    ))
-}
-
-
-#[no_mangle]
-pub extern "C" fn mason_style_set_grid_template_rows(
-    style: i64,
-    value: *mut CMasonTrackSizingFunctionArray,
-) {
-    unsafe {
-        mason_core::ffi::style_set_grid_template_rows(
-            style as _,
-            to_vec_track_sizing_function(value),
-        )
-    }
-}
-
-
-#[no_mangle]
-pub extern "C" fn mason_style_set_grid_template_columns(
-    style: i64,
-    value: *mut CMasonTrackSizingFunctionArray,
-) {
-    unsafe {
-        mason_core::ffi::style_set_grid_template_columns(
-            style as _,
-            to_vec_track_sizing_function(value),
-        )
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_update_with_values(
-    style: i64,
-    display: c_int,
-    position_type: c_int,
-    direction: c_int,
-    flex_direction: c_int,
-    flex_wrap: c_int,
-    overflow: c_int,
-    align_items: c_int,
-    align_self: c_int,
-    align_content: c_int,
-    justify_items: c_int,
-    justify_self: c_int,
-    justify_content: c_int,
-    inset_left_type: c_int,
-    inset_left_value: c_float,
-    inset_right_type: c_int,
-    inset_right_value: c_float,
-    inset_top_type: c_int,
-    inset_top_value: c_float,
-    inset_bottom_type: c_int,
-    inset_bottom_value: c_float,
-    margin_left_type: c_int,
-    margin_left_value: c_float,
-    margin_right_type: c_int,
-    margin_right_value: c_float,
-    margin_top_type: c_int,
-    margin_top_value: c_float,
-    margin_bottom_type: c_int,
-    margin_bottom_value: c_float,
-    padding_left_type: c_int,
-    padding_left_value: c_float,
-    padding_right_type: c_int,
-    padding_right_value: c_float,
-    padding_top_type: c_int,
-    padding_top_value: c_float,
-    padding_bottom_type: c_int,
-    padding_bottom_value: c_float,
-    border_left_type: c_int,
-    border_left_value: c_float,
-    border_right_type: c_int,
-    border_right_value: c_float,
-    border_top_type: c_int,
-    border_top_value: c_float,
-    border_bottom_type: c_int,
-    border_bottom_value: c_float,
-    flex_grow: c_float,
-    flex_shrink: c_float,
-    flex_basis_type: c_int,
-    flex_basis_value: c_float,
-    width_type: c_int,
-    width_value: c_float,
-    height_type: c_int,
-    height_value: c_float,
-    min_width_type: c_int,
-    min_width_value: c_float,
-    min_height_type: c_int,
-    min_height_value: c_float,
-    max_width_type: c_int,
-    max_width_value: c_float,
-    max_height_type: c_int,
-    max_height_value: c_float,
-    gap_row_type: i32,
-    gap_row_value: f32,
-    gap_column_type: i32,
-    gap_column_value: f32,
-    aspect_ratio: f32,
-    grid_auto_rows: *mut CMasonNonRepeatedTrackSizingFunctionArray,
-    grid_auto_columns: *mut CMasonNonRepeatedTrackSizingFunctionArray,
-    grid_auto_flow: i32,
-    grid_column_start_type: i32,
-    grid_column_start_value: i16,
-    grid_column_end_type: i32,
-    grid_column_end_value: i16,
-    grid_row_start_type: i32,
-    grid_row_start_value: i16,
-    grid_row_end_type: i32,
-    grid_row_end_value: i16,
-    grid_template_rows: *mut CMasonTrackSizingFunctionArray,
-    grid_template_columns: *mut CMasonTrackSizingFunctionArray,
-    overflow_x: i32,
-    overflow_y: i32,
-    scrollbar_width: f32,
-) {
-    let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
-    let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
-    let grid_template_rows = unsafe { to_vec_track_sizing_function(grid_template_rows) };
-    let grid_template_columns = unsafe { to_vec_track_sizing_function(grid_template_columns) };
-
-    unsafe {
-        let mut style = Box::from_raw(style as *mut Style);
-        Style::update_from_ffi(
-            &mut style,
-            display,
-            position_type,
-            direction,
-            flex_direction,
-            flex_wrap,
-            overflow,
-            align_items,
-            align_self,
-            align_content,
-            justify_items,
-            justify_self,
-            justify_content,
-            inset_left_type,
-            inset_left_value,
-            inset_right_type,
-            inset_right_value,
-            inset_top_type,
-            inset_top_value,
-            inset_bottom_type,
-            inset_bottom_value,
-            margin_left_type,
-            margin_left_value,
-            margin_right_type,
-            margin_right_value,
-            margin_top_type,
-            margin_top_value,
-            margin_bottom_type,
-            margin_bottom_value,
-            padding_left_type,
-            padding_left_value,
-            padding_right_type,
-            padding_right_value,
-            padding_top_type,
-            padding_top_value,
-            padding_bottom_type,
-            padding_bottom_value,
-            border_left_type,
-            border_left_value,
-            border_right_type,
-            border_right_value,
-            border_top_type,
-            border_top_value,
-            border_bottom_type,
-            border_bottom_value,
-            flex_grow,
-            flex_shrink,
-            flex_basis_type,
-            flex_basis_value,
-            width_type,
-            width_value,
-            height_type,
-            height_value,
-            min_width_type,
-            min_width_value,
-            min_height_type,
-            min_height_value,
-            max_width_type,
-            max_width_value,
-            max_height_type,
-            max_height_value,
-            gap_row_type,
-            gap_row_value,
-            gap_column_type,
-            gap_column_value,
-            aspect_ratio,
-            grid_auto_rows,
-            grid_auto_columns,
-            grid_auto_flow,
-            grid_column_start_type,
-            grid_column_start_value,
-            grid_column_end_type,
-            grid_column_end_value,
-            grid_row_start_type,
-            grid_row_start_value,
-            grid_row_end_type,
-            grid_row_end_value,
-            grid_template_rows,
-            grid_template_columns,
-            overflow_x,
-            overflow_y,
-            scrollbar_width,
-        );
-        Box::leak(style);
-    }
-}
-
-
-#[no_mangle]
-pub extern "system" fn StyleNativeDestroy(
-    style: jlong,
-) {
+pub extern "system" fn StyleNativeDestroy(style: jlong) {
     if style == 0 {
         return;
     }
@@ -572,9 +262,7 @@ pub extern "system" fn StyleNativeDestroy(
 }
 
 #[no_mangle]
-pub extern "system" fn StyleNativeDestroyNormal(
-    _env: JNIEnv, _: JClass, style: jlong,
-) {
+pub extern "system" fn StyleNativeDestroyNormal(_env: JNIEnv, _: JClass, style: jlong) {
     if style == 0 {
         return;
     }
@@ -594,9 +282,7 @@ pub extern "system" fn StyleNativeInit() -> jlong {
 }
 
 #[no_mangle]
-pub extern "system" fn StyleNativeInitNormal(
-    _env: JNIEnv, _: JClass,
-) -> jlong {
+pub extern "system" fn StyleNativeInitNormal(_env: JNIEnv, _: JClass) -> jlong {
     let mut style: Style = Style::default();
     style.set_align_content(align_content_from_enum(0));
     style.set_flex_basis(Dimension::Auto);
@@ -657,31 +343,6 @@ pub(crate) fn to_vec_non_repeated_track_sizing_function_jni(
             ret
         };
     }
-}
-
-
-pub fn to_vec_non_repeated_track_sizing_function(
-    value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
-) -> Vec<NonRepeatedTrackSizingFunction> {
-    if value.is_null() {
-        return vec![];
-    }
-
-    unsafe {
-        if (*value).length == 0 {
-            return vec![];
-        }
-    }
-
-    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
-
-    slice
-        .iter()
-        .map(|v| {
-            let v = *v;
-            min_max_from_values(v.min_type, v.min_value, v.max_type, v.max_value)
-        })
-        .collect()
 }
 
 pub(crate) fn to_vec_track_sizing_function_jni(
@@ -881,7 +542,6 @@ pub(crate) fn to_vec_track_sizing_function_jni(
 
     vec![]
 }
-
 
 pub unsafe fn to_vec_track_sizing_function(
     value: *mut CMasonTrackSizingFunctionArray,

@@ -43,7 +43,7 @@ private func getLengthPercentage(_ value: Float,_ type: Int) -> MasonLengthPerce
 public class MasonStyle: NSObject {
     internal var isDirty: Bool = false
     
-    public internal (set) var nativePtr: UnsafeMutableRawPointer!
+    public internal (set) var nativePtr: OpaquePointer?
     
     
     public override init() {

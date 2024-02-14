@@ -1,7 +1,7 @@
 framework module Mason {
   umbrella header "Mason.h"
-
   export *
+
   module * { export * }
 }
 

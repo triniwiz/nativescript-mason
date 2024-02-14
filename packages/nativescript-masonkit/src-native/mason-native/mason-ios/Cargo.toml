@@ -9,4 +9,5 @@ name = "masonnative"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
+mason-c = { path = "../mason-c" }
 mason-core = { path = "../mason-core" }

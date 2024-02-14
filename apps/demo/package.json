@@ -5,10 +5,10 @@
   "repository": "<fill-your-repository-here>",
   "dependencies": {
     "@nativescript/core": "file:../../node_modules/@nativescript/core",
-    "@triniwiz/nativescript-masonkit": "file:../../dist/packages/nativescript-masonkit"
+    "@triniwiz/nativescript-masonkit": "file:../../packages/nativescript-masonkit"
   },
   "devDependencies": {
-    "@nativescript/android": "^8.6.2",
-    "@nativescript/ios": "^8.6.3"
+    "@nativescript/android": "~8.6.0",
+    "@nativescript/ios": "~8.6.0"
   }
 }

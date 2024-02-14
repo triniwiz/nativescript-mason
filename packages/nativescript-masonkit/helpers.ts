@@ -232,10 +232,10 @@ if (global.isAndroid) {
 }
 
 if (global.isIOS) {
-  TSCMason.alwaysEnable = true;
+  NSCMason.alwaysEnable = true;
   if (!UseV8Module) {
     try {
-      const installer = global.MasonV8ModuleInstaller.new();
+      const installer = MasonV8Module.new();
       installer.install();
       UseV8Module = true;
     } catch (error) {
@@ -1027,6 +1027,7 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
       if (UseV8Module) {
+        console.log(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
         MasonV8Module.setFlexDirection(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {
@@ -1389,6 +1390,7 @@ export function _setAlignItems(value, instance: TSCView, initial = false) {
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
       if (UseV8Module) {
+        console.log('instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch)', instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
         MasonV8Module.setAlignItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {

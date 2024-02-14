@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-taffy = { git="https://github.com/DioxusLabs/taffy.git", rev="440843c700455363383e0a4fc365a15deebd4717"}
+taffy = { git="https://github.com/DioxusLabs/taffy.git", rev="563d5dc"}
 #taffy = { version = "0.3.18"}
 
 [target.'cfg(target_os = "android")'.dependencies]
