@@ -1,5 +1,5 @@
 <Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="navigatingTo" class="p"
-      xmlns:ui="@triniwiz/nativescript-masonkit">
+  xmlns:ui="@triniwiz/nativescript-masonkit">
   <Page.actionBar>
     <ActionBar title="nativescript-masonkit" icon="" class="action-bar">
     </ActionBar>
@@ -11,7 +11,7 @@
     <Label text="b" class="b"/>
   </ui:Flex> -->
 
-  
+
 
 
   <!-- https://gridbyexample.com/examples/example5/ -->
@@ -21,30 +21,30 @@
   <!-- <ui:Grid class="wrapper-5">
 
     <ui:Grid class="box a">
-    <Label text="A" />
+      <Label text="A" />
     </ui:Grid>
 
-     <ui:Grid class="box b">
-    <Label text="B" />
+    <ui:Grid class="box b">
+      <Label text="B" />
     </ui:Grid>
 
-     <ui:Grid class="box c">
-    <Label text="C" />
+    <ui:Grid class="box c">
+      <Label text="C" />
     </ui:Grid>
 
-     <ui:Grid class="box d">
-    <Label text="D" />
+    <ui:Grid class="box d">
+      <Label text="D" />
     </ui:Grid>
   </ui:Grid> -->
 
- 
+
 
   <!--
   https://gridbyexample.com/examples/example26/ -->
 
 
 
-   <!-- <ui:Container class="wrapper-6">
+  <!-- <ui:Container class="wrapper-6">
     <ui:Container class="box a">
       <Label text="This is box A."></Label>
       <Label text="align-self: stretch"></Label>
@@ -66,9 +66,7 @@
     </ui:Container>
 
     <ui:Container class="box e">
-      <Label
-        wrapText="true"
-        text="Each of the boxes on the left has a grid area of 3 columns and 3 rows (we're counting the gutter col/row). So each covers the same size area as box A."></Label>
+      <Label textWrap="true" text="Each of the boxes on the left has a grid area of 3 columns and 3 rows (we're counting the gutter col/row). So each covers the same size area as box A."></Label>
       <Label text="The align-self property is used to align the content inside the grid-area."></Label>
     </ui:Container> 
 
@@ -96,13 +94,13 @@
       <ui:TSCView class="bg-red" width="100%" height="100%" flexDirection="column" backgroundColor="red" rows="auto,auto">
       <Label text="First"/>
       </ui:TSCView>
-       <ui:TSCView width="100%" height="100%"  flexDirection="column" backgroundColor="blue" rows="auto,auto">
+       <ui:TSCView width="100%" height="100%" flexDirection="column" backgroundColor="blue" rows="auto,auto">
       <Label text="Second"/>
       </ui:TSCView>
-       <ui:TSCView width="100%" height="100%"  flexDirection="column" backgroundColor="purple" rows="auto,auto">
+       <ui:TSCView width="100%" height="100%" flexDirection="column" backgroundColor="purple" rows="auto,auto">
       <Label text="Third"/>
       </ui:TSCView>
-       <ui:TSCView width="100%" height="100%"  flexDirection="column" backgroundColor="orange" rows="auto,auto">
+       <ui:TSCView width="100%" height="100%" flexDirection="column" backgroundColor="orange" rows="auto,auto">
       <Label text="Fourth"/>
       </ui:TSCView>
      </ui:TSCView>  -->
@@ -141,8 +139,7 @@
           <Button text="Test 4.3" tap="{{ testIt }}" class="btn btn-primary"/>
         </ui:TSCView>
 
-        <ui:TSCView width="100%" height="100%" class="p-20" backgroundColor="purple" flexDirection="column" width="100%"
-                    height="100%">
+        <ui:TSCView width="100%" height="100%" class="p-20" backgroundColor="purple" flexDirection="column" width="100%" height="100%">
           <Button text="Test 1.4" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.4" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.4" tap="{{ testIt }}" class="btn btn-primary"/>
@@ -163,47 +160,47 @@
        <ScrollView>
       <ui:TSCView class="p-20" backgroundColor="red" flexDirection="column">
       <Image width="100%" height="100%" src="https://picsum.photos/200/300"/>
-           <Button  text="Test 1" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 2" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 3" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 4" tap="{{ testIt }}" class="btn btn-primary"/>
+           <Button text="Test 1" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 2" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 3" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 4" tap="{{ testIt }}" class="btn btn-primary"/>
 
           <Image src="https://picsum.photos/200/300"/>
 
           <ui:TSCView class="p-20" backgroundColor="green">
-          <Button  text="Test 1.1" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 2.1" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 3.1" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 4.1" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 1.1" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 2.1" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 3.1" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 4.1" tap="{{ testIt }}" class="btn btn-primary"/>
           </ui:TSCView>
 
           <ui:TSCView class="p-20" backgroundColor="blue">
-          <Button  text="Test 1.2" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 2.2" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 3.2" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 4.2" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 1.2" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 2.2" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 3.2" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 4.2" tap="{{ testIt }}" class="btn btn-primary"/>
           </ui:TSCView>
 
 
        <ui:TSCView class="p-20" backgroundColor="pink">
-          <Button  text="Test 1.3" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 2.3" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 3.3" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 4.3" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 1.3" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 2.3" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 3.3" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 4.3" tap="{{ testIt }}" class="btn btn-primary"/>
       </ui:TSCView>
 
-       <ui:TSCView width="100%" height="100%" class="p-20" backgroundColor="purple" >
-          <Button  text="Test 1.4" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 2.4" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 3.4" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 4.4" tap="{{ testIt }}" class="btn btn-primary"/>
+       <ui:TSCView width="100%" height="100%" class="p-20" backgroundColor="purple">
+          <Button text="Test 1.4" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 2.4" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 3.4" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 4.4" tap="{{ testIt }}" class="btn btn-primary"/>
       </ui:TSCView>
 
           <ui:TSCView class="p-20" backgroundColor="yellow">
-          <Button  text="Test 1.5" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 2.5" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 3.5" tap="{{ testIt }}" class="btn btn-primary"/>
-          <Button  text="Test 4.5" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 1.5" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 2.5" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 3.5" tap="{{ testIt }}" class="btn btn-primary"/>
+          <Button text="Test 4.5" tap="{{ testIt }}" class="btn btn-primary"/>
           </ui:TSCView>
       </ui:TSCView>
       </ScrollView> -->
