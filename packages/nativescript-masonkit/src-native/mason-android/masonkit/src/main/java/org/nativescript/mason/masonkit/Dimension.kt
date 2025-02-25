@@ -11,7 +11,7 @@ internal const val PercentUnit = "%"
 sealed class Dimension(val isZero: Boolean) {
   data class Points(var points: Float) : Dimension(points <= 0)
   data class Percent(var percentage: Float) : Dimension(percentage <= 0)
-  object Auto : Dimension(false)
+  data object Auto : Dimension(false)
 
   companion object {
     @JvmStatic

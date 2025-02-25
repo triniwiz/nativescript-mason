@@ -282,7 +282,9 @@ public class MasonNode: NSObject {
                                 &gridTemplateColumns,
                                 style.overflowX.rawValue,
                                 style.overflowY.rawValue,
-                                style.scrollBarWidth.value
+                                style.scrollBarWidth.value,
+                                style.textAlign.rawValue,
+                                style.boxSizing.rawValue
                             )
                         }
                     }
@@ -459,6 +461,8 @@ public class MasonNode: NSObject {
                                 style.overflowX.rawValue,
                                 style.overflowY.rawValue,
                                 style.scrollBarWidth.value,
+                                style.textAlign.rawValue,
+                                style.boxSizing.rawValue,
                                 create_layout
                             )
                             
@@ -609,6 +613,8 @@ public class MasonNode: NSObject {
                                 style.overflowX.rawValue,
                                 style.overflowY.rawValue,
                                 style.scrollBarWidth.value,
+                                style.textAlign.rawValue,
+                                style.boxSizing.rawValue,
                                 create_layout)
                             
                         }

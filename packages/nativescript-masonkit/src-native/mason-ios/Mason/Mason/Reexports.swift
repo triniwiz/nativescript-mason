@@ -661,6 +661,8 @@ public class MasonReexports: NSObject {
                                                 _ gridTemplateColumns: UnsafeMutablePointer<CMasonTrackSizingFunctionArray>,
                                                 _ overflowX: Int32,
                                                 _ overflowY: Int32,
+                                                _ textAlign: Int32,
+                                                _ boxSizing: Int32,
                                                 scrollBarWidth: Float
                                                 
     ){
@@ -727,7 +729,9 @@ public class MasonReexports: NSObject {
                                        gridTemplateColumns,
                                        overflowX,
                                        overflowY,
-                                       scrollBarWidth
+                                       scrollBarWidth,
+                                       textAlign,
+                                       boxSizing
                                        
         )
     }

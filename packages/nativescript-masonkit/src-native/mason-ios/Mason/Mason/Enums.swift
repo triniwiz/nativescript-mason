@@ -109,6 +109,76 @@ public enum MasonLengthPercentageCompatType: Int, RawRepresentable {
     }
 }
 
+
+@objc(MasonBoxSizing)
+public enum MasonBoxSizing: Int, RawRepresentable {
+    case BorderBox
+    case ContentBox
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .BorderBox:
+            return 0
+        case .ContentBox:
+            return 1
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+            self = .BorderBox
+        case 1:
+            self = .ContentBox
+        default:
+            return nil
+        }
+    }
+}
+
+@objc(MasonTextAlign)
+public enum MasonTextAlign: Int, RawRepresentable {
+    case Auto
+    case LegacyLeft
+    case LegacyRight
+    case LegacyCenter
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Auto:
+            return 0
+        case .LegacyLeft:
+            return 1
+        case .LegacyRight:
+            return 2
+        case .LegacyCenter:
+            return 3
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+          self = .Auto
+        case 1:
+          self = .LegacyLeft
+        case 2:
+          self = .LegacyRight
+        case 3:
+          self = .LegacyCenter
+        default:
+            return nil
+        }
+    }
+}
+
+
 let decoder = JSONDecoder()
 let encoder = JSONEncoder()
 
@@ -121,6 +191,7 @@ public func MasonDimensionFromPercent(value: Float) -> MasonDimension {
 }
 
 public let MasonDimensionAuto = MasonDimension.Auto
+
 
 
 public enum MasonDimension: Codable {

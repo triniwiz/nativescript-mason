@@ -7,9 +7,6 @@
 
 using namespace std;
 
-
-using namespace std;
-
 void destroy_c_mason_track_sizing_function(CMasonTrackSizingFunction tracking) {
     switch (tracking.tag) {
         case Repeat: {
@@ -388,6 +385,9 @@ void MasonV8JSIModule::install(v8::Isolate *isolate) {
                 GET_INT_ARG(80, overflowY)
                 GET_FLOAT_ARG(81, scrollbarWidth)
 
+                GET_INT_ARG(82, textAlign)
+                GET_INT_ARG(83, boxSizing)
+
                 mason_style_update_with_values(
                 style,
                 display,
@@ -451,7 +451,7 @@ void MasonV8JSIModule::install(v8::Isolate *isolate) {
                 &gridTemplateRows, &gridTemplateColumns,
                 overflowX,
                 overflowY,
-                scrollbarWidth);
+                scrollbarWidth, textAlign, boxSizing);
 
 
 

@@ -6,10 +6,10 @@
   </Page.actionBar>
 
 
-  <!-- <ui:Flex class="flex-example" color="white">
+  <ui:Flex class="flex-example" color="white">
     <Label text="a" class="a"/>
     <Label text="b" class="b"/>
-  </ui:Flex> -->
+  </ui:Flex>
 
 
 
@@ -73,7 +73,7 @@
   </ui:Container>  -->
 
 
-  <ui:Grid class="grid-example">
+  <!-- <ui:Grid class="grid-example">
 
     <Label text="A" color="green" class="a" backgroundColor="red"/>
 
@@ -87,7 +87,7 @@
 
     <Label text="F" class="f" backgroundColor="pink"/>
 
-  </ui:Grid>
+  </ui:Grid> -->
 
 
   <!-- <ui:TSCView id="root" flexDirection="column">

@@ -431,6 +431,20 @@ public class MasonStyle: NSObject {
     public func setScrollBarWidth(_ value: Float) {
         scrollBarWidth = MasonDimension.Points(value);
     }
+  
+  public var textAlign = MasonTextAlign.Auto {
+      didSet {
+          isDirty = true
+      }
+  }
+  
+  public var boxSizing = MasonBoxSizing.BorderBox {
+      didSet {
+          isDirty = true
+      }
+  }
+  
+  
     
     
     public var minSize = MasonDimensionSizeAuto {

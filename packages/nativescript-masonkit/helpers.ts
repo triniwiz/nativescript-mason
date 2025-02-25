@@ -1027,7 +1027,6 @@ export function _setFlexDirection(value, instance: TSCView, initial = false) {
 
     if (!Utils.isNullOrUndefined(nativeValue)) {
       if (UseV8Module) {
-        console.log(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
         MasonV8Module.setFlexDirection(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
       } else {
         if (global.isAndroid) {

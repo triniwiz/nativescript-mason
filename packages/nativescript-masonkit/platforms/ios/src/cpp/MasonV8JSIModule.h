@@ -2,8 +2,7 @@
 // Created by Osei Fortune on 14/12/2022.
 //
 
-#ifndef MASON_NATIVE_MASONJSIMODULE_H
-#define MASON_NATIVE_MASONJSIMODULE_H
+#pragma once
 #include "Common.h"
 #include "libplatform/libplatform.h"
 #include "v8.h"
@@ -298,7 +297,7 @@ inline static CMasonGridPlacement jsToGridPlacement(short value, int value_type)
 inline static v8::Local<v8::Value>
 lengthPercentageToJS(v8::Isolate *isolate, CMasonLengthPercentage length) {
     switch (length.value_type) {
-        case CMasonLengthPercentageType::MasonLengthPercentagePercent: {
+        case CMasonLengthPercentageType::MasonLengthPercentageTypePercent: {
             v8::Local<v8::Object> object = v8::Object::New((isolate));
             object->Set(isolate->GetCurrentContext(), STRING_TO_V8_VALUE("value"),
                         DOUBLE_TO_V8_VALUE(length.value / 100))
@@ -308,7 +307,7 @@ lengthPercentageToJS(v8::Isolate *isolate, CMasonLengthPercentage length) {
                     .Check();
             return object;
         }
-        case CMasonLengthPercentageType::MasonLengthPercentagePoints: {
+        case CMasonLengthPercentageType::MasonLengthPercentageTypePoints: {
 
             v8::Local<v8::Object> object = v8::Object::New((isolate));
             object->Set(isolate->GetCurrentContext(), STRING_TO_V8_VALUE("value"),
@@ -326,32 +325,32 @@ lengthPercentageToJS(v8::Isolate *isolate, CMasonLengthPercentage length) {
 
 inline static CMasonLengthPercentage jsToLengthPercentage(float value, int value_type) {
     switch ((CMasonLengthPercentageType) value_type) {
-        case CMasonLengthPercentageType::MasonLengthPercentagePercent: {
-            return CMasonLengthPercentage{value,
-                                          CMasonLengthPercentageType::MasonLengthPercentagePercent};
+        case CMasonLengthPercentageType::MasonLengthPercentageTypePercent: {
+            return CMasonLengthPercentage{
+                    CMasonLengthPercentageType::MasonLengthPercentageTypePercent, value};
         }
-        case CMasonLengthPercentageType::MasonLengthPercentagePoints: {
-            return CMasonLengthPercentage{value,
-                                          CMasonLengthPercentageType::MasonLengthPercentagePoints};
+        case CMasonLengthPercentageType::MasonLengthPercentageTypePoints: {
+            return CMasonLengthPercentage{
+                    CMasonLengthPercentageType::MasonLengthPercentageTypePoints, value};
         }
         default:
             // assert ??
-            return CMasonLengthPercentage{0,
-                                          CMasonLengthPercentageType::MasonLengthPercentagePoints};
+            return CMasonLengthPercentage{
+                    CMasonLengthPercentageType::MasonLengthPercentageTypePoints, 0};
     }
 }
 
 inline static CMasonLengthPercentageType jsToLengthPercentageType(int value_type) {
     switch ((CMasonLengthPercentageType) value_type) {
-        case CMasonLengthPercentageType::MasonLengthPercentagePercent: {
-            return CMasonLengthPercentageType::MasonLengthPercentagePercent;
+        case CMasonLengthPercentageType::MasonLengthPercentageTypePercent: {
+            return CMasonLengthPercentageType::MasonLengthPercentageTypePercent;
         }
-        case CMasonLengthPercentageType::MasonLengthPercentagePoints: {
-            return CMasonLengthPercentageType::MasonLengthPercentagePoints;
+        case CMasonLengthPercentageType::MasonLengthPercentageTypePoints: {
+            return CMasonLengthPercentageType::MasonLengthPercentageTypePoints;
         }
         default:
             // assert invalid type ???
-            return CMasonLengthPercentageType::MasonLengthPercentagePoints;
+            return CMasonLengthPercentageType::MasonLengthPercentageTypePoints;
     }
 }
 
@@ -389,20 +388,20 @@ lengthPercentageAutoToJS(v8::Isolate *isolate, CMasonLengthPercentageAuto length
 inline static CMasonLengthPercentageAuto jsToLengthPercentageAuto(float value, int value_type) {
     switch ((CMasonLengthPercentageAutoType) value_type) {
         case CMasonLengthPercentageAutoType::MasonLengthPercentageAutoAuto:
-            return CMasonLengthPercentageAuto{value,
-                                              CMasonLengthPercentageAutoType::MasonLengthPercentageAutoAuto};
+            return CMasonLengthPercentageAuto{
+                    CMasonLengthPercentageAutoType::MasonLengthPercentageAutoAuto, value};
         case CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPercent: {
-            return CMasonLengthPercentageAuto{value,
-                                              CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPercent};
+            return CMasonLengthPercentageAuto{
+                    CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPercent, value};
         }
         case CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPoints: {
-            return CMasonLengthPercentageAuto{value,
-                                              CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPoints};
+            return CMasonLengthPercentageAuto{
+                    CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPoints, value};
         }
         default:
             // assert invalid type ???
-            return CMasonLengthPercentageAuto{0,
-                                              CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPoints};
+            return CMasonLengthPercentageAuto{
+                    CMasonLengthPercentageAutoType::MasonLengthPercentageAutoPoints, 0};
     }
 }
 
@@ -455,7 +454,7 @@ inline static v8::Local<v8::Value> dimensionToJS(v8::Isolate *isolate, CMasonDim
 inline static v8::Local<v8::Value>
 dimensionToJS(v8::Isolate *isolate, CMasonLengthPercentage dimension) {
     switch ((CMasonLengthPercentageType) dimension.value_type) {
-        case CMasonLengthPercentageType::MasonLengthPercentagePercent: {
+        case CMasonLengthPercentageType::MasonLengthPercentageTypePercent: {
 
             v8::Local<v8::Object> object = v8::Object::New((isolate));
             object->Set(isolate->GetCurrentContext(), STRING_TO_V8_VALUE("value"),
@@ -466,7 +465,7 @@ dimensionToJS(v8::Isolate *isolate, CMasonLengthPercentage dimension) {
                     .Check();
             return object;
         }
-        case CMasonLengthPercentageType::MasonLengthPercentagePoints: {
+        case CMasonLengthPercentageType::MasonLengthPercentageTypePoints: {
             v8::Local<v8::Object> object = v8::Object::New((isolate));
             object->Set(isolate->GetCurrentContext(), STRING_TO_V8_VALUE("value"),
                         DOUBLE_TO_V8_VALUE(dimension.value))
@@ -484,16 +483,16 @@ dimensionToJS(v8::Isolate *isolate, CMasonLengthPercentage dimension) {
 inline static CMasonDimension jsToDimension(float value, int value_type) {
     switch ((CMasonDimensionType) value_type) {
         case CMasonDimensionType::MasonDimensionAuto:
-            return CMasonDimension{value, CMasonDimensionType::MasonDimensionAuto};
+            return CMasonDimension{CMasonDimensionType::MasonDimensionAuto, value};
         case CMasonDimensionType::MasonDimensionPercent: {
-            return CMasonDimension{value, CMasonDimensionType::MasonDimensionPercent};
+            return CMasonDimension{CMasonDimensionType::MasonDimensionPercent, value};
         }
         case CMasonDimensionType::MasonDimensionPoints: {
-            return CMasonDimension{value, CMasonDimensionType::MasonDimensionPoints};
+            return CMasonDimension{CMasonDimensionType::MasonDimensionPoints, value};
         }
         default:
             // assert invalid type ???
-            return CMasonDimension{0, CMasonDimensionType::MasonDimensionPoints};
+            return CMasonDimension{CMasonDimensionType::MasonDimensionPoints, 0};
     }
 }
 
@@ -629,5 +628,3 @@ class MasonV8JSIModule {
 public:
     static void install(v8::Isolate *isolate);
 };
-
-#endif // MASON_NATIVE_MASONJSIMODULE_H

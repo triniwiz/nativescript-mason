@@ -1,0 +1,14 @@
+[workspace]
+members = ["crates/mason-core", "crates/mason-android", "crates/mason-ios", "crates/mason-playground", "crates/mason-c"]
+resolver = "2"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = 3
+debug = false
+incremental = false
+strip = true
+debug-assertions = false
+overflow-checks = false

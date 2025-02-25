@@ -16,7 +16,7 @@ import org.nativescript.mason.masonkit.*
 class GridActivity : AppCompatActivity() {
   lateinit var binding: ActivityGridBinding
   lateinit var metrics: DisplayMetrics
-
+  val mason = Mason()
   fun toPx(dip: Float): Float {
     return dip * metrics.density
   }
@@ -81,7 +81,7 @@ class GridActivity : AppCompatActivity() {
 
     boxA.apply {
       background = bg
-      val node = binding.gridRoot.nodeForView(this)
+      val node = mason.nodeForView(this)
 
       node.configure {
         it.style.apply {
@@ -93,7 +93,7 @@ class GridActivity : AppCompatActivity() {
 
     boxB.apply {
       background = bg
-      val node = binding.gridRoot.nodeForView(this)
+      val node = mason.nodeForView(this)
       node.configure {
         it.style.apply {
           gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
@@ -104,7 +104,7 @@ class GridActivity : AppCompatActivity() {
 
     boxC.apply {
       background = bg
-      val node = binding.gridRoot.nodeForView(this)
+      val node = mason.nodeForView(this)
       node.configure {
         it.style.apply {
           gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
@@ -115,7 +115,7 @@ class GridActivity : AppCompatActivity() {
 
     boxD.apply {
       background = bg
-      val node = binding.gridRoot.nodeForView(this)
+      val node = mason.nodeForView(this)
       node.configure {
         it.style.apply {
           gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
@@ -199,7 +199,7 @@ class GridActivity : AppCompatActivity() {
 
     boxA.apply {
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
+      val node = mason.nodeForView(this)
       this.clipChildren = false
       node.configure {
         it.style.apply {
@@ -214,7 +214,7 @@ class GridActivity : AppCompatActivity() {
     boxB.apply {
       //background = bg
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
+      val node = mason.nodeForView(this)
       node.configure {
         it.style.apply {
           flexDirection = FlexDirection.Column
@@ -228,7 +228,7 @@ class GridActivity : AppCompatActivity() {
     boxC.apply {
       // background = bg
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
+      val node = mason.nodeForView(this)
       node.configure {
         it.style.apply {
           flexDirection = FlexDirection.Column
@@ -242,7 +242,7 @@ class GridActivity : AppCompatActivity() {
     boxD.apply {
       // background = bg
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
+      val node = mason.nodeForView(this)
       node.configure {
         it.style.apply {
           flexDirection = FlexDirection.Column
@@ -256,7 +256,7 @@ class GridActivity : AppCompatActivity() {
     boxE.apply {
       //background = bg
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
+      val node = mason.nodeForView(this)
       node.configure {
         it.style.apply {
           flexDirection = FlexDirection.Column

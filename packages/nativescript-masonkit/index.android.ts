@@ -15,6 +15,7 @@ export class TSCView extends TSCViewBase {
   loadPtrs() {
     // @ts-ignore
     const ptrs = this.android?.getMasonPtrs().split(':');
+    console.log('loadPtrs', ptrs);
     this.__masonPtr = BigInt(ptrs[0]);
     this.__masonNodePtr = BigInt(ptrs[1]);
     this.__masonStylePtr = BigInt(ptrs[2]);

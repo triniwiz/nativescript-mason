@@ -133,13 +133,13 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
      
         
-       // flexIssue()
+        flexIssue()
         
        // testLayout()
         
        //  showFlexExample()
         
-     showGridExample()
+     //showGridExample()
          // animationExample()
         
        // wrapper6()

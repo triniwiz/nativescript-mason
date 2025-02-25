@@ -9,6 +9,7 @@ import org.nativescript.mason.masonkit.*
 
 class MainActivity : AppCompatActivity() {
   private lateinit var binding: ActivityMainBinding
+  val mason = Mason()
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
@@ -27,12 +28,12 @@ class MainActivity : AppCompatActivity() {
     // 100000 :- ~2962
     // 1000000 :- 90 x
 
-    for(i in 0 until 1000){
-      val node = Node()
+  //  for(i in 0 until 1000){
+  //    val node = mason.createNode()
 //      if (i == 100000){
 //        System.gc()
 //      }
-    }
+  //  }
 
     Log.d("com.test", "time ${System.currentTimeMillis() - now}")
 

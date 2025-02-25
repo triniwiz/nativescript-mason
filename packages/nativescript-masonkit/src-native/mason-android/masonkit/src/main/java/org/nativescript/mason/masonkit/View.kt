@@ -47,13 +47,24 @@ class View @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : ViewGroup(context, attrs, defStyleAttr) {
 
-  var node = Node()
+  lateinit var node: Node
     private set
+
+  constructor(context: Context, mason: Mason) : this(context) {
+    node = mason.createNode()
+    node.data = this
+  }
+
+  init {
+    if (!::node.isInitialized) {
+      // throw Exception("Use Mason to create views")
+    }
+  }
+
 
   private val nodes = mutableMapOf<android.view.View, Node>()
 
   init {
-    node.data = this
 
 //    val layoutParams = if (attrs != null) {
 //      LayoutParams(context, attrs)
@@ -75,24 +86,15 @@ class View @JvmOverloads constructor(
       return node.getNativePtr()
     }
 
-  val masonStylePtr: Long
-    get() {
-      return style.getNativePtr()
-    }
-
-
   val masonPtrs: String
     get() {
       return Mason.instance.getNativePtr()
-        .toString() + ":" + masonNodePtr.toString() + ":" + masonStylePtr.toString();
+        .toString() + ":" + masonNodePtr.toString()
     }
 
-  var style: Style
+  val style: Style
     get() {
       return node.style
-    }
-    set(value) {
-      node.style = value
     }
 
   fun markNodeDirty() {
@@ -108,129 +110,48 @@ class View @JvmOverloads constructor(
   }
 
   fun setStyleFromString(style: String) {
-    try {
-      val parsedStyle = gson.fromJson(style, Style::class.java)
-      this.style = parsedStyle
-    } catch (_: Exception) {
-    }
+//    try {
+//      val parsedStyle = gson.fromJson(style, Style::class.java)
+//      this.style = parsedStyle
+//    } catch (_: Exception) {
+//    }
   }
 
   fun getStyleAsString(): String? {
     return gson.toJson(style)
   }
 
-  fun nodeForView(view: android.view.View): Node {
-    val that = this
-    return nodes[view] ?: run {
-      val node = Node(view !is View).apply {
-        data = view
-        owner = that.node
-      }
-      nodes[view] = node
-      node
-    }
-  }
-
-  private fun applyLayoutRecursive(node: Node, xOffset: Float, yOffset: Float) {
+  private fun applyLayoutRecursive(node: Node, layout: Layout) {
 
     val view = node.data as? android.view.View
 
-    if (view != null && view !== this) {
+    if (view != null && view != this) {
       if (view.visibility == GONE) {
         return
       }
 
-      var layout = node.layout()
-      val size = node.style.getNativeSize();
+      var x = 0
+      var y = 0
+      var width = 0
+      var height = 0
 
-      var widthIsNaN = layout.width.isNaN()
-      var heightIsNaN = layout.height.isNaN()
-
-      var measuredWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
-      var measuredHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
-
-      val widthIsZero = size.width.isZero
-
-      val heightIsZero = size.height.isZero
-
-      var hasPercentDimensions = false
-
-      if (measuredWidth == 0 && !widthIsZero) {
-        when (size.width) {
-          is Dimension.Auto -> {
-            widthIsNaN = true
-          }
-
-          is Dimension.Percent -> {
-            hasPercentDimensions = true
-          }
-
-          else -> {}
-        }
+      if (!layout.x.isNaN()) {
+        x = layout.x.toInt()
       }
 
-      if (measuredHeight == 0 && !heightIsZero) {
-        when (size.height) {
-          is Dimension.Auto -> {
-            heightIsNaN = true
-          }
-
-          is Dimension.Percent -> {
-            hasPercentDimensions = true
-          }
-
-          else -> {}
-        }
+      if (!layout.y.isNaN()) {
+        y = layout.y.toInt()
       }
 
-      if (hasPercentDimensions) {
-        node.owner?.dirty()
-        node.dirty()
-        node.rootComputeWithViewSize()
-
-        layout = node.layout()
-
-        widthIsNaN = layout.width.isNaN()
-        heightIsNaN = layout.height.isNaN()
+      if (!layout.width.isNaN()) {
+        width = layout.width.toInt()
       }
 
-      measuredWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
-      measuredHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
-
-      if (view !is View) {
-        if (widthIsZero) {
-          measuredWidth = 0
-          widthIsNaN = false
-        }
-
-        if (heightIsZero) {
-          measuredHeight = 0
-          heightIsNaN = false
-        }
-
-
-        view.measure(
-          MeasureSpec.makeMeasureSpec(
-            measuredWidth,
-            MeasureSpec.EXACTLY
-          ), MeasureSpec.makeMeasureSpec(
-            measuredHeight,
-            MeasureSpec.EXACTLY
-          )
-        )
-        measuredWidth = view.measuredWidth
-        measuredHeight = view.measuredHeight
+      if (!layout.height.isNaN()) {
+        height = layout.height.toInt()
       }
 
-      val left = (xOffset + if (layout.x.isNaN()) 0F else layout.x).roundToInt()
-      val top = (yOffset + if (layout.y.isNaN()) 0F else layout.y).roundToInt()
-
-      val right =
-        left + measuredWidth
-      val bottom =
-        top + measuredHeight
-
-      view.layout(left, top, right, bottom)
+      view.layout(x, y, width, height)
     }
 
     val childrenCount = node.getChildCount()
@@ -238,15 +159,14 @@ class View @JvmOverloads constructor(
     for (i in 0 until childrenCount) {
       if (view == this) {
         node.getChildAt(i)?.let {
-          applyLayoutRecursive(it, xOffset, yOffset)
+          applyLayoutRecursive(it, layout.children[i])
         }
       } else if (view is View) {
         continue
-      } else {
+      }else {
         node.getChildAt(i)?.let {
-          val layout = it.layout()
           applyLayoutRecursive(
-            it, xOffset + layout.x, yOffset + layout.y
+            it, layout.children[i]
           )
         }
       }
@@ -254,51 +174,17 @@ class View @JvmOverloads constructor(
   }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    if (parent !is View) {
-      createLayout(
-        MeasureSpec.makeMeasureSpec(r - l, MeasureSpec.EXACTLY),
-        MeasureSpec.makeMeasureSpec(b - t, MeasureSpec.EXACTLY)
-      )
-    }
-
-    applyLayoutRecursive(node, 0F, 0F)
-
+    val layout = node.layout()
+    applyLayoutRecursive(node, layout)
   }
 
-  private fun setSizeFromMeasureSpec(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-    if (node.style.size.width == Dimension.Auto && node.style.size.height == Dimension.Auto) {
-      val widthSize = MeasureSpec.getSize(widthMeasureSpec)
-      val heightSize = MeasureSpec.getSize(heightMeasureSpec)
-
-      var width: Dimension = Dimension.Points(widthSize.toFloat())
-      var height: Dimension = Dimension.Points(heightSize.toFloat())
-
-      val paramsWidth = layoutParams.width
-      val paramsHeight = layoutParams.height
-
-      if (widthSize == 0 && paramsWidth == ViewGroup.LayoutParams.WRAP_CONTENT) {
-        width = Dimension.Auto
-      }
-
-      if (heightSize == 0 && paramsHeight == ViewGroup.LayoutParams.WRAP_CONTENT) {
-        height = Dimension.Auto
-      }
-
-      if (widthSize == 0 && paramsWidth == ViewGroup.LayoutParams.MATCH_PARENT) {
-        width = Dimension.Auto
-      }
-
-      if (heightSize == 0 && paramsHeight == ViewGroup.LayoutParams.MATCH_PARENT) {
-        height = Dimension.Auto
-      }
-
-      node.style.size = Size(width, height)
-
+  private fun mapMeasureSpec(mode: Int, value: Int): AvailableSpace {
+    return when (mode) {
+      MeasureSpec.EXACTLY -> AvailableSpace.Definite(value.toFloat())
+      MeasureSpec.UNSPECIFIED -> AvailableSpace.MinContent
+      MeasureSpec.AT_MOST -> AvailableSpace.MaxContent
+      else -> AvailableSpace.MinContent
     }
-  }
-
-  private fun createLayout(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-    setSizeFromMeasureSpec(widthMeasureSpec, heightMeasureSpec)
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -308,126 +194,14 @@ class View @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-    if (parent !is View) {
-      createLayout(
-        specWidth,
-        specHeight
-      )
-    }
-
-    val layout = if (parent !is View) {
-      val masonHeight = node.style.size.height
-      val masonWidth = node.style.size.width
-
-      if (masonWidth is Dimension.Auto && masonHeight is Dimension.Auto) {
-        node.computeMaxContent()
-      } else {
-
-        // MeasureSpec.EXACTLY View will be of the given size
-        // MeasureSpec.AT_MOST View can't be larger than the given size
-        // MeasureSpec.UNSPECIFIED View can be of any size
-
-        var width = specWidth.toFloat();
-
-        if (specWidthMode != MeasureSpec.EXACTLY) {
-          width = when (masonWidth) {
-            is Dimension.Percent -> {
-              masonWidth.value * (parent as android.view.View).measuredWidth
-            }
-
-            is Dimension.Auto -> {
-              -2.0f
-            }
-
-            is Dimension.Points -> {
-              masonWidth.value
-            }
-          }
-
-          if (specWidthMode == MeasureSpec.AT_MOST && width > specWidth.toFloat()) {
-            width = specWidth.toFloat();
-          }
-        }
-
-        var height = specHeight.toFloat();
-
-        if (specHeightMode != MeasureSpec.EXACTLY) {
-          height = when (masonHeight) {
-            is Dimension.Percent -> {
-              masonHeight.value * (parent as android.view.View).measuredHeight
-            }
-
-            is Dimension.Auto -> {
-              -2.0f
-            }
-
-            is Dimension.Points -> {
-              masonHeight.value
-            }
-          }
-
-          if (specHeightMode == MeasureSpec.AT_MOST && height > specHeight.toFloat()) {
-            height = specHeight.toFloat();
-          }
-        }
-        node.compute(width, height)
-      }
-      node.layout()
-    } else {
-      node.layout()
-    }
-
-    val resolvedWidth =
-      android.view.View.resolveSizeAndState(layout.width.roundToInt(), widthMeasureSpec, 0)
-    val resolvedHeight =
-      android.view.View.resolveSizeAndState(layout.height.roundToInt(), heightMeasureSpec, 0)
-
-    if (parent !is View) {
-      this.layoutParams.width = layout.width.roundToInt();
-      this.layoutParams.height = layout.height.roundToInt();
-
-      val margin = node.style.getNativeMargins()
-      val parentWidth = (this.parent as ViewGroup).measuredWidth;
-      val parentHeight = (this.parent as ViewGroup).measuredHeight;
-
-      this.updateLayoutParams<MarginLayoutParams> {
-        this.topMargin = margin.top.let {
-          var ret = it.value
-          if (it.type == 2) {
-            ret = it.value * parentHeight.toFloat();
-          }
-          ret.toInt()
-        }
-
-        this.leftMargin = margin.left.let {
-          var ret = it.value
-          if (it.type == 2) {
-            ret = it.value * parentWidth.toFloat();
-          }
-          ret.toInt()
-        }
-
-        this.rightMargin = margin.right.let {
-          var ret = it.value
-          if (it.type == 2) {
-            ret = it.value * parentWidth.toFloat();
-          }
-          ret.toInt()
-        }
-
-        this.bottomMargin = margin.bottom.let {
-          var ret = it.value
-          if (it.type == 2) {
-            ret = it.value.toInt() * parentHeight.toFloat();
-          }
-          ret.toInt()
-        }
-      }
-    }
+    node.compute(
+      mapMeasureSpec(specWidthMode, specWidth).value,
+      mapMeasureSpec(specHeightMode, specHeight).value
+    )
 
     setMeasuredDimension(
-      resolvedWidth,
-      resolvedHeight,
+      specWidth,
+      specHeight,
     )
   }
 
@@ -440,11 +214,13 @@ class View @JvmOverloads constructor(
 
     val childNode = if (child is View) {
       child.node
+    } else if (child is TextView) {
+      child.node
     } else {
       if (nodes.containsKey(child)) {
         nodes[child]!!
       } else {
-        Node(true);
+        node.mason.nodeForView(child)
       }
     }.apply {
       data = child
@@ -459,11 +235,8 @@ class View @JvmOverloads constructor(
     }
   }
 
-  fun addViews(children: Array<android.view.View>) {
-    addViews(children, -1)
-  }
-
-  fun addViews(children: Array<android.view.View>, index: Int) {
+  @JvmOverloads
+  fun addViews(children: Array<android.view.View>, index: Int = -1) {
     children.forEachIndexed { childIndex, child ->
       if (index < 0) {
         addView(child)
@@ -474,7 +247,13 @@ class View @JvmOverloads constructor(
   }
 
   fun addView(child: android.view.View, node: Node) {
+    if (node.owner != null) {
+      return
+    }
     nodes[child] = node
+    node.data = child
+    this.node.addChild(node)
+
     addView(child)
   }
 
@@ -1413,19 +1192,19 @@ class View @JvmOverloads constructor(
 
   fun setPadding(
     left: Float,
-    left_type: Int,
+    leftType: Int,
     top: Float,
-    top_type: Int,
+    topType: Int,
     right: Float,
-    right_type: Int,
+    rightType: Int,
     bottom: Float,
-    bottom_type: Int
+    bottomType: Int
   ) {
     style.padding = Rect(
-      LengthPercentage.fromTypeValue(left_type, left) ?: style.padding.left,
-      LengthPercentage.fromTypeValue(right_type, right) ?: style.padding.right,
-      LengthPercentage.fromTypeValue(top_type, top) ?: style.padding.top,
-      LengthPercentage.fromTypeValue(bottom_type, bottom) ?: style.padding.bottom
+      LengthPercentage.fromTypeValue(leftType, left) ?: style.padding.left,
+      LengthPercentage.fromTypeValue(rightType, right) ?: style.padding.right,
+      LengthPercentage.fromTypeValue(topType, top) ?: style.padding.top,
+      LengthPercentage.fromTypeValue(bottomType, bottom) ?: style.padding.bottom
     )
     checkAndUpdateStyle()
   }

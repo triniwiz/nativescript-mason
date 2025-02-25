@@ -1,6 +1,8 @@
 package org.nativescript.mason.masonkit
 
-import dalvik.annotation.optimization.CriticalNative
+import android.util.Log
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 
 enum class AlignItems(val value: Int) {
@@ -133,10 +135,10 @@ enum class AlignContent(val value: Int) {
   }
 }
 
-enum class Direction {
-  Inherit,
-  LTR,
-  RTL;
+enum class Direction(val value: Int) {
+  Inherit(0),
+  LTR(1),
+  RTL(2);
 
   val cssValue: String
     get() {
@@ -159,11 +161,11 @@ enum class Direction {
   }
 }
 
-enum class Display {
-  None,
-  Flex,
-  Grid,
-  Block;
+enum class Display(val value: Int) {
+  None(0),
+  Flex(1),
+  Grid(2),
+  Block(3);
 
   val cssValue: String
     get() {
@@ -188,11 +190,11 @@ enum class Display {
   }
 }
 
-enum class FlexDirection {
-  Row,
-  Column,
-  RowReverse,
-  ColumnReverse;
+enum class FlexDirection(val value: Int) {
+  Row(0),
+  Column(1),
+  RowReverse(2),
+  ColumnReverse(3);
 
   val cssValue: String
     get() {
@@ -375,9 +377,9 @@ enum class Overflow(val value: Int) {
   }
 }
 
-enum class Position {
-  Relative,
-  Absolute;
+enum class Position(val value: Int) {
+  Relative(0),
+  Absolute(1);
 
   val cssValue: String
     get() {
@@ -398,10 +400,10 @@ enum class Position {
   }
 }
 
-enum class FlexWrap {
-  NoWrap,
-  Wrap,
-  WrapReverse;
+enum class FlexWrap(val value: Int) {
+  NoWrap(0),
+  Wrap(1),
+  WrapReverse(2);
 
   val cssValue: String
     get() {
@@ -424,11 +426,11 @@ enum class FlexWrap {
   }
 }
 
-enum class GridAutoFlow {
-  Row,
-  Column,
-  RowDense,
-  ColumnDense;
+enum class GridAutoFlow(val value: Int) {
+  Row(0),
+  Column(1),
+  RowDense(2),
+  ColumnDense(3);
 
   val cssValue: String
     get() {
@@ -447,6 +449,58 @@ enum class GridAutoFlow {
         1 -> Column
         2 -> RowDense
         3 -> ColumnDense
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+enum class TextAlign(val value: Int) {
+  Auto(0),
+  LegacyLeft(1),
+  LegacyRight(2),
+  LegacyCenter(3);
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        Auto -> "auto"
+        LegacyLeft -> "left"
+        LegacyRight -> "right"
+        LegacyCenter -> "center"
+      }
+    }
+
+  companion object {
+    fun fromInt(value: Int): TextAlign {
+      return when (value) {
+        0 -> Auto
+        1 -> LegacyLeft
+        2 -> LegacyRight
+        3 -> LegacyCenter
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+enum class BoxSizing(val value: Int) {
+  BorderBox(0),
+  ContentBox(1);
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        BorderBox -> "border-box"
+        ContentBox -> "content-box"
+      }
+    }
+
+  companion object {
+    fun fromInt(value: Int): BoxSizing {
+      return when (value) {
+        0 -> BorderBox
+        1 -> ContentBox
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -616,110 +670,324 @@ val Array<TrackSizingFunction>.cssValue: String
     return builder.toString()
   }
 
+const val BYTE_FALSE: Byte = 0
 
-class Style internal constructor() {
+object StyleKeys {
+  const val DISPLAY = 0
+  const val POSITION = 4
+  const val DIRECTION = 8
+  const val FLEX_DIRECTION = 12
+  const val FLEX_WRAP = 16
+  const val OVERFLOW_X = 20
+  const val OVERFLOW_Y = 24
 
-  private var nativePtr = 0L
+  const val ALIGN_ITEMS = 28
+  const val ALIGN_SELF = 32
+  const val ALIGN_CONTENT = 36
 
+  const val JUSTIFY_ITEMS = 40
+  const val JUSTIFY_SELF = 44
+  const val JUSTIFY_CONTENT = 48
+
+  const val INSET_LEFT_TYPE = 52
+  const val INSET_LEFT_VALUE = 56
+  const val INSET_RIGHT_TYPE = 60
+  const val INSET_RIGHT_VALUE = 64
+  const val INSET_TOP_TYPE = 68
+  const val INSET_TOP_VALUE = 72
+  const val INSET_BOTTOM_TYPE = 76
+  const val INSET_BOTTOM_VALUE = 80
+
+  const val MARGIN_LEFT_TYPE = 84
+  const val MARGIN_LEFT_VALUE = 88
+  const val MARGIN_RIGHT_TYPE = 92
+  const val MARGIN_RIGHT_VALUE = 96
+  const val MARGIN_TOP_TYPE = 100
+  const val MARGIN_TOP_VALUE = 104
+  const val MARGIN_BOTTOM_TYPE = 108
+  const val MARGIN_BOTTOM_VALUE = 112
+
+  const val PADDING_LEFT_TYPE = 116
+  const val PADDING_LEFT_VALUE = 120
+  const val PADDING_RIGHT_TYPE = 124
+  const val PADDING_RIGHT_VALUE = 128
+  const val PADDING_TOP_TYPE = 132
+  const val PADDING_TOP_VALUE = 136
+  const val PADDING_BOTTOM_TYPE = 140
+  const val PADDING_BOTTOM_VALUE = 144
+
+  const val BORDER_LEFT_TYPE = 148
+  const val BORDER_LEFT_VALUE = 152
+  const val BORDER_RIGHT_TYPE = 156
+  const val BORDER_RIGHT_VALUE = 160
+  const val BORDER_TOP_TYPE = 164
+  const val BORDER_TOP_VALUE = 168
+  const val BORDER_BOTTOM_TYPE = 172
+  const val BORDER_BOTTOM_VALUE = 176
+
+  const val FLEX_GROW = 180
+  const val FLEX_SHRINK = 184
+
+  const val FLEX_BASIS_TYPE = 188
+  const val FLEX_BASIS_VALUE = 192
+
+  const val WIDTH_TYPE = 196
+  const val WIDTH_VALUE = 200
+  const val HEIGHT_TYPE = 204
+  const val HEIGHT_VALUE = 208
+
+  const val MIN_WIDTH_TYPE = 212
+  const val MIN_WIDTH_VALUE = 216
+  const val MIN_HEIGHT_TYPE = 220
+  const val MIN_HEIGHT_VALUE = 224
+
+  const val MAX_WIDTH_TYPE = 228
+  const val MAX_WIDTH_VALUE = 232
+  const val MAX_HEIGHT_TYPE = 236
+  const val MAX_HEIGHT_VALUE = 240
+
+  const val GAP_ROW_TYPE = 244
+  const val GAP_ROW_VALUE = 248
+  const val GAP_COLUMN_TYPE = 252
+  const val GAP_COLUMN_VALUE = 256
+
+  const val ASPECT_RATIO = 260
+  const val GRID_AUTO_FLOW = 264
+  const val GRID_COLUMN_START_TYPE = 268
+  const val GRID_COLUMN_START_VALUE = 272
+  const val GRID_COLUMN_END_TYPE = 274
+  const val GRID_COLUMN_END_VALUE = 278
+  const val GRID_ROW_START_TYPE = 280
+  const val GRID_ROW_START_VALUE = 284
+  const val GRID_ROW_END_TYPE = 286
+  const val GRID_ROW_END_VALUE = 290
+  const val SCROLLBAR_WIDTH = 292
+  const val TEXT_ALIGN = 296
+  const val BOX_SIZING = 300
+  const val OVERFLOW = 304
+  const val ITEM_IS_TABLE = 308 //Byte
+}
+
+
+//grid_auto_rows: jobjectArray,
+//grid_auto_columns: jobjectArray,
+//
+//grid_template_rows: jobjectArray,
+//grid_template_columns: jobjectArray,
+//
+//
+//
+//
+//
+//
+//class me {
+//  init {
+//    val buffer = ByteBuffer.allocate(10)
+//    val buffer = ByteBuffer.allocate(21)
+//    buffer.putInt(3);
+//    val display = buffer.getInt(StyleKeys.DISPLAY)
+//
+//    buffer.put(StyleKeys.item_is_table, 1);
+//    val item_is_table = buffer.get(StyleKeys.item_is_table) != BYTE_FALSE;
+//
+//    println("$display is table ?? $item_is_table")
+//
+//
+//  }
+//}
+
+
+class Style internal constructor(private var node: Node) {
   internal var isDirty = false
 
-  var display: Display = Display.Flex
+  // Capacity is last StyleKeys key + byte size e.g ITEM_IS_TABLE is short
+  val values: ByteBuffer = ByteBuffer.allocateDirect(StyleKeys.ITEM_IS_TABLE + 2).apply {
+    this.order(ByteOrder.nativeOrder())
+  }
+
+  init {
+    nativeUpdateStyleBuffer(node.mason.nativePtr, node.nativePtr, values)
+  }
+
+  var display: Display
+    get() {
+      return Display.fromInt(values.getInt(StyleKeys.DISPLAY))
+    }
     set(value) {
-      field = value
-//      nativeSetDisplay(getNativePtr(), value.ordinal);
+      values.putInt(StyleKeys.DISPLAY, value.value)
       isDirty = true
     }
 
-  var position = Position.Relative
+  var position: Position
+    get() {
+      return Position.fromInt(values.getInt(StyleKeys.POSITION))
+    }
     set(value) {
-      field = value
+      values.putInt(StyleKeys.POSITION, value.value)
       isDirty = true
     }
 
   // TODO
-  var direction: Direction = Direction.Inherit
+  var direction: Direction
+    get() {
+      return Direction.fromInt(values.getInt(StyleKeys.DIRECTION))
+    }
+    set(value) {
+      values.putInt(StyleKeys.DIRECTION, value.value)
+      isDirty = true
+    }
+
+  var flexDirection: FlexDirection
+    get() {
+      return FlexDirection.fromInt(values.getInt(StyleKeys.FLEX_DIRECTION))
+    }
+    set(value) {
+      values.putInt(StyleKeys.FLEX_DIRECTION, value.value)
+      isDirty = true
+    }
+
+  var flexWrap: FlexWrap
+    get() {
+      return FlexWrap.fromInt(values.getInt(StyleKeys.FLEX_WRAP))
+    }
+    set(value) {
+      values.putInt(StyleKeys.FLEX_WRAP, value.value)
+      isDirty = true
+    }
+
+  var overflow: Overflow
+    get() {
+      return Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW))
+    }
+    set(value) {
+      values.putInt(StyleKeys.OVERFLOW, value.value)
+      isDirty = true
+    }
+
+  var overflowX: Overflow
+    get() {
+      return Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW_X))
+    }
+    set(value) {
+      values.putInt(StyleKeys.OVERFLOW_X, value.value)
+      isDirty = true
+    }
+
+  var overflowY: Overflow
+    get() {
+      return Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW_Y))
+    }
+    set(value) {
+      values.putInt(StyleKeys.OVERFLOW_Y, value.value)
+      isDirty = true
+    }
+
+  var alignItems: AlignItems
+    get() {
+      return AlignItems.fromInt(values.getInt(StyleKeys.ALIGN_ITEMS))
+    }
+    set(value) {
+      values.putInt(StyleKeys.ALIGN_ITEMS, value.value)
+      isDirty = true
+    }
+
+  var alignSelf: AlignSelf
+    get() {
+      return AlignSelf.fromInt(values.getInt(StyleKeys.ALIGN_SELF))
+    }
+    set(value) {
+      values.putInt(StyleKeys.ALIGN_SELF, value.value)
+      isDirty = true
+    }
+
+  var alignContent: AlignContent
+    get() {
+      return AlignContent.fromInt(values.getInt(StyleKeys.ALIGN_CONTENT))
+    }
+    set(value) {
+      values.putInt(StyleKeys.ALIGN_CONTENT, value.value)
+      isDirty = true
+    }
+
+
+  var justifyItems: JustifyItems
+    get() {
+      return JustifyItems.fromInt(values.getInt(StyleKeys.JUSTIFY_ITEMS))
+    }
+    set(value) {
+      values.putInt(StyleKeys.JUSTIFY_ITEMS, value.value)
+      isDirty = true
+    }
+
+
+  var justifySelf: JustifySelf
+    get() {
+      return JustifySelf.fromInt(values.getInt(StyleKeys.JUSTIFY_SELF))
+    }
+    set(value) {
+      values.putInt(StyleKeys.JUSTIFY_SELF, value.value)
+      isDirty = true
+    }
+
+  var justifyContent: JustifyContent
+    get() {
+      return JustifyContent.fromInt(values.getInt(StyleKeys.JUSTIFY_CONTENT))
+    }
+    set(value) {
+      values.putInt(StyleKeys.JUSTIFY_CONTENT, value.value)
+      isDirty = true
+    }
+
+  var textAlign: TextAlign = TextAlign.Auto
     set(value) {
       field = value
       isDirty = true
     }
 
-  var flexDirection: FlexDirection = FlexDirection.Row
-    set(value) {
-      field = value
-      isDirty = true
+  var boxSizing: BoxSizing
+    get() {
+      return BoxSizing.fromInt(values.getInt(StyleKeys.BOX_SIZING))
     }
-
-  var flexWrap: FlexWrap = FlexWrap.NoWrap
     set(value) {
-      field = value
-      isDirty = true
-    }
-
-  var overflow: Overflow = Overflow.Unset
-    set(value) {
-      field = value
-      isDirty = true
-    }
-
-  var overflowX: Overflow = Overflow.Unset
-    set(value) {
-      field = value
-      isDirty = true
-    }
-
-  var overflowY: Overflow = Overflow.Unset
-    set(value) {
-      field = value
-      isDirty = true
-    }
-
-  var alignItems: AlignItems = AlignItems.Normal
-    set(value) {
-      field = value
-      isDirty = true
-    }
-
-  var alignSelf: AlignSelf = AlignSelf.Normal
-    set(value) {
-      field = value
-      isDirty = true
-    }
-
-  var alignContent: AlignContent = AlignContent.Normal
-    set(value) {
-      field = value
+      values.putInt(StyleKeys.BOX_SIZING, value.value)
       isDirty = true
     }
 
 
-  var justifyItems: JustifyItems = JustifyItems.Normal
-    set(value) {
-      field = value
-      isDirty = true
+  var inset: Rect<LengthPercentageAuto>
+    get() {
+      return Rect(
+        LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.INSET_LEFT_TYPE),
+          values.getFloat(StyleKeys.INSET_LEFT_VALUE)
+        )!!,
+        LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.INSET_RIGHT_TYPE),
+          values.getFloat(StyleKeys.INSET_RIGHT_VALUE)
+        )!!,
+        LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.INSET_TOP_TYPE),
+          values.getFloat(StyleKeys.INSET_TOP_VALUE)
+        )!!,
+        LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.INSET_BOTTOM_TYPE),
+          values.getFloat(StyleKeys.INSET_BOTTOM_VALUE)
+        )!!
+      )
     }
-
-
-  var justifySelf: JustifySelf = JustifySelf.Normal
     set(value) {
-      field = value
-      isDirty = true
-    }
+      values.putInt(StyleKeys.INSET_LEFT_TYPE, value.left.type)
+      values.putFloat(StyleKeys.INSET_LEFT_VALUE, value.left.value)
 
-  var justifyContent: JustifyContent = JustifyContent.Normal
-    set(value) {
-      field = value
-      isDirty = true
-    }
+      values.putInt(StyleKeys.INSET_RIGHT_TYPE, value.right.type)
+      values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value.right.value)
 
-  var inset: Rect<LengthPercentageAuto> =
-    Rect(
-      LengthPercentageAuto.Auto,
-      LengthPercentageAuto.Auto,
-      LengthPercentageAuto.Auto,
-      LengthPercentageAuto.Auto
-    )
-    set(value) {
-      field = value
+      values.putInt(StyleKeys.INSET_TOP_TYPE, value.top.type)
+      values.putFloat(StyleKeys.INSET_TOP_VALUE, value.top.value)
+
+      values.putInt(StyleKeys.INSET_BOTTOM_TYPE, value.bottom.type)
+      values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value.bottom.value)
+
       isDirty = true
     }
 
@@ -732,7 +1000,8 @@ class Style internal constructor() {
     }
 
     left?.let {
-      inset = Rect(left, inset.right, inset.top, inset.bottom)
+      values.putInt(StyleKeys.INSET_LEFT_TYPE, type)
+      values.putFloat(StyleKeys.INSET_LEFT_VALUE, value)
     }
   }
 
@@ -745,7 +1014,8 @@ class Style internal constructor() {
     }
 
     right?.let {
-      inset = Rect(inset.left, right, inset.top, inset.bottom)
+      values.putInt(StyleKeys.INSET_RIGHT_TYPE, type)
+      values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value)
     }
   }
 
@@ -758,7 +1028,8 @@ class Style internal constructor() {
     }
 
     top?.let {
-      inset = Rect(inset.left, inset.right, top, inset.bottom)
+      values.putInt(StyleKeys.INSET_TOP_TYPE, type)
+      values.putFloat(StyleKeys.INSET_TOP_VALUE, value)
     }
   }
 
@@ -771,7 +1042,8 @@ class Style internal constructor() {
     }
 
     bottom?.let {
-      inset = Rect(inset.left, inset.right, inset.top, bottom)
+      values.putInt(StyleKeys.INSET_BOTTOM_TYPE, type)
+      values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value)
     }
   }
 
@@ -784,13 +1056,54 @@ class Style internal constructor() {
     }
 
     inset?.let {
-      this.inset = Rect(it, it, it, it)
+      values.putInt(StyleKeys.INSET_LEFT_TYPE, type)
+      values.putFloat(StyleKeys.INSET_LEFT_VALUE, value)
+
+      values.putInt(StyleKeys.INSET_RIGHT_TYPE, type)
+      values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value)
+
+      values.putInt(StyleKeys.INSET_TOP_TYPE, type)
+      values.putFloat(StyleKeys.INSET_TOP_VALUE, value)
+
+      values.putInt(StyleKeys.INSET_BOTTOM_TYPE, type)
+      values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value)
+
     }
   }
 
-  var margin: Rect<LengthPercentageAuto> = LengthPercentageAutoZeroRect
+  var margin: Rect<LengthPercentageAuto>
+    get() {
+      return Rect(
+        LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.MARGIN_LEFT_TYPE),
+          values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
+        )!!,
+        LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.MARGIN_RIGHT_TYPE),
+          values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
+        )!!,
+        LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.MARGIN_TOP_TYPE),
+          values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
+        )!!,
+        LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.MARGIN_BOTTOM_TYPE),
+          values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
+        )!!
+      )
+    }
     set(value) {
-      field = value
+      values.putInt(StyleKeys.MARGIN_LEFT_TYPE, value.left.type)
+      values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value.left.value)
+
+      values.putInt(StyleKeys.MARGIN_RIGHT_TYPE, value.right.type)
+      values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value.right.value)
+
+      values.putInt(StyleKeys.MARGIN_TOP_TYPE, value.top.type)
+      values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value.top.value)
+
+      values.putInt(StyleKeys.MARGIN_BOTTOM_TYPE, value.bottom.type)
+      values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value.bottom.value)
       isDirty = true
     }
 
@@ -803,7 +1116,8 @@ class Style internal constructor() {
     }
 
     left?.let {
-      margin = Rect(it, margin.right, margin.top, margin.bottom)
+      values.putInt(StyleKeys.MARGIN_LEFT_TYPE, type)
+      values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value)
     }
   }
 
@@ -816,7 +1130,8 @@ class Style internal constructor() {
     }
 
     right?.let {
-      margin = Rect(margin.left, right, margin.top, margin.bottom)
+      values.putInt(StyleKeys.MARGIN_RIGHT_TYPE, type)
+      values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value)
     }
   }
 
@@ -829,7 +1144,8 @@ class Style internal constructor() {
     }
 
     top?.let {
-      margin = Rect(margin.left, margin.right, top, margin.bottom)
+      values.putInt(StyleKeys.MARGIN_TOP_TYPE, type)
+      values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value)
     }
   }
 
@@ -842,7 +1158,8 @@ class Style internal constructor() {
     }
 
     bottom?.let {
-      margin = Rect(margin.left, margin.right, margin.top, bottom)
+      values.putInt(StyleKeys.MARGIN_BOTTOM_TYPE, type)
+      values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value)
     }
   }
 
@@ -855,7 +1172,17 @@ class Style internal constructor() {
     }
 
     margin?.let {
-      this.margin = Rect(it, it, it, it)
+      values.putInt(StyleKeys.MARGIN_LEFT_TYPE, type)
+      values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value)
+
+      values.putInt(StyleKeys.MARGIN_RIGHT_TYPE, type)
+      values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value)
+
+      values.putInt(StyleKeys.MARGIN_TOP_TYPE, type)
+      values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value)
+
+      values.putInt(StyleKeys.MARGIN_BOTTOM_TYPE, type)
+      values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value)
     }
   }
 
@@ -1286,8 +1613,116 @@ class Style internal constructor() {
   @Synchronized
   @Throws(Throwable::class)
   protected fun finalize() {
-    nativeDestroy(nativePtr)
-    nativePtr = 0
+//    Log.d("com.test", "style finalize: $nativePtr")
+//    nativeDestroy(nativePtr)
+//    nativePtr = 0
+  }
+
+
+  internal fun updateNativeStyle() {
+    if (node.nativePtr == 0L) {
+      return
+    }
+    nativeUpdateWithValues(
+      node.mason.nativePtr,
+      node.nativePtr,
+      display.value,
+      position.value,
+      direction.value,
+      flexDirection.value,
+      flexWrap.value,
+      overflow.value,
+      alignItems.value,
+      alignSelf.value,
+      alignContent.value,
+      justifyItems.value,
+      justifySelf.value,
+      justifyContent.value,
+
+      inset.left.type,
+      inset.left.value,
+      inset.right.type,
+      inset.right.value,
+      inset.top.type,
+      inset.top.value,
+      inset.bottom.type,
+      inset.bottom.value,
+
+      margin.left.type,
+      margin.left.value,
+      margin.right.type,
+      margin.right.value,
+      margin.top.type,
+      margin.top.value,
+      margin.bottom.type,
+      margin.bottom.value,
+
+
+      padding.left.type,
+      padding.left.value,
+      padding.right.type,
+      padding.right.value,
+      padding.top.type,
+      padding.top.value,
+      padding.bottom.type,
+      padding.bottom.value,
+
+
+      border.left.type,
+      border.left.value,
+      border.right.type,
+      border.right.value,
+      border.top.type,
+      border.top.value,
+      border.bottom.type,
+      border.bottom.value,
+      flexGrow,
+      flexShrink,
+      flexBasis.type,
+      flexBasis.value,
+
+      size.width.type,
+      size.width.value,
+      size.height.type,
+      size.height.value,
+
+
+      minSize.width.type,
+      minSize.width.value,
+      minSize.height.type,
+      minSize.height.value,
+
+      maxSize.width.type,
+      maxSize.width.value,
+      maxSize.height.type,
+      maxSize.height.value,
+
+      gap.width.type,
+      gap.width.value,
+      gap.height.type,
+      gap.height.value,
+      aspectRatio ?: Float.NaN,
+      gridAutoRows,
+      gridAutoColumns,
+      gridAutoFlow.value,
+
+      gridColumn.start.type,
+      gridColumn.start.placementValue,
+      gridColumn.end.type,
+      gridColumn.end.placementValue,
+
+      gridRow.start.type,
+      gridRow.start.placementValue,
+      gridRow.end.type,
+      gridRow.end.placementValue,
+      gridTemplateRows,
+      gridTemplateColumns,
+      overflowX.value,
+      overflowY.value,
+      scrollBarWidth.value,
+      textAlign.value,
+      boxSizing.value
+    )
   }
 
   internal fun updateStyle(
@@ -1354,6 +1789,8 @@ class Style internal constructor() {
     gapColumnType: Int,
     gapColumnValue: Float,
     aspectRatio: Float,
+    textAlign: Int,
+    boxSizing: Int,
     gridAutoRows: Array<MinMax>,
     gridAutoColumns: Array<MinMax>,
     gridAutoFlow: Int,
@@ -1567,81 +2004,81 @@ class Style internal constructor() {
     this.gridTemplateRows = gridTemplateRows
     this.gridTemplateColumns = gridTemplateColumns
 
+    this.textAlign = TextAlign.fromInt(textAlign)
+    this.boxSizing = BoxSizing.fromInt(boxSizing)
   }
 
   fun getNativeMargins(): Rect<LengthPercentageAuto> {
-    if (getNativePtr() === 0L) return LengthPercentageAutoZeroRect;
-    val nativeMargins: FloatArray = nativeGetMargins(getNativePtr());
-    if (nativeMargins.isEmpty()) return LengthPercentageAutoZeroRect;
+    if (node.nativePtr == 0L) return LengthPercentageAutoZeroRect
 
     var marginLeft: LengthPercentageAuto = LengthPercentageAuto.Auto
-    var marginEnd: LengthPercentageAuto = LengthPercentageAuto.Auto
+    var marginRight: LengthPercentageAuto = LengthPercentageAuto.Auto
     var marginTop: LengthPercentageAuto = LengthPercentageAuto.Auto
     var marginBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
 
-    LengthPercentageAuto.fromTypeValue(nativeMargins[0].toInt(), nativeMargins[1])?.let {
+    LengthPercentageAuto.fromTypeValue(
+      values.getInt(StyleKeys.MARGIN_LEFT_TYPE),
+      values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
+    )?.let {
       marginLeft = it
     }
 
-    LengthPercentageAuto.fromTypeValue(nativeMargins[2].toInt(), nativeMargins[3])?.let {
-      marginEnd = it
+    LengthPercentageAuto.fromTypeValue(
+      values.getInt(StyleKeys.MARGIN_RIGHT_TYPE),
+      values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
+    )?.let {
+      marginRight = it
     }
 
-    LengthPercentageAuto.fromTypeValue(nativeMargins[4].toInt(), nativeMargins[5])?.let {
+    LengthPercentageAuto.fromTypeValue(
+      values.getInt(StyleKeys.MARGIN_TOP_TYPE),
+      values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
+    )?.let {
       marginTop = it
     }
 
-    LengthPercentageAuto.fromTypeValue(nativeMargins[6].toInt(), nativeMargins[7])?.let {
+    LengthPercentageAuto.fromTypeValue(
+      values.getInt(StyleKeys.MARGIN_BOTTOM_TYPE),
+      values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
+    )?.let {
       marginBottom = it
     }
 
-    return Rect(marginLeft, marginEnd, marginTop, marginBottom)
+    return Rect(marginLeft, marginRight, marginTop, marginBottom)
   }
 
   fun getNativeSize(): Size<Dimension> {
-    if (getNativePtr() === 0L) return autoSize;
-    val nativeSize: FloatArray = nativeGetSize(getNativePtr());
-    if (nativeSize.isEmpty()) return autoSize;
-    val width = Dimension.fromTypeValue(nativeSize[0].toInt(), nativeSize[1]);
-    val height = Dimension.fromTypeValue(nativeSize[2].toInt(), nativeSize[3]);
+    if (node.nativePtr == 0L) return autoSize
+    val width = Dimension.fromTypeValue(
+      values.getInt(StyleKeys.WIDTH_TYPE),
+      values.getFloat(StyleKeys.WIDTH_VALUE)
+    )
+    val height = Dimension.fromTypeValue(
+      values.getInt(StyleKeys.HEIGHT_TYPE),
+      values.getFloat(StyleKeys.HEIGHT_VALUE)
+    )
     return Size(width as Dimension, height as Dimension)
   }
 
 
   var size: Size<Dimension> = autoSize
+    get() {
+      if (node.nativePtr == 0L) return field
+      val width = Dimension.fromTypeValue(
+        values.getInt(StyleKeys.WIDTH_TYPE),
+        values.getFloat(StyleKeys.WIDTH_VALUE)
+      )
+      val height = Dimension.fromTypeValue(
+        values.getInt(StyleKeys.HEIGHT_TYPE),
+        values.getFloat(StyleKeys.HEIGHT_VALUE)
+      )
+      return Size(width as Dimension, height as Dimension)
+    }
     set(value) {
       field = value
       isDirty = true
-      nativeSetSize(
-        getNativePtr(),
-        value.width.type,
-        value.width.value,
-        value.height.type,
-        value.height.value
-      );
     }
 
-  private external fun nativeGetSize(style: Long): FloatArray
-  private external fun nativeSetSize(
-    style: Long,
-    width_type: Int,
-    width: Float,
-    height_type: Int,
-    height: Float
-  )
-
-  private external fun nativeGetMargins(style: Long): FloatArray
-
-  private external fun nativeSetDisplay(style: Long, display: Int);
-
-  fun getNativePtr(): Long {
-    if (nativePtr == 0L) {
-      nativePtr = nativeInit()
-      isDirty = false
-    }
-
-    return nativePtr
-  }
 
   override fun toString(): String {
     var ret = "(MasonStyle)("
@@ -1696,6 +2133,8 @@ class Style internal constructor() {
     ret += "overflowX: ${overflowX.cssValue} \n"
     ret += "overflowY: ${overflowY.cssValue} \n"
     ret += "scrollBarWidth: ${scrollBarWidth.cssValue} \n"
+    ret += "textAlign: ${textAlign.cssValue} \n"
+    ret += "boxSizing: ${boxSizing.cssValue} \n"
     ret += ")"
 
     return ret
@@ -1706,210 +2145,112 @@ class Style internal constructor() {
       Mason.initLib()
     }
 
-
-    @CriticalNative
     @JvmStatic
-    private external fun nativeDestroy(
-      style: Long,
+    external fun nativeUpdateStyleBuffer(
+      mason: Long,
+      node: Long,
+      buffer: ByteBuffer,
     )
 
-    @CriticalNative
     @JvmStatic
-    private external fun nativeInit(): Long
+    external fun nativeUpdateWithValues(
+      mason: Long,
+      node: Long,
+      display: Int,
+      position: Int,
+      direction: Int,
+      flexDirection: Int,
+      flexWrap: Int,
+      overflow: Int,
+      alignItems: Int,
+      alignSelf: Int,
+      alignContent: Int,
+      justifyItems: Int,
+      justifySelf: Int,
+      justifyContent: Int,
+
+      insetLeftType: Int,
+      insetLeftValue: Float,
+      insetRightType: Int,
+      insetRightValue: Float,
+      insetTopType: Int,
+      insetTopValue: Float,
+      insetBottomType: Int,
+      insetBottomValue: Float,
+
+      marginLeftType: Int,
+      marginLeftValue: Float,
+      marginRightType: Int,
+      marginRightValue: Float,
+      marginTopType: Int,
+      marginTopValue: Float,
+      marginBottomType: Int,
+      marginBottomValue: Float,
+
+      paddingLeftType: Int,
+      paddingLeftValue: Float,
+      paddingRightType: Int,
+      paddingRightValue: Float,
+      paddingTopType: Int,
+      paddingTopValue: Float,
+      paddingBottomType: Int,
+      paddingBottomValue: Float,
+
+      borderLeftType: Int,
+      borderLeftValue: Float,
+      borderRightType: Int,
+      borderRightValue: Float,
+      borderTopType: Int,
+      borderTopValue: Float,
+      borderBottomType: Int,
+      borderBottomValue: Float,
+
+      flexGrow: Float,
+      flexShrink: Float,
+
+      flexBasisType: Int,
+      flexBasisValue: Float,
+
+      widthType: Int,
+      widthValue: Float,
+      heightType: Int,
+      heightValue: Float,
+
+      minWidthType: Int,
+      minWidthValue: Float,
+      minHeightType: Int,
+      minHeightValue: Float,
+
+      maxWidthType: Int,
+      maxWidthValue: Float,
+      maxHeightType: Int,
+      maxHeightValue: Float,
+
+      gapRowType: Int,
+      gapRowValue: Float,
+      gapColumnType: Int,
+      gapColumnValue: Float,
+
+      aspectRatio: Float,
+
+      gridAutoRows: Array<MinMax>,
+      gridAutoColumns: Array<MinMax>,
+      gridAutoFlow: Int,
+      gridColumnStartType: Int,
+      gridColumnStartValue: Short,
+      gridColumnEndType: Int,
+      gridColumnEndValue: Short,
+      gridRowStartType: Int,
+      gridRowStartValue: Short,
+      gridRowEndType: Int,
+      gridRowEndValue: Short,
+      gridTemplateRows: Array<TrackSizingFunction>,
+      gridTemplateColumns: Array<TrackSizingFunction>,
+      overflowX: Int,
+      overflowY: Int,
+      scrollBarWidth: Float,
+      textAlign: Int,
+      boxSizing: Int,
+    )
   }
-
-  private external fun nativeInitWithValues(
-    display: Int,
-    position: Int,
-    direction: Int,
-    flexDirection: Int,
-    flexWrap: Int,
-    overflow: Int,
-    alignItems: Int,
-    alignSelf: Int,
-    alignContent: Int,
-    justifyItems: Int,
-    justifySelf: Int,
-    justifyContent: Int,
-
-    insetLeftType: Int,
-    insetLeftValue: Float,
-    insetRightType: Int,
-    insetRightValue: Float,
-    insetTopType: Int,
-    insetTopValue: Float,
-    insetBottomType: Int,
-    insetBottomValue: Float,
-
-    marginLeftType: Int,
-    marginLeftValue: Float,
-    marginRightType: Int,
-    marginRightValue: Float,
-    marginTopType: Int,
-    marginTopValue: Float,
-    marginBottomType: Int,
-    marginBottomValue: Float,
-
-    paddingLeftType: Int,
-    paddingLeftValue: Float,
-    paddingRightType: Int,
-    paddingRightValue: Float,
-    paddingTopType: Int,
-    paddingTopValue: Float,
-    paddingBottomType: Int,
-    paddingBottomValue: Float,
-
-    borderLeftType: Int,
-    borderLeftValue: Float,
-    borderRightType: Int,
-    borderRightValue: Float,
-    borderTopType: Int,
-    borderTopValue: Float,
-    borderBottomType: Int,
-    borderBottomValue: Float,
-
-    flexGrow: Float,
-    flexShrink: Float,
-
-    flexBasisType: Int,
-    flexBasisValue: Float,
-
-    widthType: Int,
-    widthValue: Float,
-    heightType: Int,
-    heightValue: Float,
-
-    minWidthType: Int,
-    minWidthValue: Float,
-    minHeightType: Int,
-    minHeightValue: Float,
-
-    maxWidthType: Int,
-    maxWidthValue: Float,
-    maxHeightType: Int,
-    maxHeightValue: Float,
-
-    gapRowType: Int,
-    gapRowValue: Float,
-    gapColumnType: Int,
-    gapColumnValue: Float,
-
-    aspectRatio: Float,
-
-    gridAutoRows: Array<MinMax>,
-    gridAutoColumns: Array<MinMax>,
-    gridAutoFlow: Int,
-    gridColumnStartType: Int,
-    gridColumnStartValue: Short,
-    gridColumnEndType: Int,
-    gridColumnEndValue: Short,
-    gridRowStartType: Int,
-    gridRowStartValue: Short,
-    gridRowEndType: Int,
-    gridRowEndValue: Short,
-    gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>,
-    overflowX: Int,
-    overflowY: Int,
-    scrollBarWidth: Float
-  ): Long
-
-
-  private external fun nativeUpdateWithValues(
-    style: Long,
-    display: Int,
-    position: Int,
-    direction: Int,
-    flexDirection: Int,
-    flexWrap: Int,
-    overflow: Int,
-    alignItems: Int,
-    alignSelf: Int,
-    alignContent: Int,
-    justifyItems: Int,
-    justifySelf: Int,
-    justifyContent: Int,
-
-    insetLeftType: Int,
-    insetLeftValue: Float,
-    insetRightType: Int,
-    insetRightValue: Float,
-    insetTopType: Int,
-    insetTopValue: Float,
-    insetBottomType: Int,
-    insetBottomValue: Float,
-
-    marginLeftType: Int,
-    marginLeftValue: Float,
-    marginRightType: Int,
-    marginRightValue: Float,
-    marginTopType: Int,
-    marginTopValue: Float,
-    marginBottomType: Int,
-    marginBottomValue: Float,
-
-    paddingLeftType: Int,
-    paddingLeftValue: Float,
-    paddingRightType: Int,
-    paddingRightValue: Float,
-    paddingTopType: Int,
-    paddingTopValue: Float,
-    paddingBottomType: Int,
-    paddingBottomValue: Float,
-
-    borderLeftType: Int,
-    borderLeftValue: Float,
-    borderRightType: Int,
-    borderRightValue: Float,
-    borderTopType: Int,
-    borderTopValue: Float,
-    borderBottomType: Int,
-    borderBottomValue: Float,
-
-    flexGrow: Float,
-    flexShrink: Float,
-
-    flexBasisType: Int,
-    flexBasisValue: Float,
-
-    widthType: Int,
-    widthValue: Float,
-    heightType: Int,
-    heightValue: Float,
-
-    minWidthType: Int,
-    minWidthValue: Float,
-    minHeightType: Int,
-    minHeightValue: Float,
-
-    maxWidthType: Int,
-    maxWidthValue: Float,
-    maxHeightType: Int,
-    maxHeightValue: Float,
-
-    gapRowType: Int,
-    gapRowValue: Float,
-    gapColumnType: Int,
-    gapColumnValue: Float,
-
-    aspectRatio: Float,
-
-    gridAutoRows: Array<MinMax>,
-    gridAutoColumns: Array<MinMax>,
-    gridAutoFlow: Int,
-    gridColumnStartType: Int,
-    gridColumnStartValue: Short,
-    gridColumnEndType: Int,
-    gridColumnEndValue: Short,
-    gridRowStartType: Int,
-    gridRowStartValue: Short,
-    gridRowEndType: Int,
-    gridRowEndValue: Short,
-    gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>,
-    overflowX: Int,
-    overflowY: Int,
-    scrollBarWidth: Float
-  )
-
 }

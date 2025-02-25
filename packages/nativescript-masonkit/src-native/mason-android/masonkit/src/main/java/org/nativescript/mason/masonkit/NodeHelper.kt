@@ -12,22 +12,23 @@ object NodeHelper {
 
   private inline fun <T> measurePerformanceInMS(
     logger: (Long) -> Unit,
-    function: () -> T)
+    function: () -> T
+  )
     : T {
     val startTime = System.currentTimeMillis()
     val result: T = function.invoke()
     val endTime = System.currentTimeMillis()
-    logger.invoke( endTime - startTime)
+    logger.invoke(endTime - startTime)
     return result
   }
 
   //the logger function
-  fun logPerf(time: Long){
-    Log.d("TAG","PERFORMANCE IN MS: $time ms ")
+  fun logPerf(time: Long) {
+    Log.d("TAG", "PERFORMANCE IN MS: $time ms ")
   }
 
   //the function whose performance needs to be checked
-  fun longRunningFunction() : Int{
+  fun longRunningFunction(): Int {
     var x = 0
     for (i in 1..20000) x++
     return x
@@ -37,9 +38,9 @@ object NodeHelper {
   fun batchCreateViews(context: Context) {
 
 //    measurePerformanceInMS({time -> logPerf(time)}){
-      for (i in 1..1000) {
-        views.add(View(context));
-      }
+    for (i in 1..1000) {
+      views.add(View(context));
+    }
 //    }
   }
 
@@ -895,6 +896,22 @@ object NodeHelper {
   fun setAspectRatio(node: Node, aspectRatio: Float?) {
     node.style.aspectRatio = aspectRatio
     checkAndUpdateStyle(node)
+  }
+
+  fun getTextAlign(node: Node): TextAlign {
+    return node.style.textAlign
+  }
+
+  fun setTextAlign(node: Node, align: TextAlign) {
+    node.style.textAlign = align
+  }
+
+  fun getBoxSizing(node: Node): BoxSizing {
+    return node.style.boxSizing
+  }
+
+  fun setTextAlign(node: Node, sizing: BoxSizing) {
+    node.style.boxSizing = sizing
   }
 
   fun getGridAutoRows(node: Node): Array<MinMax> {

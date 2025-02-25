@@ -43,3 +43,8 @@ Thumbs.db
 *.tgz
 packages/**/angular/dist
 packages/**/DerivedData
+
+
+/target
+/**/*.rs.bk
+/Cargo.lock

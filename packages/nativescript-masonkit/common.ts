@@ -80,7 +80,6 @@ import {
   _setWidth,
   getScrollbarWidth,
 } from './helpers';
-import { isNullOrUndefined } from '@nativescript/core/utils/types';
 
 // let widgetMasonView: typeof org.nativescript.mason.masonkit.View;
 
@@ -1462,10 +1461,14 @@ const flexProperty = new ShorthandProperty({
 
 export const BigIntZero = BigInt(0);
 
+export const style = Symbol('[[style]]');
+export const node = Symbol('[[node]]');
+export const mason = Symbol('[[mason]]');
+
 @CSSType('TSCView')
 export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder {
-  android: org.nativescript.mason.masonkit.View;
-  ios: UIView;
+  readonly android: org.nativescript.mason.masonkit.View;
+  readonly ios: UIView;
   gridGap: Gap;
   gap: Gap;
   gridArea: string;
@@ -1475,9 +1478,10 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   _children: any[] = [];
   _isMasonView = false;
   _isMasonChild = false;
-  __masonStylePtr = BigIntZero;
-  __masonNodePtr = BigIntZero;
-  __masonPtr = BigIntZero;
+
+  [style] = BigIntZero;
+  [node] = BigIntZero;
+  [mason] = BigIntZero;
 
   constructor() {
     super();

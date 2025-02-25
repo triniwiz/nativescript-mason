@@ -3,8 +3,8 @@ package org.nativescript.mason.masonkit
 sealed class LengthPercentageAuto {
   data class Points(var points: Float) : LengthPercentageAuto()
   data class Percent(var percentage: Float) : LengthPercentageAuto()
-  object Auto : LengthPercentageAuto()
-  object Zero : LengthPercentageAuto() {
+  data object Auto : LengthPercentageAuto()
+  data object Zero : LengthPercentageAuto() {
     const val points: Float = 0f
   }
 
@@ -42,9 +42,11 @@ sealed class LengthPercentageAuto {
       is Points -> {
         this.points = value
       }
+
       is Percent -> {
         this.percentage = value
       }
+
       else -> {}
     }
   }
@@ -60,12 +62,15 @@ sealed class LengthPercentageAuto {
         is Points -> {
           "$points$PxUnit"
         }
+
         is Percent -> {
           "${percentage * 100}$PercentUnit"
         }
+
         is Auto -> {
           AutoValue
         }
+
         is Zero -> {
           "$points$PxUnit"
         }

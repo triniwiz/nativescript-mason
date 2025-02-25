@@ -4,9 +4,9 @@ package org.nativescript.mason.masonkit
 sealed class MinSizing {
   data class Points(var points: Float) : MinSizing()
   data class Percent(var percentage: Float) : MinSizing()
-  object Auto : MinSizing()
-  object MinContent : MinSizing()
-  object MaxContent : MinSizing()
+  data object Auto : MinSizing()
+  data object MinContent : MinSizing()
+  data object MaxContent : MinSizing()
 
   companion object {
     @JvmStatic
@@ -47,9 +47,9 @@ sealed class MaxSizing {
   data class FitContent(var fitContent: Float) : MaxSizing()
   data class FitContentPercent(var fitContent: Float) : MaxSizing()
   data class Fraction(var fraction: Float) : MaxSizing()
-  object Auto : MaxSizing()
-  object MinContent : MaxSizing()
-  object MaxContent : MaxSizing()
+  data object Auto : MaxSizing()
+  data object MinContent : MaxSizing()
+  data object MaxContent : MaxSizing()
 
   companion object {
     @JvmStatic

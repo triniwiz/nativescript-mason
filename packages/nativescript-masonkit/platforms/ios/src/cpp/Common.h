@@ -23,8 +23,7 @@ extern "C" {
 
 #ifdef __ANDROID__
 #include "include/v8/v8.h"
-#include "include/mason_android.h"
-#include "include/mason_native.h"
+#include "include/mason_v8.h"
 #include <android/log.h>
 #include <thread>
 #endif
