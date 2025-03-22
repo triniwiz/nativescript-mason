@@ -24,7 +24,7 @@ object NodeHelper {
 
   //the logger function
   fun logPerf(time: Long) {
-    Log.d("TAG", "PERFORMANCE IN MS: $time ms ")
+    Log.d("JS", "PERFORMANCE IN MS: $time ms ")
   }
 
   //the function whose performance needs to be checked
@@ -46,7 +46,7 @@ object NodeHelper {
 
   private fun checkAndUpdateStyle(node: Node) {
     if (!node.inBatch) {
-      node.updateNodeStyle()
+      node.style.updateNativeStyle()
     }
   }
 
@@ -124,11 +124,11 @@ object NodeHelper {
   }
 
   fun getScrollBarWidth(node: Node): Float {
-    return node.style.scrollBarWidth.value
+    return node.style.scrollBarWidth
   }
 
   fun setScrollBarWidth(node: Node, scrollBarWidth: Float) {
-    node.style.scrollBarWidth = Dimension.Points(scrollBarWidth)
+    node.style.scrollBarWidth = scrollBarWidth
     checkAndUpdateStyle(node)
   }
 

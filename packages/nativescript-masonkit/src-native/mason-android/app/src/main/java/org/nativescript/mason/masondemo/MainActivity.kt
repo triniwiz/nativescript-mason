@@ -3,6 +3,7 @@ package org.nativescript.mason.masondemo
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.text.SpannableStringBuilder
 import android.util.Log
 import org.nativescript.mason.masondemo.databinding.ActivityMainBinding
 import org.nativescript.mason.masonkit.*
@@ -13,7 +14,7 @@ class MainActivity : AppCompatActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-
+    /*
     val now = System.currentTimeMillis()
 
     // 1000 :- 90
@@ -28,14 +29,13 @@ class MainActivity : AppCompatActivity() {
     // 100000 :- ~2962
     // 1000000 :- 90 x
 
-  //  for(i in 0 until 1000){
-  //    val node = mason.createNode()
-//      if (i == 100000){
-//        System.gc()
-//      }
-  //  }
+    for (j in 0 until 1_00_000) {
+      val node = mason.createNode()
+    }
 
     Log.d("com.test", "time ${System.currentTimeMillis() - now}")
+    */
+
 
 
     binding = ActivityMainBinding.inflate(layoutInflater)
@@ -75,6 +75,11 @@ class MainActivity : AppCompatActivity() {
 
     binding.btnScroll.setOnClickListener {
       val intent = Intent(this, ScrollActivity::class.java)
+      startActivity(intent)
+    }
+
+    binding.btnText.setOnClickListener {
+      val intent = Intent(this, TextActivity::class.java)
       startActivity(intent)
     }
 

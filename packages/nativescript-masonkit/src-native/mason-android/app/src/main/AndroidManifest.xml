@@ -16,6 +16,9 @@
         android:theme="@style/Theme.MasonDemo"
         tools:targetApi="31">
         <activity
+            android:name=".TextActivity"
+            android:exported="false" />
+        <activity
             android:name=".ImageActivity"
             android:exported="false">
             <meta-data

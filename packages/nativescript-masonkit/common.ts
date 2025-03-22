@@ -1,804 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CoreTypes, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View, ViewBase, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, getViewById, heightProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, unsetValue, widthProperty } from '@nativescript/core';
-import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, colorProperty, widthProperty, heightProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent } from '.';
-import {
-  _forceStyleUpdate,
-  _getAlignContent,
-  _getAlignItems,
-  _getAlignSelf,
-  _getAspectRatio,
-  _getColumnGap,
-  _getDisplay,
-  _getFlexBasis,
-  _getFlexDirection,
-  _getFlexGrow,
-  _getFlexShrink,
-  _getFlexWrap,
-  _getHeight,
-  _getJustifyContent,
-  _getJustifyItems,
-  _getJustifySelf,
-  _getOverflow,
-  _getOverflowX,
-  _getOverflowY,
-  _getPosition,
-  _getRowGap,
-  _getWidth,
-  _parseGridTemplates,
-  _setAlignContent,
-  _setAlignItems,
-  _setAlignSelf,
-  _setAspectRatio,
-  _setBorderBottom,
-  _setBorderLeft,
-  _setBorderRight,
-  _setBorderTop,
-  _setBottom,
-  _setColumnGap,
-  _setDisplay,
-  _setFlexBasis,
-  _setFlexDirection,
-  _setFlexGrow,
-  _setFlexShrink,
-  _setFlexWrap,
-  _setGridAutoColumns,
-  _setGridAutoFlow,
-  _setGridAutoRows,
-  _setGridColumnEnd,
-  _setGridColumnStart,
-  _setGridRowEnd,
-  _setGridRowStart,
-  _setGridTemplateColumns,
-  _setGridTemplateRows,
-  _setHeight,
-  _setJustifyContent,
-  _setJustifyItems,
-  _setJustifySelf,
-  _setLeft,
-  _setMarginBottom,
-  _setMarginLeft,
-  _setMarginRight,
-  _setMarginTop,
-  _setMaxHeight,
-  _setMaxWidth,
-  _setMinHeight,
-  _setMinWidth,
-  _setOverflow,
-  _setOverflowX,
-  _setOverflowY,
-  _setPaddingBottom,
-  _setPaddingLeft,
-  _setPaddingRight,
-  _setPaddingTop,
-  _setPosition,
-  _setRight,
-  _setRowGap,
-  _setScrollbarWidth,
-  _setTop,
-  _setWidth,
-  getScrollbarWidth,
-} from './helpers';
-
-// let widgetMasonView: typeof org.nativescript.mason.masonkit.View;
-
-// function ensureNativeTypes() {
-// 	if (!widgetMasonView) {
-// 		widgetMasonView = org.nativescript.mason.masonkit.View;
-// 	}
-// }
-
-// function makeNativeSetter<T>(setter: (lp: org.nativescript.widgets.FlexboxLayout.LayoutParams, value: T) => void) {
-// 	return function (this: View, value: T) {
-// 		ensureNativeTypes();
-// 		const nativeView: android.view.View = this.nativeViewProtected;
-// 		const lp = nativeView.getLayoutParams() || new widgetLayoutParams();
-// 		if (lp instanceof widgetLayoutParams) {
-// 			setter(lp, value);
-// 			nativeView.setLayoutParams(lp);
-// 		}
-// 	};
-// }
-
-export function applyMixins(
-  derivedCtor: any,
-  baseCtors: any[],
-  options?: {
-    after?: boolean;
-    override?: boolean;
-    overrideIfExists?: string;
-    omit?: (string | symbol)[];
-  }
-) {
-  const omits = options && options.omit ? options.omit : [];
-  baseCtors.forEach((baseCtor) => {
-    Object.getOwnPropertyNames(baseCtor.prototype).forEach((name) => {
-      if (omits.indexOf(name) !== -1) {
-        return;
-      }
-      const descriptor = Object.getOwnPropertyDescriptor(baseCtor.prototype, name);
-
-      if (name === 'constructor') return;
-      if (descriptor && (descriptor.get || descriptor.set)) {
-        Object.defineProperty(derivedCtor.prototype, name, descriptor);
-      } else {
-        const oldImpl = derivedCtor.prototype[name];
-
-        if (!oldImpl) {
-          derivedCtor.prototype[name] = baseCtor.prototype[name];
-        } else {
-          derivedCtor.prototype[name] = function (...args) {
-            if (options) {
-              if (options.override) {
-                return baseCtor.prototype[name].apply(this, args);
-              } else if (options.after) {
-                return baseCtor.prototype[name].apply(this, args);
-              } else if (options.overrideIfExists) {
-                if (this[options.overrideIfExists]) {
-                  return baseCtor.prototype[name].apply(this, args);
-                }
-                return oldImpl.apply(this, args);
-              } else {
-                baseCtor.prototype[name].apply(this, args);
-                return oldImpl.apply(this, args);
-              }
-            } else {
-              baseCtor.prototype[name].apply(this, args);
-              return oldImpl.apply(this, args);
-            }
-          };
-        }
-      }
-    });
-    Object.getOwnPropertySymbols(baseCtor.prototype).forEach((symbol) => {
-      if (omits.indexOf(symbol) !== -1) {
-        return;
-      }
-      const oldImpl: Function = derivedCtor.prototype[symbol];
-      if (!oldImpl) {
-        derivedCtor.prototype[symbol] = baseCtor.prototype[symbol];
-      } else {
-        derivedCtor.prototype[symbol] = function (...args) {
-          if (options) {
-            if (options.override) {
-              return baseCtor.prototype[symbol].apply(this, args);
-            }
-            if (options.overrideIfExists) {
-              if (this[options.overrideIfExists]) {
-                return baseCtor.prototype[symbol].apply(this, args);
-              }
-              return oldImpl.apply(this, args);
-            } else if (options.after) {
-              oldImpl.apply(this, args);
-              return baseCtor.prototype[symbol].apply(this, args);
-            } else {
-              baseCtor.prototype[symbol].apply(this, args);
-              return oldImpl.apply(this, args);
-            }
-          } else {
-            baseCtor.prototype[symbol].apply(this, args);
-            return oldImpl.apply(this, args);
-          }
-        };
-      }
-    });
-  });
-}
-
-let mixinInstalled = false;
-export function overrideViewBase() {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const NSView = require('@nativescript/core').View;
-  class ViewOverride extends View {
-    get _isMasonViewOrChild() {
-      return this._isMasonView || this._isMasonChild;
-    }
-
-    _isMasonView = false;
-    _isMasonChild = false;
-
-    /* Short Props */
-
-    set gridRowGap(value) {
-      this.style.gridRowGap = value;
-    }
-
-    get gridRowGap() {
-      return this.style.gridRowGap;
-    }
-
-    set gridGap(value) {
-      this.style.gridGap = value;
-    }
-
-    get gridGap() {
-      return this.style.gridGap;
-    }
-
-    set gap(value) {
-      this.style.gap = value;
-    }
-
-    get gap() {
-      return this.style.gap;
-    }
-
-    set gridArea(value) {
-      this.style.gridArea = value;
-    }
-
-    get gridArea() {
-      return this.style.gridArea;
-    }
-
-    set gridColumn(value) {
-      this.style.gridColumn = value;
-    }
-
-    get gridColumn() {
-      return this.style.gridColumn;
-    }
-
-    set gridRow(value) {
-      this.style.gridRow = value;
-    }
-
-    get gridRow() {
-      return this.style.gridColumn;
-    }
-
-    /* Short Props */
-
-    get display(): Display {
-      return _getDisplay(this as any);
-    }
-
-    set display(value) {
-      this.style.display = value as any;
-    }
-
-    [displayProperty.setNative](value) {
-      _setDisplay(value, this as any);
-    }
-
-    set position(value) {
-      this.style.position = value;
-    }
-
-    get position(): Position {
-      return _getPosition(this as any);
-    }
-
-    [positionProperty.setNative](value) {
-      _setPosition(value, this as any);
-    }
-
-    set flexDirection(value) {
-      this.style.flexDirection = value;
-    }
-
-    get flexDirection() {
-      return _getFlexDirection(this as any);
-    }
-
-    [flexDirectionProperty.setNative](value) {
-      _setFlexDirection(value, this as any);
-    }
-
-    set flexWrap(value) {
-      this.style.flexWrap = value as any;
-    }
-
-    get flexWrap() {
-      return _getFlexWrap(this as any);
-    }
-
-    [flexWrapProperty.setNative](value) {
-      _setFlexWrap(value, this as any);
-    }
-
-    set alignItems(value) {
-      this.style.alignItems = value as any;
-    }
-
-    get alignItems() {
-      return _getAlignItems(this as any);
-    }
-
-    [alignItemsProperty.setNative](value) {
-      _setAlignItems(value, this as any);
-    }
-
-    //@ts-ignore
-    set alignSelf(value: AlignSelf) {
-      this.style.alignSelf = value as any;
-    }
-
-    //@ts-ignore
-    get alignSelf() {
-      return _getAlignSelf(this as any);
-    }
-
-    [alignSelfProperty.setNative](value) {
-      _setAlignSelf(value, this as any);
-    }
-
-    set alignContent(value) {
-      this.style.alignContent = value as any;
-    }
-
-    get alignContent() {
-      return _getAlignContent(this as any);
-    }
-
-    [alignContentProperty.setNative](value) {
-      _setAlignContent(value, this as any);
-    }
-
-    set justifyItems(value) {
-      this.style.justifyItems = value as any;
-    }
-
-    get justifyItems() {
-      return _getJustifyItems(this as any);
-    }
-
-    [justifyItemsProperty.setNative](value) {
-      _setJustifyItems(value, this as any);
-    }
-
-    set justifySelf(value) {
-      this.style.justifySelf = value as any;
-    }
-
-    get justifySelf() {
-      return _getJustifySelf(this as any);
-    }
-
-    [justifySelfProperty.setNative](value) {
-      _setJustifySelf(value, this as any);
-    }
-
-    set justifyContent(value) {
-      this.style.justifyContent = value as any;
-    }
-
-    get justifyContent() {
-      return _getJustifyContent(this as any);
-    }
-
-    [justifyContentProperty.setNative](value) {
-      _setJustifyContent(value, this as any);
-    }
-
-    //@ts-ignore
-    set left(value) {
-      this.style.left = value;
-    }
-
-    get left() {
-      return this.style.left;
-    }
-
-    [leftProperty.setNative](value) {
-      _setLeft(value, this as any);
-    }
-
-    //@ts-ignore
-    set right(value) {
-      this.style.right = value;
-    }
-
-    get right() {
-      return this.style.right;
-    }
-
-    [rightProperty.setNative](value) {
-      _setRight(value, this as any);
-    }
-
-    //@ts-ignore
-    set top(value) {
-      this.style.top = value;
-    }
-
-    get top() {
-      return this.style.top;
-    }
-
-    [topProperty.setNative](value) {
-      _setTop(value, this as any);
-    }
-
-    //@ts-ignore
-    set bottom(value) {
-      this.style.bottom = value;
-    }
-
-    get bottom() {
-      return this.style.bottom;
-    }
-
-    [bottomProperty.setNative](value) {
-      _setBottom(value, this as any);
-    }
-
-    [marginLeftProperty.setNative](value) {
-      _setMarginLeft(value, this as any);
-    }
-
-    [marginRightProperty.setNative](value) {
-      _setMarginRight(value, this as any);
-    }
-
-    [marginTopProperty.setNative](value) {
-      _setMarginTop(value, this as any);
-    }
-
-    [marginBottomProperty.setNative](value) {
-      _setMarginBottom(value, this as any);
-    }
-
-    [borderLeftWidthProperty.setNative](value) {
-      _setBorderLeft(value, this as any);
-    }
-
-    [borderRightWidthProperty.setNative](value) {
-      _setBorderRight(value, this as any);
-    }
-
-    [borderTopWidthProperty.setNative](value) {
-      _setBorderTop(value, this as any);
-    }
-
-    [borderBottomWidthProperty.setNative](value) {
-      _setBorderBottom(value, this as any);
-    }
-
-    //@ts-ignore
-    get flexGrow() {
-      return _getFlexGrow(this as any);
-    }
-
-    set flexGrow(value) {
-      this.style.flexGrow = value;
-    }
-
-    [flexGrowProperty.setNative](value) {
-      _setFlexGrow(value, this as any);
-    }
-
-    get flex() {
-      return this.style.flex;
-    }
-
-    set flex(value) {
-      this.style.flex = value;
-    }
-
-    get flexFlow() {
-      return this.style.flexFlow;
-    }
-
-    set flexFlow(value) {
-      this.style.flexFlow = value;
-    }
-    //@ts-ignore
-    get flexShrink() {
-      return _getFlexShrink(this as any);
-    }
-
-    set flexShrink(value) {
-      this.style.flexShrink = value;
-    }
-
-    [flexShrinkProperty.setNative](value) {
-      _setFlexShrink(value, this as any);
-    }
-
-    //@ts-ignore
-    get flexBasis() {
-      return _getFlexBasis(this as any);
-    }
-
-    set flexBasis(value) {
-      this.style.flexBasis = value;
-    }
-
-    [flexBasisProperty.setNative](value) {
-      _setFlexBasis(value, this as any);
-    }
-
-    /* faster setter/getter
-    //@ts-ignore
-    get gap() {
-      return _getGap(this as any);
-    }
-
-    set gap(value) {
-      this.style.gap = value;
-      _setGap(value, this as any);
-    }
-
-    */
-
-    set rowGap(value) {
-      this.style.rowGap = value;
-    }
-
-    get rowGap() {
-      return _getRowGap(this as any);
-    }
-
-    [rowGapProperty.setNative](value) {
-      _setRowGap(value, this as any);
-    }
-
-    set columnGap(value) {
-      this.style.columnGap = value;
-    }
-
-    get columnGap() {
-      return _getColumnGap(this as any);
-    }
-
-    [columnGapProperty.setNative](value) {
-      _setColumnGap(value, this as any);
-    }
-
-    get aspectRatio() {
-      return _getAspectRatio(this as any);
-    }
-
-    [aspectRatioProperty.setNative](value) {
-      _setAspectRatio(value, this as any);
-    }
-
-    [paddingLeftProperty.setNative](value) {
-      _setPaddingLeft(value, this as any);
-    }
-
-    [paddingTopProperty.setNative](value) {
-      _setPaddingTop(value, this as any);
-    }
-
-    [paddingRightProperty.setNative](value) {
-      _setPaddingRight(value, this as any);
-    }
-
-    [paddingBottomProperty.setNative](value) {
-      _setPaddingBottom(value, this as any);
-    }
-
-    //@ts-ignore
-    set minWidth(value) {
-      this.style.minWidth = value;
-    }
-
-    [minWidthProperty.setNative](value) {
-      _setMinWidth(value, this as any);
-    }
-
-    //@ts-ignore
-    set minHeight(value) {
-      this.style.minHeight = value;
-    }
-
-    [minHeightProperty.setNative](value) {
-      _setMinHeight(value, this as any);
-    }
-
-    //@ts-ignore
-    set width(value) {
-      this.style.width = value;
-    }
-
-    get width() {
-      return _getWidth(this as any);
-    }
-
-    [widthProperty.setNative](value) {
-      _setWidth(value, this as any);
-    }
-
-    //@ts-ignore
-    set height(value) {
-      this.style.height = value;
-    }
-
-    //@ts-ignore
-    get height() {
-      return _getHeight(this as any);
-    }
-
-    [heightProperty.setNative](value) {
-      _setHeight(value, this as any);
-    }
-
-    set maxWidth(value) {
-      this.style.maxWidth = value;
-    }
-
-    [maxWidthProperty.setNative](value) {
-      _setMaxWidth(value, this as any);
-    }
-
-    //@ts-ignore
-    set maxHeight(value) {
-      this.style.maxHeight = value;
-    }
-
-    [maxHeightProperty.setNative](value) {
-      _setMaxHeight(value, this as any);
-    }
-
-    //@ts-ignore
-    set gridAutoRows(value) {
-      this.style.gridAutoRows = value;
-    }
-
-    //@ts-ignore
-    get gridAutoRows() {
-      return this.style.gridAutoRows;
-    }
-
-    [gridAutoRowsProperty.setNative](value) {
-      _setGridAutoRows(value, this as any);
-    }
-
-    //@ts-ignore
-    set gridAutoColumns(value) {
-      this.style.gridAutoColumns = value;
-    }
-
-    get gridAutoColumns() {
-      return this.style.gridAutoColumns;
-    }
-
-    [gridAutoColumnsProperty.setNative](value) {
-      _setGridAutoColumns(value, this as any);
-    }
-
-    set gridAutoFlow(value) {
-      this.style.gridAutoFlow = value;
-    }
-
-    get gridAutoFlow() {
-      return this.style.gridAutoFlow;
-    }
-
-    [gridAutoFlowProperty.setNative](value) {
-      _setGridAutoFlow(value, this as any);
-    }
-
-    set gridColumnStart(value) {
-      this.style.gridColumnStart = value;
-    }
-
-    get gridColumnStart() {
-      return this.style.gridColumnStart;
-    }
-
-    [gridColumnStartProperty.setNative](value) {
-      _setGridColumnStart(value, this as any);
-    }
-
-    set gridColumnEnd(value) {
-      this.style.gridColumnEnd = value;
-    }
-
-    get gridColumnEnd() {
-      return this.style.gridColumnEnd;
-    }
-
-    [gridColumnEndProperty.setNative](value) {
-      _setGridColumnEnd(value, this as any);
-    }
-
-    set gridRowStart(value) {
-      this.style.gridRowStart = value;
-    }
-
-    get gridRowStart() {
-      return this.style.gridRowStart;
-    }
-
-    [gridRowStartProperty.setNative](value) {
-      _setGridRowStart(value, this as any);
-    }
-
-    set gridRowEnd(value) {
-      this.style.gridRowEnd = value;
-    }
-
-    get gridRowEnd() {
-      return this.style.gridRowEnd;
-    }
-
-    [gridRowEndProperty.setNative](value) {
-      _setGridRowEnd(value, this as any);
-    }
-
-    set gridTemplateRows(value) {
-      this.style.gridTemplateRows = value;
-    }
-
-    [gridTemplateRowsProperty.setNative](value) {
-      const templates = _parseGridTemplates(value);
-      if (templates) {
-        _setGridTemplateRows(templates, this as any);
-      }
-    }
-
-    set gridTemplateColumns(value) {
-      this.style.gridTemplateColumns = value;
-    }
-
-    [gridTemplateColumnsProperty.setNative](value) {
-      const templates = _parseGridTemplates(value);
-      if (templates) {
-        _setGridTemplateColumns(templates, this as any);
-      }
-    }
-
-    get scrollBarWidth() {
-      return getScrollbarWidth(this as any);
-    }
-
-    set scrollBarWidth(value: number | CoreTypes.LengthType) {
-      this.style.scrollBarWidth = value;
-    }
-
-    [scrollBarWidthProperty.setNative](value) {
-      _setScrollbarWidth(value, this as any);
-    }
-
-    get overflow() {
-      return _getOverflow(this as any);
-    }
-
-    set overflow(value: Overflow) {
-      this.style.overflow = value;
-    }
-
-    [overflowProperty.setNative](value) {
-      _setOverflow(value, this as any);
-    }
-
-    get overflowX() {
-      return _getOverflowX(this as any);
-    }
-
-    set overflowX(value: Overflow) {
-      this.style.overflowX = value;
-    }
-
-    [overflowXProperty.setNative](value) {
-      _setOverflowX(value, this as any);
-    }
-
-    get overflowY() {
-      return _getOverflowY(this as any);
-    }
-
-    set overflowY(value: Overflow) {
-      this.style.overflowY = value;
-    }
-
-    [overflowYProperty.setNative](value) {
-      _setOverflowY(value, this as any);
-    }
-  }
-  applyMixins(NSView, [ViewOverride], { overrideIfExists: '_isMasonViewOrChild' });
-}
-
-export function installMixins() {
-  if (!mixinInstalled) {
-    mixinInstalled = true;
-    overrideViewBase();
-  }
-}
+import { _forceStyleUpdate, _setAlignContent, _setDisplay, _setFlexDirection, _setHeight, _setJustifyContent, _setWidth } from './helpers';
+import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
+
+export const native_ = Symbol('[[native]]');
+export const style_ = Symbol('[[style]]');
 
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',
@@ -867,7 +75,7 @@ export const flexShrinkProperty = new CssProperty<Style, number>({
 export const displayProperty = new CssProperty<Style, Display>({
   name: 'display',
   cssName: 'display',
-  defaultValue: 'flex',
+  defaultValue: 'block',
   valueConverter(value) {
     if (typeof value === 'number') {
       switch (value) {
@@ -890,7 +98,7 @@ export const displayProperty = new CssProperty<Style, Display>({
         return value;
       default:
         // todo throw???
-        return 'flex';
+        return 'block';
     }
   },
 });
@@ -1465,8 +673,14 @@ export const style = Symbol('[[style]]');
 export const node = Symbol('[[node]]');
 export const mason = Symbol('[[mason]]');
 
-@CSSType('TSCView')
-export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder {
+export const textProperty = new Property<TextBase, string>({
+  name: 'text',
+  affectsLayout: true,
+  defaultValue: '',
+});
+
+@CSSType('View')
+export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: UIView;
   gridGap: Gap;
@@ -1474,12 +688,13 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   gridArea: string;
   gridColumn: string;
   gridRow: string;
+  display: Display;
+  position: Position;
 
   _children: any[] = [];
   _isMasonView = false;
   _isMasonChild = false;
 
-  [style] = BigIntZero;
   [node] = BigIntZero;
   [mason] = BigIntZero;
 
@@ -1492,7 +707,7 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
     _forceStyleUpdate(this as any);
   }
 
-  public eachLayoutChild(callback: (child: View, isLast: boolean) => void): void {
+  public eachLayoutChild(callback: (child: NSView, isLast: boolean) => void): void {
     let lastChild: View = null;
 
     this.eachChildView((cv) => {
@@ -1512,76 +727,22 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
     }
   }
 
-  public eachChild(callback: (child: ViewBase) => boolean) {
+  public eachChild(callback: (child: NSViewBase) => boolean) {
     for (const child of this._children) {
       callback(child);
     }
   }
 
-  public eachChildView(callback: (child: View) => boolean): void {
+  public eachChildView(callback: (child: NSView) => boolean): void {
     for (const view of this._children) {
       callback(view);
     }
   }
 
   _addChildFromBuilder(name: string, value: any): void {
-    this._children.push(value);
-    if (!(value instanceof TSCViewBase) && !Object.hasOwn(value, '_isMasonChild')) {
-      value.loadPtrs = function () {
-        // @ts-ignore
-        if (global.isIOS) {
-          if (!this.nativeView) {
-            return;
-          }
-          const ptrs = this.nativeView?.masonPtrs?.split?.(':');
-          this.__masonPtr = BigInt(ptrs[0]);
-          this.__masonNodePtr = BigInt(ptrs[1]);
-          this.__masonStylePtr = BigInt(ptrs[2]);
-        }
-      };
-
-      Object.defineProperties(value, {
-        __masonPtr: {
-          value: BigIntZero,
-          writable: true,
-        },
-        __masonNodePtr: {
-          value: BigIntZero,
-          writable: true,
-        },
-        __masonStylePtr: {
-          value: BigIntZero,
-          writable: true,
-        },
-        _masonStylePtr: {
-          get: function () {
-            if (this.__masonStylePtr === BigIntZero) {
-              this.loadPtrs();
-            }
-            return this.__masonStylePtr;
-          },
-        },
-        _masonNodePtr: {
-          get: function () {
-            if (this.__masonNodePtr === BigIntZero) {
-              this.loadPtrs();
-            }
-            return this.__masonNodePtr;
-          },
-        },
-        _masonPtr: {
-          get: function () {
-            if (this.__masonPtr === BigIntZero) {
-              this.loadPtrs();
-            }
-            return this.__masonPtr;
-          },
-        },
-      });
+    if (value instanceof NSView) {
+      this.addChild(value);
     }
-    value._isMasonChild = true;
-
-    this._addView(value);
   }
 
   getChildrenCount() {
@@ -1596,7 +757,7 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
     return this._children[index];
   }
 
-  getChildIndex(child: View) {
+  getChildIndex(child: NSView) {
     return this._children.indexOf(child);
   }
   getChildById(id: string) {
@@ -1605,13 +766,11 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
 
   addChild(child: any) {
     this._children.push(child);
-    child._isMasonChild = true;
     this._addView(child);
   }
 
   insertChild(child: any, atIndex: number) {
     this._children.splice(atIndex, 0, child);
-    child._isMasonChild = true;
     this._addView(child, atIndex);
   }
 
@@ -1619,7 +778,6 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
     const index = this._children.indexOf(child);
     if (index > -1) {
       this._children.splice(index, 1);
-      child._isMasonChild = false;
       this._removeView(child);
     }
   }
@@ -1634,7 +792,37 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
     }
     this._children.splice(0);
   }
+  [displayProperty.setNative](value) {
+    _setDisplay(value, this as any);
+  }
+
+  [flexDirectionProperty.setNative](value) {
+    _setFlexDirection(value, this as any);
+  }
+
+  [widthProperty.setNative](value) {
+    _setWidth(value, this as any);
+  }
+
+  [heightProperty.setNative](value) {
+    _setHeight(value, this as any);
+  }
+  [alignContentProperty.setNative](value) {
+    _setAlignContent(value, this as any);
+  }
+  [justifyContentProperty.setNative](value) {
+    _setJustifyContent(value, this as any);
+  }
 }
+
+@CSSType('Text')
+export class TextBase extends ViewBase {
+  constructor() {
+    super();
+  }
+}
+
+textProperty.register(TextBase);
 
 /**
  * Props are already defined in core flexbox layout,
@@ -1644,6 +832,7 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
 // flexWrapProperty.register(Style);
 // flexGrowProperty.register(Style);
 // flexShrinkProperty.register(Style);
+
 alignItemsProperty.register(Style);
 alignSelfProperty.register(Style);
 justifyContentProperty.register(Style);
@@ -1699,5 +888,3 @@ scrollBarWidthProperty.register(Style);
 
 flexFlowProperty.register(Style);
 flexProperty.register(Style);
-
-installMixins();

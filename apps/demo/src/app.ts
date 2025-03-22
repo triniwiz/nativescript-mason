@@ -1,4 +1,5 @@
-import { Application } from '@nativescript/core';
+import { Application, GridLayout } from '@nativescript/core';
+import { View } from '@triniwiz/nativescript-masonkit';
 
 declare const __non_webpack_require__;
 
@@ -14,4 +15,24 @@ declare const __non_webpack_require__;
 // } catch (error) {
 //   console.log(error);
 // }
+
+console.time('legacy');
+const legacy = Array.from({ length: 1000 }).map((_, i) => {
+  const grid = new GridLayout();
+  grid.width = 100;
+  grid.height = 100;
+  return grid;
+});
+console.timeEnd('legacy');
+
+console.time('mason');
+const mason = Array.from({ length: 1000 }).map((_, i) => {
+  const grid = new View();
+  // grid.display = 'grid';
+  // grid.width = 100;
+  // grid.height = 100;
+  return grid;
+});
+console.timeEnd('mason');
+
 Application.run({ moduleName: 'app-root' });

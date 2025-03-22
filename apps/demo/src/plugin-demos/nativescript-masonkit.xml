@@ -6,10 +6,23 @@
   </Page.actionBar>
 
 
-  <ui:Flex class="flex-example" color="white">
-    <Label text="a" class="a"/>
-    <Label text="b" class="b"/>
-  </ui:Flex>
+    <ui:View backgroundColor="yellow" loaded="loaded">
+    <ui:Text text="This" backgroundColor="blue" color="orange">
+        <ui:Text text=" is" backgroundColor="red" color="green" loaded="textLoaded"/>
+        <ui:Text text=" a"  backgroundColor="purple" color="white" loaded="textLoaded"/>
+        <ui:Text text=" nested text"  backgroundColor="teal" color="black" loaded="textLoaded"/>
+    </ui:Text>
+    <ui:View backgroundColor="pink" width="200" height="200"></ui:View>
+  </ui:View>
+
+
+  <!-- <ui:View class="flex-example" color="white" loaded="loaded">
+    <ui:Text text="a" class="a">
+        <ui:Text text="aa" class="a"/>
+        <ui:Text text="ab" class="a"/>
+        <ui:Text text="b" class="b"/>
+    </ui:Text>
+  </ui:View> -->
 
 
 

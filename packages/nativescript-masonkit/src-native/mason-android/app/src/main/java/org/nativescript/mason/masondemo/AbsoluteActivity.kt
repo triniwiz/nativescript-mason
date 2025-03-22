@@ -1,40 +1,72 @@
 package org.nativescript.mason.masondemo
 
+import android.app.Activity
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Display
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.MeasureFunc
-import org.nativescript.mason.masonkit.Node
 import org.nativescript.mason.masonkit.Position
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.TextAlign
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
+import android.util.DisplayMetrics
+import android.util.Log
+import android.view.TextureView
+import android.view.WindowInsets
+import android.view.WindowMetrics
+import androidx.annotation.RequiresApi
+import org.nativescript.mason.masonkit.text.Styles
+
+@RequiresApi(Build.VERSION_CODES.R)
+fun getActivitySizeWithInsets(activity: Activity): Triple<Int, Int, android.graphics.Rect> {
+  val windowMetrics: WindowMetrics = activity.windowManager.currentWindowMetrics
+  val insets =
+    windowMetrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())
+
+  val width = windowMetrics.bounds.width()
+  val height = windowMetrics.bounds.height()
+
+  val insetRect = android.graphics.Rect(insets.left, insets.top, insets.right, insets.bottom)
+
+  return Triple(width, height, insetRect)
+}
+
+fun getActivitySizeWithInsetsLegacy(activity: Activity): Triple<Int, Int, android.graphics.Rect> {
+  val displayMetrics = DisplayMetrics()
+  val display = activity.windowManager.defaultDisplay
+  display.getMetrics(displayMetrics)
+
+  val rect = android.graphics.Rect()
+  activity.window.decorView.getWindowVisibleDisplayFrame(rect) // Gets visible area (excluding status bar)
+
+  val width = displayMetrics.widthPixels
+  val height = displayMetrics.heightPixels
+  val insets =
+    android.graphics.Rect(0, rect.top, 0, height - rect.bottom) // Status bar top, nav bar bottom
+
+  return Triple(width, height, insets)
+}
 
 
 class AbsoluteActivity : AppCompatActivity() {
   val mason = Mason()
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    val rootLayout = mason.createView(this)
-    rootLayout.setBackgroundColor(Color.BLUE)
-//    rootLayout.configure {
-//      it.style.size = Size(Dimension.Percent(1F), Dimension.Percent(1F))
-//    }
-
+    /*
     val child = mason.createView(this)
     child.setBackgroundColor(Color.RED)
     child.configure { node ->
       node.style.display = Display.Block
-    //  node.style.position = Position.Absolute
+      node.style.position = Position.Absolute
       node.style.maxSize = Size(
         Dimension.Points(12f),
         Dimension.Points(12f)
@@ -53,32 +85,240 @@ class AbsoluteActivity : AppCompatActivity() {
         LengthPercentage.Points(7f)
       )
     }
+    */
 
-    rootLayout.addView(child)
+    val activitySize = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      getActivitySizeWithInsets(this)
+    } else {
+      getActivitySizeWithInsetsLegacy(this)
+    }
 
-//    <div id="test-root" style="display: block;">
-//    <div style="display: block; position: absolute; max-width: 12px; max-height: 12px; padding: 2px 4px 6px 8px; border-width: 1px 3px 5px 7px; border-style: solid; border-color: red;"></div>
-//    </div>
 
+    val adjustedWidth =
+      resources.displayMetrics.widthPixels - (activitySize.third.left + activitySize.third.right)
+    val adjustedHeight =
+      resources.displayMetrics.heightPixels - (activitySize.third.top + activitySize.third.bottom)
+
+//    Log.d("com", "${activitySize.second} ${}")
+
+    val rootLayout = mason.createView(this)
+    rootLayout.setBackgroundColor(Color.BLUE)
+    rootLayout.configure {
+     style.display = Display.Block
+//     style.size = Size(
+//        Dimension.Points(adjustedWidth.toFloat()),
+//        Dimension.Points(adjustedHeight.toFloat())
+//      )
+
+     style.size = Size(
+        Dimension.Percent(1f),
+        Dimension.Percent(1f)
+      )
+
+    }
+
+    //rootLayout.addView(child)
+
+    // absTextText(rootLayout)
+
+    regularTextText(rootLayout)
 
     setContentView(rootLayout)
 
+  }
+
+  fun regularTextText(rootLayout: View) {
+
+    val ct = mason.createTextView(this)
+    ct.text = "Center Text"
+    ct.backgroundColorValue = Color.GREEN
+    val size = ct.paint.measureText(ct.text.toString())
+
+    // ct.textAlignment = android.widget.TextView.TEXT_ALIGNMENT_CENTER
+    rootLayout.addView(ct)
+
+    ct.configure {
+     style.position = Position.Absolute
+     style.margin = Rect(
+        LengthPercentageAuto.Points(-(size / 2)),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Auto
+      )
+     style.inset = Rect(
+        LengthPercentageAuto.Percent(.5f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Percent(.5f),
+        LengthPercentageAuto.Auto
+      )
+    }
+
+
+    val topLeft = mason.createTextView(this)
+    topLeft.text = "Top Left"
+
+    rootLayout.addView(topLeft)
+
+    topLeft.configure {
+     style.position = Position.Absolute
+     style.inset = Rect(
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto
+      )
+    }
+
+    val topRight = mason.createTextView(this)
+    topRight.text = "Top Right"
+
+    topRight.configure {
+     style.position = Position.Absolute
+     style.inset = Rect(
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto
+      )
+    }
+
+    rootLayout.addView(topRight)
+
+    val bottomRight = mason.createTextView(this)
+
+    bottomRight.text = "Bottom Right"
+
+    bottomRight.configure {
+     style.position = Position.Absolute
+     style.inset = Rect(
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f)
+      )
+    }
+
+    rootLayout.addView(bottomRight)
+
+    val bottomLeft = mason.createTextView(this)
+
+    bottomLeft.text = "Bottom Left"
+
+    bottomLeft.configure {
+     style.position = Position.Absolute
+     style.inset = Rect(
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f)
+      )
+    }
+
+    rootLayout.addView(bottomLeft)
 
   }
 
   fun absTextText(rootLayout: View) {
 
-
     val ct = mason.createTextView(this)
     ct.text = "Center Text"
+    val size = ct.paint.measureText(ct.text.toString())
+    ct.color = Color.MAGENTA
+    ct.setBackgroundColor(Color.GREEN)
+    ct.textAlignment = android.widget.TextView.TEXT_ALIGNMENT_CENTER
+    ct.configure {
+     style.position = Position.Absolute
+     style.margin = Rect(
+        LengthPercentageAuto.Points(-(size / 2)),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Auto
+      )
+     style.inset = Rect(
+        LengthPercentageAuto.Percent(.5f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Percent(.5f),
+        LengthPercentageAuto.Auto
+      )
+    }
+
+
+    rootLayout.addView(ct)
+
+    val topLeft = mason.createTextView(this)
+    topLeft.text = "Top Left"
+
+    topLeft.configure {
+     style.position = Position.Absolute
+     style.inset = Rect(
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto
+      )
+    }
+
+    rootLayout.addView(topLeft)
+
+
+    val topRight = mason.createTextView(this)
+    rootLayout.addView(topRight)
+    topRight.text = "Top Right"
+
+    topRight.configure {
+     style.position = Position.Absolute
+     style.inset = Rect(
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto
+      )
+    }
+
+    val bottomRight = mason.createTextView(this)
+    rootLayout.addView(bottomRight)
+    bottomRight.text = "Bottom Right"
+
+    bottomRight.configure {
+     style.position = Position.Absolute
+     style.inset = Rect(
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f)
+      )
+    }
+
+    val bottomLeft = mason.createTextView(this)
+    rootLayout.addView(bottomLeft)
+    bottomLeft.text = "Bottom Left"
+
+    bottomLeft.configure {
+     style.position = Position.Absolute
+     style.inset = Rect(
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f)
+      )
+    }
+
+    //   val image =
+
+  }
+
+  fun testText(rootLayout: View) {
+
+    val ct = mason.createTextView(this)
+    ct.setText("Center Text")
     ct.color = Color.MAGENTA
     ct.configure {
-      it.style.position = Position.Absolute
-      it.style.inset = Rect(
+     style.position = Position.Absolute
+     style.inset = Rect(
         LengthPercentageAuto.Percent(.5f),
-        LengthPercentageAuto.Percent(.5f),
-        LengthPercentageAuto.Points(100f),
-        LengthPercentageAuto.Points(100f)
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Auto
       )
     }
 
@@ -93,7 +333,7 @@ class AbsoluteActivity : AppCompatActivity() {
     val textNested = mason.createTextView(this)
     textNested.text = "Text"
     textNested.color = Color.RED
-    textNested.decorationLine = TextView.DecorationLine.LineThrough
+    textNested.decorationLine = Styles.DecorationLine.LineThrough
     textNested.decorationColor = Color.MAGENTA
 
 
@@ -109,14 +349,16 @@ class AbsoluteActivity : AppCompatActivity() {
     topLeft.text = "Top Left"
 
     topLeft.configure {
-      it.style.position = Position.Absolute
-      it.style.inset = Rect(
+     style.position = Position.Absolute
+     style.inset = Rect(
         LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(0f),
-        LengthPercentageAuto.Points(0f),
-        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Auto
       )
     }
+
+    rootLayout.addView(topLeft)
 
 
     val para1 = mason.createTextView(this)
@@ -124,7 +366,7 @@ class AbsoluteActivity : AppCompatActivity() {
     para1.text =
       "\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Ut hendrerit leo at porta luctus. Etiam condimentum nulla non lorem consectetur, ut tincidunt ligula volutpat. Morbi egestas tellus nec libero egestas, eu tristique nunc pharetra. Integer vehicula, elit ultrices iaculis luctus, sapien magna tempus ipsum, sit amet tempus ex lacus vitae nisl. Maecenas a fermentum nunc. Nulla non molestie tellus. Sed pellentesque mauris in faucibus tincidunt. Mauris id dui quis justo blandit consequat eget in nisl. Maecenas eu est consequat, lobortis dolor consectetur, volutpat ligula. "
     para1.color = Color.GREEN
-    para1.decorationLine = TextView.DecorationLine.Underline
+    para1.decorationLine = Styles.DecorationLine.Underline
     para1.decorationColor = Color.RED
     text.addView(para1)
 
@@ -136,19 +378,20 @@ class AbsoluteActivity : AppCompatActivity() {
     text.addView(para2)
 
 
-//    val tr = org.nativescript.mason.masonkit.View(this)
-//    val topRight = TextView(this)
-//    tr.addView(topRight)
-//    topRight.text = "Top Right"
-//    val topRightNode = Node()
-//    topRightNode.style.position = Position.Absolute
-//    topRightNode.style.inset = Rect(
-//      LengthPercentageAuto.Points(0f),
-//      LengthPercentageAuto.Percent(1f),
-//      LengthPercentageAuto.Points(0f),
-//      LengthPercentageAuto.Points(0f)
-//    )
-//
+    val topRight = mason.createTextView(this)
+    rootLayout.addView(topRight)
+    topRight.text = "Top Right"
+
+    topRight.configure {
+     style.position = Position.Absolute
+     style.inset = Rect(
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Auto
+      )
+    }
+
 //
 ////    topRightNode.setMeasureFunction(object : MeasureFunc {
 ////      override fun measure(
@@ -197,10 +440,10 @@ class AbsoluteActivity : AppCompatActivity() {
 //    Log.d("com.test", "${rootLayout.node.layout()}")
 
 
-//    rootLayout.addView(text)
-////    rootLayout.addView(tl)
-////    rootLayout.addView(tr)
-////    rootLayout.addView(br)
+    //  rootLayout.addView(text)
+//    rootLayout.addView(tl)
+//    rootLayout.addView(tr)
+//    rootLayout.addView(br)
 
   }
 }

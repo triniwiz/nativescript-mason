@@ -1,16 +1,20 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
-import android.util.AttributeSet
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
+import org.nativescript.mason.masonkit.Node.Companion
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 
 
 class Mason {
 
-  internal var nativePtr = nativeInit()
+  internal val nativePtr by lazy {
+    nativeInit()
+  }
+  private var isAlive = true
+
   internal val nodes = WeakHashMap<Long, Node>()
   private val viewNodes = WeakHashMap<android.view.View, Node>()
 
@@ -22,14 +26,14 @@ class Mason {
     return nativePtr
   }
 
-  private fun createNode(kind: Node.NodeKind, children: Array<Node>? = null): Node {
+  @JvmOverloads
+  fun createNode(children: Array<Node>? = null): Node {
     val nodePtr = children?.let {
       Node.nativeNewNodeWithChildren(
         nativePtr,
-        kind.value,
         children.map { it.nativePtr }.toLongArray()
       )
-    } ?: Node.nativeNewNode(nativePtr, kind.value)
+    } ?: Node.nativeNewNode(nativePtr)
     return Node(this, nodePtr).apply {
       children?.let {
         children.forEach {
@@ -41,29 +45,14 @@ class Mason {
     }
   }
 
-  fun createNode(): Node {
-    return createNode(Node.NodeKind.Element)
-  }
-
-  fun createNode(children: Array<Node>): Node {
-    return createNode(Node.NodeKind.Element, children)
-  }
-
-  fun createTextNode(): Node {
-    return createNode(Node.NodeKind.Text)
-  }
-
-  private fun createNode(kind: Node.NodeKind, measure: MeasureFunc): Node {
-    val nodePtr = Node.nativeNewNodeWithContext(nativePtr, kind.value, MeasureFuncImpl(WeakReference(measure)))
-    return Node(this, nodePtr).apply {  nodes[nodePtr] = this }
-  }
-
-  fun createNode(measureFunc: MeasureFunc): Node {
-    return createNode(Node.NodeKind.Element, measureFunc)
-  }
-
-  fun createTextNode(measureFunc: MeasureFunc): Node {
-    return createNode(Node.NodeKind.Text, measureFunc)
+  fun createNode(measure: MeasureFunc): Node {
+    val func = MeasureFuncImpl(WeakReference(measure))
+    val nodePtr =
+      Node.nativeNewNodeWithContext(nativePtr, func)
+    return Node(this, nodePtr).apply {
+      nodes[nodePtr] = this
+      measureFunc = measure
+    }
   }
 
   fun createView(context: Context): View {
@@ -74,33 +63,51 @@ class Mason {
     return TextView(context, this)
   }
 
-  fun nodeForView(view: android.view.View, kind: Node.NodeKind = Node.NodeKind.Element): Node {
-    return if (view is View) {
-      nodes[view.node.nativePtr] ?: run {
-        val node = createNode(kind).apply {
-          data = view
+  fun nodeForView(view: android.view.View): Node {
+    return when (view) {
+      is MasonView -> {
+        nodes[view.node.nativePtr] ?: run {
+          val node = createNode().apply {
+            data = view
+          }
+          nodes[view.node.nativePtr] = node
+          node
         }
-        node
       }
-    } else {
-      viewNodes[view] ?: run {
-        val node = createNode(kind).apply {
-          data = view
+
+      else -> {
+        viewNodes[view] ?: run {
+          // is leaf to ensure it triggers android's view measure
+          val node = createNode().apply {
+            data = view
+            setMeasureFunction(measureFunc)
+          }
+          viewNodes[view] = node
+          node
         }
-        node
       }
     }
   }
 
   fun requestLayout(node: Long) {
-    nodes[node]?.updateNodeStyle()
+    nodes[node]?.style?.updateNativeStyle()
   }
 
   fun requestLayout(view: android.view.View) {
     if (view is View) {
-      nodes[view.node.nativePtr]?.updateNodeStyle()
+      nodes[view.node.nativePtr]?.style?.updateNativeStyle()
     } else {
-      viewNodes[view]?.updateNodeStyle()
+      viewNodes[view]?.style?.updateNativeStyle()
+    }
+  }
+
+
+  @Synchronized
+  @Throws(Throwable::class)
+  protected fun finalize() {
+    if (isAlive) {
+      nativeDestroy(nativePtr)
+      isAlive = false
     }
   }
 
@@ -121,10 +128,6 @@ class Mason {
 
     @JvmStatic
     val instance = Mason()
-
-    // enable when using along external bindings
-    @JvmStatic
-    var shared = true
 
     internal val gson =
       Gson().newBuilder()
@@ -147,5 +150,9 @@ class Mason {
     @JvmStatic
     @CriticalNative
     private external fun nativeClear(mason: Long)
+
+    @JvmStatic
+    @CriticalNative
+    private external fun nativeDestroy(mason: Long)
   }
 }

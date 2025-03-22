@@ -18,14 +18,17 @@ class LengthPercentageAutoSerializer : JsonSerializer<LengthPercentageAuto> {
         json.add("value", JsonPrimitive(src.points))
         json.add("unit", JsonPrimitive(PxUnit))
       }
+
       is LengthPercentageAuto.Zero -> {
-        json.add("value", JsonPrimitive(src.points))
+        json.add("value", JsonPrimitive(0))
         json.add("unit", JsonPrimitive(PxUnit))
       }
+
       is LengthPercentageAuto.Percent -> {
         json.add("value", JsonPrimitive(src.percentage))
         json.add("unit", JsonPrimitive(PercentUnit))
       }
+
       is LengthPercentageAuto.Auto -> {
         return JsonPrimitive(AutoValue)
       }

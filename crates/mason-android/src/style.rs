@@ -1,10 +1,11 @@
 use jni::objects::{JByteBuffer, JClass, JObject, JObjectArray};
 use jni::signature::ReturnType;
-use jni::sys::{jfloat, jint, jlong, jobjectArray, jshort};
+use jni::sys::{jfloat, jint, jlong, jobject, jobjectArray, jshort};
 use jni::JNIEnv;
 use mason_core::style::min_max_from_values;
 use mason_core::{
-    CompactLength, GridTrackRepetition, Mason, NonRepeatedTrackSizingFunction, TrackSizingFunction,
+    CompactLength, GridTrackRepetition, Mason, Node, NonRepeatedTrackSizingFunction, Style,
+    TrackSizingFunction,
 };
 
 use crate::TRACK_SIZING_FUNCTION;
@@ -600,7 +601,55 @@ pub unsafe fn to_vec_track_sizing_function(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateStyleBuffer(
+pub extern "system" fn nativeGetStyleBuffer(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jobject {
+    if mason == 0 || node == 0 {
+        return JObject::null().into_raw();
+    }
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &mut *(node as *mut Node);
+        if let Some(context) = mason.get_node_context(node) {
+            if let Some(buffer) = context.style_data().buffer() {
+                return buffer.as_raw();
+            }
+        }
+        if let Some(mut context) = mason.get_node_context_mut(node) {
+            if context.jvm().is_none() {
+                context.set_jvm(env.get_java_vm().ok())
+            }
+
+            let buffer = context.style_data().buffer();
+            return match buffer {
+                Some(buffer) => buffer.as_raw(),
+                _ => {
+                    let mut data = context.style_data_mut();
+                    let len = data.data().len();
+                    let ptr = data.data_mut().as_mut_ptr();
+
+                    if let Some((Some(global), Some(buffer))) = env
+                        .new_direct_byte_buffer(ptr, len)
+                        .and_then(|buffer| Ok((env.new_global_ref(&buffer).ok(), Some(buffer))))
+                        .ok()
+                    {
+                        data.set_buffer(Some(global));
+                        return buffer.into_raw();
+                    }
+
+                    JObject::null().into_raw()
+                }
+            };
+        }
+    }
+    JObject::null().into_raw()
+}
+
+#[no_mangle]
+pub extern "system" fn nativeUpdateStyleBuffer(
     env: JNIEnv,
     _: JClass,
     mason: jlong,
@@ -609,28 +658,64 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateSt
 ) {
     unsafe {
         let mason = &mut *(mason as *mut Mason);
-        if let Some(node) = mason.get_node_mut(node as usize) {
+        let node = &*(node as *mut Node);
+
+        if let Some(style) = mason.style(node) {
             match (
                 env.get_direct_buffer_address(&buffer),
                 env.get_direct_buffer_capacity(&buffer),
-                env.new_global_ref(buffer),
             ) {
-                (Ok(pointer), Ok(size), Ok(buffer)) => {
-                    let style = unsafe { std::slice::from_raw_parts_mut(pointer, size) };
-                    mason_core::style::init_style_buffer(style, node.style());
-                    if let Some(context) = node.context_mut() {
-                        context.set_style_buffer(pointer, size, buffer);
-                    }
+                (Ok(pointer), Ok(size)) => {
+                    let buffer = unsafe { std::slice::from_raw_parts_mut(pointer, size) };
+                    mason_core::style::sync_style_buffer(buffer, &style);
                 }
-                (_, _, _) => {}
+                (_, _) => {}
             }
         }
     }
 }
 
+fn sync_style(mason: jlong, node: jlong, state: jlong) {
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *mut Node);
+
+        if state < 0 {
+            return;
+        }
+
+        let mut updated_style: Option<Style> = None;
+        if let (Some(context), Some(style)) = (mason.get_node_context(node), mason.style(node)) {
+            let mut style = style.clone();
+            let data = context.style_data();
+            mason_core::style::sync_node_style_with_buffer(data.data(), state as u64, &mut style);
+            updated_style = Some(style);
+        }
+        if let Some(style) = updated_style {
+            mason.set_style_sync_buffer(node, style, false);
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn nativeSyncStyleNormal(
+    _: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+    state: jlong,
+) {
+    sync_style(mason, node, state);
+}
+
+#[no_mangle]
+pub extern "system" fn nativeSyncStyle(mason: jlong, node: jlong, state: jlong) {
+    sync_style(mason, node, state);
+}
+
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWithValues(
-    env: &mut JNIEnv,
+    mut env: JNIEnv,
     _: JObject,
     mason: jlong,
     node: jlong,
@@ -718,103 +803,102 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     text_align: jint,
     box_sizing: jint,
 ) {
-    if mason == 0 || node == 1 {
+    if mason == 0 || node == 0 {
         return;
     }
-    let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_rows);
-    let grid_auto_columns = to_vec_non_repeated_track_sizing_function_jni(env, grid_auto_columns);
-    let grid_template_rows = to_vec_track_sizing_function_jni(env, grid_template_rows);
-    let grid_template_columns = to_vec_track_sizing_function_jni(env, grid_template_columns);
+    let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_rows);
+    let grid_auto_columns = to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_columns);
+    let grid_template_rows = to_vec_track_sizing_function_jni(&mut env, grid_template_rows);
+    let grid_template_columns = to_vec_track_sizing_function_jni(&mut env, grid_template_columns);
 
     unsafe {
         let mason = &mut *(mason as *mut Mason);
-        if let Some(node) = mason.get_node_mut(node as usize) {
-            mason_core::style::update_from_ffi(
-                node.style_mut(),
-                display,
-                position,
-                direction,
-                flex_direction,
-                flex_wrap,
-                overflow,
-                align_items,
-                align_self,
-                align_content,
-                justify_items,
-                justify_self,
-                justify_content,
-                inset_left_type,
-                inset_left_value,
-                inset_right_type,
-                inset_right_value,
-                inset_top_type,
-                inset_top_value,
-                inset_bottom_type,
-                inset_bottom_value,
-                margin_left_type,
-                margin_left_value,
-                margin_right_type,
-                margin_right_value,
-                margin_top_type,
-                margin_top_value,
-                margin_bottom_type,
-                margin_bottom_value,
-                padding_left_type,
-                padding_left_value,
-                padding_right_type,
-                padding_right_value,
-                padding_top_type,
-                padding_top_value,
-                padding_bottom_type,
-                padding_bottom_value,
-                border_left_type,
-                border_left_value,
-                border_right_type,
-                border_right_value,
-                border_top_type,
-                border_top_value,
-                border_bottom_type,
-                border_bottom_value,
-                flex_grow,
-                flex_shrink,
-                flex_basis_type,
-                flex_basis_value,
-                width_type,
-                width_value,
-                height_type,
-                height_value,
-                min_width_type,
-                min_width_value,
-                min_height_type,
-                min_height_value,
-                max_width_type,
-                max_width_value,
-                max_height_type,
-                max_height_value,
-                gap_row_type,
-                gap_row_value,
-                gap_column_type,
-                gap_column_value,
-                aspect_ratio,
-                grid_auto_rows,
-                grid_auto_columns,
-                grid_auto_flow,
-                grid_column_start_type,
-                grid_column_start_value,
-                grid_column_end_type,
-                grid_column_end_value,
-                grid_row_start_type,
-                grid_row_start_value,
-                grid_row_end_type,
-                grid_row_end_value,
-                grid_template_rows,
-                grid_template_columns,
-                overflow_x,
-                overflow_y,
-                scrollbar_width,
-                text_align,
-                box_sizing,
-            );
-        }
+        let node = &*(node as *mut Node);
+        let style = mason_core::style::from_ffi(
+            display,
+            position,
+            direction,
+            flex_direction,
+            flex_wrap,
+            overflow,
+            align_items,
+            align_self,
+            align_content,
+            justify_items,
+            justify_self,
+            justify_content,
+            inset_left_type,
+            inset_left_value,
+            inset_right_type,
+            inset_right_value,
+            inset_top_type,
+            inset_top_value,
+            inset_bottom_type,
+            inset_bottom_value,
+            margin_left_type,
+            margin_left_value,
+            margin_right_type,
+            margin_right_value,
+            margin_top_type,
+            margin_top_value,
+            margin_bottom_type,
+            margin_bottom_value,
+            padding_left_type,
+            padding_left_value,
+            padding_right_type,
+            padding_right_value,
+            padding_top_type,
+            padding_top_value,
+            padding_bottom_type,
+            padding_bottom_value,
+            border_left_type,
+            border_left_value,
+            border_right_type,
+            border_right_value,
+            border_top_type,
+            border_top_value,
+            border_bottom_type,
+            border_bottom_value,
+            flex_grow,
+            flex_shrink,
+            flex_basis_type,
+            flex_basis_value,
+            width_type,
+            width_value,
+            height_type,
+            height_value,
+            min_width_type,
+            min_width_value,
+            min_height_type,
+            min_height_value,
+            max_width_type,
+            max_width_value,
+            max_height_type,
+            max_height_value,
+            gap_row_type,
+            gap_row_value,
+            gap_column_type,
+            gap_column_value,
+            aspect_ratio,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_column_start_type,
+            grid_column_start_value,
+            grid_column_end_type,
+            grid_column_end_value,
+            grid_row_start_type,
+            grid_row_start_value,
+            grid_row_end_type,
+            grid_row_end_value,
+            grid_template_rows,
+            grid_template_columns,
+            overflow_x,
+            overflow_y,
+            scrollbar_width,
+            text_align,
+            box_sizing,
+        );
+        mason.set_style(node, style);
     }
 }

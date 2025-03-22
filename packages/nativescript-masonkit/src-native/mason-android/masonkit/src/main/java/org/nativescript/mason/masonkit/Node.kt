@@ -2,163 +2,96 @@ package org.nativescript.mason.masonkit
 
 import android.os.Build
 import android.util.Log
-import android.view.ViewGroup
+import android.view.View.MeasureSpec
 import dalvik.annotation.optimization.CriticalNative
+import dalvik.annotation.optimization.FastNative
 import java.lang.ref.WeakReference
 
 
 class Node internal constructor(internal val mason: Mason, internal var nativePtr: Long) {
+  internal var knownWidth: Float? = null
+  internal var knownHeight: Float? = null
+  internal var availableWidth: Float? = null
+  internal var availableHeight: Float? = null
+  internal var measureFunc: MeasureFunc = object : MeasureFunc {
+    override fun measure(
+      knownDimensions: Size<Float?>,
+      availableSpace: Size<Float?>
+    ): Size<Float> {
+      knownWidth = knownDimensions.width
+      knownHeight = knownDimensions.height
+      availableWidth = availableSpace.width
+      availableHeight = availableSpace.height
+      val view = this@Node.data as? android.view.View
 
-  enum class NodeKind(val value: Int) {
-    Element(0),
-    Text(1),
+      if (knownDimensions.width != null && knownDimensions.height != null) {
+        if (view != null) {
+          view.measure(
+            MeasureSpec.makeMeasureSpec(knownDimensions.width!!.toInt(), MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(knownDimensions.height!!.toInt(), MeasureSpec.EXACTLY)
+          )
+          return Size(view.measuredWidth.toFloat(), view.measuredHeight.toFloat())
+        }
+
+        return Size(knownDimensions.width!!, knownDimensions.height!!)
+      }
+
+      val width = if (knownDimensions.width != null) {
+        MeasureSpec.makeMeasureSpec(knownDimensions.width!!.toInt(), MeasureSpec.EXACTLY)
+      } else if (availableSpace.width != null) {
+        if (availableSpace.width == -1f || availableSpace.width == -2f) {
+          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        } else {
+          MeasureSpec.makeMeasureSpec(availableSpace.width!!.toInt(), MeasureSpec.AT_MOST)
+        }
+      } else {
+        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+      }
+
+
+      val height = if (knownDimensions.height != null) {
+        MeasureSpec.makeMeasureSpec(knownDimensions.height!!.toInt(), MeasureSpec.EXACTLY)
+      } else if (availableSpace.height != null) {
+        if (availableSpace.height == -1f || availableSpace.height == -2f) {
+          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        } else {
+          MeasureSpec.makeMeasureSpec(availableSpace.height!!.toInt(), MeasureSpec.AT_MOST)
+        }
+      } else {
+        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+      }
+
+
+      if (view != null) {
+        view.measure(width, height)
+        return Size(view.measuredWidth.toFloat(), view.measuredHeight.toFloat())
+      }
+
+      return Size(
+        knownDimensions.width ?: 0f,
+        knownDimensions.height ?: 0f
+      )
+    }
   }
 
-
-  var isViewGroup: Boolean = false
-    private set
-
+  internal var isKnown = false
   var data: Any? = null
-    set(value) {
-      field = value
-      isViewGroup = value is ViewGroup
-    }
 
   var owner: Node? = null
     internal set
-  internal var children = mutableListOf<Node>()
-
+  internal var children = arrayListOf<Node>()
 
   val style = Style(this)
 
-  internal fun updateNodeStyle() {
-    if (nativePtr == -1L) {
-      return
+  var inBatch: Boolean
+    get() {
+      return style.inBatch
     }
-
-    Style.nativeUpdateWithValues(
-      mason.nativePtr,
-      nativePtr,
-      this.style.display.value,
-      this.style.position.value,
-      this.style.direction.value,
-      this.style.flexDirection.value,
-      this.style.flexWrap.value,
-      this.style.overflow.value,
-      this.style.alignItems.value,
-      this.style.alignSelf.value,
-      this.style.alignContent.value,
-      this.style.justifyItems.value,
-      this.style.justifySelf.value,
-      this.style.justifyContent.value,
-
-      this.style.inset.left.type,
-      this.style.inset.left.value,
-      this.style.inset.right.type,
-      this.style.inset.right.value,
-      this.style.inset.top.type,
-      this.style.inset.top.value,
-      this.style.inset.bottom.type,
-      this.style.inset.bottom.value,
-
-      this.style.margin.left.type,
-      this.style.margin.left.value,
-      this.style.margin.right.type,
-      this.style.margin.right.value,
-      this.style.margin.top.type,
-      this.style.margin.top.value,
-      this.style.margin.bottom.type,
-      this.style.margin.bottom.value,
-
-
-      this.style.padding.left.type,
-      this.style.padding.left.value,
-      this.style.padding.right.type,
-      this.style.padding.right.value,
-      this.style.padding.top.type,
-      this.style.padding.top.value,
-      this.style.padding.bottom.type,
-      this.style.padding.bottom.value,
-
-
-      this.style.border.left.type,
-      this.style.border.left.value,
-      this.style.border.right.type,
-      this.style.border.right.value,
-      this.style.border.top.type,
-      this.style.border.top.value,
-      this.style.border.bottom.type,
-      this.style.border.bottom.value,
-      this.style.flexGrow,
-      this.style.flexShrink,
-      this.style.flexBasis.type,
-      this.style.flexBasis.value,
-
-      this.style.size.width.type,
-      this.style.size.width.value,
-      this.style.size.height.type,
-      this.style.size.height.value,
-
-
-      this.style.minSize.width.type,
-      this.style.minSize.width.value,
-      this.style.minSize.height.type,
-      this.style.minSize.height.value,
-
-      this.style.maxSize.width.type,
-      this.style.maxSize.width.value,
-      this.style.maxSize.height.type,
-      this.style.maxSize.height.value,
-
-      this.style.gap.width.type,
-      this.style.gap.width.value,
-      this.style.gap.height.type,
-      this.style.gap.height.value,
-      this.style.aspectRatio ?: Float.NaN,
-      this.style.gridAutoRows,
-      this.style.gridAutoColumns,
-      this.style.gridAutoFlow.value,
-
-      this.style.gridColumn.start.type,
-      this.style.gridColumn.start.placementValue,
-      this.style.gridColumn.end.type,
-      this.style.gridColumn.end.placementValue,
-
-      this.style.gridRow.start.type,
-      this.style.gridRow.start.placementValue,
-      this.style.gridRow.end.type,
-      this.style.gridRow.end.placementValue,
-      this.style.gridTemplateRows,
-      this.style.gridTemplateColumns,
-      this.style.overflowX.value,
-      this.style.overflowY.value,
-      this.style.scrollBarWidth.value,
-      this.style.textAlign.value,
-      this.style.boxSizing.value
-    )
-
-//    val view = data as? android.view.View
-//
-//    view?.let {
-//      if (it.parent == null) return
-//
-//      if (!it.isInLayout) {
-//
-//        it.requestLayout()
-//      }
-//    } ?: style.updateNativeStyle()
-
-  }
-
-  var inBatch = false
     set(value) {
-      if (field && !value) {
-        updateNodeStyle()
-      }
-      field = value
+      style.inBatch = value
     }
 
-  fun configure(block: (Node) -> Unit) {
+  fun configure(block: Node.() -> Unit) {
     inBatch = true
     block(this)
     inBatch = false
@@ -254,15 +187,11 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
   }
 
   fun getChildAt(index: Int): Node? {
-    if (Mason.shared) {
-      val child = nativeGetChildAt(mason.nativePtr, nativePtr, index)
-      if (child == -1L) {
-        return null
-      }
-
-      return mason.nodes[child]
+    return try {
+      children[index]
+    } catch (e: Exception) {
+      null
     }
-    return children[index]
   }
 
   fun addChild(child: Node): Node {
@@ -350,7 +279,7 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
   fun removeChild(child: Node): Node? {
     val removedNode = nativeRemoveChild(mason.nativePtr, nativePtr, child.nativePtr)
 
-    if (removedNode == -1L) {
+    if (removedNode == 0L) {
       return null
     }
 
@@ -364,7 +293,7 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
   fun removeChildAt(index: Int): Node? {
     val removedNode = nativeRemoveChildAt(mason.nativePtr, nativePtr, index)
 
-    if (removedNode == -1L) {
+    if (removedNode == 0L) {
       return null
     }
 
@@ -376,7 +305,6 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
         children.removeAt(position)
       }
     }
-
 
     return mason.nodes[removedNode]?.apply {
       owner = null
@@ -392,26 +320,11 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
   }
 
   fun getChildCount(): Int {
-    if (Mason.shared) {
-      return nativeGetChildCount(mason.nativePtr, nativePtr)
-    }
     return children.size
   }
 
-  fun getChildren(): Array<Node> {
-    if (Mason.shared) {
-      val children = nativeGetChildren(mason.nativePtr, nativePtr)
-      val ret = arrayOfNulls<Node>(children.size)
-      val parent = this
-      for (i in children.indices) {
-        val child = Node(mason, children[i]).apply {
-          owner = parent
-        }
-        ret[i] = child
-      }
-      return ret.requireNoNulls()
-    }
-    return children.toTypedArray()
+  fun getChildren(): List<Node> {
+    return children
   }
 
   fun setMeasureFunction(measure: MeasureFunc) {
@@ -420,6 +333,7 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
       nativePtr,
       MeasureFuncImpl(WeakReference(measure))
     )
+    measureFunc = measure
   }
 
   fun removeMeasureFunction() {
@@ -429,9 +343,8 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
   @Synchronized
   @Throws(Throwable::class)
   protected fun finalize() {
-    if (nativePtr != -1L) {
-      Log.d("com.test", "node finalize: $nativePtr")
-      //nativeDestroy(nativePtr)
+    if (nativePtr != 0L) {
+      nativeDestroy(nativePtr)
       nativePtr = 0
       owner?.removeChild(this)
     }
@@ -444,19 +357,17 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
 
     @CriticalNative
     @JvmStatic
-    external fun nativeNewNode(mason: Long, kind: Int): Long
+    external fun nativeNewNode(mason: Long): Long
 
     @JvmStatic
     external fun nativeNewNodeWithChildren(
       mason: Long,
-      kind: Int,
       children: LongArray
     ): Long
 
     @JvmStatic
     external fun nativeNewNodeWithContext(
       mason: Long,
-      kind: Int,
       measure: Any
     ): Long
 
@@ -584,334 +495,38 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
       node: Long
     )
 
+    @JvmStatic
+    @FastNative
+    private external fun nativeComputeWithSizeAndLayout(
+      mason: Long,
+      node: Long,
+      width: Float,
+      height: Float
+    ): FloatArray
+
+    @JvmStatic
+    @FastNative
+    private external fun nativeGetChildren(
+      mason: Long,
+      node: Long
+    ): LongArray
+
+
+    @JvmStatic
+    @FastNative
+    private external fun nativeLayout(
+      mason: Long,
+      node: Long,
+    ): FloatArray
+
+
   }
-
-  private external fun nativeLayout(
-    mason: Long,
-    node: Long,
-  ): FloatArray
-
-
-  private external fun nativeGetChildren(
-    mason: Long,
-    node: Long
-  ): LongArray
 
   private external fun nativeSetContext(
     mason: Long,
     node: Long,
     measureFunc: Any
   )
-
-
-  private external fun nativeUpdateAndSetStyle(
-    mason: Long, node: Long,
-    display: Int,
-    position: Int,
-    direction: Int,
-    flexDirection: Int,
-    flexWrap: Int,
-    overflow: Int,
-    alignItems: Int,
-    alignSelf: Int,
-    alignContent: Int,
-    justifyItems: Int,
-    justifySelf: Int,
-    justifyContent: Int,
-
-    insetLeftType: Int,
-    insetLeftValue: Float,
-    insetRightType: Int,
-    insetRightValue: Float,
-    insetTopType: Int,
-    insetTopValue: Float,
-    insetBottomType: Int,
-    insetBottomValue: Float,
-
-    marginLeftType: Int,
-    marginLeftValue: Float,
-    marginRightType: Int,
-    marginRightValue: Float,
-    marginTopType: Int,
-    marginTopValue: Float,
-    marginBottomType: Int,
-    marginBottomValue: Float,
-
-    paddingLeftType: Int,
-    paddingLeftValue: Float,
-    paddingRightType: Int,
-    paddingRightValue: Float,
-    paddingTopType: Int,
-    paddingTopValue: Float,
-    paddingBottomType: Int,
-    paddingBottomValue: Float,
-
-    borderLeftType: Int,
-    borderLeftValue: Float,
-    borderRightType: Int,
-    borderRightValue: Float,
-    borderTopType: Int,
-    borderTopValue: Float,
-    borderBottomType: Int,
-    borderBottomValue: Float,
-
-    flexGrow: Float,
-    flexShrink: Float,
-
-    flexBasisType: Int,
-    flexBasisValue: Float,
-
-    widthType: Int,
-    widthValue: Float,
-    heightType: Int,
-    heightValue: Float,
-
-    minWidthType: Int,
-    minWidthValue: Float,
-    minHeightType: Int,
-    minHeightValue: Float,
-
-    maxWidthType: Int,
-    maxWidthValue: Float,
-    maxHeightType: Int,
-    maxHeightValue: Float,
-
-    gapRowType: Int,
-    gapRowValue: Float,
-    gapColumnType: Int,
-    gapColumnValue: Float,
-
-    aspectRatio: Float,
-
-    gridAutoRows: Array<MinMax>,
-    gridAutoColumns: Array<MinMax>,
-    gridAutoFlow: Int,
-    gridColumnStartType: Int,
-    gridColumnStartValue: Short,
-    gridColumnEndType: Int,
-    gridColumnEndValue: Short,
-    gridRowStartType: Int,
-    gridRowStartValue: Short,
-    gridRowEndType: Int,
-    gridRowEndValue: Short,
-    gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>,
-    overflowX: Int,
-    overflowY: Int,
-    scrollBarWidth: Float,
-    textAlign: Int,
-    boxSizing: Int
-  )
-
-
-  private external fun nativeUpdateSetStyleComputeAndLayout(
-    mason: Long,
-    node: Long,
-    display: Int,
-    position: Int,
-    direction: Int,
-    flexDirection: Int,
-    flexWrap: Int,
-    overflow: Int,
-    alignItems: Int,
-    alignSelf: Int,
-    alignContent: Int,
-    justifyItems: Int,
-    justifySelf: Int,
-    justifyContent: Int,
-
-    insetLeftType: Int,
-    insetLeftValue: Float,
-    insetRightType: Int,
-    insetRightValue: Float,
-    insetTopType: Int,
-    insetTopValue: Float,
-    insetBottomType: Int,
-    insetBottomValue: Float,
-
-    marginLeftType: Int,
-    marginLeftValue: Float,
-    marginRightType: Int,
-    marginRightValue: Float,
-    marginTopType: Int,
-    marginTopValue: Float,
-    marginBottomType: Int,
-    marginBottomValue: Float,
-
-    paddingLeftType: Int,
-    paddingLeftValue: Float,
-    paddingRightType: Int,
-    paddingRightValue: Float,
-    paddingTopType: Int,
-    paddingTopValue: Float,
-    paddingBottomType: Int,
-    paddingBottomValue: Float,
-
-    borderLeftType: Int,
-    borderLeftValue: Float,
-    borderRightType: Int,
-    borderRightValue: Float,
-    borderTopType: Int,
-    borderTopValue: Float,
-    borderBottomType: Int,
-    borderBottomValue: Float,
-
-    flexGrow: Float,
-    flexShrink: Float,
-
-    flexBasisType: Int,
-    flexBasisValue: Float,
-
-    widthType: Int,
-    widthValue: Float,
-    heightType: Int,
-    heightValue: Float,
-
-    minWidthType: Int,
-    minWidthValue: Float,
-    minHeightType: Int,
-    minHeightValue: Float,
-
-    maxWidthType: Int,
-    maxWidthValue: Float,
-    maxHeightType: Int,
-    maxHeightValue: Float,
-
-    gapRowType: Int,
-    gapRowValue: Float,
-    gapColumnType: Int,
-    gapColumnValue: Float,
-
-    aspectRatio: Float,
-
-    gridAutoRows: Array<MinMax>,
-    gridAutoColumns: Array<MinMax>,
-    gridAutoFlow: Int,
-    gridColumnStartType: Int,
-    gridColumnStartValue: Short,
-    gridColumnEndType: Int,
-    gridColumnEndValue: Short,
-    gridRowStartType: Int,
-    gridRowStartValue: Short,
-    gridRowEndType: Int,
-    gridRowEndValue: Short,
-    gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>,
-    overflowX: Int,
-    overflowY: Int,
-    scrollBarWidth: Float,
-    textAlign: Int,
-    boxSizing: Int,
-  ): FloatArray
-
-  private external fun nativeUpdateSetStyleComputeWithSizeAndLayout(
-    mason: Long,
-    node: Long,
-    width: Float,
-    height: Float,
-    display: Int,
-    position: Int,
-    direction: Int,
-    flexDirection: Int,
-    flexWrap: Int,
-    overflow: Int,
-    alignItems: Int,
-    alignSelf: Int,
-    alignContent: Int,
-    justifyItems: Int,
-    justifySelf: Int,
-    justifyContent: Int,
-
-    insetLeftType: Int,
-    insetLeftValue: Float,
-    insetRightType: Int,
-    insetRightValue: Float,
-    insetTopType: Int,
-    insetTopValue: Float,
-    insetBottomType: Int,
-    insetBottomValue: Float,
-
-    marginLeftType: Int,
-    marginLeftValue: Float,
-    marginRightType: Int,
-    marginRightValue: Float,
-    marginTopType: Int,
-    marginTopValue: Float,
-    marginBottomType: Int,
-    marginBottomValue: Float,
-
-    paddingLeftType: Int,
-    paddingLeftValue: Float,
-    paddingRightType: Int,
-    paddingRightValue: Float,
-    paddingTopType: Int,
-    paddingTopValue: Float,
-    paddingBottomType: Int,
-    paddingBottomValue: Float,
-
-    borderLeftType: Int,
-    borderLeftValue: Float,
-    borderRightType: Int,
-    borderRightValue: Float,
-    borderTopType: Int,
-    borderTopValue: Float,
-    borderBottomType: Int,
-    borderBottomValue: Float,
-
-    flexGrow: Float,
-    flexShrink: Float,
-
-    flexBasisType: Int,
-    flexBasisValue: Float,
-
-    widthType: Int,
-    widthValue: Float,
-    heightType: Int,
-    heightValue: Float,
-
-    minWidthType: Int,
-    minWidthValue: Float,
-    minHeightType: Int,
-    minHeightValue: Float,
-
-    maxWidthType: Int,
-    maxWidthValue: Float,
-    maxHeightType: Int,
-    maxHeightValue: Float,
-
-    gapRowType: Int,
-    gapRowValue: Float,
-    gapColumnType: Int,
-    gapColumnValue: Float,
-
-    aspectRatio: Float,
-
-    gridAutoRows: Array<MinMax>,
-    gridAutoColumns: Array<MinMax>,
-    gridAutoFlow: Int,
-    gridColumnStartType: Int,
-    gridColumnStartValue: Short,
-    gridColumnEndType: Int,
-    gridColumnEndValue: Short,
-    gridRowStartType: Int,
-    gridRowStartValue: Short,
-    gridRowEndType: Int,
-    gridRowEndValue: Short,
-    gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>,
-    overflowX: Int,
-    overflowY: Int,
-    scrollBarWidth: Float,
-    textAlign: Int,
-    boxSizing: Int,
-  ): FloatArray
-
-  private external fun nativeComputeWithSizeAndLayout(
-    mason: Long,
-    node: Long,
-    width: Float,
-    height: Float
-  ): FloatArray
 
   private external fun nativeComputeAndLayout(
     mason: Long,

@@ -1,14 +1,22 @@
 import { Observable, EventData, Page } from '@nativescript/core';
 import { DemoSharedNativescriptMasonkit } from '@demo/shared';
-import {} from '@triniwiz/nativescript-masonkit';
+import { Text } from '@triniwiz/nativescript-masonkit';
 
 export function navigatingTo(args: EventData) {
   const page = <Page>args.object;
   page.bindingContext = new DemoModel();
 }
 
+export function textLoaded(args) {
+  const view = args.object as Text;
+  const nativeView = view.nativeView as org.nativescript.mason.masonkit.TextView;
+  console.log('text loaded', nativeView.getOwner());
+  // console.log('text loaded', view.nativeView.getCurrentText());
+}
+
 export function loaded(args) {
   const view = args.object;
+  console.log(`view loaded`, view.nativeView);
   // setTimeout(() => {
   //   console.log('display value:', view.display);
 

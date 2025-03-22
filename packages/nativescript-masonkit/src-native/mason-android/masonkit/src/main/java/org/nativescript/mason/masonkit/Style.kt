@@ -1,6 +1,8 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
+import android.view.View
+import dalvik.annotation.optimization.CriticalNative
+import dalvik.annotation.optimization.FastNative
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -457,17 +459,23 @@ enum class GridAutoFlow(val value: Int) {
 
 enum class TextAlign(val value: Int) {
   Auto(0),
-  LegacyLeft(1),
-  LegacyRight(2),
-  LegacyCenter(3);
+  Left(1),
+  Right(2),
+  Center(3),
+  Justify(4),
+  Start(5),
+  End(6);
 
   val cssValue: String
     get() {
       return when (this) {
         Auto -> "auto"
-        LegacyLeft -> "left"
-        LegacyRight -> "right"
-        LegacyCenter -> "center"
+        Left -> "left"
+        Right -> "right"
+        Center -> "center"
+        Justify -> "justify"
+        Start -> "start"
+        End -> "end"
       }
     }
 
@@ -475,9 +483,12 @@ enum class TextAlign(val value: Int) {
     fun fromInt(value: Int): TextAlign {
       return when (value) {
         0 -> Auto
-        1 -> LegacyLeft
-        2 -> LegacyRight
-        3 -> LegacyCenter
+        1 -> Left
+        2 -> Right
+        3 -> Center
+        4 -> Justify
+        5 -> Start
+        6 -> End
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -508,9 +519,22 @@ enum class BoxSizing(val value: Int) {
 }
 
 sealed class GridPlacement {
-  object Auto : GridPlacement()
+  data object Auto : GridPlacement()
   data class Line(var value: Short) : GridPlacement()
   data class Span(var value: Short) : GridPlacement()
+
+
+  companion object {
+    @JvmStatic
+    fun fromTypeValue(type: Int, value: Short): GridPlacement {
+      return when (type) {
+        0 -> Auto
+        1 -> Line(value)
+        2 -> Span(value)
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
 
 
   internal val type: Int
@@ -543,8 +567,8 @@ sealed class GridPlacement {
 }
 
 sealed class GridTrackRepetition {
-  object AutoFill : GridTrackRepetition()
-  object AutoFit : GridTrackRepetition()
+  data object AutoFill : GridTrackRepetition()
+  data object AutoFit : GridTrackRepetition()
   data class Count(val count: Short) : GridTrackRepetition()
 
   val type: Int
@@ -755,58 +779,111 @@ object StyleKeys {
   const val GRID_AUTO_FLOW = 264
   const val GRID_COLUMN_START_TYPE = 268
   const val GRID_COLUMN_START_VALUE = 272
-  const val GRID_COLUMN_END_TYPE = 274
-  const val GRID_COLUMN_END_VALUE = 278
-  const val GRID_ROW_START_TYPE = 280
-  const val GRID_ROW_START_VALUE = 284
-  const val GRID_ROW_END_TYPE = 286
-  const val GRID_ROW_END_VALUE = 290
-  const val SCROLLBAR_WIDTH = 292
-  const val TEXT_ALIGN = 296
-  const val BOX_SIZING = 300
-  const val OVERFLOW = 304
-  const val ITEM_IS_TABLE = 308 //Byte
+  const val GRID_COLUMN_END_TYPE = 276
+  const val GRID_COLUMN_END_VALUE = 280
+  const val GRID_ROW_START_TYPE = 284
+  const val GRID_ROW_START_VALUE = 288
+  const val GRID_ROW_END_TYPE = 292
+  const val GRID_ROW_END_VALUE = 296
+  const val SCROLLBAR_WIDTH = 300
+  const val TEXT_ALIGN = 304
+  const val BOX_SIZING = 308
+  const val OVERFLOW = 312
+  const val ITEM_IS_TABLE = 316 //Byte
+}
+
+@JvmInline
+value class StateKeys internal constructor(val bits: Long) {
+  companion object {
+    val DISPLAY = StateKeys(1L shl 0)
+    val POSITION = StateKeys(1L shl 1)
+    val DIRECTION = StateKeys(1L shl 2)
+    val FLEX_DIRECTION = StateKeys(1L shl 3)
+    val FLEX_WRAP = StateKeys(1L shl 4)
+    val OVERFLOW_X = StateKeys(1L shl 5)
+    val OVERFLOW_Y = StateKeys(1L shl 6)
+    val ALIGN_ITEMS = StateKeys(1L shl 7)
+    val ALIGN_SELF = StateKeys(1L shl 8)
+    val ALIGN_CONTENT = StateKeys(1L shl 9)
+    val JUSTIFY_ITEMS = StateKeys(1L shl 10)
+    val JUSTIFY_SELF = StateKeys(1L shl 11)
+    val JUSTIFY_CONTENT = StateKeys(1L shl 12)
+    val INSET = StateKeys(1L shl 13)
+    val MARGIN = StateKeys(1L shl 14)
+    val PADDING = StateKeys(1L shl 15)
+    val BORDER = StateKeys(1L shl 16)
+    val FLEX_GROW = StateKeys(1L shl 17)
+    val FLEX_SHRINK = StateKeys(1L shl 18)
+    val FLEX_BASIS = StateKeys(1L shl 19)
+    val SIZE = StateKeys(1L shl 20)
+    val MIN_SIZE = StateKeys(1L shl 21)
+    val MAX_SIZE = StateKeys(1L shl 22)
+    val GAP = StateKeys(1L shl 23)
+    val ASPECT_RATIO = StateKeys(1L shl 24)
+    val GRID_AUTO_FLOW = StateKeys(1L shl 25)
+    val GRID_COLUMN = StateKeys(1L shl 26)
+    val GRID_ROW = StateKeys(1L shl 27)
+    val SCROLLBAR_WIDTH = StateKeys(1L shl 28)
+    val TEXT_ALIGN = StateKeys(1L shl 29)
+    val BOX_SIZING = StateKeys(1L shl 30)
+    val OVERFLOW = StateKeys(1L shl 31)
+    val ITEM_IS_TABLE = StateKeys(1L shl 32)
+  }
+
+  infix fun or(other: StateKeys): StateKeys = StateKeys(bits or other.bits)
+  infix fun and(other: StateKeys): StateKeys = StateKeys(bits and other.bits)
+  infix fun hasFlag(flag: StateKeys): Boolean = (bits and flag.bits) != 0L
 }
 
 
-//grid_auto_rows: jobjectArray,
-//grid_auto_columns: jobjectArray,
-//
-//grid_template_rows: jobjectArray,
-//grid_template_columns: jobjectArray,
-//
-//
-//
-//
-//
-//
-//class me {
-//  init {
-//    val buffer = ByteBuffer.allocate(10)
-//    val buffer = ByteBuffer.allocate(21)
-//    buffer.putInt(3);
-//    val display = buffer.getInt(StyleKeys.DISPLAY)
-//
-//    buffer.put(StyleKeys.item_is_table, 1);
-//    val item_is_table = buffer.get(StyleKeys.item_is_table) != BYTE_FALSE;
-//
-//    println("$display is table ?? $item_is_table")
-//
-//
-//  }
-//}
-
-
 class Style internal constructor(private var node: Node) {
-  internal var isDirty = false
+  val values: ByteBuffer =
+    nativeGetStyleBuffer(node.mason.nativePtr, node.nativePtr)?.apply {
+      order(ByteOrder.nativeOrder())
+    } ?: ByteBuffer.allocateDirect(
+      StyleKeys.ITEM_IS_TABLE + 4
+    ).apply {
+      order(ByteOrder.nativeOrder())
+      nativeUpdateStyleBuffer(node.mason.nativePtr, node.nativePtr, this)
+    }
 
-  // Capacity is last StyleKeys key + byte size e.g ITEM_IS_TABLE is short
-  val values: ByteBuffer = ByteBuffer.allocateDirect(StyleKeys.ITEM_IS_TABLE + 2).apply {
-    this.order(ByteOrder.nativeOrder())
+  internal var isDirty = -1L
+  private var isSlowDirty = false
+    set(value) {
+      if (value && !inBatch) {
+        updateNativeStyle()
+      }
+      field = value
+    }
+
+  private fun setOrAppendState(value: StateKeys) {
+    isDirty = if (isDirty == -1L) {
+      value.bits
+    } else {
+      isDirty or value.bits
+    }
+    if (!inBatch) {
+      updateNativeStyle()
+    }
   }
 
-  init {
-    nativeUpdateStyleBuffer(node.mason.nativePtr, node.nativePtr, values)
+  private fun resetState() {
+    isDirty = -1
+    isSlowDirty = false
+  }
+
+  var inBatch = false
+    set(value) {
+      if (field && !value) {
+        updateNativeStyle()
+      }
+      field = value
+    }
+
+  fun configure(block: (Style) -> Unit) {
+    inBatch = true
+    block(this)
+    inBatch = false
   }
 
   var display: Display
@@ -815,7 +892,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.DISPLAY, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.DISPLAY)
     }
 
   var position: Position
@@ -824,7 +901,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.POSITION, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.POSITION)
     }
 
   // TODO
@@ -834,7 +911,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.DIRECTION, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.DIRECTION)
     }
 
   var flexDirection: FlexDirection
@@ -843,7 +920,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.FLEX_DIRECTION, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.FLEX_DIRECTION)
     }
 
   var flexWrap: FlexWrap
@@ -852,7 +929,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.FLEX_WRAP, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.FLEX_WRAP)
     }
 
   var overflow: Overflow
@@ -861,7 +938,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.OVERFLOW, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.OVERFLOW)
     }
 
   var overflowX: Overflow
@@ -870,7 +947,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.OVERFLOW_X, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.OVERFLOW_X)
     }
 
   var overflowY: Overflow
@@ -879,7 +956,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.OVERFLOW_Y, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.OVERFLOW_Y)
     }
 
   var alignItems: AlignItems
@@ -888,7 +965,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.ALIGN_ITEMS, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.ALIGN_ITEMS)
     }
 
   var alignSelf: AlignSelf
@@ -897,7 +974,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.ALIGN_SELF, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.ALIGN_SELF)
     }
 
   var alignContent: AlignContent
@@ -906,7 +983,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.ALIGN_CONTENT, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.ALIGN_CONTENT)
     }
 
 
@@ -916,7 +993,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.JUSTIFY_ITEMS, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.JUSTIFY_ITEMS)
     }
 
 
@@ -926,7 +1003,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.JUSTIFY_SELF, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.JUSTIFY_SELF)
     }
 
   var justifyContent: JustifyContent
@@ -935,13 +1012,16 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.JUSTIFY_CONTENT, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.JUSTIFY_CONTENT)
     }
 
-  var textAlign: TextAlign = TextAlign.Auto
+  var textAlign: TextAlign
+    get() {
+      return TextAlign.fromInt(values.getInt(StyleKeys.TEXT_ALIGN))
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.TEXT_ALIGN, value.value)
+      setOrAppendState(StateKeys.TEXT_ALIGN)
     }
 
   var boxSizing: BoxSizing
@@ -950,7 +1030,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.BOX_SIZING, value.value)
-      isDirty = true
+      setOrAppendState(StateKeys.BOX_SIZING)
     }
 
 
@@ -988,72 +1068,51 @@ class Style internal constructor(private var node: Node) {
       values.putInt(StyleKeys.INSET_BOTTOM_TYPE, value.bottom.type)
       values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value.bottom.value)
 
-      isDirty = true
+      setOrAppendState(StateKeys.INSET)
     }
 
   fun setInsetLeft(value: Float, type: Int) {
-    val left = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val left = LengthPercentageAuto.fromTypeValue(type, value)
 
     left?.let {
       values.putInt(StyleKeys.INSET_LEFT_TYPE, type)
       values.putFloat(StyleKeys.INSET_LEFT_VALUE, value)
+      setOrAppendState(StateKeys.INSET)
     }
   }
 
   fun setInsetRight(value: Float, type: Int) {
-    val right = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val right = LengthPercentageAuto.fromTypeValue(type, value)
 
     right?.let {
       values.putInt(StyleKeys.INSET_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value)
+      setOrAppendState(StateKeys.INSET)
     }
   }
 
   fun setInsetTop(value: Float, type: Int) {
-    val top = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val top = LengthPercentageAuto.fromTypeValue(type, value)
 
     top?.let {
       values.putInt(StyleKeys.INSET_TOP_TYPE, type)
       values.putFloat(StyleKeys.INSET_TOP_VALUE, value)
+      setOrAppendState(StateKeys.INSET)
     }
   }
 
   fun setInsetBottom(value: Float, type: Int) {
-    val bottom = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val bottom = LengthPercentageAuto.fromTypeValue(type, value)
 
     bottom?.let {
       values.putInt(StyleKeys.INSET_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value)
+      setOrAppendState(StateKeys.INSET)
     }
   }
 
   fun setInsetWithValueType(value: Float, type: Int) {
-    val inset = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val inset = LengthPercentageAuto.fromTypeValue(type, value)
 
     inset?.let {
       values.putInt(StyleKeys.INSET_LEFT_TYPE, type)
@@ -1067,7 +1126,7 @@ class Style internal constructor(private var node: Node) {
 
       values.putInt(StyleKeys.INSET_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value)
-
+      setOrAppendState(StateKeys.INSET)
     }
   }
 
@@ -1104,72 +1163,52 @@ class Style internal constructor(private var node: Node) {
 
       values.putInt(StyleKeys.MARGIN_BOTTOM_TYPE, value.bottom.type)
       values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value.bottom.value)
-      isDirty = true
+
+      setOrAppendState(StateKeys.MARGIN)
     }
 
   fun setMarginLeft(value: Float, type: Int) {
-    val left = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val left = LengthPercentageAuto.fromTypeValue(type, value)
 
     left?.let {
       values.putInt(StyleKeys.MARGIN_LEFT_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value)
+      setOrAppendState(StateKeys.MARGIN)
     }
   }
 
   fun setMarginRight(value: Float, type: Int) {
-    val right = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val right = LengthPercentageAuto.fromTypeValue(type, value)
 
     right?.let {
       values.putInt(StyleKeys.MARGIN_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value)
+      setOrAppendState(StateKeys.MARGIN)
     }
   }
 
   fun setMarginTop(value: Float, type: Int) {
-    val top = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val top = LengthPercentageAuto.fromTypeValue(type, value)
 
     top?.let {
       values.putInt(StyleKeys.MARGIN_TOP_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value)
+      setOrAppendState(StateKeys.MARGIN)
     }
   }
 
   fun setMarginBottom(value: Float, type: Int) {
-    val bottom = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val bottom = LengthPercentageAuto.fromTypeValue(type, value)
 
     bottom?.let {
       values.putInt(StyleKeys.MARGIN_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value)
+      setOrAppendState(StateKeys.MARGIN)
     }
   }
 
   fun setMarginWithValueType(value: Float, type: Int) {
-    val margin = when (type) {
-      0 -> LengthPercentageAuto.Auto
-      1 -> LengthPercentageAuto.Points(value)
-      2 -> LengthPercentageAuto.Percent(value)
-      else -> null
-    }
+    val margin = LengthPercentageAuto.fromTypeValue(type, value)
 
     margin?.let {
       values.putInt(StyleKeys.MARGIN_LEFT_TYPE, type)
@@ -1183,833 +1222,722 @@ class Style internal constructor(private var node: Node) {
 
       values.putInt(StyleKeys.MARGIN_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value)
+      setOrAppendState(StateKeys.MARGIN)
     }
   }
 
-  var padding: Rect<LengthPercentage> = LengthPercentageZeroRect
+  var padding: Rect<LengthPercentage>
+    get() {
+      return Rect(
+        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.PADDING_LEFT_TYPE),
+          values.getFloat(StyleKeys.PADDING_LEFT_VALUE)
+        )!!,
+        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.PADDING_RIGHT_TYPE),
+          values.getFloat(StyleKeys.PADDING_RIGHT_VALUE)
+        )!!,
+        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.PADDING_TOP_TYPE),
+          values.getFloat(StyleKeys.PADDING_TOP_VALUE)
+        )!!,
+        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.PADDING_BOTTOM_TYPE),
+          values.getFloat(StyleKeys.PADDING_BOTTOM_VALUE)
+        )!!
+      )
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.PADDING_LEFT_TYPE, value.left.type)
+      values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value.left.value)
+
+      values.putInt(StyleKeys.PADDING_RIGHT_TYPE, value.right.type)
+      values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value.right.value)
+
+      values.putInt(StyleKeys.PADDING_TOP_TYPE, value.top.type)
+      values.putFloat(StyleKeys.PADDING_TOP_VALUE, value.top.value)
+
+      values.putInt(StyleKeys.PADDING_BOTTOM_TYPE, value.bottom.type)
+      values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value.bottom.value)
+      setOrAppendState(StateKeys.PADDING)
     }
 
   fun setPaddingLeft(value: Float, type: Int) {
-    val left = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val left = LengthPercentage.fromTypeValue(type, value)
 
     left?.let {
-      padding = Rect(it, padding.right, padding.top, padding.bottom)
+      values.putInt(StyleKeys.PADDING_LEFT_TYPE, type)
+      values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value)
+      setOrAppendState(StateKeys.PADDING)
     }
   }
 
   fun setPaddingRight(value: Float, type: Int) {
-    val right = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val right = LengthPercentage.fromTypeValue(type, value)
 
     right?.let {
-      padding = Rect(padding.left, right, padding.top, padding.bottom)
+      values.putInt(StyleKeys.PADDING_RIGHT_TYPE, type)
+      values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value)
+      setOrAppendState(StateKeys.PADDING)
     }
   }
 
   fun setPaddingTop(value: Float, type: Int) {
-    val top = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val top = LengthPercentage.fromTypeValue(type, value)
 
     top?.let {
-      padding = Rect(padding.left, padding.right, top, padding.bottom)
+      values.putInt(StyleKeys.PADDING_TOP_TYPE, type)
+      values.putFloat(StyleKeys.PADDING_TOP_VALUE, value)
+      setOrAppendState(StateKeys.PADDING)
     }
   }
 
   fun setPaddingBottom(value: Float, type: Int) {
-    val bottom = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val bottom = LengthPercentage.fromTypeValue(type, value)
 
     bottom?.let {
-      padding = Rect(padding.left, padding.right, padding.top, bottom)
+      values.putInt(StyleKeys.PADDING_BOTTOM_TYPE, type)
+      values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value)
+      setOrAppendState(StateKeys.PADDING)
     }
   }
 
   fun setPaddingWithValueType(value: Float, type: Int) {
-    val padding = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val padding = LengthPercentage.fromTypeValue(type, value)
 
     padding?.let {
-      this.padding = Rect(it, it, it, it)
+      values.putInt(StyleKeys.PADDING_LEFT_TYPE, type)
+      values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value)
+
+      values.putInt(StyleKeys.PADDING_RIGHT_TYPE, type)
+      values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value)
+
+      values.putInt(StyleKeys.PADDING_TOP_TYPE, type)
+      values.putFloat(StyleKeys.PADDING_TOP_VALUE, value)
+
+      values.putInt(StyleKeys.PADDING_BOTTOM_TYPE, type)
+      values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value)
+      setOrAppendState(StateKeys.PADDING)
     }
   }
 
-  var border: Rect<LengthPercentage> = LengthPercentageZeroRect
+  var border: Rect<LengthPercentage>
+    get() {
+      return Rect(
+        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.BORDER_LEFT_TYPE),
+          values.getFloat(StyleKeys.BORDER_LEFT_VALUE)
+        )!!,
+        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.BORDER_RIGHT_TYPE),
+          values.getFloat(StyleKeys.BORDER_RIGHT_VALUE)
+        )!!,
+        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.BORDER_TOP_TYPE),
+          values.getFloat(StyleKeys.BORDER_TOP_VALUE)
+        )!!,
+        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.BORDER_BOTTOM_TYPE),
+          values.getFloat(StyleKeys.BORDER_BOTTOM_VALUE)
+        )!!
+      )
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.BORDER_LEFT_TYPE, value.left.type)
+      values.putFloat(StyleKeys.BORDER_LEFT_VALUE, value.left.value)
+
+      values.putInt(StyleKeys.BORDER_RIGHT_TYPE, value.right.type)
+      values.putFloat(StyleKeys.BORDER_RIGHT_VALUE, value.right.value)
+
+      values.putInt(StyleKeys.BORDER_TOP_TYPE, value.top.type)
+      values.putFloat(StyleKeys.BORDER_TOP_VALUE, value.top.value)
+
+      values.putInt(StyleKeys.BORDER_BOTTOM_TYPE, value.bottom.type)
+      values.putFloat(StyleKeys.BORDER_BOTTOM_VALUE, value.bottom.value)
+      setOrAppendState(StateKeys.BORDER)
     }
 
   fun setBorderLeft(value: Float, type: Int) {
-    val left = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val left = LengthPercentage.fromTypeValue(type, value)
 
     left?.let {
-      border = Rect(it, border.right, border.top, border.bottom)
+      values.putInt(StyleKeys.BORDER_LEFT_TYPE, type)
+      values.putFloat(StyleKeys.BORDER_LEFT_VALUE, value)
+      setOrAppendState(StateKeys.BORDER)
     }
   }
 
   fun setBorderRight(value: Float, type: Int) {
-    val right = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val right = LengthPercentage.fromTypeValue(type, value)
 
     right?.let {
-      border = Rect(border.left, right, border.top, border.bottom)
+      values.putInt(StyleKeys.BORDER_RIGHT_TYPE, type)
+      values.putFloat(StyleKeys.BORDER_RIGHT_VALUE, value)
+      setOrAppendState(StateKeys.BORDER)
     }
   }
 
   fun setBorderTop(value: Float, type: Int) {
-    val top = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val top = LengthPercentage.fromTypeValue(type, value)
 
     top?.let {
-      border = Rect(border.left, border.right, top, border.bottom)
+      values.putInt(StyleKeys.BORDER_TOP_TYPE, type)
+      values.putFloat(StyleKeys.BORDER_TOP_VALUE, value)
+      setOrAppendState(StateKeys.BORDER)
     }
   }
 
   fun setBorderBottom(value: Float, type: Int) {
-    val bottom = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val bottom = LengthPercentage.fromTypeValue(type, value)
 
     bottom?.let {
-      border = Rect(border.left, border.right, border.top, bottom)
+      values.putInt(StyleKeys.BORDER_BOTTOM_TYPE, type)
+      values.putFloat(StyleKeys.BORDER_BOTTOM_VALUE, value)
+      setOrAppendState(StateKeys.BORDER)
     }
   }
 
   fun setBorderWithValueType(value: Float, type: Int) {
-    val border = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val border = LengthPercentage.fromTypeValue(type, value)
 
     border?.let {
-      this.border = Rect(it, it, it, it)
+      values.putInt(StyleKeys.BORDER_LEFT_TYPE, type)
+      values.putFloat(StyleKeys.BORDER_LEFT_VALUE, value)
+
+      values.putInt(StyleKeys.BORDER_RIGHT_TYPE, type)
+      values.putFloat(StyleKeys.BORDER_RIGHT_VALUE, value)
+
+      values.putInt(StyleKeys.BORDER_TOP_TYPE, type)
+      values.putFloat(StyleKeys.BORDER_TOP_VALUE, value)
+
+      values.putInt(StyleKeys.BORDER_BOTTOM_TYPE, type)
+      values.putFloat(StyleKeys.BORDER_BOTTOM_VALUE, value)
+      setOrAppendState(StateKeys.BORDER)
     }
   }
 
-  var flexGrow: Float = 0f
+  var flexGrow: Float
+    get() {
+      return values.getFloat(StyleKeys.FLEX_GROW)
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putFloat(StyleKeys.FLEX_GROW, value)
+      setOrAppendState(StateKeys.FLEX_GROW)
     }
 
-  var flexShrink: Float = 1f
+  var flexShrink: Float
+    get() {
+      return values.getFloat(StyleKeys.FLEX_SHRINK)
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putFloat(StyleKeys.FLEX_SHRINK, value)
+      setOrAppendState(StateKeys.FLEX_SHRINK)
     }
 
-  var flexBasis: Dimension = Dimension.Auto
+  var flexBasis: Dimension
+    get() {
+      val type = values.getInt(StyleKeys.FLEX_BASIS_TYPE)
+      val value = values.getFloat(StyleKeys.FLEX_BASIS_VALUE)
+      // always valid
+      return Dimension.fromTypeValue(type, value)!!
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.FLEX_BASIS_TYPE, value.type)
+      values.putFloat(StyleKeys.FLEX_BASIS_VALUE, value.value)
+      setOrAppendState(StateKeys.FLEX_BASIS)
     }
 
 
-  var scrollBarWidth: Dimension = Dimension.Points(0f)
-    set(value) {
-      field = value
-      isDirty = true
+  var scrollBarWidth: Float
+    get() {
+      return values.getFloat(StyleKeys.SCROLLBAR_WIDTH)
     }
-
-  fun setScrollBarWidth(value: Float) {
-    scrollBarWidth = Dimension.Points(value)
-  }
+    set(value) {
+      values.putFloat(StyleKeys.SCROLLBAR_WIDTH, value)
+      setOrAppendState(StateKeys.SCROLLBAR_WIDTH)
+    }
 
 
   fun setFlexBasis(value: Float, type: Int) {
-    when (type) {
-      0 -> Dimension.Auto
-      1 -> Dimension.Points(value)
-      2 -> Dimension.Percent(value)
-      else -> null
-    }?.let {
-      flexBasis = it
+    Dimension.fromTypeValue(type, value)?.let {
+      values.putInt(StyleKeys.FLEX_BASIS_TYPE, type)
+      values.putFloat(StyleKeys.FLEX_BASIS_VALUE, value)
+      setOrAppendState(StateKeys.FLEX_BASIS)
     }
   }
 
-  var minSize: Size<Dimension> = autoSize
+  var minSize: Size<Dimension>
+    get() {
+      val widthType = values.getInt(StyleKeys.MIN_WIDTH_TYPE)
+      val widthValue = values.getFloat(StyleKeys.MIN_WIDTH_VALUE)
+      val width = Dimension.fromTypeValue(widthType, widthValue)
+
+      val heightType = values.getInt(StyleKeys.MIN_HEIGHT_TYPE)
+      val heightValue = values.getFloat(StyleKeys.MIN_HEIGHT_VALUE)
+      val height = Dimension.fromTypeValue(heightType, heightValue)
+      return Size(width!!, height!!)
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.MIN_WIDTH_TYPE, value.width.type)
+      values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value.width.value)
+      values.putInt(StyleKeys.MIN_HEIGHT_TYPE, value.height.type)
+      values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value.height.value)
+      setOrAppendState(StateKeys.MIN_SIZE)
     }
 
   fun setMinSizeWidth(value: Float, type: Int) {
-    val width = when (type) {
-      0 -> Dimension.Auto
-      1 -> Dimension.Points(value)
-      2 -> Dimension.Percent(value)
-      else -> null
-    }
-
+    val width = Dimension.fromTypeValue(type, value)
     width?.let {
-      minSize = Size(it, minSize.height)
+      values.putInt(StyleKeys.MIN_WIDTH_TYPE, type)
+      values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value)
+      setOrAppendState(StateKeys.MIN_SIZE)
     }
   }
 
   fun setMinSizeHeight(value: Float, type: Int) {
-    val height = when (type) {
-      0 -> Dimension.Auto
-      1 -> Dimension.Points(value)
-      2 -> Dimension.Percent(value)
-      else -> null
-    }
-
-
+    val height = Dimension.fromTypeValue(type, value)
     height?.let {
-      minSize = Size(minSize.width, it)
+      values.putInt(StyleKeys.MIN_HEIGHT_TYPE, type)
+      values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value)
+      setOrAppendState(StateKeys.MIN_SIZE)
     }
   }
 
 
   fun setMinSizeWidth(value: Dimension) {
-    minSize = Size(value, minSize.height)
+    values.putInt(StyleKeys.MIN_WIDTH_TYPE, value.type)
+    values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value.value)
+    setOrAppendState(StateKeys.MIN_SIZE)
   }
 
   fun setMinSizeHeight(value: Dimension) {
-    minSize = Size(minSize.width, value)
+    values.putInt(StyleKeys.MIN_HEIGHT_TYPE, value.type)
+    values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value.value)
+    setOrAppendState(StateKeys.MIN_SIZE)
   }
+
+  var size: Size<Dimension>
+    get() {
+      val widthType = values.getInt(StyleKeys.WIDTH_TYPE)
+      val widthValue = values.getFloat(StyleKeys.WIDTH_VALUE)
+      val width = Dimension.fromTypeValue(widthType, widthValue)
+
+      val heightType = values.getInt(StyleKeys.HEIGHT_TYPE)
+      val heightValue = values.getFloat(StyleKeys.HEIGHT_VALUE)
+      val height = Dimension.fromTypeValue(heightType, heightValue)
+      return Size(width!!, height!!)
+    }
+    set(value) {
+      values.putInt(StyleKeys.WIDTH_TYPE, value.width.type)
+      values.putFloat(StyleKeys.WIDTH_VALUE, value.width.value)
+
+      values.putInt(StyleKeys.HEIGHT_TYPE, value.height.type)
+      values.putFloat(StyleKeys.HEIGHT_VALUE, value.height.value)
+      setOrAppendState(StateKeys.SIZE)
+    }
 
 
   fun setSizeWidth(value: Float, type: Int) {
-    val width = when (type) {
-      0 -> Dimension.Auto
-      1 -> Dimension.Points(value)
-      2 -> Dimension.Percent(value)
-      else -> null
-    }
+    val width = Dimension.fromTypeValue(type, value)
 
     width?.let {
-      size = Size(it, size.height)
+      values.putInt(StyleKeys.WIDTH_TYPE, type)
+      values.putFloat(StyleKeys.WIDTH_VALUE, value)
+      setOrAppendState(StateKeys.SIZE)
     }
   }
 
   fun setSizeWidth(value: Dimension) {
-    size = Size(value, size.height)
+    values.putInt(StyleKeys.WIDTH_TYPE, value.type)
+    values.putFloat(StyleKeys.WIDTH_VALUE, value.value)
+    setOrAppendState(StateKeys.SIZE)
   }
 
   fun setSizeHeight(value: Float, type: Int) {
-    val height = when (type) {
-      0 -> Dimension.Auto
-      1 -> Dimension.Points(value)
-      2 -> Dimension.Percent(value)
-      else -> null
-    }
+    val height = Dimension.fromTypeValue(type, value)
 
     height?.let {
-      size = Size(size.width, it)
+      values.putInt(StyleKeys.HEIGHT_TYPE, type)
+      values.putFloat(StyleKeys.HEIGHT_VALUE, value)
+      setOrAppendState(StateKeys.SIZE)
     }
   }
 
   fun setSizeHeight(value: Dimension) {
-    size = Size(size.width, value)
+    values.putInt(StyleKeys.HEIGHT_TYPE, value.type)
+    values.putFloat(StyleKeys.HEIGHT_VALUE, value.value)
+    setOrAppendState(StateKeys.SIZE)
   }
 
-  var maxSize: Size<Dimension> = autoSize
+  var maxSize: Size<Dimension>
+    get() {
+      val widthType = values.getInt(StyleKeys.MAX_WIDTH_TYPE)
+      val widthValue = values.getFloat(StyleKeys.MAX_WIDTH_VALUE)
+      val width = Dimension.fromTypeValue(widthType, widthValue)
+
+      val heightType = values.getInt(StyleKeys.MAX_HEIGHT_TYPE)
+      val heightValue = values.getFloat(StyleKeys.MAX_HEIGHT_VALUE)
+      val height = Dimension.fromTypeValue(heightType, heightValue)
+      return Size(width!!, height!!)
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.MAX_WIDTH_TYPE, value.width.type)
+      values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value.width.value)
+      values.putInt(StyleKeys.MAX_HEIGHT_TYPE, value.height.type)
+      values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value.height.value)
+      setOrAppendState(StateKeys.MAX_SIZE)
     }
 
   fun setMaxSizeWidth(value: Float, type: Int) {
-    val width = when (type) {
-      0 -> Dimension.Auto
-      1 -> Dimension.Points(value)
-      2 -> Dimension.Percent(value)
-      else -> null
-    }
+    val width = Dimension.fromTypeValue(type, value)
 
     width?.let {
-      maxSize = Size(it, maxSize.height)
+      values.putInt(StyleKeys.MAX_WIDTH_TYPE, type)
+      values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value)
+      setOrAppendState(StateKeys.MAX_SIZE)
     }
   }
 
   fun setMaxSizeHeight(value: Float, type: Int) {
-    val height = when (type) {
-      0 -> Dimension.Auto
-      1 -> Dimension.Points(value)
-      2 -> Dimension.Percent(value)
-      else -> null
-    }
+    val height = Dimension.fromTypeValue(type, value)
 
     height?.let {
-      maxSize = Size(maxSize.width, it)
+      values.putInt(StyleKeys.MAX_HEIGHT_TYPE, type)
+      values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value)
+      setOrAppendState(StateKeys.MAX_SIZE)
     }
   }
 
 
   fun setMaxSizeWidth(value: Dimension) {
-    maxSize = Size(value, maxSize.height)
+    values.putInt(StyleKeys.MAX_WIDTH_TYPE, value.type)
+    values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value.value)
+    setOrAppendState(StateKeys.MAX_SIZE)
   }
 
   fun setMaxSizeHeight(value: Dimension) {
-    maxSize = Size(maxSize.width, value)
+    values.putInt(StyleKeys.MAX_HEIGHT_TYPE, value.type)
+    values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value.value)
+    setOrAppendState(StateKeys.MAX_SIZE)
   }
 
-  var gap: Size<LengthPercentage> = LengthPercentageZeroSize
+  var gap: Size<LengthPercentage>
+    get() {
+      val widthType = values.getInt(StyleKeys.GAP_ROW_TYPE)
+      val widthValue = values.getFloat(StyleKeys.GAP_ROW_VALUE)
+      val width = LengthPercentage.fromTypeValue(widthType, widthValue)
+
+      val heightType = values.getInt(StyleKeys.GAP_COLUMN_TYPE)
+      val heightValue = values.getFloat(StyleKeys.GAP_COLUMN_VALUE)
+      val height = LengthPercentage.fromTypeValue(heightType, heightValue)
+      return Size(width!!, height!!)
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.GAP_ROW_TYPE, value.width.type)
+      values.putFloat(StyleKeys.GAP_ROW_VALUE, value.width.value)
+      values.putInt(StyleKeys.GAP_COLUMN_TYPE, value.height.type)
+      values.putFloat(StyleKeys.GAP_COLUMN_VALUE, value.height.value)
+      setOrAppendState(StateKeys.GAP)
     }
 
-  fun setGap(width_value: Float, width_type: Int, height_value: Float, height_type: Int) {
-    val width = when (width_type) {
-      0 -> LengthPercentage.Points(width_value)
-      1 -> LengthPercentage.Percent(width_value)
-      else -> null
-    }
+  fun setGap(widthValue: Float, widthType: Int, heightValue: Float, heightType: Int) {
+    val width = LengthPercentage.fromTypeValue(widthType, widthValue)
 
-    val height = when (height_type) {
-      0 -> LengthPercentage.Points(height_value)
-      1 -> LengthPercentage.Percent(height_value)
-      else -> null
-    }
+    val height = LengthPercentage.fromTypeValue(heightType, heightValue)
 
     if (width != null && height != null) {
-      gap = Size(width, height)
+      values.putInt(StyleKeys.GAP_ROW_TYPE, widthType)
+      values.putFloat(StyleKeys.GAP_ROW_VALUE, widthValue)
+      values.putInt(StyleKeys.GAP_COLUMN_TYPE, heightType)
+      values.putFloat(StyleKeys.GAP_COLUMN_VALUE, heightValue)
+      setOrAppendState(StateKeys.GAP)
     }
   }
 
 
   fun setGapRow(value: Float, type: Int) {
-    val width = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val width = LengthPercentage.fromTypeValue(type, value)
 
     width?.let {
-      gap = Size(it, gap.height)
+      values.putInt(StyleKeys.GAP_ROW_TYPE, type)
+      values.putFloat(StyleKeys.GAP_ROW_VALUE, value)
+      setOrAppendState(StateKeys.GAP)
     }
   }
 
   fun setGapColumn(value: Float, type: Int) {
-    val height = when (type) {
-      0 -> LengthPercentage.Points(value)
-      1 -> LengthPercentage.Percent(value)
-      else -> null
-    }
+    val height = LengthPercentage.fromTypeValue(type, value)
 
     height?.let {
-      gap = Size(gap.width, it)
+      values.putInt(StyleKeys.GAP_COLUMN_TYPE, type)
+      values.putFloat(StyleKeys.GAP_COLUMN_VALUE, value)
+      setOrAppendState(StateKeys.GAP)
     }
   }
 
-  var aspectRatio: Float? = null
+  var aspectRatio: Float?
+    get() {
+      val value = values.getFloat(StyleKeys.ASPECT_RATIO)
+      return if (value.isNaN()) {
+        null
+      } else {
+        value
+      }
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putFloat(StyleKeys.ASPECT_RATIO, value ?: Float.NaN)
+      setOrAppendState(StateKeys.ASPECT_RATIO)
     }
 
 
-  var gridAutoRows: Array<MinMax> = emptyArray()
+  var gridAutoRows: Array<MinMax> = arrayOf()
     set(value) {
       field = value
-      isDirty = true
+      isSlowDirty = true
     }
 
   var gridAutoColumns: Array<MinMax> = emptyArray()
     set(value) {
       field = value
-      isDirty = true
+      isSlowDirty = true
     }
 
-  var gridAutoFlow: GridAutoFlow = GridAutoFlow.Row
+  var gridAutoFlow: GridAutoFlow
+    get() {
+      return GridAutoFlow.fromInt(values.getInt(StyleKeys.GRID_AUTO_FLOW))
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.GRID_AUTO_FLOW, value.value)
+      setOrAppendState(StateKeys.GRID_AUTO_FLOW)
     }
 
-  var gridColumn: Line<GridPlacement> = Line(GridPlacement.Auto, GridPlacement.Auto)
+  var gridColumn: Line<GridPlacement>
+    get() {
+      val startType = values.getInt(StyleKeys.GRID_COLUMN_START_TYPE)
+      val startValue = values.getShort(StyleKeys.GRID_COLUMN_START_VALUE)
+      val start = GridPlacement.fromTypeValue(startType, startValue)
+
+      val endType = values.getInt(StyleKeys.GRID_COLUMN_END_TYPE)
+      val endValue = values.getShort(StyleKeys.GRID_COLUMN_END_VALUE)
+      val end = GridPlacement.fromTypeValue(endType, endValue)
+      return Line(start, end)
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.GRID_COLUMN_START_TYPE, value.start.type)
+      values.putShort(StyleKeys.GRID_COLUMN_START_VALUE, value.start.placementValue)
+
+      values.putInt(StyleKeys.GRID_COLUMN_END_TYPE, value.end.type)
+      values.putShort(StyleKeys.GRID_COLUMN_END_VALUE, value.end.placementValue)
+      setOrAppendState(StateKeys.GRID_COLUMN)
     }
 
 
   var gridColumnStart: GridPlacement
     get() {
-      return gridColumn.start
+      val startType = values.getInt(StyleKeys.GRID_COLUMN_START_TYPE)
+      val startValue = values.getShort(StyleKeys.GRID_COLUMN_START_VALUE)
+      return GridPlacement.fromTypeValue(startType, startValue)
     }
     set(value) {
-      gridColumn = Line(value, gridColumn.end)
+      values.putInt(StyleKeys.GRID_COLUMN_START_TYPE, value.type)
+      values.putShort(StyleKeys.GRID_COLUMN_START_VALUE, value.placementValue)
+      setOrAppendState(StateKeys.GRID_COLUMN)
     }
 
   var gridColumnEnd: GridPlacement
     get() {
-      return gridColumn.end
+      val endType = values.getInt(StyleKeys.GRID_COLUMN_END_TYPE)
+      val endValue = values.getShort(StyleKeys.GRID_COLUMN_END_VALUE)
+      return GridPlacement.fromTypeValue(endType, endValue)
     }
     set(value) {
-      gridColumn = Line(gridColumn.start, value)
+      values.putInt(StyleKeys.GRID_COLUMN_END_TYPE, value.type)
+      values.putShort(StyleKeys.GRID_COLUMN_END_VALUE, value.placementValue)
+      setOrAppendState(StateKeys.GRID_COLUMN)
     }
 
 
-  var gridRow: Line<GridPlacement> = Line(GridPlacement.Auto, GridPlacement.Auto)
+  var gridRow: Line<GridPlacement>
+    get() {
+      val startType = values.getInt(StyleKeys.GRID_ROW_START_TYPE)
+      val startValue = values.getShort(StyleKeys.GRID_ROW_START_VALUE)
+      val start = GridPlacement.fromTypeValue(startType, startValue)
+
+      val endType = values.getInt(StyleKeys.GRID_ROW_END_TYPE)
+      val endValue = values.getShort(StyleKeys.GRID_ROW_END_VALUE)
+      val end = GridPlacement.fromTypeValue(endType, endValue)
+      return Line(start, end)
+    }
     set(value) {
-      field = value
-      isDirty = true
+      values.putInt(StyleKeys.GRID_ROW_START_TYPE, value.start.type)
+      values.putShort(StyleKeys.GRID_ROW_START_VALUE, value.start.placementValue)
+
+      values.putInt(StyleKeys.GRID_ROW_END_TYPE, value.end.type)
+      values.putShort(StyleKeys.GRID_ROW_END_VALUE, value.end.placementValue)
+      setOrAppendState(StateKeys.GRID_ROW)
     }
 
   var gridRowStart: GridPlacement
     get() {
-      return gridRow.start
+      val startType = values.getInt(StyleKeys.GRID_ROW_START_TYPE)
+      val startValue = values.getShort(StyleKeys.GRID_ROW_START_VALUE)
+      return GridPlacement.fromTypeValue(startType, startValue)
     }
     set(value) {
-      gridRow = Line(value, gridRow.end)
+      values.putInt(StyleKeys.GRID_ROW_START_TYPE, value.type)
+      values.putShort(StyleKeys.GRID_ROW_START_VALUE, value.placementValue)
+      setOrAppendState(StateKeys.GRID_ROW)
     }
 
   var gridRowEnd: GridPlacement
     get() {
-      return gridRow.end
+      val endType = values.getInt(StyleKeys.GRID_ROW_END_TYPE)
+      val endValue = values.getShort(StyleKeys.GRID_ROW_END_VALUE)
+      return GridPlacement.fromTypeValue(endType, endValue)
     }
     set(value) {
-      gridRow = Line(gridRow.start, value)
+      values.putInt(StyleKeys.GRID_ROW_END_TYPE, value.type)
+      values.putShort(StyleKeys.GRID_ROW_END_VALUE, value.placementValue)
+      setOrAppendState(StateKeys.GRID_ROW)
     }
 
 
   var gridTemplateRows: Array<TrackSizingFunction> = emptyArray()
     set(value) {
       field = value
-      isDirty = true
+      isSlowDirty = true
     }
 
   var gridTemplateColumns: Array<TrackSizingFunction> = emptyArray()
     set(value) {
       field = value
-      isDirty = true
+      isSlowDirty = true
     }
-
-  @Synchronized
-  @Throws(Throwable::class)
-  protected fun finalize() {
-//    Log.d("com.test", "style finalize: $nativePtr")
-//    nativeDestroy(nativePtr)
-//    nativePtr = 0
-  }
-
 
   internal fun updateNativeStyle() {
     if (node.nativePtr == 0L) {
       return
     }
-    nativeUpdateWithValues(
-      node.mason.nativePtr,
-      node.nativePtr,
-      display.value,
-      position.value,
-      direction.value,
-      flexDirection.value,
-      flexWrap.value,
-      overflow.value,
-      alignItems.value,
-      alignSelf.value,
-      alignContent.value,
-      justifyItems.value,
-      justifySelf.value,
-      justifyContent.value,
 
-      inset.left.type,
-      inset.left.value,
-      inset.right.type,
-      inset.right.value,
-      inset.top.type,
-      inset.top.value,
-      inset.bottom.type,
-      inset.bottom.value,
+    if (isSlowDirty) {
+      nativeUpdateWithValues(
+        node.mason.nativePtr,
+        node.nativePtr,
+        display.value,
+        position.value,
+        direction.value,
+        flexDirection.value,
+        flexWrap.value,
+        overflow.value,
+        alignItems.value,
+        alignSelf.value,
+        alignContent.value,
+        justifyItems.value,
+        justifySelf.value,
+        justifyContent.value,
 
-      margin.left.type,
-      margin.left.value,
-      margin.right.type,
-      margin.right.value,
-      margin.top.type,
-      margin.top.value,
-      margin.bottom.type,
-      margin.bottom.value,
+        inset.left.type,
+        inset.left.value,
+        inset.right.type,
+        inset.right.value,
+        inset.top.type,
+        inset.top.value,
+        inset.bottom.type,
+        inset.bottom.value,
 
-
-      padding.left.type,
-      padding.left.value,
-      padding.right.type,
-      padding.right.value,
-      padding.top.type,
-      padding.top.value,
-      padding.bottom.type,
-      padding.bottom.value,
+        margin.left.type,
+        margin.left.value,
+        margin.right.type,
+        margin.right.value,
+        margin.top.type,
+        margin.top.value,
+        margin.bottom.type,
+        margin.bottom.value,
 
 
-      border.left.type,
-      border.left.value,
-      border.right.type,
-      border.right.value,
-      border.top.type,
-      border.top.value,
-      border.bottom.type,
-      border.bottom.value,
-      flexGrow,
-      flexShrink,
-      flexBasis.type,
-      flexBasis.value,
-
-      size.width.type,
-      size.width.value,
-      size.height.type,
-      size.height.value,
+        padding.left.type,
+        padding.left.value,
+        padding.right.type,
+        padding.right.value,
+        padding.top.type,
+        padding.top.value,
+        padding.bottom.type,
+        padding.bottom.value,
 
 
-      minSize.width.type,
-      minSize.width.value,
-      minSize.height.type,
-      minSize.height.value,
+        border.left.type,
+        border.left.value,
+        border.right.type,
+        border.right.value,
+        border.top.type,
+        border.top.value,
+        border.bottom.type,
+        border.bottom.value,
+        flexGrow,
+        flexShrink,
+        flexBasis.type,
+        flexBasis.value,
 
-      maxSize.width.type,
-      maxSize.width.value,
-      maxSize.height.type,
-      maxSize.height.value,
+        size.width.type,
+        size.width.value,
+        size.height.type,
+        size.height.value,
 
-      gap.width.type,
-      gap.width.value,
-      gap.height.type,
-      gap.height.value,
-      aspectRatio ?: Float.NaN,
-      gridAutoRows,
-      gridAutoColumns,
-      gridAutoFlow.value,
 
-      gridColumn.start.type,
-      gridColumn.start.placementValue,
-      gridColumn.end.type,
-      gridColumn.end.placementValue,
+        minSize.width.type,
+        minSize.width.value,
+        minSize.height.type,
+        minSize.height.value,
 
-      gridRow.start.type,
-      gridRow.start.placementValue,
-      gridRow.end.type,
-      gridRow.end.placementValue,
-      gridTemplateRows,
-      gridTemplateColumns,
-      overflowX.value,
-      overflowY.value,
-      scrollBarWidth.value,
-      textAlign.value,
-      boxSizing.value
-    )
-  }
+        maxSize.width.type,
+        maxSize.width.value,
+        maxSize.height.type,
+        maxSize.height.value,
 
-  internal fun updateStyle(
-    display: Int,
-    position: Int,
-    direction: Int,
-    flexDirection: Int,
-    flexWrap: Int,
-    overflow: Int,
-    alignItems: Int,
-    alignSelf: Int,
-    alignContent: Int,
-    justifyContent: Int,
-    insetLeftType: Int,
-    insetLeftValue: Float,
-    insetEndType: Int,
-    insetEndValue: Float,
-    insetTopType: Int,
-    insetTopValue: Float,
-    insetBottomType: Int,
-    insetBottomValue: Float,
-    marginLeftType: Int,
-    marginLeftValue: Float,
-    marginEndType: Int,
-    marginEndValue: Float,
-    marginTopType: Int,
-    marginTopValue: Float,
-    marginBottomType: Int,
-    marginBottomValue: Float,
-    paddingLeftType: Int,
-    paddingLeftValue: Float,
-    paddingEndType: Int,
-    paddingEndValue: Float,
-    paddingTopType: Int,
-    paddingTopValue: Float,
-    paddingBottomType: Int,
-    paddingBottomValue: Float,
-    borderLeftType: Int,
-    borderLeftValue: Float,
-    borderEndType: Int,
-    borderEndValue: Float,
-    borderTopType: Int,
-    borderTopValue: Float,
-    borderBottomType: Int,
-    borderBottomValue: Float,
-    flexGrow: Float,
-    flexShrink: Float,
-    flexBasisType: Int,
-    flexBasisValue: Float,
-    sizeWidthType: Int,
-    sizeWidthValue: Float,
-    sizeHeightType: Int,
-    sizeHeightValue: Float,
-    minSizeWidthType: Int,
-    minSizeWidthValue: Float,
-    minSizeHeightType: Int,
-    minSizeHeightValue: Float,
-    maxSizeWidthType: Int,
-    maxSizeWidthValue: Float,
-    maxSizeHeightType: Int,
-    maxSizeHeightValue: Float,
-    gapRowType: Int,
-    gapRowValue: Float,
-    gapColumnType: Int,
-    gapColumnValue: Float,
-    aspectRatio: Float,
-    textAlign: Int,
-    boxSizing: Int,
-    gridAutoRows: Array<MinMax>,
-    gridAutoColumns: Array<MinMax>,
-    gridAutoFlow: Int,
-    gridColumnStartType: Int,
-    gridColumnStartValue: Short,
-    gridColumnEndType: Int,
-    gridColumnEndValue: Short,
-    gridRowStartType: Int,
-    gridRowStartValue: Short,
-    gridRowEndType: Int,
-    gridRowEndValue: Short,
-    gridTemplateRows: Array<TrackSizingFunction>,
-    gridTemplateColumns: Array<TrackSizingFunction>,
-  ) {
-    this.display = Display.fromInt(display)
-    this.position = Position.fromInt(position)
-    this.flexDirection = FlexDirection.fromInt(flexDirection)
-    this.flexWrap = FlexWrap.fromInt(flexWrap)
-    this.overflow = Overflow.fromInt(overflow)
-    this.alignItems = AlignItems.fromInt(alignItems)
-    this.alignSelf = AlignSelf.fromInt(alignSelf)
-    this.alignContent = AlignContent.fromInt(alignContent)
-    this.justifyContent = JustifyContent.fromInt(justifyContent)
+        gap.width.type,
+        gap.width.value,
+        gap.height.type,
+        gap.height.value,
+        aspectRatio ?: Float.NaN,
+        gridAutoRows,
+        gridAutoColumns,
+        gridAutoFlow.value,
 
-    var insetLeft: LengthPercentageAuto = LengthPercentageAuto.Auto
-    var insetEnd: LengthPercentageAuto = LengthPercentageAuto.Auto
-    var insetTop: LengthPercentageAuto = LengthPercentageAuto.Auto
-    var insetBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
+        gridColumn.start.type,
+        gridColumn.start.placementValue,
+        gridColumn.end.type,
+        gridColumn.end.placementValue,
 
-    LengthPercentageAuto.fromTypeValue(insetLeftType, insetLeftValue)?.let {
-      insetLeft = it
+        gridRow.start.type,
+        gridRow.start.placementValue,
+        gridRow.end.type,
+        gridRow.end.placementValue,
+        gridTemplateRows,
+        gridTemplateColumns,
+        overflowX.value,
+        overflowY.value,
+        scrollBarWidth,
+        textAlign.value,
+        boxSizing.value
+      )
+      resetState()
+      if (node.data is View) {
+        (node.data as View).requestLayout()
+      }
+      return
     }
 
-    LengthPercentageAuto.fromTypeValue(insetEndType, insetEndValue)?.let {
-      insetEnd = it
+    if (isDirty != -1L) {
+      nativeSyncStyle(node.mason.nativePtr, node.nativePtr, isDirty)
+      resetState()
+      if (node.data is View) {
+        (node.data as View).requestLayout()
+      }
+      return
     }
-
-    LengthPercentageAuto.fromTypeValue(insetTopType, insetTopValue)?.let {
-      insetTop = it
-    }
-
-    LengthPercentageAuto.fromTypeValue(insetBottomType, insetBottomValue)?.let {
-      insetBottom = it
-    }
-
-    inset = Rect(insetLeft, insetEnd, insetTop, insetBottom)
-
-    var marginLeft: LengthPercentageAuto = LengthPercentageAuto.Auto
-    var marginEnd: LengthPercentageAuto = LengthPercentageAuto.Auto
-    var marginTop: LengthPercentageAuto = LengthPercentageAuto.Auto
-    var marginBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
-
-    LengthPercentageAuto.fromTypeValue(marginLeftType, marginLeftValue)?.let {
-      marginLeft = it
-    }
-
-    LengthPercentageAuto.fromTypeValue(marginEndType, marginEndValue)?.let {
-      marginEnd = it
-    }
-
-    LengthPercentageAuto.fromTypeValue(marginTopType, marginTopValue)?.let {
-      marginTop = it
-    }
-
-    LengthPercentageAuto.fromTypeValue(marginBottomType, marginBottomValue)?.let {
-      marginBottom = it
-    }
-
-    margin = Rect(marginLeft, marginEnd, marginTop, marginBottom)
-
-    var paddingLeft: LengthPercentage = LengthPercentage.Zero
-    var paddingEnd: LengthPercentage = LengthPercentage.Zero
-    var paddingTop: LengthPercentage = LengthPercentage.Zero
-    var paddingBottom: LengthPercentage = LengthPercentage.Zero
-
-    LengthPercentage.fromTypeValue(paddingLeftType, paddingLeftValue)?.let {
-      paddingLeft = it
-    }
-
-    LengthPercentage.fromTypeValue(paddingEndType, paddingEndValue)?.let {
-      paddingEnd = it
-    }
-
-    LengthPercentage.fromTypeValue(paddingTopType, paddingTopValue)?.let {
-      paddingTop = it
-    }
-
-    LengthPercentage.fromTypeValue(paddingBottomType, paddingBottomValue)?.let {
-      paddingBottom = it
-    }
-
-    padding = Rect(paddingLeft, paddingEnd, paddingTop, paddingBottom)
-
-    var borderLeft: LengthPercentage = LengthPercentage.Zero
-    var borderEnd: LengthPercentage = LengthPercentage.Zero
-    var borderTop: LengthPercentage = LengthPercentage.Zero
-    var borderBottom: LengthPercentage = LengthPercentage.Zero
-
-    LengthPercentage.fromTypeValue(borderLeftType, borderLeftValue)?.let {
-      borderLeft = it
-    }
-
-    LengthPercentage.fromTypeValue(borderEndType, borderEndValue)?.let {
-      borderEnd = it
-    }
-
-    LengthPercentage.fromTypeValue(borderTopType, borderTopValue)?.let {
-      borderTop = it
-    }
-
-    LengthPercentage.fromTypeValue(borderBottomType, borderBottomValue)?.let {
-      borderBottom = it
-    }
-
-    border = Rect(borderLeft, borderEnd, borderTop, borderBottom)
-
-
-    this.flexGrow = flexGrow
-    this.flexShrink = flexShrink
-
-    Dimension.fromTypeValue(flexBasisType, flexBasisValue)?.let {
-      flexBasis = it
-    }
-
-
-    var sizeWidth: Dimension = Dimension.Auto
-    var sizeHeight: Dimension = Dimension.Auto
-
-    Dimension.fromTypeValue(sizeWidthType, sizeWidthValue)?.let {
-      sizeWidth = it
-    }
-
-    Dimension.fromTypeValue(sizeHeightType, sizeHeightValue)?.let {
-      sizeHeight = it
-    }
-
-    this.size = Size(sizeWidth, sizeHeight)
-
-    var minSizeWidth: Dimension = Dimension.Auto
-    var minSizeHeight: Dimension = Dimension.Auto
-
-    Dimension.fromTypeValue(minSizeWidthType, minSizeWidthValue)?.let {
-      minSizeWidth = it
-    }
-
-    Dimension.fromTypeValue(minSizeHeightType, minSizeHeightValue)?.let {
-      minSizeHeight = it
-    }
-
-    this.minSize = Size(minSizeWidth, minSizeHeight)
-
-
-    var maxSizeWidth: Dimension = Dimension.Auto
-    var maxSizeHeight: Dimension = Dimension.Auto
-
-    Dimension.fromTypeValue(maxSizeWidthType, maxSizeWidthValue)?.let {
-      maxSizeWidth = it
-    }
-
-    Dimension.fromTypeValue(maxSizeHeightType, maxSizeHeightValue)?.let {
-      maxSizeHeight = it
-    }
-
-    this.maxSize = Size(maxSizeWidth, maxSizeHeight)
-
-    var gapRow: LengthPercentage = LengthPercentage.Zero
-    var gapColumn: LengthPercentage = LengthPercentage.Zero
-
-
-
-    LengthPercentage.fromTypeValue(gapRowType, gapRowValue)?.let {
-      gapRow = it
-    }
-
-    LengthPercentage.fromTypeValue(gapColumnType, gapColumnValue)?.let {
-      gapColumn = it
-    }
-
-    this.gap = Size(gapRow, gapColumn)
-
-    if (!aspectRatio.isNaN()) {
-      this.aspectRatio = null
-    } else {
-      this.aspectRatio = aspectRatio
-    }
-
-
-    this.gridAutoRows = gridAutoRows
-    this.gridAutoColumns = gridAutoColumns
-    this.gridAutoFlow = GridAutoFlow.fromInt(gridAutoFlow)
-
-    Line.fromStartAndEndValues(
-      gridColumnStartType,
-      gridColumnStartValue,
-      gridColumnEndType,
-      gridColumnEndValue
-    )?.let {
-      gridColumn = it
-    }
-
-
-    Line.fromStartAndEndValues(
-      gridRowStartType,
-      gridRowStartValue,
-      gridRowEndType,
-      gridRowEndValue
-    )?.let {
-      gridRow = it
-    }
-
-    this.gridTemplateRows = gridTemplateRows
-    this.gridTemplateColumns = gridTemplateColumns
-
-    this.textAlign = TextAlign.fromInt(textAlign)
-    this.boxSizing = BoxSizing.fromInt(boxSizing)
   }
 
   fun getNativeMargins(): Rect<LengthPercentageAuto> {
-    if (node.nativePtr == 0L) return LengthPercentageAutoZeroRect
 
     var marginLeft: LengthPercentageAuto = LengthPercentageAuto.Auto
     var marginRight: LengthPercentageAuto = LengthPercentageAuto.Auto
@@ -2048,7 +1976,6 @@ class Style internal constructor(private var node: Node) {
   }
 
   fun getNativeSize(): Size<Dimension> {
-    if (node.nativePtr == 0L) return autoSize
     val width = Dimension.fromTypeValue(
       values.getInt(StyleKeys.WIDTH_TYPE),
       values.getFloat(StyleKeys.WIDTH_VALUE)
@@ -2059,26 +1986,6 @@ class Style internal constructor(private var node: Node) {
     )
     return Size(width as Dimension, height as Dimension)
   }
-
-
-  var size: Size<Dimension> = autoSize
-    get() {
-      if (node.nativePtr == 0L) return field
-      val width = Dimension.fromTypeValue(
-        values.getInt(StyleKeys.WIDTH_TYPE),
-        values.getFloat(StyleKeys.WIDTH_VALUE)
-      )
-      val height = Dimension.fromTypeValue(
-        values.getInt(StyleKeys.HEIGHT_TYPE),
-        values.getFloat(StyleKeys.HEIGHT_VALUE)
-      )
-      return Size(width as Dimension, height as Dimension)
-    }
-    set(value) {
-      field = value
-      isDirty = true
-    }
-
 
   override fun toString(): String {
     var ret = "(MasonStyle)("
@@ -2111,7 +2018,9 @@ class Style internal constructor(private var node: Node) {
         aspectRatio
       }
     }, \n"
-    ret += "gridAutoRows: ${gridAutoRows.cssValue}, \n"
+    ret += "gridAutoRows: ${
+      gridAutoRows.cssValue
+    }, \n"
     ret += "gridAutoColumns: ${gridAutoColumns.cssValue}, \n"
     ret += "gridColumn: ${
       if (gridColumn.start == gridColumn.end) {
@@ -2132,13 +2041,14 @@ class Style internal constructor(private var node: Node) {
 
     ret += "overflowX: ${overflowX.cssValue} \n"
     ret += "overflowY: ${overflowY.cssValue} \n"
-    ret += "scrollBarWidth: ${scrollBarWidth.cssValue} \n"
+    ret += "scrollBarWidth: $scrollBarWidth \n"
     ret += "textAlign: ${textAlign.cssValue} \n"
     ret += "boxSizing: ${boxSizing.cssValue} \n"
     ret += ")"
 
     return ret
   }
+
 
   companion object {
     init {
@@ -2151,6 +2061,23 @@ class Style internal constructor(private var node: Node) {
       node: Long,
       buffer: ByteBuffer,
     )
+
+    @FastNative
+    @JvmStatic
+    external fun nativeGetStyleBuffer(
+      mason: Long,
+      node: Long,
+    ): ByteBuffer?
+
+
+    @JvmStatic
+    @CriticalNative
+    external fun nativeSyncStyle(
+      mason: Long,
+      node: Long,
+      state: Long
+    )
+
 
     @JvmStatic
     external fun nativeUpdateWithValues(

@@ -7,6 +7,7 @@ import android.util.Log
 import android.widget.Button
 import org.nativescript.mason.masondemo.databinding.ActivityFlexBinding
 import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.Display
 import org.nativescript.mason.masonkit.FlexDirection
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.NodeHelper
@@ -27,27 +28,13 @@ class FlexActivity : AppCompatActivity() {
     val rootLayout = mason.createView(this)
     rootLayout.setBackgroundColor(Color.GRAY)
     rootLayout.configure {
-      it.style.flexDirection = FlexDirection.Row
+      style.display = Display.Flex
+      style.flexDirection = FlexDirection.Row
     }
 
     val flexBtn = Button(this)
     flexBtn.text = "Button"
-
-    val flexBtnNode = mason.nodeForView(flexBtn)
-
-    flexBtnNode.configure {
-      NodeHelper.setSizeWidth(flexBtnNode, Dimension.Points(1100f))
-    }
-
-    flexBtnNode.configure {
-      NodeHelper.setMinSizeWidth(flexBtnNode, Dimension.Points(300f))
-    }
-
-    flexBtnNode.configure {
-      NodeHelper.setMaxSizeWidth(flexBtnNode, Dimension.Points(1200f))
-    }
-
-    rootLayout.addView(flexBtn, flexBtnNode)
+    rootLayout.addView(flexBtn)
 
     val tv = mason.createTextView(this)
     tv.text = "Hello World"
@@ -56,8 +43,8 @@ class FlexActivity : AppCompatActivity() {
 
     val a = mason.createView(this)
     a.setBackgroundColor(Color.RED)
-    a.configure { node ->
-      node.style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
+    a.configure {
+      style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
     }
     rootLayout.addView(a)
 

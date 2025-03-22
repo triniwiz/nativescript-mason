@@ -8,122 +8,43 @@
 import UIKit
 import Foundation
 
-struct MasonAssociatedKeys {
-    static var masonEnabled: UInt8 = 1
-}
-
-/*
-// Can enable adding the owner to nodes
-private func swizzle(_ v: UIView.Type) {
-  [
-    (#selector(v.didMoveToSuperview), #selector(v.mason_didMoveToSuperview))
-  ]
-  .forEach { original, swizzled in
-
-    guard let originalMethod = class_getInstanceMethod(v, original),
-      let swizzledMethod = class_getInstanceMethod(v, swizzled) else { return }
-
-    let didAddViewDidLoadMethod = class_addMethod(
-      v,
-      original,
-      method_getImplementation(swizzledMethod),
-      method_getTypeEncoding(swizzledMethod)
-    )
-
-    if didAddViewDidLoadMethod {
-      class_replaceMethod(
-        v,
-        swizzled,
-        method_getImplementation(originalMethod),
-        method_getTypeEncoding(originalMethod)
-      )
-    } else {
-      method_exchangeImplementations(originalMethod, swizzledMethod)
-    }
+@objc(MasonView)
+public class MasonView: UIView {
+  public let node: MasonNode
+  public let mason: NSCMason
+  init(mason: NSCMason) {
+    self.node = mason.createNode()
+    self.mason = mason
   }
-}
-
-private var hasSwizzled = false
-
-*/
-
-extension UIView {
-   /* public final class func swizzleForMason() {
-       guard !hasSwizzled else { return }
-
-       hasSwizzled = true
-        Mason.swizzle(self)
-     }
-    
-    @objc internal func mason_didMoveToSuperview() {
-      self.mason_didMoveToSuperview()
-        if let superview = self.superview {
-            mason.owner = superview.mason
-        }
-        else {
-            mason.owner = nil
-        }
-    }
-    */
-    
-    @objc public var rootView: UIView? {
-        var view = self
-           while let s = view.superview {
-               view = s
-           }
-           return view
-    }
-    
-    @objc public static func createGridView() -> UIView{
-        let view = UIView(frame: .zero)
-        view.mason.configure { node in
+  
+  
+  @objc public static func createGridView(_ mason: NSCMason) -> MasonView{
+      let view = NSCView(mason: mason)
+        view.node.configure { node in
             node.style.display = .Grid
         }
-        return view
+      return view
     }
     
-    @objc public static func createFlexView() -> UIView{
-        let view = UIView(frame: .zero)
-        view.mason.configure { node in
-            node.style.display = .Flex
+    @objc public static func createFlexView(_ mason: NSCMason) -> MasonView{
+      let view = NSCView(mason: mason)
+        view.node.configure { node in
+          node.style.display = .Flex
         }
-        return view
+      return view
     }
     
-    @objc public static func createBlockView() -> UIView{
-        let view = UIView(frame: .zero)
-        view.mason.configure { node in
-            node.style.display = .Block
+    @objc public static func createBlockView(_ mason: NSCMason) -> MasonView{
+      let view = NSCView(mason: mason)
+        view.node.configure { node in
+          node.style.display = .Block
         }
-        return view
+      return view
     }
     
-    @objc public var mason: MasonNode {
-       // UIView.swizzleForMason()
-        guard let mason = objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) as? MasonNode else {
-            let mason = MasonNode()
-            mason.data = self
-            mason.includeInLayout = true
-            mason.setDefaultMeasureFunction()
-            mason.isEnabled = NSCMason.alwaysEnable
-            objc_setAssociatedObject(
-                self, &MasonAssociatedKeys.masonEnabled, mason, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            return mason
-        }
-        return mason
-    }
     
     @objc public var masonPtr: Int64 {
-        if(NSCMason.instance.nativePtr == nil){
-            return 0
-        }
-        guard let ptr = UnsafeRawPointer(NSCMason.instance.nativePtr) else {return 0}
-        
-        return Int64(Int(bitPattern: ptr))
-    }
-    
-    @objc public var masonNodePtr: Int64 {
-        if(mason.nativePtr == nil){
+      if(mason.nativePtr == nil){
             return 0
         }
         guard let ptr = UnsafeRawPointer(mason.nativePtr) else {return 0}
@@ -131,23 +52,21 @@ extension UIView {
         return Int64(Int(bitPattern: ptr))
     }
     
-    @objc public var masonStylePtr: Int64 {
-        if(mason.style.nativePtr == nil){
+    @objc public var masonNodePtr: Int64 {
+      if(node.nativePtr == nil){
             return 0
         }
-        guard let ptr = UnsafeRawPointer(mason.style.nativePtr) else {return 0}
+        guard let ptr = UnsafeRawPointer(node.nativePtr) else {return 0}
         
         return Int64(Int(bitPattern: ptr))
     }
     
+
     
     @objc public var masonPtrs: String {
-        return "\(masonPtr):\(masonNodePtr):\(masonStylePtr)"
+        return "\(masonPtr):\(masonNodePtr)"
     }
-    @objc public var isMasonEnabled: Bool {
-        return objc_getAssociatedObject(self, &MasonAssociatedKeys.masonEnabled) != nil
-    }
-    
+
     
     @objc public var style: MasonStyle {
         get {
@@ -175,7 +94,8 @@ extension UIView {
     }
     
     @objc public func configure(_ block :(MasonNode) -> Void) {
-        mason.configure(block)
+      node.configure(block)
+      node.configure(block)
     }
     
     

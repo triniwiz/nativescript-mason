@@ -1,10 +1,20 @@
 declare const __non_webpack_require__;
 
 import { Length, Utils, isIOS } from '@nativescript/core';
-import { TSCViewBase } from './common';
+import { style_, ViewBase } from './common';
 
-import { AlignSelf as AlignSelfType } from '.';
+type View = ViewBase & {
+  _hasNativeView: boolean;
+  _masonPtr: bigint;
+  _masonNodePtr: bigint;
+  _inBatch: boolean;
+  ios: UIView;
+  android: org.nativescript.mason.masonkit.View;
+  [style_]: Style;
+};
+
 import { parseUnit } from '@nativescript/core/css/parser';
+import type { Style } from './style';
 
 const enum Overflow {
   Visible = 0,
@@ -209,16 +219,6 @@ export const enum JustifySelf {
   FlexEnd = 6,
 }
 
-type TSCView = TSCViewBase & {
-  _hasNativeView: boolean;
-  _masonPtr: bigint;
-  _masonNodePtr: bigint;
-  _masonStylePtr: bigint;
-  _inBatch: boolean;
-  ios: UIView;
-  android: org.nativescript.mason.masonkit.View;
-};
-
 export let UseV8Module = false;
 
 if (global.isAndroid) {
@@ -244,7 +244,7 @@ if (global.isIOS) {
   }
 }
 
-function getMasonInstance(instance: TSCView) {
+function getMasonInstance(instance: View) {
   const nativeView = instance?.nativeView;
   if (instance._isMasonChild) {
     const parent = instance.parent?.nativeView;
@@ -253,13 +253,13 @@ function getMasonInstance(instance: TSCView) {
   return nativeView;
 }
 
-export function _forceStyleUpdate(instance: TSCView) {
+export function _forceStyleUpdate(instance: View) {
   if (!instance._hasNativeView) {
     return;
   }
 
   if (UseV8Module) {
-    MasonV8Module.updateNodeAndStyle(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr);
+    MasonV8Module.updateNodeAndStyle(instance._masonPtr, instance._masonNodePtr);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -272,7 +272,7 @@ export function _forceStyleUpdate(instance: TSCView) {
   }
 }
 
-export function _markDirty(instance: TSCView) {
+export function _markDirty(instance: View) {
   if (!instance._hasNativeView) {
     return;
   }
@@ -294,7 +294,7 @@ export function _markDirty(instance: TSCView) {
   }
 }
 
-export function _isDirty(instance: TSCView) {
+export function _isDirty(instance: View) {
   if (!instance._hasNativeView) {
     return;
   }
@@ -547,1645 +547,243 @@ export function _toLengthPercentage(value): { value: number; type: 'points' | 'p
   return { value: value, type: 'points', native_type: MasonLengthPercentageCompatType.Points };
 }
 
-export function _setDisplay(value, instance: TSCView, initial = false) {
-  if (initial && value === 'flex') {
+function syncStyle(instance: View) {
+  if (UseV8Module) {
+    //
+  } else {
+    //
+  }
+}
+
+export function _setDisplay(value, instance: View, initial = false) {
+  if (initial && value === 'block') {
     return;
   }
 
   if (instance._hasNativeView) {
-    if (UseV8Module) {
-      let nativeValue = -1;
-
-      switch (value) {
-        case 'none':
-          nativeValue = Display.None;
-          break;
-        case 'flex':
-          nativeValue = Display.Flex;
-          break;
-        case 'grid':
-          nativeValue = Display.Grid;
-          break;
-        case 'block':
-          nativeValue = Display.Block;
-          break;
-      }
-
-      if (nativeValue !== -1) {
-        MasonV8Module.setDisplay(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      }
-    } else {
-      if (global.isAndroid) {
-        let nativeValue: org.nativescript.mason.masonkit.Display = null;
-        switch (value) {
-          case 'flex':
-            nativeValue = org.nativescript.mason.masonkit.Display.Flex;
-            break;
-          case 'grid':
-            nativeValue = org.nativescript.mason.masonkit.Display.Grid;
-            break;
-          case 'block':
-            nativeValue = org.nativescript.mason.masonkit.Display.Block;
-            break;
-          case 'none':
-            nativeValue = org.nativescript.mason.masonkit.Display.None;
-            break;
-        }
-        if (!Utils.isNullOrUndefined(nativeValue)) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setDisplay(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setDisplay(nativeValue);
-          }
-        }
-      }
-
-      if (global.isIOS) {
-        let nativeValue = -1;
-        switch (value) {
-          case 'flex':
-            nativeValue = Display.Flex;
-            break;
-          case 'grid':
-            nativeValue = Display.Grid;
-            break;
-          case 'block':
-            nativeValue = Display.Block;
-            break;
-          case 'none':
-            nativeValue = Display.None;
-            break;
-        }
-
-        if (nativeValue !== -1) {
-          instance.ios.display = nativeValue;
-        }
-      }
-    }
+    instance[style_].display = value;
+    syncStyle(instance);
   }
 }
 
-export function _getDisplay(instance: TSCView) {
-  if (!instance._hasNativeView) {
-    return instance.style.display;
-  }
-
-  if (UseV8Module) {
-    const value = MasonV8Module.getDisplay(instance._masonStylePtr);
-    switch (value) {
-      case 0:
-        return 'none';
-      case 1:
-        return 'flex';
-      case 2:
-        return 'grid';
-      case 3:
-        return 'block';
-    }
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let display;
-      if (instance._isMasonChild) {
-        display = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getDisplay(nodeOrView);
-      } else {
-        display = nodeOrView.getDisplay();
-      }
-
-      switch (display) {
-        case org.nativescript.mason.masonkit.Display.None:
-          return 'none';
-        case org.nativescript.mason.masonkit.Display.Flex:
-          return 'flex';
-        case org.nativescript.mason.masonkit.Display.Grid:
-          return 'grid';
-        case org.nativescript.mason.masonkit.Display.Block:
-          return 'block';
-      }
-    }
-
-    if (global.isIOS) {
-      switch (instance.ios.display as any) {
-        case Display.None:
-          return 'none';
-        case Display.Flex:
-          return 'flex';
-        case Display.Grid:
-          return 'grid';
-        case Display.Block:
-          return 'block';
-      }
-    }
-  }
-
-  return instance.style.display;
+export function _getDisplay(instance: View) {
+  return instance[style_].display;
 }
 
-export function _setMinWidth(value, instance: TSCView, initial = false) {
+export function _setMinWidth(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  const val = _toMasonDimension(value);
-  if (UseV8Module) {
-    MasonV8Module.setMinWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setMinSizeWidth(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setMinSizeWidth(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setMinSizeWidth(val.value, val.native_type);
-    }
-  }
+  instance[style_].minWidth = value;
+  syncStyle(instance);
 }
 
-export function _getMinWidth(instance: TSCView) {
+export function _getMinWidth(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.minWidth;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getMinWidth(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let min;
-      if (instance._isMasonChild) {
-        min = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getMinSizeWidth(nodeOrView);
-      } else {
-        min = nodeOrView.getMinSizeWidth();
-      }
-
-      return _parseDimension(min);
-    }
-
-    if (global.isIOS) {
-      return _parseDimension(instance.ios.getMinSizeWidth());
-    }
-  }
+  return instance[style_].minWidth;
 }
 
-export function _setMinHeight(value, instance: TSCView, initial = false) {
+export function _setMinHeight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  const val = _toMasonDimension(value);
-  if (UseV8Module) {
-    MasonV8Module.setMinHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setMinSizeHeight(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setMinSizeHeight(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setMinSizeHeight(val.value, val.native_type);
-    }
-  }
+  instance[style_].minHeight = value;
+  syncStyle(instance);
 }
 
-export function _getMinHeight(instance: TSCView) {
+export function _getMinHeight(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.minHeight;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getMinHeight(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let min;
-      if (instance._isMasonChild) {
-        min = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getMinSizeHeight(nodeOrView);
-      } else {
-        min = nodeOrView.getMinSizeHeight();
-      }
-
-      return _parseDimension(min);
-    }
-
-    if (global.isIOS) {
-      return _parseDimension(instance.ios.getMinSizeHeight());
-    }
-  }
+  return instance[style_].minHeight;
 }
 
-export function _setWidth(value, instance: TSCView, initial = false) {
+export function _setWidth(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  const val = _toMasonDimension(value);
-  if (UseV8Module) {
-    MasonV8Module.setWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setSizeWidth(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setSizeWidth(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setSizeWidth(val.value, val.native_type);
-    }
-  }
+  instance[style_].width = value;
+  syncStyle(instance);
 }
 
-export function _getWidth(instance: TSCView) {
+export function _getWidth(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.width;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getWidth(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let size;
-      if (instance._isMasonChild) {
-        size = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getSizeWidth(nodeOrView);
-      } else {
-        size = nodeOrView.getSizeWidth();
-      }
-
-      return _parseDimension(size);
-    }
-
-    if (global.isIOS) {
-      return _parseDimension(instance.ios.getSizeWidth());
-    }
-  }
+  return instance[style_].width;
 }
 
-export function _setHeight(value, instance: TSCView, initial = false) {
+export function _setHeight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  const val = _toMasonDimension(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setSizeHeight(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setSizeHeight(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setSizeHeight(val.value, val.native_type);
-    }
-  }
+  instance[style_].height = value;
+  syncStyle(instance);
 }
 
-export function _getHeight(instance: TSCView) {
+export function _getHeight(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.height;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getHeight(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let size;
-      if (instance._isMasonChild) {
-        size = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getSizeHeight(nodeOrView);
-      } else {
-        size = nodeOrView.getSizeHeight();
-      }
-
-      return _parseDimension(size);
-    }
-
-    if (global.isIOS) {
-      return _parseDimension(instance.ios.getSizeHeight());
-    }
-  }
+  return instance[style_].height;
 }
 
-export function _setMaxWidth(value, instance: TSCView, initial = false) {
+export function _setMaxWidth(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  const val = _toMasonDimension(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setMaxWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setMaxSizeWidth(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setMaxSizeWidth(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setMaxSizeWidth(val.value, val.native_type);
-    }
-  }
+  instance[style_].maxWidth = value;
+  syncStyle(instance);
 }
 
-export function _getMaxWidth(instance: TSCView) {
+export function _getMaxWidth(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.maxWidth;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getMaxWidth(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let max;
-      if (instance._isMasonChild) {
-        max = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getMaxSizeWidth(nodeOrView);
-      } else {
-        max = nodeOrView.getMaxSizeWidth();
-      }
-
-      return _parseDimension(max);
-    }
-
-    if (global.isIOS) {
-      return _parseDimension(instance.ios.getMaxSizeWidth());
-    }
-  }
+  return instance[style_].maxWidth;
 }
 
-export function _setMaxHeight(value, instance: TSCView, initial = false) {
+export function _setMaxHeight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  const val = _toMasonDimension(value);
-  if (UseV8Module) {
-    MasonV8Module.setMaxHeight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setMaxSizeHeight(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setMaxSizeHeight(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setMaxSizeHeight(val.value, val.native_type);
-    }
-  }
+  instance[style_].maxHeight = value;
+  syncStyle(instance);
 }
 
-export function _getMaxHeight(instance: TSCView) {
+export function _getMaxHeight(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.maxHeight;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getMaxHeight(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let max;
-      if (instance._isMasonChild) {
-        max = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getMaxSizeHeight(nodeOrView);
-      } else {
-        max = nodeOrView.getMaxSizeHeight();
-      }
-
-      return _parseDimension(max);
-    }
-
-    if (global.isIOS) {
-      return _parseDimension(instance.ios.getMaxSizeHeight());
-    }
-  }
+  return instance[style_].maxHeight;
 }
 
-export function _setFlexDirection(value, instance: TSCView, initial = false) {
+export function _setFlexDirection(value, instance: View, initial = false) {
   if (initial && value === 'row') {
     return;
   }
   if (instance._hasNativeView) {
-    let nativeValue = null;
-    switch (value) {
-      case 'column':
-        if (UseV8Module) {
-          nativeValue = FlexDirection.Column;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.FlexDirection.Column;
-          } else if (global.isIOS) {
-            nativeValue = FlexDirection.Column;
-          }
-        }
-        break;
-      case 'row':
-        if (UseV8Module) {
-          nativeValue = FlexDirection.Row;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.FlexDirection.Row;
-          } else if (global.isIOS) {
-            nativeValue = FlexDirection.Row;
-          }
-        }
-        break;
-      case 'column-reverse':
-        if (UseV8Module) {
-          nativeValue = FlexDirection.ColumnReverse;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.FlexDirection.ColumnReverse;
-          } else if (global.isIOS) {
-            nativeValue = FlexDirection.ColumnReverse;
-          }
-        }
-        break;
-      case 'row-reverse':
-        if (UseV8Module) {
-          nativeValue = FlexDirection.RowReverse;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.FlexDirection.RowReverse;
-          } else if (global.isIOS) {
-            nativeValue = FlexDirection.RowReverse;
-          }
-        }
-        break;
-    }
-
-    if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (UseV8Module) {
-        MasonV8Module.setFlexDirection(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      } else {
-        if (global.isAndroid) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setFlexDirection(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setFlexDirection(nativeValue);
-          }
-        }
-
-        if (global.isIOS) {
-          instance.ios.flexDirection = nativeValue;
-        }
-      }
-    }
+    instance[style_].flexDirection = value;
   }
 }
 
-export function _getFlexDirection(instance: TSCView) {
-  if (instance._hasNativeView) {
-    if (UseV8Module) {
-      const value = MasonV8Module.getFlexDirection(instance._masonStylePtr);
-      switch (value) {
-        case FlexDirection.Row:
-          return 'row';
-        case FlexDirection.Column:
-          return 'column';
-        case FlexDirection.RowReverse:
-          return 'row-reverse';
-        case FlexDirection.ColumnReverse:
-          return 'column-reverse';
-      }
-    } else {
-      if (global.isAndroid) {
-        const nodeOrView = getMasonInstance(instance);
-        let value;
-        if (instance._isMasonChild) {
-          value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getFlexDirection(nodeOrView);
-        } else {
-          value = nodeOrView.getFlexDirection();
-        }
-
-        switch (value) {
-          case org.nativescript.mason.masonkit.FlexDirection.Row:
-            return 'row';
-          case org.nativescript.mason.masonkit.FlexDirection.Column:
-            return 'column';
-          case org.nativescript.mason.masonkit.FlexDirection.RowReverse:
-            return 'row-reverse';
-          case org.nativescript.mason.masonkit.FlexDirection.ColumnReverse:
-            return 'column-reverse';
-        }
-      }
-
-      if (global.isIOS) {
-        const value = instance.ios.flexDirection as any;
-        switch (value) {
-          case FlexDirection.Row:
-            return 'row';
-          case FlexDirection.Column:
-            return 'column';
-          case FlexDirection.RowReverse:
-            return 'row-reverse';
-          case FlexDirection.ColumnReverse:
-            return 'column-reverse';
-        }
-      }
-    }
-  }
-  return instance.style.flexDirection;
+export function _getFlexDirection(instance: View) {
+  return instance[style_].flexDirection;
 }
 
-export function _getPosition(instance: TSCView) {
-  if (!instance._hasNativeView) {
-    return instance.style.position;
-  }
-
-  if (UseV8Module) {
-    const value = MasonV8Module.getPosition(instance._masonStylePtr);
-    switch (value) {
-      case 0:
-        return 'relative';
-      case 1:
-        return 'absolute';
-    }
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let value;
-      if (instance._isMasonChild) {
-        value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getPosition(nodeOrView);
-      } else {
-        value = nodeOrView.getPosition();
-      }
-
-      switch (value) {
-        case org.nativescript.mason.masonkit.Position.Absolute:
-          return 'absolute';
-        case org.nativescript.mason.masonkit.Position.Relative:
-          return 'relative';
-      }
-    }
-
-    if (global.isIOS) {
-      switch (instance.ios._position) {
-        case Position.Absolute:
-          return 'absolute';
-        case Position.Relative:
-          return 'relative';
-      }
-    }
-  }
+export function _getPosition(instance: View) {
+  return instance[style_].position;
 }
 
-export function _setPosition(value, instance: TSCView, initial = false) {
+export function _setPosition(value, instance: View, initial = false) {
   if (initial && value === 'relative') {
     return;
   }
 
   if (instance._hasNativeView) {
-    let nativeValue = null;
-    switch (value) {
-      case 'absolute':
-        if (UseV8Module) {
-          nativeValue = PositionType.Absolute;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.Position.Absolute;
-          } else {
-            nativeValue = 1;
-          }
-        }
-
-        break;
-      case 'relative':
-        if (UseV8Module) {
-          nativeValue = PositionType.Relative;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.Position.Relative;
-          } else {
-            nativeValue = 0;
-          }
-        }
-
-        break;
-    }
-
-    if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (UseV8Module) {
-        MasonV8Module.setPosition(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      } else {
-        if (global.isAndroid) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setPosition(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setPosition(nativeValue);
-          }
-        }
-
-        if (global.isIOS) {
-          instance.ios._position = nativeValue;
-        }
-      }
-    }
+    instance[style_].position = value;
   }
 }
 
-export function _setFlexWrap(value, instance: TSCView, initial = false) {
+export function _setFlexWrap(value, instance: View, initial = false) {
   if (initial && value === 'no-wrap') {
     return;
   }
   if (instance._hasNativeView) {
-    let nativeValue = null;
-
-    switch (value) {
-      case 'no-wrap':
-        if (UseV8Module) {
-          nativeValue = FlexWrap.NoWrap;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.FlexWrap.NoWrap;
-          }
-
-          if (global.isIOS) {
-            nativeValue = FlexWrap.NoWrap;
-          }
-        }
-        break;
-      case 'wrap':
-        if (UseV8Module) {
-          nativeValue = FlexWrap.Wrap;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.FlexWrap.Wrap;
-          }
-
-          if (global.isIOS) {
-            nativeValue = FlexWrap.Wrap;
-          }
-        }
-
-        break;
-      case 'wrap-reverse':
-        if (UseV8Module) {
-          nativeValue = FlexWrap.WrapReverse;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.FlexWrap.WrapReverse;
-          }
-
-          if (global.isIOS) {
-            nativeValue = FlexWrap.WrapReverse;
-          }
-        }
-
-        break;
-    }
-
-    if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (UseV8Module) {
-        MasonV8Module.setFlexWrap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      } else {
-        if (global.isAndroid) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setFlexWrap(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setFlexWrap(nativeValue);
-          }
-        }
-
-        if (global.isIOS) {
-          instance.ios.flexWrap = nativeValue;
-        }
-      }
-    }
+    instance[style_].flexWrap = value;
   }
 }
 
-export function _getFlexWrap(instance: TSCView) {
+export function _getFlexWrap(instance: View) {
   if (instance._hasNativeView) {
-    if (UseV8Module) {
-      const value = MasonV8Module.getFlexWrap(instance._masonStylePtr);
-      switch (value) {
-        case 0:
-          return 'no-wrap';
-        case 1:
-          return 'wrap';
-        case 2:
-          return 'wrap-reverse';
-      }
-    } else {
-      if (global.isAndroid) {
-        const nodeOrView = getMasonInstance(instance);
-        let value;
-        if (instance._isMasonChild) {
-          value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getFlexWrap(nodeOrView);
-        } else {
-          value = nodeOrView.getFlexWrap();
-        }
-        switch (value) {
-          case org.nativescript.mason.masonkit.FlexWrap.NoWrap:
-            return 'no-wrap';
-          case org.nativescript.mason.masonkit.FlexWrap.Wrap:
-            return 'wrap';
-          case org.nativescript.mason.masonkit.FlexWrap.WrapReverse:
-            return 'wrap-reverse';
-        }
-      }
-
-      if (global.isIOS) {
-        const value = instance.ios.flexWrap as any;
-        switch (value) {
-          case FlexWrap.NoWrap:
-            return 'no-wrap';
-          case FlexWrap.Wrap:
-            return 'wrap';
-          case FlexWrap.WrapReverse:
-            return 'wrap-reverse';
-        }
-      }
-    }
+    return instance[style_].flexWrap;
   }
   return instance.style.flexWrap;
 }
 
-export function _setAlignItems(value, instance: TSCView, initial = false) {
+export function _setAlignItems(value, instance: View, initial = false) {
   if (initial && value === 'normal') {
     return;
   }
   if (instance._hasNativeView) {
-    let nativeValue = null;
-    switch (value) {
-      case 'normal':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignItems.Normal;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignItems.Normal;
-        }
-        break;
-      case 'baseline':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignItems.Baseline;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignItems.Baseline;
-        }
-
-        break;
-      case 'center':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignItems.Center;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignItems.Center;
-        }
-
-        break;
-      case 'flex-end':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignItems.FlexEnd;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignItems.FlexEnd;
-        }
-
-        break;
-      case 'end':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignItems.End;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignItems.End;
-        }
-
-        break;
-      case 'flex-start':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignItems.FlexStart;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignItems.FlexStart;
-        }
-
-        break;
-      case 'start':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignItems.Start;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignItems.Start;
-        }
-
-        break;
-      case 'stretch':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignItems.Stretch;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignItems.Stretch;
-        }
-        break;
-    }
-
-    if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (UseV8Module) {
-        console.log('instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch)', instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-        MasonV8Module.setAlignItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      } else {
-        if (global.isAndroid) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setAlignItems(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setAlignItems(nativeValue);
-          }
-        }
-
-        if (global.isIOS) {
-          instance.ios.alignItems = nativeValue;
-        }
-      }
-    }
+    instance[style_].alignItems = value;
   }
 }
 
-export function _getAlignItems(instance: TSCView) {
+export function _getAlignItems(instance: View) {
   if (instance._hasNativeView) {
-    if (UseV8Module) {
-      const value = MasonV8Module.getAlignItems(instance._masonStylePtr);
-      switch (value) {
-        case AlignItems.Normal:
-          return 'normal';
-        case AlignItems.Baseline:
-          return 'baseline';
-        case AlignItems.Center:
-          return 'center';
-        case AlignItems.End:
-          return 'end';
-        case AlignItems.Start:
-          return 'start';
-        case AlignItems.Stretch:
-          return 'stretch';
-      }
-    } else {
-      if (global.isAndroid) {
-        const nodeOrView = getMasonInstance(instance);
-        let value;
-        if (instance._isMasonChild) {
-          value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getAlignItems(nodeOrView);
-        } else {
-          value = nodeOrView.getAlignItems();
-        }
-        switch (value) {
-          case org.nativescript.mason.masonkit.AlignItems.Normal:
-            return 'normal';
-          case org.nativescript.mason.masonkit.AlignItems.Baseline:
-            return 'baseline';
-          case org.nativescript.mason.masonkit.AlignItems.Center:
-            return 'center';
-          case org.nativescript.mason.masonkit.AlignItems.End:
-            return 'end';
-          case org.nativescript.mason.masonkit.AlignItems.Start:
-            return 'start';
-          case org.nativescript.mason.masonkit.AlignItems.Stretch:
-            return 'stretch';
-        }
-      }
-
-      if (global.isIOS) {
-        const value = instance.ios.alignItems as any;
-        switch (value) {
-          case AlignItems.Normal:
-            return 'normal';
-          case AlignItems.Baseline:
-            return 'baseline';
-          case AlignItems.Center:
-            return 'center';
-          case AlignItems.End:
-            return 'end';
-          case AlignItems.Start:
-            return 'start';
-          case AlignItems.Stretch:
-            return 'stretch';
-        }
-      }
-    }
+    return instance[style_].alignItems;
   }
   return instance.style.alignItems;
 }
 
-export function _setAlignSelf(value, instance: TSCView, initial = false) {
+export function _setAlignSelf(value, instance: View, initial = false) {
   if (initial && value === 'normal') {
     return;
   }
   if (instance._hasNativeView) {
-    let nativeValue = null;
-    switch (value) {
-      case 'normal':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignSelf.Normal;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignSelf.Normal;
-        }
-        break;
-      case 'baseline':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignSelf.Baseline;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignSelf.Baseline;
-        }
-
-        break;
-      case 'center':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignSelf.Center;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignSelf.Center;
-        }
-
-        break;
-      case 'flex-end':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignSelf.FlexEnd;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignSelf.FlexEnd;
-        }
-
-        break;
-      case 'end':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignSelf.End;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignSelf.End;
-        }
-
-        break;
-      case 'flex-start':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignSelf.FlexStart;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignSelf.FlexStart;
-        }
-
-        break;
-      case 'start':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignSelf.Start;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignSelf.Start;
-        }
-
-        break;
-      case 'stretch':
-        if (UseV8Module || global.isIOS) {
-          nativeValue = AlignSelf.Stretch;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.AlignSelf.Stretch;
-        }
-        break;
-    }
-
-    if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (UseV8Module) {
-        MasonV8Module.setAlignSelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      } else {
-        if (global.isAndroid) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setAlignSelf(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setAlignSelf(nativeValue);
-          }
-        }
-
-        if (global.isIOS) {
-          instance.ios.alignSelf = nativeValue;
-        }
-      }
-    }
+    instance[style_].alignSelf = value;
   }
 }
 
-export function _getAlignSelf(instance: TSCView): AlignSelfType {
+export function _getAlignSelf(instance: View): AlignSelfType {
   if (instance._hasNativeView) {
-    if (UseV8Module) {
-      const value = MasonV8Module.getAlignSelf(instance._masonStylePtr);
-      switch (value) {
-        case AlignSelf.Normal:
-          return 'normal';
-        case AlignSelf.Baseline:
-          return 'baseline';
-        case AlignSelf.Center:
-          return 'center';
-        case AlignSelf.End:
-          return 'end';
-        case AlignSelf.Start:
-          return 'start';
-        case AlignSelf.Stretch:
-          return 'stretch';
-      }
-    } else {
-      if (global.isAndroid) {
-        const nodeOrView = getMasonInstance(instance);
-        let value;
-        if (instance._isMasonChild) {
-          value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getAlignSelf(nodeOrView);
-        } else {
-          value = nodeOrView.getAlignSelf();
-        }
-        switch (value) {
-          case org.nativescript.mason.masonkit.AlignSelf.Normal:
-            return 'normal';
-          case org.nativescript.mason.masonkit.AlignSelf.Baseline:
-            return 'baseline';
-          case org.nativescript.mason.masonkit.AlignSelf.Center:
-            return 'center';
-          case org.nativescript.mason.masonkit.AlignSelf.End:
-            return 'end';
-          case org.nativescript.mason.masonkit.AlignSelf.Start:
-            return 'start';
-          case org.nativescript.mason.masonkit.AlignSelf.Stretch:
-            return 'stretch';
-        }
-      }
-
-      if (global.isIOS) {
-        const value = instance.ios.alignSelf as any;
-        switch (value) {
-          case AlignSelf.Normal:
-            return 'normal';
-          case AlignSelf.Baseline:
-            return 'baseline';
-          case AlignSelf.Center:
-            return 'center';
-          case AlignSelf.End:
-            return 'end';
-          case AlignSelf.Start:
-            return 'start';
-          case AlignSelf.Stretch:
-            return 'stretch';
-        }
-      }
-    }
+    return instance[style_].alignSelf as never;
   }
-  return instance.style.alignSelf as any;
+  return instance.style.alignSelf as never;
 }
 
-export function _setAlignContent(value, instance: TSCView, initial = false) {
+export function _setAlignContent(value, instance: View, initial = false) {
   if (initial && value === 'normal') {
     return;
   }
   if (instance._hasNativeView) {
-    let nativeValue = null;
-    switch (value) {
-      case 'normal':
-        if (UseV8Module) {
-          nativeValue = AlignContent.Normal;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.Normal;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.Normal;
-          }
-        }
-        break;
-      case 'space-around':
-        if (UseV8Module) {
-          nativeValue = AlignContent.SpaceAround;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.SpaceAround;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.SpaceAround;
-          }
-        }
-        break;
-      case 'space-between':
-        if (UseV8Module) {
-          nativeValue = AlignContent.SpaceBetween;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.SpaceBetween;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.SpaceBetween;
-          }
-        }
-        break;
-      case 'space-evenly':
-        if (UseV8Module) {
-          nativeValue = AlignContent.SpaceEvenly;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.SpaceEvenly;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.SpaceEvenly;
-          }
-        }
-        break;
-      case 'center':
-        if (UseV8Module) {
-          nativeValue = AlignContent.Center;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.Center;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.Center;
-          }
-        }
-        break;
-      case 'flex-end':
-        if (UseV8Module) {
-          nativeValue = AlignContent.FlexEnd;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.FlexEnd;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.FlexEnd;
-          }
-        }
-        break;
-      case 'end':
-        if (UseV8Module) {
-          nativeValue = AlignContent.End;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.End;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.End;
-          }
-        }
-        break;
-      case 'flex-start':
-        if (UseV8Module) {
-          nativeValue = AlignContent.FlexStart;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.FlexStart;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.FlexStart;
-          }
-        }
-        break;
-      case 'start':
-        if (UseV8Module) {
-          nativeValue = AlignContent.Start;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.Start;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.Start;
-          }
-        }
-        break;
-      case 'stretch':
-        if (UseV8Module) {
-          nativeValue = AlignContent.Stretch;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.AlignContent.Stretch;
-          }
-
-          if (global.isIOS) {
-            nativeValue = AlignContent.Stretch;
-          }
-        }
-        break;
-    }
-
-    if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (UseV8Module) {
-        MasonV8Module.setAlignContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      } else {
-        if (global.isAndroid) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setAlignContent(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setAlignContent(nativeValue);
-          }
-        }
-
-        if (global.isIOS) {
-          instance.ios.alignContent = nativeValue;
-        }
-      }
-    }
+    instance[style_].alignContent = value;
   }
 }
 
-export function _getAlignContent(instance: TSCView) {
+export function _getAlignContent(instance: View) {
   if (instance._hasNativeView) {
-    if (UseV8Module) {
-      const value = MasonV8Module.getAlignContent(instance._masonStylePtr);
-      switch (value) {
-        case AlignContent.Normal:
-          return 'normal';
-        case AlignContent.SpaceAround:
-          return 'space-around';
-        case AlignContent.SpaceBetween:
-          return 'space-between';
-        case AlignContent.SpaceEvenly:
-          return 'space-evenly';
-        case AlignContent.Center:
-          return 'center';
-        case AlignContent.End:
-          return 'end';
-        case AlignContent.Start:
-          return 'start';
-        case AlignContent.Stretch:
-          return 'stretch';
-      }
-    } else {
-      if (global.isAndroid) {
-        const nodeOrView = getMasonInstance(instance);
-        let value;
-        if (instance._isMasonChild) {
-          value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getAlignContent(nodeOrView);
-        } else {
-          value = nodeOrView.getAlignContent();
-        }
-
-        switch (value) {
-          case org.nativescript.mason.masonkit.AlignContent.Normal:
-            return 'normal';
-          case org.nativescript.mason.masonkit.AlignContent.SpaceAround:
-            return 'space-around';
-          case org.nativescript.mason.masonkit.AlignContent.SpaceBetween:
-            return 'space-between';
-          case org.nativescript.mason.masonkit.AlignContent.SpaceEvenly:
-            return 'space-evenly';
-          case org.nativescript.mason.masonkit.AlignContent.Center:
-            return 'center';
-          case org.nativescript.mason.masonkit.AlignContent.End:
-            return 'end';
-          case org.nativescript.mason.masonkit.AlignContent.Start:
-            return 'start';
-          case org.nativescript.mason.masonkit.AlignContent.Stretch:
-            return 'stretch';
-        }
-      }
-
-      if (global.isIOS) {
-        const value = instance.ios.alignContent as any;
-        switch (value) {
-          case AlignContent.Normal:
-            return 'normal';
-          case AlignContent.SpaceAround:
-            return 'space-around';
-          case AlignContent.SpaceBetween:
-            return 'space-between';
-          case AlignContent.SpaceEvenly:
-            return 'space-evenly';
-          case AlignContent.Center:
-            return 'center';
-          case AlignContent.End:
-            return 'end';
-          case AlignContent.Start:
-            return 'start';
-          case AlignContent.Stretch:
-            return 'stretch';
-        }
-      }
-    }
+    return instance[style_].alignContent;
   }
   return instance.style.alignContent;
 }
 
-export function _setJustifyItems(value, instance: TSCView, initial = false) {
+export function _setJustifyItems(value, instance: View, initial = false) {
   if (initial && value === 'normal') {
     return;
   }
   if (instance._hasNativeView) {
-    let nativeValue = null;
-    switch (value) {
-      case 'normal':
-        if (UseV8Module) {
-          nativeValue = JustifyItems.Normal;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifyItems.Normal;
-        }
-        break;
-      case 'baseline':
-        if (UseV8Module) {
-          nativeValue = JustifyItems.Baseline;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifyItems.Baseline;
-        }
-
-        break;
-      case 'center':
-        if (UseV8Module) {
-          nativeValue = JustifyItems.Center;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifyItems.Center;
-        }
-
-        break;
-      case 'flex-end':
-        if (UseV8Module) {
-          nativeValue = JustifyItems.FlexEnd;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifyItems.FlexEnd;
-        }
-
-        break;
-      case 'end':
-        if (UseV8Module) {
-          nativeValue = JustifyItems.End;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifyItems.End;
-        }
-
-        break;
-      case 'flex-start':
-        if (UseV8Module) {
-          nativeValue = JustifyItems.FlexStart;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifyItems.FlexStart;
-        }
-
-        break;
-      case 'start':
-        if (UseV8Module) {
-          nativeValue = JustifyItems.Start;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifyItems.Start;
-        }
-
-        break;
-      case 'stretch':
-        if (UseV8Module) {
-          nativeValue = JustifyItems.Stretch;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifyItems.Stretch;
-        }
-        break;
-    }
-
-    if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (UseV8Module) {
-        MasonV8Module.setJustifyItems(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      } else {
-        if (global.isAndroid) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setJustifyItems(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setJustifyItems(nativeValue);
-          }
-        }
-
-        if (global.isIOS) {
-          instance.ios.justifyItems = nativeValue;
-        }
-      }
-    }
+    instance[style_].justifyItems = value;
   }
 }
 
-export function _getJustifyItems(instance: TSCView) {
+export function _getJustifyItems(instance: View) {
   if (instance._hasNativeView) {
-    if (UseV8Module) {
-      const value = MasonV8Module.getJustifyItems(instance._masonStylePtr);
-      switch (value) {
-        case JustifyItems.Normal:
-          return 'normal';
-        case JustifyItems.Baseline:
-          return 'baseline';
-        case JustifyItems.Center:
-          return 'center';
-        case JustifyItems.End:
-          return 'end';
-        case JustifyItems.Start:
-          return 'start';
-        case JustifyItems.Stretch:
-          return 'stretch';
-      }
-    } else {
-      if (global.isAndroid) {
-        const nodeOrView = getMasonInstance(instance);
-        let value;
-        if (instance._isMasonChild) {
-          value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getJustifyItems(nodeOrView);
-        } else {
-          value = nodeOrView.getJustifyItems();
-        }
-
-        switch (value) {
-          case org.nativescript.mason.masonkit.JustifyItems.Normal:
-            return 'normal';
-          case org.nativescript.mason.masonkit.JustifyItems.Baseline:
-            return 'baseline';
-          case org.nativescript.mason.masonkit.JustifyItems.Center:
-            return 'center';
-          case org.nativescript.mason.masonkit.JustifyItems.End:
-            return 'end';
-          case org.nativescript.mason.masonkit.JustifyItems.Start:
-            return 'start';
-          case org.nativescript.mason.masonkit.JustifyItems.Stretch:
-            return 'stretch';
-        }
-      }
-
-      if (global.isIOS) {
-        const value = instance.ios.justifyItems as any;
-        switch (value) {
-          case JustifyItems.Normal:
-            return 'normal';
-          case JustifyItems.Baseline:
-            return 'baseline';
-          case JustifyItems.Center:
-            return 'center';
-          case JustifyItems.End:
-            return 'end';
-          case JustifyItems.Start:
-            return 'start';
-          case JustifyItems.Stretch:
-            return 'stretch';
-        }
-      }
-    }
+    return instance[style_].justifyItems;
   }
   return instance.style.justifyItems;
 }
 
-export function _setJustifySelf(value, instance: TSCView, initial = false) {
+export function _setJustifySelf(value, instance: View, initial = false) {
   if (initial && value === 'normal') {
     return;
   }
   if (instance._hasNativeView) {
-    let nativeValue = null;
-    switch (value) {
-      case 'normal':
-        if (UseV8Module) {
-          nativeValue = JustifySelf.Normal;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifySelf.Normal;
-        }
-        break;
-      case 'baseline':
-        if (UseV8Module) {
-          nativeValue = JustifySelf.Baseline;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifySelf.Baseline;
-        }
-
-        break;
-      case 'center':
-        if (UseV8Module) {
-          nativeValue = JustifySelf.Center;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifySelf.Center;
-        }
-
-        break;
-      case 'flex-end':
-        if (UseV8Module) {
-          nativeValue = JustifySelf.FlexEnd;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifySelf.FlexEnd;
-        }
-
-        break;
-      case 'end':
-        if (UseV8Module) {
-          nativeValue = JustifySelf.End;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifySelf.End;
-        }
-
-        break;
-      case 'flex-start':
-        if (UseV8Module) {
-          nativeValue = JustifySelf.FlexStart;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifySelf.FlexStart;
-        }
-
-        break;
-      case 'start':
-        if (UseV8Module) {
-          nativeValue = JustifySelf.Start;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifySelf.Start;
-        }
-
-        break;
-      case 'stretch':
-        if (UseV8Module) {
-          nativeValue = JustifySelf.Stretch;
-        } else {
-          nativeValue = org.nativescript.mason.masonkit.JustifySelf.Stretch;
-        }
-        break;
-    }
-
-    if (!Utils.isNullOrUndefined(nativeValue)) {
-      if (UseV8Module) {
-        MasonV8Module.setJustifySelf(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-      } else {
-        if (global.isAndroid) {
-          const nodeOrView = getMasonInstance(instance);
-          if (instance._isMasonChild) {
-            org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setJustifySelf(nodeOrView, nativeValue);
-          } else {
-            nodeOrView.setJustifySelf(nativeValue);
-          }
-        }
-
-        if (global.isIOS) {
-          instance.ios.justifySelf = nativeValue;
-        }
-      }
-    }
+    instance[style_].justifySelf = value;
   }
 }
 
-export function _getJustifySelf(instance: TSCView) {
+export function _getJustifySelf(instance: View) {
   if (instance._hasNativeView) {
-    if (UseV8Module) {
-      const value = MasonV8Module.getJustifySelf(instance._masonStylePtr);
-      switch (value) {
-        case JustifySelf.Normal:
-          return 'normal';
-        case JustifySelf.Baseline:
-          return 'baseline';
-        case JustifySelf.Center:
-          return 'center';
-        case JustifySelf.End:
-          return 'end';
-        case JustifySelf.Start:
-          return 'start';
-        case JustifySelf.Stretch:
-          return 'stretch';
-      }
-    } else {
-      if (global.isAndroid) {
-        const nodeOrView = getMasonInstance(instance);
-        let value;
-        if (instance._isMasonChild) {
-          value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getJustifySelf(nodeOrView);
-        } else {
-          value = nodeOrView.getJustifySelf();
-        }
-
-        switch (value) {
-          case org.nativescript.mason.masonkit.JustifySelf.Normal:
-            return 'normal';
-          case org.nativescript.mason.masonkit.JustifySelf.Baseline:
-            return 'baseline';
-          case org.nativescript.mason.masonkit.JustifySelf.Center:
-            return 'center';
-          case org.nativescript.mason.masonkit.JustifySelf.End:
-            return 'end';
-          case org.nativescript.mason.masonkit.JustifySelf.Start:
-            return 'start';
-          case org.nativescript.mason.masonkit.JustifySelf.Stretch:
-            return 'stretch';
-        }
-      }
-
-      if (global.isIOS) {
-        const value = instance.ios.justifySelf as any;
-        switch (value) {
-          case JustifySelf.Normal:
-            return 'normal';
-          case JustifySelf.Baseline:
-            return 'baseline';
-          case JustifySelf.Center:
-            return 'center';
-          case JustifySelf.End:
-            return 'end';
-          case JustifySelf.Start:
-            return 'start';
-          case JustifySelf.Stretch:
-            return 'stretch';
-        }
-      }
-    }
+    return instance[style_].justifySelf;
   }
   return instance.style.justifySelf;
 }
 
-export function _setJustifyContent(value, instance: TSCView, initial = false) {
+export function _setJustifyContent(value, instance: View, initial = false) {
   if (initial && value === 'normal') {
     return;
   }
@@ -2193,1140 +791,270 @@ export function _setJustifyContent(value, instance: TSCView, initial = false) {
   if (!value) value = 'normal';
 
   if (instance._hasNativeView) {
-    let nativeValue = null;
-    switch (value) {
-      case 'normal':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.Normal;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.Normal;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.Normal;
-          }
-        }
-        break;
-      case 'space-around':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.SpaceAround;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.SpaceAround;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.SpaceAround;
-          }
-        }
-        break;
-      case 'space-between':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.SpaceBetween;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.SpaceBetween;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.SpaceBetween;
-          }
-        }
-        break;
-      case 'space-evenly':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.SpaceEvenly;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.SpaceEvenly;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.SpaceEvenly;
-          }
-        }
-        break;
-      case 'center':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.Center;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.Center;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.Center;
-          }
-        }
-        break;
-      case 'flex-end':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.FlexEnd;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.FlexEnd;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.FlexEnd;
-          }
-        }
-        break;
-      case 'end':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.End;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.End;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.End;
-          }
-        }
-        break;
-      case 'flex-start':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.FlexStart;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.FlexStart;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.FlexStart;
-          }
-        }
-        break;
-      case 'start':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.Start;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.Start;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.Start;
-          }
-        }
-        break;
-      case 'stretch':
-        if (UseV8Module) {
-          nativeValue = JustifyContent.Stretch;
-        } else {
-          if (global.isAndroid) {
-            nativeValue = org.nativescript.mason.masonkit.JustifyContent.Stretch;
-          }
-
-          if (global.isIOS) {
-            nativeValue = JustifyContent.Stretch;
-          }
-        }
-        break;
-    }
-
-    if (UseV8Module) {
-      MasonV8Module.setJustifyContent(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-    } else {
-      if (global.isAndroid) {
-        const nodeOrView = getMasonInstance(instance);
-        if (instance._isMasonChild) {
-          org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setJustifyContent(nodeOrView, nativeValue);
-        } else {
-          nodeOrView.setJustifyContent(nativeValue);
-        }
-      }
-
-      if (global.isIOS) {
-        instance.ios.justifyContent = nativeValue;
-      }
-    }
+    instance[style_].justifyContent = value;
   }
 }
 
-export function _getJustifyContent(instance: TSCView) {
+export function _getJustifyContent(instance: View) {
   if (instance._hasNativeView) {
-    if (UseV8Module) {
-      const value = MasonV8Module.getJustifyContent(instance._masonStylePtr);
-      switch (value) {
-        case JustifyContent.Normal:
-          return 'normal';
-        case JustifyContent.SpaceAround:
-          return 'space-around';
-        case JustifyContent.SpaceBetween:
-          return 'space-between';
-        case JustifyContent.SpaceEvenly:
-          return 'space-evenly';
-        case JustifyContent.Center:
-          return 'center';
-        case JustifyContent.End:
-          return 'end';
-        case JustifyContent.Start:
-          return 'start';
-      }
-    } else {
-      if (global.isAndroid) {
-        const nodeOrView = getMasonInstance(instance);
-        let value;
-        if (instance._isMasonChild) {
-          value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getJustifyContent(nodeOrView);
-        } else {
-          value = nodeOrView.getJustifyContent();
-        }
-
-        switch (value) {
-          case org.nativescript.mason.masonkit.JustifyContent.Normal:
-            return 'normal';
-          case org.nativescript.mason.masonkit.JustifyContent.SpaceAround:
-            return 'space-around';
-          case org.nativescript.mason.masonkit.JustifyContent.SpaceBetween:
-            return 'space-between';
-          case org.nativescript.mason.masonkit.JustifyContent.SpaceEvenly:
-            return 'space-evenly';
-          case org.nativescript.mason.masonkit.JustifyContent.Center:
-            return 'center';
-          case org.nativescript.mason.masonkit.JustifyContent.End:
-            return 'end';
-          case org.nativescript.mason.masonkit.JustifyContent.Start:
-            return 'start';
-          case org.nativescript.mason.masonkit.JustifyContent.Stretch:
-            return 'stretch';
-        }
-      }
-
-      if (global.isIOS) {
-        const value = instance.ios.justifyContent as any;
-        switch (value) {
-          case JustifyContent.Normal:
-            return 'normal';
-          case JustifyContent.SpaceAround:
-            return 'space-around';
-          case JustifyContent.SpaceBetween:
-            return 'space-between';
-          case JustifyContent.SpaceEvenly:
-            return 'space-evenly';
-          case JustifyContent.Center:
-            return 'center';
-          case JustifyContent.End:
-            return 'end';
-          case JustifyContent.Start:
-            return 'start';
-          case JustifyContent.Stretch:
-            return 'stretch';
-        }
-      }
-    }
+    return instance[style_].justifyContent;
   }
   return instance.style.justifyContent;
 }
 
-export function _setLeft(value, instance: TSCView, initial = false) {
+export function _setLeft(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentageAuto(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setInsetLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setInsetLeft(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setInsetLeft(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setInsetLeft(val.value, val.native_type);
-    }
-  }
+  instance[style_].left = value;
 }
 
-export function _setRight(value, instance: TSCView, initial = false) {
+export function _setRight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentageAuto(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setInsetRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setInsetRight(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setInsetRight(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setInsetRight(val.value, val.native_type);
-    }
-  }
+  instance[style_].right = value;
 }
 
-export function _setTop(value, instance: TSCView, initial = false) {
+export function _setTop(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentageAuto(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setInsetTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setInsetTop(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setInsetTop(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setInsetTop(val.value, val.native_type);
-    }
-  }
+  instance[style_].top = value;
 }
 
-export function _setBottom(value, instance: TSCView, initial = false) {
+export function _setBottom(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentageAuto(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setInsetBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setInsetBottom(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setInsetBottom(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setInsetBottom(val.value, val.native_type);
-    }
-  }
+  instance[style_].bottom = value;
 }
 
-export function _setMarginLeft(value, instance: TSCView, initial = false) {
+export function _setMarginLeft(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentageAuto(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setMarginLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setMarginLeft(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setMarginLeft(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setMarginLeft(val.value, val.native_type);
-    }
-  }
+  instance[style_].marginLeft = value;
 }
 
-export function _setMarginRight(value, instance: TSCView, initial = false) {
+export function _setMarginRight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentageAuto(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setMarginRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setMarginRight(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setMarginRight(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setMarginRight(val.value, val.native_type);
-    }
-  }
+  instance[style_].marginRight = value;
 }
 
-export function _setMarginTop(value, instance: TSCView, initial = false) {
+export function _setMarginTop(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentageAuto(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setMarginTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setMarginTop(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setMarginTop(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setMarginTop(val.value, val.native_type);
-    }
-  }
+  instance[style_].marginTop = value;
 }
 
-export function _setMarginBottom(value, instance: TSCView, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-  const val = _toLengthPercentageAuto(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setMarginBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setMarginBottom(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setMarginBottom(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setMarginBottom(val.value, val.native_type);
-    }
-  }
-}
-
-export function _setPaddingLeft(value, instance: TSCView, initial = false) {
+export function _setMarginBottom(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentage(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setPaddingLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setPaddingLeft(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setPaddingLeft(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setPaddingLeft(val.value, val.native_type);
-    }
-  }
+  instance[style_].marginBottom = value;
 }
 
-export function _setPaddingRight(value, instance: TSCView, initial = false) {
+export function _setPaddingLeft(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentage(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setPaddingRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setPaddingRight(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setPaddingRight(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setPaddingRight(val.value, val.native_type);
-    }
-  }
+  instance[style_].paddingLeft = value;
 }
 
-export function _setPaddingTop(value, instance: TSCView, initial = false) {
+export function _setPaddingRight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentage(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setPaddingTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setPaddingTop(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setPaddingTop(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setPaddingTop(val.value, val.native_type);
-    }
-  }
+  instance[style_].paddingRight = value;
 }
 
-export function _setPaddingBottom(value, instance: TSCView, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-  const val = _toLengthPercentage(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setPaddingBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setPaddingBottom(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setPaddingBottom(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setPaddingBottom(val.value, val.native_type);
-    }
-  }
-}
-
-export function _setBorderLeft(value, instance: TSCView, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-  const val = _toLengthPercentage(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setBorderLeft(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setBorderLeft(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setBorderLeft(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setBorderLeft(val.value, val.native_type);
-    }
-  }
-}
-
-export function _setBorderRight(value, instance: TSCView, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-  const val = _toLengthPercentage(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setBorderRight(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setBorderRight(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setBorderRight(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setBorderRight(val.value, val.native_type);
-    }
-  }
-}
-
-export function _setBorderTop(value, instance: TSCView, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-  const val = _toLengthPercentage(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setBorderTop(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setBorderTop(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setBorderTop(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setBorderTop(val.value, val.native_type);
-    }
-  }
-}
-
-export function _setBorderBottom(value, instance: TSCView, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-  const val = _toLengthPercentage(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setBorderBottom(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setBorderBottom(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setBorderBottom(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setBorderBottom(val.value, val.native_type);
-    }
-  }
-}
-
-export function _setFlexBasis(value, instance: TSCView, initial = false) {
+export function _setPaddingTop(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  if (UseV8Module) {
-    const val = _toMasonDimension(value);
+  instance[style_].paddingTop = value;
+}
 
-    MasonV8Module.setFlexBasis(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const val = _toMasonDimension(value);
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setFlexBasis(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setFlexBasis(val.value, val.native_type);
-      }
-    }
+export function _setPaddingBottom(value, instance: View, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+  instance[style_].paddingBottom = value;
+}
 
-    if (global.isIOS) {
-      instance.ios.flexBasisCompat = _intoMasonDimension(value) as any;
-    }
+export function _setBorderLeft(value, instance: View, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
   }
 }
 
-export function _getFlexBasis(instance: TSCView) {
+export function _setBorderRight(value, instance: View, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+}
+
+export function _setBorderTop(value, instance: View, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+}
+
+export function _setBorderBottom(value, instance: View, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+}
+
+export function _setFlexBasis(value, instance: View, initial = false) {
+  if (!instance._hasNativeView) {
+    return;
+  }
+
+  instance[style_].flexBasis = value;
+}
+
+export function _getFlexBasis(instance: View) {
   if (!instance._hasNativeView) {
     return (instance as any).style.flexBasis;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getFlexBasis(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let value;
-      if (instance._isMasonChild) {
-        value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getFlexBasis(nodeOrView);
-      } else {
-        value = nodeOrView.getFlexBasis();
-      }
-
-      return _parseDimension(value);
-    }
-
-    if (global.isIOS) {
-      return _parseDimension(instance.ios.flexBasisCompat);
-    }
-
-    return (instance as any).style.flexBasis;
-  }
+  return instance[style_].flexBasis;
 }
 
-export function _setGap(value, instance: TSCView, initial = false) {
+export function _setGap(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-
-  const width = _toLengthPercentage(value.width);
-  const height = _toLengthPercentage(value.height);
-
-  if (UseV8Module) {
-    MasonV8Module.setGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, width.value, width.native_type, height.value, height.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGap(nodeOrView, width.value, width.native_type, height.value, height.native_type);
-      } else {
-        nodeOrView.setGap(width.value, width.native_type, height.value, height.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setGapWithWidthHeightType(width.value, width.native_type, height.value, height.native_type);
-    }
-  }
 }
 
-export function _getGap(instance: TSCView) {
+export function _getGap(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.gap;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getGap(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let gap;
-      if (instance._isMasonChild) {
-        gap = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getGap(nodeOrView);
-      } else {
-        gap = nodeOrView.getGap();
-      }
 
-      const width = _parseLengthPercentage(gap.getWidth());
-      const height = _parseLengthPercentage(gap.getHeight());
-      return { width, height };
-    }
-
-    if (global.isIOS) {
-      const gap = instance.ios.getGap();
-      const width = _parseLengthPercentage(gap.width);
-      const height = _parseLengthPercentage(gap.height);
-      return { width, height };
-    }
-  }
+  return {
+    row: this[style_].rowGap,
+    column: this[style_].columnGap,
+  };
 }
 
-function toOverflowValue(value: any) {
-  let nativeValue = 0;
-  switch (value) {
-    case 0:
-      nativeValue = Overflow.Visible;
-      break;
-    case 1:
-      nativeValue = Overflow.Hidden;
-      break;
-    case 2:
-      nativeValue = Overflow.Scroll;
-      break;
-    default:
-      nativeValue = Overflow.Visible;
-  }
-
-  return nativeValue;
-}
-
-function toOverflowJSValue(value: any) {
-  if (__IOS__) {
-    switch (value) {
-      case Overflow.Visible:
-        return 'visible';
-      case Overflow.Hidden:
-        return 'hidden';
-      case Overflow.Scroll:
-        return 'scroll';
-      default:
-        return 'visible';
-    }
-  }
-
-  switch (value) {
-    case org.nativescript.mason.masonkit.Overflow.Visible:
-      return 'visible';
-    case org.nativescript.mason.masonkit.Overflow.Hidden:
-      return 'hidden';
-    case org.nativescript.mason.masonkit.Overflow.Scroll:
-      return 'scroll';
-    default:
-      return 'visible';
-  }
-}
-
-function toOverflowJavaValue(value: any) {
-  let nativeValue = org.nativescript.mason.masonkit.Overflow.Visible;
-  switch (value) {
-    case 0:
-      nativeValue = org.nativescript.mason.masonkit.Overflow.Visible;
-      break;
-    case 1:
-      nativeValue = org.nativescript.mason.masonkit.Overflow.Hidden;
-      break;
-    case 2:
-      nativeValue = org.nativescript.mason.masonkit.Overflow.Scroll;
-      break;
-    default:
-      nativeValue = org.nativescript.mason.masonkit.Overflow.Visible;
-  }
-
-  return nativeValue;
-}
-
-export function _setOverflow(value, instance: TSCView) {
+export function _setOverflow(value, instance: View) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  if (UseV8Module) {
-    const nativeValue = toOverflowValue(value);
-    MasonV8Module.setOverflow(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setOverflow(nodeOrView, toOverflowJavaValue(value));
-      } else {
-        (nodeOrView as org.nativescript.mason.masonkit.View).setOverflow(toOverflowJavaValue(value));
-      }
-    }
-
-    if (global.isIOS) {
-      const nativeValue = toOverflowValue(value);
-      instance.ios.overflow = nativeValue;
-    }
-  }
+  instance[style_].overflow = value;
 }
 
-export function _getOverflow(instance: TSCView) {
+export function _getOverflow(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.flexGrow;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getOverflow(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        return toOverflowJSValue(org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getOverflow(nodeOrView));
-      } else {
-        return toOverflowJSValue((nodeOrView as org.nativescript.mason.masonkit.View).getOverflow());
-      }
-    }
-
-    if (global.isIOS) {
-      return toOverflowJSValue(instance.ios.overflow);
-    }
-  }
+  return instance[style_].overflow;
 }
 
-export function _setOverflowX(value, instance: TSCView) {
+export function _setOverflowX(value, instance: View) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  if (UseV8Module) {
-    const nativeValue = toOverflowValue(value);
-    MasonV8Module.setOverflowX(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setOverflowX(nodeOrView, toOverflowJavaValue(value));
-      } else {
-        (nodeOrView as org.nativescript.mason.masonkit.View).setOverflowX(toOverflowJavaValue(value));
-      }
-    }
-
-    if (global.isIOS) {
-      const nativeValue = toOverflowValue(value);
-      // TODO
-      instance.ios.overflowX = nativeValue;
-    }
-  }
+  instance[style_].overflowX = value;
 }
 
-export function _getOverflowX(instance: TSCView) {
+export function _getOverflowX(instance: View) {
   if (!instance._hasNativeView) {
-    return instance.style.flexGrow;
+    return instance.style.overflowX;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getOverflowX(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        return toOverflowJSValue(org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getOverflowX(nodeOrView));
-      } else {
-        return toOverflowJSValue((nodeOrView as org.nativescript.mason.masonkit.View).getOverflowX());
-      }
-    }
-
-    if (global.isIOS) {
-      return toOverflowJSValue(instance.ios.overflowX);
-    }
-  }
+  return instance[style_].overflowX;
 }
 
-export function _setOverflowY(value, instance: TSCView, initial = false) {
+export function _setOverflowY(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  if (UseV8Module) {
-    const nativeValue = toOverflowValue(value);
-    MasonV8Module.setOverflowY(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setOverflowY(nodeOrView, toOverflowJavaValue(value));
-      } else {
-        (nodeOrView as org.nativescript.mason.masonkit.View).setOverflowY(toOverflowJavaValue(value));
-      }
-    }
-
-    if (global.isIOS) {
-      const nativeValue = toOverflowValue(value);
-      // TODO
-      instance.ios.overflowY = nativeValue;
-    }
-  }
+  instance[style_].overflowY = value;
 }
 
-export function _getOverflowY(instance: TSCView) {
+export function _getOverflowY(instance: View) {
   if (!instance._hasNativeView) {
-    return instance.style.flexGrow;
+    return instance.style.overflowY;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getOverflowY(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        return toOverflowJSValue(org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getOverflowY(nodeOrView));
-      } else {
-        return toOverflowJSValue((nodeOrView as org.nativescript.mason.masonkit.View).getOverflowY());
-      }
-    }
 
-    if (global.isIOS) {
-      return toOverflowJSValue(instance.ios.overflowY);
-    }
-  }
+  return instance[style_].overflowY;
 }
 
-export function _setScrollbarWidth(value, instance: TSCView, initial = false) {
+export function _setScrollbarWidth(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  value = _toMasonDimension(value).value;
-
-  if (UseV8Module) {
-    MasonV8Module.setScrollbarWidth(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        return org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setScrollBarWidth(nodeOrView, value);
-      } else {
-        return (nodeOrView as org.nativescript.mason.masonkit.View).setScrollBarWidth(value);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.scrollBarWidthCompat = MasonDimensionCompat.alloc().initWithPoints(value);
-    }
-  }
+  instance[style_].scrollBarWidth = value;
 }
 
-export function getScrollbarWidth(instance: TSCView) {
+export function getScrollbarWidth(instance: View) {
   if (!instance._hasNativeView) {
-    return instance.style.flexGrow;
+    return instance.style.scrollBarWidth;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getScrollbarWidth(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        return org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getScrollBarWidth(nodeOrView);
-      } else {
-        return (nodeOrView as org.nativescript.mason.masonkit.View).getScrollBarWidth();
-      }
-    }
-
-    if (global.isIOS) {
-      return _parseDimension(instance.ios.scrollBarWidthCompat);
-    }
-  }
+  return instance[style_].scrollBarWidth;
 }
 
-export function _setFlexGrow(value, instance: TSCView, initial = false) {
+export function _setFlexGrow(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (UseV8Module) {
-    MasonV8Module.setFlexGrow(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setFlexGrow(nodeOrView, value);
-      } else {
-        nodeOrView.setFlexGrow(value);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.flexGrow = value;
-    }
-  }
+  instance[style_].flexGrow = value;
 }
 
-export function _getFlexGrow(instance: TSCView) {
+export function _getFlexGrow(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.flexGrow;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getFlexGrow(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let value;
-      if (instance._isMasonChild) {
-        value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getFlexGrow(nodeOrView);
-      } else {
-        value = nodeOrView.getFlexGrow();
-      }
-
-      return value;
-    }
-
-    if (global.isiOS) {
-      return instance.ios.flexGrow;
-    }
-
-    return instance.style.flexGrow;
-  }
+  return instance[style_].flexGrow;
 }
 
-export function _setFlexShrink(value, instance: TSCView, initial = false) {
+export function _setFlexShrink(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (UseV8Module) {
-    MasonV8Module.setFlexShrink(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setFlexShrink(nodeOrView, value);
-      } else {
-        nodeOrView.setFlexShrink(value);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.flexShrink = value;
-    }
-  }
+  instance[style_].flexShrink = value;
 }
 
-export function _getFlexShrink(instance: TSCView) {
+export function _getFlexShrink(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.flexShrink;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getFlexShrink(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let value;
-      if (instance._isMasonChild) {
-        value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getFlexShrink(nodeOrView);
-      } else {
-        value = nodeOrView.getFlexShrink();
-      }
-
-      return value;
-    }
-
-    if (global.isIOS) {
-      return instance.ios.flexShrink;
-    }
-
-    return instance.style.flexShrink;
-  }
+  return instance[style_].flexShrink;
 }
 
-export function _setAspectRatio(value, instance: TSCView, initial = false) {
+export function _setAspectRatio(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (UseV8Module) {
-    MasonV8Module.setAspectRatio(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const val = Number.isNaN(value) ? null : value;
-
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setAspectRatio(nodeOrView, val);
-      } else {
-        nodeOrView.setAspectRatio(val);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.aspectRatio = value;
-    }
-  }
+  instance[style_].aspectRatio = value;
 }
 
-export function _getAspectRatio(instance: TSCView) {
+export function _getAspectRatio(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.aspectRatio;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getAspectRatio(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let value;
-      if (instance._isMasonChild) {
-        value = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getAspectRatio(nodeOrView);
-      } else {
-        value = nodeOrView.getAspectRatio();
-      }
-
-      return value;
-    }
-
-    if (global.isIOS) {
-      const ratio = instance.ios.aspectRatio;
-      return Number.isNaN(ratio) ? null : ratio;
-    }
-
-    return null;
-  }
+  const ratio = instance[style_].aspectRatio;
+  return Number.isNaN(ratio) ? null : ratio;
 }
 
 function _parseGridLine(value): { value: number; type: any; native_value?: any } {
@@ -3412,7 +1140,7 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
   return { value: Number.isNaN(parsedValue) ? undefined : parsedValue, type: parsedType, native_value: nativeValue };
 }
 
-export function _setGridColumnStart(value, instance: TSCView, initial = false) {
+export function _setGridColumnStart(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
@@ -3424,7 +1152,7 @@ export function _setGridColumnStart(value, instance: TSCView, initial = false) {
   }
 
   if (UseV8Module) {
-    MasonV8Module.setColumnStart(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+    MasonV8Module.setColumnStart(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3441,7 +1169,7 @@ export function _setGridColumnStart(value, instance: TSCView, initial = false) {
   }
 }
 
-export function _setGridColumnEnd(value, instance: TSCView, initial = false) {
+export function _setGridColumnEnd(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
@@ -3453,7 +1181,7 @@ export function _setGridColumnEnd(value, instance: TSCView, initial = false) {
   }
 
   if (UseV8Module) {
-    MasonV8Module.setColumnEnd(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+    MasonV8Module.setColumnEnd(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3470,7 +1198,7 @@ export function _setGridColumnEnd(value, instance: TSCView, initial = false) {
   }
 }
 
-export function _setGridRowStart(value, instance: TSCView, initial = false) {
+export function _setGridRowStart(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
@@ -3482,7 +1210,7 @@ export function _setGridRowStart(value, instance: TSCView, initial = false) {
   }
 
   if (UseV8Module) {
-    MasonV8Module.setRowStart(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+    MasonV8Module.setRowStart(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3500,7 +1228,7 @@ export function _setGridRowStart(value, instance: TSCView, initial = false) {
   }
 }
 
-export function _setGridRowEnd(value, instance: TSCView, initial = false) {
+export function _setGridRowEnd(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
@@ -3512,7 +1240,7 @@ export function _setGridRowEnd(value, instance: TSCView, initial = false) {
   }
 
   if (UseV8Module) {
-    MasonV8Module.setRowEnd(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val, !instance._inBatch);
+    MasonV8Module.setRowEnd(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const nodeOrView = getMasonInstance(instance);
@@ -3530,114 +1258,33 @@ export function _setGridRowEnd(value, instance: TSCView, initial = false) {
   }
 }
 
-export function _setRowGap(value, instance: TSCView, initial = false) {
+export function _setRowGap(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-
-  const val = _toLengthPercentage(value);
-
-  if (val.value === undefined || val.type === undefined) {
-    return;
-  }
-
-  if (UseV8Module) {
-    MasonV8Module.setRowGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGapRow(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setGapRow(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setRowGap(val.value, val.native_type);
-    }
-  }
+  instance[style_].rowGap = value;
 }
 
-export function _getRowGap(instance: TSCView) {
+export function _getRowGap(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.gap;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getRowGap(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let gap;
-      if (instance._isMasonChild) {
-        gap = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getGapRow(nodeOrView);
-      } else {
-        gap = nodeOrView.getGapRow();
-      }
-
-      return _parseLengthPercentage(gap);
-    }
-
-    if (global.isIOS) {
-      const gap = instance.ios.getRowGap();
-      return _parseLengthPercentage(gap);
-    }
-  }
+  return instance[style_].rowGap;
 }
 
-export function _setColumnGap(value, instance: TSCView, initial = false) {
+export function _setColumnGap(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const val = _toLengthPercentage(value);
-
-  if (val.value === undefined || val.type === undefined) {
-    return;
-  }
-
-  if (UseV8Module) {
-    MasonV8Module.setColumnGap(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, val.value, val.native_type, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGapColumn(nodeOrView, val.value, val.native_type);
-      } else {
-        nodeOrView.setGapColumn(val.value, val.native_type);
-      }
-    }
-
-    if (global.isIOS) {
-      instance.ios.setColumnGap(val.value, val.native_type);
-    }
-  }
+  instance[style_].columnGap = value;
 }
 
-export function _getColumnGap(instance: TSCView) {
+export function _getColumnGap(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.gap;
   }
-  if (UseV8Module) {
-    return MasonV8Module.getColumnGap(instance._masonStylePtr);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      let gap;
-      if (instance._isMasonChild) {
-        gap = org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getGapColumn(nodeOrView);
-      } else {
-        gap = nodeOrView.getGapColumn();
-      }
-
-      return _parseLengthPercentage(gap);
-    }
-
-    if (global.isIOS) {
-      const gap = instance.ios.getColumnGap();
-      return _parseLengthPercentage(gap);
-    }
-  }
+  return instance[style_].columnGap;
 }
 
 const enum MinSizingType {
@@ -3761,14 +1408,6 @@ export function _parseMinMaxValue(value: string): MinMaxType {
         max_type: MaxSizingType.Percent,
         max_value: percent,
       };
-    } else if (value.indexOf('fr') > -1) {
-      const flex = parseFloat(value.replace('fr', ''));
-      return {
-        min_type: MinSizingType.Auto,
-        min_value: 0,
-        max_type: MaxSizingType.Flex,
-        max_value: flex,
-      };
     } else {
       const dip = Utils.layout.toDevicePixels(Number(value));
       return {
@@ -3871,13 +1510,13 @@ export function _parseGridTemplates(value: string): Array<GridTemplates> {
   return array;
 }
 
-export function _setGridTemplateRows(value: Array<GridTemplates>, instance: TSCView, initial = false) {
+export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
   if (UseV8Module) {
-    MasonV8Module.setGridTemplateRows(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+    MasonV8Module.setGridTemplateRows(instance._masonPtr, instance._masonNodePtr, value, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
@@ -3972,13 +1611,13 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: TSCV
   }
 }
 
-export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: TSCView, initial = false) {
+export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
 
   if (UseV8Module) {
-    MasonV8Module.setGridTemplateColumns(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, value, !instance._inBatch);
+    MasonV8Module.setGridTemplateColumns(instance._masonPtr, instance._masonNodePtr, value, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
@@ -4095,89 +1734,12 @@ export function _parseGridAutoRowsColumns(value: string): Array<MinMaxType> {
   return array;
 }
 
-function toGridAutoFlow(value) {
-  if (isIOS || UseV8Module) {
-    switch (value) {
-      case 'row':
-        return FlexGridAutoFlowWrap.Row;
-      case 'column':
-        return FlexGridAutoFlowWrap.Column;
-      case 'row dense':
-        return FlexGridAutoFlowWrap.RowDense;
-      case 'column dense':
-        return FlexGridAutoFlowWrap.ColumnDense;
-      default:
-        return FlexGridAutoFlowWrap.Row;
-    }
-  }
-
-  switch (value) {
-    case 'row':
-      return org.nativescript.mason.masonkit.GridAutoFlow.Row;
-    case 'column':
-      return org.nativescript.mason.masonkit.GridAutoFlow.Column;
-    case 'row dense':
-      return org.nativescript.mason.masonkit.GridAutoFlow.RowDense;
-    case 'column dense':
-      return org.nativescript.mason.masonkit.GridAutoFlow.ColumnDense;
-    default:
-      return org.nativescript.mason.masonkit.GridAutoFlow.Row;
-  }
-}
-
-export function _setGridAutoFlow(value, instance: TSCView) {
+export function _setGridAutoFlow(value, instance: View) {
   if (!instance._hasNativeView) {
     return;
   }
 
-  const nativeValue = toGridAutoFlow(value);
-
-  if (UseV8Module) {
-    MasonV8Module.setGridAutoFlow(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, nativeValue, !instance._inBatch);
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridAutoFlow(nodeOrView, nativeValue as org.nativescript.mason.masonkit.GridAutoFlow);
-      } else {
-        nodeOrView.setGridAutoFlow(nativeValue as org.nativescript.mason.masonkit.GridAutoFlow);
-      }
-    }
-
-    if (isIOS) {
-      instance.ios.gridAutoFlow = nativeValue as FlexGridAutoFlowWrap;
-    }
-  }
-}
-
-function parseGridAutoFlow(value) {
-  if (isIOS || UseV8Module) {
-    switch (value) {
-      case FlexGridAutoFlowWrap.Row:
-        return 'row';
-      case FlexGridAutoFlowWrap.Column:
-        return 'column';
-      case FlexGridAutoFlowWrap.RowDense:
-        return 'row dense';
-      case FlexGridAutoFlowWrap.ColumnDense:
-        return 'column dense';
-      default:
-        return 'row';
-    }
-  }
-
-  switch (value) {
-    case org.nativescript.mason.masonkit.GridAutoFlow.Row:
-      return 'row';
-    case org.nativescript.mason.masonkit.GridAutoFlow.Column:
-      return 'column';
-    case org.nativescript.mason.masonkit.GridAutoFlow.RowDense:
-      return 'row dense';
-    case org.nativescript.mason.masonkit.GridAutoFlow.ColumnDense:
-      return 'column dense';
-    default:
-      return 'row';
-  }
+  instance.ios.gridAutoFlow = value;
 }
 
 export function _getGridAutoFlow(instance) {
@@ -4185,25 +1747,10 @@ export function _getGridAutoFlow(instance) {
     return;
   }
 
-  if (UseV8Module) {
-    return parseGridAutoFlow(MasonV8Module.getGridAutoFlow(instance._masonStylePtr));
-  } else {
-    if (global.isAndroid) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        return parseGridAutoFlow(org.nativescript.mason.masonkit.NodeHelper.INSTANCE.getGridAutoFlow(nodeOrView));
-      } else {
-        return parseGridAutoFlow(nodeOrView.getGridAutoFlow());
-      }
-    }
-
-    if (isIOS) {
-      return parseGridAutoFlow(instance.ios.gridAutoFlow);
-    }
-  }
+  return this[style_].gridAutoFlow;
 }
 
-export function _setGridAutoRows(value, instance: TSCView, initial = false) {
+export function _setGridAutoRows(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
@@ -4211,7 +1758,7 @@ export function _setGridAutoRows(value, instance: TSCView, initial = false) {
   const values = _parseGridAutoRowsColumns(value);
 
   if (UseV8Module) {
-    MasonV8Module.setGridAutoRows(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, values, !instance._inBatch);
+    MasonV8Module.setGridAutoRows(instance._masonPtr, instance._masonNodePtr, values, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
@@ -4247,7 +1794,7 @@ export function _setGridAutoRows(value, instance: TSCView, initial = false) {
   }
 }
 
-export function _setGridAutoColumns(value, instance: TSCView, initial = false) {
+export function _setGridAutoColumns(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
@@ -4255,7 +1802,7 @@ export function _setGridAutoColumns(value, instance: TSCView, initial = false) {
   const values = _parseGridAutoRowsColumns(value);
 
   if (UseV8Module) {
-    MasonV8Module.setGridAutoColumns(instance._masonPtr, instance._masonNodePtr, instance._masonStylePtr, values, !instance._inBatch);
+    MasonV8Module.setGridAutoColumns(instance._masonPtr, instance._masonNodePtr, values, !instance._inBatch);
   } else {
     if (global.isAndroid) {
       const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);

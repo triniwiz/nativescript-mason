@@ -3,47 +3,15 @@ plugins {
   id 'org.jetbrains.kotlin.android'
 }
 
-def NDK_PATH = ""
-def hasNdkDirectory = project.hasProperty("ndkDirectory")
-if(!hasNdkDirectory){
-  println "No ndkDirectory set, checking environment \$ANDROID_NDK..."
-
-  NDK_PATH = "$System.env.ANDROID_NDK"
-  if (NDK_PATH == null || NDK_PATH == "null"){
-    println "No ndkDirectory set, checking environment \$ANDROID_NDK_ROOT..."
-    NDK_PATH = "$System.env.ANDROID_NDK_ROOT"
-  }
-
-  if (NDK_PATH == null || NDK_PATH == "null"){
-    println "No ndkDirectory set, checking environment \$ANDROID_NDK_HOME..."
-    NDK_PATH = "$System.env.ANDROID_NDK_HOME"
-  }
-} else {
-  NDK_PATH = ndkDirectory
-}
-println "Runtime using NDK_PATH: " + NDK_PATH
-
 android {
   namespace 'org.nativescript.mason.masonkit'
-  compileSdk 34
+  compileSdk 35
   defaultConfig {
     minSdk 21
-    targetSdk 34
+    targetSdk 35
     multiDexEnabled true
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     consumerProguardFiles "consumer-rules.pro"
-
-    externalNativeBuild {
-      cmake {
-        cppFlags "-std=c++17"
-        arguments "-DANDROID_TOOLCHAIN=clang",
-          "-DANDROID_STL=c++_shared",
-          "-DANDROID_NDK_ROOT=${System.getenv("ANDROID_NDK_ROOT")}"
-      }
-    }
-    ndk {
-      abiFilters 'x86','x86_64', 'armeabi-v7a', 'arm64-v8a'
-    }
   }
 
   buildTypes {
@@ -59,25 +27,42 @@ android {
   kotlinOptions {
     jvmTarget = '17'
   }
+}
 
-  externalNativeBuild {
-    cmake {
-      path "CMakeLists.txt"
-    }
+apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
+
+cargo {
+  module = "../../../../../"
+  libname = "masonnative"
+  targets = ["arm64"]
+  apiLevels = [
+    "arm": 21,
+    "arm64": 21,
+    "x86": 21,
+    "x86_64": 21
+  ]
+//  targets = ["arm", "arm64", "x86", "x86_64"]
+//  profile = "release"
+  targetDirectory = "../../../../../target"
+  verbose = true
+  extraCargoBuildArguments = ['-p', 'mason-android']
+}
+
+tasks.configureEach { task ->
+  if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
+    task.dependsOn 'cargoBuild'
   }
-
-  ndkVersion '26.3.11579264'
 }
 
 dependencies {
 
   implementation 'androidx.core:core-ktx:1.9.0'
   implementation 'androidx.appcompat:appcompat:1.5.1'
-  implementation 'com.google.android.material:material:1.7.0'
-  implementation 'com.google.code.gson:gson:2.10'
+  implementation 'com.google.code.gson:gson:2.10.1'
   testImplementation 'junit:junit:4.13.2'
   androidTestImplementation 'androidx.test.ext:junit:1.1.4'
   androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
   implementation 'androidx.multidex:multidex:2.0.1'
 
 }
+

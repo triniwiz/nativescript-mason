@@ -1,9 +1,9 @@
 ARCHS_IOS = x86_64-apple-ios aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios-macabi aarch64-apple-ios-macabi
 ARCHS_ANDROID = i686-linux-android x86_64-linux-android aarch64-linux-android armv7-linux-androideabi
-
+XCFRAMEWORK = Mason.xcframework
 all:GENERATE_HEADERS ios android
 
-ios: GENERATE_IOS
+ios: $(XCFRAMEWORK)
 
 android: GENERATE_ANDROID
 
@@ -11,14 +11,11 @@ android: GENERATE_ANDROID
 GENERATE_HEADERS:
 	./tools/scripts/build-headers.sh
 
-# PHONY keyword on make means this is not a file, just an identifier for a target
 .PHONY: $(ARCHS_IOS)
 $(ARCHS_IOS): %:
-	./tools/scripts/build-ios.sh $@
+	RUSTFLAGS="-Zlocation-detail=none -C panic=abort -Zfmt-debug=none" cargo +nightly build -Z build-std='std,panic_abort'  -Z build-std-features='panic_immediate_abort,optimize_for_size' --target $@ --release -p mason-ios
 
-.PHONY: GENERATE_IOS
-GENERATE_IOS: $(ARCHS_IOS)
-	./tools/scripts/copy-ios.sh
+$(XCFRAMEWORK): $(ARCHS_IOS)
 
 .PHONY: $(ARCHS_ANDROID)
 $(ARCHS_ANDROID): %:
@@ -26,7 +23,6 @@ $(ARCHS_ANDROID): %:
 
 .PHONY: GENERATE_ANDROID
 GENERATE_ANDROID: $(ARCHS_ANDROID)
-	./tools/scripts/copy-android.sh
 
 .PHONY: clean
 clean:

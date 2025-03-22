@@ -38,32 +38,203 @@ private func getLengthPercentage(_ value: Float,_ type: Int) -> MasonLengthPerce
 }
 
 
+struct StyleKeys {
+    static let DISPLAY = 0
+    static let POSITION = 4
+    static let DIRECTION = 8
+    static let FLEX_DIRECTION = 12
+    static let FLEX_WRAP = 16
+    static let OVERFLOW_X = 20
+    static let OVERFLOW_Y = 24
+
+    static let ALIGN_ITEMS = 28
+    static let ALIGN_SELF = 32
+    static let ALIGN_CONTENT = 36
+
+    static let JUSTIFY_ITEMS = 40
+    static let JUSTIFY_SELF = 44
+    static let JUSTIFY_CONTENT = 48
+
+    static let INSET_LEFT_TYPE = 52
+    static let INSET_LEFT_VALUE = 56
+    static let INSET_RIGHT_TYPE = 60
+    static let INSET_RIGHT_VALUE = 64
+    static let INSET_TOP_TYPE = 68
+    static let INSET_TOP_VALUE = 72
+    static let INSET_BOTTOM_TYPE = 76
+    static let INSET_BOTTOM_VALUE = 80
+
+    static let MARGIN_LEFT_TYPE = 84
+    static let MARGIN_LEFT_VALUE = 88
+    static let MARGIN_RIGHT_TYPE = 92
+    static let MARGIN_RIGHT_VALUE = 96
+    static let MARGIN_TOP_TYPE = 100
+    static let MARGIN_TOP_VALUE = 104
+    static let MARGIN_BOTTOM_TYPE = 108
+    static let MARGIN_BOTTOM_VALUE = 112
+
+    static let PADDING_LEFT_TYPE = 116
+    static let PADDING_LEFT_VALUE = 120
+    static let PADDING_RIGHT_TYPE = 124
+    static let PADDING_RIGHT_VALUE = 128
+    static let PADDING_TOP_TYPE = 132
+    static let PADDING_TOP_VALUE = 136
+    static let PADDING_BOTTOM_TYPE = 140
+    static let PADDING_BOTTOM_VALUE = 144
+
+    static let BORDER_LEFT_TYPE = 148
+    static let BORDER_LEFT_VALUE = 152
+    static let BORDER_RIGHT_TYPE = 156
+    static let BORDER_RIGHT_VALUE = 160
+    static let BORDER_TOP_TYPE = 164
+    static let BORDER_TOP_VALUE = 168
+    static let BORDER_BOTTOM_TYPE = 172
+    static let BORDER_BOTTOM_VALUE = 176
+
+    static let FLEX_GROW = 180
+    static let FLEX_SHRINK = 184
+
+    static let FLEX_BASIS_TYPE = 188
+    static let FLEX_BASIS_VALUE = 192
+
+    static let WIDTH_TYPE = 196
+    static let WIDTH_VALUE = 200
+    static let HEIGHT_TYPE = 204
+    static let HEIGHT_VALUE = 208
+
+    static let MIN_WIDTH_TYPE = 212
+    static let MIN_WIDTH_VALUE = 216
+    static let MIN_HEIGHT_TYPE = 220
+    static let MIN_HEIGHT_VALUE = 224
+
+    static let MAX_WIDTH_TYPE = 228
+    static let MAX_WIDTH_VALUE = 232
+    static let MAX_HEIGHT_TYPE = 236
+    static let MAX_HEIGHT_VALUE = 240
+
+    static let GAP_ROW_TYPE = 244
+    static let GAP_ROW_VALUE = 248
+    static let GAP_COLUMN_TYPE = 252
+    static let GAP_COLUMN_VALUE = 256
+
+    static let ASPECT_RATIO = 260
+    static let GRID_AUTO_FLOW = 264
+    static let GRID_COLUMN_START_TYPE = 268
+    static let GRID_COLUMN_START_VALUE = 272
+    static let GRID_COLUMN_END_TYPE = 276
+    static let GRID_COLUMN_END_VALUE = 280
+    static let GRID_ROW_START_TYPE = 284
+    static let GRID_ROW_START_VALUE = 288
+    static let GRID_ROW_END_TYPE = 292
+    static let GRID_ROW_END_VALUE = 296
+    static let SCROLLBAR_WIDTH = 300
+    static let TEXT_ALIGN = 304
+    static let BOX_SIZING = 308
+    static let OVERFLOW = 312
+    static let ITEM_IS_TABLE = 316 // Byte
+}
+
+struct StateKeys: OptionSet {
+    let rawValue: UInt64
+
+    init(rawValue: UInt64) {
+        self.rawValue = rawValue
+    }
+
+
+    static let display         = StateKeys(rawValue: 1 << 0)
+    static let position        = StateKeys(rawValue: 1 << 1)
+    static let direction       = StateKeys(rawValue: 1 << 2)
+    static let flexDirection   = StateKeys(rawValue: 1 << 3)
+    static let flexWrap        = StateKeys(rawValue: 1 << 4)
+    static let overflowX       = StateKeys(rawValue: 1 << 5)
+    static let overflowY       = StateKeys(rawValue: 1 << 6)
+    static let alignItems      = StateKeys(rawValue: 1 << 7)
+    static let alignSelf       = StateKeys(rawValue: 1 << 8)
+    static let alignContent    = StateKeys(rawValue: 1 << 9)
+    static let justifyItems    = StateKeys(rawValue: 1 << 10)
+    static let justifySelf     = StateKeys(rawValue: 1 << 11)
+    static let justifyContent  = StateKeys(rawValue: 1 << 12)
+    static let inset           = StateKeys(rawValue: 1 << 13)
+    static let margin          = StateKeys(rawValue: 1 << 14)
+    static let padding         = StateKeys(rawValue: 1 << 15)
+    static let border          = StateKeys(rawValue: 1 << 16)
+    static let flexGrow        = StateKeys(rawValue: 1 << 17)
+    static let flexShrink      = StateKeys(rawValue: 1 << 18)
+    static let flexBasis       = StateKeys(rawValue: 1 << 19)
+    static let size            = StateKeys(rawValue: 1 << 20)
+    static let minSize         = StateKeys(rawValue: 1 << 21)
+    static let maxSize         = StateKeys(rawValue: 1 << 22)
+    static let gap             = StateKeys(rawValue: 1 << 23)
+    static let aspectRatio     = StateKeys(rawValue: 1 << 24)
+    static let gridAutoFlow    = StateKeys(rawValue: 1 << 25)
+    static let gridColumn      = StateKeys(rawValue: 1 << 26)
+    static let gridRow         = StateKeys(rawValue: 1 << 27)
+    static let scrollbarWidth  = StateKeys(rawValue: 1 << 28)
+    static let textAlign       = StateKeys(rawValue: 1 << 29)
+    static let boxSizing       = StateKeys(rawValue: 1 << 30)
+    static let overflow        = StateKeys(rawValue: 1 << 31)
+    static let itemIsTable     = StateKeys(rawValue: 1 << 32)
+
+
+    func contains(_ flag: StateKeys) -> Bool {
+        return self.contains(flag)
+    }
+}
+
+
+
 @objc(MasonStyle)
 @objcMembers
 public class MasonStyle: NSObject {
-    internal var isDirty: Bool = false
-    
-    public internal (set) var nativePtr: OpaquePointer?
-    
-    
-    public override init() {
-        nativePtr = mason_style_init()
+    internal var isDirty: Int64 = -1
+    internal var isSlowDirty = false
+    let node: MasonNode
+    var inBatch = false
+  
+  lazy var values: NSMutableData = {
+    let buffer = mason_style_get_style_buffer(node.mason.nativePtr, node.nativePtr)
+    guard let buffer else {
+      // todo
+      fatalError("Could not allocate style buffer")
     }
-    
-    deinit {
-        mason_style_destroy(nativePtr)
+    return NSMutableData(bytesNoCopy: buffer.pointee.data, length: Int(buffer.pointee.size)) { _, _ in
+      mason_style_release_style_buffer(buffer)
     }
-    
+
+  }()
+    public init(node: MasonNode) {
+      self.node = node
+    }
+  
+  private func setOrAppendState(_ value: StateKeys) {
+    if isDirty == -1 {
+      isDirty = Int64(value.rawValue)
+    } else {
+      isDirty |= Int64(value.rawValue)
+    }
+     if (!inBatch) {
+       updateNativeStyle()
+     }
+   }
     
     public var display =  Display.Flex {
         didSet {
-            isDirty = true
+          let value = values.mutableBytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self)
+        
+          value.pointee = Int32(display.rawValue)
+        
+          setOrAppendState(StateKeys.display)
         }
     }
     
     public var position = Position.Relative {
         didSet {
-            isDirty = true
+          let value = values.mutableBytes.advanced(by: Int(StyleKeys.POSITION)).assumingMemoryBound(to: Int32.self)
+        
+          value.pointee = Int32(position.rawValue)
+        
+          setOrAppendState(StateKeys.display)
         }
     }
     
@@ -71,31 +242,47 @@ public class MasonStyle: NSObject {
     // TODO
     public var direction = Direction.Inherit{
         didSet {
-            isDirty = true
+            // todo
+          let value = values.mutableBytes.advanced(by: Int(StyleKeys.DIRECTION)).assumingMemoryBound(to: Int32.self)
+        
+          value.pointee = Int32(direction.rawValue)
+        
+          setOrAppendState(StateKeys.direction)
+          
         }
     }
     
     public var flexDirection = FlexDirection.Row{
         didSet {
-            isDirty = true
+          let value = values.mutableBytes.advanced(by: Int(StyleKeys.FLEX_DIRECTION)).assumingMemoryBound(to: Int32.self)
+        
+          value.pointee = Int32(flexDirection.rawValue)
+        
+          setOrAppendState(StateKeys.flexDirection)
         }
     }
+  
+  private func updateIntField(offset: Int, value: Int32, state: StateKeys){
+    let bytes = values.mutableBytes.advanced(by: offset).assumingMemoryBound(to: Int32.self)
+    bytes.pointee = value
+    setOrAppendState(state)
+  }
     
     public var flexWrap = FlexWrap.NoWrap{
         didSet {
-            isDirty = true
+          updateIntField(offset: Int(StyleKeys.FLEX_WRAP), value:  Int32(flexWrap.rawValue), state: .flexWrap)
         }
     }
     
     public var overflow = Overflow.Unset{
         didSet {
-            isDirty = true
+        // todo
         }
     }
     
     public var overflowX = Overflow.Unset{
         didSet {
-            isDirty = true
+          updateIntField(offset: Int(StyleKeys.OVERFLOW_X), value:  Int32(overflowX.rawValue), state: .overflowX)
         }
     }
     
@@ -779,6 +966,190 @@ public class MasonStyle: NSObject {
             isDirty = true
         }
     }
+  
+  
+  public func updateNativeStyle() {
+      if(inBatch){return}
+    if (isSlowDirty) {
+          var gridAutoRows = gridAutoRows.map({ minMax in
+              minMax.cValue
+          })
+          
+          let gridAutoRowsCount = UInt(gridAutoRows.count)
+          
+          var gridAutoColumns = gridAutoColumns.map({ minMax in
+              minMax.cValue
+          })
+          
+          let gridAutoColumnsCount = UInt(gridAutoRows.count)
+          
+          
+          var gridTemplateRows =  gridTemplateRows.map { value in
+              value.cValue
+          }
+          
+          let gridTemplateRowsCount = UInt(gridTemplateRows.count)
+          
+          var gridTemplateColumns =  gridTemplateColumns.map { value in
+              value.cValue
+          }
+          
+          let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
+          
+          gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRowsBuffer in
+              
+              var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray()
+              
+              if(gridAutoRowsCount > 0){
+                  gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRowsBuffer.baseAddress, length: gridAutoRowsCount)
+              }
+              
+              
+              gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumnsBuffer in
+                  
+                  var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray()
+                  
+                  if(gridAutoColumnsCount > 0){
+                      gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumnsBuffer.baseAddress, length: gridAutoColumnsCount)
+                  }
+                  
+                  
+                  
+                  gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRowsBuffer in
+                      
+                      var gridTemplateRows = CMasonTrackSizingFunctionArray()
+                      
+                      if(gridTemplateRowsCount > 0){
+                          gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRowsBuffer.baseAddress, length: gridTemplateRowsCount)
+                      }
+                      
+                      
+                      
+                      gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumnsBuffer in
+                          
+                          var gridTemplateColumns = CMasonTrackSizingFunctionArray()
+                          
+                          if(gridTemplateColumnsCount > 0){
+                              gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumnsBuffer.baseAddress, length: gridTemplateColumnsCount)
+                          }
+                        
+                        mason_style_set_with_values(
+                              node.mason.nativePtr,
+                              node.nativePtr,
+                              display.rawValue,
+                              position.rawValue,
+                              direction.rawValue,
+                              flexDirection.rawValue,
+                              flexWrap.rawValue,
+                              overflow.rawValue,
+                              alignItems.rawValue,
+                              alignSelf.rawValue,
+                              alignContent.rawValue,
+                              justifyItems.rawValue,
+                              justifySelf.rawValue,
+                              justifyContent.rawValue,
+                              
+                              inset.left.type,
+                              inset.left.value,
+                              inset.right.type,
+                              inset.right.value,
+                              inset.top.type,
+                              inset.top.value,
+                              inset.bottom.type,
+                              inset.bottom.value,
+                              
+                              margin.left.type,
+                              margin.left.value,
+                              margin.right.type,
+                              margin.right.value,
+                              margin.top.type,
+                              margin.top.value,
+                              margin.bottom.type,
+                              margin.bottom.value,
+                              
+                              padding.left.type,
+                              padding.left.value,
+                              padding.right.type,
+                              padding.right.value,
+                              padding.top.type,
+                              padding.top.value,
+                              padding.bottom.type,
+                              padding.bottom.value,
+                              
+                              border.left.type,
+                              border.left.value,
+                              border.right.type,
+                              border.right.value,
+                              border.top.type,
+                              border.top.value,
+                              border.bottom.type,
+                              border.bottom.value,
+                              
+                              flexGrow,
+                              flexShrink,
+                              
+                              flexBasis.type,
+                              flexBasis.value,
+                              
+                              size.width.type,
+                              size.width.value,
+                              size.height.type,
+                              size.height.value,
+                              
+                              minSize.width.type,
+                              minSize.width.value,
+                              minSize.height.type,
+                              minSize.height.value,
+                              
+                              maxSize.width.type,
+                              maxSize.width.value,
+                              maxSize.height.type,
+                              maxSize.height.value,
+                              
+                              gap.width.type,
+                              gap.width.value,
+                              gap.height.type,
+                              gap.height.value,
+                              
+                              aspectRatio ?? Float.nan,
+                              &gridAutoRows,
+                              &gridAutoColumns,
+                              gridAutoFlow.rawValue,
+                              gridColumn.start.type,
+                              gridColumn.start.placementValue,
+                              gridColumn.end.type,
+                              gridColumn.end.placementValue,
+                              
+                              gridRow.start.type,
+                              gridRow.start.placementValue,
+                              gridRow.end.type,
+                              gridRow.end.placementValue,
+                              &gridTemplateRows,
+                              &gridTemplateColumns,
+                              overflowX.rawValue,
+                              overflowY.rawValue,
+                              scrollBarWidth.value,
+                              textAlign.rawValue,
+                              boxSizing.rawValue
+                          )
+                      }
+                  }
+                  
+              }
+              
+          }
+      
+        isSlowDirty = false
+      }
+    
+    if (isDirty != -1) {
+      mason_style_sync_style(node.mason.nativePtr, node.nativePtr, isDirty)
+      isDirty = -1
+    }
+    
+    // todo invalidate view
+      
+  }
     
     
     public override var description: String {

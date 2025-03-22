@@ -1,12 +1,11 @@
 package org.nativescript.mason.masonkit
 
+
 sealed class LengthPercentageAuto {
   data class Points(var points: Float) : LengthPercentageAuto()
   data class Percent(var percentage: Float) : LengthPercentageAuto()
   data object Auto : LengthPercentageAuto()
-  data object Zero : LengthPercentageAuto() {
-    const val points: Float = 0f
-  }
+  data object Zero : LengthPercentageAuto()
 
 
   companion object {
@@ -34,7 +33,7 @@ sealed class LengthPercentageAuto {
       is Points -> this.points
       is Percent -> this.percentage
       is Auto -> 0f
-      is Zero -> this.points
+      is Zero -> 0f
     }
 
   internal fun updateValue(value: Float) {
@@ -72,7 +71,7 @@ sealed class LengthPercentageAuto {
         }
 
         is Zero -> {
-          "$points$PxUnit"
+          "0$PxUnit"
         }
       }
     }

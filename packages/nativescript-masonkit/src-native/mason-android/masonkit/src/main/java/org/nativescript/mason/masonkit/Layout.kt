@@ -16,57 +16,57 @@ data class Layout(
 ) {
   companion object {
     internal fun fromFloatArray(args: FloatArray, offset: Int): Pair<Int, Layout> {
-      var offset = offset
+      var position = offset
 
-      val order = args[offset++]
-      val x = args[offset++]
-      val y = args[offset++]
-      val width = args[offset++]
-      val height = args[offset++]
+      val order = args[position++]
+      val x = args[position++]
+      val y = args[position++]
+      val width = args[position++]
+      val height = args[position++]
 
       val border = Rect(
-        args[offset++],
-        args[offset++],
-        args[offset++],
-        args[offset++]
+        args[position++],
+        args[position++],
+        args[position++],
+        args[position++]
       )
 
       val margin = Rect(
-        args[offset++],
-        args[offset++],
-        args[offset++],
-        args[offset++]
+        args[position++],
+        args[position++],
+        args[position++],
+        args[position++]
       )
 
       val padding = Rect(
-        args[offset++],
-        args[offset++],
-        args[offset++],
-        args[offset++]
+        args[position++],
+        args[position++],
+        args[position++],
+        args[position++]
       )
 
       val contentSize = Size(
-        args[offset++],
-        args[offset++]
+        args[position++],
+        args[position++]
       )
 
       val scrollbarSize = Size(
-        args[offset++],
-        args[offset++]
+        args[position++],
+        args[position++]
       )
 
 
-      val childCount = args[offset++].toInt()
+      val childCount = args[position++].toInt()
       val children = ArrayList<Layout>(childCount)
 
       for (i in 0 until childCount) {
-        val child = fromFloatArray(args, offset)
-        offset = child.first
+        val child = fromFloatArray(args, position)
+        position = child.first
         children.add(child.second)
       }
 
       return Pair(
-        offset,
+        position,
         Layout(
           order.toInt(),
           x,

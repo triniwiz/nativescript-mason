@@ -3,7 +3,7 @@ extern crate mason_c;
 use android_logger::Config;
 use itertools::izip;
 use jni::objects::{GlobalRef, JClass, JMethodID, JObject, JValue};
-use jni::sys::{jint, jlong};
+use jni::sys::{jfloat, jint, jlong};
 use jni::JavaVM;
 use jni::{JNIEnv, NativeMethod};
 use log::LevelFilter;
@@ -157,12 +157,17 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
 
             let mason_class = env.find_class(MASON_CLASS).unwrap();
 
-            let mason_method_names = ["nativeInit", "nativeClear", "nativeInitWithCapacity"];
+            let mason_method_names = [
+                "nativeInit",
+                "nativeClear",
+                "nativeInitWithCapacity",
+                "nativeDestroy",
+            ];
 
             let mason_signatures = if ret >= ANDROID_O {
-                ["()J", "(J)V", "(I)J"]
+                ["()J", "(J)V", "(I)J", "(J)V"]
             } else {
-                ["!()J", "!(J)V", "!(I)J"]
+                ["!()J", "!(J)V", "!(I)J", "!(J)V"]
             };
 
             let mason_methods = if ret >= ANDROID_O {
@@ -170,12 +175,14 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     MasonNativeInit as *mut c_void,
                     MasonNativeClear as *mut c_void,
                     MasonNativeInitWithCapacity as *mut c_void,
+                    MasonNativeDestroy as *mut c_void,
                 ]
             } else {
                 [
                     MasonNativeInitNormal as *mut c_void,
                     MasonNativeClearNormal as *mut c_void,
                     MasonNativeInitWithCapacityNormal as *mut c_void,
+                    MasonNativeDestroy as *mut c_void,
                 ]
             };
 
@@ -213,15 +220,17 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                 "nativeRemoveChildren",
                 "nativeRemoveChildAt",
                 "nativeRemoveChild",
-                "nativeRemoveContext"
+                "nativeRemoveContext",
+                "nativeComputeWithSizeAndLayout",
+                "nativeGetChildren",
+                "nativeLayout"
             ];
-
 
             let node_signatures = if ret >= ANDROID_O {
                 [
                     "(J)V",
-                    "(JI)J",
-                    "(JILjava/lang/Object;)J",
+                    "(J)J",
+                    "(JLjava/lang/Object;)J",
                     "(JJ)I",
                     "(JJFF)V",
                     "(JJJ)V",
@@ -240,12 +249,15 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     "(JJI)J",
                     "(JJJ)J",
                     "(JJ)V",
+                    "(JJFF)[F",
+                    "(JJ)[J",
+                    "(JJ)[F"
                 ]
             } else {
                 [
                     "!(J)V",
-                    "!(JJ)J",
-                    "!(JJLjava/lang/Object;)J",
+                    "!(J)J",
+                    "!(JLjava/lang/Object;)J",
                     "!(JJ)I",
                     "!(JJFF)V",
                     "!(JJJ)V",
@@ -264,6 +276,9 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     "!(JJI)J",
                     "!(JJJ)J",
                     "!(JJ)V",
+                    "!(JJFF)[F",
+                    "!(JJ)[J",
+                    "!(JJ)[F"
                 ]
             };
 
@@ -290,6 +305,9 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     node::NodeNativeRemoveChildAt as *mut c_void,
                     node::NodeNativeRemoveChild as *mut c_void,
                     node::NodeNativeRemoveContext as *mut c_void,
+                    node::nativeComputeWithSizeAndLayout as *mut c_void,
+                    node::nativeGetChildren as *mut c_void,
+                    node::nativeLayout as *mut c_void,
                 ]
             } else {
                 [
@@ -314,6 +332,9 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     node::NodeNativeRemoveChildAtNormal as *mut c_void,
                     node::NodeNativeRemoveChildNormal as *mut c_void,
                     node::NodeNativeRemoveContextNormal as *mut c_void,
+                    node::nativeComputeWithSizeAndLayout as *mut c_void,
+                    node::nativeGetChildren as *mut c_void,
+                    node::nativeLayout as *mut c_void,
                 ]
             };
 
@@ -327,6 +348,53 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     .collect();
 
             let _ = env.register_native_methods(&node_class, node_native_methods.as_slice());
+
+            let style_class = env.find_class(STYLE_CLASS).unwrap();
+
+            let style_method_names = [
+                "nativeSyncStyle",
+                "nativeUpdateStyleBuffer",
+                "nativeGetStyleBuffer",
+            ];
+
+            let style_signatures = if ret >= ANDROID_O {
+                [
+                    "(JJJ)V",
+                    "(JJLjava/nio/ByteBuffer;)V",
+                    "(JJ)Ljava/nio/ByteBuffer;",
+                ]
+            } else {
+                [
+                    "!(JJJ)V",
+                    "!(JJLjava/nio/ByteBuffer;)V",
+                    "!(JJ)Ljava/nio/ByteBuffer;",
+                ]
+            };
+
+            let style_methods = if ret >= ANDROID_O {
+                [
+                    style::nativeSyncStyle as *mut c_void,
+                    style::nativeUpdateStyleBuffer as *mut c_void,
+                    style::nativeGetStyleBuffer as *mut c_void,
+                ]
+            } else {
+                [
+                    style::nativeSyncStyleNormal as *mut c_void,
+                    style::nativeUpdateStyleBuffer as *mut c_void,
+                    style::nativeGetStyleBuffer as *mut c_void,
+                ]
+            };
+
+            let style_native_methods: Vec<NativeMethod> =
+                izip!(style_method_names, style_signatures, style_methods)
+                    .map(|(name, signature, method)| NativeMethod {
+                        name: name.into(),
+                        sig: signature.into(),
+                        fn_ptr: method,
+                    })
+                    .collect();
+
+            let _ = env.register_native_methods(&style_class, style_native_methods.as_slice());
 
             let clazz = env.find_class(MIN_MAX_CLASS).unwrap();
 
@@ -460,6 +528,26 @@ pub extern "system" fn MasonNativeClearNormal(_env: JNIEnv, _: JClass, taffy: jl
     native_clear(taffy);
 }
 
+#[inline(always)]
+fn mason_release(taffy: jlong) {
+    if taffy == 0 {
+        return;
+    }
+    unsafe {
+        let _ = Box::from_raw(taffy as *mut Mason);
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn MasonNativeDestroy(taffy: jlong) {
+    mason_release(taffy);
+}
+
+#[no_mangle]
+pub extern "system" fn MasonNativeDestroyNormal(_env: JNIEnv, _: JClass, taffy: jlong) {
+    mason_release(taffy);
+}
+
 fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
     track_type: i32,
     track_value: f32,
@@ -484,18 +572,4 @@ fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
     } else {
         store[index as usize] = value;
     }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_node_update_and_set_style_android(mason: jlong, node: jlong, style: jlong) {
-    ffi::node_update_and_set_style(mason as _, node as _, style as _);
-
-    let jvm = get_java_vm().expect("JavaVM reference not found");
-    let vm = jvm.attach_current_thread();
-    let mut env = vm.unwrap();
-    let clazz = env
-        .find_class("org/nativescript/mason/masonkit/Node")
-        .unwrap();
-    env.call_static_method(&clazz, "requestLayout", "(J)V", &[JValue::Long(node)])
-        .unwrap();
 }

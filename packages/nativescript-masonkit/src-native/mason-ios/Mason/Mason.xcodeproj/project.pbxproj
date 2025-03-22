@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F1046D052D8C0B8B00228EE2 /* MasonText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1046D042D8C0B8B00228EE2 /* MasonText.swift */; };
 		F14AA651293B650900B1510E /* Reexports.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14AA650293B650900B1510E /* Reexports.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
@@ -71,6 +72,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F1046D042D8C0B8B00228EE2 /* MasonText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonText.swift; sourceTree = "<group>"; };
 		F14AA650293B650900B1510E /* Reexports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reexports.swift; sourceTree = "<group>"; };
 		F184838C293534D800EC35F4 /* Mason.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mason.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184838F293534D800EC35F4 /* Mason.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mason.h; sourceTree = "<group>"; };
@@ -202,6 +204,7 @@
 				F1E4F95B296242700091913B /* MaxSizing.swift */,
 				F1E4F95D296266A60091913B /* MasonLine.swift */,
 				F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */,
+				F1046D042D8C0B8B00228EE2 /* MasonText.swift */,
 			);
 			path = Mason;
 			sourceTree = "<group>";
@@ -264,6 +267,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = F18483A0293534D800EC35F4 /* Build configuration list for PBXNativeTarget "Mason" */;
 			buildPhases = (
+				F1046CFF2D8BABAF00228EE2 /* Build Mason Rust */,
 				F1848387293534D800EC35F4 /* Headers */,
 				F1848388293534D800EC35F4 /* Sources */,
 				F1848389293534D800EC35F4 /* Frameworks */,
@@ -443,6 +447,27 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		F1046CFF2D8BABAF00228EE2 /* Build Mason Rust */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Mason Rust";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n\"$SRCROOT/pre-build.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		F1848388293534D800EC35F4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -457,6 +482,7 @@
 				F1E4F95429622ADF0091913B /* MasonSize.swift in Sources */,
 				F18483E129356CD400EC35F4 /* MasonNode.swift in Sources */,
 				F1E4F95A296242660091913B /* MinSizing.swift in Sources */,
+				F1046D052D8C0B8B00228EE2 /* MasonText.swift in Sources */,
 				F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */,
 				F14AA651293B650900B1510E /* Reexports.swift in Sources */,
 				F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */,
@@ -680,7 +706,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				EXPORTED_SYMBOLS_FILE = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/include";
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/include\"/**";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
@@ -692,9 +718,26 @@
 				);
 				MACH_O_TYPE = mh_dylib;
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-L\"$(SRCROOT)/libs/$(CURRENT_ARCH)$(EFFECTIVE_PLATFORM_NAME)\"",
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios/debug\"",
+					"-Wl,-no_compact_unwind",
 					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios-sim/debug\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=x86_64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/x86_64-apple-ios/debug\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
 				);
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-error=non-modular-include-in-framework-module";
 				PRODUCT_BUNDLE_IDENTIFIER = org.nativescript.mason.Mason;
@@ -720,7 +763,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				EXPORTED_SYMBOLS_FILE = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/include";
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/include\"/**";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
@@ -732,9 +775,26 @@
 				);
 				MACH_O_TYPE = mh_dylib;
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-L\"$(SRCROOT)/libs/$(CURRENT_ARCH)$(EFFECTIVE_PLATFORM_NAME)\"",
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios/debug\"",
+					"-Wl,-no_compact_unwind",
 					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios-sim/debug\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=x86_64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/x86_64-apple-ios/debug\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
 				);
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-error=non-modular-include-in-framework-module";
 				PRODUCT_BUNDLE_IDENTIFIER = org.nativescript.mason.Mason;

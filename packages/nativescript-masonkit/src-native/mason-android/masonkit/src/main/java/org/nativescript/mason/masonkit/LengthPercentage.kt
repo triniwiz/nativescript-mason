@@ -3,7 +3,7 @@ package org.nativescript.mason.masonkit
 sealed class LengthPercentage {
   data class Points(var points: Float) : LengthPercentage()
   data class Percent(var percentage: Float) : LengthPercentage()
-  object Zero : LengthPercentage() {
+  data object Zero : LengthPercentage() {
     const val points: Float = 0f
   }
 

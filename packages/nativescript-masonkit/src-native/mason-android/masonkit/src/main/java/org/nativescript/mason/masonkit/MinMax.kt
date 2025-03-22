@@ -1,7 +1,5 @@
 package org.nativescript.mason.masonkit;
 
-import android.util.Log
-
 sealed class MinMax(
   val min: MinSizing,
   val max: MaxSizing
@@ -21,9 +19,9 @@ sealed class MinMax(
   data class FitContentPercent(var percent: Float) :
     MinMax(MinSizing.Auto, MaxSizing.FitContentPercent(percent))
 
-  object Auto : MinMax(MinSizing.Auto, MaxSizing.Auto)
-  object MinContent : MinMax(MinSizing.MinContent, MaxSizing.MinContent)
-  object MaxContent : MinMax(MinSizing.MaxContent, MaxSizing.MaxContent)
+  data object Auto : MinMax(MinSizing.Auto, MaxSizing.Auto)
+  data object MinContent : MinMax(MinSizing.MinContent, MaxSizing.MinContent)
+  data object MaxContent : MinMax(MinSizing.MaxContent, MaxSizing.MaxContent)
 
   data class Values(
     val minVal: MinSizing,

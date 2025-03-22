@@ -1,36 +1,44 @@
 package org.nativescript.mason.masondemo
 
-import android.net.Uri
-import androidx.appcompat.app.AppCompatActivity
+import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
+import android.widget.ImageView
+import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
-import org.nativescript.mason.masondemo.databinding.ActivityImageBinding
-import java.util.Timer
-import java.util.TimerTask
-import kotlin.concurrent.schedule
+import com.bumptech.glide.request.target.SizeReadyCallback
+import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.Size
 
 class ImageActivity : AppCompatActivity() {
-  lateinit var binding: ActivityImageBinding
+  val mason = Mason()
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    binding = ActivityImageBinding.inflate(layoutInflater)
-    setContentView(binding.root)
-    val activity = this
-    Timer().schedule(
-      5000
-    ) {
+    val root = mason.createView(this)
+    val image = ImageView(this)
+    root.addView(image)
+//    mason.nodeForView(image)
+//      .style
+//      .setSizeWidth(Dimension.Points(300f))
 
-      runOnUiThread {
-        if (activity.isDestroyed) {
-          return@runOnUiThread
-        }
-        Glide.with(binding.imageView)
-          .load(
-            Uri.parse(
-              "https://picsum.photos/600/600"
-            )
-          ).into(binding.imageView)
-      }
+    mason.nodeForView(image).configure {
+      style.size = Size(Dimension.Points(300f), Dimension.Points(300f))
     }
+
+    Glide.with(image)
+      .load(
+        "https://picsum.photos/600/600"
+      )
+      .into(image)
+      .getSize(object : SizeReadyCallback {
+        override fun onSizeReady(width: Int, height: Int) {
+          Log.d("com.test", "width $width height $height")
+        }
+      })
+
+    setContentView(root)
+
+
   }
 }
