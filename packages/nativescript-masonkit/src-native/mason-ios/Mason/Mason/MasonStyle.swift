@@ -904,7 +904,7 @@ public class MasonStyle: NSObject {
     
     public var scrollBarWidth = MasonDimension.Points(0.0) {
         didSet {
-            isDirty = true
+          updateFloatField(offset: Int(StyleKeys.SCROLLBAR_WIDTH), value:  scrollBarWidth.value, state: .scrollbarWidth)
         }
     }
     
@@ -914,13 +914,13 @@ public class MasonStyle: NSObject {
   
   public var textAlign = MasonTextAlign.Auto {
       didSet {
-          isDirty = true
+        updateIntField(offset: Int(StyleKeys.TEXT_ALIGN), value:  Int32(textAlign.rawValue), state: .textAlign)
       }
   }
   
   public var boxSizing = MasonBoxSizing.BorderBox {
       didSet {
-          isDirty = true
+        updateIntField(offset: Int(StyleKeys.BOX_SIZING), value:  Int32(boxSizing.rawValue), state: .boxSizing)
       }
   }
   
@@ -1109,7 +1109,7 @@ public class MasonStyle: NSObject {
     
     public var aspectRatio: Float? = nil{
         didSet {
-            isDirty = true
+          updateFloatField(offset: Int(StyleKeys.ASPECT_RATIO), value:  aspectRatio ?? Float.nan, state: .aspectRatio)
         }
     }
     
@@ -1133,7 +1133,7 @@ public class MasonStyle: NSObject {
     
     public var gridAutoFlow: GridAutoFlow = GridAutoFlow.Row{
         didSet{
-            isDirty = true
+          updateIntField(offset: Int(StyleKeys.GRID_AUTO_FLOW), value:  Int32(gridAutoFlow.rawValue), state: .gridAutoFlow)
         }
     }
     
