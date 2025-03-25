@@ -198,6 +198,20 @@ public enum MasonDimension: Codable {
     case Auto
     case Points(Float)
     case Percent(Float)
+  
+  
+  static func fromValueType(_ value: Float, _ type: Int) -> MasonDimension? {
+      switch(type){
+      case 0:
+        return Auto
+      case 1:
+          return Points(value)
+      case 2:
+          return Percent(value)
+      default:
+          return nil
+      }
+    }
     
     internal var isZero: Bool {
         get {
@@ -1425,6 +1439,20 @@ public enum GridPlacement: Codable {
   case Line(Int16)
   case Span(Int16)
 
+  
+  
+  static func fromValueType(_ value: Int16, _ type: Int) -> GridPlacement? {
+      switch(type){
+      case 0:
+        return Auto
+      case 1:
+          return Line(value)
+      case 2:
+          return Span(value)
+      default:
+          return nil
+      }
+    }
 
     internal var type: Int32{
         get{
