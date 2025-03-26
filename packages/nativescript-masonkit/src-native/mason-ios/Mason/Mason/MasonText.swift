@@ -9,6 +9,25 @@ import Foundation
 import UIKit
 
 
+class ViewAttachment: NSTextAttachment {
+    weak var view: UIView?
+
+    init(view: UIView) {
+        super.init(data: nil, ofType: nil)
+        self.view = view
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+    
+    override func attachmentBounds(for textContainer: NSTextContainer?, proposedLineFragment lineFrag: CGRect, glyphPosition position: CGPoint, characterIndex charIndex: Int) -> CGRect {
+        guard let view = view else { return .zero }
+        return CGRect(origin: .zero, size: view.frame.size)
+    }
+}
+
+
 @objc(MasonText)
 @objcMembers
 public class MasonText: UIView {
@@ -18,30 +37,33 @@ public class MasonText: UIView {
   internal let view: UITextView
   let node: MasonNode
   internal var children: [(MasonNode, UIView)] = []
-  func measure(_ known: CGSize?, _ available: CGSize) -> CGSize {
+  internal var attachments: [ViewAttachment] = []
+  private static func measure(_ known: CGSize?, _ available: CGSize) -> CGSize {
     return .zero
   }
   public init(mason: NSCMason) {
     view = UITextView(frame: .zero, textContainer: container)
-    node = MasonNode(mason: mason, measureFunc: measure)
+    node = MasonNode(mason: mason, measureFunc: MasonText.measure)
     super.init(frame: .zero)
+    node.data = self
   }
   
   public init(node masonNode: MasonNode){
     view = UITextView(frame: .zero, textContainer: container)
     node = masonNode
-    masonNode.measureFunc = measure
+    masonNode.measureFunc = MasonText.measure
     super.init(frame: .zero)
+  }
+  
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
   }
   
   private func setup(){
     addSubview(view)
   }
   
-  required init?(coder: NSCoder) {
-    super.init(coder: coder)
-  }
-  
+ 
   lazy var textValues: NSMutableData = {
     let data = NSMutableData(length: 24)
   
@@ -62,7 +84,8 @@ public class MasonText: UIView {
     }
     
     guard let view = view as? MasonText else {
-      
+      node.mason
+      return
     }
     children.append((view.node, view))
     layoutManager.addTextContainer(view.container)

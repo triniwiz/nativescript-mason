@@ -34,6 +34,8 @@ public class MasonNode: NSObject {
     
     public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
     
+    public var data: Any? = nil
+    
     internal var measureFunc: MeasureFunc? = nil
     
     lazy public var style: MasonStyle = {
@@ -110,318 +112,7 @@ public class MasonNode: NSObject {
     public func markDirty(){
         mason_node_mark_dirty(NSCMason.instance.nativePtr, nativePtr)
     }
-    
-    @discardableResult func computeAndLayout(size: MasonSize<Float>? = nil) -> MasonLayout {
-        var points: UnsafeMutableRawPointer? = nil
-        if (size != nil) {
-            
-            var gridAutoRows = style.gridAutoRows.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoRowsCount = UInt(gridAutoRows.count)
-            
-            var gridAutoColumns = style.gridAutoColumns.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoColumnsCount = UInt(gridAutoRows.count)
-            
-            
-            var gridTemplateRows =  style.gridTemplateRows.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateRowsCount = UInt(gridTemplateRows.count)
-            
-            var gridTemplateColumns =  style.gridTemplateColumns.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
-            
-            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRows in
-                
-                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRows.baseAddress, length: gridAutoRowsCount)
-                
-                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumns in
-                    
-                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumns.baseAddress, length: gridAutoColumnsCount)
-                    
-                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
-                        
-                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress, length: gridTemplateRowsCount)
-                        
-                        
-                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
-                            
-                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress, length: gridTemplateColumnsCount)
-                 
-                            
-                          points = mason_style_sync_compute_and_layout(
-                                mason.nativePtr,
-                                nativePtr,
-                                size!.width, size!.height,
-                                style.display.rawValue,
-                                style.position.rawValue,
-                                style.direction.rawValue,
-                                style.flexDirection.rawValue,
-                                style.flexWrap.rawValue,
-                                style.overflow.rawValue,
-                                style.alignItems.rawValue,
-                                style.alignSelf.rawValue,
-                                style.alignContent.rawValue,
-                                style.justifyItems.rawValue,
-                                style.justifySelf.rawValue,
-                                style.justifyContent.rawValue,
-                                
-                                style.inset.left.type,
-                                style.inset.left.value,
-                                style.inset.right.type,
-                                style.inset.right.value,
-                                style.inset.top.type,
-                                style.inset.top.value,
-                                style.inset.bottom.type,
-                                style.inset.bottom.value,
-                                
-                                style.margin.left.type,
-                                style.margin.left.value,
-                                style.margin.right.type,
-                                style.margin.right.value,
-                                style.margin.top.type,
-                                style.margin.top.value,
-                                style.margin.bottom.type,
-                                style.margin.bottom.value,
-                                
-                                style.padding.left.type,
-                                style.padding.left.value,
-                                style.padding.right.type,
-                                style.padding.right.value,
-                                style.padding.top.type,
-                                style.padding.top.value,
-                                style.padding.bottom.type,
-                                style.padding.bottom.value,
-                                
-                                style.border.left.type,
-                                style.border.left.value,
-                                style.border.right.type,
-                                style.border.right.value,
-                                style.border.top.type,
-                                style.border.top.value,
-                                style.border.bottom.type,
-                                style.border.bottom.value,
-                                
-                                style.flexGrow,
-                                style.flexShrink,
-                                
-                                style.flexBasis.type,
-                                style.flexBasis.value,
-                                
-                                style.size.width.type,
-                                style.size.width.value,
-                                style.size.height.type,
-                                style.size.height.value,
-                                
-                                style.minSize.width.type,
-                                style.minSize.width.value,
-                                style.minSize.height.type,
-                                style.minSize.height.value,
-                                
-                                style.maxSize.width.type,
-                                style.maxSize.width.value,
-                                style.maxSize.height.type,
-                                style.maxSize.height.value,
-                                
-                                style.gap.width.type,
-                                style.gap.width.value,
-                                style.gap.height.type,
-                                style.gap.height.value,
-                                
-                                style.aspectRatio ?? Float.nan,
-                                &gridAutoRows,
-                                &gridAutoColumns,
-                                style.gridAutoFlow.rawValue,
-                                style.gridColumn.start.type,
-                                style.gridColumn.start.placementValue,
-                                style.gridColumn.end.type,
-                                style.gridColumn.end.placementValue,
-                                
-                                style.gridRow.start.type,
-                                style.gridRow.start.placementValue,
-                                style.gridRow.end.type,
-                                style.gridRow.end.placementValue,
-                                &gridTemplateRows,
-                                &gridTemplateColumns,
-                                style.overflowX.rawValue,
-                                style.overflowY.rawValue,
-                                style.scrollBarWidth.value,
-                                style.textAlign.rawValue,
-                                style.boxSizing.rawValue,
-                                create_layout
-                            )
-                            
-                            
-                        }
-                    }
-                }
-            }
-            
-            
-        }else {
-            
-            var gridAutoRows = style.gridAutoRows.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoRowsCount = UInt(gridAutoRows.count)
-            
-            var gridAutoColumns = style.gridAutoColumns.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoColumnsCount = UInt(gridAutoRows.count)
-            
-            
-            var gridTemplateRows =  style.gridTemplateRows.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateRowsCount = UInt(gridTemplateRows.count)
-            
-            var gridTemplateColumns =  style.gridTemplateColumns.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
-            
-            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRows in
-                
-                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRows.baseAddress, length: gridAutoRowsCount)
-                
-                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumns in
-                    
-                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumns.baseAddress, length: gridAutoColumnsCount)
-                    
-                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
-                        
-                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress, length: gridTemplateRowsCount)
-                        
-                        
-                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
-                            
-                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress, length: gridTemplateColumnsCount)
-                            
-                            
-                            points = mason_node_update_style_with_values_compute_and_layout(
-                                NSCMason.instance.nativePtr, nativePtr, style.nativePtr,
-                                style.display.rawValue,
-                                style.position.rawValue,
-                                style.direction.rawValue,
-                                style.flexDirection.rawValue,
-                                style.flexWrap.rawValue,
-                                style.overflow.rawValue,
-                                style.alignItems.rawValue,
-                                style.alignSelf.rawValue,
-                                style.alignContent.rawValue,
-                                style.justifyItems.rawValue,
-                                style.justifySelf.rawValue,
-                                style.justifyContent.rawValue,
-                                
-                                style.inset.left.type,
-                                style.inset.left.value,
-                                style.inset.right.type,
-                                style.inset.right.value,
-                                style.inset.top.type,
-                                style.inset.top.value,
-                                style.inset.bottom.type,
-                                style.inset.bottom.value,
-                                
-                                style.margin.left.type,
-                                style.margin.left.value,
-                                style.margin.right.type,
-                                style.margin.right.value,
-                                style.margin.top.type,
-                                style.margin.top.value,
-                                style.margin.bottom.type,
-                                style.margin.bottom.value,
-                                
-                                style.padding.left.type,
-                                style.padding.left.value,
-                                style.padding.right.type,
-                                style.padding.right.value,
-                                style.padding.top.type,
-                                style.padding.top.value,
-                                style.padding.bottom.type,
-                                style.padding.bottom.value,
-                                
-                                style.border.left.type,
-                                style.border.left.value,
-                                style.border.right.type,
-                                style.border.right.value,
-                                style.border.top.type,
-                                style.border.top.value,
-                                style.border.bottom.type,
-                                style.border.bottom.value,
-                                
-                                style.flexGrow,
-                                style.flexShrink,
-                                
-                                style.flexBasis.type,
-                                style.flexBasis.value,
-                                
-                                style.size.width.type,
-                                style.size.width.value,
-                                style.size.height.type,
-                                style.size.height.value,
-                                
-                                style.minSize.width.type,
-                                style.minSize.width.value,
-                                style.minSize.height.type,
-                                style.minSize.height.value,
-                                
-                                style.maxSize.width.type,
-                                style.maxSize.width.value,
-                                style.maxSize.height.type,
-                                style.maxSize.height.value,
-                                
-                                style.gap.width.type,
-                                style.gap.width.value,
-                                style.gap.height.type,
-                                style.gap.height.value,
-                                
-                                style.aspectRatio ?? Float.nan,
-                                &gridAutoRows,
-                                &gridAutoColumns,
-                                style.gridAutoFlow.rawValue,
-                                style.gridColumn.start.type,
-                                style.gridColumn.start.placementValue,
-                                style.gridColumn.end.type,
-                                style.gridColumn.end.placementValue,
-                                
-                                style.gridRow.start.type,
-                                style.gridRow.start.placementValue,
-                                style.gridRow.end.type,
-                                style.gridRow.end.placementValue,
-                                &gridTemplateRows,
-                                &gridTemplateColumns,
-                                style.overflowX.rawValue,
-                                style.overflowY.rawValue,
-                                style.scrollBarWidth.value,
-                                style.textAlign.rawValue,
-                                style.boxSizing.rawValue,
-                                create_layout)
-                            
-                        }
-                    }
-                }
-            }
-            
-            
-        }
-        
-        let layout: MasonLayout = Unmanaged.fromOpaque(points!).takeRetainedValue()
-        return layout
-    }
+
     
     public func getRoot() -> MasonNode? {
         guard let owner = self.owner else {return nil}
@@ -521,19 +212,6 @@ public class MasonNode: NSObject {
         MasonNode.applyToView(view)
     }
     func getChildAt(_ index: Int) -> MasonNode? {
-        // todo support negative get
-        if(index < 0){
-            return nil
-        }
-        
-        
-        if (NSCMason.shared) {
-            let child = mason_node_get_child_at(NSCMason.instance.nativePtr, nativePtr, UInt(index))
-            if (child == nil) {
-                return nil
-            }
-            return MasonNode(child!)
-        }
         return children[index]
     }
     
@@ -570,9 +248,9 @@ public class MasonNode: NSObject {
             return
         }
         
-        mason_node_add_child(NSCMason.instance.nativePtr, nativePtr, childPtr)
+      mason_node_add_child(mason.nativePtr, nativePtr, childPtr)
         
-        guard let existing = nodes[childPtr] else {
+      guard let existing = children[childPtr] else {
             child.owner = self
             
             children.append(child)
@@ -602,7 +280,7 @@ public class MasonNode: NSObject {
             return
         }
         
-        mason_node_add_child_at(NSCMason.instance.nativePtr, nativePtr, UnsafeMutableRawPointer(child.nativePtr), UInt(index))
+      mason_node_add_child_at(mason.nativePtr, nativePtr, UnsafeMutableRawPointer(child.nativePtr), UInt(index))
         
         guard let childPtr = child.nativePtr else {
             return
@@ -620,7 +298,7 @@ public class MasonNode: NSObject {
     
     @discardableResult func removeChild(child: MasonNode) -> MasonNode? {
         let removedNode = mason_node_remove_child(NSCMason.instance.nativePtr, nativePtr, child.nativePtr)
-        
+      
         if (removedNode == nil) {
             return nil
         }
@@ -636,17 +314,15 @@ public class MasonNode: NSObject {
             return child
         }
         
-        nodes[childPtr] = nil
         
         return child
     }
     
     
     func removeAllChildren() {
-        mason_node_remove_children(NSCMason.instance.nativePtr, nativePtr)
+      mason_node_remove_children(mason.nativePtr, nativePtr)
         children.forEach { child in
             child.owner = nil
-            nodes[child.nativePtr] = nil
         }
         children.removeAll()
     }
@@ -701,7 +377,7 @@ public class MasonNode: NSObject {
         inBatch = true
         block(self)
         inBatch = false
-        updateNodeStyle()
+        style.updateNativeStyle()
     }
     
     func setDefaultMeasureFunction(){
@@ -854,161 +530,7 @@ public class MasonNode: NSObject {
     
         let node = view.mason
                 
-        var widthIsNan = knownDimensions?.width.isNaN ?? true
-        var heightIsNan = knownDimensions?.height.isNaN ?? true
-        
-        if(!widthIsNan && !heightIsNan){
-            return knownDimensions!
-        }
-        
-        var size: CGSize = .zero
-        
-        let scale = CGFloat(NSCMason.scale)
-        
-        
-        let widthIsZero = node.style.size.width.isZero
-        let heightIsZero = node.style.size.height.isZero
-        
-        
-        if(widthIsZero && heightIsZero){
-            return size
-        }
-        
-
-        if (widthIsNan || knownDimensions!.width.isZero && !widthIsZero) {
-            switch(node.style.size.width){
-            case .Points(let value):
-                size.width = CGFloat(value)
-                if(!size.width.isNaN){
-                    widthIsNan = false
-                }
-            case .Percent(let value):
-                let parentView = node.owner?.data as? UIView
-                if(parentView != nil){
-                    size.width = (parentView!.frame.size.width.isNaN ? 0 : parentView!.frame.size.width * CGFloat(value)) * scale
-                    widthIsNan = false
-                }else {
-                    let root = view.rootView
-                    if(root != nil){
-                        size.width = (root!.frame.size.width.isNaN ? 0 : root!.frame.size.width * CGFloat(value)) * scale
-                        widthIsNan = false
-                    }
-                }
-                if(size.width.isNaN || size.width.isZero){
-                    let parentLayout = node.owner?.layout()
-                    if(parentLayout != nil){
-                        size.width = CGFloat(parentLayout?.width.isNaN ?? true ? 0 : parentLayout!.width * value)  * scale
-                        widthIsNan = false
-                    }
-                }
-            default:
-                // noop
-                break
-            }
-        }
-        
-        if (heightIsNan || knownDimensions!.height.isZero && !heightIsZero) {
-            switch(node.style.size.height){
-            case .Points(let value):
-                size.height = CGFloat(value)
-                if(!size.height.isNaN){
-                    heightIsNan = false
-                }
-            case .Percent(let value):
-                let parentView = node.owner?.data as? UIView
-                if(parentView != nil){
-                    size.height = (parentView!.frame.size.height.isNaN ? 0 : parentView!.frame.size.height * CGFloat(value)) * scale
-                    heightIsNan = false
-                }else {
-                    let root = view.rootView
-                    if(root != nil){
-                        size.height = (root!.frame.size.height.isNaN ? 0 : root!.frame.size.height * CGFloat(value)) * scale
-                        heightIsNan = false
-                    }
-                }
-                if(size.height.isNaN || size.height.isZero){
-                    let parentLayout = node.owner?.layout()
-                    if(parentLayout != nil){
-                        size.height = CGFloat(parentLayout?.height.isNaN ?? true ? 0 : parentLayout!.height * value)  * scale
-                        heightIsNan = false
-                    }
-                }
-                
-            default:
-                // noop
-                break
-            }
-        }
-        
-        if(!widthIsNan && !widthIsZero && !heightIsNan && heightIsZero){
-            return size
-        }
-        
-        
-        var widthMode: MeasureMode = .Definite
-        var heightMode: MeasureMode = .Definite
-        
-        
-        var widthConstraint: CGFloat = 0
-        var heightConstraint: CGFloat = 0
-        
-        if(widthIsNan || !widthIsZero){
-            if(availableSpace.width == -1){
-                widthMode = .Min
-                widthConstraint = CGFLOAT_MAX
-            }else if(availableSpace.width == -2){
-                widthMode = .Max
-                widthConstraint = CGFLOAT_MAX
-            }else {
-                widthConstraint = availableSpace.width / scale
-            }
-        }else {
-            widthConstraint = knownDimensions!.width / scale
-        }
-        
-        
-        if(heightIsNan || !heightIsZero){
-            if(availableSpace.height == -1){
-                heightMode = .Min
-                heightConstraint = CGFLOAT_MAX
-            }else if(availableSpace.height == -2){
-                heightMode = .Max
-                heightConstraint = CGFLOAT_MAX
-            }else {
-                heightConstraint = availableSpace.height / scale
-            }
-        }else {
-            heightConstraint = knownDimensions!.height / scale
-        }
-        
-    
-        
-        
-        if(!node.isUIView || view.subviews.count > 0){
-            
-            let fits = view.sizeThatFits(CGSizeMake(widthConstraint, heightConstraint))
-            
-            switch(widthMode){
-            case .Min:
-                size.width = .minimum(fits.width, widthConstraint) * scale
-            case .Max:
-                size.width = fits.width * scale
-            case .Definite:
-                size.width = widthConstraint * scale
-            }
-            
-            
-            switch(heightMode){
-            case .Min:
-                size.height = .minimum(fits.height, heightConstraint) * scale
-            case .Max:
-                size.height = fits.height * scale
-            case .Definite:
-                size.height = heightConstraint * scale
-            }
-            
-        }
-        
+       
         
         return size
         

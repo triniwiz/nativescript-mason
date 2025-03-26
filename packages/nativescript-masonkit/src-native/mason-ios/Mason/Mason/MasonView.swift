@@ -12,14 +12,20 @@ import Foundation
 public class MasonView: UIView {
   public let node: MasonNode
   public let mason: NSCMason
-  init(mason: NSCMason) {
-    self.node = mason.createNode()
-    self.mason = mason
+  init(mason doc: NSCMason) {
+    node = doc.createNode()
+    mason = doc
+    super.init(frame: .zero)
+    node.data = self
+  }
+  
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
   }
   
   
   @objc public static func createGridView(_ mason: NSCMason) -> MasonView{
-      let view = NSCView(mason: mason)
+      let view = MasonView(mason: mason)
         view.node.configure { node in
             node.style.display = .Grid
         }
@@ -27,7 +33,7 @@ public class MasonView: UIView {
     }
     
     @objc public static func createFlexView(_ mason: NSCMason) -> MasonView{
-      let view = NSCView(mason: mason)
+      let view = MasonView(mason: mason)
         view.node.configure { node in
           node.style.display = .Flex
         }
@@ -35,7 +41,7 @@ public class MasonView: UIView {
     }
     
     @objc public static func createBlockView(_ mason: NSCMason) -> MasonView{
-      let view = NSCView(mason: mason)
+      let view = MasonView(mason: mason)
         view.node.configure { node in
           node.style.display = .Block
         }

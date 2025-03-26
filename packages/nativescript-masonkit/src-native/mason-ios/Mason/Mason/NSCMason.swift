@@ -22,6 +22,20 @@ public class NSCMason: NSObject {
     deinit {
         mason_release(nativePtr)
     }
+  
+  public func nodeForView(_ view: UIView) -> MasonNode{
+    if(view is MasonView){
+      return (view as! MasonView).node
+    }else if(view is MasonText){
+      return (view as! MasonText).node
+    }
+    guard let node = viewNodes[view] else {
+      let node = MasonNode(mason: self)
+      viewNodes[view] = node
+      return node
+    }
+    return node
+  }
     
     public func clear(){
         mason_clear(nativePtr)
@@ -37,6 +51,10 @@ public class NSCMason: NSObject {
   
   public func createTextView() -> MasonText {
     return MasonText(mason: self)
+  }
+  
+  public func createNode() -> MasonNode{
+    return MasonNode(mason: self)
   }
   
   public func createNode(measure: @escaping MasonNode.MeasureFunc) -> MasonNode{
