@@ -31,6 +31,11 @@ public class NSCMason: NSObject {
     }
     guard let node = viewNodes[view] else {
       let node = MasonNode(mason: self)
+      node.data = view
+      if(view.subviews.isEmpty || view is UILabel){
+        node.setDefaultMeasureFunction()
+      }
+
       viewNodes[view] = node
       return node
     }

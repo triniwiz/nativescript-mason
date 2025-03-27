@@ -23,54 +23,56 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     var textBottomRight: UILabel? = nil
     
     var list: UICollectionView? = nil
+  
+    let mason = NSCMason()
     
     
     class DefaultCellView: UICollectionViewCell {
-        let containerView: UIView
-        let listTextView: UILabel
-        let listImageView: UIImageView
+      var containerView: MasonView
+        var listTextView: UILabel
+        var listImageView: UIImageView
+
         
         override func prepareForReuse() {
             super.prepareForReuse()
             listTextView.text = nil
             listImageView.image = nil
+            setup = false
         }
         
-        override init(frame: CGRect) {
-            let scale = Float(UIScreen.main.scale)
-            let container = UIView(frame: frame)
-            container.configure { node in
-                node.isEnabled = true
-                node.style.alignItems = .Center
-                node.style.flexDirection = .Column
-                node.style.size = MasonSize(MasonDimension.Points(Float(frame.size.width) * scale), MasonDimension.Points(Float(frame.size.height) * scale))
-            }
-            
-            let label0 = UILabel(frame: .zero)
-            label0.mason.isEnabled = true
-            
-            let label1 = UILabel(frame: .zero)
-            label1.mason.isEnabled = true
-            label1.text = "Laffy Taffy!!!!"
-            
-            let image0 = UIImageView(frame: .zero)
-            image0.mason.isEnabled = true
-            
-            containerView = container
-            listTextView = label0
-            listImageView = image0
-            
-            container.addSubview(label0)
-            container.addSubview(label1)
-            container.addSubview(image0)
-            
-            
-            super.init(frame:frame)
-            backgroundColor = .clear
-            
-            
-            contentView.addSubview(container)
+      
+      var setup = false
+      func setupView(_ mason: NSCMason){
+        
+        let scale = Float(UIScreen.main.scale)
+      let container = mason.createView()
+        container.configure { node in
+            node.style.alignItems = .Center
+            node.style.flexDirection = .Column
+            node.style.size = MasonSize(MasonDimension.Points(Float(frame.size.width) * scale), MasonDimension.Points(Float(frame.size.height) * scale))
         }
+        
+        let label0 = UILabel(frame: .zero)
+        
+        let label1 = UILabel(frame: .zero)
+        label1.text = "Laffy Taffy!!!!"
+        
+        let image0 = UIImageView(frame: .zero)
+        
+        containerView = container
+        listTextView = label0
+        listImageView = image0
+        
+        container.addSubview(label0)
+        container.addSubview(label1)
+        container.addSubview(image0)
+        
+        backgroundColor = .clear
+        
+        contentView.addSubview(container)
+        
+        setup = true
+      }
         
         required init?(coder: NSCoder) {
             fatalError("init(coder:) has not been implemented")
@@ -84,41 +86,54 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
     
     override func viewSafeAreaInsetsDidChange() {
-        /*
+        
          let left = Float(self.view.safeAreaInsets.left) * scale
          let right = Float(self.view.safeAreaInsets.right) * scale
          let top = Float(self.view.safeAreaInsets.top) * scale
          let bottom = Float(self.view.safeAreaInsets.bottom) * scale
+      
+        guard let view = view.subviews.first as? MasonView else {return}
+      
+      view.style.inset = MasonRect(
+               .Points(left),
+               .Points(right),
+               .Points(top),
+               .Points(bottom)
+              )
+      
+      
+      view.node.computeWithSize(scale * Float(self.view.bounds.width), scale * Float(self.view.bounds.height))
+        
          
-         guard let rootView = rootView else {return}
+//         guard let rootView = rootView else {return}
+//         
+//         
+//         rootView.mason.style.inset = MasonRect(
+//         .Points(left),
+//         .Points(right),
+//         .Points(top),
+//         .Points(bottom)
+//         )
+//         
+//         textTopLeft?.configure({ mason in
+//         mason.style.topInset = .Points(top)
+//         })
+//         
+//         textTopRight?.configure({ mason in
+//         mason.style.topInset = .Points(top)
+//         })
+//         
+//         textBottomLeft?.configure({ mason in
+//         mason.style.bottomInset = .Points(bottom)
+//         })
+//         
+//         textBottomRight?.configure({ mason in
+//         mason.style.bottomInset = .Points(bottom)
+//         })
+//         
+//         view.mason.computeWithMaxContent()
+//         
          
-         
-         rootView.mason.style.inset = MasonRect(
-         .Points(left),
-         .Points(right),
-         .Points(top),
-         .Points(bottom)
-         )
-         
-         textTopLeft?.configure({ mason in
-         mason.style.topInset = .Points(top)
-         })
-         
-         textTopRight?.configure({ mason in
-         mason.style.topInset = .Points(top)
-         })
-         
-         textBottomLeft?.configure({ mason in
-         mason.style.bottomInset = .Points(bottom)
-         })
-         
-         textBottomRight?.configure({ mason in
-         mason.style.bottomInset = .Points(bottom)
-         })
-         
-         view.mason.computeWithMaxContent()
-         
-         */
         
     }
     
@@ -133,7 +148,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
      
         
-        flexIssue()
+       // flexIssue()
         
        // testLayout()
         
@@ -142,9 +157,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
      //showGridExample()
          // animationExample()
         
-       // wrapper6()
+        wrapper6()
         
-       // imageExample()
+      //  imageExample()
     }
     
     func imageExample(){
@@ -152,12 +167,12 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             view.removeFromSuperview()
         }
         
-        view.mason.isEnabled = true
-        
-        
+
+      let root = mason.createView()
+                
         let image = UIImageView(frame: .zero)
-        image.mason.isEnabled = true
-        image.mason.style.sizeCompatWidth = MasonDimensionCompat(percent: 1)
+        
+      mason.nodeForView(image).style.sizeCompatWidth = MasonDimensionCompat(percent: 1)
         
         
         DispatchQueue.global().async { [self] in
@@ -170,7 +185,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
                 
                 DispatchQueue.main.async {
                     image.image = img
-                    self.view.mason.computeWithMaxContent()
+                  root.node.computeWithMaxContent()
                 }
             }catch{
                 print(error)
@@ -178,24 +193,23 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         }
         
  
+      root.addSubview(image)
         
-        view.addSubview(image)
+        view.addSubview(root)
+      
+      
     }
     
-    func createParentWith2Kids(_ kidAText: String, _ kidBText: String) -> UIView {
-        let parent = UIView(frame: .zero)
+  func createParentWith2Kids(_ kidAText: String, _ kidBText: String) -> MasonView {
+      let parent = mason.createView()
         
-        parent.mason.isEnabled = true
         
         let kida = UILabel(frame: .zero)
         
-        kida.mason.isEnabled = true
         
         kida.text = kidAText
         
         let kidb = UILabel(frame: .zero)
-        
-        kidb.mason.isEnabled = true
         
         kidb.text = kidBText
         
@@ -222,7 +236,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
          color: #444;
          */
         
-        let wrapper6 = UIView(frame: .zero)
+      let wrapper6 = mason.createView()
         
         view.addSubview(wrapper6)
         
@@ -245,7 +259,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         let bg = UIColor(red: 0.27, green: 0.27, blue: 0.27, alpha: 1.00)
         
         wrapper6.configure { node in
-            node.isEnabled = true
             node.style.display = .Grid
              node.style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
             node.style.gap = MasonSize(.Points(10 * scale), .Points(10 * scale))
@@ -259,7 +272,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         }
         
         boxA.configure { node in
-            node.isEnabled = true
             boxA.backgroundColor = bg
             node.style.flexDirection = .Column
             node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
@@ -268,7 +280,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         }
         
         boxB.configure { node in
-            node.isEnabled = true
             boxA.backgroundColor = bg
             node.style.flexDirection = .Column
             node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
@@ -278,7 +289,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         
         boxC.configure { node in
-            node.isEnabled = true
             boxA.backgroundColor = bg
             node.style.flexDirection = .Column
             node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
@@ -287,7 +297,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         }
         
         boxD.configure { node in
-            node.isEnabled = true
             boxA.backgroundColor = bg
             node.style.flexDirection = .Column
             node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
@@ -297,7 +306,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         
         boxE.configure { node in
-            node.isEnabled = true
             boxA.backgroundColor = bg
             node.style.flexDirection = .Column
             node.style.gridColumn = Line(GridPlacement.Line(5), GridPlacement.Line(7))
@@ -305,7 +313,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             node.style.alignSelf = AlignSelf.Stretch
         }
         // MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
-        wrapper6.mason.computeWithMaxContent()
+      wrapper6.node.computeWithMaxContent()
        // wrapper6.mason.computeWithSize(scale * Float(view.bounds.width), scale * Float(view.bounds.height))
         
     }
@@ -315,25 +323,24 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             view.removeFromSuperview()
         }
         
-        let root = UIView(frame: .zero)
+      let root = mason.createView()
         root.backgroundColor = .blue
         let width = Float(view.frame.size.width)
         let height = Float(view.frame.size.height)
         root.configure({ node in
             node.style.size = MasonSize( .Points(width * scale), .Points(height * scale))
-            node.isEnabled = true
             node.style.flexDirection = .Column
         })
         
         view!.addSubview(root)
         
-        root.mason.computeWithMaxContent()
+      root.node.computeWithMaxContent()
         
         UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
             root.setSizeHeight(0.3, 2)
             root.setSizeWidth(0.3, 2)
             root.backgroundColor = .red
-            root.mason.computeWithMaxContent()
+          root.node.computeWithMaxContent()
         }
         
         
@@ -344,37 +351,34 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             view.removeFromSuperview()
         }
         
-        let root = UIView(frame: .zero)
+        let root = mason.createView()
         root.backgroundColor = .red
+      let width = Float(self.view.bounds.width)
+      let height = Float(self.view.bounds.height)
+      root.backgroundColor = .red
         root.configure({ node in
-           // node.style.size = MasonSize( .Points(width * scale), .Points(height * scale))
-            node.isEnabled = true
+          node.style.flexGrow = 1
             node.style.display = .Flex
         })
         
         
-        let child = UIView(frame: .zero)
+        let child = mason.createView()
         child.backgroundColor = .blue
         child.configure({ node in
-            node.isEnabled = true
             node.style.display = .Flex
         })
         
         root.addSubview(child)
         
-        
         let child1 = UILabel(frame: .zero)
         child1.backgroundColor = .green
-        child1.configure({ node in
-            node.isEnabled = true
-        })
         child1.text = "1"
         
         child.addSubview(child1)
         
         view!.addSubview(root)
-      // root.mason.computeWithMaxContent()
-        root.mason.computeWithSize(scale * Float(view.bounds.width), -2)
+     // root.node.computeWithMaxContent()
+        root.node.computeWithSize(scale * Float(view.bounds.width), -1)
         
         print(child1.frame, child.frame)
         
@@ -386,26 +390,23 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             view.removeFromSuperview()
         }
         
-        let root =  view!
+      let root = mason.createView()
         root.backgroundColor = .black
         root.configure({ node in
-            node.isEnabled = true
             node.style.flexDirection = .Column
         })
         
-        let childA = UIView()
+      let childA = mason.createView()
         
         childA.configure { node in
-            node.isEnabled = true
             node.style.size =  MasonSize(.Points( scale * 100), .Points( scale * 100))
             childA.backgroundColor = .red
         }
         
         
-        let childB = UIView()
+        let childB = mason.createView()
         
         childB.configure { node in
-            node.isEnabled = true
             node.style.size =  MasonSize(.Points( scale * 100), .Points( scale * 100))
             childB.backgroundColor = .blue
         }
@@ -413,7 +414,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         root.addSubview(childA)
         root.addSubview(childB)
         
-        root.mason.computeWithMaxContent()
+        root.node.computeWithMaxContent()
     }
     
     
@@ -423,10 +424,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         }
         
         let childBg = UIColor(hex: "#444444FF")
-        let root = view!
+        let root = mason.createView()
         root.backgroundColor = .white
         root.configure({ node in
-            node.isEnabled = true
             node.style.display = .Grid
             node.style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
             
@@ -441,8 +441,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         childA.text = "A"
         childA.textColor = .white
         childA.textAlignment = .center
-        childA.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(childA).configure { node in
+
             node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
             node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
             childA.backgroundColor = childBg
@@ -452,8 +452,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         let childB = UILabel(frame: .zero)
         childB.text = "B"
         childB.textColor = .white
-        childB.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(childB).configure { node in
             node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
             node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
             childB.backgroundColor = childBg
@@ -462,8 +461,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         let childC = UILabel(frame: .zero)
         childC.text = "C"
         childC.textColor = .white
-        childC.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(childC).configure { node in
             node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
             node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
             childC.backgroundColor = childBg
@@ -472,8 +470,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         let childD = UILabel(frame: .zero)
         childD.text = "D"
         childD.textColor = .white
-        childD.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(childD).configure { node in
             node.style.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
             node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
             childD.backgroundColor = childBg
@@ -486,7 +483,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         root.addSubview(childD)
     
         
-        root.mason.computeWithMaxContent()
+        root.node.computeWithMaxContent()
         
     }
     
@@ -510,6 +507,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "default", for: indexPath) as! DefaultCellView
         let item = items[indexPath.row]
+      if(!cell.setup){
+        cell.setupView(mason)
+      }
         cell.listTextView.text = item
         DispatchQueue.global().async { [self] in
             do {
@@ -522,8 +522,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
                 
                 
                 DispatchQueue.main.async {
-                    cell.listImageView.image = image
-                    cell.containerView.mason.computeWithMaxContent()
+                  cell.listImageView.image = image
+                  cell.containerView.node.computeWithMaxContent()
                 }
             }catch{}
         }
@@ -531,17 +531,17 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
     
     func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-        (cell as! DefaultCellView).containerView.mason.computeWithMaxContent()
+        (cell as! DefaultCellView).containerView.node.computeWithMaxContent()
     }
     
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        guard let cell = collectionView.cellForItem(at: indexPath) else {
-            let layout = collectionView.mason.layout()
+      guard let cell = collectionView.cellForItem(at: indexPath) as? DefaultCellView else {
+          let layout = mason.nodeForView(collectionView).layout()
             return CGSizeMake(collectionView.frame.width, CGFloat(layout.height / scale))
         }
         
-        let layout = cell.mason.layout()
+      let layout = cell.containerView.node.layout()
         
         
         return CGSizeMake(CGFloat(layout.width / scale), CGFloat(layout.height / scale))
@@ -550,10 +550,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     
     func testLayout(){
-        let root = view!
+      let root = mason.createView()
         
         root.configure { mason in
-            mason.isEnabled = true
             mason.style.alignContent = .Stretch
             mason.style.alignItems = .Center
             mason.style.flexDirection = .Column
@@ -568,8 +567,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let text0 = UILabel(frame: .zero)
         text0.text = "Test"
-        text0.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(text0).configure { node in
             text0.textColor = .white
         }
         
@@ -579,8 +577,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let text1 = UILabel(frame: .zero)
         text1.text = "Top Left"
-        text1.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(text1).configure { node in
             node.style.position = .Absolute
             node.style.leftInset = .Points(0)
             node.style.topInset = .Points(0)
@@ -596,8 +593,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let text2 = UILabel(frame: .zero)
         text2.text = "Top Right"
-        text2.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(text2).configure { node in
             node.style.position = .Absolute
             node.style.rightInset = .Points(0)
             node.style.topInset = .Points(0)
@@ -614,8 +610,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let text3 = UILabel(frame: .zero)
         text3.text = "Bottom Left"
-        text3.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(text3).configure { node in
             node.style.position = .Absolute
             node.style.leftInset = .Points(0)
             node.style.bottomInset = .Points(0)
@@ -631,8 +626,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let text4 = UILabel(frame: .zero)
         text4.text = "Bottom Right"
-        text4.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(text4).configure { node in
             node.style.position = .Absolute
             node.style.rightInset = .Points(0)
             node.style.bottomInset = .Points(0)
@@ -645,10 +639,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         root.addSubview(text4)
         
         
-        let view0 = UIView(frame: .zero)
+        let view0 = mason.createView()
         
         view0.configure { mason in
-            mason.isEnabled = true
             mason.style.size = MasonSize(MasonDimension.Percent(1), MasonDimension.Auto)
         }
         
@@ -658,8 +651,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         let list = UICollectionView(frame: .zero, collectionViewLayout: layout)
         
         
-        list.configure { mason in
-            mason.isEnabled = true
+      mason.nodeForView(list).configure { mason in
             mason.style.size =  MasonSize(MasonDimension.Percent(1), MasonDimension.Points(300 * scale))
         }
         
@@ -677,15 +669,14 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         view0.addSubview(list)
         
         
-        let view1 = UIView(frame: .zero)
+        let view1 = mason.createView()
         view1.backgroundColor = .green
-        view1.mason.isEnabled = true
         
         
         let text5 = UILabel(frame: .zero)
         text5.text = "Nested TextView in mason"
-        text5.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(text5).configure { node in
+
         }
         
         view1.addSubview(text5)
@@ -698,8 +689,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let text6 = UILabel(frame: .zero)
         text6.text = "Hello this"
-        text6.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(text6).configure { node in
             text6.textColor = .white
             text6.backgroundColor = .red
         }
@@ -708,8 +698,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let text7 = UILabel(frame: .zero)
         text7.text = " is the new"
-        text7.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(text7).configure { node in
             text7.backgroundColor = .green
         }
         
@@ -717,9 +706,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let text8 = UILabel(frame: .zero)
         text8.text = " layout"
-        text8.configure { node in
+      mason.nodeForView(text8).configure { node in
             text8.backgroundColor = .orange
-            node.isEnabled = true
         }
         
         root.addSubview(text8)
@@ -727,27 +715,25 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         let text9 = UILabel(frame: .zero)
         text9.text = " powered by taffy"
-        text9.configure { node in
+      mason.nodeForView(text9).configure { node in
             text9.backgroundColor = .blue
             text9.textColor = .white
-            node.isEnabled = true
         }
         
         root.addSubview(text9)
         
         
-        let view2 = UIView(frame: .zero)
+        let view2 = mason.createView()
         view2.backgroundColor = .white
-        view2.mason.isEnabled = true
+       
         
-        let view3 = UIView(frame: .zero)
+        let view3 = mason.createView()
         view3.backgroundColor = .white
-        view3.mason.isEnabled = true
+
         
         let text10 = UILabel(frame: .zero)
         text10.text = "Hello World Nested"
-        text10.configure { node in
-            node.isEnabled = true
+      mason.nodeForView(text10).configure { node in
         }
         
         view3.addSubview(text10)
@@ -757,7 +743,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         root.addSubview(view2)
         
         let imageView1 = UIImageView(frame: .zero)
-        imageView1.mason.isEnabled = true
         
         root.addSubview(imageView1)
         
@@ -779,7 +764,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
                 DispatchQueue.main.async {
                     imageView1.image = image
                    // root.mason.computeWithMaxContent()
-                    root.mason.computeWithSize(Float(self.view.bounds.size.width) * self.scale, Float(self.view.bounds.size.height) * self.scale)
+                    root.node.computeWithSize(Float(self.view.bounds.size.width) * self.scale, Float(self.view.bounds.size.height) * self.scale)
                 }
             }catch{
                 print(error)

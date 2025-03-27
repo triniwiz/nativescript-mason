@@ -343,7 +343,7 @@ public class MasonStyle: NSObject {
     
   public var inset: MasonRect<MasonLengthPercentageAuto>{
     get{
-      var bytes = values.bytes
+      let bytes = values.bytes
       var type = bytes.advanced(by: Int(StyleKeys.INSET_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
    
       var value = bytes.advanced(by: Int(StyleKeys.INSET_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
@@ -376,7 +376,7 @@ public class MasonStyle: NSObject {
       return MasonRect(left, right, top, bottom)
     }
     set {
-      var bytes = values.mutableBytes
+      let bytes = values.mutableBytes
       var type = bytes.advanced(by: Int(StyleKeys.INSET_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
       type.pointee = newValue.left.type
       
@@ -403,6 +403,7 @@ public class MasonStyle: NSObject {
       
       value = bytes.advanced(by: Int(StyleKeys.INSET_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
       value.pointee = newValue.bottom.value
+      
       
       setOrAppendState(.inset)
     }
@@ -1095,7 +1096,7 @@ public class MasonStyle: NSObject {
       return MasonSize(width, height)
     }
     set {
-      var bytes = values.mutableBytes
+      let bytes = values.mutableBytes
       var type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
       type.pointee = newValue.width.type
       
@@ -1135,13 +1136,14 @@ public class MasonStyle: NSObject {
         }
         
         set {
-          var bytes = values.mutableBytes
-          var type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
+          let bytes = values.mutableBytes
+          let type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
           type.pointee = newValue.dimension.type
           
-          var value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
+          let value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
           value.pointee = newValue.dimension.value
           
+          setOrAppendState(.size)
         }
     }
     
@@ -1151,36 +1153,67 @@ public class MasonStyle: NSObject {
         }
         
         set {
-          var bytes = values.mutableBytes
-          var type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
+          let bytes = values.mutableBytes
+          let type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
           type.pointee = newValue.dimension.type
           
-          var value = bytes.advanced(by: Int(StyleKeys.HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
+          let value = bytes.advanced(by: Int(StyleKeys.HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
           value.pointee = newValue.dimension.value
+          
+          setOrAppendState(.size)
         }
     }
     
     public func setSizeWidth(_ value: Float, _ type: Int) {
         guard let width = getDimension(value, type) else {return}
         
-      var bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
+      let bytes = values.mutableBytes
+      let type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
       type.pointee = width.type
       
-      var value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
+      let value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
       value.pointee = width.value
+      
+      setOrAppendState(.size)
     }
     
     public func setSizeHeight(_ value: Float, _ type: Int) {
         guard let height = getDimension(value, type) else {return}
         
-      var bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
+      let bytes = values.mutableBytes
+      let type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
       type.pointee = height.type
       
-      var value = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Float.self)
+      let value = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Float.self)
       value.pointee = height.value
+      
+      setOrAppendState(.size)
     }
+  
+  public func setSizeWidth(_ width: MasonDimension) {
+      
+    let bytes = values.mutableBytes
+    let type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
+    type.pointee = width.type
+    
+    let value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
+    value.pointee = width.value
+    
+    setOrAppendState(.size)
+  }
+  
+  
+  public func setSizeHeight(_ height: MasonDimension) {
+      
+    let bytes = values.mutableBytes
+    let type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
+    type.pointee = height.type
+    
+    let value = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Float.self)
+    value.pointee = height.value
+    
+    setOrAppendState(.size)
+  }
     
     public func setSizeWidthHeight(_ value: Float, _ type: Int) {
         guard let wh = getDimension(value, type) else {return}
@@ -1195,18 +1228,18 @@ public class MasonStyle: NSObject {
    
       var value = values.mutableBytes.advanced(by: Int(StyleKeys.MAX_WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
       
-      var width = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
+      let width = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
       
       type = bytes.advanced(by: Int(StyleKeys.MAX_HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
    
       value = values.mutableBytes.advanced(by: Int(StyleKeys.MAX_HEIGHT_TYPE)).assumingMemoryBound(to: Float.self)
       
-      var height = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
+      let height = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
 
       return MasonSize(width, height)
     }
     set {
-      var bytes = values.mutableBytes
+      let bytes = values.mutableBytes
       var type = bytes.advanced(by: Int(StyleKeys.MAX_WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
       type.pointee = newValue.width.type
       
@@ -1776,6 +1809,8 @@ public class MasonStyle: NSObject {
       isDirty = -1
     }
     
+   // node.compute()
+  
     // todo invalidate view
       
   }

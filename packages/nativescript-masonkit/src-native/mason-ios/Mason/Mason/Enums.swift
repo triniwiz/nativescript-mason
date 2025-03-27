@@ -10,7 +10,7 @@ import UIKit
 
 
 @objc(MasonDimensionCompatType)
-public enum MasonDimensionCompatType: Int, RawRepresentable {
+public enum MasonDimensionCompatType: Int, RawRepresentable, Codable {
     case Auto
     case Points
     case Percent
@@ -46,7 +46,7 @@ public enum MasonDimensionCompatType: Int, RawRepresentable {
 
 
 @objc(MasonLengthPercentageAutoCompatType)
-public enum MasonLengthPercentageAutoCompatType: Int, RawRepresentable {
+public enum MasonLengthPercentageAutoCompatType: Int, RawRepresentable, Codable {
     case Auto
     case Points
     case Percent
@@ -81,7 +81,7 @@ public enum MasonLengthPercentageAutoCompatType: Int, RawRepresentable {
 
 
 @objc(MasonLengthPercentageCompatType)
-public enum MasonLengthPercentageCompatType: Int, RawRepresentable {
+public enum MasonLengthPercentageCompatType: Int, RawRepresentable, Codable {
     case Points
     case Percent
     

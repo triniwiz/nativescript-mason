@@ -84,6 +84,17 @@ public class MasonView: UIView {
         }
     }
     
+  public override func addSubview(_ view: UIView) {
+    if(view.superview == self){
+      return
+    }
+    super.addSubview(view)
+    if(view is MasonView){
+      node.addChild((view as! MasonView).node)
+    }else {
+      node.addChild(mason.nodeForView(view))
+    }
+  }
     
     @objc public func addSubviews(_ views: [UIView]){
         addSubviews(views, at: -1)

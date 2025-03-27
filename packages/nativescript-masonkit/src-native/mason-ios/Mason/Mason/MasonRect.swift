@@ -9,7 +9,7 @@ import Foundation
 
 @objcMembers
 @objc(MasonDimensionRectCompat)
-public class MasonDimensionRectCompat: NSObject {
+public class MasonDimensionRectCompat: NSObject, Codable {
     public var left: MasonDimensionCompat
     public var right: MasonDimensionCompat
     public var top: MasonDimensionCompat
@@ -36,7 +36,7 @@ public class MasonDimensionRectCompat: NSObject {
 
 @objcMembers
 @objc(MasonLengthPercentageAutoRectCompat)
-public class MasonLengthPercentageAutoRectCompat: NSObject {
+public class MasonLengthPercentageAutoRectCompat: NSObject, Codable {
     public var left: MasonLengthPercentageAutoCompat
     public var right: MasonLengthPercentageAutoCompat
     public var top: MasonLengthPercentageAutoCompat
@@ -63,7 +63,7 @@ public class MasonLengthPercentageAutoRectCompat: NSObject {
 
 @objcMembers
 @objc(MasonLengthPercentageRectCompat)
-public class MasonLengthPercentageRectCompat: NSObject {
+public class MasonLengthPercentageRectCompat: NSObject, Codable {
     public var left: MasonLengthPercentageCompat
     public var right: MasonLengthPercentageCompat
     public var top: MasonLengthPercentageCompat
@@ -89,11 +89,13 @@ public class MasonLengthPercentageRectCompat: NSObject {
 }
 
 
-public struct MasonRect<T> {
+
+public struct MasonRect<T: Codable>: Codable {
     var left: T
     var right: T
     var top: T
     var bottom: T
+  
     
     internal var compatDimension: MasonDimensionRectCompat? = nil
     internal var compatLengthAuto: MasonLengthPercentageAutoRectCompat? = nil
