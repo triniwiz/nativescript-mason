@@ -26,8 +26,6 @@ public class NSCMason: NSObject {
   public func nodeForView(_ view: UIView) -> MasonNode{
     if(view is MasonView){
       return (view as! MasonView).node
-    }else if(view is MasonText){
-      return (view as! MasonText).node
     }
     guard let node = viewNodes[view] else {
       let node = MasonNode(mason: self)
@@ -48,8 +46,8 @@ public class NSCMason: NSObject {
         viewNodes.removeAll()
     }
     
-  public func createView()-> MasonView {
-    let view = MasonView(mason: self)
+  public func createView()-> MasonUIView {
+    let view = MasonUIView(mason: self)
     
     return view
   }

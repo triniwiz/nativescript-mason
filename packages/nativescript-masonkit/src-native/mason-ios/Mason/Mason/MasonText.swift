@@ -28,39 +28,115 @@ class ViewAttachment: NSTextAttachment {
 }
 
 
+
+
+@available(iOS 15.0, *)
 @objc(MasonText)
 @objcMembers
-public class MasonText: UIView {
-  internal let layoutManager = NSLayoutManager()
-  internal let storage = NSTextStorage()
+public class MasonText: UIView, MasonView {
+  
+  public var text: String? = nil  {
+    didSet {
+      let string = text ?? ""
+      storage.textStorage?.setAttributedString(NSAttributedString(string: string))
+      setNeedsDisplay()
+      invalidateIntrinsicContentSize()
+    }
+  }
+
   internal let container = NSTextContainer()
-  internal let view: UITextView
-  let node: MasonNode
+  internal let layoutManager = NSTextLayoutManager()
+  internal let storage = NSTextContentStorage()
+  
+  
+  public let node: MasonNode
   internal var children: [(MasonNode, UIView)] = []
   internal var attachments: [ViewAttachment] = []
-  private static func measure(_ known: CGSize?, _ available: CGSize) -> CGSize {
-    return .zero
-  }
+
   public init(mason: NSCMason) {
-    view = UITextView(frame: .zero, textContainer: container)
-    node = MasonNode(mason: mason, measureFunc: MasonText.measure)
+    storage.addTextLayoutManager(layoutManager)
+    layoutManager.textContainer = container
+    container.lineFragmentPadding = 0
+    node = MasonNode(mason: mason)
     super.init(frame: .zero)
     node.data = self
+    node.measureFunc = { known, available in
+      return MasonText.measure(self, known, available)
+    }
+    node.setMeasureFunction(node.measureFunc!)
   }
   
   public init(node masonNode: MasonNode){
-    view = UITextView(frame: .zero, textContainer: container)
+    storage.addTextLayoutManager(layoutManager)
+    layoutManager.textContainer = container
+    container.lineFragmentPadding = 0
     node = masonNode
-    masonNode.measureFunc = MasonText.measure
     super.init(frame: .zero)
+    node.data = self
+    masonNode.measureFunc = { known, available in
+      return MasonText.measure(self, known, available)
+    }
+    node.setMeasureFunction(node.measureFunc!)
+  }
+  
+  public override func draw(_ rect: CGRect) {
+    guard let context = UIGraphicsGetCurrentContext() else { return }
+
+           context.saveGState()
+           context.translateBy(x: 0, y: bounds.height)
+           context.scaleBy(x: 1.0, y: -1.0)
+
+   
+    layoutManager.enumerateTextLayoutFragments(from: layoutManager.documentRange.location) { layoutFragment in
+      print(layoutFragment)
+      layoutFragment.draw(at: .zero, in: context)
+      return true
+    }
+           context.restoreGState()
+  }
+  
+  public override var intrinsicContentSize: CGSize {
+    guard let layoutFragment = layoutManager.textLayoutFragment(for: .zero) else {
+             return .zero
+         }
+         return layoutFragment.layoutFragmentFrame.size
+     }
+
+  
+  private static func measure(_ view: MasonText, _ known: CGSize?, _ available: CGSize) -> CGSize {
+    view.sizeToFit()
+    print("measure", view.intrinsicContentSize, known, available, view.text, view.frame, view.sizeThatFits(available))
+    return view.intrinsicContentSize
   }
   
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
   
+  public var uiView: UIView {
+    return self
+  }
+  
+  public var style: MasonStyle {
+      get {
+          return node.style
+      }
+  }
+  
+  public func markNodeDirty() {
+    node.markDirty()
+  }
+  
+  public func isNodeDirty() -> Bool {
+    return node.isDirty
+  }
+  
+  public func configure(_ block: (MasonNode) -> Void) {
+    block(node)
+  }
+  
   private func setup(){
-    addSubview(view)
+   // addSubview(view)
   }
   
  
@@ -72,7 +148,7 @@ public class MasonText: UIView {
   
   
   public func updateText(_ value: String?){
-    view.text = value ?? ""
+    text = value ?? ""
   }
   
   
@@ -88,16 +164,35 @@ public class MasonText: UIView {
       return
     }
     children.append((view.node, view))
-    layoutManager.addTextContainer(view.container)
-    addSubview(view)
+
+    storage.textStorage?.append(view.storage.textStorage!)
+    
+    super.addSubview(view)
   }
   
   public override func willRemoveSubview(_ subview: UIView) {
-//    guard let index = children.firstIndex { (_, view) in
-//      view == subview
-//    } else {return}
-//    let removed = children.remove(at: index)
-//    layoutManager.re
+    super.willRemoveSubview(subview)
+    if let index = children.firstIndex(where: { node, view in
+      view == subview
+    }) {
+      let child = children.remove(at: index)
+      let textView = child.1 as? MasonText
+      
+      if let textView = textView {
+        if let textStorage = storage.textStorage,
+           let viewTextStorage = textView.storage.textStorage {
+            let lengthToRemove = viewTextStorage.length
+            let rangeToRemove = NSRange(location: textStorage.length - lengthToRemove, length: lengthToRemove)
+
+            textStorage.deleteCharacters(in: rangeToRemove)
+        }
+        
+      }
+      
+    }
+    
+
+
   }
   
 }

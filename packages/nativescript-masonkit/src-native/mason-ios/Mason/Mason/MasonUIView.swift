@@ -8,8 +8,32 @@
 import UIKit
 import Foundation
 
-@objc(MasonView)
-public class MasonView: UIView {
+public protocol MasonView {
+  var style: MasonStyle { get }
+      
+  var node: MasonNode { get }
+
+  func markNodeDirty()
+
+  func isNodeDirty() -> Bool
+
+  func configure(_ block: (MasonNode) -> Void)
+  
+  var uiView: UIView { get }
+}
+
+@objcMembers
+@objc(MasonUIView)
+public class MasonUIView: UIView, MasonView {
+  public var uiView: UIView { self }
+  public func markNodeDirty() {
+    node.markDirty()
+  }
+  
+  public func isNodeDirty() -> Bool {
+    return node.isDirty
+  }
+  
   public let node: MasonNode
   public let mason: NSCMason
   init(mason doc: NSCMason) {
@@ -24,24 +48,24 @@ public class MasonView: UIView {
   }
   
   
-  @objc public static func createGridView(_ mason: NSCMason) -> MasonView{
-      let view = MasonView(mason: mason)
+  @objc public static func createGridView(_ mason: NSCMason) -> MasonUIView{
+      let view = MasonUIView(mason: mason)
         view.node.configure { node in
             node.style.display = .Grid
         }
       return view
     }
     
-    @objc public static func createFlexView(_ mason: NSCMason) -> MasonView{
-      let view = MasonView(mason: mason)
+    @objc public static func createFlexView(_ mason: NSCMason) -> MasonUIView{
+      let view = MasonUIView(mason: mason)
         view.node.configure { node in
           node.style.display = .Flex
         }
       return view
     }
     
-    @objc public static func createBlockView(_ mason: NSCMason) -> MasonView{
-      let view = MasonView(mason: mason)
+    @objc public static func createBlockView(_ mason: NSCMason) -> MasonUIView{
+      let view = MasonUIView(mason: mason)
         view.node.configure { node in
           node.style.display = .Block
         }
@@ -89,8 +113,8 @@ public class MasonView: UIView {
       return
     }
     super.addSubview(view)
-    if(view is MasonView){
-      node.addChild((view as! MasonView).node)
+    if(view is MasonUIView){
+      node.addChild((view as! MasonUIView).node)
     }else {
       node.addChild(mason.nodeForView(view))
     }
@@ -110,8 +134,7 @@ public class MasonView: UIView {
         }
     }
     
-    @objc public func configure(_ block :(MasonNode) -> Void) {
-      node.configure(block)
+    public func configure(_ block :(MasonNode) -> Void) {
       node.configure(block)
     }
     

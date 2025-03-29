@@ -76,6 +76,7 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
 
   internal var isKnown = false
   var data: Any? = null
+  internal set
 
   var owner: Node? = null
     internal set

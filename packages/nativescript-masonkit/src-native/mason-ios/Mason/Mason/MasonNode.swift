@@ -151,7 +151,7 @@ public class MasonNode: NSObject {
     guard let view = data as? MasonView else{return}
     //        MasonNode.attachNodesFromView(view)
             compute(width, height)
-            MasonNode.applyToView(mason, view)
+    MasonNode.applyToView(mason, view.node, view.uiView)
   }
   
   public func computeWithViewSize(){
@@ -159,32 +159,32 @@ public class MasonNode: NSObject {
   }
   
   public func computeWithViewSize(layout: Bool){
-            guard let view = data as? MasonView else{return}
+            guard let view = data as? MasonUIView else{return}
 //            MasonNode.attachNodesFromView(view)
             compute(Float(view.frame.size.width) * NSCMason.scale, Float(view.frame.size.height) * NSCMason.scale)
             if(layout){
-                MasonNode.applyToView(mason,view)
+                MasonNode.applyToView(mason,view.node,view)
             }
   }
   
   public func computeWithMaxContent(){
-            guard let view = data as? MasonView else{return}
+            guard let view = data as? MasonUIView else{return}
     //        MasonNode.attachNodesFromView(view)
             computeMaxContent()
-            MasonNode.applyToView(mason,view)
+            MasonNode.applyToView(mason,view.node,view)
   }
   
   public func computeWithMinContent(){
-            guard let view = data as? MasonView else{return}
+            guard let view = data as? MasonUIView else{return}
     //        MasonNode.attachNodesFromView(view)
             computeMinContent()
-            MasonNode.applyToView(mason,view)
+            MasonNode.applyToView(mason,view.node,view)
   }
   
   public func attachAndApply(){
-            guard let view = data as? MasonView else{return}
+            guard let view = data as? MasonUIView else{return}
 //            MasonNode.attachNodesFromView(view)
-            MasonNode.applyToView(mason,view)
+            MasonNode.applyToView(mason,view.node,view)
   }
   func getChildAt(_ index: Int) -> MasonNode? {
     return children[index]
@@ -306,14 +306,10 @@ public class MasonNode: NSObject {
     }
   }
   
-  static func applyToView(_ mason: NSCMason,_ view: UIView){
+  static func applyToView(_ mason: NSCMason, _ node: MasonNode,_ view: UIView){
     
-    let node = mason.nodeForView(view)
-     
     let layout = node.layout()
-    
-    print(layout)
-    
+      
     let widthIsNan = layout.width.isNaN
      
     let heightIsNan = layout.height.isNaN
@@ -333,7 +329,7 @@ public class MasonNode: NSObject {
      view.frame = CGRect(origin: point, size: size)
      
     view.subviews.forEach { subview in
-      MasonNode.applyToView(mason, subview)
+      MasonNode.applyToView(mason, mason.nodeForView(view) , subview)
     }
      
     

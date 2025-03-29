@@ -28,7 +28,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     
     class DefaultCellView: UICollectionViewCell {
-      var containerView: MasonView
+      var containerView: MasonUIView
         var listTextView: UILabel
         var listImageView: UIImageView
 
@@ -81,8 +81,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     override func viewDidAppear(_ animated: Bool) {
         //        view?.mason.computeWithMaxContent()
-        //        view?.frame.origin.x += view.safeAreaInsets.left
-        //        view?.frame.origin.y += view.safeAreaInsets.top
+      guard let view = view.subviews.first as? MasonUIView else {return}
+      view.uiView.frame.origin.x += view.safeAreaInsets.left
+                view.uiView.frame.origin.y += view.safeAreaInsets.top
     }
     
     override func viewSafeAreaInsetsDidChange() {
@@ -92,18 +93,19 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
          let top = Float(self.view.safeAreaInsets.top) * scale
          let bottom = Float(self.view.safeAreaInsets.bottom) * scale
       
-        guard let view = view.subviews.first as? MasonView else {return}
-      
-      view.style.inset = MasonRect(
-               .Points(left),
-               .Points(right),
-               .Points(top),
-               .Points(bottom)
-              )
+        guard let view = view.subviews.first as? MasonUIView else {return}
       
       
-      view.node.computeWithSize(scale * Float(self.view.bounds.width), scale * Float(self.view.bounds.height))
-        
+//      view.style.inset = MasonRect(
+//               .Points(left),
+//               .Points(right),
+//               .Points(top),
+//               .Points(bottom)
+//              )
+//      
+//      
+//      view.node.computeWithSize(scale * Float(self.view.bounds.width), scale * Float(self.view.bounds.height))
+//        
          
 //         guard let rootView = rootView else {return}
 //         
@@ -146,6 +148,25 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             i+=1
         } while i < 1000
         
+      
+      let text = mason.createTextView()
+      text.backgroundColor = .red
+      text.updateText("Hello World")
+      view.addSubview(text)
+      
+      let first = mason.createTextView()
+      first.updateText(" this")
+      text.addSubview(first)
+      
+      
+      let first_first = mason.createTextView()
+      first_first.updateText(" is a nested text")
+      
+      first.addSubview(first_first)
+      
+      
+      text.node.computeWithSize(scale * Float(view.bounds.width), scale * Float(view.bounds.height))
+      
      
         
        // flexIssue()
@@ -157,7 +178,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
      //showGridExample()
          // animationExample()
         
-        wrapper6()
+      //  wrapper6()
         
       //  imageExample()
     }
@@ -200,7 +221,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       
     }
     
-  func createParentWith2Kids(_ kidAText: String, _ kidBText: String) -> MasonView {
+  func createParentWith2Kids(_ kidAText: String, _ kidBText: String) -> MasonUIView {
       let parent = mason.createView()
         
         
