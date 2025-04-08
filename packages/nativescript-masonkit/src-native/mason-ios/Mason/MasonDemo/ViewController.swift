@@ -25,6 +25,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     var list: UICollectionView? = nil
   
     let mason = NSCMason()
+  
+  let container = UIView(frame: .zero)
     
     
     class DefaultCellView: UICollectionViewCell {
@@ -82,19 +84,20 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     override func viewDidAppear(_ animated: Bool) {
         //        view?.mason.computeWithMaxContent()
       guard let view = view.subviews.first as? MasonUIView else {return}
-      view.uiView.frame.origin.x += view.safeAreaInsets.left
-                view.uiView.frame.origin.y += view.safeAreaInsets.top
+//      view.uiView.frame.origin.x += view.safeAreaInsets.left
+//                view.uiView.frame.origin.y += view.safeAreaInsets.top
+      
     }
     
     override func viewSafeAreaInsetsDidChange() {
-        
+        container.frame = container.frame.offsetBy(dx: view.safeAreaInsets.left, dy: view.safeAreaInsets.top)
          let left = Float(self.view.safeAreaInsets.left) * scale
          let right = Float(self.view.safeAreaInsets.right) * scale
          let top = Float(self.view.safeAreaInsets.top) * scale
          let bottom = Float(self.view.safeAreaInsets.bottom) * scale
       
         guard let view = view.subviews.first as? MasonUIView else {return}
-      
+
       
 //      view.style.inset = MasonRect(
 //               .Points(left),
@@ -147,27 +150,62 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             items.append("https://robohash.org/\(i + 1)?set=set4")
             i+=1
         } while i < 1000
-        
+      
+      container.frame = view.bounds
+    
+      container.backgroundColor = .yellow
       
       let text = mason.createTextView()
-      text.backgroundColor = .red
+      /*text.configure { node in
+      //  node.style.padding = MasonRect<MasonLengthPercentage>(.Points(100), .Points(0), .Points(0), .Points(0))
+       // node.style.inset = MasonRect<MasonLengthPercentageAuto>(.Points(100), .Points(0), .Points(0), .Points(0))
+      }*/
+     // text.backgroundColorValue = -65536
+     // text.setBackgroundColor(ui: .red)
+      text.setColor(ui: .blue)
+      text.decorationLine = .Underline
+      text.setDecorationColor(ui: .orange)
       text.updateText("Hello World")
-      view.addSubview(text)
       
+//      let child = UIView()
+//      let node = mason.nodeForView(child)
+//      node.configure { node in
+//       node.style.size = MasonSize<MasonDimension>(MasonDimension.Points(100), MasonDimension.Points(100))
+//      }
+      
+      let child = mason.createView()
+      child.configure { node in
+        node.style.size = MasonSize<MasonDimension>(MasonDimension.Points(100), MasonDimension.Points(100))
+      }
+      child.backgroundColor = .blue
+      text.addView(child)
+     
       let first = mason.createTextView()
       first.updateText(" this")
-      text.addSubview(first)
+      first.setColor(ui: .magenta)
+      text.addView(first)
       
       
-      let first_first = mason.createTextView()
+    /*  let first_first = mason.createTextView()
       first_first.updateText(" is a nested text")
       
-      first.addSubview(first_first)
+      first.addView(first_first)
+      
+
+      let other = mason.createTextView()
+      other.updateText(" <- inserted here ->")
+      
+      */
+      
+     // text.addView(other)
+      
+      container.addSubview(text)
+      
+      view.addSubview(container)
       
       
       text.node.computeWithSize(scale * Float(view.bounds.width), scale * Float(view.bounds.height))
-      
-     
+    
         
        // flexIssue()
         

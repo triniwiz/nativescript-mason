@@ -1049,6 +1049,30 @@ pub extern "C" fn mason_style_sync_style(mason: *mut CMason, node: *mut CMasonNo
     }
 }
 
+
+
+#[no_mangle]
+pub extern "C" fn mason_style_sync_style_with_buffer(mason: *mut CMason, node: *mut CMasonNode, state: i64, buffer: *mut u8, buffer_size: usize) {
+    if mason.is_null() || node.is_null() || state < 0 || buffer.is_null() {
+        return;
+    }
+    unsafe {
+        let mason = &mut (*mason);
+        let node = &(*node).0;
+
+        let mut updated_style: Option<Style> = None;
+        if let Some(style) = mason.0.style(node) {
+            let mut style = style.clone();
+            let data = std::slice::from_raw_parts(buffer, buffer_size);
+            mason_core::style::sync_node_style_with_buffer(data, state as u64, &mut style);
+            updated_style = Some(style);
+        }
+        if let Some(style) = updated_style {
+            mason.0.set_style_sync_buffer(node, style, true);
+        }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn mason_style_sync_compute_and_layout(
     mason: *mut CMason,
@@ -1109,6 +1133,8 @@ pub extern "C" fn mason_style_get_style_buffer(
                 let data = data.data_mut();
                 (data.as_mut_ptr(), data.len())
             };
+            drop(data);
+            drop(context);
 
             return Box::into_raw(Box::new(CMasonBuffer {
                 data: ptr.0,

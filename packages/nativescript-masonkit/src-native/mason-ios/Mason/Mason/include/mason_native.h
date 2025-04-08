@@ -281,6 +281,12 @@ void mason_style_set_with_values(struct CMason *mason,
 
 void mason_style_sync_style(struct CMason *mason, struct CMasonNode *node, int64_t state);
 
+void mason_style_sync_style_with_buffer(struct CMason *mason,
+                                        struct CMasonNode *node,
+                                        int64_t state,
+                                        uint8_t *buffer,
+                                        uintptr_t buffer_size);
+
 void *mason_style_sync_compute_and_layout(struct CMason *mason,
                                           struct CMasonNode *node,
                                           uint8_t *data,

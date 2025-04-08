@@ -403,13 +403,32 @@ impl MasonInner {
 pub struct Mason(Rc<RefCell<MasonInner>>);
 
 impl Mason {
+    #[track_caller]
     pub fn tree(&self) -> Ref<TaffyTree<NodeContext>> {
         Ref::map(self.0.borrow(), |inner| &inner.tree)
     }
 
+    #[track_caller]
     pub fn tree_mut(&self) -> RefMut<TaffyTree<NodeContext>> {
         RefMut::map(self.0.borrow_mut(), |inner| &mut inner.tree)
     }
+
+    pub fn with_tree<F>(&self, func: F)
+    where
+        F: FnOnce(&TaffyTree<NodeContext>),
+    {
+        let inner = self.0.borrow();
+        func(&inner.tree);
+    }
+
+    pub fn with_tree_mut<F>(&mut self, func: F)
+    where
+        F: FnOnce(&mut TaffyTree<NodeContext>),
+    {
+        let mut inner = self.0.borrow_mut();
+        func(&mut inner.tree);
+    }
+
     pub fn new() -> Self {
         Self::with_capacity(128)
     }
@@ -492,8 +511,9 @@ impl Mason {
 
     pub fn layout(&self, node: &Node) -> Vec<f32> {
         let mut output = vec![];
-        let tree = self.tree();
-        copy_output(&tree, node.id, &mut output);
+        self.with_tree(|tree| {
+            copy_output(tree, node.id, &mut output);
+        });
         output
     }
 
@@ -540,10 +560,10 @@ impl Mason {
 
     pub fn remove_node(&mut self, node: &Node) -> Option<Node> {
         let mut tree = self.tree_mut();
-        let guard = match tree.get_node_context_mut(node.id) {
+        let guard = match tree.get_node_context(node.id) {
             None => Rc::new(()),
             Some(context) => {
-                let mut context = context.0.borrow_mut();
+                let mut context = context.0.borrow();
                 context.guard.clone()
             }
         };

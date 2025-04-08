@@ -1597,3 +1597,57 @@ public class GridTrackRepetition: NSObject {
     }
     
 }
+
+
+
+@objc(DecorationLine)
+public enum DecorationLine: Int, RawRepresentable {
+    case None
+    case Underline
+    case Overline
+    case LineThrough
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .None:
+            return 0
+        case .Underline:
+            return 1
+        case .Overline:
+            return 2
+        case .LineThrough:
+            return 2
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+            self = .None
+        case 1:
+          self = .Underline
+        case 2:
+          self = .Overline
+        case 3:
+          self = .LineThrough
+        default:
+            return nil
+        }
+    }
+      
+    var cssValue: String {
+        switch self {
+        case .None:
+            return "none"
+        case .Underline:
+            return "underline"
+        case .Overline:
+            return "overline"
+        case .LineThrough:
+          return "line-through"
+        }
+    }
+}

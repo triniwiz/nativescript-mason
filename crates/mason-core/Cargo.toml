@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-taffy = { git = "https://github.com/DioxusLabs/taffy.git", rev = "ecbcb8" }
+taffy = { git = "https://github.com/DioxusLabs/taffy.git", rev = "c3ecb7" }
 bitflags = "2.9.0"
 log = "0.4.26"
 

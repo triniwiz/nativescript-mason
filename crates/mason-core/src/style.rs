@@ -1140,6 +1140,7 @@ pub fn sync_style_buffer(style: &mut [u8], current: &Style) {
 
 pub fn sync_node_style_with_buffer(style: &[u8], state: u64, current: &mut Style) {
     let keys = StateKeys::from_bits_truncate(state);
+
     if keys.contains(StateKeys::DISPLAY) {
         if let Some(display) = display_from_enum(get_style_data_i32(style, StyleKeys::DISPLAY)) {
             current.display = display;
@@ -1333,7 +1334,7 @@ pub fn sync_node_style_with_buffer(style: &[u8], state: u64, current: &mut Style
                 get_style_data_i32(style, StyleKeys::HEIGHT_TYPE),
                 get_style_data_f32(style, StyleKeys::HEIGHT_VALUE),
             ),
-        }
+        };
     }
 
     if keys.contains(StateKeys::MAX_SIZE) {

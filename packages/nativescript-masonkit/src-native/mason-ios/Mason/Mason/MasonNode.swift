@@ -10,9 +10,7 @@ import UIKit
 
 
 private func measure(_ node: UnsafeRawPointer?, _ knownDimensionsWidth: Float, _ knownDimensionsHeight: Float, _ availableSpaceWidth: Float, _ availableSpaceHeight: Float) -> Int64 {
-  print("????", knownDimensionsWidth, knownDimensionsHeight, availableSpaceWidth, availableSpaceHeight)
   let node: MasonNode = Unmanaged.fromOpaque(node!).takeUnretainedValue()
-  print("\(node)")
   
   guard let size = node.measureFunc?(CGSize(width: CGFloat(knownDimensionsWidth), height: CGFloat(knownDimensionsHeight)), CGSize(width: CGFloat(availableSpaceWidth), height: CGFloat(availableSpaceHeight))) else {
     return MeasureOutput.make(Float.nan, Float.nan)
@@ -33,6 +31,8 @@ private func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRawP
 public class MasonNode: NSObject {
   internal var mason: NSCMason
   public internal(set) var nativePtr: OpaquePointer?
+  
+  internal var layoutCache: MasonLayout? = nil
   
   public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
   
@@ -63,7 +63,6 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_node_with_children(mason.nativePtr, &childrenMap, UInt(childrenMap.count))
     
     children = nodes
-  
     
     super.init()
     
@@ -103,8 +102,7 @@ public class MasonNode: NSObject {
     
     let points = mason_node_layout(mason.nativePtr,
                                    nativePtr, create_layout)
-    
-    
+
     let layout: MasonLayout = Unmanaged.fromOpaque(points!).takeRetainedValue()
     return layout
   }
@@ -149,8 +147,8 @@ public class MasonNode: NSObject {
   
   public func computeWithSize(_ width: Float, _ height: Float){
     guard let view = data as? MasonView else{return}
-    //        MasonNode.attachNodesFromView(view)
-            compute(width, height)
+    compute(width, height)
+    print("computeWithSize", width, height)
     MasonNode.applyToView(mason, view.node, view.uiView)
   }
   
@@ -159,32 +157,31 @@ public class MasonNode: NSObject {
   }
   
   public func computeWithViewSize(layout: Bool){
-            guard let view = data as? MasonUIView else{return}
-//            MasonNode.attachNodesFromView(view)
-            compute(Float(view.frame.size.width) * NSCMason.scale, Float(view.frame.size.height) * NSCMason.scale)
-            if(layout){
-                MasonNode.applyToView(mason,view.node,view)
-            }
+    guard let view = data as? MasonUIView else{return}
+    compute(Float(view.frame.size.width) * NSCMason.scale, Float(view.frame.size.height) * NSCMason.scale)
+    if(layout){
+      MasonNode.applyToView(mason,view.node,view)
+    }
   }
   
   public func computeWithMaxContent(){
-            guard let view = data as? MasonUIView else{return}
+    guard let view = data as? MasonUIView else{return}
     //        MasonNode.attachNodesFromView(view)
-            computeMaxContent()
-            MasonNode.applyToView(mason,view.node,view)
+    computeMaxContent()
+    MasonNode.applyToView(mason,view.node,view)
   }
   
   public func computeWithMinContent(){
-            guard let view = data as? MasonUIView else{return}
+    guard let view = data as? MasonUIView else{return}
     //        MasonNode.attachNodesFromView(view)
-            computeMinContent()
-            MasonNode.applyToView(mason,view.node,view)
+    computeMinContent()
+    MasonNode.applyToView(mason,view.node,view)
   }
   
   public func attachAndApply(){
-            guard let view = data as? MasonUIView else{return}
-//            MasonNode.attachNodesFromView(view)
-            MasonNode.applyToView(mason,view.node,view)
+    guard let view = data as? MasonUIView else{return}
+    //            MasonNode.attachNodesFromView(view)
+    MasonNode.applyToView(mason,view.node,view)
   }
   func getChildAt(_ index: Int) -> MasonNode? {
     return children[index]
@@ -309,29 +306,30 @@ public class MasonNode: NSObject {
   static func applyToView(_ mason: NSCMason, _ node: MasonNode,_ view: UIView){
     
     let layout = node.layout()
-      
+    
+    node.layoutCache = layout
+    
     let widthIsNan = layout.width.isNaN
-     
+    
     let heightIsNan = layout.height.isNaN
-     
+    
     let width = CGFloat(widthIsNan ? 0 : layout.width/NSCMason.scale)
-     
+    
     let height = CGFloat(heightIsNan ? 0 : layout.height/NSCMason.scale)
-     
-     let x = CGFloat(layout.x.isNaN ? 0 : layout.x/NSCMason.scale)
-     
-     let y = CGFloat(layout.y.isNaN ? 0 : layout.y/NSCMason.scale)
-     
-     let point = CGPoint(x: x, y: y)
-     
-     let size = CGSizeMake(width, height)
-     
-     view.frame = CGRect(origin: point, size: size)
-     
+    
+    let x = CGFloat(layout.x.isNaN ? 0 : layout.x/NSCMason.scale)
+    
+    let y = CGFloat(layout.y.isNaN ? 0 : layout.y/NSCMason.scale)
+    
+    let point = CGPoint(x: x, y: y)
+    
+    let size = CGSizeMake(width, height)
+    
+    view.frame = CGRect(origin: point, size: size)
+    
     view.subviews.forEach { subview in
-      MasonNode.applyToView(mason, mason.nodeForView(view) , subview)
+      MasonNode.applyToView(mason, mason.nodeForView(subview) , subview)
     }
-     
     
   }
   
@@ -346,7 +344,7 @@ public class MasonNode: NSObject {
     var width = CGFloat.infinity
     var height = CGFloat.infinity
     
-  
+    
     if(knownDimensions?.width.isZero == true){
       width = 0
     }else if(availableSpace.width > 0){
