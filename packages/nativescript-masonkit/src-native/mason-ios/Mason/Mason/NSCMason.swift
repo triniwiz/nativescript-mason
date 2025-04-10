@@ -23,14 +23,14 @@ public class NSCMason: NSObject {
         mason_release(nativePtr)
     }
   
-  public func nodeForView(_ view: UIView) -> MasonNode{
+  public func nodeForView(_ view: UIView, _ isLeaf: Bool = true) -> MasonNode{
     if(view is MasonView){
       return (view as! MasonView).node
     }
     guard let node = viewNodes[view] else {
       let node = MasonNode(mason: self)
       node.data = view
-      if(view.subviews.isEmpty || view is UILabel){
+      if(isLeaf && (view.subviews.isEmpty || view is UILabel)){
         node.setDefaultMeasureFunction()
       }
 

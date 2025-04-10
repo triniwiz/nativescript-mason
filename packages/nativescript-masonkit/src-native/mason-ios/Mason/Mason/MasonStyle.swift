@@ -1806,6 +1806,7 @@ public class MasonStyle: NSObject {
     if (isDirty != -1) {
     //  mason_style_sync_style(node.mason.nativePtr, node.nativePtr, isDirty)
       
+
       mason_style_sync_style_with_buffer(node.mason.nativePtr, node.nativePtr, isDirty, values.mutableBytes, UInt(values.length))
       
       isDirty = -1

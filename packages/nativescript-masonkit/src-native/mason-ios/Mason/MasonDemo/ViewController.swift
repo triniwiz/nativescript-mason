@@ -141,6 +141,90 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
          
         
     }
+  
+  func textSample(){
+    
+    let text = mason.createTextView()
+    text.setColor(ui: .blue)
+    text.decorationLine = .Underline
+    text.setDecorationColor(ui: .orange)
+    text.fontStyle = .Italic
+    text.fontWeight = "bold"
+    text.updateText("Hello World!!!!! ")
+    
+    let child = UIView()
+    let node = mason.nodeForView(child)
+    node.configure { node in
+     node.style.size = MasonSize<MasonDimension>(
+      MasonDimension.Points(100),
+      MasonDimension.Points(100))
+    }
+    
+    
+    child.backgroundColor = .blue
+    text.addView(child)
+    
+    
+    let spacer = mason.createTextView()
+    spacer.updateText(" OMG ??? ")
+    spacer.textTransform = .FullWidth
+    spacer.setColor(ui: .red)
+    text.addView(spacer)
+    
+    
+    let image = UIImageView()
+    let imageNode = mason.nodeForView(image)
+    imageNode.configure { node in
+      node.style.size = MasonSize<MasonDimension>(
+        MasonDimension.Points(100),
+        MasonDimension.Points(100))
+    }
+    
+    let link = URL(string: "https://picsum.photos/300/300")
+    do {
+      try image.image = UIImage(data: Data(Data(contentsOf:link!)))
+    }catch {
+      print(error)
+    }
+   
+    text.addView(image)
+    
+   
+    let first = mason.createTextView()
+    first.updateText(" this")
+    first.setColor(ui: .magenta)
+    text.addView(first)
+    
+    
+    let first_first = mason.createTextView()
+    first_first.updateText(" is a nested text")
+    first_first.fontSize = 30
+    
+    first.addView(first_first)
+    
+
+    let other = mason.createTextView()
+    other.updateText(" <- inserted here ->")
+
+  
+    text.addView(other)
+    
+    let con = mason.createView()
+    con.backgroundColor = .red
+    con.addSubview(text)
+    con.style.setSizeHeight(MasonDimension.Percent(1))
+    
+    view.addSubview(container)
+    
+    container.addSubview(con)
+    
+    
+    con.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    
+    print(con.frame)
+    
+    
+  }
     
     
     override func viewDidLoad() {
@@ -152,73 +236,25 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         } while i < 1000
       
       container.frame = view.bounds
-    
-      container.backgroundColor = .yellow
-      
-      let text = mason.createTextView()
-      /*text.configure { node in
-      //  node.style.padding = MasonRect<MasonLengthPercentage>(.Points(100), .Points(0), .Points(0), .Points(0))
-       // node.style.inset = MasonRect<MasonLengthPercentageAuto>(.Points(100), .Points(0), .Points(0), .Points(0))
-      }*/
-     // text.backgroundColorValue = -65536
-     // text.setBackgroundColor(ui: .red)
-      text.setColor(ui: .blue)
-      text.decorationLine = .Underline
-      text.setDecorationColor(ui: .orange)
-      text.updateText("Hello World")
-      
-//      let child = UIView()
-//      let node = mason.nodeForView(child)
-//      node.configure { node in
-//       node.style.size = MasonSize<MasonDimension>(MasonDimension.Points(100), MasonDimension.Points(100))
-//      }
-      
-      let child = mason.createView()
-      child.configure { node in
-        node.style.size = MasonSize<MasonDimension>(MasonDimension.Points(100), MasonDimension.Points(100))
-      }
-      child.backgroundColor = .blue
-      text.addView(child)
-     
-      let first = mason.createTextView()
-      first.updateText(" this")
-      first.setColor(ui: .magenta)
-      text.addView(first)
-      
-      
-    /*  let first_first = mason.createTextView()
-      first_first.updateText(" is a nested text")
-      
-      first.addView(first_first)
-      
-
-      let other = mason.createTextView()
-      other.updateText(" <- inserted here ->")
-      
-      */
-      
-     // text.addView(other)
-      
-      container.addSubview(text)
       
       view.addSubview(container)
-      
-      
-      text.node.computeWithSize(scale * Float(view.bounds.width), scale * Float(view.bounds.height))
     
+      
+     // textSample()
         
        // flexIssue()
         
        // testLayout()
         
-       //  showFlexExample()
+        // showFlexExample()
         
-     //showGridExample()
+   //  showGridExample()
          // animationExample()
         
       //  wrapper6()
         
       //  imageExample()
+      gridSample()
     }
     
     func imageExample(){
@@ -406,14 +442,15 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
     
     func flexIssue(){
-        view.subviews.forEach { view in
-            view.removeFromSuperview()
+      container.subviews.forEach { view in
+        container.removeFromSuperview()
         }
         
         let root = mason.createView()
+      container.addSubview(root)
         root.backgroundColor = .red
-      let width = Float(self.view.bounds.width)
-      let height = Float(self.view.bounds.height)
+      let width = Float(container.bounds.width)
+      let height = Float(container.bounds.height)
       root.backgroundColor = .red
         root.configure({ node in
           node.style.flexGrow = 1
@@ -429,29 +466,25 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         root.addSubview(child)
         
-        let child1 = UILabel(frame: .zero)
+        let child1 = mason.createTextView()
         child1.backgroundColor = .green
         child1.text = "1"
         
         child.addSubview(child1)
         
-        view!.addSubview(root)
-     // root.node.computeWithMaxContent()
-        root.node.computeWithSize(scale * Float(view.bounds.width), -1)
-        
-        print(child1.frame, child.frame)
-        
-       // print(root.mason.l)
+        root.node.computeWithSize(scale * Float(container.bounds.width), -1)
     }
     
     func showFlexExample(){
-        view.subviews.forEach { view in
-            view.removeFromSuperview()
+      container.subviews.forEach { view in
+        container.removeFromSuperview()
         }
         
       let root = mason.createView()
+      container.addSubview(root)
         root.backgroundColor = .black
         root.configure({ node in
+          node.style.display = .Flex
             node.style.flexDirection = .Column
         })
         
@@ -475,19 +508,109 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         root.node.computeWithMaxContent()
     }
+  
+  func gridSample(){
+    /// https://gridbyexample.com/examples/example1/
+    container.subviews.forEach { view in
+      container.removeFromSuperview()
+      }
+    
+    let childBg = UIColor(hex: "#444444FF")
+    let root = mason.createView()
+    container.addSubview(root)
+
+        
+    root.configure({ node in
+      node.style.display = .Grid
+//      node.style.size = MasonSize(.Points(scale * Float(container.bounds.width)), .Points(scale * Float(container.bounds.height)))
+        
+        node.style.gap = MasonSize(.Points(scale * 10), .Points(scale * 10))
+        node.style.gridTemplateColumns = [
+            TrackSizingFunction.AutoRepeat(.Count(3), [MinMax.Points(points: scale * 100)])
+        ]
+        
+    })
+    
+    
+    let a  = mason.createTextView()
+    a.text = "A"
+
+    a.backgroundColor = childBg
+   // a.setBackgroundColor(ui: childBg!)
+    a.configure { node in
+      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    }
+    
+    
+    let b  = mason.createView()
+    b.backgroundColor = .orange
+    let bText  = mason.createTextView()
+    bText.text = "B"
+    bText.backgroundColor = .green
+   // b.setBackgroundColor(ui: childBg!)
+    bText.configure { node in
+     node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    }
+   
+    b.addSubview(bText)
+    
+   
+    let c  = mason.createTextView()
+    c.text = "C"
+    c.setBackgroundColor(ui: childBg!)
+    c.configure { node in
+   //   node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    }
+    
+    
+    let d  = mason.createTextView()
+    d.text = "A"
+    d.setBackgroundColor(ui: childBg!)
+    d.configure { node in
+    //  node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    }
+    
+    
+    let e  = mason.createTextView()
+    e.text = "E"
+    e.setBackgroundColor(ui: childBg!)
+    e.configure { node in
+     // node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    }
+   
+    let f  = mason.createTextView()
+    f.text = "F"
+    f.setBackgroundColor(ui: childBg!)
+    f.configure { node in
+     // node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    }
+    
+    root.addSubview(a)
+    root.addSubview(b)
+    root.addSubview(c)
+    
+    root.addSubview(d)
+    root.addSubview(e)
+    root.addSubview(f)
+
+    
+    root.node.computeWithMaxContent()
+   // root.node.computeWithSize(Float(container.bounds.size.width) * scale, Float(container.bounds.size.height) * scale)
+  }
     
     
     func showGridExample(){
-        view.subviews.forEach { view in
-            view.removeFromSuperview()
+      container.subviews.forEach { view in
+        container.removeFromSuperview()
         }
         
         let childBg = UIColor(hex: "#444444FF")
         let root = mason.createView()
+      container.addSubview(root)
         root.backgroundColor = .white
         root.configure({ node in
             node.style.display = .Grid
-            node.style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
+          node.style.size = MasonSize(.Points(scale * Float(container.bounds.width)), .Points(scale * Float(container.bounds.height)))
             
             node.style.gap = MasonSize(.Points(scale * 10), .Points(scale * 10))
             node.style.gridTemplateColumns = [
@@ -496,44 +619,60 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             
         })
         
-        let childA = UILabel(frame: .zero)
-        childA.text = "A"
-        childA.textColor = .white
-        childA.textAlignment = .center
-      mason.nodeForView(childA).configure { node in
-
+      let childA = mason.createView()
+      childA.configure { node in
             node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
             node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
             childA.backgroundColor = childBg
         }
+      
+      
+      let childAText = mason.createTextView()
+      childAText.text = "A"
+      childAText.setColor(ui: .white)
+      childAText.style.textAlign = .Center
+      childA.addSubview(childAText)
         
-        
-        let childB = UILabel(frame: .zero)
-        childB.text = "B"
-        childB.textColor = .white
-      mason.nodeForView(childB).configure { node in
+      let childB =  mason.createView()
+      childB.configure { node in
             node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
             node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
             childB.backgroundColor = childBg
         }
+      
+      
+      let childBText =  mason.createTextView()
+      childBText.text = "B"
+      childBText.setColor(ui: .white)
+      childB.addSubview(childBText)
         
-        let childC = UILabel(frame: .zero)
-        childC.text = "C"
-        childC.textColor = .white
-      mason.nodeForView(childC).configure { node in
+        let childC = mason.createView()
+      childC.configure { node in
             node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
             node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
             childC.backgroundColor = childBg
         }
+      
+      let childCText = mason.createTextView()
+      childCText.text = "C"
+      childCText.setColor(ui: .white)
+      
+      childC.addSubview(childCText)
+    
+      
         
-        let childD = UILabel(frame: .zero)
-        childD.text = "D"
-        childD.textColor = .white
-      mason.nodeForView(childD).configure { node in
+        let childD =  mason.createView()
+      childD.configure { node in
             node.style.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
             node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
             childD.backgroundColor = childBg
         }
+      
+      let childDText =  mason.createTextView()
+      childDText.text = "D"
+      childDText.setColor(ui: .white)
+      
+      childD.addSubview(childDText)
         
         
         root.addSubview(childA)

@@ -34,7 +34,7 @@ apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
 cargo {
   module = "../../../../../"
   libname = "masonnative"
-  
+
 //  targets = ["arm64"]
  // targets = ["x86"]
   apiLevels = [

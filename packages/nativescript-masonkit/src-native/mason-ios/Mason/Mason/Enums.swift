@@ -142,9 +142,12 @@ public enum MasonBoxSizing: Int, RawRepresentable {
 @objc(MasonTextAlign)
 public enum MasonTextAlign: Int, RawRepresentable {
     case Auto
-    case LegacyLeft
-    case LegacyRight
-    case LegacyCenter
+    case Left
+    case Right
+    case Center
+  case Justify
+  case Start
+  case End
     
     public typealias RawValue = Int32
     
@@ -152,26 +155,39 @@ public enum MasonTextAlign: Int, RawRepresentable {
         switch self {
         case .Auto:
             return 0
-        case .LegacyLeft:
+        case .Left:
             return 1
-        case .LegacyRight:
+        case .Right:
             return 2
-        case .LegacyCenter:
+        case .Center:
             return 3
+        case .Justify:
+          return 4
+        case .Start:
+          return 5
+        case .End:
+          return 6
         }
     }
-    
+  
+
     
     public init?(rawValue: RawValue) {
         switch rawValue {
         case 0:
           self = .Auto
         case 1:
-          self = .LegacyLeft
+          self = .Left
         case 2:
-          self = .LegacyRight
+          self = .Right
         case 3:
-          self = .LegacyCenter
+          self = .Center
+        case 4:
+          self = .Justify
+          case 5:
+          self = .Start
+        case 6:
+          self = .End
         default:
             return nil
         }
@@ -882,7 +898,7 @@ public enum Direction: Int, RawRepresentable {
 }
 
 @objc(Display)
-public enum Display: Int, RawRepresentable {
+public enum Display: Int, RawRepresentable, CustomStringConvertible {
     case None
     case Flex
     case Grid
@@ -932,10 +948,14 @@ public enum Display: Int, RawRepresentable {
             return "block"
         }
     }
+  
+  public var description: String {
+    return cssValue
+  }
 }
 
 @objc(FlexDirection)
-public enum FlexDirection: Int, RawRepresentable {
+public enum FlexDirection: Int, RawRepresentable, CustomStringConvertible {
     case Row
     case Column
     case RowReverse
@@ -984,6 +1004,9 @@ public enum FlexDirection: Int, RawRepresentable {
             return "column-reverse"
         }
     }
+  public var description: String {
+    return cssValue
+  }
 }
 
 
@@ -1618,7 +1641,7 @@ public enum DecorationLine: Int, RawRepresentable {
         case .Overline:
             return 2
         case .LineThrough:
-            return 2
+            return 3
         }
     }
     
@@ -1650,4 +1673,132 @@ public enum DecorationLine: Int, RawRepresentable {
           return "line-through"
         }
     }
+}
+
+
+@objc(TextTransform)
+public enum TextTransform: Int, RawRepresentable {
+    case None
+    case Capitalize
+    case Uppercase
+    case Lowercase
+    case FullWidth
+    case FullSizeKana
+    case MathAuto
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .None:
+            return 0
+        case .Capitalize:
+            return 1
+        case .Uppercase:
+            return 2
+        case .Lowercase:
+            return 3
+        case .FullWidth:
+            return 4
+        case .FullSizeKana:
+            return 5
+        case .MathAuto:
+            return 6
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+            self = .None
+        case 1:
+          self = .Capitalize
+        case 2:
+          self = .Uppercase
+        case 3:
+          self = .Lowercase
+        case 4:
+          self = .FullWidth
+        case 5:
+          self = .FullSizeKana
+        case 6:
+          self = .MathAuto
+        default:
+            return nil
+        }
+    }
+      
+    var cssValue: String {
+        switch self {
+        case .None:
+            return "none"
+        case .Capitalize:
+            return "capitalize"
+        case .Uppercase:
+            return "uppercase"
+        case .Lowercase:
+          return "lowercase"
+        case .FullWidth:
+          return "full-width"
+        case .FullSizeKana:
+          return "full-size-kana"
+        case .MathAuto:
+          return "math-auto"
+        }
+    }
+}
+
+
+
+
+
+
+@objc(FontStyle)
+public enum FontStyle: Int, RawRepresentable, CustomStringConvertible {
+    case Normal
+    case Italic
+    case Oblique
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Normal:
+            return 0
+        case .Italic:
+            return 1
+        case .Oblique:
+            return 2
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+          self = .Normal
+        case 1:
+          self = .Italic
+        case 2:
+          self = .Oblique
+        default:
+            return nil
+        }
+    }
+      
+    var cssValue: String {
+        switch self {
+        case .Normal:
+            return "normal"
+        case .Italic:
+            return "italic"
+        case .Oblique:
+            return "oblique"
+        }
+    }
+  
+  public var description: String {
+    return cssValue
+  }
 }

@@ -53,16 +53,22 @@ func measureBlock(text: NSAttributedString, maxWidth: CGFloat) -> CGSize {
   let framesetter = CTFramesetterCreateWithAttributedString(text)
   
   let constraintSize = CGSize(width: maxWidth, height: .greatestFiniteMagnitude)
-  let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(framesetter,
+  var suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(framesetter,
                                                                    CFRangeMake(0, text.length),
                                                                    nil,
                                                                    constraintSize,
                                                                    nil)
+  
+  let scale = CGFloat(NSCMason.scale)
+  
+  suggestedSize.width = suggestedSize.width * scale
+  suggestedSize.height = suggestedSize.height * scale
+  
+  
   return suggestedSize
 }
 
 func measureInline(text: NSAttributedString) -> CGSize {
-  print("measureInline", text.string)
   let line = CTLineCreateWithAttributedString(text)
   
   var ascent: CGFloat = 0
@@ -76,7 +82,7 @@ func measureInline(text: NSAttributedString) -> CGSize {
   
   
   let height = (ascent + descent) * scale
-
+  
   
   return CGSize(width: width, height: height)
 }
@@ -100,7 +106,7 @@ class ViewHelper {
   func updateImage(_ afterScreenUpdates: Bool = true) {
     guard let view = view else { return }
     let layout = node.layout()
-
+    
     let size = CGSize(width: CGFloat(layout.width / NSCMason.scale), height:CGFloat( layout.height / NSCMason.scale))
     
     view.frame = CGRect(origin: view.frame.origin, size: size)
@@ -140,6 +146,10 @@ struct TextStyleKeys {
   static let TEXT_ALIGN = 12
   static let TEXT_JUSTIFY = 16
   static let BACKGROUND_COLOR = 20
+  static let SIZE = 24
+  static let TRANSFORM = 28
+  static let FONT_STYLE_TYPE = 32
+  static let FONT_STYLE_SLANT = 36
 }
 
 let VIEW_PLACEHOLDER = "[[__view__]]"
@@ -149,7 +159,6 @@ let UNSET_COLOR = UInt32(0xDEADBEEF)
 @objcMembers
 public class MasonText: UIView, MasonView {
   public internal(set) var owner: MasonText?
-  // internal var info: TextChild
   public let node: MasonNode
   let actualNode: MasonNode
   private var children: [TextChild] = []
@@ -161,7 +170,6 @@ public class MasonText: UIView, MasonView {
     actualNode = MasonNode(mason: mason)
     super.init(frame: .zero)
     isOpaque = false
-    node.data = self
     actualNode.data = self
     node.style.display = .Flex
     actualNode.measureFunc = { known, available in
@@ -176,7 +184,6 @@ public class MasonText: UIView, MasonView {
     actualNode = MasonNode(mason: node.mason)
     super.init(frame: .zero)
     isOpaque = false
-    node.data = self
     actualNode.data = self
     node.style.display = .Flex
     actualNode.measureFunc = { known, available in
@@ -186,8 +193,34 @@ public class MasonText: UIView, MasonView {
     node.addChild(actualNode)
   }
   
+  
   private static func measure(_ view: MasonText, _ known: CGSize?, _ available: CGSize) -> CGSize {
-    return measureInline(text: view.txt)
+    view.node.lastMeasureKnownSize = known
+    view.node.lastMeasureAvailableSize = available
+    
+    view.actualNode.lastMeasureKnownSize = known
+    view.actualNode.lastMeasureAvailableSize = available
+    
+//    if(view.owner == nil){
+//      var maxWidth = CGFloat.greatestFiniteMagnitude
+//      if(!available.width.isNaN && available.width > 0){
+//        maxWidth = available.width
+//      }
+//      return measureBlock(text: view.txt, maxWidth: maxWidth)
+//    }
+//    
+    
+    var size = measureInline(text: view.txt)
+    if let known = known {
+      if(!known.width.isNaN && known.width >= 0){
+        size.width = known.width
+      }
+      
+      if(!known.height.isNaN && known.height >= 0){
+        size.height = known.height
+      }
+    }
+    return size
   }
   
   required init?(coder: NSCoder) {
@@ -200,7 +233,7 @@ public class MasonText: UIView, MasonView {
   
   public var style: MasonStyle {
     get {
-      return node.style
+      return actualNode.style
     }
   }
   
@@ -218,7 +251,7 @@ public class MasonText: UIView, MasonView {
   
   
   lazy var textValues: NSMutableData = {
-    let data = NSMutableData(length: 24)!
+    let data = NSMutableData(length: 40)!
     var pointer = data.mutableBytes
     
     let color = pointer.advanced(by: TextStyleKeys.COLOR).assumingMemoryBound(to: UInt32.self)
@@ -231,6 +264,11 @@ public class MasonText: UIView, MasonView {
     let decorationColor = pointer.advanced(by: TextStyleKeys.DECORATION_COLOR).assumingMemoryBound(to: UInt32.self)
     decorationColor.pointee = UNSET_COLOR
     
+    let size = pointer.advanced(by: TextStyleKeys.SIZE).assumingMemoryBound(to: Float.self)
+    size.pointee = Float(UIFont.systemFontSize)
+    
+    
+    
     return data
   }()
   
@@ -239,8 +277,211 @@ public class MasonText: UIView, MasonView {
     text = value ?? ""
   }
   
+  internal var originalTxt = String()
   internal var txt = NSMutableAttributedString()
   
+  public internal(set) var font: UIFont = UIFont.systemFont(ofSize: UIFont.systemFontSize)
+  
+  private func invalidateFont(){
+    font = UIFont.systemFont(ofSize: fontSize, weight: weight)
+  
+    switch(fontStyle){
+    case .Italic:
+      font = UIFont(descriptor: font.fontDescriptor.withSymbolicTraits(.traitItalic)!, size: fontSize)
+      break
+    case .Oblique:
+      // font.fontDescriptor.withSymbolicTraits(.traitItalic)
+      // todo
+      break
+    default:
+      // noop
+      break
+    }
+    
+    if(!txt.string.isEmpty){
+      txt.setAttributes([.font: font], range: NSRange(0..<txt.string.count))
+    }
+    
+    if(!node.inBatch){
+      invalidate()
+    }
+  }
+  
+  private func fullWidthTransformed(_ string: String) -> String {
+    let mapped = string.unicodeScalars.map { scalar in
+      if scalar.value >= 0x21 && scalar.value <= 0x7E {
+        let fullWidth = scalar.value + 0xFEE0
+        return UnicodeScalar(fullWidth)!
+      } else {
+        return scalar
+      }
+    }
+    
+    return String(String.UnicodeScalarView(mapped))
+  }
+  
+  
+  public var textTransform: TextTransform {
+    get {
+      return TextTransform(rawValue:(textValues.bytes.advanced(by: TextStyleKeys.TRANSFORM).assumingMemoryBound(to: Int32.self).pointee))!
+    }
+    
+    set {
+      switch(newValue){
+      case .None:
+        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt as String)
+      case .Capitalize:
+        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt.capitalized as String)
+      case .Uppercase:
+        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt.uppercased() as String)
+      case .Lowercase:
+        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt.lowercased() as String)
+      case .FullWidth:
+        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: fullWidthTransformed(originalTxt) as String)
+      case .FullSizeKana:
+        if let full = originalTxt.applyingTransform(.fullwidthToHalfwidth, reverse: true) {
+          txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: full)
+        }else {
+          txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt)
+        }
+      case .MathAuto:
+        // todo
+        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt as String)
+      }
+      if(!node.inBatch){
+        invalidate()
+      }
+    }
+  }
+  
+  
+  public var fontSize: CGFloat {
+    get {
+      return CGFloat(textValues.bytes.advanced(by: TextStyleKeys.SIZE).assumingMemoryBound(to: Float.self).pointee)
+    }
+    set {
+      textValues.mutableBytes.advanced(by: TextStyleKeys.SIZE).assumingMemoryBound(to: Float.self).pointee = Float(newValue)
+      
+      invalidateFont()
+      
+    }
+  }
+  
+  public var fontStyle: FontStyle {
+    get {
+      let type = FontStyle(rawValue: textValues.bytes.advanced(by: TextStyleKeys.FONT_STYLE_TYPE).assumingMemoryBound(to: Int32.self).pointee)!
+      return type
+    }
+    set {
+      textValues.mutableBytes.advanced(by: TextStyleKeys.FONT_STYLE_TYPE).assumingMemoryBound(to: Int32.self).pointee = newValue.rawValue
+      
+      textValues.mutableBytes.advanced(by: TextStyleKeys.FONT_STYLE_SLANT).assumingMemoryBound(to: Int32.self).pointee = 0
+      
+      invalidateFont()
+    }
+  }
+  
+  public func setFontStyle(_ style: FontStyle, slant: Int32) {
+    textValues.mutableBytes.advanced(by: TextStyleKeys.FONT_STYLE_TYPE).assumingMemoryBound(to: Int32.self).pointee = style.rawValue
+    
+    textValues.mutableBytes.advanced(by: TextStyleKeys.FONT_STYLE_SLANT).assumingMemoryBound(to: Int32.self).pointee = slant
+    
+    invalidateFont()
+  }
+  
+  private var weight = UIFont.Weight.regular
+  private var weightName = "normal"
+  public var fontWeight: String {
+    get {
+      return weightName
+    }
+    set {
+        let previous = weightName
+        switch newValue {
+        case "thin":
+          weight = .thin
+          weightName = "thin"
+          break
+        case "ultralight":
+          weight = .ultraLight
+          weightName = "ultralight"
+          break
+        case "light":
+          weight = .light
+          weightName = "light"
+          break
+        case "normal":
+          weight = .regular
+          weightName = "normal"
+          break
+        case "medium":
+          weight = .medium
+          weightName = "medium"
+          break
+        case "semibold":
+          weight = .semibold
+          weightName = "semibold"
+          break
+        case "bold":
+          weight = .bold
+          weightName = "bold"
+          break
+        case "heavy":
+          weight = .heavy
+          weightName = "heavy"
+          break
+        case "black":
+          weight = .black
+          weightName = "black"
+          break
+        default:
+          if let weight = Int(newValue, radix: 10) {
+            if(weight >= 100 && weight <= 1000){
+              weightName = newValue
+              switch(weight) {
+              case 100..<200:
+                self.weight = .thin
+                break
+              case 200..<300:
+                self.weight = .ultraLight
+                break
+              case 300..<400:
+                self.weight = .light
+                break
+              case 400..<500:
+                self.weight = .regular
+                break
+              case 500..<600:
+                self.weight = .medium
+                break
+              case 600..<700:
+                self.weight = .semibold
+                break
+              case 700..<800:
+                self.weight = .bold
+                break
+              case 800..<900:
+                self.weight = .heavy
+                break
+              case 900..<1000:
+                self.weight = .black
+                break
+              default:
+                break
+              }
+            }
+          }
+          
+          break
+        }
+        
+        if(previous != weightName){
+          invalidateFont()
+        }
+      }
+      
+  }
+
   
   public var color: Int32 {
     get {
@@ -291,7 +532,7 @@ public class MasonText: UIView, MasonView {
       
       txt.removeAttribute(.underlineStyle, range: range)
       txt.removeAttribute(.underlineColor, range: range)
-    
+      
       if(!node.inBatch){
         invalidate()
       }
@@ -327,7 +568,7 @@ public class MasonText: UIView, MasonView {
           }
         }
       }
-   
+      
     }
   }
   
@@ -353,7 +594,7 @@ public class MasonText: UIView, MasonView {
     }
     set {
       textValues.mutableBytes.advanced(by: TextStyleKeys.DECORATION_LINE).assumingMemoryBound(to: Int32.self).pointee = newValue.rawValue
-     
+      
       updateDecoration(decorationColor, newValue)
     }
   }
@@ -367,27 +608,49 @@ public class MasonText: UIView, MasonView {
     return decorationColor
   }
   
+  
+  
   public var text: String? {
     get {
       return txt.string
     }
     set {
       let string = newValue ?? ""
-      var paragraphStyle =  NSMutableParagraphStyle()
+      let paragraphStyle =  NSMutableParagraphStyle()
+     
+      switch style.textAlign {
+      case .Auto:
+        paragraphStyle.alignment = .natural
+      case .Left:
+        paragraphStyle.alignment = .left
+      case .Right:
+        paragraphStyle.alignment = .right
+      case .Center:
+        paragraphStyle.alignment = .center
+      case .Justify:
+        paragraphStyle.alignment = .justified
+      case .Start:
+        // todo
+        break
+      case .End:
+        // todo
+        break
+      }
+      
       
       
       var attributes: [NSAttributedString.Key: Any] = [
-        .font: UIFont.systemFont(ofSize: 14),
+        .font: font,
         .paragraphStyle: paragraphStyle
       ]
-
+      
       if(backgroundColorValue != 0){
         attributes[NSAttributedString.Key.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
       }
-    
+      
       attributes[NSAttributedString.Key.foregroundColor] = UIColor.colorFromARGB(color)
       
-   
+      
       if(decorationLine == .LineThrough){
         attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
         attributes[.strikethroughColor] = getDecorationColor()
@@ -397,7 +660,8 @@ public class MasonText: UIView, MasonView {
           attributes[.underlineColor] = getDecorationColor()
         }
       }
-      
+      // always store ??
+      originalTxt = string
       txt = NSMutableAttributedString(string: string, attributes: attributes)
       
       invalidate()
@@ -411,17 +675,27 @@ public class MasonText: UIView, MasonView {
         let _ = Unmanaged<MasonNode>.fromOpaque(refCon).takeRetainedValue()
       },
       getAscent: { refCon in
-        let node = Unmanaged<MasonNode>.fromOpaque(refCon)
-        if let layout = node.takeUnretainedValue().layoutCache {
-          return CGFloat(layout.height)
+        let nodePtr = Unmanaged<MasonNode>.fromOpaque(refCon)
+        let node =  nodePtr.takeUnretainedValue()
+        if let layout = node.layoutCache {
+          return CGFloat(layout.height / NSCMason.scale)
+        }else if let known = node.lastMeasureKnownSize{
+          if(!known.height.isNaN){
+            return known.height / CGFloat(NSCMason.scale)
+          }
         }
         return 0
       },
       getDescent: { _ in 0 },
       getWidth: { refCon in
-        let node = Unmanaged<MasonNode>.fromOpaque(refCon)
-        if let layout = node.takeUnretainedValue().layoutCache {
-          return CGFloat(layout.width)
+        let nodePtr = Unmanaged<MasonNode>.fromOpaque(refCon)
+        let node =  nodePtr.takeUnretainedValue()
+        if let layout = node.layoutCache {
+          return CGFloat(layout.width / NSCMason.scale)
+        }else if let known = node.lastMeasureKnownSize{
+          if(!known.width.isNaN){
+            return known.width / CGFloat(NSCMason.scale)
+          }
         }
         return 0
       }
@@ -434,67 +708,72 @@ public class MasonText: UIView, MasonView {
   
   public override func draw(_ rect: CGRect) {
     guard let context = UIGraphicsGetCurrentContext() else { return }
+    context.textMatrix = .identity
     context.saveGState()
     context.translateBy(x: 0, y: bounds.height)
     context.scaleBy(x: 1.0, y: -1.0)
-
+    
     let framesetter = CTFramesetterCreateWithAttributedString(txt)
-    
+
     var bounds = CGRect(origin: bounds.origin, size: bounds.size)
-    
-    
-    if let layout = self.node.layoutCache {
-      let padding = UIEdgeInsets(top: CGFloat(layout.padding.top), left: CGFloat(layout.padding.left), bottom: CGFloat(layout.padding.bottom), right: CGFloat(layout.padding.right))
-      
-      bounds = bounds.inset(by: padding)
-    }
-   
-    
-    let path = CGPath(rect: bounds, transform: nil)
-    let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, txt.length), path, nil)
-    CTFrameDraw(frame, context)
-    
-    
-    let lines = CTFrameGetLines(frame) as! [CTLine]
-    if(!lines.isEmpty){
-      var origins = [CGPoint](repeating: .zero, count: lines.count)
-      CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
-      
-      for (lineIndex, line) in lines.enumerated() {
-        let runs = CTLineGetGlyphRuns(line) as! [CTRun]
-        let origin = origins[lineIndex]
         
-        for run in runs {
-          let attrs = CTRunGetAttributes(run) as NSDictionary
-          
-          if let view = attrs[VIEW_PLACEHOLDER] as? ViewHelper {
-            var ascent: CGFloat = 0
-            var descent: CGFloat = 0
-            
-            let width = CGFloat(CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &ascent, &descent, nil))
-            let layout = view.node.layout()
-      
-            let xOffset = CTLineGetOffsetForStringIndex(line, CTRunGetStringRange(run).location, nil)
-            let runBounds = CGRect(
-              x: origin.x + xOffset,
-              y: origin.y - descent,
-              width: CGFloat(layout.width),
-              height: CGFloat(layout.height) //ascent + descent
-            )
-            
-      
-            view.updateImage(false)
-            
-            if let image = view.image?.cgImage {
-              print(image)
-              context.draw(image, in: runBounds)
-            }
-          }
-        }
+    
+    if let layout = self.actualNode.layoutCache {
+      if(!layout.padding.isEmpty()){
+        let scale = NSCMason.scale
+        let padding = UIEdgeInsets(top: CGFloat(layout.padding.top / scale), left: CGFloat(layout.padding.left / scale), bottom: CGFloat(layout.padding.bottom / scale), right: CGFloat(layout.padding.right / scale))
+        
+        bounds = bounds.inset(by: padding)
       }
     }
     
     
+    let path = CGPath(rect: bounds, transform: nil)
+    let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, txt.length), path, nil)
+
+    CTFrameDraw(frame, context)
+  
+    
+    guard let lines = CTFrameGetLines(frame) as? [CTLine], !lines.isEmpty else { return }
+    
+    var origins = [CGPoint](repeating: .zero, count: lines.count)
+    CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
+    
+    for (lineIndex, line) in lines.enumerated() {
+      let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+      let origin = origins[lineIndex]
+      
+      for run in runs {
+        let attrs = CTRunGetAttributes(run) as NSDictionary
+        
+        if let view = attrs[VIEW_PLACEHOLDER] as? ViewHelper {
+          var ascent: CGFloat = 0
+          var descent: CGFloat = 0
+          
+          if let layout = view.node.layoutCache {
+           
+            let width = CGFloat(CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &ascent, &descent, nil))
+            
+            let xOffset = CTLineGetOffsetForStringIndex(line, CTRunGetStringRange(run).location, nil)
+            let x = origin.x + xOffset
+            let runBounds = CGRect(
+              x: x,
+              y: CGFloat((layout.y / NSCMason.scale)) + (origin.y - descent),
+              width: CGFloat(layout.width / NSCMason.scale),
+              height: CGFloat(layout.height / NSCMason.scale) //ascent + descent
+            )
+            
+            
+            view.updateImage(false)
+            
+            if let image = view.image?.cgImage {
+              context.draw(image, in: runBounds)
+            }
+          }
+          
+        }
+      }
+    }
     
     context.restoreGState()
   }
@@ -582,7 +861,7 @@ public class MasonText: UIView, MasonView {
     let attachment = ViewHelper(view: view, mason: node.mason)
     
     let delegate = createRunDelegate(node: node.mason.nodeForView(view))
-  
+    
     let attrString = NSMutableAttributedString("\u{FFFC}")
     attrString.addAttributes([
       NSAttributedString.Key(kCTRunDelegateAttributeName as String): delegate,
@@ -643,7 +922,7 @@ public class MasonText: UIView, MasonView {
       attachment: attachment.0
     ))
     
-    node.addChild(node.mason.nodeForView(view))
+    node.addChild(attachment.0.node)
     
     top.invalidate()
   }

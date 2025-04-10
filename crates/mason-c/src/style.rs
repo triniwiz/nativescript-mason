@@ -1037,7 +1037,8 @@ pub extern "C" fn mason_style_sync_style(mason: *mut CMason, node: *mut CMasonNo
         let node = &(*node).0;
 
         let mut updated_style: Option<Style> = None;
-        if let (Some(context), Some(style)) = (mason.0.get_node_context(node), mason.0.style(node)) {
+        if let (Some(context), Some(style)) = (mason.0.get_node_context(node), mason.0.style(node))
+        {
             let mut style = style.clone();
             let data = context.style_data();
             mason_core::style::sync_node_style_with_buffer(data.data(), state as u64, &mut style);
@@ -1049,10 +1050,14 @@ pub extern "C" fn mason_style_sync_style(mason: *mut CMason, node: *mut CMasonNo
     }
 }
 
-
-
 #[no_mangle]
-pub extern "C" fn mason_style_sync_style_with_buffer(mason: *mut CMason, node: *mut CMasonNode, state: i64, buffer: *mut u8, buffer_size: usize) {
+pub extern "C" fn mason_style_sync_style_with_buffer(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    state: i64,
+    buffer: *mut u8,
+    buffer_size: usize,
+) {
     if mason.is_null() || node.is_null() || state < 0 || buffer.is_null() {
         return;
     }
@@ -1068,7 +1073,9 @@ pub extern "C" fn mason_style_sync_style_with_buffer(mason: *mut CMason, node: *
             updated_style = Some(style);
         }
         if let Some(style) = updated_style {
-            mason.0.set_style_sync_buffer(node, style, true);
+            mason.0.set_style_sync_buffer(node, style, false);
+            if let Some(s) = mason.0.style(node) {
+            }
         }
     }
 }
@@ -1208,10 +1215,12 @@ pub extern "C" fn mason_style_get_grid_auto_columns(
         let mason = &mut *mason;
         let node = &mut *node;
         if let Some(style) = mason.0.style(&node.0) {
-            let ret: Vec<CMasonMinMax> = style.grid_auto_columns
+            let ret: Vec<CMasonMinMax> = style
+                .grid_auto_columns
                 .clone()
                 .into_iter()
-                .map(|v| v.into()).collect();
+                .map(|v| v.into())
+                .collect();
 
             return Box::into_raw(Box::new(ret.into()));
         }

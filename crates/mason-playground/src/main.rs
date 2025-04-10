@@ -1,7 +1,4 @@
-use mason_core::{
-    AvailableSpace, Dimension, Display, LengthPercentage, LengthPercentageAuto, Mason,
-    MeasureOutput, NodeContext, Position, Rect, Size, Style,
-};
+use mason_core::{AvailableSpace, Dimension, Display, FlexDirection, LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, NodeContext, Position, Rect, Size, Style};
 use rand::Rng;
 use std::ffi::{c_longlong, c_void};
 
@@ -28,24 +25,42 @@ fn leafTest() {
         available_space_height: f32,
     ) -> c_longlong {
         let data = unsafe { &*(data as *const NodeData) };
-        println!("{:?}", data);
+        println!("{:?} {:?} x {:?}  ....  {:?} x {:?}", data, width, height,available_space_width, available_space_height);
         MeasureOutput::make(100., 200.)
     }
 
     let root_data = NodeData { id: 0 };
     let ctx = NodeContext::new(Box::into_raw(Box::new(root_data)) as _, Some(measure_));
-    let root = mason.create_node(Some(ctx));
+    let root = mason.create_node(None);
 
+    let mut root_style = Style::default();
+    root_style.display = Display::Block;
+    // root_style.flex_direction = FlexDirection::Column;
+    mason.set_style(&root, root_style);
 
     let leaf_a_data = NodeData { id: 1 };
     let leaf_a_ctx = NodeContext::new(Box::into_raw(Box::new(leaf_a_data)) as _, Some(measure_));
     let leaf_a = mason.create_node(Some(leaf_a_ctx));
 
+    let mut leaf_a_style = Style::default();
+    leaf_a_style.display = Display::Flex;
+    leaf_a_style.min_size = Size {
+        width: Dimension::length(100.),
+        height: Dimension::length(100.),
+    };
+
+    leaf_a_style.size = Size {
+        width: Dimension::length(100.),
+        height: Dimension::length(100.),
+    };
+
+    mason.set_style(&leaf_a, leaf_a_style);
+
     mason.add_child(&root, &leaf_a);
 
-    let lo = mason.layout(&root);
+    mason.compute_wh(&root, 1206.0, 2622.0);
 
-  //  mason.compute(&root);
+    //  mason.compute(&root);
     mason.print_tree(&root);
 }
 

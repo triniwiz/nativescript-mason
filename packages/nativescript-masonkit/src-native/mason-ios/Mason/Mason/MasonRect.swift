@@ -100,6 +100,7 @@ public struct MasonRect<T: Codable>: Codable {
     internal var compatDimension: MasonDimensionRectCompat? = nil
     internal var compatLengthAuto: MasonLengthPercentageAutoRectCompat? = nil
     internal var compatLength: MasonLengthPercentageRectCompat? = nil
+  
     
     public init(_ left: T, _ right: T, _ top: T, _ bottom: T) {
         self.left = left
@@ -128,6 +129,18 @@ public struct MasonRect<T: Codable>: Codable {
         
         return ret
     }
+}
+
+extension MasonRect where T == Float {
+  func isEmpty() ->Bool{
+    return left == 0 && right == 0 && right == 0 && bottom == 0
+  }
+}
+
+extension MasonSize where T == Float {
+  func isEmpty() ->Bool{
+    return width == 0 && height == 0
+  }
 }
 
 public let MasonDimensionRectAuto = MasonRect<MasonDimension>(uniform: .Auto)
