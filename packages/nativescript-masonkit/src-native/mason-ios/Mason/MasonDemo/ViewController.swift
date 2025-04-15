@@ -181,12 +181,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         MasonDimension.Points(100))
     }
     
-    let link = URL(string: "https://picsum.photos/300/300")
-    do {
-      try image.image = UIImage(data: Data(Data(contentsOf:link!)))
-    }catch {
-      print(error)
-    }
+    loadImage("https://picsum.photos/300/300", imageInstance: image, parent: text)
    
     text.addView(image)
     
@@ -204,9 +199,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     first.addView(first_first)
     
     
-    
-
-
     let other = mason.createTextView()
     other.updateText(" <- inserted here ->")
     
@@ -220,12 +212,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         MasonDimension.Points(300))
     }
     
-
-    do {
-      try image2.image = UIImage(data: Data(Data(contentsOf:link!)))
-    }catch {
-      print(error)
-    }
+    loadImage("https://picsum.photos/300/300", imageInstance: image2, parent: text)
    
     other.addView(image2)
 
@@ -243,6 +230,38 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
   
   }
+  
+  let urlSession: URLSession = {
+      return URLSession(configuration: .ephemeral)
+  }()
+  
+  func loadImage(_ urlAddress: String, imageInstance: UIImageView, parent: UIView? = nil) {
+        guard let url = URL(string: urlAddress) else {
+            print("Invalid URL")
+            return
+        }
+        
+        // Asynchronous network call using URLSession
+        urlSession.dataTask(with: url) { [weak self] data, response, error in
+            // Check for errors
+            if let error = error {
+                print("Error loading image: \(error.localizedDescription)")
+                return
+            }
+            
+            // Validate data and convert it into an image
+            guard let data = data, let image = UIImage(data: data) else {
+                print("Unable to load image from data")
+                return
+            }
+            
+            // Update UI on the main thread
+            DispatchQueue.main.async {
+              imageInstance.image = image
+              parent!.setNeedsDisplay()
+            }
+        }.resume() // Don't forget to start the task!
+    }
     
     
     override func viewDidLoad() {

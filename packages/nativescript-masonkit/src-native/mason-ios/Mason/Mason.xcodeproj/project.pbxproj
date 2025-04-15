@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
+		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F1046D052D8C0B8B00228EE2 /* MasonText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1046D042D8C0B8B00228EE2 /* MasonText.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
@@ -40,6 +42,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		AA904E4D2DAF0EE300F22BE4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F1848383293534D800EC35F4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F184838B293534D800EC35F4;
+			remoteInfo = Mason;
+		};
 		F1848398293534D800EC35F4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = F1848383293534D800EC35F4 /* Project object */;
@@ -69,6 +78,20 @@
 			remoteInfo = Mason;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AA904E4F2DAF0EE300F22BE4 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		F1046D042D8C0B8B00228EE2 /* MasonText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonText.swift; sourceTree = "<group>"; };
@@ -128,6 +151,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -155,6 +179,13 @@
 			path = Pods;
 			sourceTree = "<group>";
 		};
+		AA904E4A2DAF0EE300F22BE4 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		F1848382293534D800EC35F4 = {
 			isa = PBXGroup;
 			children = (
@@ -166,6 +197,7 @@
 				F18483CC2935351300EC35F4 /* MasonDemoUITests */,
 				F184838D293534D800EC35F4 /* Products */,
 				0C9E8EC0DFD2DE1A229D4FBD /* Pods */,
+				AA904E4A2DAF0EE300F22BE4 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -304,11 +336,13 @@
 				F18483A62935351200EC35F4 /* Sources */,
 				F18483A72935351200EC35F4 /* Frameworks */,
 				F18483A82935351200EC35F4 /* Resources */,
+				AA904E4F2DAF0EE300F22BE4 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				F18483ED2937115F00EC35F4 /* PBXTargetDependency */,
+				AA904E4E2DAF0EE300F22BE4 /* PBXTargetDependency */,
 			);
 			name = MasonDemo;
 			productName = MasonDemo;
@@ -528,6 +562,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		AA904E4E2DAF0EE300F22BE4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F184838B293534D800EC35F4 /* Mason */;
+			targetProxy = AA904E4D2DAF0EE300F22BE4 /* PBXContainerItemProxy */;
+		};
 		F1848399293534D800EC35F4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = F184838B293534D800EC35F4 /* Mason */;
