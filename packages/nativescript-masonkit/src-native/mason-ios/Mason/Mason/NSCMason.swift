@@ -64,6 +64,10 @@ public class NSCMason: NSObject {
     return MasonNode(mason: self, measureFunc: measure)
   }
   
+  public func printTree(_ node: MasonNode){
+    mason_print_tree(nativePtr, node.nativePtr)
+  }
+  
   public func createTextNode() -> MasonNode{
     return MasonNode(mason: self)
   }

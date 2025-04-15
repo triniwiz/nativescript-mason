@@ -1,4 +1,7 @@
-use mason_core::{AvailableSpace, Dimension, Display, FlexDirection, LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, NodeContext, Position, Rect, Size, Style};
+use mason_core::{
+    AvailableSpace, Dimension, Display, LengthPercentage, LengthPercentageAuto,
+    Mason, MeasureOutput, NodeContext, Position, Rect, Size, Style,
+};
 use rand::Rng;
 use std::ffi::{c_longlong, c_void};
 
@@ -7,13 +10,76 @@ fn main() {
     //percent_example()
     // t();
     //absolute();
-    leafTest();
+    // leafTest();
+    textText()
 }
 #[derive(Debug)]
 struct NodeData {
     id: i32,
+    text: Option<String>,
 }
 
+fn textText() {
+    let mut mason = Mason::new();
+    let mut root_style = Style::default();
+    root_style.display = Display::Block;
+    root_style.size.width = Dimension::length(600.);
+    let root = mason.create_node(None);
+
+    extern "C" fn measure_text(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let data = unsafe { &*(data as *const NodeData) };
+        println!(
+            "{:?} {:?} x {:?}  ....  {:?} x {:?}",
+            data, width, height, available_space_width, available_space_height
+        );
+        let width = data.text.as_ref().and_then(|value| Some(value.len() * 10)).unwrap_or_default();
+        MeasureOutput::make(width as f32, 1.)
+    }
+
+    let text_root = mason.create_node(None);
+    let mut text_style = Style::default();
+    text_style.display = Display::Flex;
+
+    mason.set_style(&text_root, text_style);
+
+    let first_data = NodeData {
+        id: 0,
+        text: Some("This".to_string()),
+    };
+
+    let first_context =
+        NodeContext::new(Box::into_raw(Box::new(first_data)) as _, Some(measure_text));
+    let first_text_actual_node = mason.create_node(Some(first_context));
+
+    mason.add_child(&text_root, &first_text_actual_node);
+
+    let second_data = NodeData {
+        id: 1,
+        text: Some(" is".to_string()),
+    };
+
+    let second_context =
+        NodeContext::new(Box::into_raw(Box::new(second_data)) as _, Some(measure_text));
+    let second_text_actual_node = mason.create_node(Some(second_context));
+
+    mason.add_child(&text_root, &second_text_actual_node);
+
+
+
+
+
+    mason.add_child(&root, &text_root);
+    mason.compute_wh(&root, 1000., 1000.);
+    let layout = mason.layout(&root);
+    println!("layout: {:?}", layout);
+  //  mason.print_tree(&root);
+}
 fn leafTest() {
     let mut mason = Mason::new();
 
@@ -25,11 +91,14 @@ fn leafTest() {
         available_space_height: f32,
     ) -> c_longlong {
         let data = unsafe { &*(data as *const NodeData) };
-        println!("{:?} {:?} x {:?}  ....  {:?} x {:?}", data, width, height,available_space_width, available_space_height);
+        println!(
+            "{:?} {:?} x {:?}  ....  {:?} x {:?}",
+            data, width, height, available_space_width, available_space_height
+        );
         MeasureOutput::make(100., 200.)
     }
 
-    let root_data = NodeData { id: 0 };
+    let root_data = NodeData { id: 0, text: None };
     let ctx = NodeContext::new(Box::into_raw(Box::new(root_data)) as _, Some(measure_));
     let root = mason.create_node(None);
 
@@ -38,7 +107,7 @@ fn leafTest() {
     // root_style.flex_direction = FlexDirection::Column;
     mason.set_style(&root, root_style);
 
-    let leaf_a_data = NodeData { id: 1 };
+    let leaf_a_data = NodeData { id: 1, text: None };
     let leaf_a_ctx = NodeContext::new(Box::into_raw(Box::new(leaf_a_data)) as _, Some(measure_));
     let leaf_a = mason.create_node(Some(leaf_a_ctx));
 

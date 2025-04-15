@@ -49,7 +49,11 @@ public class MasonNode: NSObject {
   public internal(set) var owner: MasonNode? = nil
   public internal(set) var children: [MasonNode] = []
   
-  var inBatch = false
+  var inBatch = false {
+    didSet {
+      style.inBatch = inBatch
+    }
+  }
   
   internal init(mason doc: NSCMason) {
     mason = doc
@@ -305,18 +309,22 @@ public class MasonNode: NSObject {
   static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
     node.layoutCache = layout
     if let view = node.data as? UIView {
-      let widthIsNan = layout.width.isNaN
+      var realLayout = layout
+      if(view is MasonText){
+        let textView = view as! MasonText
+        realLayout = textView.node.layoutCache!
+      }
+      let widthIsNan = realLayout.width.isNaN
       
-      let heightIsNan = layout.height.isNaN
+      let heightIsNan = realLayout.height.isNaN
       
+      let x = CGFloat(realLayout.x.isNaN ? 0 : realLayout.x/NSCMason.scale)
       
-      let x = CGFloat(layout.x.isNaN ? 0 : layout.x/NSCMason.scale)
+      let y = CGFloat(realLayout.y.isNaN ? 0 : realLayout.y/NSCMason.scale)
       
-      let y = CGFloat(layout.y.isNaN ? 0 : layout.y/NSCMason.scale)
+      let width = CGFloat(widthIsNan ? 0 : realLayout.width/NSCMason.scale)
       
-      let width = CGFloat(widthIsNan ? 0 : layout.width/NSCMason.scale)
-      
-      let height = CGFloat(heightIsNan ? 0 : layout.height/NSCMason.scale)
+      let height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
   
       let point = CGPoint(x: x, y: y)
       

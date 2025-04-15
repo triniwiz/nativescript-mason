@@ -107,6 +107,7 @@ public class MasonUIView: UIView, MasonView {
             node.style = newValue
         }
     }
+  
     
   public override func addSubview(_ view: UIView) {
     if(view.superview == self){

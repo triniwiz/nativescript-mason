@@ -143,14 +143,15 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
   
   func textSample(){
-    
     let text = mason.createTextView()
     text.setColor(ui: .blue)
     text.decorationLine = .Underline
     text.setDecorationColor(ui: .orange)
     text.fontStyle = .Italic
     text.fontWeight = "bold"
+    text.textWrap = .Wrap
     text.updateText("Hello World!!!!! ")
+
     
     let child = UIView()
     let node = mason.nodeForView(child)
@@ -164,7 +165,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     child.backgroundColor = .blue
     text.addView(child)
     
-    
+  
     let spacer = mason.createTextView()
     spacer.updateText(" OMG ??? ")
     spacer.textTransform = .FullWidth
@@ -202,28 +203,45 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     first.addView(first_first)
     
+    
+    
+
 
     let other = mason.createTextView()
     other.updateText(" <- inserted here ->")
+    
+    
+    
+    let image2 = UIImageView()
+    let imageNode2 = mason.nodeForView(image2)
+    imageNode2.configure { node in
+      node.style.size = MasonSize<MasonDimension>(
+        MasonDimension.Points(300),
+        MasonDimension.Points(300))
+    }
+    
+
+    do {
+      try image2.image = UIImage(data: Data(Data(contentsOf:link!)))
+    }catch {
+      print(error)
+    }
+   
+    other.addView(image2)
 
   
     text.addView(other)
     
     let con = mason.createView()
-    con.backgroundColor = .red
     con.addSubview(text)
-    con.style.setSizeHeight(MasonDimension.Percent(1))
-    
-    view.addSubview(container)
-    
     container.addSubview(con)
     
-    
+//    con.style.size =  MasonSize(MasonDimension.Points(scale * Float(container.bounds.width)), MasonDimension.Points(scale * Float(container.bounds.height)))
+  
+
     con.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
-    
-    print(con.frame)
-    
-    
+
+  
   }
     
     
@@ -240,13 +258,13 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       view.addSubview(container)
     
       
-     // textSample()
+      textSample()
         
        // flexIssue()
         
        // testLayout()
         
-        // showFlexExample()
+       //  showFlexExample()
         
    //  showGridExample()
          // animationExample()
@@ -254,7 +272,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       //  wrapper6()
         
       //  imageExample()
-      gridSample()
+    //  gridSample()
     }
     
     func imageExample(){
@@ -534,6 +552,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     let a  = mason.createTextView()
     a.text = "A"
+    a.setColor(ui: .white)
 
     a.backgroundColor = childBg
    // a.setBackgroundColor(ui: childBg!)
@@ -542,53 +561,58 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
     
     
-    let b  = mason.createView()
-    b.backgroundColor = .orange
-    let bText  = mason.createTextView()
-    bText.text = "B"
-    bText.backgroundColor = .green
+    let b  = mason.createTextView()
+    b.text = "B"
+    b.backgroundColor = childBg
+    b.setColor(ui: .white)
    // b.setBackgroundColor(ui: childBg!)
-    bText.configure { node in
+    b.configure { node in
      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
    
-    b.addSubview(bText)
-    
+  
    
     let c  = mason.createTextView()
     c.text = "C"
-    c.setBackgroundColor(ui: childBg!)
+    c.backgroundColor = childBg
+    c.setColor(ui: .white)
+   // c.setBackgroundColor(ui: childBg!)
     c.configure { node in
-   //   node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
     
     
     let d  = mason.createTextView()
-    d.text = "A"
-    d.setBackgroundColor(ui: childBg!)
+    d.text = "D"
+    d.backgroundColor = childBg
+    d.setColor(ui: .white)
+   // d.setBackgroundColor(ui: childBg!)
     d.configure { node in
-    //  node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+     node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
     
     
     let e  = mason.createTextView()
     e.text = "E"
-    e.setBackgroundColor(ui: childBg!)
+    e.backgroundColor = childBg
+    e.setColor(ui: .white)
+   // e.setBackgroundColor(ui: childBg!)
     e.configure { node in
-     // node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
    
     let f  = mason.createTextView()
     f.text = "F"
-    f.setBackgroundColor(ui: childBg!)
+    f.backgroundColor = childBg
+    f.setColor(ui: .white)
+    //f.setBackgroundColor(ui: childBg!)
     f.configure { node in
-     // node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
     
     root.addSubview(a)
     root.addSubview(b)
     root.addSubview(c)
-    
     root.addSubview(d)
     root.addSubview(e)
     root.addSubview(f)

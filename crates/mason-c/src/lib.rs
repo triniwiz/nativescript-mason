@@ -1,4 +1,4 @@
-use mason_core::{Mason, Node, Style};
+use mason_core::{Mason, Node};
 
 pub mod ffi;
 pub mod node;
@@ -6,7 +6,7 @@ pub mod style;
 pub mod util;
 
 #[derive(Debug)]
-pub struct CMason(mason_core::Mason);
+pub struct CMason(Mason);
 
 impl CMason {
     pub fn with<F>(&self, func: F)
@@ -46,6 +46,18 @@ pub extern "C" fn mason_release(mason: *mut CMason) {
     }
     unsafe {
         let _ = Box::from_raw(mason);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_print_tree(mason: *mut CMason, node: *mut CMasonNode) {
+    if mason.is_null() || node.is_null() {
+        return;
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &*node;
+        mason.0.print_tree(&node.0);
     }
 }
 

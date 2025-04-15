@@ -81,6 +81,8 @@ void mason_clear(struct CMason *mason);
 
 void mason_release(struct CMason *mason);
 
+void mason_print_tree(struct CMason *mason, struct CMasonNode *node);
+
 bool mason_node_is_equal(struct CMasonNode *node_a, struct CMasonNode *node_b);
 
 void mason_node_array_destroy(struct NodeArray *array);

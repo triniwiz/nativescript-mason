@@ -1750,10 +1750,6 @@ public enum TextTransform: Int, RawRepresentable {
 }
 
 
-
-
-
-
 @objc(FontStyle)
 public enum FontStyle: Int, RawRepresentable, CustomStringConvertible {
     case Normal
@@ -1795,6 +1791,56 @@ public enum FontStyle: Int, RawRepresentable, CustomStringConvertible {
             return "italic"
         case .Oblique:
             return "oblique"
+        }
+    }
+  
+  public var description: String {
+    return cssValue
+  }
+}
+
+
+@objc(TextWrap)
+public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
+    case NoWrap
+    case Wrap
+    case Balance
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .NoWrap:
+            return 0
+        case .Wrap:
+            return 1
+        case .Balance:
+            return 2
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+          self = .NoWrap
+        case 1:
+          self = .Wrap
+        case 2:
+          self = .Balance
+        default:
+            return nil
+        }
+    }
+      
+    var cssValue: String {
+        switch self {
+        case .NoWrap:
+            return "nowrap"
+        case .Wrap:
+            return "wrap"
+        case .Balance:
+            return "balance"
         }
     }
   

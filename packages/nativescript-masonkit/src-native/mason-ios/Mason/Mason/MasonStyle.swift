@@ -215,11 +215,14 @@ public class MasonStyle: NSObject {
     }
   }
   
-  public var display =  Display.Block {
-    didSet {
+  public var display: Display {
+    get {
+      return Display(rawValue: values.bytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self).pointee)!
+    }
+    set {
       let value = values.mutableBytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self)
       
-      value.pointee = Int32(display.rawValue)
+      value.pointee = Int32(newValue.rawValue)
       
       setOrAppendState(StateKeys.display)
     }
@@ -249,11 +252,15 @@ public class MasonStyle: NSObject {
     }
   }
   
-  public var flexDirection = FlexDirection.Row{
-    didSet {
+  public var flexDirection: FlexDirection {
+    get {
+      let value = values.bytes.advanced(by: Int(StyleKeys.FLEX_DIRECTION)).assumingMemoryBound(to: Int32.self)
+      return FlexDirection(rawValue: value.pointee)!
+    }
+    set {
       let value = values.mutableBytes.advanced(by: Int(StyleKeys.FLEX_DIRECTION)).assumingMemoryBound(to: Int32.self)
       
-      value.pointee = Int32(flexDirection.rawValue)
+      value.pointee = Int32(newValue.rawValue)
       
       setOrAppendState(StateKeys.flexDirection)
     }
