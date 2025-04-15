@@ -232,10 +232,21 @@ export class Style {
         const textBuffer = (<any>ArrayBuffer).from(textStyleBuffer);
         ret.text_style_view = new DataView(textBuffer);
       }
-    } else if (__IOS__) {
-      //
-    } else {
-      //
+    } else if (__APPLE__) {
+      const style = (nativeView as MasonText).style;
+      if (!isText) {
+        const styleBuffer = style.values;
+        const buffer = interop.bufferFromData(styleBuffer);
+        ret.style_view = new DataView(buffer);
+      } else {
+        const styleBuffer = style.values;
+        const buffer = interop.bufferFromData(styleBuffer);
+        ret.style_view = new DataView(buffer);
+
+        const textStyleBuffer = (nativeView as MasonText).textValues;
+        const textBuffer = interop.bufferFromData(textStyleBuffer);
+        ret.text_style_view = new DataView(textBuffer);
+      }
     }
     //console.timeEnd('fromView');
 

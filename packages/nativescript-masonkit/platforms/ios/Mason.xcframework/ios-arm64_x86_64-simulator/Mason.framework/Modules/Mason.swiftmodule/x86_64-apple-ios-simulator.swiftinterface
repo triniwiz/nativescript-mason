@@ -195,6 +195,10 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc @_Concurrency.MainActor @preconcurrency public func markNodeDirty()
   @objc @_Concurrency.MainActor @preconcurrency public func isNodeDirty() -> Swift.Bool
   @objc @_Concurrency.MainActor @preconcurrency public func configure(_ block: (Mason.MasonNode) -> Swift.Void)
+  @objc @_Concurrency.MainActor @preconcurrency public var textValues: Foundation.NSMutableData {
+    @objc get
+    @objc set
+  }
   @objc @_Concurrency.MainActor @preconcurrency public func updateText(_ value: Swift.String?)
   @objc @_Concurrency.MainActor @preconcurrency public var font: UIKit.UIFont {
     get
@@ -415,6 +419,10 @@ public let MasonDimensionRectZero: Mason.MasonRect<Mason.MasonDimension>
 public let MasonLengthPercentageAutoRectZero: Mason.MasonRect<Mason.MasonLengthPercentageAuto>
 public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPercentage>
 @objc(MasonStyle) @objcMembers public class MasonStyle : ObjectiveC.NSObject {
+  @objc public var values: Foundation.NSMutableData {
+    @objc get
+    @objc set
+  }
   @objc public init(node: Mason.MasonNode)
   @objc public var display: Mason.Display {
     @objc get

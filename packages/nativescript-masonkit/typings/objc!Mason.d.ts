@@ -645,6 +645,8 @@ declare class MasonStyle extends NSObject {
 
 	textAlign: MasonTextAlign;
 
+	readonly values: NSMutableData;
+
 	constructor(o: { node: MasonNode; });
 
 	initWithNode(node: MasonNode): this;
@@ -756,6 +758,8 @@ declare class MasonText extends UIView {
 	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonText; // inherited from UIAppearance
 
 	static new(): MasonText; // inherited from NSObject
+
+	readonly textValues: NSMutableData;
 
 	backgroundColorValue: number;
 

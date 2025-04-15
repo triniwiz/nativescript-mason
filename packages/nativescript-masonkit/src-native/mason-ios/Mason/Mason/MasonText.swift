@@ -273,7 +273,7 @@ public class MasonText: UIView, MasonView {
   }
   
   
-  lazy var textValues: NSMutableData = {
+  public lazy var textValues: NSMutableData = {
     let data = NSMutableData(length: Int(TextStyleKeys.TEXT_WRAP) + 4)!
     var pointer = data.mutableBytes
     

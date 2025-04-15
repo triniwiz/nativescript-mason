@@ -187,7 +187,7 @@ public class MasonStyle: NSObject {
   let node: MasonNode
   var inBatch = false
   
-  lazy var values: NSMutableData = {
+  public lazy var values: NSMutableData = {
     let buffer = mason_style_get_style_buffer(node.mason.nativePtr, node.nativePtr)
     guard let buffer else {
       // todo

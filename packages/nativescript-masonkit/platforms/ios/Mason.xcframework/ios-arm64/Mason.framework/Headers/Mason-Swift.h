@@ -638,6 +638,7 @@ SWIFT_CLASS_NAMED("MasonNode")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class NSMutableData;
 enum Position : NSInteger;
 enum Overflow : NSInteger;
 enum MasonTextAlign : NSInteger;
@@ -645,6 +646,7 @@ enum MasonTextAlign : NSInteger;
 @class TrackSizingFunction;
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
+@property (nonatomic, strong) NSMutableData * _Nonnull values;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)node OBJC_DESIGNATED_INITIALIZER;
 @property (nonatomic) enum Display display;
 @property (nonatomic) enum Position position;
@@ -742,6 +744,7 @@ SWIFT_CLASS_NAMED("MasonText")
 - (void)markNodeDirty;
 - (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
 - (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
+@property (nonatomic, strong) NSMutableData * _Nonnull textValues;
 - (void)updateText:(NSString * _Nullable)value;
 @property (nonatomic, readonly, strong) UIFont * _Nonnull font;
 @property (nonatomic) enum TextTransform textTransform;
