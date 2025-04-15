@@ -299,9 +299,9 @@ export class Text extends TextBase {
   }
 
   loadPtrs() {
-    const ptrs = this.ios?.getMasonPtrs().split(':');
-    this[mason] = BigInt(ptrs[0]);
-    this[node] = BigInt(ptrs[1]);
+    // const ptrs = this.ios?.getMasonPtrs().split(':');
+    // this[mason] = BigInt(ptrs[0]);
+    // this[node] = BigInt(ptrs[1]);
   }
 
   get _masonNodePtr() {

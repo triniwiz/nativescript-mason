@@ -113,6 +113,7 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   name: 'maxWidth',
   cssName: 'max-width',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
 });
 
@@ -120,6 +121,7 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   name: 'maxHeight',
   cssName: 'max-height',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
 });
 
@@ -144,6 +146,7 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   name: 'left',
   cssName: 'left',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
 });
 
@@ -151,6 +154,7 @@ export const rightProperty = new CssProperty<Style, LengthAuto>({
   name: 'right',
   cssName: 'right',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
 });
 
@@ -158,6 +162,7 @@ export const topProperty = new CssProperty<Style, LengthAuto>({
   name: 'top',
   cssName: 'top',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
 });
 
@@ -165,6 +170,7 @@ export const bottomProperty = new CssProperty<Style, LengthAuto>({
   name: 'bottom',
   cssName: 'bottom',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
 });
 
