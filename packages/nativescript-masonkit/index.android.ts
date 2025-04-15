@@ -1,13 +1,7 @@
 import { backgroundColorProperty, Color, colorProperty, Utils } from '@nativescript/core';
-import { TextBase, ViewBase, mason, node, style_, textProperty } from './common';
+import { TextBase, ViewBase, mason, node, style_, textProperty, MasonChild } from './common';
 import { Style } from './style';
 const BigIntZero = BigInt(0);
-
-interface MasonChild extends ViewBase {
-  _isMasonChild: boolean;
-  _masonParent: ViewBase;
-  _hasNativeView: boolean;
-}
 
 export class Tree {
   _base: org.nativescript.mason.masonkit.Mason;

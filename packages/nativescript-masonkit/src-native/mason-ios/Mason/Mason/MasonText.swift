@@ -959,7 +959,7 @@ public class MasonText: UIView, MasonView {
     return (attachment, attrString)
   }
   
-  public func addView(_ view: UIView) {
+  public func addView(_ view: UIView, _ index: Int = -1) {
     guard !children.contains(where: { $0.view === view }) else { return }
     
     let top = self.root
@@ -985,6 +985,7 @@ public class MasonText: UIView, MasonView {
         attachment: nil
       ))
       
+      // Note: Osei to add index handling for children based on 2nd argument
       node.addChild(textView.node)
       
       top.invalidate()

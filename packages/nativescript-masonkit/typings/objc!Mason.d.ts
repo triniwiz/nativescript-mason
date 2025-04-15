@@ -69,69 +69,11 @@ declare const enum AvailableSpace_Tag {
 	MaxContent = 2
 }
 
-interface CMasonDimension {
-	value: number;
-	value_type: CMasonDimensionType;
+interface CMasonBuffer {
+	data: interop.Pointer | interop.Reference<any>;
+	size: number;
 }
-declare const CMasonDimension: interop.StructType<CMasonDimension>;
-
-declare const enum CMasonDimensionType {
-
-	MasonDimensionAuto = 0,
-
-	MasonDimensionPoints = 1,
-
-	MasonDimensionPercent = 2
-}
-
-interface CMasonGridPlacement {
-	value: number;
-	value_type: CMasonGridPlacementType;
-}
-declare const CMasonGridPlacement: interop.StructType<CMasonGridPlacement>;
-
-declare const enum CMasonGridPlacementType {
-
-	MasonGridPlacementTypeAuto = 0,
-
-	MasonGridPlacementTypeLine = 1,
-
-	MasonGridPlacementTypeSpan = 2
-}
-
-interface CMasonLengthPercentage {
-	value: number;
-	value_type: CMasonLengthPercentageType;
-}
-declare const CMasonLengthPercentage: interop.StructType<CMasonLengthPercentage>;
-
-interface CMasonLengthPercentageAuto {
-	value: number;
-	value_type: CMasonLengthPercentageAutoType;
-}
-declare const CMasonLengthPercentageAuto: interop.StructType<CMasonLengthPercentageAuto>;
-
-declare const enum CMasonLengthPercentageAutoType {
-
-	MasonLengthPercentageAutoAuto = 0,
-
-	MasonLengthPercentageAutoPoints = 1,
-
-	MasonLengthPercentageAutoPercent = 2
-}
-
-interface CMasonLengthPercentageSize {
-	width: CMasonLengthPercentage;
-	height: CMasonLengthPercentage;
-}
-declare const CMasonLengthPercentageSize: interop.StructType<CMasonLengthPercentageSize>;
-
-declare const enum CMasonLengthPercentageType {
-
-	MasonLengthPercentagePoints = 0,
-
-	MasonLengthPercentagePercent = 1
-}
+declare var CMasonBuffer: interop.StructType<CMasonBuffer>;
 
 interface CMasonMinMax {
 	min_type: number;
@@ -139,19 +81,30 @@ interface CMasonMinMax {
 	max_type: number;
 	max_value: number;
 }
-declare const CMasonMinMax: interop.StructType<CMasonMinMax>;
+declare var CMasonMinMax: interop.StructType<CMasonMinMax>;
 
 interface CMasonNonRepeatedTrackSizingFunctionArray {
 	array: interop.Pointer | interop.Reference<CMasonMinMax>;
 	length: number;
 }
-declare const CMasonNonRepeatedTrackSizingFunctionArray: interop.StructType<CMasonNonRepeatedTrackSizingFunctionArray>;
+declare var CMasonNonRepeatedTrackSizingFunctionArray: interop.StructType<CMasonNonRepeatedTrackSizingFunctionArray>;
 
 declare const enum CMasonTrackSizingFunction_Tag {
 
 	Single = 0,
 
 	Repeat = 1
+}
+
+declare const enum DecorationLine {
+
+	None = 0,
+
+	Underline = 1,
+
+	Overline = 2,
+
+	LineThrough = 3
 }
 
 declare const enum Direction {
@@ -203,6 +156,15 @@ declare const enum FlexWrap {
 	Wrap = 1,
 
 	WrapReverse = 2
+}
+
+declare const enum FontStyle {
+
+	Normal = 0,
+
+	Italic = 1,
+
+	Oblique = 2
 }
 
 declare class GridPlacementCompat extends NSObject {
@@ -326,6 +288,13 @@ declare class LineGridPlacementCompat extends NSObject {
 	readonly end: GridPlacementCompat;
 
 	readonly start: GridPlacementCompat;
+}
+
+declare const enum MasonBoxSizing {
+
+	BorderBox = 0,
+
+	ContentBox = 1
 }
 
 declare class MasonDimensionCompat extends NSObject {
@@ -551,13 +520,7 @@ declare class MasonNode extends NSObject {
 
 	data: any;
 
-	includeInLayout: boolean;
-
 	readonly isDirty: boolean;
-
-	isEnabled: boolean;
-
-	readonly isLeaf: boolean;
 
 	readonly nativePtr: interop.Pointer | interop.Reference<any>;
 
@@ -565,9 +528,7 @@ declare class MasonNode extends NSObject {
 
 	style: MasonStyle;
 
-	constructor(o: { style: MasonStyle; });
-
-	constructor(o: { style: MasonStyle; children: NSArray<MasonNode> | MasonNode[]; });
+	constructor(o: { mason: NSCMason; children: NSArray<MasonNode> | MasonNode[]; });
 
 	addChildren(children: NSArray<MasonNode> | MasonNode[]): void;
 
@@ -593,272 +554,13 @@ declare class MasonNode extends NSObject {
 
 	getRoot(): MasonNode;
 
-	initWithStyle(style: MasonStyle): this;
-
-	initWithStyleChildren(style: MasonStyle, children: NSArray<MasonNode> | MasonNode[]): this;
+	initWithMasonChildren(doc: NSCMason, nodes: NSArray<MasonNode> | MasonNode[]): this;
 
 	layout(): MasonLayout;
 
 	markDirty(): void;
 
-	rootCompute(): void;
-
-	rootComputeMaxContent(): void;
-
-	rootComputeMinContent(): void;
-
-	rootComputeWithMaxContent(): void;
-
-	rootComputeWithViewSize(): void;
-
-	rootComputeWithViewSizeWithLayout(layout: boolean): void;
-
-	setChildrenWithChildren(children: NSArray<MasonNode> | MasonNode[]): void;
-
-	updateNodeStyle(): void;
-}
-
-declare class MasonReexports extends NSObject {
-
-	static alloc(): MasonReexports; // inherited from NSObject
-
-	static destroyWithNonRepeatedTrackSizingFunctionArray(nonRepeatedTrackSizingFunctionArray: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
-
-	static new(): MasonReexports; // inherited from NSObject
-
-	static node_compute(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
-
-	static node_compute_max_content(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
-
-	static node_compute_min_content(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
-
-	static node_compute_whWidthHeight(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, width: number, height: number): void;
-
-	static node_dirty(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): boolean;
-
-	static node_mark_dirty(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
-
-	static node_set_style(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, style: interop.Pointer | interop.Reference<any>): void;
-
-	static style_get_align_content(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_align_items(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_align_self(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_aspect_ratio(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_border_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_border_left(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_border_right(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_border_top(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_column_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_direction(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_display(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_flex_basis(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-	static style_get_flex_direction(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_flex_grow(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_flex_shrink(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_flex_wrap(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageSize;
-
-	static style_get_grid_auto_columns(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
-
-	static style_get_grid_auto_flow(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_grid_auto_rows(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
-
-	static style_get_grid_column_end(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
-
-	static style_get_grid_column_start(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
-
-	static style_get_grid_row_end(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
-
-	static style_get_grid_row_start(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
-
-	static style_get_height(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-	static style_get_inset_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-	static style_get_inset_left(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-	static style_get_inset_right(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-	static style_get_inset_top(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-	static style_get_justify_content(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_justify_items(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_justify_self(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_margin_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-	static style_get_margin_left(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-	static style_get_margin_right(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-	static style_get_margin_top(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-	static style_get_max_height(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-	static style_get_max_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-	static style_get_min_height(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-	static style_get_min_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-	static style_get_overflow_x(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_overflow_y(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_padding_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_padding_left(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_padding_right(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_padding_top(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_position(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_row_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-	static style_get_scrollbar_width(style: interop.Pointer | interop.Reference<any>): number;
-
-	static style_get_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-	static style_set_align_content(style: interop.Pointer | interop.Reference<any>, align_content: number): void;
-
-	static style_set_align_items(style: interop.Pointer | interop.Reference<any>, align_items: number): void;
-
-	static style_set_align_self(style: interop.Pointer | interop.Reference<any>, align_self: number): void;
-
-	static style_set_aspect_ratio(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-	static style_set_border(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_border_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_border_left(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_border_right(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_border_top(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_column_gap(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_direction(style: interop.Pointer | interop.Reference<any>, direction: number): void;
-
-	static style_set_display(style: interop.Pointer | interop.Reference<any>, display: number): void;
-
-	static style_set_flex_basis(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-	static style_set_flex_direction(style: interop.Pointer | interop.Reference<any>, flex_direction: number): void;
-
-	static style_set_flex_grow(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-	static style_set_flex_shrink(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-	static style_set_flex_wrap(style: interop.Pointer | interop.Reference<any>, flex_wrap: number): void;
-
-	static style_set_gap(style: interop.Pointer | interop.Reference<any>, width_value: number, width_type: CMasonLengthPercentageType, height_value: number, height_type: CMasonLengthPercentageType): void;
-
-	static style_set_grid_area(style: interop.Pointer | interop.Reference<any>, row_start: CMasonGridPlacement, row_end: CMasonGridPlacement, column_start: CMasonGridPlacement, column_end: CMasonGridPlacement): void;
-
-	static style_set_grid_auto_columns(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
-
-	static style_set_grid_auto_flow(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-	static style_set_grid_auto_rows(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
-
-	static style_set_grid_column(style: interop.Pointer | interop.Reference<any>, start: CMasonGridPlacement, end: CMasonGridPlacement): void;
-
-	static style_set_grid_column_end(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
-
-	static style_set_grid_column_start(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
-
-	static style_set_grid_row(style: interop.Pointer | interop.Reference<any>, start: CMasonGridPlacement, end: CMasonGridPlacement): void;
-
-	static style_set_grid_row_end(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
-
-	static style_set_grid_row_start(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
-
-	static style_set_height(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-	static style_set_inset(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_inset_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_inset_left(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_inset_right(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_inset_top(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_justify_content(style: interop.Pointer | interop.Reference<any>, justify_content: number): void;
-
-	static style_set_justify_items(style: interop.Pointer | interop.Reference<any>, align_items: number): void;
-
-	static style_set_justify_self(style: interop.Pointer | interop.Reference<any>, align_self: number): void;
-
-	static style_set_margin(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_margin_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_margin_left(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_margin_right(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_margin_top(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-	static style_set_max_height(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-	static style_set_max_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-	static style_set_min_height(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-	static style_set_min_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-	static style_set_overflow(style: interop.Pointer | interop.Reference<any>, overflow: number): void;
-
-	static style_set_overflow_x(style: interop.Pointer | interop.Reference<any>, overflow: number): void;
-
-	static style_set_overflow_y(style: interop.Pointer | interop.Reference<any>, overflow: number): void;
-
-	static style_set_padding(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_padding_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_padding_left(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_padding_right(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_padding_top(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_position(style: interop.Pointer | interop.Reference<any>, position: number): void;
-
-	static style_set_row_gap(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-	static style_set_scrollbar_width(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-	static style_set_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-	static util_create_non_repeated_track_sizing_function_with_type_value(track_type: number, track_value: number): CMasonMinMax;
-
-	static util_parse_non_repeated_track_sizing_function(value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): string;
+	setChildrenWithValue(value: NSArray<MasonNode> | MasonNode[]): void;
 }
 
 declare class MasonStyle extends NSObject {
@@ -874,6 +576,8 @@ declare class MasonStyle extends NSObject {
 	alignSelf: AlignSelf;
 
 	borderCompat: MasonLengthPercentageRectCompat;
+
+	boxSizing: MasonBoxSizing;
 
 	direction: Direction;
 
@@ -925,10 +629,6 @@ declare class MasonStyle extends NSObject {
 
 	minSizeCompat: MasonDimensionSizeCompat;
 
-	readonly nativePtr: interop.Pointer | interop.Reference<any>;
-
-	overflow: Overflow;
-
 	overflowX: Overflow;
 
 	overflowY: Overflow;
@@ -942,6 +642,12 @@ declare class MasonStyle extends NSObject {
 	sizeCompatHeight: MasonDimensionCompat;
 
 	sizeCompatWidth: MasonDimensionCompat;
+
+	textAlign: MasonTextAlign;
+
+	constructor(o: { node: MasonNode; });
+
+	initWithNode(node: MasonNode): this;
 
 	setBorderBottom(value: number, type: number): void;
 
@@ -1012,11 +718,378 @@ declare class MasonStyle extends NSObject {
 	setSizeWidth(value: number, type: number): void;
 
 	setSizeWidthHeight(value: number, type: number): void;
+
+	updateNativeStyle(): void;
 }
 
-declare const MasonVersionNumber: number;
+declare class MasonText extends UIView {
 
-declare const MasonVersionString: interop.Reference<number>;
+	static alloc(): MasonText; // inherited from NSObject
+
+	static appearance(): MasonText; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 */
+	static appearanceForTraitCollection(trait: UITraitCollection): MasonText; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 * @deprecated 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonText; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonText; // inherited from UIAppearance
+
+	/**
+	 * @since 5.0
+	 * @deprecated 9.0
+	 */
+	static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonText; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonText; // inherited from UIAppearance
+
+	static new(): MasonText; // inherited from NSObject
+
+	backgroundColorValue: number;
+
+	color: number;
+
+	decorationColor: number;
+
+	decorationLine: DecorationLine;
+
+	readonly font: UIFont;
+
+	fontSize: number;
+
+	fontStyle: FontStyle;
+
+	fontWeight: string;
+
+	readonly node: MasonNode;
+
+	readonly owner: MasonText;
+
+	readonly style: MasonStyle;
+
+	text: string;
+
+	textTransform: TextTransform;
+
+	textWrap: TextWrap;
+
+	readonly uiView: UIView;
+
+	constructor(o: { mason: NSCMason; });
+
+	constructor(o: { node: MasonNode; });
+
+	addView(view: UIView, index: number): void;
+
+	configure(block: (p1: MasonNode) => void): void;
+
+	initWithMason(mason: NSCMason): this;
+
+	initWithNode(masonNode: MasonNode): this;
+
+	isNodeDirty(): boolean;
+
+	markNodeDirty(): void;
+
+	setBackgroundColorWithUi(color: UIColor): void;
+
+	setColorWithUi(color: UIColor): void;
+
+	setDecorationColorWithUi(color: UIColor): void;
+
+	setFontStyleSlant(style: FontStyle, slant: number): void;
+
+	updateText(value: string): void;
+}
+
+declare const enum MasonTextAlign {
+
+	Auto = 0,
+
+	Left = 1,
+
+	Right = 2,
+
+	Center = 3,
+
+	Justify = 4,
+
+	Start = 5,
+
+	End = 6
+}
+
+declare class MasonUIView extends UIView {
+
+	static alloc(): MasonUIView; // inherited from NSObject
+
+	static appearance(): MasonUIView; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 */
+	static appearanceForTraitCollection(trait: UITraitCollection): MasonUIView; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 * @deprecated 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonUIView; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonUIView; // inherited from UIAppearance
+
+	/**
+	 * @since 5.0
+	 * @deprecated 9.0
+	 */
+	static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonUIView; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonUIView; // inherited from UIAppearance
+
+	static createBlockView(mason: NSCMason): MasonUIView;
+
+	static createFlexView(mason: NSCMason): MasonUIView;
+
+	static createGridView(mason: NSCMason): MasonUIView;
+
+	static new(): MasonUIView; // inherited from NSObject
+
+	_position: Position;
+
+	alignContent: AlignContent;
+
+	alignItems: AlignItems;
+
+	alignSelf: AlignSelf;
+
+	aspectRatio: number;
+
+	direction: Direction;
+
+	display: Display;
+
+	flexBasisCompat: MasonDimensionCompat;
+
+	flexDirection: FlexDirection;
+
+	flexGrow: number;
+
+	flexShrink: number;
+
+	flexWrap: FlexWrap;
+
+	gridAutoColumns: NSArray<MinMax>;
+
+	gridAutoFlow: FlexGridAutoFlowWrap;
+
+	gridAutoRows: NSArray<MinMax>;
+
+	gridColumnCompat: LineGridPlacementCompat;
+
+	gridColumnEndCompat: GridPlacementCompat;
+
+	gridColumnStartCompat: GridPlacementCompat;
+
+	gridRowCompat: LineGridPlacementCompat;
+
+	gridRowEndCompat: GridPlacementCompat;
+
+	gridRowStartCompat: GridPlacementCompat;
+
+	gridTemplateColumns: NSArray<TrackSizingFunction>;
+
+	gridTemplateRows: NSArray<TrackSizingFunction>;
+
+	inBatch: boolean;
+
+	justifyContent: JustifyContent;
+
+	justifyItems: JustifyItems;
+
+	justifySelf: JustifySelf;
+
+	readonly mason: NSCMason;
+
+	readonly masonNodePtr: number;
+
+	readonly masonPtr: number;
+
+	readonly masonPtrs: string;
+
+	readonly node: MasonNode;
+
+	overflowX: Overflow;
+
+	overflowY: Overflow;
+
+	scrollBarWidthCompat: MasonDimensionCompat;
+
+	style: MasonStyle;
+
+	readonly uiView: UIView;
+
+	addSubviews(views: NSArray<UIView> | UIView[]): void;
+
+	addSubviewsAt(views: NSArray<UIView> | UIView[], index: number): void;
+
+	configure(block: (p1: MasonNode) => void): void;
+
+	getBorder(): MasonLengthPercentageRectCompat;
+
+	getBorderBottom(): MasonLengthPercentageCompat;
+
+	getBorderLeft(): MasonLengthPercentageCompat;
+
+	getBorderRight(): MasonLengthPercentageCompat;
+
+	getBorderTop(): MasonLengthPercentageCompat;
+
+	getColumnGap(): MasonLengthPercentageCompat;
+
+	getGap(): MasonLengthPercentageSizeCompat;
+
+	getInset(): MasonLengthPercentageAutoRectCompat;
+
+	getInsetBottom(): MasonLengthPercentageAutoCompat;
+
+	getInsetLeft(): MasonLengthPercentageAutoCompat;
+
+	getInsetRight(): MasonLengthPercentageAutoCompat;
+
+	getInsetTop(): MasonLengthPercentageAutoCompat;
+
+	getMargin(): MasonLengthPercentageAutoRectCompat;
+
+	getMarginBottom(): MasonLengthPercentageAutoCompat;
+
+	getMarginLeft(): MasonLengthPercentageAutoCompat;
+
+	getMarginRight(): MasonLengthPercentageAutoCompat;
+
+	getMarginTop(): MasonLengthPercentageAutoCompat;
+
+	getMaxSize(): MasonDimensionSizeCompat;
+
+	getMaxSizeHeight(): MasonDimensionCompat;
+
+	getMaxSizeWidth(): MasonDimensionCompat;
+
+	getMinSize(): MasonDimensionSizeCompat;
+
+	getMinSizeHeight(): MasonDimensionCompat;
+
+	getMinSizeWidth(): MasonDimensionCompat;
+
+	getPadding(): MasonLengthPercentageRectCompat;
+
+	getPaddingBottom(): MasonLengthPercentageCompat;
+
+	getPaddingLeft(): MasonLengthPercentageCompat;
+
+	getPaddingRight(): MasonLengthPercentageCompat;
+
+	getPaddingTop(): MasonLengthPercentageCompat;
+
+	getRowGap(): MasonLengthPercentageCompat;
+
+	getSize(): MasonDimensionSizeCompat;
+
+	getSizeHeight(): MasonDimensionCompat;
+
+	getSizeWidth(): MasonDimensionCompat;
+
+	isNodeDirty(): boolean;
+
+	markNodeDirty(): void;
+
+	setBorder(left: number, top: number, right: number, bottom: number): void;
+
+	setBorderBottom(bottom: number, type: number): void;
+
+	setBorderLeft(left: number, type: number): void;
+
+	setBorderRight(right: number, type: number): void;
+
+	setBorderTop(top: number, type: number): void;
+
+	setColumnGap(column: number, type: number): void;
+
+	setGap(width: number, height: number): void;
+
+	setGapWithWidthHeightType(width: number, width_type: number, height: number, height_type: number): void;
+
+	setInset(left: number, top: number, right: number, bottom: number): void;
+
+	setInsetBottom(bottom: number, type: number): void;
+
+	setInsetLeft(left: number, type: number): void;
+
+	setInsetRight(right: number, type: number): void;
+
+	setInsetTop(top: number, type: number): void;
+
+	setMargin(left: number, top: number, right: number, bottom: number): void;
+
+	setMarginBottom(bottom: number, type: number): void;
+
+	setMarginLeft(left: number, type: number): void;
+
+	setMarginRight(right: number, type: number): void;
+
+	setMarginTop(top: number, type: number): void;
+
+	setMaxSize(width: number, height: number): void;
+
+	setMaxSizeHeight(height: number, type: number): void;
+
+	setMaxSizeWidth(width: number, type: number): void;
+
+	setMinSize(width: number, height: number): void;
+
+	setMinSizeHeight(height: number, type: number): void;
+
+	setMinSizeWidth(width: number, type: number): void;
+
+	setPadding(left: number, right: number, top: number, bottom: number): void;
+
+	setPaddingBottom(bottom: number, type: number): void;
+
+	setPaddingLeft(left: number, type: number): void;
+
+	setPaddingRight(right: number, type: number): void;
+
+	setPaddingTop(top: number, type: number): void;
+
+	setRowGap(row: number, type: number): void;
+
+	setSize(width: number, height: number): void;
+
+	setSizeHeight(height: number, type: number): void;
+
+	setSizeWidth(width: number, type: number): void;
+}
+
+declare var MasonVersionNumber: number;
+
+declare var MasonVersionString: interop.Reference<number>;
 
 declare class MaxSizing extends NSObject {
 
@@ -1112,26 +1185,30 @@ declare class NSCMason extends NSObject {
 
 	static new(): NSCMason; // inherited from NSObject
 
-	static setAlwaysEnable(value: boolean): void;
-
-	static setShared(value: boolean): void;
-
 	readonly nativePtr: interop.Pointer | interop.Reference<any>;
-
-	static alwaysEnable: boolean;
 
 	static readonly instance: NSCMason;
 
-	static shared: boolean;
-
 	clear(): void;
+
+	createNode(): MasonNode;
+
+	createTextNode(): MasonNode;
+
+	createTextView(): MasonText;
+
+	createView(): MasonUIView;
+
+	nodeForView(view: UIView, isLeaf: boolean): MasonNode;
+
+	printTree(node: MasonNode): void;
 }
 
 interface NodeArray {
 	array: interop.Pointer | interop.Reference<interop.Pointer | interop.Reference<any>>;
 	length: number;
 }
-declare const NodeArray: interop.StructType<NodeArray>;
+declare var NodeArray: interop.StructType<NodeArray>;
 
 declare const enum Overflow {
 
@@ -1156,7 +1233,33 @@ interface Repeat_Body {
 	_1: number;
 	_2: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 }
-declare const Repeat_Body: interop.StructType<Repeat_Body>;
+declare var Repeat_Body: interop.StructType<Repeat_Body>;
+
+declare const enum TextTransform {
+
+	None = 0,
+
+	Capitalize = 1,
+
+	Uppercase = 2,
+
+	Lowercase = 3,
+
+	FullWidth = 4,
+
+	FullSizeKana = 5,
+
+	MathAuto = 6
+}
+
+declare const enum TextWrap {
+
+	NoWrap = 0,
+
+	Wrap = 1,
+
+	Balance = 2
+}
 
 declare class TrackSizingFunction extends NSObject {
 
@@ -1175,13 +1278,9 @@ declare class TrackSizingFunction extends NSObject {
 
 declare function mason_clear(mason: interop.Pointer | interop.Reference<any>): void;
 
-declare function mason_destroy(mason: interop.Pointer | interop.Reference<any>): void;
-
 declare function mason_destroy_non_repeated_track_sizing_function_array(array: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
 
 declare function mason_init(): interop.Pointer | interop.Reference<any>;
-
-declare function mason_init_with_capacity(capacity: number): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_add_child(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>): void;
 
@@ -1219,11 +1318,11 @@ declare function mason_node_layout(mason: interop.Pointer | interop.Reference<an
 
 declare function mason_node_mark_dirty(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
 
-declare function mason_node_new_node(mason: interop.Pointer | interop.Reference<any>, style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
+declare function mason_node_new_node(mason: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
 
-declare function mason_node_new_node_with_children(mason: interop.Pointer | interop.Reference<any>, style: interop.Pointer | interop.Reference<any>, children: interop.Pointer | interop.Reference<interop.Pointer | interop.Reference<any>>, children_size: number): interop.Pointer | interop.Reference<any>;
+declare function mason_node_new_node_with_children(mason: interop.Pointer | interop.Reference<any>, children: interop.Pointer | interop.Reference<interop.Pointer | interop.Reference<any>>, children_size: number): interop.Pointer | interop.Reference<any>;
 
-declare function mason_node_new_node_with_context(mason: interop.Pointer | interop.Reference<any>, style: interop.Pointer | interop.Reference<any>, measure_data: interop.Pointer | interop.Reference<any>, measure: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<any>, p2: number, p3: number, p4: number, p5: number) => number>): interop.Pointer | interop.Reference<any>;
+declare function mason_node_new_node_with_context(mason: interop.Pointer | interop.Reference<any>, measure_data: interop.Pointer | interop.Reference<any>, measure: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<any>, p2: number, p3: number, p4: number, p5: number) => number>): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_remove_child(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
 
@@ -1239,238 +1338,30 @@ declare function mason_node_set_children(mason: interop.Pointer | interop.Refere
 
 declare function mason_node_set_context(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, measure_data: interop.Pointer | interop.Reference<any>, measure: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<any>, p2: number, p3: number, p4: number, p5: number) => number>): void;
 
-declare function mason_node_set_style(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, style: interop.Pointer | interop.Reference<any>): void;
+declare function mason_print_tree(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
 
-declare function mason_node_update_and_set_style(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, style: interop.Pointer | interop.Reference<any>): void;
+declare function mason_release(mason: interop.Pointer | interop.Reference<any>): void;
 
-declare function mason_node_update_set_style_compute_and_layout(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, style: interop.Pointer | interop.Reference<any>, layout: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<number>) => interop.Pointer | interop.Reference<any>>): interop.Pointer | interop.Reference<any>;
+declare function mason_style_get_grid_auto_columns(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 
-declare function mason_node_update_set_style_compute_with_size_and_layout(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, style: interop.Pointer | interop.Reference<any>, width: number, height: number, layout: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<number>) => interop.Pointer | interop.Reference<any>>): interop.Pointer | interop.Reference<any>;
+declare function mason_style_get_grid_auto_rows(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 
-declare function mason_style_destroy(style: interop.Pointer | interop.Reference<any>): void;
+declare function mason_style_get_style_buffer(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonBuffer>;
 
-declare function mason_style_get_align_content(style: interop.Pointer | interop.Reference<any>): number;
+declare function mason_style_release_style_buffer(buffer: interop.Pointer | interop.Reference<CMasonBuffer>): void;
 
-declare function mason_style_get_align_items(style: interop.Pointer | interop.Reference<any>): number;
+declare function mason_style_set_grid_auto_columns(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
 
-declare function mason_style_get_align_self(style: interop.Pointer | interop.Reference<any>): number;
+declare function mason_style_set_grid_auto_rows(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
 
-declare function mason_style_get_aspect_ratio(style: interop.Pointer | interop.Reference<any>): number;
+declare function mason_style_sync_compute_and_layout(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, data: string | interop.Pointer | interop.Reference<any>, size: number, state: number, layout: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<number>) => interop.Pointer | interop.Reference<any>>): interop.Pointer | interop.Reference<any>;
 
-declare function mason_style_get_border_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
+declare function mason_style_sync_style(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, state: number): void;
 
-declare function mason_style_get_border_left(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-declare function mason_style_get_border_right(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-declare function mason_style_get_border_top(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-declare function mason_style_get_column_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-declare function mason_style_get_direction(_style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_display(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_flex_basis(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-declare function mason_style_get_flex_direction(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_flex_grow(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_flex_shrink(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_flex_wrap(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageSize;
-
-declare function mason_style_get_grid_auto_columns(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
-
-declare function mason_style_get_grid_auto_flow(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_grid_auto_rows(style: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
-
-declare function mason_style_get_grid_column_end(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
-
-declare function mason_style_get_grid_column_start(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
-
-declare function mason_style_get_grid_row_end(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
-
-declare function mason_style_get_grid_row_start(style: interop.Pointer | interop.Reference<any>): CMasonGridPlacement;
-
-declare function mason_style_get_height(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-declare function mason_style_get_inset_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-declare function mason_style_get_inset_left(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-declare function mason_style_get_inset_right(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-declare function mason_style_get_inset_top(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-declare function mason_style_get_justify_content(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_justify_items(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_justify_self(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_margin_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-declare function mason_style_get_margin_left(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-declare function mason_style_get_margin_right(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-declare function mason_style_get_margin_top(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentageAuto;
-
-declare function mason_style_get_max_height(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-declare function mason_style_get_max_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-declare function mason_style_get_min_height(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-declare function mason_style_get_min_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-declare function mason_style_get_overflow_x(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_overflow_y(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_padding_bottom(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-declare function mason_style_get_padding_left(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-declare function mason_style_get_padding_right(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-declare function mason_style_get_padding_top(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-declare function mason_style_get_position(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_row_gap(style: interop.Pointer | interop.Reference<any>): CMasonLengthPercentage;
-
-declare function mason_style_get_scrollbar_width(style: interop.Pointer | interop.Reference<any>): number;
-
-declare function mason_style_get_width(style: interop.Pointer | interop.Reference<any>): CMasonDimension;
-
-declare function mason_style_init(): interop.Pointer | interop.Reference<any>;
-
-declare function mason_style_set_align_content(style: interop.Pointer | interop.Reference<any>, align: number): void;
-
-declare function mason_style_set_align_items(style: interop.Pointer | interop.Reference<any>, align: number): void;
-
-declare function mason_style_set_align_self(style: interop.Pointer | interop.Reference<any>, align: number): void;
-
-declare function mason_style_set_aspect_ratio(style: interop.Pointer | interop.Reference<any>, ratio: number): void;
-
-declare function mason_style_set_border(style: interop.Pointer | interop.Reference<any>, left_value: number, left_value_type: CMasonLengthPercentageType, right_value: number, right_value_type: CMasonLengthPercentageType, top_value: number, top_value_type: CMasonLengthPercentageType, bottom_value: number, bottom_value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_border_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_border_left(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_border_right(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_border_top(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_column_gap(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_direction(_style: interop.Pointer | interop.Reference<any>, _direction: number): void;
-
-declare function mason_style_set_display(style: interop.Pointer | interop.Reference<any>, display: number): void;
-
-declare function mason_style_set_flex_basis(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-declare function mason_style_set_flex_direction(style: interop.Pointer | interop.Reference<any>, direction: number): void;
-
-declare function mason_style_set_flex_grow(style: interop.Pointer | interop.Reference<any>, grow: number): void;
-
-declare function mason_style_set_flex_shrink(style: interop.Pointer | interop.Reference<any>, shrink: number): void;
-
-declare function mason_style_set_flex_wrap(style: interop.Pointer | interop.Reference<any>, wrap: number): void;
-
-declare function mason_style_set_gap(style: interop.Pointer | interop.Reference<any>, width_value: number, width_type: CMasonLengthPercentageType, height_value: number, height_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_grid_area(style: interop.Pointer | interop.Reference<any>, row_start: CMasonGridPlacement, row_end: CMasonGridPlacement, column_start: CMasonGridPlacement, column_end: CMasonGridPlacement): void;
-
-declare function mason_style_set_grid_auto_columns(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
-
-declare function mason_style_set_grid_auto_flow(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-declare function mason_style_set_grid_auto_rows(style: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
-
-declare function mason_style_set_grid_column(style: interop.Pointer | interop.Reference<any>, start: CMasonGridPlacement, end: CMasonGridPlacement): void;
-
-declare function mason_style_set_grid_column_end(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
-
-declare function mason_style_set_grid_column_start(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
-
-declare function mason_style_set_grid_row(style: interop.Pointer | interop.Reference<any>, start: CMasonGridPlacement, end: CMasonGridPlacement): void;
-
-declare function mason_style_set_grid_row_end(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
-
-declare function mason_style_set_grid_row_start(style: interop.Pointer | interop.Reference<any>, value: CMasonGridPlacement): void;
-
-declare function mason_style_set_height(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-declare function mason_style_set_inset(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_inset_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_inset_left(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_inset_lrtb(style: interop.Pointer | interop.Reference<any>, left_value: number, left_value_type: CMasonLengthPercentageAutoType, right_value: number, right_value_type: CMasonLengthPercentageAutoType, top_value: number, top_value_type: CMasonLengthPercentageAutoType, bottom_value: number, bottom_value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_inset_right(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_inset_top(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_justify_content(style: interop.Pointer | interop.Reference<any>, justify: number): void;
-
-declare function mason_style_set_justify_items(style: interop.Pointer | interop.Reference<any>, align: number): void;
-
-declare function mason_style_set_justify_self(style: interop.Pointer | interop.Reference<any>, align: number): void;
-
-declare function mason_style_set_margin(style: interop.Pointer | interop.Reference<any>, left_value: number, left_value_type: CMasonLengthPercentageAutoType, right_value: number, right_value_type: CMasonLengthPercentageAutoType, top_value: number, top_value_type: CMasonLengthPercentageAutoType, bottom_value: number, bottom_value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_margin_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_margin_left(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_margin_right(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_margin_top(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageAutoType): void;
-
-declare function mason_style_set_max_height(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-declare function mason_style_set_max_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-declare function mason_style_set_min_height(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-declare function mason_style_set_min_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
-
-declare function mason_style_set_overflow(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-declare function mason_style_set_overflow_x(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-declare function mason_style_set_overflow_y(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-declare function mason_style_set_padding(style: interop.Pointer | interop.Reference<any>, left_value: number, left_value_type: CMasonLengthPercentageType, right_value: number, right_value_type: CMasonLengthPercentageType, top_value: number, top_value_type: CMasonLengthPercentageType, bottom_value: number, bottom_value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_padding_bottom(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_padding_left(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_padding_right(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_padding_top(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_position(style: interop.Pointer | interop.Reference<any>, position: number): void;
-
-declare function mason_style_set_row_gap(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonLengthPercentageType): void;
-
-declare function mason_style_set_scrollbar_width(style: interop.Pointer | interop.Reference<any>, value: number): void;
-
-declare function mason_style_set_width(style: interop.Pointer | interop.Reference<any>, value: number, value_type: CMasonDimensionType): void;
+declare function mason_style_sync_style_with_buffer(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, state: number, buffer: string | interop.Pointer | interop.Reference<any>, buffer_size: number): void;
 
 declare function mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type: number, track_value: number): CMasonMinMax;
 
 declare function mason_util_destroy_string(string: string | interop.Pointer | interop.Reference<any>): void;
 
-declare function mason_util_parse_non_repeated_track_sizing_function(value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): string;
+declare function mason_util_parse_non_repeated_track_sizing_function(value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): interop.Pointer | interop.Reference<any>;

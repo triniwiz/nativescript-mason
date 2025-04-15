@@ -1,12 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, colorProperty, widthProperty, heightProperty } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, colorProperty, widthProperty, heightProperty, View } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent } from '.';
 import { _forceStyleUpdate, _setAlignContent, _setDisplay, _setFlexDirection, _setHeight, _setJustifyContent, _setWidth } from './helpers';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 
 export const native_ = Symbol('[[native]]');
 export const style_ = Symbol('[[style]]');
+
+export interface MasonChild extends ViewBase {
+  _isMasonChild: boolean;
+  _masonParent: ViewBase;
+  _hasNativeView: boolean;
+}
 
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',

@@ -1,0 +1,4 @@
+module MasonV8Module {
+    header "MasonV8Module.h"
+    export *
+}

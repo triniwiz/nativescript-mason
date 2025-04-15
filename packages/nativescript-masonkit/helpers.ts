@@ -1,6 +1,6 @@
-declare const __non_webpack_require__;
+// declare const __non_webpack_require__;
 
-import { Length, Utils, isIOS } from '@nativescript/core';
+import { Length, Utils } from '@nativescript/core';
 import { style_, ViewBase } from './common';
 
 type View = ViewBase & {
@@ -8,7 +8,7 @@ type View = ViewBase & {
   _masonPtr: bigint;
   _masonNodePtr: bigint;
   _inBatch: boolean;
-  ios: UIView;
+  ios: MasonUIView;
   android: org.nativescript.mason.masonkit.View;
   [style_]: Style;
 };
@@ -221,28 +221,28 @@ export const enum JustifySelf {
 
 export let UseV8Module = false;
 
-if (global.isAndroid) {
-  try {
-    java.lang.System.loadLibrary('masonnative');
-    __non_webpack_require__('system_lib://libmasonnativev8.so');
-    UseV8Module = true;
-  } catch (error) {
-    console.warn('Failed to enable on FastAPI');
-  }
-}
+// if (__ANDROID__) {
+//   try {
+//     java.lang.System.loadLibrary('masonnative');
+//     __non_webpack_require__('system_lib://libmasonnativev8.so');
+//     UseV8Module = true;
+//   } catch (error) {
+//     console.warn('Failed to enable on FastAPI');
+//   }
+// }
 
-if (global.isIOS) {
-  NSCMason.alwaysEnable = true;
-  if (!UseV8Module) {
-    try {
-      const installer = MasonV8Module.new();
-      installer.install();
-      UseV8Module = true;
-    } catch (error) {
-      console.warn('Failed to enable on FastAPI');
-    }
-  }
-}
+// if (__APPLE__) {
+//   NSCMason.alwaysEnable = true;
+//   if (!UseV8Module) {
+//     try {
+//       const installer = MasonV8Module.new();
+//       installer.install();
+//       UseV8Module = true;
+//     } catch (error) {
+//       console.warn('Failed to enable on FastAPI');
+//     }
+//   }
+// }
 
 function getMasonInstance(instance: View) {
   const nativeView = instance?.nativeView;
@@ -261,13 +261,13 @@ export function _forceStyleUpdate(instance: View) {
   if (UseV8Module) {
     MasonV8Module.updateNodeAndStyle(instance._masonPtr, instance._masonNodePtr);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const nodeOrView = getMasonInstance(instance);
       nodeOrView.updateNodeAndStyle();
     }
 
-    if (global.isIOS) {
-      instance.ios.mason.updateNodeStyle();
+    if (__APPLE__) {
+      (instance.ios as MasonUIView).node.style.updateNativeStyle();
     }
   }
 }
@@ -279,7 +279,7 @@ export function _markDirty(instance: View) {
   if (UseV8Module) {
     MasonV8Module.markDirty(instance._masonPtr, instance._masonNodePtr);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const nodeOrView = getMasonInstance(instance);
       if (instance._isMasonChild) {
         nodeOrView.dirty();
@@ -288,8 +288,8 @@ export function _markDirty(instance: View) {
       }
     }
 
-    if (global.isIOS) {
-      instance.ios.mason.markDirty();
+    if (__APPLE__) {
+      instance.ios.node.markDirty();
     }
   }
 }
@@ -301,7 +301,7 @@ export function _isDirty(instance: View) {
   if (UseV8Module) {
     return MasonV8Module.isDirty(instance._masonPtr, instance._masonNodePtr);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const nodeOrView = getMasonInstance(instance);
       if (instance._isMasonChild) {
         return nodeOrView.isDirty();
@@ -310,8 +310,8 @@ export function _isDirty(instance: View) {
       }
     }
 
-    if (global.isAndroid) {
-      return instance.ios.mason.isDirty;
+    if (__ANDROID__) {
+      return instance.ios.node.isDirty;
     }
   }
 
@@ -332,7 +332,7 @@ export function _intoType(type: 'auto' | 'points' | 'percent') {
 }
 
 export function _parseDimension(dim: org.nativescript.mason.masonkit.Dimension | MasonDimensionCompat) {
-  if (global.isIOS) {
+  if (__APPLE__) {
     const type = (<any>dim).type;
     const value = (<any>dim).value;
     switch (type) {
@@ -356,7 +356,7 @@ export function _parseDimension(dim: org.nativescript.mason.masonkit.Dimension |
 }
 
 export function _parseLengthPercentage(dim: org.nativescript.mason.masonkit.LengthPercentage | MasonLengthPercentageCompat) {
-  if (global.isIOS) {
+  if (__APPLE__) {
     const type = (<any>dim).type;
     const value = (<any>dim).value;
     switch (type) {
@@ -378,7 +378,7 @@ export function _parseLengthPercentage(dim: org.nativescript.mason.masonkit.Leng
 }
 
 export function _parseLengthPercentageAuto(dim: org.nativescript.mason.masonkit.LengthPercentageAuto | MasonLengthPercentageAutoCompat) {
-  if (global.isIOS) {
+  if (__APPLE__) {
     const type = (<any>dim).type;
     const value = (<any>dim).value;
     switch (type) {
@@ -438,7 +438,7 @@ export function _intoMasonDimension(value) {
     return null;
   }
 
-  if (global.isIOS) {
+  if (__APPLE__) {
     if (value === 'auto') {
       return MasonDimensionCompat.Auto;
     }
@@ -462,7 +462,7 @@ export function _intoMasonDimension(value) {
     return MasonDimensionCompat.alloc().initWithPoints(Utils.layout.toDevicePixels(value));
   }
 
-  if (global.isAndroid) {
+  if (__ANDROID__) {
     if (value === 'auto') {
       return org.nativescript.mason.masonkit.Dimension.Auto;
     }
@@ -728,7 +728,7 @@ export function _setAlignSelf(value, instance: View, initial = false) {
   }
 }
 
-export function _getAlignSelf(instance: View): AlignSelfType {
+export function _getAlignSelf(instance: View): AlignSelf {
   if (instance._hasNativeView) {
     return instance[style_].alignSelf as never;
   }
@@ -1094,11 +1094,11 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
 
   if (parsedType === 0) {
     if (!UseV8Module) {
-      if (global.isAndroid) {
+      if (__ANDROID__) {
         parsedType = org.nativescript.mason.masonkit.GridPlacement.Auto;
         nativeValue = org.nativescript.mason.masonkit.GridPlacement.Auto.INSTANCE;
       }
-      if (global.isIOS) {
+      if (__APPLE__) {
         parsedType = 0 /* GridPlacementCompatType.Auto */;
         nativeValue = GridPlacementCompat.Auto;
       }
@@ -1106,13 +1106,13 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
   } else if (parsedType === 1) {
     if (!UseV8Module) {
       const isValid = !Number.isNaN(parsedValue);
-      if (global.isAndroid) {
+      if (__ANDROID__) {
         parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
         if (isValid) {
           nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Line(parsedValue);
         }
       }
-      if (global.isIOS) {
+      if (__APPLE__) {
         parsedType = 1 /* GridPlacementCompatType.Line */;
         if (isValid) {
           nativeValue = GridPlacementCompat.alloc().initWithLine(parsedValue);
@@ -1122,13 +1122,13 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
   } else {
     if (!UseV8Module) {
       const isValid = !Number.isNaN(parsedValue);
-      if (global.isAndroid) {
+      if (__ANDROID__) {
         parsedType = org.nativescript.mason.masonkit.GridPlacement.Span;
         if (isValid) {
           nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Span(parsedValue);
         }
       }
-      if (global.isIOS) {
+      if (__APPLE__) {
         parsedType = 2 /* GridPlacementCompatType.Span */;
         if (isValid) {
           nativeValue = GridPlacementCompat.alloc().initWithSpan(parsedValue);
@@ -1154,7 +1154,7 @@ export function _setGridColumnStart(value, instance: View, initial = false) {
   if (UseV8Module) {
     MasonV8Module.setColumnStart(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const nodeOrView = getMasonInstance(instance);
       if (instance._isMasonChild) {
         org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridColumnStart(nodeOrView, val.native_value);
@@ -1163,7 +1163,7 @@ export function _setGridColumnStart(value, instance: View, initial = false) {
       }
     }
 
-    if (global.isIOS) {
+    if (__APPLE__) {
       instance.ios.gridColumnStartCompat = val.native_value;
     }
   }
@@ -1183,7 +1183,7 @@ export function _setGridColumnEnd(value, instance: View, initial = false) {
   if (UseV8Module) {
     MasonV8Module.setColumnEnd(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const nodeOrView = getMasonInstance(instance);
       if (instance._isMasonChild) {
         org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridColumnEnd(nodeOrView, val.native_value);
@@ -1192,7 +1192,7 @@ export function _setGridColumnEnd(value, instance: View, initial = false) {
       }
     }
 
-    if (global.isIOS) {
+    if (__APPLE__) {
       instance.ios.gridColumnEndCompat = val.native_value;
     }
   }
@@ -1212,7 +1212,7 @@ export function _setGridRowStart(value, instance: View, initial = false) {
   if (UseV8Module) {
     MasonV8Module.setRowStart(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const nodeOrView = getMasonInstance(instance);
 
       if (instance._isMasonChild) {
@@ -1222,7 +1222,7 @@ export function _setGridRowStart(value, instance: View, initial = false) {
       }
     }
 
-    if (global.isIOS) {
+    if (__APPLE__) {
       instance.ios.gridRowStartCompat = val.native_value;
     }
   }
@@ -1242,7 +1242,7 @@ export function _setGridRowEnd(value, instance: View, initial = false) {
   if (UseV8Module) {
     MasonV8Module.setRowEnd(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const nodeOrView = getMasonInstance(instance);
 
       if (instance._isMasonChild) {
@@ -1252,7 +1252,7 @@ export function _setGridRowEnd(value, instance: View, initial = false) {
       }
     }
 
-    if (global.isIOS) {
+    if (__APPLE__) {
       instance.ios.gridRowEndCompat = val.native_value;
     }
   }
@@ -1518,7 +1518,7 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View
   if (UseV8Module) {
     MasonV8Module.setGridTemplateRows(instance._masonPtr, instance._masonNodePtr, value, !instance._inBatch);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
       const length = value.length;
       for (let i = 0; i < length; i++) {
@@ -1566,7 +1566,7 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View
       }
     }
 
-    if (global.isIOS) {
+    if (__APPLE__) {
       const length = value.length;
       const array = NSMutableArray.arrayWithCapacity<TrackSizingFunction>(length);
 
@@ -1619,7 +1619,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
   if (UseV8Module) {
     MasonV8Module.setGridTemplateColumns(instance._masonPtr, instance._masonNodePtr, value, !instance._inBatch);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
       const length = value.length;
       for (let i = 0; i < length; i++) {
@@ -1670,7 +1670,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
       }
     }
 
-    if (global.isIOS) {
+    if (__APPLE__) {
       const length = value.length;
       const array = NSMutableArray.arrayWithCapacity<TrackSizingFunction>(length);
 
@@ -1760,7 +1760,7 @@ export function _setGridAutoRows(value, instance: View, initial = false) {
   if (UseV8Module) {
     MasonV8Module.setGridAutoRows(instance._masonPtr, instance._masonNodePtr, values, !instance._inBatch);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
       const length = value.length;
       for (let i = 0; i < length; i++) {
@@ -1779,7 +1779,7 @@ export function _setGridAutoRows(value, instance: View, initial = false) {
       }
     }
 
-    if (global.isIOS) {
+    if (__APPLE__) {
       const length = value.length;
       const array = NSMutableArray.arrayWithCapacity<MinMax>(length);
 
@@ -1804,7 +1804,7 @@ export function _setGridAutoColumns(value, instance: View, initial = false) {
   if (UseV8Module) {
     MasonV8Module.setGridAutoColumns(instance._masonPtr, instance._masonNodePtr, values, !instance._inBatch);
   } else {
-    if (global.isAndroid) {
+    if (__ANDROID__) {
       const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
       const length = value.length;
       for (let i = 0; i < length; i++) {
@@ -1823,7 +1823,7 @@ export function _setGridAutoColumns(value, instance: View, initial = false) {
       }
     }
 
-    if (global.isIOS) {
+    if (__APPLE__) {
       const length = value.length;
       const array = NSMutableArray.arrayWithCapacity<MinMax>(length);
 

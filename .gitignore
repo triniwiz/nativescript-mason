@@ -44,6 +44,10 @@ Thumbs.db
 packages/**/angular/dist
 packages/**/DerivedData
 
+packages/**/native-src/mason-ios/**/xcuserdata/
+packages/**/native-src/mason-ios/**/project.xcworkspace/
+packages/**/native-src/mason-ios/**/build
+
 
 /target
 /**/*.rs.bk
