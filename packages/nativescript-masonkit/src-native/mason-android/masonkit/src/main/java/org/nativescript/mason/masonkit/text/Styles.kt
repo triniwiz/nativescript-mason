@@ -48,4 +48,63 @@ class Styles {
       }
     }
   }
+
+  enum class TextTransform(val value: Int) {
+    None(0),
+    Capitalize(1),
+    Uppercase(2),
+    Lowercase(3),
+    FullWidth(4),
+    FullSizeKana(5),
+    MathAuto(6);
+
+    companion object {
+      fun fromInt(value: Int): TextTransform {
+        return when (value) {
+          0 -> None
+          1 -> Capitalize
+          2 -> Uppercase
+          3 -> Lowercase
+          4 -> FullWidth
+          5 -> FullSizeKana
+          6 -> MathAuto
+          else -> throw IllegalArgumentException("Unknown enum value: $value")
+        }
+      }
+    }
+  }
+
+  enum class TextWrap(val value: Int) {
+    NoWrap(0),
+    Wrap(1),
+    Balance(2);
+
+    companion object {
+      fun fromInt(value: Int): TextWrap {
+        return when (value) {
+          0 -> NoWrap
+          1 -> Wrap
+          2 -> Balance
+          else -> throw IllegalArgumentException("Unknown enum value: $value")
+        }
+      }
+    }
+  }
+
+  enum class FontStyle(val value: Int) {
+    Normal(0),
+    Italic(1),
+    Oblique(2);
+
+    companion object {
+      fun fromInt(value: Int): FontStyle {
+        return when (value) {
+          0 -> Normal
+          1 -> Italic
+          2 -> Oblique
+          else -> throw IllegalArgumentException("Unknown enum value: $value")
+        }
+      }
+    }
+  }
 }

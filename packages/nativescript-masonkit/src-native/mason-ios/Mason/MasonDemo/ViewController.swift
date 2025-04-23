@@ -14,66 +14,67 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     var items: [String] = []
     
-    var textTopLeft: UILabel? = nil
+    var textTopLeft: MasonText? = nil
     
-    var textTopRight: UILabel? = nil
+    var textTopRight: MasonText? = nil
     
-    var textBottomLeft: UILabel? = nil
+    var textBottomLeft: MasonText? = nil
     
-    var textBottomRight: UILabel? = nil
+    var textBottomRight: MasonText? = nil
     
     var list: UICollectionView? = nil
   
-    let mason = NSCMason()
+    let container = NSCMason.shared.createView()
   
-  let container = UIView(frame: .zero)
+  var mason: NSCMason {
+    get {
+      NSCMason.shared
+    }
+  }
     
     
     class DefaultCellView: UICollectionViewCell {
-      var containerView: MasonUIView
-        var listTextView: UILabel
-        var listImageView: UIImageView
+      let containerView = NSCMason.shared.createView()
+      let listTextView = NSCMason.shared.createTextView()
+      let listImageView = UIImageView(frame: .zero)
 
+      override init(frame: CGRect) {
+        super.init(frame: .zero)
+        setupView()
+      }
         
         override func prepareForReuse() {
             super.prepareForReuse()
             listTextView.text = nil
             listImageView.image = nil
-            setup = false
         }
         
       
-      var setup = false
-      func setupView(_ mason: NSCMason){
-        
+
+      func setupView(){
         let scale = Float(UIScreen.main.scale)
-      let container = mason.createView()
-        container.configure { node in
+        containerView.configure { node in
             node.style.alignItems = .Center
             node.style.flexDirection = .Column
-            node.style.size = MasonSize(MasonDimension.Points(Float(frame.size.width) * scale), MasonDimension.Points(Float(frame.size.height) * scale))
+            node.style.setSizeWidth(MasonDimension.Percent(1))
+//            node.style.size = MasonSize(MasonDimension.Points(Float(frame.size.width) * scale), MasonDimension.Points(Float(frame.size.height) * scale))
         }
         
-        let label0 = UILabel(frame: .zero)
+        NSCMason.shared.nodeForView(listImageView).configure { node in
+          node.style.setSizeHeight(MasonDimension.Points(50 * scale))
+        }
         
-        let label1 = UILabel(frame: .zero)
+        let label1 = NSCMason.shared.createTextView()
         label1.text = "Laffy Taffy!!!!"
         
-        let image0 = UIImageView(frame: .zero)
-        
-        containerView = container
-        listTextView = label0
-        listImageView = image0
-        
-        container.addSubview(label0)
-        container.addSubview(label1)
-        container.addSubview(image0)
+        containerView.addSubview(listTextView)
+        containerView.addSubview(label1)
+        containerView.addSubview(listImageView)
         
         backgroundColor = .clear
         
-        contentView.addSubview(container)
+        contentView.addSubview(containerView)
         
-        setup = true
       }
         
         required init?(coder: NSCoder) {
@@ -277,11 +278,11 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       view.addSubview(container)
     
       
-      textSample()
+     // textSample()
         
        // flexIssue()
         
-       // testLayout()
+      // testLayout()
         
        //  showFlexExample()
         
@@ -292,17 +293,88 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
       //  imageExample()
     //  gridSample()
+      
+    // testLateUpdate()
+      
+      let root = mason.createView()
+      root.backgroundColor = .red
+      
+      container.addView(root)
+      
+      let a = mason.createTextView()
+      a.text = "a"
+      
+      let b = mason.createTextView()
+      b.updateText("b")
+      
+      root.addView(a)
+      
+      root.addView(b)
+      
+      root.node.computeWithMaxContent()
+    }
+  
+  func testLateUpdate(){
+    let root = mason.createView()
+    root.backgroundColor = .red
+    
+    container.addView(root)
+    
+    let text = mason.createTextView()
+    
+    let textOther = mason.createTextView()
+    textOther.updateText("Other")
+    
+    root.addView(textOther)
+    
+    
+    text.textWrap = .Wrap
+    text.setBackgroundColor(ui: .cyan)
+    
+    let text2 = mason.createTextView()
+    
+    text.addView(text2)
+    
+    root.addView(text)
+    
+    root.node.computeWithMaxContent()
+    
+    text.updateText("Hello")
+    
+    root.node.computeWithMaxContent()
+    
+    text.color = 4294944000
+        
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+      DispatchQueue.main.async {
+        text.updateText("Hello World")
+        root.node.computeWithMaxContent()
+        
+        DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+          DispatchQueue.main.async {
+            text2.setBackgroundColor(ui: .green)
+            text2.setColor(ui: .blue)
+            text2.updateText(" \n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris. ")
+            root.node.computeWithMaxContent()
+            
+            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+              DispatchQueue.main.async {
+                text.removeView(text2)
+                root.node.computeWithMaxContent()
+              }
+            }
+            
+          }
+        }
+      }
     }
     
+  }
+    
     func imageExample(){
-        view.subviews.forEach { view in
-            view.removeFromSuperview()
-        }
-        
-
       let root = mason.createView()
                 
-        let image = UIImageView(frame: .zero)
+      let image = UIImageView(frame: .zero)
         
       mason.nodeForView(image).style.sizeCompatWidth = MasonDimensionCompat(percent: 1)
         
@@ -748,9 +820,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "default", for: indexPath) as! DefaultCellView
         let item = items[indexPath.row]
-      if(!cell.setup){
-        cell.setupView(mason)
-      }
         cell.listTextView.text = item
         DispatchQueue.global().async { [self] in
             do {
@@ -772,19 +841,20 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
     
     func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-        (cell as! DefaultCellView).containerView.node.computeWithMaxContent()
+      (cell as! DefaultCellView).containerView.node.computeWithMaxContent()
     }
     
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
       guard let cell = collectionView.cellForItem(at: indexPath) as? DefaultCellView else {
           let layout = mason.nodeForView(collectionView).layout()
-            return CGSizeMake(collectionView.frame.width, CGFloat(layout.height / scale))
+ 
+        return CGSizeMake(collectionView.frame.width, 50 * CGFloat(scale))
         }
+      
         
-      let layout = cell.containerView.node.layout()
-        
-        
+        let layout = cell.containerView.node.layout()
+  
         return CGSizeMake(CGFloat(layout.width / scale), CGFloat(layout.height / scale))
     }
     
@@ -792,8 +862,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     func testLayout(){
       let root = mason.createView()
+      container.addSubview(root)
         
         root.configure { mason in
+            mason.style.size = MasonSize(MasonDimension.Percent(1), MasonDimension.Auto)
             mason.style.alignContent = .Stretch
             mason.style.alignItems = .Center
             mason.style.flexDirection = .Column
@@ -806,40 +878,38 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         
         
-        let text0 = UILabel(frame: .zero)
+      let text0 = mason.createTextView()
         text0.text = "Test"
-      mason.nodeForView(text0).configure { node in
-            text0.textColor = .white
-        }
+      text0.setColor(ui: .white)
         
         root.addSubview(text0)
         
         
         
-        let text1 = UILabel(frame: .zero)
+        let text1 = mason.createTextView()
         text1.text = "Top Left"
-      mason.nodeForView(text1).configure { node in
-            node.style.position = .Absolute
-            node.style.leftInset = .Points(0)
-            node.style.topInset = .Points(0)
-            text1.backgroundColor = .blue
-            text1.textColor = .white
-        }
+      text1.configure { node in
+        node.style.position = .Absolute
+        node.style.leftInset = .Points(0)
+        node.style.topInset = .Points(0)
+        text1.backgroundColor = .blue
+        text1.setColor(ui: .white)
+      }
+  
         
-        textTopLeft = text1
+       textTopLeft = text1
         
         root.addSubview(text1)
         
         
         
-        let text2 = UILabel(frame: .zero)
+        let text2 = mason.createTextView()
         text2.text = "Top Right"
-      mason.nodeForView(text2).configure { node in
+      text2.configure { node in
             node.style.position = .Absolute
             node.style.rightInset = .Points(0)
             node.style.topInset = .Points(0)
             text2.backgroundColor = .blue
-            text2.textColor = .white
         }
         
         textTopRight = text2
@@ -849,14 +919,14 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         
         
-        let text3 = UILabel(frame: .zero)
+        let text3 = mason.createTextView()
         text3.text = "Bottom Left"
-      mason.nodeForView(text3).configure { node in
+      text3.configure { node in
             node.style.position = .Absolute
             node.style.leftInset = .Points(0)
             node.style.bottomInset = .Points(0)
             text3.backgroundColor = .blue
-            text3.textColor = .white
+            text3.setColor(ui: .white)
         }
         
         textBottomLeft = text3
@@ -865,14 +935,14 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         
         
-        let text4 = UILabel(frame: .zero)
+        let text4 = text3
         text4.text = "Bottom Right"
-      mason.nodeForView(text4).configure { node in
+      text4.configure { node in
             node.style.position = .Absolute
             node.style.rightInset = .Points(0)
             node.style.bottomInset = .Points(0)
             text4.backgroundColor = .blue
-            text4.textColor = .white
+        text4.setColor(ui: .white)
         }
         
         textBottomRight = text4
@@ -890,6 +960,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         layout.scrollDirection = .vertical
         
         let list = UICollectionView(frame: .zero, collectionViewLayout: layout)
+      list.backgroundColor = .purple
         
         
       mason.nodeForView(list).configure { mason in
@@ -914,11 +985,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         view1.backgroundColor = .green
         
         
-        let text5 = UILabel(frame: .zero)
+        let text5 = mason.createTextView()
         text5.text = "Nested TextView in mason"
-      mason.nodeForView(text5).configure { node in
-
-        }
+        text5.backgroundColor = .yellow
         
         view1.addSubview(text5)
         
@@ -928,54 +997,52 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         //  masonView.mason.computeWithViewSize()
         
         
-        let text6 = UILabel(frame: .zero)
+      let text6 = mason.createTextView()
         text6.text = "Hello this"
-      mason.nodeForView(text6).configure { node in
-            text6.textColor = .white
+      text6.configure { node in
+        text6.setColor(ui: .white)
             text6.backgroundColor = .red
         }
         
         root.addSubview(text6)
         
-        let text7 = UILabel(frame: .zero)
+        let text7 = mason.createTextView()
         text7.text = " is the new"
-      mason.nodeForView(text7).configure { node in
+        text7.configure { node in
             text7.backgroundColor = .green
         }
         
         root.addSubview(text7)
         
-        let text8 = UILabel(frame: .zero)
+        let text8 = mason.createTextView()
         text8.text = " layout"
-      mason.nodeForView(text8).configure { node in
+        text8.configure { node in
             text8.backgroundColor = .orange
         }
         
         root.addSubview(text8)
         
         
-        let text9 = UILabel(frame: .zero)
+        let text9 = mason.createTextView()
         text9.text = " powered by taffy"
-      mason.nodeForView(text9).configure { node in
-            text9.backgroundColor = .blue
-            text9.textColor = .white
+        text9.configure { node in
+          text9.backgroundColor = .orange
+          text9.setColor(ui: .white)
         }
         
         root.addSubview(text9)
         
         
         let view2 = mason.createView()
-        view2.backgroundColor = .white
+        view2.backgroundColor = .blue
        
         
         let view3 = mason.createView()
-        view3.backgroundColor = .white
-
-        
-        let text10 = UILabel(frame: .zero)
+        view3.backgroundColor = .orange
+      
+      list.isHidden = true
+        let text10 = mason.createTextView()
         text10.text = "Hello World Nested"
-      mason.nodeForView(text10).configure { node in
-        }
         
         view3.addSubview(text10)
         
@@ -1005,7 +1072,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
                 DispatchQueue.main.async {
                     imageView1.image = image
                    // root.mason.computeWithMaxContent()
-                    root.node.computeWithSize(Float(self.view.bounds.size.width) * self.scale, Float(self.view.bounds.size.height) * self.scale)
+                  root.node.computeWithSize(Float(self.container.bounds.size.width) * self.scale, Float(self.container.bounds.size.height) * self.scale)
                 }
             }catch{
                 print(error)

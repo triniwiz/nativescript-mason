@@ -109,15 +109,41 @@ public class MasonUIView: UIView, MasonView {
     }
   
     
-  public override func addSubview(_ view: UIView) {
+
+  public func addView(_ view: UIView){
     if(view.superview == self){
       return
     }
-    super.addSubview(view)
-    if(view is MasonUIView){
-      node.addChild((view as! MasonUIView).node)
+    addSubview(view)
+    if(view is MasonView){
+      node.addChild((view as! MasonView).node)
     }else {
       node.addChild(mason.nodeForView(view))
+    }
+  }
+  
+  public func addView(_ view: UIView, at: Int){
+    if(view.superview == self){
+      return
+    }
+    if(at <= -1){
+      addSubview(view)
+    }else {
+      insertSubview(view, at: at)
+    }
+
+    if(view is MasonView){
+      node.addChildAt((view as! MasonView).node, at)
+    }else {
+      node.addChildAt(mason.nodeForView(view), at)
+    }
+  }
+  
+  public func syncStyle(_ state: String) {
+    guard let stateValue = Int64(state, radix: 10) else {return}
+    if (stateValue != -1) {
+      style.isDirty = stateValue
+      style.updateNativeStyle()
     }
   }
     

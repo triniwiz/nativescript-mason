@@ -10,6 +10,7 @@ import java.util.WeakHashMap
 
 class Mason {
 
+
   internal val nativePtr by lazy {
     nativeInit()
   }
@@ -92,7 +93,6 @@ class Mason {
   fun requestLayout(node: Long) {
     nodes[node]?.style?.updateNativeStyle()
   }
-
   fun requestLayout(view: android.view.View) {
     if (view is View) {
       nodes[view.node.nativePtr]?.style?.updateNativeStyle()
@@ -127,7 +127,7 @@ class Mason {
     }
 
     @JvmStatic
-    val instance = Mason()
+    val shared = Mason()
 
     internal val gson =
       Gson().newBuilder()

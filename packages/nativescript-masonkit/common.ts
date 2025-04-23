@@ -685,6 +685,12 @@ export const style = Symbol('[[style]]');
 export const node = Symbol('[[node]]');
 export const mason = Symbol('[[mason]]');
 
+export const textWrapProperty = new Property<TextBase, 'nowrap' | 'wrap' | 'balance'>({
+  name: 'textWrap',
+  affectsLayout: true,
+  defaultValue: 'nowrap',
+});
+
 export const textProperty = new Property<TextBase, string>({
   name: 'text',
   affectsLayout: true,
@@ -829,12 +835,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
 @CSSType('Text')
 export class TextBase extends ViewBase {
+  text: string;
+  textWrap: 'nowrap' | 'wrap' | 'balance';
   constructor() {
     super();
   }
 }
 
 textProperty.register(TextBase);
+textWrapProperty.register(TextBase);
 
 /**
  * Props are already defined in core flexbox layout,

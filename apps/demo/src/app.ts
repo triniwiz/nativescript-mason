@@ -16,6 +16,7 @@ declare const __non_webpack_require__;
 //   console.log(error);
 // }
 
+/*
 console.time('legacy');
 const legacy = Array.from({ length: 1000 }).map((_, i) => {
   const grid = new GridLayout();
@@ -34,5 +35,7 @@ const mason = Array.from({ length: 1000 }).map((_, i) => {
   return grid;
 });
 console.timeEnd('mason');
+
+*/
 
 Application.run({ moduleName: 'app-root' });

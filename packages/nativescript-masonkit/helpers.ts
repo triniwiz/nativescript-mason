@@ -11,6 +11,7 @@ type View = ViewBase & {
   ios: MasonUIView;
   android: org.nativescript.mason.masonkit.View;
   [style_]: Style;
+  readonly _styleHelper: Style;
 };
 
 import { parseUnit } from '@nativescript/core/css/parser';
@@ -219,8 +220,6 @@ export const enum JustifySelf {
   FlexEnd = 6,
 }
 
-export let UseV8Module = false;
-
 // if (__ANDROID__) {
 //   try {
 //     java.lang.System.loadLibrary('masonnative');
@@ -244,13 +243,38 @@ export let UseV8Module = false;
 //   }
 // }
 
-function getMasonInstance(instance: View) {
-  const nativeView = instance?.nativeView;
+function getMasonInstance(instance: View): org.nativescript.mason.masonkit.Node {
+  const nativeView = instance?.android;
   if (instance._isMasonChild) {
-    const parent = instance.parent?.nativeView;
-    return parent?.nodeForView?.(nativeView as any);
+    return org.nativescript.mason.masonkit.Mason.getShared().nodeForView(nativeView as never);
   }
-  return nativeView;
+  return nativeView.getNode();
+}
+
+function getStyleInstance(instance: View): org.nativescript.mason.masonkit.StyleKeys {
+  const nativeView = instance?.android;
+  if (instance._isMasonChild) {
+    return org.nativescript.mason.masonkit.Mason.getShared()
+      .nodeForView(nativeView as never)
+      .getStyle();
+  }
+  return nativeView.getStyle();
+}
+
+function getNode(instance: View): MasonNode {
+  const nativeView = instance?.ios;
+  if (instance._isMasonChild) {
+    return NSCMason.shared.nodeForView(nativeView as never, true);
+  }
+  return nativeView.node;
+}
+
+function getStyle(instance: View): MasonStyle {
+  const nativeView = instance?.ios;
+  if (instance._isMasonChild) {
+    return NSCMason.shared.nodeForView(nativeView as never, true).style;
+  }
+  return nativeView.style;
 }
 
 export function _forceStyleUpdate(instance: View) {
@@ -258,39 +282,28 @@ export function _forceStyleUpdate(instance: View) {
     return;
   }
 
-  if (UseV8Module) {
-    MasonV8Module.updateNodeAndStyle(instance._masonPtr, instance._masonNodePtr);
-  } else {
-    if (__ANDROID__) {
-      const nodeOrView = getMasonInstance(instance);
-      nodeOrView.updateNodeAndStyle();
-    }
+  // if (__ANDROID__) {
+  //   const nodeOrView = getMasonInstance(instance) as org.nativescript.mason.masonkit.TextView;
+  //   nodeOrView.getStyle().updateNodeAndStyle();
+  // }
 
-    if (__APPLE__) {
-      (instance.ios as MasonUIView).node.style.updateNativeStyle();
-    }
-  }
+  // if (__APPLE__) {
+  //   (instance.ios as MasonUIView).node.style.updateNativeStyle();
+  // }
 }
 
 export function _markDirty(instance: View) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (UseV8Module) {
-    MasonV8Module.markDirty(instance._masonPtr, instance._masonNodePtr);
-  } else {
-    if (__ANDROID__) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        nodeOrView.dirty();
-      } else {
-        nodeOrView.markNodeDirty();
-      }
-    }
 
-    if (__APPLE__) {
-      instance.ios.node.markDirty();
-    }
+  if (__ANDROID__) {
+    const nodeOrView = getMasonInstance(instance);
+    nodeOrView.dirty();
+  }
+
+  if (__APPLE__) {
+    getNode(instance).markDirty();
   }
 }
 
@@ -298,21 +311,13 @@ export function _isDirty(instance: View) {
   if (!instance._hasNativeView) {
     return;
   }
-  if (UseV8Module) {
-    return MasonV8Module.isDirty(instance._masonPtr, instance._masonNodePtr);
-  } else {
-    if (__ANDROID__) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        return nodeOrView.isDirty();
-      } else {
-        return nodeOrView.isNodeDirty();
-      }
-    }
+  if (__ANDROID__) {
+    const nodeOrView = getMasonInstance(instance);
+    return nodeOrView.isDirty();
+  }
 
-    if (__ANDROID__) {
-      return instance.ios.node.isDirty;
-    }
+  if (__APPLE__) {
+    return getNode(instance).isDirty;
   }
 
   return false;
@@ -357,9 +362,9 @@ export function _parseDimension(dim: org.nativescript.mason.masonkit.Dimension |
 
 export function _parseLengthPercentage(dim: org.nativescript.mason.masonkit.LengthPercentage | MasonLengthPercentageCompat) {
   if (__APPLE__) {
-    const type = (<any>dim).type;
-    const value = (<any>dim).value;
-    switch (type) {
+    const type = (<MasonLengthPercentageCompat>dim).type;
+    const value = (<MasonLengthPercentageCompat>dim).value;
+    switch (type as never) {
       case MasonLengthPercentageCompatType.Points:
         return { value: value, unit: 'px' };
       case MasonLengthPercentageCompatType.Percent:
@@ -548,11 +553,7 @@ export function _toLengthPercentage(value): { value: number; type: 'points' | 'p
 }
 
 function syncStyle(instance: View) {
-  if (UseV8Module) {
-    //
-  } else {
-    //
-  }
+  // noop
 }
 
 export function _setDisplay(value, instance: View, initial = false) {
@@ -561,20 +562,20 @@ export function _setDisplay(value, instance: View, initial = false) {
   }
 
   if (instance._hasNativeView) {
-    instance[style_].display = value;
+    instance._styleHelper.display = value;
     syncStyle(instance);
   }
 }
 
 export function _getDisplay(instance: View) {
-  return instance[style_].display;
+  return instance._styleHelper.display;
 }
 
 export function _setMinWidth(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].minWidth = value;
+  instance._styleHelper.minWidth = value;
   syncStyle(instance);
 }
 
@@ -582,14 +583,14 @@ export function _getMinWidth(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.minWidth;
   }
-  return instance[style_].minWidth;
+  return instance._styleHelper.minWidth;
 }
 
 export function _setMinHeight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].minHeight = value;
+  instance._styleHelper.minHeight = value;
   syncStyle(instance);
 }
 
@@ -597,14 +598,14 @@ export function _getMinHeight(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.minHeight;
   }
-  return instance[style_].minHeight;
+  return instance._styleHelper.minHeight;
 }
 
 export function _setWidth(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].width = value;
+  instance._styleHelper.width = value;
   syncStyle(instance);
 }
 
@@ -612,14 +613,14 @@ export function _getWidth(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.width;
   }
-  return instance[style_].width;
+  return instance._styleHelper.width;
 }
 
 export function _setHeight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].height = value;
+  instance._styleHelper.height = value;
   syncStyle(instance);
 }
 
@@ -627,14 +628,14 @@ export function _getHeight(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.height;
   }
-  return instance[style_].height;
+  return instance._styleHelper.height;
 }
 
 export function _setMaxWidth(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].maxWidth = value;
+  instance._styleHelper.maxWidth = value;
   syncStyle(instance);
 }
 
@@ -642,14 +643,14 @@ export function _getMaxWidth(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.maxWidth;
   }
-  return instance[style_].maxWidth;
+  return instance._styleHelper.maxWidth;
 }
 
 export function _setMaxHeight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].maxHeight = value;
+  instance._styleHelper.maxHeight = value;
   syncStyle(instance);
 }
 
@@ -657,7 +658,7 @@ export function _getMaxHeight(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.maxHeight;
   }
-  return instance[style_].maxHeight;
+  return instance._styleHelper.maxHeight;
 }
 
 export function _setFlexDirection(value, instance: View, initial = false) {
@@ -665,16 +666,16 @@ export function _setFlexDirection(value, instance: View, initial = false) {
     return;
   }
   if (instance._hasNativeView) {
-    instance[style_].flexDirection = value;
+    instance._styleHelper.flexDirection = value;
   }
 }
 
 export function _getFlexDirection(instance: View) {
-  return instance[style_].flexDirection;
+  return instance._styleHelper.flexDirection;
 }
 
 export function _getPosition(instance: View) {
-  return instance[style_].position;
+  return instance._styleHelper.position;
 }
 
 export function _setPosition(value, instance: View, initial = false) {
@@ -683,7 +684,7 @@ export function _setPosition(value, instance: View, initial = false) {
   }
 
   if (instance._hasNativeView) {
-    instance[style_].position = value;
+    instance._styleHelper.position = value;
   }
 }
 
@@ -692,13 +693,13 @@ export function _setFlexWrap(value, instance: View, initial = false) {
     return;
   }
   if (instance._hasNativeView) {
-    instance[style_].flexWrap = value;
+    instance._styleHelper.flexWrap = value;
   }
 }
 
 export function _getFlexWrap(instance: View) {
   if (instance._hasNativeView) {
-    return instance[style_].flexWrap;
+    return instance._styleHelper.flexWrap;
   }
   return instance.style.flexWrap;
 }
@@ -708,13 +709,13 @@ export function _setAlignItems(value, instance: View, initial = false) {
     return;
   }
   if (instance._hasNativeView) {
-    instance[style_].alignItems = value;
+    instance._styleHelper.alignItems = value;
   }
 }
 
 export function _getAlignItems(instance: View) {
   if (instance._hasNativeView) {
-    return instance[style_].alignItems;
+    return instance._styleHelper.alignItems;
   }
   return instance.style.alignItems;
 }
@@ -724,13 +725,13 @@ export function _setAlignSelf(value, instance: View, initial = false) {
     return;
   }
   if (instance._hasNativeView) {
-    instance[style_].alignSelf = value;
+    instance._styleHelper.alignSelf = value;
   }
 }
 
 export function _getAlignSelf(instance: View): AlignSelf {
   if (instance._hasNativeView) {
-    return instance[style_].alignSelf as never;
+    return instance._styleHelper.alignSelf as never;
   }
   return instance.style.alignSelf as never;
 }
@@ -740,13 +741,14 @@ export function _setAlignContent(value, instance: View, initial = false) {
     return;
   }
   if (instance._hasNativeView) {
-    instance[style_].alignContent = value;
+    console.log(instance);
+    instance._styleHelper.alignContent = value;
   }
 }
 
 export function _getAlignContent(instance: View) {
   if (instance._hasNativeView) {
-    return instance[style_].alignContent;
+    return instance._styleHelper.alignContent;
   }
   return instance.style.alignContent;
 }
@@ -756,13 +758,13 @@ export function _setJustifyItems(value, instance: View, initial = false) {
     return;
   }
   if (instance._hasNativeView) {
-    instance[style_].justifyItems = value;
+    instance._styleHelper.justifyItems = value;
   }
 }
 
 export function _getJustifyItems(instance: View) {
   if (instance._hasNativeView) {
-    return instance[style_].justifyItems;
+    return instance._styleHelper.justifyItems;
   }
   return instance.style.justifyItems;
 }
@@ -772,13 +774,13 @@ export function _setJustifySelf(value, instance: View, initial = false) {
     return;
   }
   if (instance._hasNativeView) {
-    instance[style_].justifySelf = value;
+    instance._styleHelper.justifySelf = value;
   }
 }
 
 export function _getJustifySelf(instance: View) {
   if (instance._hasNativeView) {
-    return instance[style_].justifySelf;
+    return instance._styleHelper.justifySelf;
   }
   return instance.style.justifySelf;
 }
@@ -791,13 +793,13 @@ export function _setJustifyContent(value, instance: View, initial = false) {
   if (!value) value = 'normal';
 
   if (instance._hasNativeView) {
-    instance[style_].justifyContent = value;
+    instance._styleHelper.justifyContent = value;
   }
 }
 
 export function _getJustifyContent(instance: View) {
   if (instance._hasNativeView) {
-    return instance[style_].justifyContent;
+    return instance._styleHelper.justifyContent;
   }
   return instance.style.justifyContent;
 }
@@ -807,7 +809,7 @@ export function _setLeft(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].left = value;
+  instance._styleHelper.left = value;
 }
 
 export function _setRight(value, instance: View, initial = false) {
@@ -815,7 +817,7 @@ export function _setRight(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].right = value;
+  instance._styleHelper.right = value;
 }
 
 export function _setTop(value, instance: View, initial = false) {
@@ -823,7 +825,7 @@ export function _setTop(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].top = value;
+  instance._styleHelper.top = value;
 }
 
 export function _setBottom(value, instance: View, initial = false) {
@@ -831,7 +833,7 @@ export function _setBottom(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].bottom = value;
+  instance._styleHelper.bottom = value;
 }
 
 export function _setMarginLeft(value, instance: View, initial = false) {
@@ -839,7 +841,7 @@ export function _setMarginLeft(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].marginLeft = value;
+  instance._styleHelper.marginLeft = value;
 }
 
 export function _setMarginRight(value, instance: View, initial = false) {
@@ -847,7 +849,7 @@ export function _setMarginRight(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].marginRight = value;
+  instance._styleHelper.marginRight = value;
 }
 
 export function _setMarginTop(value, instance: View, initial = false) {
@@ -855,7 +857,7 @@ export function _setMarginTop(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].marginTop = value;
+  instance._styleHelper.marginTop = value;
 }
 
 export function _setMarginBottom(value, instance: View, initial = false) {
@@ -863,7 +865,7 @@ export function _setMarginBottom(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].marginBottom = value;
+  instance._styleHelper.marginBottom = value;
 }
 
 export function _setPaddingLeft(value, instance: View, initial = false) {
@@ -871,7 +873,7 @@ export function _setPaddingLeft(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].paddingLeft = value;
+  instance._styleHelper.paddingLeft = value;
 }
 
 export function _setPaddingRight(value, instance: View, initial = false) {
@@ -879,7 +881,7 @@ export function _setPaddingRight(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].paddingRight = value;
+  instance._styleHelper.paddingRight = value;
 }
 
 export function _setPaddingTop(value, instance: View, initial = false) {
@@ -887,14 +889,14 @@ export function _setPaddingTop(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].paddingTop = value;
+  instance._styleHelper.paddingTop = value;
 }
 
 export function _setPaddingBottom(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].paddingBottom = value;
+  instance._styleHelper.paddingBottom = value;
 }
 
 export function _setBorderLeft(value, instance: View, initial = false) {
@@ -926,14 +928,14 @@ export function _setFlexBasis(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].flexBasis = value;
+  instance._styleHelper.flexBasis = value;
 }
 
 export function _getFlexBasis(instance: View) {
   if (!instance._hasNativeView) {
     return (instance as any).style.flexBasis;
   }
-  return instance[style_].flexBasis;
+  return instance._styleHelper.flexBasis;
 }
 
 export function _setGap(value, instance: View, initial = false) {
@@ -948,8 +950,8 @@ export function _getGap(instance: View) {
   }
 
   return {
-    row: this[style_].rowGap,
-    column: this[style_].columnGap,
+    row: this._styleHelper.rowGap,
+    column: this._styleHelper.columnGap,
   };
 }
 
@@ -958,14 +960,14 @@ export function _setOverflow(value, instance: View) {
     return;
   }
 
-  instance[style_].overflow = value;
+  instance._styleHelper.overflow = value;
 }
 
 export function _getOverflow(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.flexGrow;
   }
-  return instance[style_].overflow;
+  return instance._styleHelper.overflow;
 }
 
 export function _setOverflowX(value, instance: View) {
@@ -973,14 +975,14 @@ export function _setOverflowX(value, instance: View) {
     return;
   }
 
-  instance[style_].overflowX = value;
+  instance._styleHelper.overflowX = value;
 }
 
 export function _getOverflowX(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.overflowX;
   }
-  return instance[style_].overflowX;
+  return instance._styleHelper.overflowX;
 }
 
 export function _setOverflowY(value, instance: View, initial = false) {
@@ -988,7 +990,7 @@ export function _setOverflowY(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].overflowY = value;
+  instance._styleHelper.overflowY = value;
 }
 
 export function _getOverflowY(instance: View) {
@@ -996,7 +998,7 @@ export function _getOverflowY(instance: View) {
     return instance.style.overflowY;
   }
 
-  return instance[style_].overflowY;
+  return instance._styleHelper.overflowY;
 }
 
 export function _setScrollbarWidth(value, instance: View, initial = false) {
@@ -1004,56 +1006,56 @@ export function _setScrollbarWidth(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].scrollBarWidth = value;
+  instance._styleHelper.scrollBarWidth = value;
 }
 
 export function getScrollbarWidth(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.scrollBarWidth;
   }
-  return instance[style_].scrollBarWidth;
+  return instance._styleHelper.scrollBarWidth;
 }
 
 export function _setFlexGrow(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].flexGrow = value;
+  instance._styleHelper.flexGrow = value;
 }
 
 export function _getFlexGrow(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.flexGrow;
   }
-  return instance[style_].flexGrow;
+  return instance._styleHelper.flexGrow;
 }
 
 export function _setFlexShrink(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].flexShrink = value;
+  instance._styleHelper.flexShrink = value;
 }
 
 export function _getFlexShrink(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.flexShrink;
   }
-  return instance[style_].flexShrink;
+  return instance._styleHelper.flexShrink;
 }
 
 export function _setAspectRatio(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].aspectRatio = value;
+  instance._styleHelper.aspectRatio = value;
 }
 
 export function _getAspectRatio(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.aspectRatio;
   }
-  const ratio = instance[style_].aspectRatio;
+  const ratio = instance._styleHelper.aspectRatio;
   return Number.isNaN(ratio) ? null : ratio;
 }
 
@@ -1093,46 +1095,40 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
   }
 
   if (parsedType === 0) {
-    if (!UseV8Module) {
-      if (__ANDROID__) {
-        parsedType = org.nativescript.mason.masonkit.GridPlacement.Auto;
-        nativeValue = org.nativescript.mason.masonkit.GridPlacement.Auto.INSTANCE;
-      }
-      if (__APPLE__) {
-        parsedType = 0 /* GridPlacementCompatType.Auto */;
-        nativeValue = GridPlacementCompat.Auto;
-      }
+    if (__ANDROID__) {
+      parsedType = org.nativescript.mason.masonkit.GridPlacement.Auto;
+      nativeValue = org.nativescript.mason.masonkit.GridPlacement.Auto.INSTANCE;
+    }
+    if (__APPLE__) {
+      parsedType = 0 /* GridPlacementCompatType.Auto */;
+      nativeValue = GridPlacementCompat.Auto;
     }
   } else if (parsedType === 1) {
-    if (!UseV8Module) {
-      const isValid = !Number.isNaN(parsedValue);
-      if (__ANDROID__) {
-        parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
-        if (isValid) {
-          nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Line(parsedValue);
-        }
+    const isValid = !Number.isNaN(parsedValue);
+    if (__ANDROID__) {
+      parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
+      if (isValid) {
+        nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Line(parsedValue);
       }
-      if (__APPLE__) {
-        parsedType = 1 /* GridPlacementCompatType.Line */;
-        if (isValid) {
-          nativeValue = GridPlacementCompat.alloc().initWithLine(parsedValue);
-        }
+    }
+    if (__APPLE__) {
+      parsedType = 1 /* GridPlacementCompatType.Line */;
+      if (isValid) {
+        nativeValue = GridPlacementCompat.alloc().initWithLine(parsedValue);
       }
     }
   } else {
-    if (!UseV8Module) {
-      const isValid = !Number.isNaN(parsedValue);
-      if (__ANDROID__) {
-        parsedType = org.nativescript.mason.masonkit.GridPlacement.Span;
-        if (isValid) {
-          nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Span(parsedValue);
-        }
+    const isValid = !Number.isNaN(parsedValue);
+    if (__ANDROID__) {
+      parsedType = org.nativescript.mason.masonkit.GridPlacement.Span;
+      if (isValid) {
+        nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Span(parsedValue);
       }
-      if (__APPLE__) {
-        parsedType = 2 /* GridPlacementCompatType.Span */;
-        if (isValid) {
-          nativeValue = GridPlacementCompat.alloc().initWithSpan(parsedValue);
-        }
+    }
+    if (__APPLE__) {
+      parsedType = 2 /* GridPlacementCompatType.Span */;
+      if (isValid) {
+        nativeValue = GridPlacementCompat.alloc().initWithSpan(parsedValue);
       }
     }
   }
@@ -1151,21 +1147,13 @@ export function _setGridColumnStart(value, instance: View, initial = false) {
     return;
   }
 
-  if (UseV8Module) {
-    MasonV8Module.setColumnStart(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
-  } else {
-    if (__ANDROID__) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridColumnStart(nodeOrView, val.native_value);
-      } else {
-        nodeOrView.setGridColumnStart(val.native_value);
-      }
-    }
+  if (__ANDROID__) {
+    const nodeOrView = getMasonInstance(instance);
+    org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridColumnStart(nodeOrView, val.native_value);
+  }
 
-    if (__APPLE__) {
-      instance.ios.gridColumnStartCompat = val.native_value;
-    }
+  if (__APPLE__) {
+    instance.ios.gridColumnStartCompat = val.native_value;
   }
 }
 
@@ -1180,21 +1168,13 @@ export function _setGridColumnEnd(value, instance: View, initial = false) {
     return;
   }
 
-  if (UseV8Module) {
-    MasonV8Module.setColumnEnd(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
-  } else {
-    if (__ANDROID__) {
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridColumnEnd(nodeOrView, val.native_value);
-      } else {
-        nodeOrView.setGridColumnEnd(val.native_value);
-      }
-    }
+  if (__ANDROID__) {
+    const nodeOrView = getMasonInstance(instance);
+    org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridColumnEnd(nodeOrView, val.native_value);
+  }
 
-    if (__APPLE__) {
-      instance.ios.gridColumnEndCompat = val.native_value;
-    }
+  if (__APPLE__) {
+    instance.ios.gridColumnEndCompat = val.native_value;
   }
 }
 
@@ -1208,23 +1188,14 @@ export function _setGridRowStart(value, instance: View, initial = false) {
   if (val.value === undefined || val.type === undefined) {
     return;
   }
+  if (__ANDROID__) {
+    const nodeOrView = getMasonInstance(instance);
 
-  if (UseV8Module) {
-    MasonV8Module.setRowStart(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
-  } else {
-    if (__ANDROID__) {
-      const nodeOrView = getMasonInstance(instance);
+    org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridRowStart(nodeOrView, val.native_value);
+  }
 
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridRowStart(nodeOrView, val.native_value);
-      } else {
-        nodeOrView.setGridRowStart(val.native_value);
-      }
-    }
-
-    if (__APPLE__) {
-      instance.ios.gridRowStartCompat = val.native_value;
-    }
+  if (__APPLE__) {
+    instance.ios.gridRowStartCompat = val.native_value;
   }
 }
 
@@ -1239,22 +1210,13 @@ export function _setGridRowEnd(value, instance: View, initial = false) {
     return;
   }
 
-  if (UseV8Module) {
-    MasonV8Module.setRowEnd(instance._masonPtr, instance._masonNodePtr, val, !instance._inBatch);
-  } else {
-    if (__ANDROID__) {
-      const nodeOrView = getMasonInstance(instance);
+  if (__ANDROID__) {
+    const nodeOrView = getMasonInstance(instance);
+    org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridRowEnd(nodeOrView, val.native_value);
+  }
 
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridRowEnd(nodeOrView, val.native_value);
-      } else {
-        nodeOrView.setGridRowEnd(val.native_value);
-      }
-    }
-
-    if (__APPLE__) {
-      instance.ios.gridRowEndCompat = val.native_value;
-    }
+  if (__APPLE__) {
+    instance.ios.gridRowEndCompat = val.native_value;
   }
 }
 
@@ -1262,14 +1224,14 @@ export function _setRowGap(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance[style_].rowGap = value;
+  instance._styleHelper.rowGap = value;
 }
 
 export function _getRowGap(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.gap;
   }
-  return instance[style_].rowGap;
+  return instance._styleHelper.rowGap;
 }
 
 export function _setColumnGap(value, instance: View, initial = false) {
@@ -1277,14 +1239,14 @@ export function _setColumnGap(value, instance: View, initial = false) {
     return;
   }
 
-  instance[style_].columnGap = value;
+  instance._styleHelper.columnGap = value;
 }
 
 export function _getColumnGap(instance: View) {
   if (!instance._hasNativeView) {
     return instance.style.gap;
   }
-  return instance[style_].columnGap;
+  return instance._styleHelper.columnGap;
 }
 
 const enum MinSizingType {
@@ -1472,13 +1434,15 @@ export function _parseGridTemplates(value: string): Array<GridTemplates> {
             repeating_type = TSCGridTrackRepetition.AutoFit;
             break;
           default:
-            const number = parseInt(repetition);
+            {
+              const number = parseInt(repetition);
 
-            repeating_type = TSCGridTrackRepetition.Count;
+              repeating_type = TSCGridTrackRepetition.Count;
 
-            isValid = !Number.isNaN(number);
-            if (isValid) {
-              repeat_count = number;
+              isValid = !Number.isNaN(number);
+              if (isValid) {
+                repeat_count = number;
+              }
             }
             break;
         }
@@ -1515,99 +1479,91 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View
     return;
   }
 
-  if (UseV8Module) {
-    MasonV8Module.setGridTemplateRows(instance._masonPtr, instance._masonNodePtr, value, !instance._inBatch);
-  } else {
-    if (__ANDROID__) {
-      const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
-      const length = value.length;
-      for (let i = 0; i < length; i++) {
-        const item = value[i];
-        if (item.is_repeating) {
-          const repeating = item.value as Array<MinMaxType>;
-          const tracks = Array.create('org.nativescript.mason.masonkit.MinMax', repeating.length);
-          let gridTrackRepetition = null;
-          switch (item.repeating_type) {
-            case TSCGridTrackRepetition.AutoFill:
-              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFill;
-              break;
-            case TSCGridTrackRepetition.AutoFit:
-              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFit;
-              break;
-            case TSCGridTrackRepetition.Count:
-              gridTrackRepetition = new org.nativescript.mason.masonkit.GridTrackRepetition.Count(item.repeating_count);
-              break;
-          }
-          if (gridTrackRepetition === null) {
-            continue;
-          }
-
-          const repeatingLength = repeating.length;
-
-          for (let j = 0; j < repeatingLength; j++) {
-            const repeat = repeating[j];
-            tracks[j] = org.nativescript.mason.masonkit.MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value);
-          }
-
-          const repeat = new org.nativescript.mason.masonkit.TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
-          array[i] = repeat;
-        } else {
-          const single = item.value as MinMaxType;
-          const trackSizingFunction = new org.nativescript.mason.masonkit.TrackSizingFunction.Single(org.nativescript.mason.masonkit.MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
-          array[i] = trackSizingFunction;
+  if (__ANDROID__) {
+    const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
+    const length = value.length;
+    for (let i = 0; i < length; i++) {
+      const item = value[i];
+      if (item.is_repeating) {
+        const repeating = item.value as Array<MinMaxType>;
+        const tracks = Array.create('org.nativescript.mason.masonkit.MinMax', repeating.length);
+        let gridTrackRepetition = null;
+        switch (item.repeating_type) {
+          case TSCGridTrackRepetition.AutoFill:
+            gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFill;
+            break;
+          case TSCGridTrackRepetition.AutoFit:
+            gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFit;
+            break;
+          case TSCGridTrackRepetition.Count:
+            gridTrackRepetition = new org.nativescript.mason.masonkit.GridTrackRepetition.Count(item.repeating_count);
+            break;
         }
-      }
+        if (gridTrackRepetition === null) {
+          continue;
+        }
 
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridTemplateRows(nodeOrView, array);
+        const repeatingLength = repeating.length;
+
+        for (let j = 0; j < repeatingLength; j++) {
+          const repeat = repeating[j];
+          tracks[j] = org.nativescript.mason.masonkit.MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value);
+        }
+
+        const repeat = new org.nativescript.mason.masonkit.TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
+        array[i] = repeat;
       } else {
-        nodeOrView.setGridTemplateRows(array);
+        const single = item.value as MinMaxType;
+        const trackSizingFunction = new org.nativescript.mason.masonkit.TrackSizingFunction.Single(org.nativescript.mason.masonkit.MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
+        array[i] = trackSizingFunction;
       }
     }
 
-    if (__APPLE__) {
-      const length = value.length;
-      const array = NSMutableArray.arrayWithCapacity<TrackSizingFunction>(length);
+    const nodeOrView = getMasonInstance(instance);
+    org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridTemplateRows(nodeOrView, array);
+  }
 
-      for (let i = 0; i < length; i++) {
-        const item = value[i];
-        if (item.is_repeating) {
-          const repeating = item.value as Array<MinMaxType>;
-          const repeatingLength = repeating.length;
-          const tracks = NSMutableArray.arrayWithCapacity<MinMax>(repeatingLength);
-          let gridTrackRepetition = null;
-          switch (item.repeating_type) {
-            case TSCGridTrackRepetition.AutoFill:
-              gridTrackRepetition = TSCGridTrackRepetition.AutoFill;
-              break;
-            case TSCGridTrackRepetition.AutoFit:
-              gridTrackRepetition = TSCGridTrackRepetition.AutoFit;
-              break;
-            case TSCGridTrackRepetition.Count:
-              gridTrackRepetition = GridTrackRepetition.Count(item.repeating_count);
-              break;
-          }
-          if (gridTrackRepetition === null) {
-            continue;
-          }
+  if (__APPLE__) {
+    const length = value.length;
+    const array = NSMutableArray.arrayWithCapacity<TrackSizingFunction>(length);
 
-          for (let j = 0; j < repeatingLength; j++) {
-            const repeat = repeating[j];
-            tracks.addObject(MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value));
-          }
-
-          const repeat = TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
-          array.addObject(repeat);
-        } else {
-          const single = item.value as MinMaxType;
-          const trackSizingFunction = TrackSizingFunction.Single(MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
-          array.addObject(trackSizingFunction);
+    for (let i = 0; i < length; i++) {
+      const item = value[i];
+      if (item.is_repeating) {
+        const repeating = item.value as Array<MinMaxType>;
+        const repeatingLength = repeating.length;
+        const tracks = NSMutableArray.arrayWithCapacity<MinMax>(repeatingLength);
+        let gridTrackRepetition = null;
+        switch (item.repeating_type) {
+          case TSCGridTrackRepetition.AutoFill:
+            gridTrackRepetition = TSCGridTrackRepetition.AutoFill;
+            break;
+          case TSCGridTrackRepetition.AutoFit:
+            gridTrackRepetition = TSCGridTrackRepetition.AutoFit;
+            break;
+          case TSCGridTrackRepetition.Count:
+            gridTrackRepetition = GridTrackRepetition.Count(item.repeating_count);
+            break;
         }
-      }
+        if (gridTrackRepetition === null) {
+          continue;
+        }
 
-      instance.ios.gridTemplateRows = array;
+        for (let j = 0; j < repeatingLength; j++) {
+          const repeat = repeating[j];
+          tracks.addObject(MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value));
+        }
+
+        const repeat = TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
+        array.addObject(repeat);
+      } else {
+        const single = item.value as MinMaxType;
+        const trackSizingFunction = TrackSizingFunction.Single(MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
+        array.addObject(trackSizingFunction);
+      }
     }
+
+    instance.ios.gridTemplateRows = array;
   }
 }
 
@@ -1616,105 +1572,97 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
     return;
   }
 
-  if (UseV8Module) {
-    MasonV8Module.setGridTemplateColumns(instance._masonPtr, instance._masonNodePtr, value, !instance._inBatch);
-  } else {
-    if (__ANDROID__) {
-      const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
-      const length = value.length;
-      for (let i = 0; i < length; i++) {
-        const item = value[i];
-        if (item.is_repeating) {
-          const repeating = item.value as Array<MinMaxType>;
-          const tracks = Array.create('org.nativescript.mason.masonkit.MinMax', repeating.length);
-          let gridTrackRepetition = null;
-          switch (item.repeating_type) {
-            case TSCGridTrackRepetition.AutoFill:
-              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFill.INSTANCE;
-              break;
-            case TSCGridTrackRepetition.AutoFit:
-              gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFit.INSTANCE;
-              break;
-            case TSCGridTrackRepetition.Count:
-              gridTrackRepetition = new org.nativescript.mason.masonkit.GridTrackRepetition.Count(item.repeating_count);
-              break;
-          }
-          if (gridTrackRepetition === null) {
-            continue;
-          }
-
-          const repeatingLength = repeating.length;
-
-          for (let j = 0; j < repeatingLength; j++) {
-            const repeat = repeating[j];
-            tracks[j] = org.nativescript.mason.masonkit.MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value);
-          }
-
-          const repeat = new org.nativescript.mason.masonkit.TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
-
-          array[i] = repeat;
-        } else {
-          const single = item.value as MinMaxType;
-
-          const minMax = single ? org.nativescript.mason.masonkit.MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value) : org.nativescript.mason.masonkit.MinMax.Auto.INSTANCE;
-          const trackSizingFunction = new org.nativescript.mason.masonkit.TrackSizingFunction.Single(minMax);
-          array[i] = trackSizingFunction;
+  if (__ANDROID__) {
+    const array = Array.create('org.nativescript.mason.masonkit.TrackSizingFunction', value.length);
+    const length = value.length;
+    for (let i = 0; i < length; i++) {
+      const item = value[i];
+      if (item.is_repeating) {
+        const repeating = item.value as Array<MinMaxType>;
+        const tracks = Array.create('org.nativescript.mason.masonkit.MinMax', repeating.length);
+        let gridTrackRepetition = null;
+        switch (item.repeating_type) {
+          case TSCGridTrackRepetition.AutoFill:
+            gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFill.INSTANCE;
+            break;
+          case TSCGridTrackRepetition.AutoFit:
+            gridTrackRepetition = org.nativescript.mason.masonkit.GridTrackRepetition.AutoFit.INSTANCE;
+            break;
+          case TSCGridTrackRepetition.Count:
+            gridTrackRepetition = new org.nativescript.mason.masonkit.GridTrackRepetition.Count(item.repeating_count);
+            break;
         }
-      }
+        if (gridTrackRepetition === null) {
+          continue;
+        }
 
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridTemplateColumns(nodeOrView, array);
+        const repeatingLength = repeating.length;
+
+        for (let j = 0; j < repeatingLength; j++) {
+          const repeat = repeating[j];
+          tracks[j] = org.nativescript.mason.masonkit.MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value);
+        }
+
+        const repeat = new org.nativescript.mason.masonkit.TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
+
+        array[i] = repeat;
       } else {
-        nodeOrView.setGridTemplateColumns(array);
+        const single = item.value as MinMaxType;
+
+        const minMax = single ? org.nativescript.mason.masonkit.MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value) : org.nativescript.mason.masonkit.MinMax.Auto.INSTANCE;
+        const trackSizingFunction = new org.nativescript.mason.masonkit.TrackSizingFunction.Single(minMax);
+        array[i] = trackSizingFunction;
       }
     }
 
-    if (__APPLE__) {
-      const length = value.length;
-      const array = NSMutableArray.arrayWithCapacity<TrackSizingFunction>(length);
+    const nodeOrView = getMasonInstance(instance);
+    org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridTemplateColumns(nodeOrView, array);
+  }
 
-      for (let i = 0; i < length; i++) {
-        const item = value[i];
-        if (item.is_repeating) {
-          const repeating = item.value as Array<MinMaxType>;
+  if (__APPLE__) {
+    const length = value.length;
+    const array = NSMutableArray.arrayWithCapacity<TrackSizingFunction>(length);
 
-          const repeatingLength = repeating.length;
+    for (let i = 0; i < length; i++) {
+      const item = value[i];
+      if (item.is_repeating) {
+        const repeating = item.value as Array<MinMaxType>;
 
-          const tracks = NSMutableArray.arrayWithCapacity<MinMax>(repeatingLength);
+        const repeatingLength = repeating.length;
 
-          let gridTrackRepetition = null;
-          switch (item.repeating_type) {
-            case TSCGridTrackRepetition.AutoFill:
-              gridTrackRepetition = TSCGridTrackRepetition.AutoFill;
-              break;
-            case TSCGridTrackRepetition.AutoFit:
-              gridTrackRepetition = TSCGridTrackRepetition.AutoFit;
-              break;
-            case TSCGridTrackRepetition.Count:
-              gridTrackRepetition = GridTrackRepetition.Count(item.repeating_count);
-              break;
-          }
-          if (gridTrackRepetition === null) {
-            continue;
-          }
+        const tracks = NSMutableArray.arrayWithCapacity<MinMax>(repeatingLength);
 
-          for (let j = 0; j < repeatingLength; j++) {
-            const repeat = repeating[j];
-            tracks.addObject(MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value));
-          }
-
-          const repeat = TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
-          array.addObject(repeat);
-        } else {
-          const single = item.value as MinMaxType;
-          const trackSizingFunction = TrackSizingFunction.Single(MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
-          array.addObject(trackSizingFunction);
+        let gridTrackRepetition = null;
+        switch (item.repeating_type) {
+          case TSCGridTrackRepetition.AutoFill:
+            gridTrackRepetition = TSCGridTrackRepetition.AutoFill;
+            break;
+          case TSCGridTrackRepetition.AutoFit:
+            gridTrackRepetition = TSCGridTrackRepetition.AutoFit;
+            break;
+          case TSCGridTrackRepetition.Count:
+            gridTrackRepetition = GridTrackRepetition.Count(item.repeating_count);
+            break;
         }
-      }
+        if (gridTrackRepetition === null) {
+          continue;
+        }
 
-      instance.ios.gridTemplateColumns = array;
+        for (let j = 0; j < repeatingLength; j++) {
+          const repeat = repeating[j];
+          tracks.addObject(MinMax.fromTypeValue(repeat.min_type, repeat.min_value, repeat.max_type, repeat.max_value));
+        }
+
+        const repeat = TrackSizingFunction.AutoRepeat(gridTrackRepetition, tracks);
+        array.addObject(repeat);
+      } else {
+        const single = item.value as MinMaxType;
+        const trackSizingFunction = TrackSizingFunction.Single(MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value));
+        array.addObject(trackSizingFunction);
+      }
     }
+
+    instance.ios.gridTemplateColumns = array;
   }
 }
 
@@ -1747,7 +1695,7 @@ export function _getGridAutoFlow(instance) {
     return;
   }
 
-  return this[style_].gridAutoFlow;
+  return this._styleHelper.gridAutoFlow;
 }
 
 export function _setGridAutoRows(value, instance: View, initial = false) {
@@ -1757,40 +1705,32 @@ export function _setGridAutoRows(value, instance: View, initial = false) {
 
   const values = _parseGridAutoRowsColumns(value);
 
-  if (UseV8Module) {
-    MasonV8Module.setGridAutoRows(instance._masonPtr, instance._masonNodePtr, values, !instance._inBatch);
-  } else {
-    if (__ANDROID__) {
-      const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
-      const length = value.length;
-      for (let i = 0; i < length; i++) {
-        const item = value[i];
+  if (__ANDROID__) {
+    const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
+    const length = value.length;
+    for (let i = 0; i < length; i++) {
+      const item = value[i];
 
-        const minMax = org.nativescript.mason.masonkit.MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
+      const minMax = org.nativescript.mason.masonkit.MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
 
-        array[i] = minMax;
-      }
-
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridAutoRows(nodeOrView, array);
-      } else {
-        nodeOrView.setGridAutoRows(array);
-      }
+      array[i] = minMax;
     }
 
-    if (__APPLE__) {
-      const length = value.length;
-      const array = NSMutableArray.arrayWithCapacity<MinMax>(length);
+    const nodeOrView = getMasonInstance(instance);
+    org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridAutoRows(nodeOrView, array);
+  }
 
-      for (let i = 0; i < length; i++) {
-        const item = value[i];
-        const minMax = MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
-        array.addObject(minMax);
-      }
+  if (__APPLE__) {
+    const length = value.length;
+    const array = NSMutableArray.arrayWithCapacity<MinMax>(length);
 
-      instance.ios.gridAutoRows = array;
+    for (let i = 0; i < length; i++) {
+      const item = value[i];
+      const minMax = MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
+      array.addObject(minMax);
     }
+
+    instance.ios.gridAutoRows = array;
   }
 }
 
@@ -1801,39 +1741,31 @@ export function _setGridAutoColumns(value, instance: View, initial = false) {
 
   const values = _parseGridAutoRowsColumns(value);
 
-  if (UseV8Module) {
-    MasonV8Module.setGridAutoColumns(instance._masonPtr, instance._masonNodePtr, values, !instance._inBatch);
-  } else {
-    if (__ANDROID__) {
-      const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
-      const length = value.length;
-      for (let i = 0; i < length; i++) {
-        const item = value[i];
+  if (__ANDROID__) {
+    const array = Array.create('org.nativescript.mason.masonkit.MinMax', values.length);
+    const length = value.length;
+    for (let i = 0; i < length; i++) {
+      const item = value[i];
 
-        const minMax = org.nativescript.mason.masonkit.MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
+      const minMax = org.nativescript.mason.masonkit.MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
 
-        array[i] = minMax;
-      }
-
-      const nodeOrView = getMasonInstance(instance);
-      if (instance._isMasonChild) {
-        org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridAutoColumns(nodeOrView, array);
-      } else {
-        nodeOrView.setGridAutoColumns(array);
-      }
+      array[i] = minMax;
     }
 
-    if (__APPLE__) {
-      const length = value.length;
-      const array = NSMutableArray.arrayWithCapacity<MinMax>(length);
+    const nodeOrView = getMasonInstance(instance);
+    org.nativescript.mason.masonkit.NodeHelper.INSTANCE.setGridAutoColumns(nodeOrView, array);
+  }
 
-      for (let i = 0; i < length; i++) {
-        const item = value[i];
-        const minMax = MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
-        array.addObject(minMax);
-      }
+  if (__APPLE__) {
+    const length = value.length;
+    const array = NSMutableArray.arrayWithCapacity<MinMax>(length);
 
-      instance.ios.gridAutoColumns = array;
+    for (let i = 0; i < length; i++) {
+      const item = value[i];
+      const minMax = MinMax.fromTypeValue(item.min_type, item.min_value, item.max_type, item.max_value);
+      array.addObject(minMax);
     }
+
+    instance.ios.gridAutoColumns = array;
   }
 }

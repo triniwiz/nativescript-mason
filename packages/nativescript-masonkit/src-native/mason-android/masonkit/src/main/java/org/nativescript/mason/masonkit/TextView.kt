@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Color
+import android.icu.text.Transliterator
 import android.os.Build
 import android.text.BoringLayout
 import android.text.Layout
@@ -11,17 +12,24 @@ import android.text.StaticLayout
 import android.util.AttributeSet
 import android.util.Log
 import android.view.View
-import android.view.ViewGroup
-import androidx.core.text.inSpans
-import androidx.core.text.set
-import org.nativescript.mason.masonkit.TextAlign.Justify
+import androidx.annotation.RequiresApi
 import org.nativescript.mason.masonkit.TextAlign.Start
 import org.nativescript.mason.masonkit.text.Spans
+import org.nativescript.mason.masonkit.text.Styles
 import org.nativescript.mason.masonkit.text.Styles.DecorationLine
 import org.nativescript.mason.masonkit.text.Styles.TextJustify
-import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.Locale
+import kotlin.collections.MutableList
+import kotlin.collections.any
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.indexOfFirst
+import kotlin.collections.iterator
+import kotlin.collections.mutableListOf
+import kotlin.collections.mutableMapOf
+import kotlin.collections.set
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -32,7 +40,14 @@ object TextStyleKeys {
   const val TEXT_ALIGN = 12
   const val TEXT_JUSTIFY = 16
   const val BACKGROUND_COLOR = 20
+  const val SIZE = 24
+  const val TRANSFORM = 28
+  const val FONT_STYLE_TYPE = 32
+  const val FONT_STYLE_SLANT = 36
+  const val TEXT_WRAP = 40
 }
+
+const val UNSET_COLOR = 0xDEADBEEF
 
 @JvmInline
 value class TextStateKeys internal constructor(val bits: Long) {
@@ -43,6 +58,12 @@ value class TextStateKeys internal constructor(val bits: Long) {
     val TEXT_ALIGN = TextStateKeys(1L shl 3)
     val TEXT_JUSTIFY = TextStateKeys(1L shl 4)
     val BACKGROUND_COLOR = TextStateKeys(1L shl 5)
+
+    val SIZE = TextStateKeys(1L shl 6)
+    val TRANSFORM = TextStateKeys(1L shl 7)
+    val FONT_STYLE = TextStateKeys(1L shl 8)
+    val FONT_STYLE_SLANT = TextStateKeys(1L shl 9)
+    val TEXT_WRAP = TextStateKeys(1L shl 10)
   }
 
   infix fun or(other: TextStateKeys): TextStateKeys = TextStateKeys(bits or other.bits)
@@ -51,14 +72,53 @@ value class TextStateKeys internal constructor(val bits: Long) {
 }
 
 const val VIEW_PLACEHOLDER = "[[__view__]]"
-const val VIEW_POSITION = "[[__position__]]"
 
 class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null
 ) : androidx.appcompat.widget.AppCompatTextView(context, attrs), MasonView, MeasureFunc {
+  private var spannableText: String? = null
   private var spannable = SpannableStringBuilder("")
+  private var spans = mutableMapOf<Spans.Type, Spans.NSCSpan>()
+
+
+  override lateinit var node: Node
+    private set
+
+  // using two nodes to ensure measure is handled correctly
+  private lateinit var actualNode: Node
+
+  private var owner: TextView? = null
+  private val children: MutableList<TextChild> = mutableListOf()
+
+  private data class TextChild(
+    val view: View,
+    val text: TextView?,
+    val attachment: Spans.NSCSpan?
+  )
+
+
+  constructor(context: Context, mason: Mason) : this(context) {
+    node = mason.createNode(this)
+    actualNode = mason.createNode(this).apply {
+      data = this@TextView
+    }
+
+  }
 
   init {
+    if (!::node.isInitialized) {
+      node = Mason.shared.createNode(this)
+    }
+
+    if (!::actualNode.isInitialized) {
+      actualNode = Mason.shared.createNode(this).apply {
+        data = this@TextView
+      }
+    }
+
+    // node.style.display = Display.Flex
+    node.addChild(actualNode)
+
     setSpannableFactory(object : Spannable.Factory() {
       override fun newSpannable(source: CharSequence): Spannable {
         return source as Spannable
@@ -67,45 +127,14 @@ class TextView @JvmOverloads constructor(
     setText(spannable, BufferType.SPANNABLE)
   }
 
-  override lateinit var node: Node
-    private set
-
-  // using two nodes to ensure measure is handled correctly
-  private lateinit var actualNode: Node
-
-  private val trackingSpan = Spans.TrackingSpan()
-
-  private data class TextChild(
-    var root: WeakReference<TextView>,
-    var parent: TextChild?,
-    val view: View,
-    val textView: TextView?,
-    var text: String = "",
-    val children: MutableList<TextChild> = mutableListOf(),
-    val spans: MutableMap<Spans.Type, Spans.NSCSpan> = mutableMapOf()
-  )
-
-  private lateinit var info: TextChild
-
-  constructor(context: Context, mason: Mason) : this(context) {
-    node = mason.createNode(this)
-    actualNode = mason.createNode(this).apply {
-      data = this@TextView
-    }
-    node.addChild(actualNode)
-    info = TextChild(WeakReference(this), null, this, this).apply {
-      this.spans[Spans.Type.ForegroundColor] = Spans.ForegroundColorSpan(Color.BLACK)
-      this.spans[Spans.Type.BackgroundColor] = Spans.ForegroundColorSpan(Color.TRANSPARENT)
-    }
-  }
-
   val textValues: ByteBuffer by lazy {
-    ByteBuffer.allocateDirect(24).apply {
+    ByteBuffer.allocateDirect(44).apply {
       order(ByteOrder.nativeOrder())
       putInt(TextStyleKeys.COLOR, Color.BLACK)
-      putInt(TextStyleKeys.DECORATION_COLOR, Color.BLACK)
+      putInt(TextStyleKeys.DECORATION_COLOR, UNSET_COLOR.toInt())
       putInt(TextStyleKeys.TEXT_ALIGN, Start.value)
       putInt(TextStyleKeys.TEXT_JUSTIFY, TextJustify.None.value)
+      putInt(TextStyleKeys.SIZE, 15)
     }
   }
 
@@ -135,6 +164,15 @@ class TextView @JvmOverloads constructor(
       if (hasDecorationColor || hasDecorationLine) {
         updateDecorationLine(decorationLine, decorationColor)
       }
+
+      if (value.hasFlag(TextStateKeys.TRANSFORM)) {
+        applyTransform(textTransform, true)
+      }
+
+      if (value.hasFlag(TextStateKeys.TEXT_WRAP)) {
+        node.dirty()
+        invalidate()
+      }
     }
     if (stateValue != -1L) {
       style.isDirty = stateValue
@@ -161,20 +199,6 @@ class TextView @JvmOverloads constructor(
       return node.mason.getNativePtr().toString() + ":" + masonNodePtr.toString()
     }
 
-  override fun invalidate() {
-    super.invalidate()
-    if (::info.isInitialized) {
-      var next = info.parent
-      var parent = info.parent
-      while (next != null) {
-        next = parent?.parent?.let {
-          parent = it
-          it
-        }
-      }
-      parent?.textView?.invalidate()
-    }
-  }
 
   var includePadding = false
 
@@ -194,25 +218,202 @@ class TextView @JvmOverloads constructor(
       textValues.putInt(TextStyleKeys.TEXT_JUSTIFY, value.value)
     }
 
-  private fun updateColor(color: Int, replace: Boolean = false) {
-    val foreground = Spans.ForegroundColorSpan(color)
-    info.spans[Spans.Type.ForegroundColor]?.let {
-      if (replace) {
-        val start = spannable.getSpanStart(it)
-        val end = spannable.getSpanEnd(it)
-        Log.d("updateColor", "$start $end")
-        if (start != -1 && end != -1) {
-          spannable.setSpan(foreground, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-        }
+  private val rootNode: Node
+    get() {
+      var current = this.node
+      while (current.owner != null) {
+        current = current.owner!!
       }
+      return current
+    }
+
+  private fun updateFontSize(value: Int) {
+    spans[Spans.Type.Size]?.let {
       spannable.removeSpan(it)
     }
+    spans[Spans.Type.Size] = Spans.SizeSpan(value)
+    applySpans()
+  }
 
-    info.spans[Spans.Type.ForegroundColor] = foreground
-
-    if (!batching) {
-      invalidateView()
+  var fontSize: Int
+    get() {
+      return textValues.getInt(TextStyleKeys.SIZE)
     }
+    set(value) {
+      textValues.putInt(TextStyleKeys.SIZE, value)
+      updateFontSize(value)
+      node.dirty()
+      if (!node.inBatch) {
+        invalidateView()
+      }
+    }
+
+
+  var textWrap: Styles.TextWrap
+    get() {
+      return Styles.TextWrap.fromInt(textValues.getInt(TextStyleKeys.TEXT_WRAP))
+    }
+    set(value) {
+      textValues.putInt(TextStyleKeys.TEXT_WRAP, value.value)
+      node.dirty()
+      if (!node.inBatch) {
+        rootNode.computeMaxContent()
+      }
+    }
+
+  private fun fullWidthTransformed(string: String): String {
+    val result = StringBuilder(string.length)
+    for (char in string) {
+      val code = char.code
+      if (code in 0x21..0x7E) {
+        result.append((code + 0xFEE0).toChar())
+      } else {
+        result.append(char)
+      }
+    }
+    return result.toString()
+  }
+
+  @RequiresApi(Build.VERSION_CODES.Q)
+  private fun fullWidthKana(string: String): String {
+    val transliterator = Transliterator.getInstance("Halfwidth-Fullwidth")
+    return transliterator.transliterate(string)
+  }
+
+  private val halfwidthToFullwidthMap: Map<Char, Char> = mapOf(
+    'ｦ' to 'ヲ', 'ｧ' to 'ァ', 'ｨ' to 'ィ', 'ｩ' to 'ゥ', 'ｪ' to 'ェ', 'ｫ' to 'ォ',
+    'ｬ' to 'ャ', 'ｭ' to 'ュ', 'ｮ' to 'ョ', 'ｯ' to 'ッ', 'ｰ' to 'ー', 'ｱ' to 'ア',
+    'ｲ' to 'イ', 'ｳ' to 'ウ', 'ｴ' to 'エ', 'ｵ' to 'オ', 'ｶ' to 'カ', 'ｷ' to 'キ',
+    'ｸ' to 'ク', 'ｹ' to 'ケ', 'ｺ' to 'コ', 'ｻ' to 'サ', 'ｼ' to 'シ', 'ｽ' to 'ス',
+    'ｾ' to 'セ', 'ｿ' to 'ソ', 'ﾀ' to 'タ', 'ﾁ' to 'チ', 'ﾂ' to 'ツ', 'ﾃ' to 'テ',
+    'ﾄ' to 'ト', 'ﾅ' to 'ナ', 'ﾆ' to 'ニ', 'ﾇ' to 'ヌ', 'ﾈ' to 'ネ', 'ﾉ' to 'ノ',
+    'ﾊ' to 'ハ', 'ﾋ' to 'ヒ', 'ﾌ' to 'フ', 'ﾍ' to 'ヘ', 'ﾎ' to 'ホ', 'ﾏ' to 'マ',
+    'ﾐ' to 'ミ', 'ﾑ' to 'ム', 'ﾒ' to 'メ', 'ﾓ' to 'モ', 'ﾔ' to 'ヤ', 'ﾕ' to 'ユ',
+    'ﾖ' to 'ヨ', 'ﾗ' to 'ラ', 'ﾘ' to 'リ', 'ﾙ' to 'ル', 'ﾚ' to 'レ', 'ﾛ' to 'ロ',
+    'ﾜ' to 'ワ', 'ﾝ' to 'ン'
+  )
+
+  private val dakutenMap: Map<Char, Char> = mapOf(
+    'カ' to 'ガ', 'キ' to 'ギ', 'ク' to 'グ', 'ケ' to 'ゲ', 'コ' to 'ゴ',
+    'サ' to 'ザ', 'シ' to 'ジ', 'ス' to 'ズ', 'セ' to 'ゼ', 'ソ' to 'ゾ',
+    'タ' to 'ダ', 'チ' to 'ヂ', 'ツ' to 'ヅ', 'テ' to 'デ', 'ト' to 'ド',
+    'ハ' to 'バ', 'ヒ' to 'ビ', 'フ' to 'ブ', 'ヘ' to 'ベ', 'ホ' to 'ボ',
+    'ウ' to 'ヴ'
+  )
+
+  private val handakutenMap: Map<Char, Char> = mapOf(
+    'ハ' to 'パ', 'ヒ' to 'ピ', 'フ' to 'プ', 'ヘ' to 'ペ', 'ホ' to 'ポ'
+  )
+
+  private fun fullWidthKanaCompat(string: String): String {
+    val builder = StringBuilder(string.length)
+    var lastFullwidthKanaIndex = -1
+
+    for (char in string) {
+      when {
+        char in 'ｦ'..'ﾝ' -> {
+          // Halfwidth Kana
+          val fullwidth = halfwidthToFullwidthMap[char] ?: char
+          builder.append(fullwidth)
+          lastFullwidthKanaIndex = builder.length - 1
+        }
+
+        char == 'ﾞ' -> {
+          if (lastFullwidthKanaIndex != -1) {
+            val base = builder[lastFullwidthKanaIndex]
+            val combined = dakutenMap[base] ?: base
+            builder.setCharAt(lastFullwidthKanaIndex, combined)
+          } else {
+            builder.append('゛')
+          }
+          lastFullwidthKanaIndex = -1
+        }
+
+        char == 'ﾟ' -> {
+          if (lastFullwidthKanaIndex != -1) {
+            val base = builder[lastFullwidthKanaIndex]
+            val combined = handakutenMap[base] ?: base
+            builder.setCharAt(lastFullwidthKanaIndex, combined)
+          } else {
+            builder.append('゜')
+          }
+          lastFullwidthKanaIndex = -1
+        }
+
+        char in '\u0021'..'\u007E' -> {
+          // Fullwidth ASCII
+          val fullwidth = (char.code + 0xFEE0).toChar()
+          builder.append(fullwidth)
+          lastFullwidthKanaIndex = -1
+        }
+
+        else -> {
+          builder.append(char)
+          lastFullwidthKanaIndex = -1
+        }
+      }
+    }
+    return builder.toString()
+  }
+
+  private fun applyTransform(value: Styles.TextTransform, changed: Boolean) {
+    if (spannable.isEmpty()) {
+      return
+    }
+    when (value) {
+      Styles.TextTransform.None -> {
+        spannable.replace(0, spannable.length, spannableText)
+      }
+
+      Styles.TextTransform.Capitalize -> {
+        spannable.replace(0, spannable.length, spannableText?.capitalize(Locale.ROOT))
+      }
+
+      Styles.TextTransform.Uppercase -> {
+        spannable.replace(0, spannable.length, spannableText?.uppercase())
+      }
+
+      Styles.TextTransform.Lowercase -> {
+        spannable.replace(0, spannable.length, spannableText?.lowercase())
+      }
+
+      Styles.TextTransform.FullWidth -> {
+        spannable.replace(0, spannable.length, spannableText?.let {
+          fullWidthTransformed(it)
+        })
+      }
+
+      Styles.TextTransform.FullSizeKana -> {
+        spannable.replace(0, spannable.length, spannableText?.let {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            fullWidthKana(it)
+          } else {
+            fullWidthKanaCompat(it)
+          }
+        })
+      }
+
+      Styles.TextTransform.MathAuto -> {
+        // TODO
+        spannable.replace(0, spannable.length, spannableText)
+      }
+    }
+  }
+
+  var textTransform: Styles.TextTransform
+    get() {
+      return Styles.TextTransform.fromInt(textValues.getInt(TextStyleKeys.TRANSFORM))
+    }
+    set(value) {
+      val changed = value != textTransform
+      textValues.putInt(TextStyleKeys.TRANSFORM, value.value)
+      applyTransform(value, changed)
+    }
+
+  private fun updateColor(color: Int, replace: Boolean = false) {
+    spans[Spans.Type.ForegroundColor] = Spans.ForegroundColorSpan(color)
+    applySpans()
+    invalidateView()
   }
 
   var color: Int
@@ -221,23 +422,22 @@ class TextView @JvmOverloads constructor(
     }
     set(value) {
       textValues.putInt(TextStyleKeys.COLOR, value)
-      updateColor(value, info.text.isNotEmpty())
+      updateColor(value, text.isNotEmpty())
     }
 
 
-  private fun updateBackgroundColor(color: Int, replace: Boolean = false) {
+  private fun updateBackgroundColor(color: Int) {
     val background = Spans.BackgroundColorSpan(color)
-    info.spans[Spans.Type.BackgroundColor]?.let {
-      if (replace) {
-        val start = spannable.getSpanStart(it)
-        val end = spannable.getSpanEnd(it)
-        if (start != -1 && end != -1) {
-          spannable.setSpan(background, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-        }
-      }
-      spannable.removeSpan(it)
+
+    if ((spannableText?.length ?: 0) == 0) {
+      spans[Spans.Type.BackgroundColor] = background
+      return
     }
-    info.spans[Spans.Type.BackgroundColor] = background
+    spans[Spans.Type.BackgroundColor] = background
+
+    applySpans()
+
+    invalidateView()
   }
 
   var backgroundColorValue: Int
@@ -246,7 +446,7 @@ class TextView @JvmOverloads constructor(
     }
     set(value) {
       textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, value)
-      updateBackgroundColor(value, info.text.isNotEmpty())
+      updateBackgroundColor(value)
     }
 
   var decorationColor: Int
@@ -258,54 +458,23 @@ class TextView @JvmOverloads constructor(
       updateDecorationLine(decorationLine, value)
     }
 
-  private fun updateDecorationLine(value: DecorationLine, color: Int) {/*
-    if (spannable.isNotEmpty()) {
-      val decoration = info.spans.indexOfFirst { it.type == Spans.Type.DecorationLine }
-      if (decoration != -1) {
-        spannable.removeSpan(info.spans[decoration])
-      }
-
-      when (value) {
-        DecorationLine.None -> {
-          if (decoration != -1) {
-            info.spans.removeAt(decoration)
-          }
-        }
-
-        DecorationLine.Underline -> {
-          val line = Spans.UnderlineSpan()
-          spannable.setSpan(
-            line, 0, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-          )
-          if (decoration != -1) {
-            info.spans[decoration] = line
-          } else {
-            info.spans.add(line)
-          }
-
-        }
-
-        DecorationLine.Overline -> {
-          // todo
-        }
-
-        DecorationLine.LineThrough -> {
-          val span = Spans.StrikethroughSpan()
-          val paint = TextPaint()
-          paint.color = color
-          span.updateDrawState(paint)
-          spannable.setSpan(
-            span, 0, spannable.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-          )
-          if (decoration != -1) {
-            info.spans[decoration] = span
-          } else {
-            info.spans.add(span)
-          }
-        }
-      }
+  private fun updateDecorationLine(value: DecorationLine, color: Int) {
+    val lineSpan = when (value) {
+      DecorationLine.None -> null
+      DecorationLine.Underline -> Spans.UnderlineSpan()
+      DecorationLine.LineThrough -> Spans.StrikethroughSpan()
+      DecorationLine.Overline -> null // TODO: Need custom span
     }
-    */
+
+    if (lineSpan != null) {
+      spans[Spans.Type.DecorationLine] = lineSpan
+    } else {
+      spans.remove(Spans.Type.DecorationLine)
+    }
+
+    applySpans()
+
+    invalidateView()
   }
 
   var decorationLine: DecorationLine
@@ -341,7 +510,7 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun configure(block: Node.() -> Unit) {
-    block(actualNode)
+    block(node)
   }
 
   private var batching = false
@@ -367,14 +536,14 @@ class TextView @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-
-    if (info.parent == null && parent !is org.nativescript.mason.masonkit.View) {
+    if (owner == null && parent !is org.nativescript.mason.masonkit.View) {
       node.compute(
         mapMeasureSpec(specWidthMode, specWidth).value,
         mapMeasureSpec(specHeightMode, specHeight).value
       )
 
       val layout = node.layout()
+      node.layoutCache = layout
       setMeasuredDimension(
         layout.width.toInt(),
         layout.height.toInt(),
@@ -420,7 +589,8 @@ class TextView @JvmOverloads constructor(
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       val builder = StaticLayout.Builder.obtain(
         spannable, 0, spannable.length, paint, maxWidth
-      ).setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(includePadding)
+      )
+        .setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(includePadding)
 
       return builder.build()
     } else {
@@ -430,288 +600,109 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-  private fun invalidateView() {
-    val rootView = info.root.get()
-    if (rootView != null) {
-      rootView.setText(rootView.spannable, BufferType.SPANNABLE)
-    } else {
-      setText(spannable, BufferType.SPANNABLE)
-    }
-  }
+  private fun rebuildText(): SpannableStringBuilder {
+    val result = SpannableStringBuilder()
 
-  fun updateText(text: String?) {
-    // do nothing if the current text is the same as the incoming text
-    if (text == info.text) return
-    val previousSize = info.text.length
-    val isRoot = info.parent == null
-    if (text == null) {
-      info.text = ""
+    result.append(spannable)
 
-      info.root.get()?.let {
-        if (isRoot) {
-          for (span in info.spans.values) {
-            it.spannable.removeSpan(span)
-          }
-        } else {
-
+    for (child in children) {
+      when {
+        child.view is TextView -> {
+          result.append(child.view.rebuildText())
         }
 
+        child.attachment != null -> {
+          val attachment = SpannableStringBuilder(VIEW_PLACEHOLDER)
+          attachment.setSpan(
+            child.attachment,
+            0,
+            VIEW_PLACEHOLDER.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+          )
+          result.append(attachment)
+        }
       }
+    }
 
-      invalidateView()
+    return result
+  }
+
+  private fun invalidateView() {
+    if (owner != null) {
+      owner?.invalidateView()
       return
     }
 
-    info.text = if (textAlign == Justify && textJustify != TextJustify.None) {
-      when (textJustify) {
-        TextJustify.Auto, TextJustify.InterWord, TextJustify.Distribute -> {
-          val lines = text.split("\n")
-          val justifiedText = StringBuilder()
-
-          val paint = paint
-          val width = width - paddingLeft - paddingRight
-
-          for (line in lines) {
-            val words = line.split(" ")
-            if (words.size <= 1) {
-              justifiedText.append(line).append("\n")
-              continue
-            }
-
-            val lineWidth = paint.measureText(line)
-            val spaceWidth = paint.measureText(" ")
-            val extraSpace = (width - lineWidth) / (words.size - 1)
-            val space = " ".repeat((extraSpace / spaceWidth).toInt())
-
-            justifiedText.append(words.joinToString(space)).append("\n")
-          }
-
-          if (justifiedText.isEmpty()) {
-            justifiedText.toString()
-          } else {
-            text
-          }
-        }
-
-        TextJustify.InterCharacter -> {
-          info.spans[Spans.Type.Justify] = Spans.ScaleXSpan(0.02f)
-          text
-        }
-
-        else -> {
-          text
-        }
-      }
-    } else {
-      text
-    }
-
-    val root = info.root.get()
-
-    val spannable = if (isRoot) {
-      spannable
-    } else {
-      root?.spannable
-    }
-    val start = if (isRoot) {
-      0
-    } else {
-      root?.spannable?.getSpanStart(trackingSpan) ?: -1
-    }
-
-    if (start != -1) {
-      if (previousSize == 0) {
-        val wasTracking = spannable?.getSpanStart(trackingSpan) ?: -1
-        if (wasTracking != -1) {
-          spannable?.replace(start, start + VIEW_POSITION.length, info.text)
-          spannable?.removeSpan(trackingSpan)
-        } else {
-          spannable?.insert(start, info.text)
-        }
-      } else {
-        spannable?.replace(start, previousSize, "")
-        if (info.text.isEmpty()) {
-          spannable?.insert(start, VIEW_POSITION)
-          spannable?.setSpan(
-            trackingSpan, start, start + VIEW_POSITION.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-          )
-        }
-      }
-
-      val length = info.text.length
-      if (length > 0) {
-        spannable?.setSpan(
-          info.spans[Spans.Type.BackgroundColor],
-          start,
-          start + length,
-          Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-
-        spannable?.setSpan(
-          info.spans[Spans.Type.ForegroundColor],
-          start,
-          start + length,
-          Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-      }
-    }
-
-    if (isRoot) {
-      if (info.text.isNotEmpty()) {
-        setBackgroundColor(backgroundColorValue)
-      }
-    }
-
-    if (isRoot) {
-      setText(spannable, BufferType.SPANNABLE)
-    } else {
-      invalidateView()
-    }
+    val rebuilt = rebuildText()
+    setText(rebuilt, BufferType.SPANNABLE)
   }
 
-  val currentText: String
-    get() {
-      return info.text
+  fun updateText(text: String?) {
+    if (text == spannableText) {
+      return
     }
+    spannableText = text
+    spannable.clearSpans()
+    spannable.clear()
+    spannable.append(text ?: "")
+    applySpans()
+    actualNode.dirty()
+    invalidateView()
+  }
 
   @JvmOverloads
   fun addView(view: View, index: Int = -1) {
     // Return early if the view is already added
-    if (info.children.any { it.view == view }) {
+    if (children.any { it.view == view }) {
       return
     }
+    val isText = view is TextView
+    var attachment: Spans.NSCSpan? = null
+    if (!isText) {
+      attachment = Spans.ViewSpannable(view, Mason.shared.nodeForView(view))
+    }
 
-    var isEmpty = false
-    val text = if (view is TextView) {
-      view.info.text.ifEmpty {
-        isEmpty = true
-        VIEW_POSITION
-      }
+    val child = TextChild(view, view as? TextView, attachment)
+
+    if (index == -1 || index >= children.size) {
+      children.add(child)
     } else {
-      VIEW_PLACEHOLDER
+      children.add(index, child)
     }
 
-    val newPos = if (index <= -1) {
-      info.children.size
+    if (isText) {
+      (view as TextView).owner = this
+    }
+
+    if (view is MasonView) {
+      node.addChild(view.node)
     } else {
-      index
+      node.addChild(node.mason.nodeForView(view))
     }
-
-
-    info.root.get()?.let {
-      if (newPos == 0) {
-        val color = it.info.spans[Spans.Type.ForegroundColor]
-        var start = color?.let { color -> it.spannable.getSpanEnd(color) } ?: -1
-        if (start == -1) {
-          start = it.spannable.getSpanEnd(it.trackingSpan)
-        }
-
-        it.spannable.insert(start, text)
-        if (view is TextView) {
-          view.info.root = info.root
-          view.info.parent = info
-
-          if (isEmpty) {
-
-            it.spannable.setSpan(
-              view.trackingSpan,
-              start,
-              start + text.length,
-              Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-          } else {
-            if (view.info.text.isEmpty()) {
-              it.spannable.replace(start, start + VIEW_POSITION.length, "")
-              it.spannable.removeSpan(view.trackingSpan)
-            }
-            view.info.spans[Spans.Type.BackgroundColor]?.let { background ->
-              it.spannable.setSpan(
-                background,
-                start,
-                start + text.length,
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-              )
-            }
-
-
-            it.spannable.setSpan(
-              view.info.spans[Spans.Type.ForegroundColor],
-              start,
-              start + text.length,
-              Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-          }
-        }
-
-      } else {
-        val child = info.children.getOrNull(newPos - 1)
-        val colorOrView =
-          child?.spans?.get(Spans.Type.ForegroundColor) ?: child?.spans?.get(Spans.Type.View)
-        var start = colorOrView?.let { color -> it.spannable.getSpanEnd(color) } ?: -1
-        if (start == -1 && child?.textView != null) {
-          start = it.spannable.getSpanEnd(child.textView.trackingSpan)
-        }
-        it.spannable.insert(start, text)
-
-        if (view is TextView) {
-
-        } else {
-          val info = TextChild(info.root, info, view, null, text)
-          val childNode = node.mason.nodeForView(view)
-          node.addChild(childNode)
-          val span = Spans.ViewSpannable(view, childNode)
-          info.spans[Spans.Type.View] = span
-          it.spannable.setSpan(
-            span,
-            start,
-            VIEW_PLACEHOLDER.length,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-          )
-        }
-      }
-    }
-
-
-    view.layoutParams = ViewGroup.LayoutParams(
-      ViewGroup.LayoutParams.WRAP_CONTENT,
-      ViewGroup.LayoutParams.WRAP_CONTENT
-    )
-
-    if (index == -1) {
-      info.children.add(info)
-    } else {
-      info.children.add(index, info)
-    }
-
 
     invalidateView()
-
   }
 
-  fun removeView(view: View) {/*
-    val childIndex = children.indexOfFirst { it.view == view }
-    if (childIndex != -1) {
-      val childInfo = children.removeAt(childIndex)
+  fun removeView(view: View) {
+    val index = children.indexOfFirst { it.view == view }
+    if (index != -1) {
+      children.removeAt(index)
+      node.removeChild(node.mason.nodeForView(view))
+      invalidateView()
+    }
+  }
 
-
-      childInfo.spans.forEach { span ->
-        spannable.removeSpan(span)
-      }
-
-
-      spannable.delete(childInfo.start, childInfo.end)
-
-
-      for (i in childIndex until children.size) {
-        val remainingChild = children[i]
-      }
-
-      if (!batching) {
-        invalidateView()
+  private fun applySpans() {
+    if (spannable.isEmpty()) {
+      return
+    }
+    val start = 0
+    val end = spannable.length
+    if (start < end) {
+      for ((_, span) in spans) {
+        spannable.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
       }
     }
-
-    */
   }
 
   // called for leaf views

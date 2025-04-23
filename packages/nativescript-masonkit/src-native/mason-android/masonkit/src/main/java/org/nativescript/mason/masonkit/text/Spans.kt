@@ -5,7 +5,6 @@ import android.graphics.ColorFilter
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
-import android.text.TextPaint
 import android.text.style.DynamicDrawableSpan
 import android.view.View
 import android.view.ViewGroup
@@ -18,11 +17,18 @@ class Spans {
     ForegroundColor,
     DecorationLine,
     Justify,
-    Tracking
+    Tracking,
+    Size
   }
 
   interface NSCSpan {
     val type: Type
+  }
+
+  class SizeSpan(size: Int, scale: Boolean = false) :
+    android.text.style.AbsoluteSizeSpan(size, scale), NSCSpan {
+    override val type: Type
+      get() = Type.Size
   }
 
   class ScaleXSpan(scale: Float) : android.text.style.ScaleXSpan(scale), NSCSpan {

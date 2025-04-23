@@ -522,6 +522,8 @@ declare class MasonNode extends NSObject {
 
 	readonly isDirty: boolean;
 
+	readonly layoutCache: MasonLayout;
+
 	readonly nativePtr: interop.Pointer | interop.Reference<any>;
 
 	readonly owner: MasonNode;
@@ -645,7 +647,7 @@ declare class MasonStyle extends NSObject {
 
 	textAlign: MasonTextAlign;
 
-	readonly values: NSMutableData;
+	values: NSMutableData;
 
 	constructor(o: { node: MasonNode; });
 
@@ -759,8 +761,6 @@ declare class MasonText extends UIView {
 
 	static new(): MasonText; // inherited from NSObject
 
-	readonly textValues: NSMutableData;
-
 	backgroundColorValue: number;
 
 	color: number;
@@ -787,6 +787,8 @@ declare class MasonText extends UIView {
 
 	textTransform: TextTransform;
 
+	textValues: NSMutableData;
+
 	textWrap: TextWrap;
 
 	readonly uiView: UIView;
@@ -803,6 +805,8 @@ declare class MasonText extends UIView {
 
 	initWithNode(masonNode: MasonNode): this;
 
+	invalidateStyle(state: number): void;
+
 	isNodeDirty(): boolean;
 
 	markNodeDirty(): void;
@@ -814,6 +818,8 @@ declare class MasonText extends UIView {
 	setDecorationColorWithUi(color: UIColor): void;
 
 	setFontStyleSlant(style: FontStyle, slant: number): void;
+
+	syncStyle(state: string, textState: string): void;
 
 	updateText(value: string): void;
 }
@@ -954,6 +960,10 @@ declare class MasonUIView extends UIView {
 
 	addSubviewsAt(views: NSArray<UIView> | UIView[], index: number): void;
 
+	addView(view: UIView): void;
+
+	addViewAt(view: UIView, at: number): void;
+
 	configure(block: (p1: MasonNode) => void): void;
 
 	getBorder(): MasonLengthPercentageRectCompat;
@@ -1089,6 +1099,8 @@ declare class MasonUIView extends UIView {
 	setSizeHeight(height: number, type: number): void;
 
 	setSizeWidth(width: number, type: number): void;
+
+	syncStyle(state: string): void;
 }
 
 declare var MasonVersionNumber: number;
@@ -1189,9 +1201,11 @@ declare class NSCMason extends NSObject {
 
 	static new(): NSCMason; // inherited from NSObject
 
+	static setShared(value: NSCMason): void;
+
 	readonly nativePtr: interop.Pointer | interop.Reference<any>;
 
-	static readonly instance: NSCMason;
+	static shared: NSCMason;
 
 	clear(): void;
 

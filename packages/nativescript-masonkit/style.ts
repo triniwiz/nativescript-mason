@@ -107,6 +107,11 @@ enum TextStyleKeys {
   TEXT_ALIGN = 12,
   TEXT_JUSTIFY = 16,
   BACKGROUND_COLOR = 20,
+  SIZE = 24,
+  TRANSFORM = 28,
+  FONT_STYLE_TYPE = 32,
+  FONT_STYLE_SLANT = 36,
+  TEXT_WRAP = 40,
 }
 
 export type OverFlow = 'visible' | 'hidden' | 'scroll';
@@ -182,7 +187,7 @@ class StateKeys {
 }
 
 class TextStateKeys {
-  private constructor(public readonly bits: bigint) {}
+  constructor(public readonly bits: bigint) {}
 
   static readonly COLOR = new TextStateKeys(1n << 0n);
   static readonly DECORATION_LINE = new TextStateKeys(1n << 1n);
@@ -190,6 +195,12 @@ class TextStateKeys {
   static readonly TEXT_ALIGN = new TextStateKeys(1n << 3n);
   static readonly TEXT_JUSTIFY = new TextStateKeys(1n << 4n);
   static readonly BACKGROUND_COLOR = new TextStateKeys(1n << 5n);
+
+  static readonly SIZE = new TextStateKeys(1n << 6n);
+  static readonly TRANSFORM = new TextStateKeys(1n << 7n);
+  static readonly FONT_STYLE = new TextStateKeys(1n << 8n);
+  static readonly FONT_STYLE_SLANT = new TextStateKeys(1n << 9n);
+  static readonly TEXT_WRAP = new TextStateKeys(1n << 10n);
 
   or(other: TextStateKeys): TextStateKeys {
     return new TextStateKeys(this.bits | other.bits);
@@ -211,8 +222,6 @@ export class Style {
   private isDirty = -1n;
   private isTextDirty = -1n;
   private inBatch = false;
-  private node: any;
-  private mason: any;
   static fromView(view: View, nativeView, isText = false): Style {
     //console.time('fromView');
     const ret = new Style();
@@ -259,36 +268,26 @@ export class Style {
   }
 
   private syncStyle(isText = false) {
-    // console.time('syncStyle');
+    console.time('syncStyle');
     if (__ANDROID__) {
-      if (!this.node) {
-        const value = this.view[node];
-        if (value == 0n) {
-          this.node = long(value.toString() as never);
-        }
+      if (!isText) {
+        const view = this.view.android as org.nativescript.mason.masonkit.View;
+        view.syncStyle(this.isDirty.toString());
+      } else {
+        const view = this.view.android as never as org.nativescript.mason.masonkit.TextView;
+        view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
       }
-
-      if (!this.mason) {
-        const value = this.view[mason];
-        if (value == 0n) {
-          this.mason = long(value.toString() as never);
-        }
-      }
-
-      if (this.node != 0n && this.mason != 0n) {
-        if (!isText) {
-          const view = this.view.android as org.nativescript.mason.masonkit.View;
-          view.syncStyle(this.isDirty.toString());
-        } else {
-          const view = this.view.android as never as org.nativescript.mason.masonkit.TextView;
-          //  console.log('syncStyle', this.isDirty.toString(), this.isTextDirty.toString(), this.isDirty, this.isTextDirty);
-          view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
-        }
-
-        this.resetState();
+    } else if (__APPLE__) {
+      if (!isText) {
+        const view = this.view.ios as MasonUIView;
+        view.syncStyle(this.isDirty.toString());
+      } else {
+        const view = this.view.ios as MasonText;
+        view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
       }
     }
-    // console.timeEnd('syncStyle');
+    this.resetState();
+    console.timeEnd('syncStyle');
   }
 
   private setOrAppendState(value: StateKeys) {
@@ -329,14 +328,14 @@ export class Style {
       // BLACK ?
       return 0;
     }
-    return this.text_style_view.getInt32(TextStyleKeys.COLOR);
+    return this.text_style_view.getUint32(TextStyleKeys.COLOR);
   }
 
   set color(value: number) {
     if (!this.text_style_view) {
       return;
     }
-    this.text_style_view.setInt32(TextStyleKeys.COLOR, value);
+    this.text_style_view.setUint32(TextStyleKeys.COLOR, value, true);
     this.setOrAppendTextState(TextStateKeys.COLOR);
   }
 
@@ -345,15 +344,31 @@ export class Style {
       // BLACK ?
       return 0;
     }
-    return this.text_style_view.getInt32(TextStyleKeys.BACKGROUND_COLOR);
+    return this.text_style_view.getUint32(TextStyleKeys.BACKGROUND_COLOR);
   }
 
   set backgroundColor(value: number) {
     if (!this.text_style_view) {
       return;
     }
-    this.text_style_view.setInt32(TextStyleKeys.BACKGROUND_COLOR, value);
+    this.text_style_view.setUint32(TextStyleKeys.BACKGROUND_COLOR, value);
     this.setOrAppendTextState(TextStateKeys.BACKGROUND_COLOR);
+  }
+
+  get textWrap() {
+    if (!this.text_style_view) {
+      // BLACK ?
+      return 0;
+    }
+    return this.text_style_view.getInt32(TextStyleKeys.TEXT_ALIGN);
+  }
+
+  set textWrap(value: number) {
+    if (!this.text_style_view) {
+      return;
+    }
+    this.text_style_view.setInt32(TextStyleKeys.TEXT_WRAP, value);
+    this.setOrAppendTextState(TextStateKeys.TEXT_WRAP);
   }
 
   get styleView(): DataView {
@@ -501,7 +516,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.MIN_WIDTH_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MIN_WIDTH_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.MIN_WIDTH_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -537,7 +552,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.MIN_HEIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MIN_HEIGHT_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.MIN_HEIGHT_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -571,7 +586,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.WIDTH_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.WIDTH_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.WIDTH_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -605,7 +620,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.HEIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.HEIGHT_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.HEIGHT_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -639,7 +654,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.MAX_WIDTH_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MAX_WIDTH_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.MAX_WIDTH_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -673,7 +688,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.MAX_HEIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MAX_HEIGHT_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.MAX_HEIGHT_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -705,7 +720,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.INSET_LEFT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.INSET_LEFT_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.INSET_LEFT_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -737,7 +752,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.INSET_RIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.INSET_RIGHT_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.INSET_RIGHT_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -769,7 +784,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.INSET_TOP_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.INSET_TOP_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.INSET_TOP_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -801,7 +816,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.INSET_BOTTOM_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.INSET_BOTTOM_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.INSET_BOTTOM_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -836,7 +851,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.MARGIN_LEFT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MARGIN_LEFT_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.MARGIN_LEFT_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -871,7 +886,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.MARGIN_RIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MARGIN_RIGHT_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.MARGIN_RIGHT_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -906,7 +921,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.MARGIN_TOP_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MARGIN_TOP_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.MARGIN_TOP_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -940,7 +955,7 @@ export class Style {
         break;
       case 'number':
         this.style_view.setInt32(StyleKeys.MARGIN_BOTTOM_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MARGIN_BOTTOM_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.MARGIN_BOTTOM_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -971,7 +986,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.PADDING_LEFT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.PADDING_LEFT_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.PADDING_LEFT_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -1002,7 +1017,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.PADDING_RIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.PADDING_RIGHT_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.PADDING_RIGHT_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -1034,7 +1049,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.PADDING_TOP_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.PADDING_TOP_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.PADDING_TOP_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -1065,7 +1080,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.PADDING_BOTTOM_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.PADDING_BOTTOM_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.PADDING_BOTTOM_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -1100,7 +1115,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.GAP_ROW_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.GAP_ROW_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.GAP_ROW_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -1132,7 +1147,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.GAP_COLUMN_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.GAP_COLUMN_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.GAP_COLUMN_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {
@@ -1173,7 +1188,7 @@ export class Style {
     switch (typeof value) {
       case 'number':
         this.style_view.setInt32(StyleKeys.FLEX_BASIS_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.FLEX_BASIS_VALUE, value, true);
+        this.style_view.setFloat32(StyleKeys.FLEX_BASIS_VALUE, layout.toDevicePixels(value), true);
         break;
       case 'object':
         switch (value.unit) {

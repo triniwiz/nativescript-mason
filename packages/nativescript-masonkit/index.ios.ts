@@ -1,6 +1,6 @@
-import { backgroundColorProperty, Color, colorProperty, CoreTypes, CSSType, Screen, TextBase, Utils, ViewBase } from '@nativescript/core';
+import { backgroundColorProperty, Color, colorProperty, CoreTypes, CSSType, Screen, Utils, View as NSView } from '@nativescript/core';
 import { Style } from './style';
-import { BigIntZero, style, mason, node, textProperty, MasonChild, style_ } from './common';
+import { BigIntZero, style, mason, node, textProperty, MasonChild, style_, TextBase, ViewBase, textWrapProperty } from './common';
 
 function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit, parent = 0) {
   switch (length.unit) {
@@ -173,7 +173,7 @@ export class Tree {
   _base: NSCMason;
   private static _tree: Tree;
   constructor() {
-    this._base = NSCMason.alloc().init();
+    this._base = NSCMason.shared;
   }
 
   static {
@@ -207,7 +207,6 @@ export class View extends ViewBase {
     console.timeEnd('View');
     this._hasNativeView = true;
     this._view = view;
-    //  this.loadPtrs();
   }
   get _styleHelper() {
     if (this[style_] === undefined) {
@@ -215,29 +214,12 @@ export class View extends ViewBase {
     }
     return this[style_];
   }
-  loadPtrs() {
-    const ptrs = this.android?.getMasonPtrs().split(':');
-    this[mason] = BigInt(ptrs[0]);
-    this[node] = BigInt(ptrs[1]);
-  }
-
-  get _masonNodePtr() {
-    if (this[node] === BigIntZero) {
-      this.loadPtrs();
-    }
-    return this[node];
-  }
-  get _masonPtr() {
-    if (this[mason] === BigIntZero) {
-      this.loadPtrs();
-    }
-    return this[mason];
-  }
 
   _hasNativeView = false;
   _inBatch = false;
 
   createNativeView() {
+    console.log(this._view);
     return this._view;
   }
 
@@ -246,35 +228,150 @@ export class View extends ViewBase {
     super.disposeNativeView();
   }
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   get ios() {
     return this._view;
   }
 
-  public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
-    // super._addViewToNativeVisualTree(child);
-    const nativeView = this._view;
+  public onLayout(left: number, top: number, right: number, bottom: number): void {
+    super.onLayout(left, top, right, bottom);
+    let layout = this._view.node.layoutCache ?? this._view.node.layout();
+    const children = layout.children;
+    let i = 0;
 
-    // @ts-ignore
+    for (const child of this._children) {
+      layout = children.objectAtIndex(i);
+      const x = layout.x;
+      const y = layout.y;
+      const width = layout.x + layout.width;
+      const height = layout.y + layout.height;
+      View.layoutChild(this, child, x, y, width, height);
+      i++;
+    }
+    /*
+    this.eachLayoutChild((child, last) => {
+      console.log('eachLayoutChild', i, children.count);
+      layout = children.objectAtIndex(i);
+      const x = layout.x;
+      const y = layout.y;
+      const width = layout.x + layout.width;
+      const height = layout.y + layout.height;
+      View.layoutChild(this, child, x, y, width, height);
+      if (last) {
+        return;
+      }
+      i++;
+    });
+    */
+  }
+
+  public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
+    const nativeView = this._view;
+    if (nativeView) {
+      const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
+      const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
+      const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
+      const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
+
+      if (!this._isMasonChild) {
+        // only call compute on the parent
+        if (this.width === 'auto' && this.height === 'auto') {
+          this.ios.node.computeWithMaxContent();
+
+          const layout = this.ios.node.layout();
+
+          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
+          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
+
+          this.eachLayoutChild((child) => {
+            ViewBase.measureChild(this, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
+          });
+
+          this.setMeasuredDimension(w, h);
+          return;
+        } else {
+          let width;
+          switch (typeof this.width) {
+            case 'object': {
+              const parent = this.parent as any;
+              const mw = parent?.getMeasuredWidth?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.width ?? 0);
+              width = parseLength(this.width, mw);
+              break;
+            }
+            case 'string':
+              width = -2;
+              break;
+            case 'number':
+              width = Utils.layout.toDevicePixels(this.width);
+              break;
+          }
+
+          let height;
+          switch (typeof this.height) {
+            case 'object': {
+              const parent = this.parent as any;
+              const mh = parent?.getMeasuredHeight?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.height ?? 0);
+              height = parseLength(this.height, mh);
+              break;
+            }
+
+            case 'string':
+              height = -2;
+              break;
+            case 'number':
+              height = Utils.layout.toDevicePixels(this.height);
+              break;
+          }
+          this.ios.node.computeWithSize(width, height);
+
+          const layout = this.ios.node.layout();
+
+          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
+          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
+
+          this.eachLayoutChild((child) => {
+            ViewBase.measureChild(this, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
+          });
+
+          this.setMeasuredDimension(w, h);
+        }
+      } else {
+        const layout = nativeView.node.layoutCache ?? nativeView.node.layout();
+        const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
+        const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
+
+        this.setMeasuredDimension(w, h);
+      }
+    }
+  }
+
+  _setNativeViewFrame(nativeView: any, frame: CGRect): void {
+    console.log('view:_setNativeViewFrame', nativeView, frame.origin.x, frame.origin.y, frame.size.width, frame.size.height);
+    nativeView.frame = frame;
+  }
+
+  public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
+    const nativeView = this._view;
     child._masonParent = this;
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
       child._isMasonChild = true;
-      if (atIndex === -1) {
-        nativeView.addSubview(child.nativeViewProtected);
+      if (atIndex <= -1) {
+        nativeView.addView(child.nativeViewProtected);
       } else {
-        nativeView.addSubviewsAt(Utils.ios.collections.jsArrayToNSArray([child.nativeViewProtected]), atIndex ?? -1);
+        nativeView.addViewAt(child.nativeViewProtected, atIndex);
       }
       return true;
     }
-    // console.log('????/');
 
     return false;
   }
 
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
-    (view as any)._masonParent = undefined;
-    (view as any)._isMasonView = false;
-    (view as any)._isMasonChild = false;
+    view._masonParent = undefined;
+    view._isMasonView = false;
+    view._isMasonChild = false;
     super._removeViewFromNativeVisualTree(view);
   }
 }
@@ -283,72 +380,216 @@ export class Text extends TextBase {
   [style_];
   _hasNativeView = false;
   _inBatch = false;
+  _isText = true;
   private _view: MasonText;
   constructor() {
     super();
     const view = Tree.instance.createTextView();
     this._view = view;
     this._hasNativeView = true;
-    this.loadPtrs();
     this[style_] = Style.fromView(this as never, view, true);
   }
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   get ios() {
     return this._view;
-  }
-
-  loadPtrs() {
-    // const ptrs = this.ios?.getMasonPtrs().split(':');
-    // this[mason] = BigInt(ptrs[0]);
-    // this[node] = BigInt(ptrs[1]);
-  }
-
-  get _masonNodePtr() {
-    if (this[node] === BigIntZero) {
-      this.loadPtrs();
-    }
-    return this[node];
-  }
-  get _masonPtr() {
-    if (this[mason] === BigIntZero) {
-      this.loadPtrs();
-    }
-    return this[mason];
   }
 
   createNativeView() {
     return this._view;
   }
 
-  [textProperty.setNative](value) {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  //@ts-ignore
+  get text() {
+    return this._view.text;
+  }
+
+  set text(value: string) {
     const nativeView = this._view;
     if (nativeView) {
       nativeView.updateText(value);
     }
   }
 
+  // [textProperty.setNative](value) {
+  //   const nativeView = this._view;
+  //   console.log('text:setNative', value);
+  //   if (nativeView) {
+  //     nativeView.updateText(value);
+  //   }
+  // }
+
   [colorProperty.setNative](value) {
-    if (value instanceof Color) {
-      this[style_].color = value.android;
+    switch (typeof value) {
+      case 'number':
+        this[style_].color = value;
+        this[style_].syncStyle(true);
+        break;
+      case 'string':
+        {
+          this[style_].color = new Color(value).argb;
+          this[style_].syncStyle(true);
+        }
+        break;
+      case 'object':
+        {
+          this[style_].color = value.argb;
+          this[style_].syncStyle(true);
+        }
+        break;
     }
   }
 
-  [backgroundColorProperty.setNative](value) {
-    if (typeof value === 'number') {
-      this[style_].backgroundColor = value;
-    } else if (value instanceof Color) {
-      this[style_].backgroundColor = value.android;
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  set backgroundColor(value: Color | number) {
+    switch (typeof value) {
+      case 'number':
+        this[style_].backgroundColor = value;
+        this[style_].syncStyle(true);
+        break;
+      case 'string':
+        {
+          this[style_].backgroundColor = new Color(value).argb;
+          this[style_].syncStyle(true);
+        }
+        break;
+      case 'object':
+        this[style_].backgroundColor = value.argb;
+        this[style_].syncStyle(true);
+        break;
     }
   }
 
-  public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  get backgroundColor() {
+    return new Color(this[style_].backgroundColor);
+  }
+
+  // [backgroundColorProperty.setNative](value) {
+  //   console.log('backgroundColorProperty.setNative', value);
+  //   // if (typeof value === 'number') {
+  //   //   this[style_].backgroundColor = value;
+  //   //   this[style_].syncStyle(true);
+  //   // } else if (value instanceof Color) {
+  //   //   this[style_].backgroundColor = value.argb;
+  //   //   this[style_].syncStyle(true);
+  //   // }
+  // }
+
+  [textWrapProperty.setNative](value) {
+    switch (value) {
+      case 'nowrap':
+        this[style_].textWrap = TextWrap.NoWrap;
+        break;
+      case 'wrap':
+        this[style_].textWrap = TextWrap.Wrap;
+        break;
+      case 'balance':
+        this[style_].textWrap = TextWrap.Balance;
+        break;
+    }
+  }
+
+  public onLayout(left: number, top: number, right: number, bottom: number): void {
+    super.onLayout(left, top, right, bottom);
+    let layout = this._view.node.layoutCache ?? this._view.node.layout();
+    const children = layout.children;
+    let i = 1;
+
+    for (const child of this._children) {
+      layout = children.objectAtIndex(i);
+      const x = layout.x;
+      const y = layout.y;
+      const width = layout.width;
+      const height = layout.height;
+      View.layoutChild(this as never, child, x, y, width, height);
+      i++;
+    }
+  }
+
+  public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
+    const nativeView = this._view;
+    if (nativeView) {
+      const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
+      const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
+      const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
+      const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
+
+      if (!this._isMasonChild) {
+        // only call compute on the parent
+        if (this.width === 'auto' && this.height === 'auto') {
+          this.ios.node.computeWithMaxContent();
+
+          const layout = this.ios.node.layout();
+
+          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
+          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
+
+          this.setMeasuredDimension(w, h);
+          return;
+        } else {
+          let width;
+          switch (typeof this.width) {
+            case 'object': {
+              const parent = this.parent as any;
+              const mw = parent?.getMeasuredWidth?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.width ?? 0);
+              width = parseLength(this.width, mw);
+              break;
+            }
+            case 'string':
+              width = -2;
+              break;
+            case 'number':
+              width = Utils.layout.toDevicePixels(this.width);
+              break;
+          }
+
+          let height;
+          switch (typeof this.height) {
+            case 'object': {
+              const parent = this.parent as any;
+              const mh = parent?.getMeasuredHeight?.() || Utils.layout.toDevicePixels(parent?.nativeView?.frame?.size?.height ?? 0);
+              height = parseLength(this.height, mh);
+              break;
+            }
+
+            case 'string':
+              height = -2;
+              break;
+            case 'number':
+              height = Utils.layout.toDevicePixels(this.height);
+              break;
+          }
+          this.ios.node.computeWithSize(width, height);
+
+          const layout = this.ios.node.layout();
+
+          const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
+          const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
+
+          this.setMeasuredDimension(w, h);
+        }
+      } else {
+        const layout = nativeView.node.layoutCache ?? nativeView.node.layout();
+        const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
+        const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
+
+        this.setMeasuredDimension(w, h);
+        console.log('text: onMeasure: child', layout.width, layout.height);
+      }
+    }
+  }
+
+  public _addViewToNativeVisualTree(child: MasonChild & { text?: string }, atIndex = -1): boolean {
     // console.log('_addViewToNativeVisualTree');
     // super._addViewToNativeVisualTree(child);
     const nativeView = this._view;
 
     // child._masonParent = this;
-
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
       child._isMasonChild = true;
@@ -358,5 +599,9 @@ export class Text extends TextBase {
     }
 
     return false;
+  }
+
+  _setNativeViewFrame(nativeView: any, frame: CGRect): void {
+    nativeView.frame = frame;
   }
 }

@@ -32,9 +32,9 @@ public class MasonNode: NSObject {
   internal var mason: NSCMason
   public internal(set) var nativePtr: OpaquePointer?
   
-  internal var layoutCache: MasonLayout? = nil
-  internal var lastMeasureKnownSize: CGSize?
-  internal var lastMeasureAvailableSize: CGSize?
+  public internal(set) var layoutCache: MasonLayout? = nil
+  public internal(set) var lastMeasureKnownSize: CGSize?
+  public internal(set) var lastMeasureAvailableSize: CGSize?
   
   public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
   
@@ -246,7 +246,6 @@ public class MasonNode: NSObject {
     if (removedNode == nil) {
       return nil
     }
-    assert(child.nativePtr == removedNode)
     child.owner = nil
     
     guard let index = children.firstIndex(of: child) else {
@@ -356,7 +355,7 @@ public class MasonNode: NSObject {
     
     var width = CGFloat.greatestFiniteMagnitude
     var height = CGFloat.greatestFiniteMagnitude
-    
+  
     
     if(knownDimensions?.width.isZero == true){
       width = 0

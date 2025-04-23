@@ -9,6 +9,8 @@ import java.lang.ref.WeakReference
 
 
 class Node internal constructor(internal val mason: Mason, internal var nativePtr: Long) {
+  var layoutCache: Layout? = null
+    internal set
   internal var knownWidth: Float? = null
   internal var knownHeight: Float? = null
   internal var availableWidth: Float? = null
@@ -74,9 +76,8 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
     }
   }
 
-  internal var isKnown = false
   var data: Any? = null
-  internal set
+    internal set
 
   var owner: Node? = null
     internal set
@@ -134,12 +135,8 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
     get() {
       return owner?.let {
         var current: Node? = it
-        var next = current
-        while (next != null) {
-          next = current?.owner
-          if (next != null) {
-            current = next
-          }
+        while (current?.owner != null) {
+          current = current.owner
         }
         return current
       }

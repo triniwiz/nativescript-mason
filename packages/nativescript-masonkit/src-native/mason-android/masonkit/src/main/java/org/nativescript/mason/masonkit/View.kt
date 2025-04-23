@@ -17,6 +17,8 @@ class View @JvmOverloads constructor(
   override lateinit var node: Node
     private set
 
+  private val nodes = mutableMapOf<android.view.View, Node>()
+
   constructor(context: Context, mason: Mason) : this(context) {
     node = mason.createNode().apply {
       data = this@View
@@ -25,12 +27,11 @@ class View @JvmOverloads constructor(
 
   init {
     if (!::node.isInitialized) {
-      // throw Exception("Use Mason to create views")
+      node = Mason.shared.createNode().apply {
+        data = this@View
+      }
     }
   }
-
-
-  private val nodes = mutableMapOf<android.view.View, Node>()
 
   init {
 
@@ -82,20 +83,26 @@ class View @JvmOverloads constructor(
   }
 
   private fun applyLayoutRecursive(node: Node, layout: Layout) {
-
     val view = node.data as? android.view.View
+    node.layoutCache = layout
 
     if (view != null && view != this) {
+      var realLayout = layout
       if (view.visibility == GONE) {
         return
       }
 
-      val x = layout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val y = layout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val width = layout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val height = layout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+      if (view is TextView) {
+        realLayout = view.node.layoutCache!!
+      }
 
-      val widthSpec = if (layout.width.isInfinite()) {
+      val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
+      val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+      val width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
+      val height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+
+
+      val widthSpec = if (realLayout.width.isInfinite()) {
         MeasureSpec.UNSPECIFIED
       } else if (width > 0) {
         if (node.knownWidth != null) {
@@ -107,7 +114,7 @@ class View @JvmOverloads constructor(
         MeasureSpec.UNSPECIFIED
       }
 
-      val heightSpec = if (layout.height.isInfinite()) {
+      val heightSpec = if (realLayout.height.isInfinite()) {
         MeasureSpec.UNSPECIFIED
       } else if (height > 0) {
         if (node.knownHeight != null) {
@@ -118,7 +125,6 @@ class View @JvmOverloads constructor(
       } else {
         MeasureSpec.UNSPECIFIED
       }
-
 
       view.measure(
         MeasureSpec.makeMeasureSpec(
@@ -161,10 +167,8 @@ class View @JvmOverloads constructor(
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     // todo cache layout
-    val start = System.currentTimeMillis()
     val layout = node.layout()
     applyLayoutRecursive(node, layout)
-    Log.d("onLayout" ,"done ${System.currentTimeMillis() - start}")
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

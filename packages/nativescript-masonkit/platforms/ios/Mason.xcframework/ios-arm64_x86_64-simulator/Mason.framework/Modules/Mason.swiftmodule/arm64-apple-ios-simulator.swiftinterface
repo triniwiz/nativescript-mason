@@ -1,7 +1,7 @@
 // swift-interface-format-version: 1.0
-// swift-compiler-version: Apple Swift version 6.1 effective-5.10 (swiftlang-6.1.0.110.21 clang-1700.0.13.3)
-// swift-module-flags: -target arm64-apple-ios15.6-simulator -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -module-name Mason
-// swift-module-flags-ignorable: -no-verify-emitted-module-interface -interface-compiler-version 6.1
+// swift-compiler-version: Apple Swift version 6.0.2 effective-5.10 (swiftlang-6.0.2.1.2 clang-1600.0.26.4)
+// swift-module-flags: -target arm64-apple-ios15.6-simulator -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-bare-slash-regex -module-name Mason
+// swift-module-flags-ignorable: -no-verify-emitted-module-interface
 import CoreText
 import Foundation
 @_exported import Mason
@@ -45,6 +45,7 @@ public struct Line<T> {
   @objc public var nativePtr: Swift.OpaquePointer? {
     get
   }
+  @objc public static var shared: Mason.NSCMason
   @objc override dynamic public init()
   @objc deinit
   @objc public func nodeForView(_ view: UIKit.UIView, _ isLeaf: Swift.Bool = true) -> Mason.MasonNode
@@ -55,7 +56,6 @@ public struct Line<T> {
   public func createNode(measure: @escaping Mason.MasonNode.MeasureFunc) -> Mason.MasonNode
   @objc public func printTree(_ node: Mason.MasonNode)
   @objc public func createTextNode() -> Mason.MasonNode
-  @objc public static let instance: Mason.NSCMason
 }
 @_inheritsConvenienceInitializers @objcMembers @objc(MeasureOutput) public class MeasureOutput : ObjectiveC.NSObject {
   @objc override dynamic public init()
@@ -125,6 +125,15 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public var nativePtr: Swift.OpaquePointer? {
     get
   }
+  @objc public var layoutCache: Mason.MasonLayout? {
+    get
+  }
+  public var lastMeasureKnownSize: CoreFoundation.CGSize? {
+    get
+  }
+  public var lastMeasureAvailableSize: CoreFoundation.CGSize? {
+    get
+  }
   public typealias MeasureFunc = (CoreFoundation.CGSize?, CoreFoundation.CGSize) -> CoreFoundation.CGSize
   @objc public var data: Any?
   @objc public var style: Mason.MasonStyle {
@@ -179,6 +188,11 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   public func encode(to encoder: any Swift.Encoder) throws
   @objc deinit
 }
+extension UIKit.UIColor {
+  public static func colorFromARGB(_ argb: Swift.UInt32) -> UIKit.UIColor
+  public static func colorFromRGBA(_ rgba: Swift.UInt32) -> UIKit.UIColor
+  public func toUInt32() -> Swift.UInt32
+}
 @_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonView {
   @objc @_Concurrency.MainActor @preconcurrency public var owner: Mason.MasonText? {
     get
@@ -200,9 +214,11 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
     @objc set
   }
   @objc @_Concurrency.MainActor @preconcurrency public func updateText(_ value: Swift.String?)
+  @objc @_Concurrency.MainActor @preconcurrency public var txtToRender: Foundation.NSMutableAttributedString
   @objc @_Concurrency.MainActor @preconcurrency public var font: UIKit.UIFont {
     get
   }
+  @objc @_Concurrency.MainActor @preconcurrency public func invalidateStyle(_ state: Swift.Int64)
   @objc @_Concurrency.MainActor @preconcurrency public var textTransform: Mason.TextTransform {
     @objc get
     @objc set
@@ -220,18 +236,18 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
     @objc get
     @objc set
   }
-  @objc @_Concurrency.MainActor @preconcurrency public var color: Swift.Int32 {
+  @objc @_Concurrency.MainActor @preconcurrency public var color: Swift.UInt32 {
     @objc get
     @objc set
   }
-  @objc @_Concurrency.MainActor @preconcurrency public var backgroundColorValue: Swift.Int32 {
+  @objc @_Concurrency.MainActor @preconcurrency public var backgroundColorValue: Swift.UInt32 {
     @objc get
     @objc set
   }
   @objc @_Concurrency.MainActor @preconcurrency public func setColor(ui color: UIKit.UIColor)
   @objc @_Concurrency.MainActor @preconcurrency public func setBackgroundColor(ui color: UIKit.UIColor)
   @objc @_Concurrency.MainActor @preconcurrency public func setDecorationColor(ui color: UIKit.UIColor)
-  @objc @_Concurrency.MainActor @preconcurrency public var decorationColor: Swift.Int32 {
+  @objc @_Concurrency.MainActor @preconcurrency public var decorationColor: Swift.UInt32 {
     @objc get
     @objc set
   }
@@ -243,12 +259,14 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
     @objc get
     @objc set
   }
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
+  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, _ index: Swift.Int = -1)
+  @objc @_Concurrency.MainActor @preconcurrency public func removeView(_ view: UIKit.UIView)
   @objc @_Concurrency.MainActor @preconcurrency public var text: Swift.String? {
     @objc get
     @objc set
   }
-  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
-  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, _ index: Swift.Int = -1)
+  @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String, _ textState: Swift.String)
   @objc deinit
 }
 @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objc(MasonLayout) @objcMembers public class MasonLayout : ObjectiveC.NSObject, Swift.Codable {
@@ -1091,7 +1109,9 @@ public protocol MasonView {
     @objc get
     @objc set
   }
-  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func addSubview(_ view: UIKit.UIView)
+  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
+  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, at: Swift.Int)
+  @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String)
   @objc @_Concurrency.MainActor @preconcurrency public func addSubviews(_ views: [UIKit.UIView])
   @objc @_Concurrency.MainActor @preconcurrency public func addSubviews(_ views: [UIKit.UIView], at index: Swift.Int)
   @objc @_Concurrency.MainActor @preconcurrency public func configure(_ block: (Mason.MasonNode) -> Swift.Void)

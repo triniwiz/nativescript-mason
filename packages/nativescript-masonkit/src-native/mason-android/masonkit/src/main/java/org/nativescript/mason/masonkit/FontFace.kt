@@ -143,10 +143,10 @@ class FontFace {
   private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
   class NSCFontStyle private constructor(private val style: Style) {
-    internal enum class Style {
-      Normal,
-      Italic,
-      Oblique
+    internal enum class Style(val value: Int) {
+      Normal(0),
+      Italic(1),
+      Oblique(2)
     }
 
     private var angle: Int = 0
@@ -358,7 +358,6 @@ class FontFace {
     }
 
   }
-
 
   constructor(
     family: String

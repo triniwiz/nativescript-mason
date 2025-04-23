@@ -15,6 +15,8 @@ public class NSCMason: NSObject {
     internal var nodes: [Int64: MasonNode] = [:]
     internal var viewNodes: [UIView: MasonNode] = [:]
   
+    public static var shared = NSCMason()
+  
     public override init() {
         nativePtr = mason_init()
     }
@@ -71,9 +73,6 @@ public class NSCMason: NSObject {
   public func createTextNode() -> MasonNode{
     return MasonNode(mason: self)
   }
-  
-    public static let instance = NSCMason()
-
     
-    static let scale = Float(UIScreen.main.scale)
+  static let scale = Float(UIScreen.main.scale)
 }

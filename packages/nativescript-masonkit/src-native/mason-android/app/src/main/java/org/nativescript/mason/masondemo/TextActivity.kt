@@ -1,30 +1,76 @@
 package org.nativescript.mason.masondemo
 
-import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
-import android.util.AttributeSet
 import android.util.Log
-import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
-import org.nativescript.mason.masonkit.TextAlign
-import org.nativescript.mason.masonkit.text.Styles.TextJustify
+import org.nativescript.mason.masonkit.TextView
+import org.nativescript.mason.masonkit.View
+import org.nativescript.mason.masonkit.text.Styles
 import java.util.Timer
 import kotlin.concurrent.schedule
 
 
 class TextActivity : AppCompatActivity() {
-  val mason = Mason()
+  lateinit var root: View
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    val root = mason.createView(this)
-    val text = mason.createTextView(this)
+//    val root = Mason.shared.createView(this)
+//
+//    val a = Mason.shared.createTextView(this)
+//    a.updateText("A")
+//
+//    val b = Mason.shared.createTextView(this)
+//    b.updateText("B")
+//    root.addView(a)
+//    root.addView(b)
+//    setContentView(root)
+    testWrap()
+  }
+
+  fun testWrap() {
+    val root = View(this)
+
+    val a = TextView(this)
+    a.textWrap = Styles.TextWrap.Wrap
+    a.updateText("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris.")
+
+
+    val b = TextView(this)
+    b.updateText("Looking Out")
+    b.color = Color.RED
+
+    Log.d("com.test", "a $a b $b")
+
+    a.addView(b)
+    root.addView(a)
+    setContentView(root)
+
+    Timer().schedule(2000L) {
+      runOnUiThread {
+        b.fontSize = 60
+        Log.d("com.test", "root $root ${root.node}")
+      }
+    }
+  }
+
+  fun testText() {
+    val textOther = Mason.shared.createTextView(this)
+    textOther.color = Color.RED
+    textOther.updateText("Other")
+
+    root.addView(textOther)
+
+    val text = Mason.shared.createTextView(this)
+
     text.backgroundColorValue = Color.CYAN
     text.color = Color.RED
     text.updateText(
@@ -40,7 +86,7 @@ class TextActivity : AppCompatActivity() {
     img.setImageResource(R.mipmap.ic_launcher_ns)
 
 
-    val text2 = mason.createTextView(this)
+    val text2 = Mason.shared.createTextView(this)
     text2.color = Color.BLUE
     text2.backgroundColorValue = Color.YELLOW
 //    text2.configure {
@@ -49,7 +95,7 @@ class TextActivity : AppCompatActivity() {
     text2.updateText(
       "Lorem ipsum dolor sit amet."
     )
-    val text3 = mason.createTextView(this)
+    val text3 = Mason.shared.createTextView(this)
     text3.color = Color.GREEN
     text3.updateText(
       "Just adding a break here"
@@ -57,25 +103,28 @@ class TextActivity : AppCompatActivity() {
     val img2 = ImageView(this)
     img2.setImageResource(R.mipmap.ic_launcher)
 
+    Mason.shared.nodeForView(img2).configure {
+      style.size = Size(Dimension.Points(300f), Dimension.Points(300f))
+    }
 
     val view = LinearLayout(this)
     view.setBackgroundColor(Color.RED)
-    mason.nodeForView(view).configure {
+    Mason.shared.nodeForView(view).configure {
       style.size = Size(Dimension.Points(110f), Dimension.Points(110f))
     }
 
-    val view2 = mason.createView(this)
+    val view2 = Mason.shared.createView(this)
     view2.setBackgroundColor(Color.BLUE)
     view2.configure {
       style.size = Size(Dimension.Points(150f), Dimension.Points(150f))
     }
 
-    val nest1 = mason.createTextView(this)
+    val nest1 = Mason.shared.createTextView(this)
     nest1.updateText("This")
     nest1.color = Color.RED
     nest1.backgroundColorValue = Color.parseColor("#FFA500")
 
-    /*
+
 
     Timer().schedule(3000L) {
       runOnUiThread {
@@ -100,20 +149,17 @@ class TextActivity : AppCompatActivity() {
       }
     }
 
-    */
 
-
-
-    val nest11 = mason.createTextView(this)
+    val nest11 = Mason.shared.createTextView(this)
     nest11.color = Color.BLUE
     nest11.backgroundColorValue = Color.parseColor("red")
 
-    val nest111 = mason.createTextView(this)
+    val nest111 = Mason.shared.createTextView(this)
     nest111.updateText(" testing")
     nest111.color = Color.YELLOW
     nest111.backgroundColorValue = Color.parseColor("#FFC0CB")
 
-    val nest1111 = mason.createTextView(this)
+    val nest1111 = Mason.shared.createTextView(this)
     nest1111.color = Color.GREEN
     nest1111.backgroundColorValue = Color.parseColor("#BF40BF")
 
@@ -123,7 +169,8 @@ class TextActivity : AppCompatActivity() {
       runOnUiThread {
         // nest1.removeView(nest1111)
         nest11.updateText(" is")
-      }}
+      }
+    }
 
 
     nest1.addView(nest111)
@@ -135,7 +182,7 @@ class TextActivity : AppCompatActivity() {
 
     Timer().schedule(3000L) {
       runOnUiThread {
-       // nest1.removeView(nest1111)
+        // nest1.removeView(nest1111)
         nest1111.updateText(" nesting")
 
         Timer().schedule(1000L) {
@@ -145,12 +192,12 @@ class TextActivity : AppCompatActivity() {
 
             Timer().schedule(1000L) {
               runOnUiThread {
-              //  nest11.backgroundColorValue = Color.CYAN
+                //  nest11.backgroundColorValue = Color.CYAN
 
 
                 Timer().schedule(1000L) {
                   runOnUiThread {
-                 //   nest1.removeView(nest1111)
+                    //   nest1.removeView(nest1111)
                   }
                 }
               }
@@ -161,20 +208,15 @@ class TextActivity : AppCompatActivity() {
     }
 
 
+    text.addView(img)
 
-    /*
-
-      text.addView(img)
-
-       text.addView(img2)
+    text.addView(img2)
 
     text.addView(view)
-
 
     text.addView(text2)
     text.addView(text3)
 
-    */
 
     // text.addView(nest1)
 
@@ -200,9 +242,6 @@ class TextActivity : AppCompatActivity() {
           }.start()
 
         */
-
-
-    setContentView(root)
 
   }
 }

@@ -1025,7 +1025,7 @@ declare namespace org {
 					public requestLayout(view: globalAndroid.view.View): void;
 					public createView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.View;
 					public nodeForView($this$nodeForView_u24lambda_u247_u24lambda_u246: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
-					public static getInstance(): org.nativescript.mason.masonkit.Mason;
+					public static getShared(): org.nativescript.mason.masonkit.Mason;
 					public constructor();
 					public getNativePtr$masonkit_release(): number;
 					public clear(): void;
@@ -1037,7 +1037,7 @@ declare namespace org {
 					export class Companion {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.Mason.Companion>;
 						public initLib$masonkit_release(): void;
-						public getInstance(): org.nativescript.mason.masonkit.Mason;
+						public getShared(): org.nativescript.mason.masonkit.Mason;
 						public getGson$masonkit_release(): com.google.gson.Gson;
 					}
 				}

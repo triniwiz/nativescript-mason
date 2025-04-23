@@ -1,13 +1,12 @@
 import { backgroundColorProperty, Color, colorProperty, Utils } from '@nativescript/core';
-import { TextBase, ViewBase, mason, node, style_, textProperty, MasonChild } from './common';
+import { TextBase, ViewBase, style_, textProperty, MasonChild, textWrapProperty } from './common';
 import { Style } from './style';
-const BigIntZero = BigInt(0);
 
 export class Tree {
   _base: org.nativescript.mason.masonkit.Mason;
   private static _tree: Tree;
   constructor() {
-    this._base = new org.nativescript.mason.masonkit.Mason();
+    this._base = org.nativescript.mason.masonkit.Mason.getShared();
   }
 
   static {
@@ -41,31 +40,12 @@ export class View extends ViewBase {
     console.timeEnd('View');
     this._hasNativeView = true;
     this._view = view;
-    //  this.loadPtrs();
   }
   get _styleHelper() {
     if (this[style_] === undefined) {
       this[style_] = Style.fromView(this as never, this._view);
     }
     return this[style_];
-  }
-  loadPtrs() {
-    const ptrs = this.android?.getMasonPtrs().split(':');
-    this[mason] = BigInt(ptrs[0]);
-    this[node] = BigInt(ptrs[1]);
-  }
-
-  get _masonNodePtr() {
-    if (this[node] === BigIntZero) {
-      this.loadPtrs();
-    }
-    return this[node];
-  }
-  get _masonPtr() {
-    if (this[mason] === BigIntZero) {
-      this.loadPtrs();
-    }
-    return this[mason];
   }
 
   _hasNativeView = false;
@@ -110,6 +90,14 @@ export class View extends ViewBase {
   }
 }
 
+const enum TextWrap {
+  NoWrap = 0,
+
+  Wrap = 1,
+
+  Balance = 2,
+}
+
 export class Text extends TextBase {
   [style_];
   _hasNativeView = false;
@@ -120,7 +108,6 @@ export class Text extends TextBase {
     const view = Tree.instance.createTextView(Utils.android.getCurrentActivity() || Utils.android.getApplicationContext()) as org.nativescript.mason.masonkit.TextView;
     this._view = view;
     this._hasNativeView = true;
-    this.loadPtrs();
     this[style_] = Style.fromView(this as never, view, true);
   }
 
@@ -128,25 +115,6 @@ export class Text extends TextBase {
   // @ts-ignore
   get android() {
     return this._view;
-  }
-
-  loadPtrs() {
-    const ptrs = this.android?.getMasonPtrs().split(':');
-    this[mason] = BigInt(ptrs[0]);
-    this[node] = BigInt(ptrs[1]);
-  }
-
-  get _masonNodePtr() {
-    if (this[node] === BigIntZero) {
-      this.loadPtrs();
-    }
-    return this[node];
-  }
-  get _masonPtr() {
-    if (this[mason] === BigIntZero) {
-      this.loadPtrs();
-    }
-    return this[mason];
   }
 
   createNativeView() {
@@ -171,6 +139,23 @@ export class Text extends TextBase {
       this[style_].backgroundColor = value;
     } else if (value instanceof Color) {
       this[style_].backgroundColor = value.android;
+    }
+  }
+
+  [textWrapProperty.setNative](value) {
+    switch (value) {
+      case 'nowrap':
+        this[style_].textWrap = TextWrap.NoWrap;
+        this[style_].flexWrap = value;
+        break;
+      case 'wrap':
+        this[style_].textWrap = TextWrap.Wrap;
+        this[style_].flexWrap = value;
+        break;
+      case 'balance':
+        this[style_].textWrap = TextWrap.Balance;
+        this[style_].flexWrap = 'wrap';
+        break;
     }
   }
 
