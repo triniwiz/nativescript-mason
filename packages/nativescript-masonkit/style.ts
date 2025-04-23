@@ -976,6 +976,13 @@ export class Style {
     }
     this.setOrAppendState(StateKeys.MARGIN);
   }
+  set padding(value: Length) {
+    console.log('set padding', value);
+    this.inBatch = true;
+    this.paddingBottom = this.paddingLeft = this.paddingRight = this.paddingTop = value;
+    this.inBatch = false;
+    this.setOrAppendState(StateKeys.PADDING);
+  }
 
   get paddingLeft() {
     const type = this.style_view.getInt32(StyleKeys.PADDING_LEFT_TYPE, true);
@@ -995,6 +1002,7 @@ export class Style {
             this.style_view.setFloat32(StyleKeys.PADDING_LEFT_VALUE, layout.toDevicePixels(value.value), true);
             break;
           case 'px':
+            console.log('layout.toDevicePixels(value.value):', layout.toDevicePixels(value.value));
             this.style_view.setInt32(StyleKeys.PADDING_LEFT_TYPE, 1, true);
             this.style_view.setFloat32(StyleKeys.PADDING_LEFT_VALUE, value.value, true);
             break;

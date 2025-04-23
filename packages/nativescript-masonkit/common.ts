@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, colorProperty, widthProperty, heightProperty, View } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, colorProperty, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent } from '.';
-import { _forceStyleUpdate, _setAlignContent, _setDisplay, _setFlexDirection, _setHeight, _setJustifyContent, _setWidth } from './helpers';
+import { _forceStyleUpdate, _parseGridTemplates, _setAlignContent, _setColumnGap, _setDisplay, _setFlexDirection, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setHeight, _setJustifyContent, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setRowGap, _setWidth, GridTemplates } from './helpers';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 
 export const native_ = Symbol('[[native]]');
@@ -62,6 +62,138 @@ export const overflowYProperty = new CssProperty<Style, Overflow>({
   cssName: 'overflow-y',
   defaultValue: 'visible',
   valueConverter: overflowConverter,
+});
+
+const paddingProperty = new ShorthandProperty<Style, string | CoreTypes.LengthType>({
+  name: 'padding',
+  cssName: 'padding',
+  getter: function (this: Style) {
+    if (CoreLength.equals(this.paddingTop, this.paddingRight) && CoreLength.equals(this.paddingTop, this.paddingBottom) && CoreLength.equals(this.paddingTop, this.paddingLeft)) {
+      return this.paddingTop;
+    }
+
+    return `${CoreLength.convertToString(this.paddingTop)} ${CoreLength.convertToString(this.paddingRight)} ${CoreLength.convertToString(this.paddingBottom)} ${CoreLength.convertToString(this.paddingLeft)}`;
+  },
+  converter: convertToPaddings,
+});
+
+export const paddingLeftProperty = new CssProperty<Style, CoreTypes.LengthType>({
+  name: 'paddingLeft',
+  cssName: 'padding-left',
+  defaultValue: CoreTypes.zeroLength,
+  affectsLayout: global.isIOS,
+  equalityComparer: CoreLength.equals,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = target.viewRef.get();
+    if (view) {
+      view.effectivePaddingLeft = CoreLength.toDevicePixels(newValue, 0);
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
+  valueConverter: CoreLength.parse,
+});
+
+export const paddingRightProperty = new CssProperty<Style, CoreTypes.LengthType>({
+  name: 'paddingRight',
+  cssName: 'padding-right',
+  defaultValue: CoreTypes.zeroLength,
+  affectsLayout: global.isIOS,
+  equalityComparer: CoreLength.equals,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = target.viewRef.get();
+    if (view) {
+      view.effectivePaddingRight = CoreLength.toDevicePixels(newValue, 0);
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
+  valueConverter: CoreLength.parse,
+});
+
+export const paddingTopProperty = new CssProperty<Style, CoreTypes.LengthType>({
+  name: 'paddingTop',
+  cssName: 'padding-top',
+  defaultValue: CoreTypes.zeroLength,
+  affectsLayout: global.isIOS,
+  equalityComparer: CoreLength.equals,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = target.viewRef.get();
+    if (view) {
+      view.effectivePaddingTop = CoreLength.toDevicePixels(newValue, 0);
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
+  valueConverter: CoreLength.parse,
+});
+
+export const paddingBottomProperty = new CssProperty<Style, CoreTypes.LengthType>({
+  name: 'paddingBottom',
+  cssName: 'padding-bottom',
+  defaultValue: CoreTypes.zeroLength,
+  affectsLayout: global.isIOS,
+  equalityComparer: CoreLength.equals,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = target.viewRef.get();
+    if (view) {
+      view.effectivePaddingBottom = CoreLength.toDevicePixels(newValue, 0);
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
+  valueConverter: CoreLength.parse,
+});
+
+export const rowGapProperty = new CssProperty<Style, Length>({
+  name: 'rowGap',
+  cssName: 'row-gap',
+  defaultValue: 0,
+});
+
+export const columnGapProperty = new CssProperty<Style, Length>({
+  name: 'columnGap',
+  cssName: 'column-gap',
+  defaultValue: 0,
+});
+
+export const gapProperty = new ShorthandProperty<Style, Gap>({
+  name: 'gap',
+  cssName: 'gap',
+  getter: function () {
+    if (this.rowGap === this.columnGap) {
+      return this.rowGap;
+    }
+    return `${this.rowGap} ${this.columnGap}`;
+  },
+  converter(value) {
+    const properties: [CssProperty<any, any>, any][] = [];
+
+    if (typeof value === 'string') {
+      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
+
+      const length = values.length;
+      if (length === 0) {
+        return properties;
+      }
+
+      if (length === 1) {
+        const row = values[0];
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, row]);
+      }
+
+      if (length > 1) {
+        const row = values[0];
+        const column = values[1];
+
+        properties.push([gridColumnStartProperty, row]);
+        properties.push([gridColumnEndProperty, column]);
+      }
+    }
+
+    return properties;
+  },
 });
 
 // export const flexGrowProperty = new CssProperty<Style, number>({
@@ -199,99 +331,6 @@ export const gridColumnGapProperty = new ShorthandProperty<Style, Length>({
   },
   converter(value) {
     return [[columnGapProperty, value]];
-  },
-});
-
-export const rowGapProperty = new CssProperty<Style, Length>({
-  name: 'rowGap',
-  cssName: 'row-gap',
-  defaultValue: 0,
-});
-
-export const columnGapProperty = new CssProperty<Style, Length>({
-  name: 'columnGap',
-  cssName: 'column-gap',
-  defaultValue: 0,
-});
-
-export const gridGapProperty = new ShorthandProperty<Style, Gap>({
-  name: 'gridGap',
-  cssName: 'grid-gap',
-  getter: function () {
-    if (this.rowGap === this.columnGap) {
-      return this.rowGap;
-    }
-    return `${this.rowGap} ${this.columnGap}`;
-  },
-  converter(value): any[] {
-    if (typeof value === 'string') {
-      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return [];
-      }
-
-      if (length === 1) {
-        const row = values[0];
-        return [
-          [rowGapProperty, row],
-          [columnGapProperty, row],
-        ];
-      }
-
-      if (length > 1) {
-        const row = values[0];
-        const column = values[1];
-
-        return [
-          [rowGapProperty, row],
-          [columnGapProperty, column],
-        ];
-      }
-    }
-
-    return [];
-  },
-});
-
-export const gapProperty = new ShorthandProperty<Style, Gap>({
-  name: 'gap',
-  cssName: 'gap',
-  getter: function () {
-    if (this.rowGap === this.columnGap) {
-      return this.rowGap;
-    }
-    return `${this.rowGap} ${this.columnGap}`;
-  },
-  converter(value) {
-    if (typeof value === 'string') {
-      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return [];
-      }
-
-      if (length === 1) {
-        const row = values[0];
-        return [
-          [rowGapProperty, row],
-          [columnGapProperty, row],
-        ];
-      }
-
-      if (length > 1) {
-        const row = values[0];
-        const column = values[1];
-        return [
-          [rowGapProperty, row],
-          [columnGapProperty, column],
-        ];
-      }
-    }
-
-    return [];
   },
 });
 
@@ -587,10 +626,11 @@ export const gridTemplateRowsProperty = new CssProperty<Style, string>({
   defaultValue: '',
 });
 
-export const gridTemplateColumnsProperty = new CssProperty<Style, string>({
+export const gridTemplateColumnsProperty = new CssProperty<Style, Array<GridTemplates>>({
   name: 'gridTemplateColumns',
   cssName: 'grid-template-columns',
-  defaultValue: '',
+  defaultValue: null,
+  valueConverter: _parseGridTemplates,
 });
 
 // flex-flow: <flex-direction> || <flex-wrap>
@@ -721,6 +761,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     this._isMasonView = true;
   }
 
+  get padding() {
+    return this.style.padding;
+  }
+
+  set padding(value) {
+    console.log('padding value', value);
+    this.style.padding = value;
+  }
+
   forceStyleUpdate() {
     _forceStyleUpdate(this as any);
   }
@@ -831,6 +880,39 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   [justifyContentProperty.setNative](value) {
     _setJustifyContent(value, this as any);
   }
+  [paddingLeftProperty.setNative](value) {
+    _setPaddingLeft(value, this as any);
+  }
+  [paddingRightProperty.setNative](value) {
+    _setPaddingRight(value, this as any);
+  }
+  [paddingTopProperty.setNative](value) {
+    _setPaddingTop(value, this as any);
+  }
+  [paddingBottomProperty.setNative](value) {
+    _setPaddingBottom(value, this as any);
+  }
+  [rowGapProperty.setNative](value) {
+    _setRowGap(value, this as any);
+  }
+  [columnGapProperty.setNative](value) {
+    _setColumnGap(value, this as any);
+  }
+  [gridColumnStartProperty.setNative](value) {
+    _setGridColumnStart(value, this as any);
+  }
+  [gridColumnEndProperty.setNative](value) {
+    _setGridColumnEnd(value, this as any);
+  }
+  [gridRowStartProperty.setNative](value) {
+    _setGridRowStart(value, this as any);
+  }
+  [gridRowEndProperty.setNative](value) {
+    _setGridRowEnd(value, this as any);
+  }
+  [gridTemplateColumnsProperty.setNative](value) {
+    _setGridTemplateColumns(value, this as any);
+  }
 }
 
 @CSSType('Text')
@@ -876,8 +958,6 @@ gridRowGapProperty.register(Style);
 gridColumnGapProperty.register(Style);
 gapProperty.register(Style);
 
-gridGapProperty.register(Style);
-
 aspectRatioProperty.register(Style);
 
 alignContentProperty.register(Style);
@@ -909,3 +989,76 @@ scrollBarWidthProperty.register(Style);
 
 flexFlowProperty.register(Style);
 flexProperty.register(Style);
+
+interface ShorthandPositioning {
+  top: string;
+  right: string;
+  bottom: string;
+  left: string;
+}
+
+function parseShorthandPositioning(value: string): ShorthandPositioning {
+  const arr = value.split(/[ ,]+/);
+
+  let top: string;
+  let right: string;
+  let bottom: string;
+  let left: string;
+
+  if (arr.length === 1) {
+    top = arr[0];
+    right = arr[0];
+    bottom = arr[0];
+    left = arr[0];
+  } else if (arr.length === 2) {
+    top = arr[0];
+    bottom = arr[0];
+    right = arr[1];
+    left = arr[1];
+  } else if (arr.length === 3) {
+    top = arr[0];
+    right = arr[1];
+    left = arr[1];
+    bottom = arr[2];
+  } else if (arr.length === 4) {
+    top = arr[0];
+    right = arr[1];
+    bottom = arr[2];
+    left = arr[3];
+  } else {
+    throw new Error('Expected 1, 2, 3 or 4 parameters. Actual: ' + value);
+  }
+
+  return {
+    top: top,
+    right: right,
+    bottom: bottom,
+    left: left,
+  };
+}
+
+function convertToPaddings(value: string | CoreTypes.LengthType): [CssProperty<Style, CoreTypes.LengthType>, CoreTypes.LengthType][] {
+  if (typeof value === 'string' && value !== 'auto') {
+    const thickness = parseShorthandPositioning(value);
+
+    return [
+      [paddingTopProperty, CoreLength.parse(thickness.top)],
+      [paddingRightProperty, CoreLength.parse(thickness.right)],
+      [paddingBottomProperty, CoreLength.parse(thickness.bottom)],
+      [paddingLeftProperty, CoreLength.parse(thickness.left)],
+    ];
+  } else {
+    return [
+      [paddingTopProperty, value],
+      [paddingRightProperty, value],
+      [paddingBottomProperty, value],
+      [paddingLeftProperty, value],
+    ];
+  }
+}
+
+paddingProperty.register(Style);
+paddingLeftProperty.register(Style);
+paddingRightProperty.register(Style);
+paddingTopProperty.register(Style);
+paddingBottomProperty.register(Style);

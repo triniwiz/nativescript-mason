@@ -6,27 +6,27 @@
   </Page.actionBar>
 
 
-    <!-- <ui:View loaded="loaded">
+  <!-- <ui:View loaded="loaded">
     <ui:Text text="This" backgroundColor="blue" color="orange" textWrap="wrap">
-        <ui:Text text=" is" backgroundColor="red" color="green" loaded="textLoaded"/>
-        <ui:Text text=" a"  backgroundColor="purple" color="white" loaded="textLoaded"/>
-        <ui:Text text=" nested text"  backgroundColor="teal" color="black" loaded="textLoaded"/>
-        <ui:Text text="\n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris. "  backgroundColor="teal" color="black" loaded="textLoaded"/>
+      <ui:Text text=" is" backgroundColor="red" color="green" loaded="textLoaded"/>
+      <ui:Text text=" a" backgroundColor="purple" color="white" loaded="textLoaded"/>
+      <ui:Text text=" nested text" backgroundColor="teal" color="black" loaded="textLoaded"/>
+      <ui:Text text="\n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris. " backgroundColor="teal" color="black" loaded="textLoaded"/>
     </ui:Text>
     <ui:View backgroundColor="pink" width="100" height="100">
-     <ui:View backgroundColor="orange" width="50" height="50">
+      <ui:View backgroundColor="orange" width="50" height="50">
+      </ui:View>
     </ui:View>
-  </ui:View>
   </ui:View> -->
 
 
-  <ui:View class="flex-example" color="white" loaded="loaded">
+  <!-- <ui:View class="flex-example" color="white" loaded="loaded">
     <ui:Text text="a" class="a">
         <ui:Text text="aa" class="a"/>
         <ui:Text text="ab" class="a"/>
         <ui:Text text="b" class="b"/>
     </ui:Text>
-  </ui:View>
+  </ui:View> -->
 
 
 
@@ -35,24 +35,24 @@
 
 
 
-  <!-- <ui:Grid class="wrapper-5">
+  <ui:View class="wrapper-5">
 
-    <ui:Grid class="box a">
-      <Label text="A" />
-    </ui:Grid>
+    <ui:View class="box a">
+      <ui:Text text="A" />
+    </ui:View>
 
-    <ui:Grid class="box b">
-      <Label text="B" />
-    </ui:Grid>
+    <ui:View class="box b">
+      <ui:Text text="B" />
+    </ui:View>
 
-    <ui:Grid class="box c">
-      <Label text="C" />
-    </ui:Grid>
+    <ui:View class="box c">
+      <ui:Text text="C" />
+    </ui:View>
 
-    <ui:Grid class="box d">
-      <Label text="D" />
-    </ui:Grid>
-  </ui:Grid> -->
+    <ui:View class="box d">
+      <ui:Text text="D" />
+    </ui:View>
+  </ui:View>
 
 
 

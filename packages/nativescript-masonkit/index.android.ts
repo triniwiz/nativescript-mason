@@ -117,6 +117,13 @@ export class Text extends TextBase {
     return this._view;
   }
 
+  get _styleHelper() {
+    if (this[style_] === undefined) {
+      this[style_] = Style.fromView(this as never, this._view);
+    }
+    return this[style_];
+  }
+
   createNativeView() {
     return this._view;
   }

@@ -605,7 +605,9 @@ export function _setWidth(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance._styleHelper.width = value;
+  if (instance._styleHelper) {
+    instance._styleHelper.width = value;
+  }
   syncStyle(instance);
 }
 
@@ -742,7 +744,9 @@ export function _setAlignContent(value, instance: View, initial = false) {
   }
   if (instance._hasNativeView) {
     console.log(instance);
-    instance._styleHelper.alignContent = value;
+    if (instance._styleHelper) {
+      instance._styleHelper.alignContent = value;
+    }
   }
 }
 
@@ -793,7 +797,9 @@ export function _setJustifyContent(value, instance: View, initial = false) {
   if (!value) value = 'normal';
 
   if (instance._hasNativeView) {
-    instance._styleHelper.justifyContent = value;
+    if (instance._styleHelper) {
+      instance._styleHelper.justifyContent = value;
+    }
   }
 }
 
@@ -1392,7 +1398,7 @@ export function _parseMinMaxValue(value: string): MinMaxType {
   return undefined;
 }
 
-interface GridTemplates {
+export interface GridTemplates {
   is_repeating: boolean;
   repeating_type: TSCGridTrackRepetition;
   repeating_count: number;
@@ -1625,6 +1631,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
 
     for (let i = 0; i < length; i++) {
       const item = value[i];
+      console.log('item:', item);
       if (item.is_repeating) {
         const repeating = item.value as Array<MinMaxType>;
 
@@ -1663,6 +1670,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
     }
 
     instance.ios.gridTemplateColumns = array;
+    console.log('here?');
   }
 }
 
