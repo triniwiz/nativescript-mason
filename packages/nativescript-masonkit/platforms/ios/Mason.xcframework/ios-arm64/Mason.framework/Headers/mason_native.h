@@ -300,6 +300,8 @@ void mason_style_release_style_buffer(struct CMasonBuffer *buffer);
 
 struct CMasonBuffer *mason_style_get_style_buffer(struct CMason *mason, struct CMasonNode *node);
 
+void *mason_style_get_style_buffer_apple(struct CMason *mason, struct CMasonNode *node);
+
 struct CMasonNonRepeatedTrackSizingFunctionArray *mason_style_get_grid_auto_rows(struct CMason *mason,
                                                                                  struct CMasonNode *node);
 

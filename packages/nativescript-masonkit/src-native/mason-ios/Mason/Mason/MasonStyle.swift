@@ -187,19 +187,20 @@ public class MasonStyle: NSObject {
   let node: MasonNode
   var inBatch = false
   
-  public lazy var values: NSMutableData = {
-    let buffer = mason_style_get_style_buffer(node.mason.nativePtr, node.nativePtr)
+ 
+  private lazy var values: NSMutableData = {
+    let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
     guard let buffer else {
       // todo
       fatalError("Could not allocate style buffer")
     }
-    let ret = NSMutableData(bytesNoCopy: buffer.pointee.data, length: Int(buffer.pointee.size), freeWhenDone: false)
+
+    let data = Unmanaged<NSMutableData>.fromOpaque(buffer)
     
-    mason_style_release_style_buffer(buffer)
-   
-    return ret
-    
+
+    return data.takeRetainedValue()
   }()
+
   public init(node: MasonNode) {
     self.node = node
   }
@@ -217,6 +218,9 @@ public class MasonStyle: NSObject {
   
   public var display: Display {
     get {
+      print(values)
+      print(values.bytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self))
+      print(values.bytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self).pointee)
       return Display(rawValue: values.bytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self).pointee)!
     }
     set {
@@ -1430,6 +1434,8 @@ public class MasonStyle: NSObject {
       
       value = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_END_VALUE)).assumingMemoryBound(to: Int16.self)
       value.pointee = newValue.end.placementValue
+      
+      setOrAppendState(.gridColumn)
     }
   }
   

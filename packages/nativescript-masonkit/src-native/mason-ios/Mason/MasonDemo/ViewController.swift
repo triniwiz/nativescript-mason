@@ -263,24 +263,26 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             }
         }.resume() // Don't forget to start the task!
     }
-    
+  
+  deinit {
+    print("Dispose controller")
+  }
     
     override func viewDidLoad() {
-        super.viewDidLoad()
-        var i = 0
-        repeat {
-            items.append("https://robohash.org/\(i + 1)?set=set4")
-            i+=1
-        } while i < 1000
+      //  super.viewDidLoad()
+//        var i = 0
+//        repeat {
+//            items.append("https://robohash.org/\(i + 1)?set=set4")
+//            i+=1
+//        } while i < 1000
       
       container.frame = view.bounds
       
       view.addSubview(container)
     
-      
      // textSample()
         
-       // flexIssue()
+      // flexIssue()
         
       // testLayout()
         
@@ -289,29 +291,33 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
    //  showGridExample()
          // animationExample()
         
-      //  wrapper6()
+      wrapper5()
+    
+    
+      
+      
         
       //  imageExample()
     //  gridSample()
       
     // testLateUpdate()
       
-      let root = mason.createView()
-      root.backgroundColor = .red
-      
-      container.addView(root)
-      
-      let a = mason.createTextView()
-      a.text = "a"
-      
-      let b = mason.createTextView()
-      b.updateText("b")
-      
-      root.addView(a)
-      
-      root.addView(b)
-      
-      root.node.computeWithMaxContent()
+//      let root = mason.createView()
+//      root.backgroundColor = .red
+//      
+//      container.addView(root)
+//      
+//      let a = mason.createTextView()
+//      a.text = "a"
+//      
+//      let b = mason.createTextView()
+//      b.updateText("b")
+//      
+//      root.addView(a)
+//      
+//      root.addView(b)
+//      
+//      root.node.computeWithMaxContent()
     }
   
   func testLateUpdate(){
@@ -424,6 +430,81 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         return parent
     }
     
+  func wrapper5(){
+    let wrapper5 = mason.createView()
+    wrapper5.configure { node in
+      node.style.display = .Grid
+      node.style.margin = MasonRect(uniform: .Points(40 * scale))
+      node.style.gap = MasonSize(uniform: .Points(10 * scale))
+      node.style.gridTemplateColumns = [.Single(.Points(points: 100 * scale)),.Single(.Points(points: 100 * scale)),.Single(.Points(points: 100 * scale))]
+    }
+    wrapper5.backgroundColor = UIColor(hex: "#fff")
+     
+    
+    container.addView(wrapper5)
+    
+    let a = mason.createView()
+    
+    let box_bg = UIColor(hex: "#444")
+    a.backgroundColor = box_bg
+    let a_text = mason.createTextView()
+    a_text.text = "A"
+    a_text.setColor(ui: .white)
+    a.addView(a_text)
+    a.configure { node in
+      node.style.padding = MasonRect(uniform: .Points(20  * scale))
+      node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+      node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+    }
+    
+    let b = mason.createView()
+    b.backgroundColor = box_bg
+    let b_text = mason.createTextView()
+    b_text.text = "B"
+    b_text.setColor(ui: .white)
+    b.addView(b_text)
+    
+    
+    b.configure { node in
+      node.style.padding = MasonRect(uniform: .Points(20  * scale))
+      node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
+      node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+    }
+    
+    let c = mason.createView()
+    c.backgroundColor = box_bg
+    let c_text = mason.createTextView()
+    c_text.text = "C"
+    c_text.setColor(ui: .white)
+    c.addView(c_text)
+    c.configure { node in
+      node.style.padding = MasonRect(uniform: .Points(20  * scale))
+      node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+      node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+    }
+    
+    
+    let d = mason.createView()
+    d.backgroundColor = box_bg
+    let d_text = mason.createTextView()
+    d_text.text = "D"
+    d_text.setColor(ui: .white)
+    d.addView(d_text)
+    
+    d.configure { node in
+      node.style.padding = MasonRect(uniform: .Points(20 * scale))
+      node.style.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+      node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+    }
+    
+    wrapper5.addView(a)
+    wrapper5.addView(b)
+    wrapper5.addView(c)
+    wrapper5.addView(d)
+    
+    container.node.computeWithMaxContent()
+    
+  }
     func wrapper6() {
         
         view.subviews.forEach { view in
@@ -1093,11 +1174,11 @@ extension UIColor {
         if hex.hasPrefix("#") {
             let start = hex.index(hex.startIndex, offsetBy: 1)
             let hexColor = String(hex[start...])
-            
+          
+          let scanner = Scanner(string: hexColor)
+          var hexNumber: UInt64 = 0
+          
             if hexColor.count == 8 {
-                let scanner = Scanner(string: hexColor)
-                var hexNumber: UInt64 = 0
-                
                 if scanner.scanHexInt64(&hexNumber) {
                     r = CGFloat((hexNumber & 0xff000000) >> 24) / 255
                     g = CGFloat((hexNumber & 0x00ff0000) >> 16) / 255
@@ -1107,7 +1188,35 @@ extension UIColor {
                     self.init(red: r, green: g, blue: b, alpha: a)
                     return
                 }
-            }
+            } else if hexColor.count == 6 {
+              if scanner.scanHexInt64(&hexNumber) {
+                  r = CGFloat((hexNumber & 0xFF0000) >> 16) / 255
+                  g = CGFloat((hexNumber & 0x00FF00) >> 8) / 255
+                  b = CGFloat(hexNumber & 0x0000FF) / 255
+                  a = 1.0
+                  self.init(red: r, green: g, blue: b, alpha: a)
+                  return
+              }
+          } else if hexColor.count == 3 {
+              let rHex = hexColor[hexColor.startIndex]
+              let gHex = hexColor[hexColor.index(hexColor.startIndex, offsetBy: 1)]
+              let bHex = hexColor[hexColor.index(hexColor.startIndex, offsetBy: 2)]
+
+              let rStr = "\(rHex)\(rHex)"
+              let gStr = "\(gHex)\(gHex)"
+              let bStr = "\(bHex)\(bHex)"
+              let fullHex = rStr + gStr + bStr
+
+              let fullScanner = Scanner(string: fullHex)
+              if fullScanner.scanHexInt64(&hexNumber) {
+                  r = CGFloat((hexNumber & 0xFF0000) >> 16) / 255
+                  g = CGFloat((hexNumber & 0x00FF00) >> 8) / 255
+                  b = CGFloat(hexNumber & 0x0000FF) / 255
+                  a = 1.0
+                  self.init(red: r, green: g, blue: b, alpha: a)
+                  return
+              }
+          }
         }
         
         return nil

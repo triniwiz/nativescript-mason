@@ -45,6 +45,8 @@ public struct Line<T> {
   @objc public var nativePtr: Swift.OpaquePointer? {
     get
   }
+  @objc public var nodes: [Swift.Int64 : Mason.MasonNode]
+  @objc public var viewNodes: [UIKit.UIView : Mason.MasonNode]
   @objc public static var shared: Mason.NSCMason
   @objc override dynamic public init()
   @objc deinit
@@ -198,6 +200,7 @@ extension UIKit.UIColor {
     get
   }
   @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode
+  @objc @_Concurrency.MainActor @preconcurrency final public let textValues: Foundation.NSMutableData
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason)
   @objc @_Concurrency.MainActor @preconcurrency public init(node masonNode: Mason.MasonNode)
   @objc @_Concurrency.MainActor @preconcurrency public var uiView: UIKit.UIView {
@@ -209,10 +212,6 @@ extension UIKit.UIColor {
   @objc @_Concurrency.MainActor @preconcurrency public func markNodeDirty()
   @objc @_Concurrency.MainActor @preconcurrency public func isNodeDirty() -> Swift.Bool
   @objc @_Concurrency.MainActor @preconcurrency public func configure(_ block: (Mason.MasonNode) -> Swift.Void)
-  @objc @_Concurrency.MainActor @preconcurrency public var textValues: Foundation.NSMutableData {
-    @objc get
-    @objc set
-  }
   @objc @_Concurrency.MainActor @preconcurrency public func updateText(_ value: Swift.String?)
   @objc @_Concurrency.MainActor @preconcurrency public var txtToRender: Foundation.NSMutableAttributedString
   @objc @_Concurrency.MainActor @preconcurrency public var font: UIKit.UIFont {
@@ -437,10 +436,6 @@ public let MasonDimensionRectZero: Mason.MasonRect<Mason.MasonDimension>
 public let MasonLengthPercentageAutoRectZero: Mason.MasonRect<Mason.MasonLengthPercentageAuto>
 public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPercentage>
 @objc(MasonStyle) @objcMembers public class MasonStyle : ObjectiveC.NSObject {
-  @objc public var values: Foundation.NSMutableData {
-    @objc get
-    @objc set
-  }
   @objc public init(node: Mason.MasonNode)
   @objc public var display: Mason.Display {
     @objc get

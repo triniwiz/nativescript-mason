@@ -1070,6 +1070,8 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
   let parsedType = undefined;
   let nativeValue = undefined;
 
+  console.log('_parseGridLine', value);
+
   if (value === 'auto' || value === undefined) {
     parsedValue = 0;
     parsedType = 0 /* GridPlacementCompatType.Auto */;
@@ -1269,7 +1271,7 @@ const enum MaxSizingType {
   MaxContent = 2,
   Points = 3,
   Percent = 4,
-  Flex = 5,
+  Fraction = 5,
   FitContent = 6,
   FitContentPercent = 7,
 }
@@ -1314,7 +1316,7 @@ export function _parseMinMaxValue(value: string): MinMaxType {
       return {
         min_type: MinSizingType.Auto,
         min_value: 0,
-        max_type: MaxSizingType.Flex,
+        max_type: MaxSizingType.Fraction,
         max_value: flex,
       };
     } else if (value.startsWith('minmax')) {
@@ -1617,6 +1619,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
 
         const minMax = single ? org.nativescript.mason.masonkit.MinMax.fromTypeValue(single.min_type, single.min_value, single.max_type, single.max_value) : org.nativescript.mason.masonkit.MinMax.Auto.INSTANCE;
         const trackSizingFunction = new org.nativescript.mason.masonkit.TrackSizingFunction.Single(minMax);
+
         array[i] = trackSizingFunction;
       }
     }
@@ -1627,11 +1630,10 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
 
   if (__APPLE__) {
     const length = value.length;
-    const array = NSMutableArray.arrayWithCapacity<TrackSizingFunction>(length);
+    const array = NSMutableArray.new();
 
     for (let i = 0; i < length; i++) {
       const item = value[i];
-      console.log('item:', item);
       if (item.is_repeating) {
         const repeating = item.value as Array<MinMaxType>;
 
@@ -1668,9 +1670,8 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
         array.addObject(trackSizingFunction);
       }
     }
-
     instance.ios.gridTemplateColumns = array;
-    console.log('here?');
+    console.log('gridTemplateColumns', instance.ios.gridTemplateColumns);
   }
 }
 

@@ -196,11 +196,37 @@ public class MasonText: UIView, MasonView {
   let actualNode: MasonNode
   private var children: [TextChild] = []
   internal var attachments: [ViewHelper] = []
+  public let textValues: NSMutableData
   
+  private static func createTextValues() -> NSMutableData{
+    let data = NSMutableData(length: Int(TextStyleKeys.TEXT_WRAP) + 4)!
+    let pointer = data.mutableBytes
+    
+    let color = pointer.advanced(by: TextStyleKeys.COLOR).assumingMemoryBound(to: UInt32.self)
+    color.pointee = 0xFF000000
+    
+    
+    let bgColor = pointer.advanced(by: TextStyleKeys.BACKGROUND_COLOR).assumingMemoryBound(to: UInt32.self)
+    bgColor.pointee = 0
+    
+    let decorationColor = pointer.advanced(by: TextStyleKeys.DECORATION_COLOR).assumingMemoryBound(to: UInt32.self)
+    decorationColor.pointee = UNSET_COLOR
+    
+    let size = pointer.advanced(by: TextStyleKeys.SIZE).assumingMemoryBound(to: Float.self)
+    size.pointee = Float(UIFont.systemFontSize)
+    
+    
+    let wrap = pointer.advanced(by: TextStyleKeys.TEXT_WRAP).assumingMemoryBound(to: Int32.self)
+    wrap.pointee = 0
+    
+   
+    return data
+  }
   
   public init(mason: NSCMason) {
     node = MasonNode(mason: mason)
     actualNode = MasonNode(mason: mason)
+    textValues = MasonText.createTextValues()
     super.init(frame: .zero)
     isOpaque = false
     actualNode.data = self
@@ -215,6 +241,7 @@ public class MasonText: UIView, MasonView {
   public init(node masonNode: MasonNode){
     node = masonNode
     actualNode = MasonNode(mason: node.mason)
+    textValues = MasonText.createTextValues()
     super.init(frame: .zero)
     isOpaque = false
     actualNode.data = self
@@ -294,31 +321,7 @@ public class MasonText: UIView, MasonView {
   public func configure(_ block: (MasonNode) -> Void) {
     node.configure(block)
   }
-  
-  
-  public lazy var textValues: NSMutableData = {
-    let data = NSMutableData(length: Int(TextStyleKeys.TEXT_WRAP) + 4)!
-    var pointer = data.mutableBytes
-    
-    let color = pointer.advanced(by: TextStyleKeys.COLOR).assumingMemoryBound(to: UInt32.self)
-    color.pointee = 0xFF000000
-    
-    
-    let bgColor = pointer.advanced(by: TextStyleKeys.BACKGROUND_COLOR).assumingMemoryBound(to: UInt32.self)
-    bgColor.pointee = 0
-    
-    let decorationColor = pointer.advanced(by: TextStyleKeys.DECORATION_COLOR).assumingMemoryBound(to: UInt32.self)
-    decorationColor.pointee = UNSET_COLOR
-    
-    let size = pointer.advanced(by: TextStyleKeys.SIZE).assumingMemoryBound(to: Float.self)
-    size.pointee = Float(UIFont.systemFontSize)
-    
-    
-    let wrap = pointer.advanced(by: TextStyleKeys.TEXT_WRAP).assumingMemoryBound(to: Int32.self)
-    wrap.pointee = 0
-    return data
-  }()
-  
+
   
   public func updateText(_ value: String?){
     text = value ?? ""

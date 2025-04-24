@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, colorProperty, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent } from '.';
-import { _forceStyleUpdate, _parseGridTemplates, _setAlignContent, _setColumnGap, _setDisplay, _setFlexDirection, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setHeight, _setJustifyContent, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setRowGap, _setWidth, GridTemplates } from './helpers';
+import { _forceStyleUpdate, _parseGridTemplates, _setAlignContent, _setColumnGap, _setDisplay, _setFlexDirection, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setRowGap, _setWidth, GridTemplates } from './helpers';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 
 export const native_ = Symbol('[[native]]');
@@ -620,17 +620,16 @@ export const gridRowProperty = new ShorthandProperty<Style, string>({
   },
 });
 
-export const gridTemplateRowsProperty = new CssProperty<Style, string>({
+export const gridTemplateRowsProperty = new CssProperty<Style, Array<GridTemplates>>({
   name: 'gridTemplateRows',
   cssName: 'grid-template-rows',
-  defaultValue: '',
+  defaultValue: null,
 });
 
 export const gridTemplateColumnsProperty = new CssProperty<Style, Array<GridTemplates>>({
   name: 'gridTemplateColumns',
   cssName: 'grid-template-columns',
   defaultValue: null,
-  valueConverter: _parseGridTemplates,
 });
 
 // flex-flow: <flex-direction> || <flex-wrap>
@@ -719,12 +718,6 @@ const flexProperty = new ShorthandProperty({
   },
 });
 
-export const BigIntZero = BigInt(0);
-
-export const style = Symbol('[[style]]');
-export const node = Symbol('[[node]]');
-export const mason = Symbol('[[mason]]');
-
 export const textWrapProperty = new Property<TextBase, 'nowrap' | 'wrap' | 'balance'>({
   name: 'textWrap',
   affectsLayout: true,
@@ -753,21 +746,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   _isMasonView = false;
   _isMasonChild = false;
 
-  [node] = BigIntZero;
-  [mason] = BigIntZero;
-
   constructor() {
     super();
     this._isMasonView = true;
-  }
-
-  get padding() {
-    return this.style.padding;
-  }
-
-  set padding(value) {
-    console.log('padding value', value);
-    this.style.padding = value;
   }
 
   forceStyleUpdate() {
@@ -910,8 +891,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   [gridRowEndProperty.setNative](value) {
     _setGridRowEnd(value, this as any);
   }
+  [gridTemplateRowsProperty.setNative](value) {
+    console.log('gridTemplateRowsProperty', value);
+    _setGridTemplateRows(_parseGridTemplates(value), this as any);
+  }
+
   [gridTemplateColumnsProperty.setNative](value) {
-    _setGridTemplateColumns(value, this as any);
+    console.log('gridTemplateColumnsProperty', value);
+    _setGridTemplateColumns(_parseGridTemplates(value), this as any);
   }
 }
 

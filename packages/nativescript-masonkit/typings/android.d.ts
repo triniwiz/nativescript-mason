@@ -488,6 +488,7 @@ declare namespace org {
 							public static values(): androidNative.Array<org.nativescript.mason.masonkit.FontFace.NSCFontStyle.Style>;
 							public static valueOf(value: string): org.nativescript.mason.masonkit.FontFace.NSCFontStyle.Style;
 							public static getEntries(): any;
+							public getValue(): number;
 						}
 						export class WhenMappings {
 							public static class: java.lang.Class<org.nativescript.mason.masonkit.FontFace.NSCFontStyle.WhenMappings>;
@@ -1018,6 +1019,7 @@ declare namespace org {
 				export class Mason {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Mason>;
 					public createTextView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.TextView;
+					public static getShared(): org.nativescript.mason.masonkit.Mason;
 					public finalize(): void;
 					public requestLayout(node: number): void;
 					public createNode(): org.nativescript.mason.masonkit.Node;
@@ -1025,7 +1027,6 @@ declare namespace org {
 					public requestLayout(view: globalAndroid.view.View): void;
 					public createView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.View;
 					public nodeForView($this$nodeForView_u24lambda_u247_u24lambda_u246: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
-					public static getShared(): org.nativescript.mason.masonkit.Mason;
 					public constructor();
 					public getNativePtr$masonkit_release(): number;
 					public clear(): void;
@@ -1037,8 +1038,8 @@ declare namespace org {
 					export class Companion {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.Mason.Companion>;
 						public initLib$masonkit_release(): void;
-						public getShared(): org.nativescript.mason.masonkit.Mason;
 						public getGson$masonkit_release(): com.google.gson.Gson;
+						public getShared(): org.nativescript.mason.masonkit.Mason;
 					}
 				}
 			}
@@ -1425,9 +1426,9 @@ declare namespace org {
 					public getMason$masonkit_release(): org.nativescript.mason.masonkit.Mason;
 					public getMeasureFunc$masonkit_release(): org.nativescript.mason.masonkit.MeasureFunc;
 					public layout(): org.nativescript.mason.masonkit.Layout;
+					public setData$masonkit_release(value: any): void;
 					public setChildren$masonkit_release(value: java.util.ArrayList<org.nativescript.mason.masonkit.Node>): void;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
-					public setData(value: any): void;
 					public getOwner(): org.nativescript.mason.masonkit.Node;
 					public insertChildAfter(index: org.nativescript.mason.masonkit.Node, this_: org.nativescript.mason.masonkit.Node): void;
 					public rootComputeMinContent(): void;
@@ -1448,9 +1449,9 @@ declare namespace org {
 					public getKnownHeight$masonkit_release(): java.lang.Float;
 					public setKnownWidth$masonkit_release(value: java.lang.Float): void;
 					public compute(width: number, height: number): void;
+					public getLayoutCache(): org.nativescript.mason.masonkit.Layout;
 					public removeChild(this_: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Node;
 					public static nativeNewNodeWithChildren(param0: number, param1: androidNative.Array<number>): number;
-					public setKnown$masonkit_release(value: boolean): void;
 					public rootCompute(): void;
 					public addChildAt(this_: org.nativescript.mason.masonkit.Node, child: number): void;
 					public isDirty(): boolean;
@@ -1462,11 +1463,11 @@ declare namespace org {
 					public setMeasureFunc$masonkit_release(value: org.nativescript.mason.masonkit.MeasureFunc): void;
 					public configure(block: any): void;
 					public constructor(mason: org.nativescript.mason.masonkit.Mason, nativePtr: number);
+					public setLayoutCache$masonkit_release(value: org.nativescript.mason.masonkit.Layout): void;
 					public removeChildren(): void;
 					public setAvailableWidth$masonkit_release(value: java.lang.Float): void;
 					public getAvailableWidth$masonkit_release(): java.lang.Float;
 					public rootCompute(width: number, height: number): void;
-					public isKnown$masonkit_release(): boolean;
 					public dirty(): void;
 					public static nativeNewNode(param0: number): number;
 					public getKnownWidth$masonkit_release(): java.lang.Float;
@@ -2149,9 +2150,14 @@ declare namespace org {
 						public "getDECORATION_LINE-Zvr9YrE"(): number;
 						public "getTEXT_ALIGN-Zvr9YrE"(): number;
 						public "getBACKGROUND_COLOR-Zvr9YrE"(): number;
+						public "getTRANSFORM-Zvr9YrE"(): number;
+						public "getTEXT_WRAP-Zvr9YrE"(): number;
 						public "getCOLOR-Zvr9YrE"(): number;
+						public "getFONT_STYLE_SLANT-Zvr9YrE"(): number;
 						public "getTEXT_JUSTIFY-Zvr9YrE"(): number;
 						public "getDECORATION_COLOR-Zvr9YrE"(): number;
+						public "getSIZE-Zvr9YrE"(): number;
+						public "getFONT_STYLE-Zvr9YrE"(): number;
 					}
 				}
 			}
@@ -2172,6 +2178,11 @@ declare namespace org {
 					public static TEXT_ALIGN = 12;
 					public static TEXT_JUSTIFY = 16;
 					public static BACKGROUND_COLOR = 20;
+					public static SIZE = 24;
+					public static TRANSFORM = 28;
+					public static FONT_STYLE_TYPE = 32;
+					public static FONT_STYLE_SLANT = 36;
+					public static TEXT_WRAP = 40;
 				}
 			}
 		}
@@ -2190,70 +2201,59 @@ declare namespace org {
 					public setIncludePadding(value: boolean): void;
 					public onMeasure(layout: number, specWidth: number): void;
 					public addView(view: globalAndroid.view.View): void;
-					public setOwner$masonkit_release(value: org.nativescript.mason.masonkit.TextView): void;
 					public removeView(it: globalAndroid.view.View): void;
-					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
 					public getMasonNodePtr(): number;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
 					public setTextJustify(value: org.nativescript.mason.masonkit.text.Styles.TextJustify): void;
+					public getTextWrap(): org.nativescript.mason.masonkit.text.Styles.TextWrap;
+					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet);
 					public setDecorationColor(value: number): void;
 					public markNodeDirty(): void;
 					public getMasonPtrs(): string;
 					public getDecorationColor(): number;
+					public setTextWrap(value: org.nativescript.mason.masonkit.text.Styles.TextWrap): void;
 					public setBackgroundColorValue(value: number): void;
+					public setFontSize(value: number): void;
 					public configure(block: any): void;
 					public addView(it: globalAndroid.view.View, element$iv: number): void;
 					public setColor(value: number): void;
-					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, valuue: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
-					public setEnd$masonkit_release(value: number): void;
+					public getTextTransform(): org.nativescript.mason.masonkit.text.Styles.TextTransform;
+					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, value: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public getTextValues(): java.nio.ByteBuffer;
 					public getColor(): number;
-					public getCurrentText(): string;
 					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public getBackgroundColorValue(): number;
-					public getOwner$masonkit_release(): org.nativescript.mason.masonkit.TextView;
 					public getIncludePadding(): boolean;
-					public syncStyle(state: string, textState: string): void;
-					public getStart$masonkit_release(): number;
 					public constructor($this$_init__u24lambda_u240: globalAndroid.content.Context, this_: org.nativescript.mason.masonkit.Mason);
+					public getValues(): java.nio.ByteBuffer;
 					public getDecorationLine(): org.nativescript.mason.masonkit.text.Styles.DecorationLine;
 					public isLeaf(): boolean;
+					public setTextTransform(this_: org.nativescript.mason.masonkit.text.Styles.TextTransform): void;
 					public getMasonPtr(): number;
-					public setStart$masonkit_release(value: number): void;
 					public isNodeDirty(): boolean;
 					public getNode(): org.nativescript.mason.masonkit.Node;
-					public updateText(lineWidth: string): void;
 					public constructor(context: globalAndroid.content.Context);
 					public setTextAlign(value: org.nativescript.mason.masonkit.TextAlign): void;
 					public configureText(block: any): void;
-					public getEnd$masonkit_release(): number;
+					public updateText(text: string): void;
 					public getTextJustify(): org.nativescript.mason.masonkit.text.Styles.TextJustify;
-					public invalidate(): void;
+					public syncStyle(backgroundColor: string, value: string): void;
+					public getFontSize(): number;
 				}
 				export namespace TextView {
-					export class ChildInfo {
-						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextView.ChildInfo>;
+					export class TextChild {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextView.TextChild>;
+						public getAttachment(): org.nativescript.mason.masonkit.text.Spans.NSCSpan;
 						public equals(other: any): boolean;
 						public component1(): globalAndroid.view.View;
-						public getChildren(): java.util.List<org.nativescript.mason.masonkit.TextView.ChildInfo>;
+						public getText(): org.nativescript.mason.masonkit.TextView;
 						public hashCode(): number;
-						public component4(): number;
-						public setStart(value: number): void;
-						public setAbsoluteStart(value: number): void;
-						public toString(): string;
-						public component2(): number;
-						public setEnd(value: number): void;
-						public getAbsoluteStart(): number;
-						public component6(): java.util.List<org.nativescript.mason.masonkit.text.Spans.NSCSpan>;
-						public getSpans(): java.util.List<org.nativescript.mason.masonkit.text.Spans.NSCSpan>;
 						public getView(): globalAndroid.view.View;
-						public getStart(): number;
-						public getAbsoluteEnd(): number;
-						public component5(): java.util.List<org.nativescript.mason.masonkit.TextView.ChildInfo>;
-						public constructor(view: globalAndroid.view.View, start: number, end: number, absoluteStart: number, children: java.util.List<org.nativescript.mason.masonkit.TextView.ChildInfo>, spans: java.util.List<org.nativescript.mason.masonkit.text.Spans.NSCSpan>);
-						public component3(): number;
-						public copy(view: globalAndroid.view.View, start: number, end: number, absoluteStart: number, children: java.util.List<org.nativescript.mason.masonkit.TextView.ChildInfo>, spans: java.util.List<org.nativescript.mason.masonkit.text.Spans.NSCSpan>): org.nativescript.mason.masonkit.TextView.ChildInfo;
-						public getEnd(): number;
+						public copy(view: globalAndroid.view.View, text: org.nativescript.mason.masonkit.TextView, attachment: org.nativescript.mason.masonkit.text.Spans.NSCSpan): org.nativescript.mason.masonkit.TextView.TextChild;
+						public component3(): org.nativescript.mason.masonkit.text.Spans.NSCSpan;
+						public toString(): string;
+						public constructor(view: globalAndroid.view.View, text: org.nativescript.mason.masonkit.TextView, attachment: org.nativescript.mason.masonkit.text.Spans.NSCSpan);
+						public component2(): org.nativescript.mason.masonkit.TextView;
 					}
 					export class WhenMappings {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextView.WhenMappings>;
@@ -2312,6 +2312,7 @@ declare namespace org {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.View>;
 					public getGridTemplateRows(): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
 					public setMaxSize(width: number, height: number): void;
+					public addView($this$addView_u24lambda_u247: globalAndroid.view.View, childNode: number, this_: globalAndroid.view.ViewGroup.LayoutParams): void;
 					public setMarginWithValueType(value: number, type: number): void;
 					public setRowGap(value: number, type: number): void;
 					public setJustifySelf(value: org.nativescript.mason.masonkit.JustifySelf): void;
@@ -2324,7 +2325,6 @@ declare namespace org {
 					public setPosition(left: number, top: number, right: number, bottom: number): void;
 					public setMargin(left: number, leftType: number, top: number, topType: number, right: number, rightType: number, bottom: number, bottomType: number): void;
 					public getGridColumnStart(): org.nativescript.mason.masonkit.GridPlacement;
-					public addView($this$addView_u24lambda_u246: globalAndroid.view.View, childNode: number, this_: globalAndroid.view.ViewGroup.LayoutParams): void;
 					public setGridTemplateColumns(value: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
 					public getOverflowX(): org.nativescript.mason.masonkit.Overflow;
 					public getBorderLeft(): org.nativescript.mason.masonkit.LengthPercentage;
@@ -2349,7 +2349,6 @@ declare namespace org {
 					public setOverflowY(value: org.nativescript.mason.masonkit.Overflow): void;
 					public static createGridView(mason: org.nativescript.mason.masonkit.Mason, context: globalAndroid.content.Context): org.nativescript.mason.masonkit.View;
 					public setPaddingLeft(value: number, type: number): void;
-					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet, defStyleAttr: number);
 					public getStylePaddingLeft(): org.nativescript.mason.masonkit.LengthPercentage;
 					public generateDefaultLayoutParams(): globalAndroid.view.ViewGroup.LayoutParams;
 					public getMarginJsonValue(): string;
@@ -2361,7 +2360,6 @@ declare namespace org {
 					public setFlexShrink(value: number): void;
 					public getMarginRight(): org.nativescript.mason.masonkit.LengthPercentageAuto;
 					public setGridTemplateRows(value: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
-					public syncStyle(state: string): void;
 					public setMinSizeHeight(value: number, type: number): void;
 					public getAlignContent(): org.nativescript.mason.masonkit.AlignContent;
 					public setPaddingBottom(value: number, type: number): void;
@@ -2386,6 +2384,7 @@ declare namespace org {
 					public getFlexDirection(): org.nativescript.mason.masonkit.FlexDirection;
 					public setMaxSizeHeight(value: number, type: number): void;
 					public setGap(width: number, widthType: number, height: number, heightType: number): void;
+					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet, context: number);
 					public setInsetLeft(value: number, type: number): void;
 					public getStylePaddingRight(): org.nativescript.mason.masonkit.LengthPercentage;
 					public setFlexGrow(value: number): void;
@@ -2445,6 +2444,7 @@ declare namespace org {
 					public setSize(width: number, widthType: number, height: number, heightType: number): void;
 					public getOverflow(): org.nativescript.mason.masonkit.Overflow;
 					public removeViewsInLayout(this_: number, start: number): void;
+					public syncStyle(this_: string): void;
 					public setMinSize(width: org.nativescript.mason.masonkit.Dimension, height: org.nativescript.mason.masonkit.Dimension): void;
 					public setMaxSize(width: org.nativescript.mason.masonkit.Dimension, height: org.nativescript.mason.masonkit.Dimension): void;
 					public isNodeDirty(): boolean;
@@ -2594,9 +2594,26 @@ declare namespace org {
 							public constructor();
 							public getType(): org.nativescript.mason.masonkit.text.Spans.Type;
 						}
+						export class ScaleXSpan implements org.nativescript.mason.masonkit.text.Spans.NSCSpan {
+							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Spans.ScaleXSpan>;
+							public constructor(scale: number);
+							public getType(): org.nativescript.mason.masonkit.text.Spans.Type;
+						}
+						export class SizeSpan implements org.nativescript.mason.masonkit.text.Spans.NSCSpan {
+							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Spans.SizeSpan>;
+							public constructor(size: number, scale: boolean);
+							public getType(): org.nativescript.mason.masonkit.text.Spans.Type;
+						}
 						export class StrikethroughSpan implements org.nativescript.mason.masonkit.text.Spans.NSCSpan {
 							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Spans.StrikethroughSpan>;
 							public constructor();
+							public getType(): org.nativescript.mason.masonkit.text.Spans.Type;
+						}
+						export class TrackingSpan implements org.nativescript.mason.masonkit.text.Spans.NSCSpan {
+							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Spans.TrackingSpan>;
+							public constructor();
+							public getSize(paint: globalAndroid.graphics.Paint, text: string, start: number, end: number, fm: globalAndroid.graphics.Paint.FontMetricsInt): number;
+							public draw(canvas: globalAndroid.graphics.Canvas, text: string, start: number, end: number, x: number, top: number, y: number, bottom: number, paint: globalAndroid.graphics.Paint): void;
 							public getType(): org.nativescript.mason.masonkit.text.Spans.Type;
 						}
 						export class Type {
@@ -2604,8 +2621,10 @@ declare namespace org {
 							public static View: org.nativescript.mason.masonkit.text.Spans.Type;
 							public static BackgroundColor: org.nativescript.mason.masonkit.text.Spans.Type;
 							public static ForegroundColor: org.nativescript.mason.masonkit.text.Spans.Type;
-							public static Underline: org.nativescript.mason.masonkit.text.Spans.Type;
-							public static Strikethrough: org.nativescript.mason.masonkit.text.Spans.Type;
+							public static DecorationLine: org.nativescript.mason.masonkit.text.Spans.Type;
+							public static Justify: org.nativescript.mason.masonkit.text.Spans.Type;
+							public static Tracking: org.nativescript.mason.masonkit.text.Spans.Type;
+							public static Size: org.nativescript.mason.masonkit.text.Spans.Type;
 							public static getEntries(): any;
 							public static valueOf(value: string): org.nativescript.mason.masonkit.text.Spans.Type;
 							public static values(): androidNative.Array<org.nativescript.mason.masonkit.text.Spans.Type>;
@@ -2671,6 +2690,22 @@ declare namespace org {
 								public fromInt(value: number): org.nativescript.mason.masonkit.text.Styles.DecorationLine;
 							}
 						}
+						export class FontStyle {
+							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.FontStyle>;
+							public static Normal: org.nativescript.mason.masonkit.text.Styles.FontStyle;
+							public static Italic: org.nativescript.mason.masonkit.text.Styles.FontStyle;
+							public static Oblique: org.nativescript.mason.masonkit.text.Styles.FontStyle;
+							public static getEntries(): any;
+							public static values(): androidNative.Array<org.nativescript.mason.masonkit.text.Styles.FontStyle>;
+							public static valueOf(value: string): org.nativescript.mason.masonkit.text.Styles.FontStyle;
+							public getValue(): number;
+						}
+						export namespace FontStyle {
+							export class Companion {
+								public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.FontStyle.Companion>;
+								public fromInt(value: number): org.nativescript.mason.masonkit.text.Styles.FontStyle;
+							}
+						}
 						export class TextJustify {
 							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.TextJustify>;
 							public static None: org.nativescript.mason.masonkit.text.Styles.TextJustify;
@@ -2691,6 +2726,42 @@ declare namespace org {
 							}
 							export class WhenMappings {
 								public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.TextJustify.WhenMappings>;
+							}
+						}
+						export class TextTransform {
+							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.TextTransform>;
+							public static None: org.nativescript.mason.masonkit.text.Styles.TextTransform;
+							public static Capitalize: org.nativescript.mason.masonkit.text.Styles.TextTransform;
+							public static Uppercase: org.nativescript.mason.masonkit.text.Styles.TextTransform;
+							public static Lowercase: org.nativescript.mason.masonkit.text.Styles.TextTransform;
+							public static FullWidth: org.nativescript.mason.masonkit.text.Styles.TextTransform;
+							public static FullSizeKana: org.nativescript.mason.masonkit.text.Styles.TextTransform;
+							public static MathAuto: org.nativescript.mason.masonkit.text.Styles.TextTransform;
+							public static valueOf(value: string): org.nativescript.mason.masonkit.text.Styles.TextTransform;
+							public static values(): androidNative.Array<org.nativescript.mason.masonkit.text.Styles.TextTransform>;
+							public getValue(): number;
+							public static getEntries(): any;
+						}
+						export namespace TextTransform {
+							export class Companion {
+								public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.TextTransform.Companion>;
+								public fromInt(value: number): org.nativescript.mason.masonkit.text.Styles.TextTransform;
+							}
+						}
+						export class TextWrap {
+							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.TextWrap>;
+							public static NoWrap: org.nativescript.mason.masonkit.text.Styles.TextWrap;
+							public static Wrap: org.nativescript.mason.masonkit.text.Styles.TextWrap;
+							public static Balance: org.nativescript.mason.masonkit.text.Styles.TextWrap;
+							public static getEntries(): any;
+							public static valueOf(value: string): org.nativescript.mason.masonkit.text.Styles.TextWrap;
+							public static values(): androidNative.Array<org.nativescript.mason.masonkit.text.Styles.TextWrap>;
+							public getValue(): number;
+						}
+						export namespace TextWrap {
+							export class Companion {
+								public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.TextWrap.Companion>;
+								public fromInt(value: number): org.nativescript.mason.masonkit.text.Styles.TextWrap;
 							}
 						}
 					}

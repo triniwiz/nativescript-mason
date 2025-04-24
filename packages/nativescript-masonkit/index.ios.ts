@@ -1,6 +1,6 @@
 import { backgroundColorProperty, Color, colorProperty, CoreTypes, CSSType, Screen, Utils, View as NSView } from '@nativescript/core';
 import { Style } from './style';
-import { BigIntZero, style, mason, node, textProperty, MasonChild, style_, TextBase, ViewBase, textWrapProperty } from './common';
+import { textProperty, MasonChild, style_, TextBase, ViewBase, textWrapProperty } from './common';
 
 function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit, parent = 0) {
   switch (length.unit) {

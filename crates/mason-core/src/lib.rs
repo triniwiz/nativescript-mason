@@ -1,4 +1,5 @@
 use crate::style::StyleKeys;
+use objc2::rc::{Id, Retained};
 use std::cell::{Ref, RefCell, RefMut};
 use std::os::raw::{c_float, c_longlong, c_void};
 use std::rc::{Rc, Weak};
@@ -132,6 +133,8 @@ pub struct NodeContext(Rc<RefCell<NodeContextInner>>);
 pub struct StyleContext {
     #[cfg(target_os = "android")]
     buffer: Option<jni::objects::GlobalRef>,
+    #[cfg(target_vendor = "apple")]
+    buffer: objc2::rc::Retained<objc2_foundation::NSMutableData>,
     style_data: Box<[u8]>,
 }
 
@@ -181,13 +184,32 @@ impl StyleContext {
     pub fn new() -> Self {
         let mut data = vec![0u8; StyleKeys::ITEM_IS_TABLE as usize + 4];
         data.shrink_to_fit();
-
-        Self {
-            #[cfg(target_os = "android")]
-            buffer: None,
-            // last item + 4 bytes
-            style_data: data.into_boxed_slice(),
+        let style_data = data.into_boxed_slice();
+        unsafe {
+            Self {
+                #[cfg(target_os = "android")]
+                buffer: None,
+                buffer: objc2_foundation::NSMutableData::dataWithBytesNoCopy_length_freeWhenDone(
+                    std::ptr::NonNull::new_unchecked(style_data.as_ptr() as *mut _),
+                    style_data.len(),
+                    false,
+                ),
+                // last item + 4 bytes
+                style_data,
+            }
         }
+    }
+
+    #[cfg(target_vendor = "apple")]
+    #[track_caller]
+    pub fn buffer(&self) -> Id<objc2_foundation::NSMutableData> {
+        self.buffer.clone()
+    }
+
+    #[cfg(target_vendor = "apple")]
+    #[track_caller]
+    pub fn buffer_raw(&self) -> *mut c_void {
+        Retained::into_raw(self.buffer.clone()) as *mut c_void
     }
 
     #[cfg(target_os = "android")]

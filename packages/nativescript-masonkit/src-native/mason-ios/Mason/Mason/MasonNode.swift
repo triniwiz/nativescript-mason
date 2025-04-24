@@ -42,9 +42,10 @@ public class MasonNode: NSObject {
   
   internal var measureFunc: MeasureFunc? = nil
   
+
   lazy public var style: MasonStyle = {
-    MasonStyle(node: self)
-  }()
+      MasonStyle(node: self)
+    }()
   
   public internal(set) var owner: MasonNode? = nil
   public internal(set) var children: [MasonNode] = []
@@ -58,6 +59,7 @@ public class MasonNode: NSObject {
   internal init(mason doc: NSCMason) {
     mason = doc
     nativePtr = mason_node_new_node(mason.nativePtr)
+    super.init()
   }
   
   

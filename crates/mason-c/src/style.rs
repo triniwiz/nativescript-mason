@@ -1074,8 +1074,7 @@ pub extern "C" fn mason_style_sync_style_with_buffer(
         }
         if let Some(style) = updated_style {
             mason.0.set_style_sync_buffer(node, style, false);
-            if let Some(s) = mason.0.style(node) {
-            }
+            if let Some(s) = mason.0.style(node) {}
         }
     }
 }
@@ -1131,6 +1130,7 @@ pub extern "C" fn mason_style_get_style_buffer(
     if mason.is_null() || node.is_null() {
         return std::ptr::null_mut();
     }
+
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
@@ -1149,6 +1149,27 @@ pub extern "C" fn mason_style_get_style_buffer(
             }));
         }
     }
+    std::ptr::null_mut()
+}
+
+#[cfg(target_vendor = "apple")]
+#[no_mangle]
+pub extern "C" fn mason_style_get_style_buffer_apple(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut std::os::raw::c_void {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &(*node).0;
+
+        if let Some(context) = mason.0.get_node_context(node) {
+            return  context.style_data().buffer_raw()
+        }
+    }
+
     std::ptr::null_mut()
 }
 

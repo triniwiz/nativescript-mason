@@ -1,7 +1,6 @@
 import { layout } from '@nativescript/core/utils';
 import type { Gap, GridAutoFlow, Length, LengthAuto, View } from '.';
 import { CoreTypes } from '@nativescript/core';
-import { mason, node } from './common';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf } from './helpers';
 
 enum StyleKeys {
