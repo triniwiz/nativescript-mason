@@ -2,21 +2,19 @@ extern crate mason_c;
 
 use android_logger::Config;
 use itertools::izip;
-use jni::objects::{GlobalRef, JClass, JMethodID, JObject, JValue};
-use jni::sys::{jfloat, jint, jlong};
+use jni::objects::{GlobalRef, JClass, JMethodID, JObject};
+use jni::sys::{jint, jlong};
 use jni::JavaVM;
 use jni::{JNIEnv, NativeMethod};
 use log::LevelFilter;
-use mason_c::ffi;
 use once_cell::sync::OnceCell;
-use std::cell::LazyCell;
 use std::ffi::c_void;
 use std::sync::Arc;
 
 use mason_core::LengthPercentage;
 use mason_core::{
     auto, fit_content, flex, length, max_content, min_content, percent, Mason,
-    NonRepeatedTrackSizingFunction, TaffyAuto, TrackSizingFunction,
+    NonRepeatedTrackSizingFunction, TrackSizingFunction,
 };
 
 mod node;

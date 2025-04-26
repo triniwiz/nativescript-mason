@@ -326,7 +326,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeAn
 
 #[no_mangle]
 pub extern "system" fn nativeComputeWithSizeAndLayout(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     taffy: jlong,
     node: jlong,
