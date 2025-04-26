@@ -87,7 +87,7 @@ pub struct NodeContextInner {
     #[cfg(target_os = "android")]
     measure: Option<jni::objects::GlobalRef>,
     #[cfg(not(target_os = "android"))]
-    measure: Option<extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) -> c_longlong>,
+    measure: Option<extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) ->  std::os::raw::c_longlong>,
     style: StyleContext,
     guard: Rc<()>,
 }
@@ -97,7 +97,7 @@ impl NodeContextInner {
     pub fn new(
         data: *mut  std::os::raw::c_void,
         measure: Option<
-            extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) -> c_longlong,
+            extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) ->  std::os::raw::c_longlong,
         >,
     ) -> NodeContextInner {
         Self {
@@ -269,7 +269,7 @@ impl NodeContext {
     pub fn new(
         data: *mut  std::os::raw::c_void,
         measure: Option<
-            extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) -> c_longlong,
+            extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) ->  std::os::raw::c_longlong,
         >,
     ) -> Self {
         Self(Rc::new(RefCell::new(NodeContextInner::new(data, measure))))
