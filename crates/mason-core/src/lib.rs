@@ -1,6 +1,5 @@
 use crate::style::StyleKeys;
 use std::cell::{Ref, RefCell, RefMut};
-use std::os::raw::{c_float, c_longlong, c_void};
 use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicUsize, Ordering};
 pub use taffy::geometry::{Line, Point, Rect, Size};
@@ -70,7 +69,7 @@ impl Drop for Node {
         if Rc::strong_count(&self.guard) <= 2 {
             if let Some(mason) = self.mason.upgrade() {
                 let mut mason = mason.borrow_mut();
-                let mut tree = mason.tree_mut();
+                let tree = mason.tree_mut();
                 if tree.parent(self.id).is_none() {
                     let _ = tree.remove(self.id);
                 }
@@ -615,7 +614,7 @@ impl Mason {
         let guard = match tree.get_node_context(node.id) {
             None => Rc::new(()),
             Some(context) => {
-                let mut context = context.0.borrow();
+                let context = context.0.borrow();
                 context.guard.clone()
             }
         };

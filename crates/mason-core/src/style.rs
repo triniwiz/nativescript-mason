@@ -8,7 +8,6 @@ use crate::utils::{
 };
 use bitflags::{bitflags, Flags};
 use std::i16;
-use std::slice::SliceIndex;
 use taffy::geometry::Point;
 use taffy::prelude::*;
 use taffy::style::{
@@ -16,7 +15,6 @@ use taffy::style::{
 };
 use taffy::GridContainerStyle;
 
-use log::log;
 pub use taffy::style::Style;
 
 #[inline(always)]
