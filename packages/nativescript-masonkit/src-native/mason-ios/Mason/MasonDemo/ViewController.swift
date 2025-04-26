@@ -221,8 +221,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     text.addView(other)
     
     let con = mason.createView()
-    con.addSubview(text)
-    container.addSubview(con)
+    con.addView(text)
+    container.addView(con)
     
 //    con.style.size =  MasonSize(MasonDimension.Points(scale * Float(container.bounds.width)), MasonDimension.Points(scale * Float(container.bounds.height)))
   
@@ -298,10 +298,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       
       
         
-      //  imageExample()
+       // imageExample()
     //  gridSample()
       
-    // testLateUpdate()
+   //  testLateUpdate()
       
 //      let root = mason.createView()
 //      root.backgroundColor = .red
@@ -309,14 +309,31 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //      container.addView(root)
 //      
 //      let a = mason.createTextView()
-//      a.text = "a"
-//      
 //      let b = mason.createTextView()
-//      b.updateText("b")
+//      print(a.style.valuesCompat)
 //      
+//      a.addView(b)
 //      root.addView(a)
 //      
-//      root.addView(b)
+//      
+//      a.text = "a"
+//      b.updateText("b")
+//      
+// 
+//      
+//      let fg = mason.createView()
+//      let f = mason.createView()
+//      let g = mason.createView()
+//      
+//      fg.addView(f)
+//      fg.addView(g)
+//      
+//      root.addView(fg)
+//      
+//      f.backgroundColor = .blue
+//      f.node.style.size = MasonSize(.Points(100), .Points(100))
+//      g.backgroundColor = .yellow
+//      g.node.style.size = MasonSize(.Points(100), .Points(100))
 //      
 //      root.node.computeWithMaxContent()
     }
@@ -329,10 +346,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     let text = mason.createTextView()
     
-    let textOther = mason.createTextView()
-    textOther.updateText("Other")
-    
-    root.addView(textOther)
+    root.addView(text)
     
     
     text.textWrap = .Wrap
@@ -358,18 +372,18 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         root.node.computeWithMaxContent()
         
         DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
-          DispatchQueue.main.async {
+          DispatchQueue.main.async { [self] in
             text2.setBackgroundColor(ui: .green)
             text2.setColor(ui: .blue)
             text2.updateText(" \n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris. ")
-            root.node.computeWithMaxContent()
+            root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
             
-            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
-              DispatchQueue.main.async {
-                text.removeView(text2)
-                root.node.computeWithMaxContent()
-              }
-            }
+//            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+//              DispatchQueue.main.async {
+//                text.removeView(text2)
+//                root.node.computeWithMaxContent()
+//              }
+//            }
             
           }
         }
@@ -380,6 +394,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     func imageExample(){
       let root = mason.createView()
+      container.addView(root)
                 
       let image = UIImageView(frame: .zero)
         
@@ -404,9 +419,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         }
         
  
-      root.addSubview(image)
+        root.addView(image)
         
-        view.addSubview(root)
       
       
     }

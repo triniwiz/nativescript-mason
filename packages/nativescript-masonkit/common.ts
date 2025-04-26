@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent } from '.';
-import { _forceStyleUpdate, _parseGridTemplates, _setAlignContent, _setColumnGap, _setDisplay, _setFlexDirection, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setMarginBottom, _setMarginLeft, _setMarginRight, _setMarginTop, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setRowGap, _setWidth, GridTemplates } from './helpers';
+import { _forceStyleUpdate, _parseGridTemplates, _setAlignContent, _setColumnGap, _setDisplay, _setFlexDirection, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setMarginBottom, _setMarginLeft, _setMarginRight, _setMarginTop, _setMinHeight, _setMinWidth, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setRowGap, _setWidth, GridTemplates } from './helpers';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 
 export const native_ = Symbol('[[native]]');
@@ -875,31 +875,22 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     _setFlexDirection(value, this as any);
   }
 
-  //@ts-ignore
-  set width(value) {
-    console.log('width set', value);
+  [minWidthProperty.setNative](value) {
+    _setMinWidth(value, this as any);
   }
 
-  get width(): any {
-    return 0;
+  [minHeightProperty.setNative](value) {
+    _setMinHeight(value, this as any);
   }
 
-  //@ts-ignore
-  set height(value) {
-    console.log('height set', value);
+  [widthProperty.setNative](value) {
+    _setWidth(value, this as any);
   }
 
-  get height(): any {
-    return 0;
+  [heightProperty.setNative](value) {
+    _setHeight(value, this as any);
   }
 
-  // [widthProperty.setNative](value) {
-  //  // _setWidth(value, this as any);
-  // }
-
-  // [heightProperty.setNative](value) {
-  //  // _setHeight(value, this as any);
-  // }
   [alignContentProperty.setNative](value) {
     _setAlignContent(value, this as any);
   }
@@ -966,6 +957,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 export class TextBase extends ViewBase {
   text: string;
   textWrap: 'nowrap' | 'wrap' | 'balance';
+
   constructor() {
     super();
   }

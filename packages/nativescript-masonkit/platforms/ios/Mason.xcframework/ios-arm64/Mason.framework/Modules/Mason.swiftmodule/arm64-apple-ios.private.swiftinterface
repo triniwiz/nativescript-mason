@@ -436,6 +436,10 @@ public let MasonDimensionRectZero: Mason.MasonRect<Mason.MasonDimension>
 public let MasonLengthPercentageAutoRectZero: Mason.MasonRect<Mason.MasonLengthPercentageAuto>
 public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPercentage>
 @objc(MasonStyle) @objcMembers public class MasonStyle : ObjectiveC.NSObject {
+  @objc public var valuesCompat: Foundation.NSMutableData {
+    @objc get
+    @objc set
+  }
   @objc public var values: Foundation.Data {
     @objc get
     @objc set

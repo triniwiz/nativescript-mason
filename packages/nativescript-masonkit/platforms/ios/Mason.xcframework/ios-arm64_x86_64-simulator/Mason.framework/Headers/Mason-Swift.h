@@ -651,6 +651,7 @@ SWIFT_CLASS_NAMED("MasonNode")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class NSMutableData;
 @class NSData;
 enum Position : NSInteger;
 enum Overflow : NSInteger;
@@ -660,6 +661,7 @@ enum MasonTextAlign : NSInteger;
 
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
+@property (nonatomic, strong) NSMutableData * _Nonnull valuesCompat;
 @property (nonatomic, copy) NSData * _Nonnull values;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)node OBJC_DESIGNATED_INITIALIZER;
 @property (nonatomic) enum Display display;
@@ -1698,6 +1700,7 @@ SWIFT_CLASS_NAMED("MasonNode")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class NSMutableData;
 @class NSData;
 enum Position : NSInteger;
 enum Overflow : NSInteger;
@@ -1707,6 +1710,7 @@ enum MasonTextAlign : NSInteger;
 
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
+@property (nonatomic, strong) NSMutableData * _Nonnull valuesCompat;
 @property (nonatomic, copy) NSData * _Nonnull values;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)node OBJC_DESIGNATED_INITIALIZER;
 @property (nonatomic) enum Display display;

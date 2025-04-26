@@ -31,11 +31,7 @@ class ImageActivity : AppCompatActivity() {
         "https://picsum.photos/600/600"
       )
       .into(image)
-      .getSize(object : SizeReadyCallback {
-        override fun onSizeReady(width: Int, height: Int) {
-          Log.d("com.test", "width $width height $height")
-        }
-      })
+      .getSize { width, height -> Log.d("com.test", "width $width height $height") }
 
     setContentView(root)
 

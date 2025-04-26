@@ -613,6 +613,36 @@ pub extern "system" fn nativeGetStyleBuffer(
     unsafe {
         let mason = &mut *(mason as *mut Mason);
         let node = &mut *(node as *mut Node);
+        if let Some(buffer) = node.style_data().buffer() {
+            return buffer.as_raw();
+        }
+
+        if node.jvm().is_none() {
+            node.set_jvm(env.get_java_vm().ok())
+        }
+
+        let buffer = node.style_data().buffer();
+        return match buffer {
+            Some(buffer) => buffer.as_raw(),
+            _ => {
+                let mut data = node.style_data_mut();
+                let len = data.data().len();
+                let ptr = data.data_mut().as_mut_ptr();
+
+                if let Some((Some(global), Some(buffer))) = env
+                    .new_direct_byte_buffer(ptr, len)
+                    .and_then(|buffer| Ok((env.new_global_ref(&buffer).ok(), Some(buffer))))
+                    .ok()
+                {
+                    data.set_buffer(Some(global));
+                    return buffer.into_raw();
+                }
+
+                JObject::null().into_raw()
+            }
+        };
+
+        /*
         if let Some(context) = mason.get_node_context(node) {
             if let Some(buffer) = context.style_data().buffer() {
                 return buffer.as_raw();
@@ -644,6 +674,8 @@ pub extern "system" fn nativeGetStyleBuffer(
                 }
             };
         }
+
+        */
     }
     JObject::null().into_raw()
 }
@@ -807,7 +839,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
         return;
     }
     let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_rows);
-    let grid_auto_columns = to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_columns);
+    let grid_auto_columns =
+        to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_columns);
     let grid_template_rows = to_vec_track_sizing_function_jni(&mut env, grid_template_rows);
     let grid_template_columns = to_vec_track_sizing_function_jni(&mut env, grid_template_columns);
 

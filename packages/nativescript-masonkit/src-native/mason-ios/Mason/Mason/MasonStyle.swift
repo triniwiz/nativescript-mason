@@ -202,6 +202,19 @@ public class MasonStyle: NSObject {
 //    return data.takeRetainedValue()
 //  }()
   
+  public lazy var valuesCompat: NSMutableData = {
+    let buffer = mason_style_get_style_buffer(node.mason.nativePtr, node.nativePtr)
+    guard let buffer else {
+      // todo
+      fatalError("Could not allocate style buffer")
+    }
+    
+    let data = NSMutableData(bytesNoCopy: buffer.pointee.data, length: Int(buffer.pointee.size), deallocator: nil)
+    
+    mason_style_release_style_buffer(buffer)
+
+    return data
+  }()
   
   public lazy var values: Data = {
     let buffer = mason_style_get_style_buffer(node.mason.nativePtr, node.nativePtr)
@@ -234,40 +247,47 @@ public class MasonStyle: NSObject {
   }
   
   private func getInt16(_ index: Int) -> Int16 {
-    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Int16 in
-      rawBufferPointer.load(fromByteOffset: index, as: Int16.self)
-    }
+//    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Int16 in
+//      rawBufferPointer.load(fromByteOffset: index, as: Int16.self)
+//    }
+    return valuesCompat.bytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee
   }
   
   private func setInt16(_ index: Int, _ value: Int16) {
-    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
-      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Int16.self)
-    }
+//    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+//      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Int16.self)
+//    }
+    
+    valuesCompat.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee = value
   }
   
   private func getInt32(_ index: Int) -> Int32 {
-    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Int32 in
-      rawBufferPointer.load(fromByteOffset: index, as: Int32.self)
-    }
+//    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Int32 in
+//      rawBufferPointer.load(fromByteOffset: index, as: Int32.self)
+//    }
+    return valuesCompat.bytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee
   }
   
   private func setInt32(_ index: Int, _ value: Int32) {
-    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
-      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Int32.self)
-    }
+//    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+//      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Int32.self)
+//    }
+    valuesCompat.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
   }
   
   
   private func getFloat(_ index: Int) -> Float {
-    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Float in
-      rawBufferPointer.load(fromByteOffset: index, as: Float.self)
-    }
+//    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Float in
+//      rawBufferPointer.load(fromByteOffset: index, as: Float.self)
+//    }
+    return valuesCompat.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
   }
   
   private func setFloat(_ index: Int, _ value: Float) {
-    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
-      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Float.self)
-    }
+//    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+//      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Float.self)
+//    }
+    valuesCompat.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
   }
   
   public var display: Display {
@@ -601,13 +621,10 @@ public class MasonStyle: NSObject {
       
       let top = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
-      
-      
       type = getInt32(StyleKeys.MARGIN_BOTTOM_TYPE)
       value =  getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
       
       let bottom = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
-      
       
       return MasonRect(left, right, top, bottom)
     }
@@ -918,7 +935,6 @@ public class MasonStyle: NSObject {
   
   public var flexBasis: MasonDimension {
     get {
-      let type = getInt32(StyleKeys.FLEX_BASIS_TYPE)
       let value = getFloat(StyleKeys.FLEX_BASIS_VALUE)
       switch(getInt32(StyleKeys.FLEX_BASIS_TYPE)){
       case 0:
@@ -1719,11 +1735,18 @@ public class MasonStyle: NSObject {
     
     if (isDirty != -1) {
     //  mason_style_sync_style(node.mason.nativePtr, node.nativePtr, isDirty)
+//
+//      values.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) in
+//        guard let ptr = ptr.baseAddress else {return}
+//        mason_style_sync_style_with_buffer(node.mason.nativePtr, node.nativePtr, isDirty, ptr.assumingMemoryBound(to: UInt8.self), UInt(values.count))
+//      }
+//
       
-      values.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) in
-        guard let ptr = ptr.baseAddress else {return}
-        mason_style_sync_style_with_buffer(node.mason.nativePtr, node.nativePtr, isDirty, ptr.assumingMemoryBound(to: UInt8.self), UInt(values.count))
-      }
+      
+      
+      mason_style_sync_style_with_buffer(node.mason.nativePtr, node.nativePtr, isDirty, valuesCompat.mutableBytes, UInt(values.count))
+      
+      
       
       isDirty = -1
     }

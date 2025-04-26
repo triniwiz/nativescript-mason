@@ -258,7 +258,7 @@ public class MasonText: UIView, MasonView {
     super.init(frame: .zero)
     isOpaque = false
     actualNode.data = self
-    node.style.display = .Flex
+    // node.style.display = .Flex
     actualNode.measureFunc = { known, available in
       return MasonText.measure(self, known, available)
     }
@@ -272,7 +272,7 @@ public class MasonText: UIView, MasonView {
     super.init(frame: .zero)
     isOpaque = false
     actualNode.data = self
-    node.style.display = .Flex
+   // node.style.display = .Flex
     actualNode.measureFunc = { known, available in
       return MasonText.measure(self, known, available)
     }
@@ -282,6 +282,7 @@ public class MasonText: UIView, MasonView {
   
   
   private static func measure(_ view: MasonText, _ known: CGSize?, _ available: CGSize) -> CGSize {
+   
     view.node.lastMeasureKnownSize = known
     view.node.lastMeasureAvailableSize = available
     
@@ -292,6 +293,7 @@ public class MasonText: UIView, MasonView {
     }else {
       view.txtToRender
     }
+    
     var size = measureInline(text: txt)
     if let known = known {
       if(!known.width.isNaN && known.width >= 0){
@@ -307,11 +309,10 @@ public class MasonText: UIView, MasonView {
     if(view.owner == nil && view.textWrap != .NoWrap && available.width.isFinite && available.width > 0){
       var maxWidth = CGFloat.greatestFiniteMagnitude
       if(!available.width.isNaN && available.width > 0){
-        maxWidth = available.width
+        maxWidth = available.width / CGFloat(NSCMason.scale)
       }
       
       size =  measureBlock(text: txt, maxWidth: maxWidth)
-    
   
       if let height = known?.height, !height.isNaN {
         size.height = height
@@ -866,7 +867,7 @@ public class MasonText: UIView, MasonView {
     context.translateBy(x: 0, y: bounds.height)
     context.scaleBy(x: 1.0, y: -1.0)
     
-    var text =  txtToRender
+    var text = txtToRender
     
     if(textWrap == .NoWrap){
       let mutable = NSMutableAttributedString(attributedString: txtToRender)
@@ -922,8 +923,8 @@ public class MasonText: UIView, MasonView {
             let x = origin.x + xOffset
             _ = CGFloat((layout.y / NSCMason.scale))
             
-            let layoutX = CGFloat(layout.x / NSCMason.scale)
-            let layoutY = CGFloat(layout.y / NSCMason.scale)
+           // let layoutX = CGFloat(layout.x / NSCMason.scale)
+           // let layoutY = CGFloat(layout.y / NSCMason.scale)
             
             let runBounds = CGRect(
               x: x,

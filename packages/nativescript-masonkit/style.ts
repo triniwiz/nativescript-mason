@@ -267,11 +267,15 @@ export class Style {
     } else if (__APPLE__) {
       const style = (nativeView as MasonText).style;
       if (!isText) {
-        const styleBuffer = style.values;
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        const styleBuffer = style.valuesCompat;
         const buffer = interop.bufferFromData(styleBuffer);
         ret.style_view = new DataView(buffer);
       } else {
-        const styleBuffer = style.values;
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        const styleBuffer = style.valuesCompat;
         const buffer = interop.bufferFromData(styleBuffer);
         ret.style_view = new DataView(buffer);
 
@@ -303,7 +307,6 @@ export class Style {
     } else if (__APPLE__) {
       if (!isText) {
         const view = this.view.ios as MasonUIView;
-        console.log('syncStyle', this.isDirty.toString(), StateKeys.GAP.bits.toString());
         view.syncStyle(this.isDirty.toString());
       } else {
         const view = this.view.ios as MasonText;
@@ -641,10 +644,10 @@ export class Style {
     return parseLengthPercentageAuto(type, value);
   }
   set height(value: LengthAuto) {
-    console.log('set width', value, typeof value);
     switch (typeof value) {
       case 'string':
         setInt32(this.style_view, StyleKeys.HEIGHT_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, 0);
         break;
       case 'number':
         setInt32(this.style_view, StyleKeys.HEIGHT_TYPE, 1);

@@ -140,10 +140,8 @@ public class MasonUIView: UIView, MasonView {
   }
   
   public func syncStyle(_ state: String) {
-    print("syncStyle", state)
     guard let stateValue = Int64(state, radix: 10) else {return}
     let keys = StateKeys(rawValue: UInt64(stateValue))
-    print("gap",keys.contains(.gap), keys)
     if (stateValue != -1) {
       style.isDirty = stateValue
       style.updateNativeStyle()

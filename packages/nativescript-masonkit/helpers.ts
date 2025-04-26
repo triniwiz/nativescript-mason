@@ -622,8 +622,8 @@ export function _setHeight(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
+
   instance._styleHelper.height = value;
-  syncStyle(instance);
 }
 
 export function _getHeight(instance: View) {
@@ -1668,6 +1668,9 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
       }
     }
     instance.ios.gridTemplateColumns = array;
+    console.log('gridTemplateColumns', instance.ios.gridTemplateColumns);
+    console.log('gridTemplateColumns', instance.ios.gridTemplateColumns.count);
+    console.log(instance.ios.style);
   }
 }
 

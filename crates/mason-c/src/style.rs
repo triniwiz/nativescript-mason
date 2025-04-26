@@ -1134,8 +1134,22 @@ pub extern "C" fn mason_style_get_style_buffer(
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
+
+        let mut data = node.0.style_data_mut();
+        let ptr = {
+            let data = data.data_mut();
+            (data.as_mut_ptr(), data.len())
+        };
+        drop(data);
+
+        return Box::into_raw(Box::new(CMasonBuffer {
+            data: ptr.0,
+            size: ptr.1,
+        }));
+
+        /*
         if let Some(context) = mason.0.get_node_context_mut(&node.0) {
-            let mut data = context.style_data_mut();
+            let mut data =         node.0.style_data_mut()
             let ptr = {
                 let data = data.data_mut();
                 (data.as_mut_ptr(), data.len())
@@ -1148,6 +1162,7 @@ pub extern "C" fn mason_style_get_style_buffer(
                 size: ptr.1,
             }));
         }
+        */
     }
     std::ptr::null_mut()
 }
@@ -1166,7 +1181,7 @@ pub extern "C" fn mason_style_get_style_buffer_apple(
         let node = &(*node).0;
 
         if let Some(context) = mason.0.get_node_context(node) {
-            return  context.style_data().buffer_raw()
+            return context.style_data().buffer_raw();
         }
     }
 

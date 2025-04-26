@@ -146,9 +146,11 @@ export class Text extends TextBase {
 
   [textWrapProperty.setNative](value) {
     switch (value) {
+      case 'false':
       case 'nowrap':
         this[style_].textWrap = TextWrap.NoWrap;
         break;
+      case 'true':
       case 'wrap':
         this[style_].textWrap = TextWrap.Wrap;
         break;

@@ -46,6 +46,7 @@ pub struct Node {
     id: NodeId,
     guard: Rc<()>,
     mason: Weak<RefCell<MasonInner>>,
+    context: Rc<RefCell<NodeContextInner>>,
 }
 
 impl PartialEq for Node {
@@ -61,6 +62,35 @@ impl PartialEq for Node {
 impl Node {
     pub fn id(&self) -> NodeId {
         self.id
+    }
+
+    pub fn context(&self) -> Ref<NodeContextInner> {
+        self.context.borrow()
+    }
+
+    pub fn context_mut(&self) -> RefMut<NodeContextInner> {
+        self.context.borrow_mut()
+    }
+
+    pub fn style_data(&self) -> Ref<StyleContext> {
+        Ref::map(self.context.borrow(), |ctx| &ctx.style)
+    }
+
+    pub fn style_data_mut(&self) -> RefMut<StyleContext> {
+        RefMut::map(self.context.borrow_mut(), |ctx| &mut ctx.style)
+    }
+
+    #[cfg(target_os = "android")]
+    #[track_caller]
+    pub fn set_jvm(&mut self, jvm: Option<jni::JavaVM>) {
+        let mut inner = self.context.borrow_mut();
+        inner.jvm = jvm;
+    }
+
+    #[cfg(target_os = "android")]
+    #[track_caller]
+    pub fn jvm(&self) -> Option<Ref<jni::JavaVM>> {
+        Ref::filter_map(self.context.borrow(), |ctx| ctx.jvm.as_ref()).ok()
     }
 }
 
@@ -81,23 +111,51 @@ impl Drop for Node {
 #[derive(Debug)]
 pub struct NodeContextInner {
     #[cfg(not(target_os = "android"))]
-    data: *mut  std::os::raw::c_void,
+    data: *mut std::os::raw::c_void,
     #[cfg(target_os = "android")]
     jvm: Option<jni::JavaVM>,
     #[cfg(target_os = "android")]
     measure: Option<jni::objects::GlobalRef>,
     #[cfg(not(target_os = "android"))]
-    measure: Option<extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) ->  std::os::raw::c_longlong>,
+    measure: Option<
+        extern "C" fn(
+            *const std::os::raw::c_void,
+            std::os::raw::c_float,
+            std::os::raw::c_float,
+            std::os::raw::c_float,
+            std::os::raw::c_float,
+        ) -> std::os::raw::c_longlong,
+    >,
     style: StyleContext,
     guard: Rc<()>,
+}
+
+impl Default for NodeContextInner {
+    fn default() -> Self {
+        Self {
+            #[cfg(not(target_os = "android"))]
+            data: std::ptr::null_mut(),
+            #[cfg(target_os = "android")]
+            jvm: None,
+            measure: None,
+            style: StyleContext::new(),
+            guard: Rc::new(()),
+        }
+    }
 }
 
 impl NodeContextInner {
     #[cfg(not(target_os = "android"))]
     pub fn new(
-        data: *mut  std::os::raw::c_void,
+        data: *mut std::os::raw::c_void,
         measure: Option<
-            extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) ->  std::os::raw::c_longlong,
+            extern "C" fn(
+                *const std::os::raw::c_void,
+                std::os::raw::c_float,
+                std::os::raw::c_float,
+                std::os::raw::c_float,
+                std::os::raw::c_float,
+            ) -> std::os::raw::c_longlong,
         >,
     ) -> NodeContextInner {
         Self {
@@ -190,7 +248,6 @@ impl StyleContext {
             float_slice[StyleKeys::ASPECT_RATIO as usize / 4] = f32::NAN;
             // default shrink to 1
             float_slice[StyleKeys::FLEX_SHRINK as usize / 4] = 1.;
-
         }
 
         let int_slice = unsafe {
@@ -208,7 +265,6 @@ impl StyleContext {
         int_slice[StyleKeys::JUSTIFY_SELF as usize / 4] = -1;
 
         int_slice[StyleKeys::JUSTIFY_CONTENT as usize / 4] = -1;
-
 
         // AlignSelf
         data.shrink_to_fit();
@@ -237,8 +293,8 @@ impl StyleContext {
 
     #[cfg(target_vendor = "apple")]
     #[track_caller]
-    pub fn buffer_raw(&self) -> *mut  std::os::raw::c_void {
-        objc2::rc::Retained::into_raw(self.buffer.clone()) as *mut  std::os::raw::c_void
+    pub fn buffer_raw(&self) -> *mut std::os::raw::c_void {
+        objc2::rc::Retained::into_raw(self.buffer.clone()) as *mut std::os::raw::c_void
     }
 
     #[cfg(target_os = "android")]
@@ -267,9 +323,15 @@ impl StyleContext {
 impl NodeContext {
     #[cfg(not(target_os = "android"))]
     pub fn new(
-        data: *mut  std::os::raw::c_void,
+        data: *mut std::os::raw::c_void,
         measure: Option<
-            extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) ->  std::os::raw::c_longlong,
+            extern "C" fn(
+                *const std::os::raw::c_void,
+                std::os::raw::c_float,
+                std::os::raw::c_float,
+                std::os::raw::c_float,
+                std::os::raw::c_float,
+            ) -> std::os::raw::c_longlong,
         >,
     ) -> Self {
         Self(Rc::new(RefCell::new(NodeContextInner::new(data, measure))))
@@ -417,7 +479,7 @@ impl NodeContext {
 fn measure_function(
     known_dimensions: Size<Option<f32>>,
     available_space: Size<AvailableSpace>,
-    node_id: NodeId,
+    _node_id: NodeId,
     context: Option<&mut NodeContext>,
     _style: &Style,
 ) -> Size<f32> {
@@ -543,13 +605,14 @@ impl Mason {
                 }
 
                 let guard = ctx.0.borrow().guard.clone();
-
+                let context = ctx.0.clone();
                 let _ = tree.set_node_context(node_id, Some(ctx));
 
                 Node {
                     id: node_id,
                     guard,
                     mason: Rc::downgrade(&self.0),
+                    context,
                 }
             })
             .unwrap()
@@ -611,11 +674,15 @@ impl Mason {
 
     pub fn remove_node(&mut self, node: &Node) -> Option<Node> {
         let mut tree = self.tree_mut();
-        let guard = match tree.get_node_context(node.id) {
-            None => Rc::new(()),
+        let (guard, context) = match tree.get_node_context(node.id) {
+            None => (
+                Rc::new(()),
+                Rc::new(RefCell::new(NodeContextInner::default())),
+            ),
             Some(context) => {
+                let ctx = context.0.clone();
                 let context = context.0.borrow();
-                context.guard.clone()
+                (context.guard.clone(), ctx)
             }
         };
         tree.remove(node.id)
@@ -623,6 +690,7 @@ impl Mason {
                 id: node_id,
                 mason: Rc::downgrade(&self.0),
                 guard,
+                context,
             })
             .ok()
     }
@@ -684,11 +752,15 @@ impl Mason {
 
         tree.replace_child_at_index(node.id, index, child.id)
             .map(|child_id| {
-                let guard = match tree.get_node_context(node.id) {
-                    None => Rc::new(()),
+                let (guard, context) = match tree.get_node_context(node.id) {
+                    None => (
+                        Rc::new(()),
+                        Rc::new(RefCell::new(NodeContextInner::default())),
+                    ),
                     Some(context) => {
+                        let ctx = context.0.clone();
                         let context = context.0.borrow();
-                        context.guard.clone()
+                        (context.guard.clone(), ctx)
                     }
                 };
 
@@ -696,6 +768,7 @@ impl Mason {
                     id: child_id,
                     mason: Rc::downgrade(&self.0),
                     guard,
+                    context,
                 }
             })
             .ok()
@@ -706,11 +779,15 @@ impl Mason {
 
         tree.remove_child(node.id, child.id)
             .map(|child_id| {
-                let guard = match tree.get_node_context(node.id) {
-                    None => Rc::new(()),
+                let (guard, context) = match tree.get_node_context(node.id) {
+                    None => (
+                        Rc::new(()),
+                        Rc::new(RefCell::new(NodeContextInner::default())),
+                    ),
                     Some(context) => {
+                        let ctx = context.0.clone();
                         let context = context.0.borrow();
-                        context.guard.clone()
+                        (context.guard.clone(), ctx)
                     }
                 };
 
@@ -718,6 +795,7 @@ impl Mason {
                     id: child_id,
                     mason: Rc::downgrade(&self.0),
                     guard,
+                    context,
                 }
             })
             .ok()
@@ -727,11 +805,15 @@ impl Mason {
         let mut tree = self.tree_mut();
         tree.remove_child_at_index(node.id, index)
             .map(|child_id| {
-                let guard = match tree.get_node_context(child_id) {
-                    None => Rc::new(()),
+                let (guard, context) = match tree.get_node_context(child_id) {
+                    None => (
+                        Rc::new(()),
+                        Rc::new(RefCell::new(NodeContextInner::default())),
+                    ),
                     Some(context) => {
+                        let ctx = context.0.clone();
                         let context = context.0.borrow();
-                        context.guard.clone()
+                        (context.guard.clone(), ctx)
                     }
                 };
 
@@ -739,6 +821,7 @@ impl Mason {
                     id: child_id,
                     mason: Rc::downgrade(&self.0),
                     guard,
+                    context,
                 }
             })
             .ok()
@@ -767,11 +850,15 @@ impl Mason {
                 nodes
                     .into_iter()
                     .map(|id| {
-                        let guard = match tree.get_node_context(id) {
-                            None => Rc::new(()),
+                        let (guard, context) = match tree.get_node_context(id) {
+                            None => (
+                                Rc::new(()),
+                                Rc::new(RefCell::new(NodeContextInner::default())),
+                            ),
                             Some(context) => {
+                                let ctx = context.0.clone();
                                 let context = context.0.borrow();
-                                context.guard.clone()
+                                (context.guard.clone(), ctx)
                             }
                         };
 
@@ -779,6 +866,7 @@ impl Mason {
                             id,
                             mason: Rc::downgrade(&self.0),
                             guard,
+                            context,
                         }
                     })
                     .collect()
@@ -805,11 +893,15 @@ impl Mason {
         let tree = self.tree();
         tree.child_at_index(node.id, index)
             .map(|node_id| {
-                let guard = match tree.get_node_context(node_id) {
-                    None => Rc::new(()),
+                let (guard, context) = match tree.get_node_context(node_id) {
+                    None => (
+                        Rc::new(()),
+                        Rc::new(RefCell::new(NodeContextInner::default())),
+                    ),
                     Some(context) => {
+                        let ctx = context.0.clone();
                         let context = context.0.borrow();
-                        context.guard.clone()
+                        (context.guard.clone(), ctx)
                     }
                 };
 
@@ -817,6 +909,7 @@ impl Mason {
                     id: node_id,
                     mason: Rc::downgrade(&self.0),
                     guard,
+                    context,
                 }
             })
             .ok()
@@ -868,11 +961,15 @@ impl Mason {
         }
 
         parent.map(|node_id| {
-            let guard = match tree.get_node_context(node_id) {
-                None => Rc::new(()),
+            let (guard, context) = match tree.get_node_context(node_id) {
+                None => (
+                    Rc::new(()),
+                    Rc::new(RefCell::new(NodeContextInner::default())),
+                ),
                 Some(context) => {
+                    let ctx = context.0.clone();
                     let context = context.0.borrow();
-                    context.guard.clone()
+                    (context.guard.clone(), ctx)
                 }
             };
 
@@ -880,6 +977,7 @@ impl Mason {
                 id: node_id,
                 mason: Rc::downgrade(&self.0),
                 guard,
+                context,
             }
         })
     }
