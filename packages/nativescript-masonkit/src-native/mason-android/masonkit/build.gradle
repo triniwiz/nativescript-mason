@@ -35,7 +35,7 @@ cargo {
   module = "../../../../../"
   libname = "masonnative"
 
-//  targets = ["arm64"]
+  targets = ["arm64"]
  // targets = ["x86"]
   apiLevels = [
     "arm": 21,
@@ -43,8 +43,8 @@ cargo {
     "x86": 21,
     "x86_64": 21
   ]
-  targets = ["arm", "arm64", "x86", "x86_64"]
-//  profile = "release"
+//  targets = ["arm", "arm64", "x86", "x86_64"]
+  profile = "release"
   targetDirectory = "../../../../../target"
   verbose = true
   extraCargoBuildArguments = ['-p', 'mason-android']

@@ -1,5 +1,4 @@
 use crate::style::StyleKeys;
-use objc2::rc::{Id, Retained};
 use std::cell::{Ref, RefCell, RefMut};
 use std::os::raw::{c_float, c_longlong, c_void};
 use std::rc::{Rc, Weak};
@@ -183,12 +182,43 @@ fn copy_output(taffy: &TaffyTree<NodeContext>, node: NodeId, output: &mut Vec<f3
 impl StyleContext {
     pub fn new() -> Self {
         let mut data = vec![0u8; StyleKeys::ITEM_IS_TABLE as usize + 4];
+
+        {
+            let float_slice = unsafe {
+                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut f32, data.len() / 4)
+            };
+            // default ratio to NAN
+            float_slice[StyleKeys::ASPECT_RATIO as usize / 4] = f32::NAN;
+            // default shrink to 1
+            float_slice[StyleKeys::FLEX_SHRINK as usize / 4] = 1.;
+
+        }
+
+        let int_slice = unsafe {
+            std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut i32, data.len() / 4)
+        };
+        // default Normal -> -1
+        int_slice[StyleKeys::ALIGN_ITEMS as usize / 4] = -1;
+
+        int_slice[StyleKeys::ALIGN_SELF as usize / 4] = -1;
+
+        int_slice[StyleKeys::ALIGN_CONTENT as usize / 4] = -1;
+
+        int_slice[StyleKeys::JUSTIFY_ITEMS as usize / 4] = -1;
+
+        int_slice[StyleKeys::JUSTIFY_SELF as usize / 4] = -1;
+
+        int_slice[StyleKeys::JUSTIFY_CONTENT as usize / 4] = -1;
+
+
+        // AlignSelf
         data.shrink_to_fit();
         let style_data = data.into_boxed_slice();
         unsafe {
             Self {
                 #[cfg(target_os = "android")]
                 buffer: None,
+                #[cfg(target_vendor = "apple")]
                 buffer: objc2_foundation::NSMutableData::dataWithBytesNoCopy_length_freeWhenDone(
                     std::ptr::NonNull::new_unchecked(style_data.as_ptr() as *mut _),
                     style_data.len(),
@@ -202,14 +232,14 @@ impl StyleContext {
 
     #[cfg(target_vendor = "apple")]
     #[track_caller]
-    pub fn buffer(&self) -> Id<objc2_foundation::NSMutableData> {
+    pub fn buffer(&self) -> objc2::rc::Retained<objc2_foundation::NSMutableData> {
         self.buffer.clone()
     }
 
     #[cfg(target_vendor = "apple")]
     #[track_caller]
     pub fn buffer_raw(&self) -> *mut c_void {
-        Retained::into_raw(self.buffer.clone()) as *mut c_void
+        objc2::rc::Retained::into_raw(self.buffer.clone()) as *mut c_void
     }
 
     #[cfg(target_os = "android")]

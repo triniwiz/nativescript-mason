@@ -128,9 +128,9 @@ function parseLengthPercentageAuto(type: number, value: number): LengthAuto {
 
 function parseLengthPercentage(type: number, value: number): Length {
   switch (type) {
-    case 1:
+    case 0:
       return { value, unit: 'px' };
-    case 2:
+    case 1:
       return { value, unit: '%' };
   }
 }
@@ -214,6 +214,30 @@ class TextStateKeys {
   }
 }
 
+const getUint32 = (view: DataView, offset: number) => {
+  return view.getUint32(offset, true);
+};
+
+const setUint32 = (view: DataView, offset: number, value: number) => {
+  view.setUint32(offset, value, true);
+};
+
+const getInt32 = (view: DataView, offset: number) => {
+  return view.getInt32(offset, true);
+};
+
+const setInt32 = (view: DataView, offset: number, value: number) => {
+  view.setInt32(offset, value, true);
+};
+
+const getFloat32 = (view: DataView, offset: number) => {
+  return view.getFloat32(offset, true);
+};
+
+const setFloat32 = (view: DataView, offset: number, value: number) => {
+  view.setFloat32(offset, value, true);
+};
+
 export class Style {
   private view_: View;
   private style_view: DataView;
@@ -267,7 +291,7 @@ export class Style {
   }
 
   private syncStyle(isText = false) {
-    console.time('syncStyle');
+    //  console.time('syncStyle');
     if (__ANDROID__) {
       if (!isText) {
         const view = this.view.android as org.nativescript.mason.masonkit.View;
@@ -279,6 +303,7 @@ export class Style {
     } else if (__APPLE__) {
       if (!isText) {
         const view = this.view.ios as MasonUIView;
+        console.log('syncStyle', this.isDirty.toString(), StateKeys.GAP.bits.toString());
         view.syncStyle(this.isDirty.toString());
       } else {
         const view = this.view.ios as MasonText;
@@ -286,7 +311,7 @@ export class Style {
       }
     }
     this.resetState();
-    console.timeEnd('syncStyle');
+    //   console.timeEnd('syncStyle');
   }
 
   private setOrAppendState(value: StateKeys) {
@@ -327,14 +352,15 @@ export class Style {
       // BLACK ?
       return 0;
     }
-    return this.text_style_view.getUint32(TextStyleKeys.COLOR);
+
+    return getUint32(this.text_style_view, TextStyleKeys.COLOR);
   }
 
   set color(value: number) {
     if (!this.text_style_view) {
       return;
     }
-    this.text_style_view.setUint32(TextStyleKeys.COLOR, value, true);
+    setUint32(this.text_style_view, TextStyleKeys.COLOR, value);
     this.setOrAppendTextState(TextStateKeys.COLOR);
   }
 
@@ -343,14 +369,14 @@ export class Style {
       // BLACK ?
       return 0;
     }
-    return this.text_style_view.getUint32(TextStyleKeys.BACKGROUND_COLOR);
+    return getUint32(this.text_style_view, TextStyleKeys.BACKGROUND_COLOR);
   }
 
   set backgroundColor(value: number) {
     if (!this.text_style_view) {
       return;
     }
-    this.text_style_view.setUint32(TextStyleKeys.BACKGROUND_COLOR, value);
+    setUint32(this.text_style_view, TextStyleKeys.BACKGROUND_COLOR, value);
     this.setOrAppendTextState(TextStateKeys.BACKGROUND_COLOR);
   }
 
@@ -359,14 +385,15 @@ export class Style {
       // BLACK ?
       return 0;
     }
-    return this.text_style_view.getInt32(TextStyleKeys.TEXT_ALIGN);
+    return getInt32(this.text_style_view, TextStyleKeys.TEXT_ALIGN);
   }
 
   set textWrap(value: number) {
     if (!this.text_style_view) {
       return;
     }
-    this.text_style_view.setInt32(TextStyleKeys.TEXT_WRAP, value);
+
+    setInt32(this.text_style_view, TextStyleKeys.TEXT_WRAP, value);
     this.setOrAppendTextState(TextStateKeys.TEXT_WRAP);
   }
 
@@ -375,7 +402,7 @@ export class Style {
   }
 
   get display() {
-    switch (this.style_view.getInt32(StyleKeys.DISPLAY)) {
+    switch (getInt32(this.style_view, StyleKeys.DISPLAY)) {
       case 0:
         return 'none';
       case 1:
@@ -404,13 +431,13 @@ export class Style {
         break;
     }
     if (display != -1) {
-      this.style_view.setInt32(StyleKeys.DISPLAY, display);
+      setInt32(this.style_view, StyleKeys.DISPLAY, display);
       this.setOrAppendState(StateKeys.DISPLAY);
     }
   }
 
   get position() {
-    switch (this.style_view.getInt32(StyleKeys.POSITION)) {
+    switch (getInt32(this.style_view, StyleKeys.POSITION)) {
       case 0:
         return 'relative';
       case 1:
@@ -429,13 +456,13 @@ export class Style {
         break;
     }
     if (position != -1) {
-      this.style_view.setInt32(StyleKeys.POSITION, position);
+      setInt32(this.style_view, StyleKeys.POSITION, position);
       this.setOrAppendState(StateKeys.POSITION);
     }
   }
 
   get flexDirection() {
-    switch (this.style_view.getInt32(StyleKeys.FLEX_DIRECTION)) {
+    switch (getInt32(this.style_view, StyleKeys.FLEX_DIRECTION)) {
       case 0:
         return 'column';
       case 1:
@@ -464,13 +491,13 @@ export class Style {
         break;
     }
     if (flex != -1) {
-      this.style_view.setInt32(StyleKeys.FLEX_DIRECTION, flex);
+      setInt32(this.style_view, StyleKeys.FLEX_DIRECTION, flex);
       this.setOrAppendState(StateKeys.FLEX_DIRECTION);
     }
   }
 
   get flexWrap() {
-    switch (this.style_view.getInt32(StyleKeys.FLEX_WRAP)) {
+    switch (getInt32(this.style_view, StyleKeys.FLEX_WRAP)) {
       case 0:
         return 'no-wrap';
       case 1:
@@ -494,7 +521,7 @@ export class Style {
         break;
     }
     if (wrap != -1) {
-      this.style_view.setInt32(StyleKeys.FLEX_WRAP, wrap);
+      setInt32(this.style_view, StyleKeys.FLEX_WRAP, wrap);
       this.setOrAppendState(StateKeys.FLEX_WRAP);
     }
   }
@@ -504,32 +531,32 @@ export class Style {
   // get flexFlow(): string
 
   get minWidth() {
-    const type = this.style_view.getInt32(StyleKeys.MIN_WIDTH_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.MIN_WIDTH_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.MIN_WIDTH_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
   set minWidth(value: LengthAuto) {
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.MIN_WIDTH_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.MIN_WIDTH_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MIN_WIDTH_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.MIN_WIDTH_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MIN_WIDTH_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.MIN_WIDTH_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MIN_WIDTH_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.MIN_WIDTH_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.MIN_WIDTH_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MIN_WIDTH_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.MIN_WIDTH_VALUE, value.value);
             break;
         }
         break;
@@ -539,33 +566,33 @@ export class Style {
   }
 
   get minHeight() {
-    const type = this.style_view.getInt32(StyleKeys.MIN_HEIGHT_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.MIN_HEIGHT_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.MIN_HEIGHT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
 
   set minHeight(value: LengthAuto) {
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.MIN_HEIGHT_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.MIN_HEIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MIN_HEIGHT_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.MIN_HEIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MIN_HEIGHT_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.MIN_HEIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MIN_HEIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.MIN_HEIGHT_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.MIN_HEIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MIN_HEIGHT_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.MIN_HEIGHT_VALUE, value.value);
             break;
         }
         break;
@@ -574,32 +601,33 @@ export class Style {
   }
 
   get width() {
-    const type = this.style_view.getInt32(StyleKeys.WIDTH_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.WIDTH_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.WIDTH_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.WIDTH_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
   set width(value: LengthAuto) {
+    console.log('set width', value);
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.WIDTH_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.WIDTH_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.WIDTH_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.WIDTH_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.WIDTH_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.WIDTH_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.WIDTH_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.WIDTH_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.WIDTH_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.WIDTH_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.WIDTH_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.WIDTH_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.WIDTH_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.WIDTH_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.WIDTH_VALUE, value.value);
             break;
         }
         break;
@@ -608,32 +636,33 @@ export class Style {
   }
 
   get height() {
-    const type = this.style_view.getInt32(StyleKeys.HEIGHT_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.HEIGHT_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.HEIGHT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.HEIGHT_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
   set height(value: LengthAuto) {
+    console.log('set width', value, typeof value);
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.HEIGHT_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.HEIGHT_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.HEIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.HEIGHT_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.HEIGHT_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.HEIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.HEIGHT_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.HEIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.HEIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.HEIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.HEIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.HEIGHT_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.HEIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.HEIGHT_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.HEIGHT_VALUE, value.value);
             break;
         }
         break;
@@ -642,32 +671,32 @@ export class Style {
   }
 
   get maxWidth() {
-    const type = this.style_view.getInt32(StyleKeys.MAX_WIDTH_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.MAX_WIDTH_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.MAX_WIDTH_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
   set maxWidth(value: LengthAuto) {
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.MAX_WIDTH_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.MAX_WIDTH_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MAX_WIDTH_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.MAX_WIDTH_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MAX_WIDTH_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.MAX_WIDTH_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MAX_WIDTH_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.MAX_WIDTH_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.MAX_WIDTH_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MAX_WIDTH_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.MAX_WIDTH_VALUE, value.value);
             break;
         }
         break;
@@ -676,32 +705,32 @@ export class Style {
   }
 
   get maxHeight() {
-    const type = this.style_view.getInt32(StyleKeys.MAX_HEIGHT_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.MAX_HEIGHT_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.MAX_HEIGHT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
   set maxHeight(value: LengthAuto) {
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.MAX_HEIGHT_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.MAX_HEIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MAX_HEIGHT_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.MAX_HEIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MAX_HEIGHT_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.MAX_HEIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MAX_HEIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.MAX_HEIGHT_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.MAX_HEIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MAX_HEIGHT_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.MAX_HEIGHT_VALUE, value.value);
             break;
         }
         break;
@@ -709,31 +738,159 @@ export class Style {
     this.setOrAppendState(StateKeys.MAX_SIZE);
   }
 
+  get borderLeft(): Length {
+    const type = getInt32(this.style_view, StyleKeys.BORDER_LEFT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE);
+    return parseLengthPercentage(type, value);
+  }
+
+  set borderLeft(value: Length) {
+    switch (typeof value) {
+      case 'number':
+        setInt32(this.style_view, StyleKeys.BORDER_LEFT_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, layout.toDevicePixels(value));
+        break;
+      case 'object':
+        switch (value.unit) {
+          case 'dip':
+            setInt32(this.style_view, StyleKeys.BORDER_LEFT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, layout.toDevicePixels(value.value));
+            break;
+          case 'px':
+            setInt32(this.style_view, StyleKeys.BORDER_LEFT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, value.value);
+            break;
+          case '%':
+            setInt32(this.style_view, StyleKeys.BORDER_LEFT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE, value.value);
+            break;
+        }
+        break;
+    }
+    this.setOrAppendState(StateKeys.BORDER);
+  }
+
+  get borderRight(): Length {
+    const type = getInt32(this.style_view, StyleKeys.BORDER_RIGHT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE);
+    return parseLengthPercentage(type, value);
+  }
+
+  set borderRight(value: Length) {
+    switch (typeof value) {
+      case 'number':
+        setInt32(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, layout.toDevicePixels(value));
+        break;
+      case 'object':
+        switch (value.unit) {
+          case 'dip':
+            setInt32(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, layout.toDevicePixels(value.value));
+            break;
+          case 'px':
+            setInt32(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, value.value);
+            break;
+          case '%':
+            setInt32(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE, value.value);
+            break;
+        }
+        break;
+    }
+    this.setOrAppendState(StateKeys.BORDER);
+  }
+
+  get borderTop(): Length {
+    const type = getInt32(this.style_view, StyleKeys.BORDER_TOP_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE);
+    return parseLengthPercentage(type, value);
+  }
+
+  set borderTop(value: Length) {
+    switch (typeof value) {
+      case 'number':
+        setInt32(this.style_view, StyleKeys.BORDER_TOP_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, layout.toDevicePixels(value));
+        break;
+      case 'object':
+        switch (value.unit) {
+          case 'dip':
+            setInt32(this.style_view, StyleKeys.BORDER_TOP_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, layout.toDevicePixels(value.value));
+            break;
+          case 'px':
+            setInt32(this.style_view, StyleKeys.BORDER_TOP_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, value.value);
+            break;
+          case '%':
+            setInt32(this.style_view, StyleKeys.BORDER_TOP_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE, value.value);
+            break;
+        }
+        break;
+    }
+    this.setOrAppendState(StateKeys.BORDER);
+  }
+
+  get borderBottom(): Length {
+    const type = getInt32(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE);
+    return parseLengthPercentage(type, value);
+  }
+
+  set borderBottom(value: Length) {
+    switch (typeof value) {
+      case 'number':
+        setInt32(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, layout.toDevicePixels(value));
+        break;
+      case 'object':
+        switch (value.unit) {
+          case 'dip':
+            setInt32(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, layout.toDevicePixels(value.value));
+            break;
+          case 'px':
+            setInt32(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, value.value);
+            break;
+          case '%':
+            setInt32(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE, value.value);
+            break;
+        }
+        break;
+    }
+    this.setOrAppendState(StateKeys.BORDER);
+  }
+
   get left(): Length {
-    const type = this.style_view.getInt32(StyleKeys.INSET_LEFT_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.INSET_LEFT_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.INSET_LEFT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE);
     return parseLengthPercentage(type, value);
   }
 
   set left(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.INSET_LEFT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.INSET_LEFT_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.INSET_LEFT_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.INSET_LEFT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.INSET_LEFT_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.INSET_LEFT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.INSET_LEFT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.INSET_LEFT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.INSET_LEFT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.INSET_LEFT_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.INSET_LEFT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.INSET_LEFT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.INSET_LEFT_VALUE, value.value);
             break;
         }
         break;
@@ -742,30 +899,30 @@ export class Style {
   }
 
   get right(): Length {
-    const type = this.style_view.getInt32(StyleKeys.INSET_RIGHT_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.INSET_RIGHT_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.INSET_RIGHT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE);
     return parseLengthPercentage(type, value);
   }
 
   set right(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.INSET_RIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.INSET_RIGHT_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.INSET_RIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.INSET_RIGHT_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.INSET_RIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.INSET_RIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.INSET_RIGHT_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.INSET_RIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.INSET_RIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.INSET_RIGHT_VALUE, value.value);
             break;
         }
         break;
@@ -774,30 +931,30 @@ export class Style {
   }
 
   get top(): Length {
-    const type = this.style_view.getInt32(StyleKeys.INSET_TOP_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.INSET_TOP_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.INSET_TOP_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE);
     return parseLengthPercentage(type, value);
   }
 
   set top(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.INSET_TOP_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.INSET_TOP_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.INSET_TOP_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.INSET_TOP_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.INSET_TOP_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.INSET_TOP_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.INSET_TOP_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.INSET_TOP_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.INSET_TOP_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.INSET_TOP_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.INSET_TOP_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.INSET_TOP_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.INSET_TOP_VALUE, value.value);
             break;
         }
         break;
@@ -806,30 +963,30 @@ export class Style {
   }
 
   get bottom(): Length {
-    const type = this.style_view.getInt32(StyleKeys.INSET_BOTTOM_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.INSET_BOTTOM_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.INSET_BOTTOM_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE);
     return parseLengthPercentage(type, value);
   }
 
   set bottom(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.INSET_BOTTOM_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.INSET_BOTTOM_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.INSET_BOTTOM_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.INSET_BOTTOM_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.INSET_BOTTOM_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.INSET_BOTTOM_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.INSET_BOTTOM_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.INSET_BOTTOM_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.INSET_BOTTOM_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.INSET_BOTTOM_VALUE, value.value);
             break;
         }
         break;
@@ -838,33 +995,33 @@ export class Style {
   }
 
   get marginLeft() {
-    const type = this.style_view.getInt32(StyleKeys.MARGIN_LEFT_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.MARGIN_LEFT_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.MARGIN_LEFT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
 
   set marginLeft(value: LengthAuto) {
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.MARGIN_LEFT_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.MARGIN_LEFT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MARGIN_LEFT_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.MARGIN_LEFT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_LEFT_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.MARGIN_LEFT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_LEFT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.MARGIN_LEFT_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_LEFT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MARGIN_LEFT_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.MARGIN_LEFT_VALUE, value.value);
             break;
         }
         break;
@@ -873,33 +1030,33 @@ export class Style {
   }
 
   get marginRight() {
-    const type = this.style_view.getInt32(StyleKeys.MARGIN_RIGHT_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.MARGIN_RIGHT_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
 
   set marginRight(value: LengthAuto) {
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.MARGIN_RIGHT_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.MARGIN_RIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MARGIN_RIGHT_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.MARGIN_RIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_RIGHT_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.MARGIN_RIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_RIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.MARGIN_RIGHT_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_RIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MARGIN_RIGHT_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.MARGIN_RIGHT_VALUE, value.value);
             break;
         }
         break;
@@ -908,33 +1065,33 @@ export class Style {
   }
 
   get marginTop() {
-    const type = this.style_view.getInt32(StyleKeys.MARGIN_TOP_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.MARGIN_TOP_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.MARGIN_TOP_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
 
   set marginTop(value: LengthAuto) {
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.MARGIN_TOP_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.MARGIN_TOP_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MARGIN_TOP_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.MARGIN_TOP_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_TOP_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.MARGIN_TOP_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_TOP_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.MARGIN_TOP_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_TOP_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MARGIN_TOP_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.MARGIN_TOP_VALUE, value.value);
             break;
         }
         break;
@@ -943,40 +1100,40 @@ export class Style {
   }
 
   get marginBottom() {
-    const type = this.style_view.getInt32(StyleKeys.MARGIN_BOTTOM_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.MARGIN_BOTTOM_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE);
     return parseLengthPercentageAuto(type, value);
   }
   set marginBottom(value: LengthAuto) {
     switch (typeof value) {
       case 'string':
-        this.style_view.setInt32(StyleKeys.MARGIN_BOTTOM_TYPE, 0, true);
+        setInt32(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 0);
         break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.MARGIN_BOTTOM_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.MARGIN_BOTTOM_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.MARGIN_BOTTOM_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_BOTTOM_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.MARGIN_BOTTOM_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_BOTTOM_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.MARGIN_BOTTOM_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.MARGIN_BOTTOM_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.MARGIN_BOTTOM_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.MARGIN_BOTTOM_VALUE, value.value);
             break;
         }
         break;
     }
     this.setOrAppendState(StateKeys.MARGIN);
   }
+
   set padding(value: Length) {
-    console.log('set padding', value);
     this.inBatch = true;
     this.paddingBottom = this.paddingLeft = this.paddingRight = this.paddingTop = value;
     this.inBatch = false;
@@ -984,30 +1141,30 @@ export class Style {
   }
 
   get paddingLeft() {
-    const type = this.style_view.getInt32(StyleKeys.PADDING_LEFT_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.PADDING_LEFT_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.PADDING_LEFT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE);
     return parseLengthPercentage(type, value);
   }
+
   set paddingLeft(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.PADDING_LEFT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.PADDING_LEFT_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.PADDING_LEFT_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.PADDING_LEFT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_LEFT_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.PADDING_LEFT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            console.log('layout.toDevicePixels(value.value):', layout.toDevicePixels(value.value));
-            this.style_view.setInt32(StyleKeys.PADDING_LEFT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_LEFT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.PADDING_LEFT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.PADDING_LEFT_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_LEFT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.PADDING_LEFT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.PADDING_LEFT_VALUE, value.value);
             break;
         }
         break;
@@ -1016,29 +1173,29 @@ export class Style {
   }
 
   get paddingRight() {
-    const type = this.style_view.getInt32(StyleKeys.PADDING_RIGHT_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.PADDING_RIGHT_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.PADDING_RIGHT_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE);
     return parseLengthPercentage(type, value);
   }
   set paddingRight(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.PADDING_RIGHT_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.PADDING_RIGHT_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.PADDING_RIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_RIGHT_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.PADDING_RIGHT_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_RIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.PADDING_RIGHT_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_RIGHT_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.PADDING_RIGHT_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.PADDING_RIGHT_VALUE, value.value);
             break;
         }
         break;
@@ -1047,30 +1204,30 @@ export class Style {
   }
 
   get paddingTop() {
-    const type = this.style_view.getInt32(StyleKeys.PADDING_TOP_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.PADDING_TOP_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.PADDING_TOP_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE);
     return parseLengthPercentage(type, value);
   }
 
   set paddingTop(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.PADDING_TOP_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.PADDING_TOP_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.PADDING_TOP_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.PADDING_TOP_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_TOP_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.PADDING_TOP_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.PADDING_TOP_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_TOP_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.PADDING_TOP_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.PADDING_TOP_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_TOP_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.PADDING_TOP_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.PADDING_TOP_VALUE, value.value);
             break;
         }
         break;
@@ -1079,29 +1236,29 @@ export class Style {
   }
 
   get paddingBottom() {
-    const type = this.style_view.getInt32(StyleKeys.PADDING_BOTTOM_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.PADDING_BOTTOM_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE);
     return parseLengthPercentage(type, value);
   }
   set paddingBottom(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.PADDING_BOTTOM_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.PADDING_BOTTOM_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.PADDING_BOTTOM_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_BOTTOM_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.PADDING_BOTTOM_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_BOTTOM_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.PADDING_BOTTOM_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.PADDING_BOTTOM_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.PADDING_BOTTOM_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.PADDING_BOTTOM_VALUE, value.value);
             break;
         }
         break;
@@ -1109,66 +1266,68 @@ export class Style {
     this.setOrAppendState(StateKeys.PADDING);
   }
 
-  gridGap: Gap;
-  gap: Gap;
+  get gap() {
+    return `${this.rowGap} ${this.columnGap}`;
+  }
 
   get rowGap(): Length {
-    const type = this.style_view.getInt32(StyleKeys.GAP_ROW_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.GAP_ROW_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.GAP_ROW_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE);
     return parseLengthPercentage(type, value);
   }
 
   set rowGap(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.GAP_ROW_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.GAP_ROW_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.GAP_ROW_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.GAP_ROW_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.GAP_ROW_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.GAP_ROW_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.GAP_ROW_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.GAP_ROW_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.GAP_ROW_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.GAP_ROW_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.GAP_ROW_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.GAP_ROW_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.GAP_ROW_VALUE, value.value);
             break;
         }
         break;
     }
+
     this.setOrAppendState(StateKeys.GAP);
   }
 
   get columnGap(): Length {
-    const type = this.style_view.getInt32(StyleKeys.GAP_COLUMN_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.GAP_COLUMN_VALUE, true);
+    const type = getInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE);
     return parseLengthPercentage(type, value);
   }
 
   set columnGap(value: Length) {
     switch (typeof value) {
       case 'number':
-        this.style_view.setInt32(StyleKeys.GAP_COLUMN_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.GAP_COLUMN_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 0);
+        setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.GAP_COLUMN_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.GAP_COLUMN_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.GAP_COLUMN_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.GAP_COLUMN_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 0);
+            setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.GAP_COLUMN_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.GAP_COLUMN_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE, value.value);
             break;
         }
         break;
@@ -1177,39 +1336,42 @@ export class Style {
   }
 
   get aspectRatio(): number {
-    return this.style_view.getFloat32(StyleKeys.ASPECT_RATIO, true);
+    return getFloat32(this.style_view, StyleKeys.ASPECT_RATIO);
   }
 
   set aspectRatio(value: number) {
-    this.style_view.setFloat32(StyleKeys.ASPECT_RATIO, value, true);
+    setFloat32(this.style_view, StyleKeys.ASPECT_RATIO, value);
     this.setOrAppendState(StateKeys.ASPECT_RATIO);
   }
 
-  get flexBasis(): Length {
-    const type = this.style_view.getInt32(StyleKeys.FLEX_BASIS_TYPE, true);
-    const value = this.style_view.getFloat32(StyleKeys.FLEX_BASIS_VALUE, true);
-    return parseLengthPercentage(type, value);
+  get flexBasis(): LengthAuto {
+    const type = getInt32(this.style_view, StyleKeys.FLEX_BASIS_TYPE);
+    const value = getFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE);
+    return parseLengthPercentageAuto(type, value);
   }
 
-  set flexBasis(value: Length) {
+  set flexBasis(value: LengthAuto) {
     switch (typeof value) {
+      case 'string':
+        setInt32(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 0);
+        break;
       case 'number':
-        this.style_view.setInt32(StyleKeys.FLEX_BASIS_TYPE, 1, true);
-        this.style_view.setFloat32(StyleKeys.FLEX_BASIS_VALUE, layout.toDevicePixels(value), true);
+        setInt32(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 1);
+        setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, layout.toDevicePixels(value));
         break;
       case 'object':
         switch (value.unit) {
           case 'dip':
-            this.style_view.setInt32(StyleKeys.FLEX_BASIS_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.FLEX_BASIS_VALUE, layout.toDevicePixels(value.value), true);
+            setInt32(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, layout.toDevicePixels(value.value));
             break;
           case 'px':
-            this.style_view.setInt32(StyleKeys.FLEX_BASIS_TYPE, 1, true);
-            this.style_view.setFloat32(StyleKeys.FLEX_BASIS_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 1);
+            setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, value.value);
             break;
           case '%':
-            this.style_view.setInt32(StyleKeys.FLEX_BASIS_TYPE, 2, true);
-            this.style_view.setFloat32(StyleKeys.FLEX_BASIS_VALUE, value.value, true);
+            setInt32(this.style_view, StyleKeys.FLEX_BASIS_TYPE, 2);
+            setFloat32(this.style_view, StyleKeys.FLEX_BASIS_VALUE, value.value);
             break;
         }
         break;
@@ -1217,7 +1379,7 @@ export class Style {
     this.setOrAppendState(StateKeys.FLEX_BASIS);
   }
   get alignItems() {
-    switch (this.style_view.getInt32(StyleKeys.ALIGN_ITEMS, true)) {
+    switch (getInt32(this.style_view, StyleKeys.ALIGN_ITEMS)) {
       case AlignItems.Normal:
         return 'normal';
       case AlignItems.Start:
@@ -1240,35 +1402,35 @@ export class Style {
   set alignItems(value: 'normal' | 'start' | 'end' | 'flex-start' | 'flex-end' | 'center' | 'baseline' | 'stretch') {
     switch (value) {
       case 'normal':
-        this.style_view.setInt32(StyleKeys.ALIGN_ITEMS, AlignItems.Normal, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Normal);
         break;
       case 'start':
-        this.style_view.setInt32(StyleKeys.ALIGN_ITEMS, AlignItems.Start, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Start);
         break;
       case 'end':
-        this.style_view.setInt32(StyleKeys.ALIGN_ITEMS, AlignItems.End, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.End);
         break;
       case 'flex-start':
-        this.style_view.setInt32(StyleKeys.ALIGN_ITEMS, AlignItems.FlexStart, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.FlexStart);
         break;
       case 'flex-end':
-        this.style_view.setInt32(StyleKeys.ALIGN_ITEMS, AlignItems.FlexEnd, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.FlexEnd);
         break;
       case 'center':
-        this.style_view.setInt32(StyleKeys.ALIGN_ITEMS, AlignItems.Center, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Center);
         break;
       case 'baseline':
-        this.style_view.setInt32(StyleKeys.ALIGN_ITEMS, AlignItems.Baseline, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Baseline);
         break;
       case 'stretch':
-        this.style_view.setInt32(StyleKeys.ALIGN_ITEMS, AlignItems.Stretch, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_ITEMS, AlignItems.Stretch);
         break;
     }
     this.setOrAppendState(StateKeys.ALIGN_ITEMS);
   }
 
   get alignSelf() {
-    switch (this.style_view.getInt32(StyleKeys.ALIGN_SELF, true)) {
+    switch (getInt32(this.style_view, StyleKeys.ALIGN_SELF)) {
       case AlignSelf.Normal:
         return 'normal';
       case AlignSelf.Start:
@@ -1317,13 +1479,13 @@ export class Style {
         break;
     }
     if (align === -2) {
-      this.style_view.setInt32(StyleKeys.ALIGN_SELF, align, true);
+      setInt32(this.style_view, StyleKeys.ALIGN_SELF, align);
       this.setOrAppendState(StateKeys.ALIGN_SELF);
     }
   }
 
   get alignContent() {
-    switch (this.style_view.getInt32(StyleKeys.ALIGN_CONTENT, true)) {
+    switch (getInt32(this.style_view, StyleKeys.ALIGN_CONTENT)) {
       case AlignContent.Normal:
         return 'normal';
       case AlignContent.SpaceAround:
@@ -1346,28 +1508,28 @@ export class Style {
   set alignContent(value: 'normal' | 'space-around' | 'space-between' | 'space-evenly' | 'center' | 'end' | 'start' | 'stretch') {
     switch (value) {
       case 'normal':
-        this.style_view.setInt32(StyleKeys.ALIGN_CONTENT, AlignContent.Normal, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.Normal);
         break;
       case 'space-around':
-        this.style_view.setInt32(StyleKeys.ALIGN_CONTENT, AlignContent.SpaceAround, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.SpaceAround);
         break;
       case 'space-between':
-        this.style_view.setInt32(StyleKeys.ALIGN_CONTENT, AlignContent.SpaceBetween, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.SpaceBetween);
         break;
       case 'space-evenly':
-        this.style_view.setInt32(StyleKeys.ALIGN_CONTENT, AlignContent.SpaceEvenly, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.SpaceEvenly);
         break;
       case 'center':
-        this.style_view.setInt32(StyleKeys.ALIGN_CONTENT, AlignContent.Center, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.Center);
         break;
       case 'end':
-        this.style_view.setInt32(StyleKeys.ALIGN_CONTENT, AlignContent.End, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.End);
         break;
       case 'start':
-        this.style_view.setInt32(StyleKeys.ALIGN_CONTENT, AlignContent.Start, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.Start);
         break;
       case 'stretch':
-        this.style_view.setInt32(StyleKeys.ALIGN_CONTENT, AlignContent.Stretch, true);
+        setInt32(this.style_view, StyleKeys.ALIGN_CONTENT, AlignContent.Stretch);
         break;
     }
     this.setOrAppendState(StateKeys.ALIGN_CONTENT);
@@ -1376,7 +1538,7 @@ export class Style {
   justifyItems: JustifyItems;
   justifySelf: JustifySelf;
   get justifyContent() {
-    switch (this.style_view.getInt32(StyleKeys.JUSTIFY_CONTENT, true)) {
+    switch (getInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT)) {
       case JustifyContent.Normal:
         return 'normal';
       case JustifyContent.Start:
@@ -1403,28 +1565,28 @@ export class Style {
   set justifyContent(value: 'normal' | 'start' | 'end' | 'center' | 'stretch' | 'space-between' | 'space-around' | 'space-evenly' | 'flex-start' | 'flex-end') {
     switch (value) {
       case 'normal':
-        this.style_view.setInt32(StyleKeys.JUSTIFY_CONTENT, JustifyContent.Normal, true);
+        setInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.Normal);
         break;
       case 'space-around':
-        this.style_view.setInt32(StyleKeys.JUSTIFY_CONTENT, JustifyContent.SpaceAround, true);
+        setInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.SpaceAround);
         break;
       case 'space-between':
-        this.style_view.setInt32(StyleKeys.JUSTIFY_CONTENT, JustifyContent.SpaceBetween, true);
+        setInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.SpaceBetween);
         break;
       case 'space-evenly':
-        this.style_view.setInt32(StyleKeys.JUSTIFY_CONTENT, JustifyContent.SpaceEvenly, true);
+        setInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.SpaceEvenly);
         break;
       case 'center':
-        this.style_view.setInt32(StyleKeys.JUSTIFY_CONTENT, JustifyContent.Center, true);
+        setInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.Center);
         break;
       case 'end':
-        this.style_view.setInt32(StyleKeys.JUSTIFY_CONTENT, JustifyContent.End, true);
+        setInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.End);
         break;
       case 'start':
-        this.style_view.setInt32(StyleKeys.JUSTIFY_CONTENT, JustifyContent.Start, true);
+        setInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.Start);
         break;
       case 'stretch':
-        this.style_view.setInt32(StyleKeys.JUSTIFY_CONTENT, JustifyContent.Stretch, true);
+        setInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT, JustifyContent.Stretch);
         break;
     }
     this.setOrAppendState(StateKeys.JUSTIFY_CONTENT);
@@ -1432,7 +1594,7 @@ export class Style {
   gridAutoRows: string;
   gridAutoColumns: string;
   get gridAutoFlow(): GridAutoFlow {
-    switch (this.style_view.getInt32(StyleKeys.GRID_AUTO_FLOW, true)) {
+    switch (getInt32(this.style_view, StyleKeys.GRID_AUTO_FLOW)) {
       case 0:
         return 'row';
       case 1:
@@ -1447,16 +1609,16 @@ export class Style {
   set gridAutoFlow(value: GridAutoFlow) {
     switch (value) {
       case 'row':
-        this.style_view.setInt32(StyleKeys.GRID_AUTO_FLOW, 0, true);
+        setInt32(this.style_view, StyleKeys.GRID_AUTO_FLOW, 0);
         break;
       case 'column':
-        this.style_view.setInt32(StyleKeys.GRID_AUTO_FLOW, 1, true);
+        setInt32(this.style_view, StyleKeys.GRID_AUTO_FLOW, 1);
         break;
       case 'row dense':
-        this.style_view.setInt32(StyleKeys.GRID_AUTO_FLOW, 2, true);
+        setInt32(this.style_view, StyleKeys.GRID_AUTO_FLOW, 2);
         break;
       case 'column dense':
-        this.style_view.setInt32(StyleKeys.GRID_AUTO_FLOW, 3, true);
+        setInt32(this.style_view, StyleKeys.GRID_AUTO_FLOW, 3);
         break;
     }
   }
@@ -1484,40 +1646,40 @@ export class Style {
   set overflow(value: OverFlow | `${OverFlow} ${OverFlow}`) {
     switch (value) {
       case 'visible':
-        this.style_view.setInt32(StyleKeys.OVERFLOW_X, 0, true);
-        this.style_view.setInt32(StyleKeys.OVERFLOW_Y, 0, true);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_X, 0);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 0);
         break;
       case 'hidden':
-        this.style_view.setInt32(StyleKeys.OVERFLOW_X, 1, true);
-        this.style_view.setInt32(StyleKeys.OVERFLOW_Y, 1, true);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_X, 1);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 1);
         break;
       case 'scroll':
-        this.style_view.setInt32(StyleKeys.OVERFLOW_X, 2, true);
-        this.style_view.setInt32(StyleKeys.OVERFLOW_Y, 2, true);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_X, 2);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 2);
         break;
       default:
         {
           const values = value.split(' ');
           switch (values[0]) {
             case 'visible':
-              this.style_view.setInt32(StyleKeys.OVERFLOW_X, 0, true);
+              setInt32(this.style_view, StyleKeys.OVERFLOW_X, 0);
               break;
             case 'hidden':
-              this.style_view.setInt32(StyleKeys.OVERFLOW_X, 1, true);
+              setInt32(this.style_view, StyleKeys.OVERFLOW_X, 1);
               break;
             case 'scroll':
-              this.style_view.setInt32(StyleKeys.OVERFLOW_X, 2, true);
+              setInt32(this.style_view, StyleKeys.OVERFLOW_X, 2);
               break;
           }
           switch (values[1]) {
             case 'visible':
-              this.style_view.setInt32(StyleKeys.OVERFLOW_Y, 0, true);
+              setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 0);
               break;
             case 'hidden':
-              this.style_view.setInt32(StyleKeys.OVERFLOW_Y, 1, true);
+              setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 1);
               break;
             case 'scroll':
-              this.style_view.setInt32(StyleKeys.OVERFLOW_Y, 2, true);
+              setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 2);
               break;
           }
         }
@@ -1525,7 +1687,7 @@ export class Style {
     }
   }
   get overflowX() {
-    switch (this.style_view.getInt32(StyleKeys.OVERFLOW_X, true)) {
+    switch (getInt32(this.style_view, StyleKeys.OVERFLOW_X)) {
       case 0:
         return 'visible';
       case 1:
@@ -1538,19 +1700,19 @@ export class Style {
   set overflowX(value: 'visible' | 'hidden' | 'scroll') {
     switch (value) {
       case 'visible':
-        this.style_view.setInt32(StyleKeys.OVERFLOW_X, 0, true);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_X, 0);
         break;
       case 'hidden':
-        this.style_view.setInt32(StyleKeys.OVERFLOW_X, 1, true);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_X, 1);
         break;
       case 'scroll':
-        this.style_view.setInt32(StyleKeys.OVERFLOW_X, 2, true);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_X, 2);
         break;
     }
   }
 
   get overflowY() {
-    switch (this.style_view.getInt32(StyleKeys.OVERFLOW_Y, true)) {
+    switch (getInt32(this.style_view, StyleKeys.OVERFLOW_Y)) {
       case 0:
         return 'visible';
       case 1:
@@ -1563,47 +1725,47 @@ export class Style {
   set overflowY(value: 'visible' | 'hidden' | 'scroll') {
     switch (value) {
       case 'visible':
-        this.style_view.setInt32(StyleKeys.OVERFLOW_Y, 0, true);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 0);
         break;
       case 'hidden':
-        this.style_view.setInt32(StyleKeys.OVERFLOW_Y, 1, true);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 1);
         break;
       case 'scroll':
-        this.style_view.setInt32(StyleKeys.OVERFLOW_Y, 2, true);
+        setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 2);
         break;
     }
   }
 
   get flexGrow(): number {
-    return this.style_view.getFloat32(StyleKeys.FLEX_GROW, true);
+    return getFloat32(this.style_view, StyleKeys.FLEX_GROW);
   }
 
   set flexGrow(value: number) {
-    this.style_view.setFloat32(StyleKeys.FLEX_GROW, value, true);
+    setFloat32(this.style_view, StyleKeys.FLEX_GROW, value);
   }
 
   get flexShrink(): number {
-    return this.style_view.getFloat32(StyleKeys.FLEX_SHRINK, true);
+    return getFloat32(this.style_view, StyleKeys.FLEX_SHRINK);
   }
 
   set flexShrink(value: number) {
-    this.style_view.setFloat32(StyleKeys.FLEX_SHRINK, value, true);
+    setFloat32(this.style_view, StyleKeys.FLEX_SHRINK, value);
   }
 
   get scrollBarWidth(): number | CoreTypes.LengthType {
-    return this.style_view.getFloat32(StyleKeys.SCROLLBAR_WIDTH, true);
+    return getFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH);
   }
 
   set scrollBarWidth(value: number | CoreTypes.LengthType) {
     if (typeof value === 'number') {
-      this.style_view.setFloat32(StyleKeys.SCROLLBAR_WIDTH, value, true);
+      setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, value);
     } else if (typeof value === 'object') {
       switch (value.unit) {
         case 'dip':
-          this.style_view.setFloat32(StyleKeys.SCROLLBAR_WIDTH, layout.toDevicePixels(value.value), true);
+          setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, layout.toDevicePixels(value.value));
           break;
         case 'px':
-          this.style_view.setFloat32(StyleKeys.SCROLLBAR_WIDTH, value.value, true);
+          setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, value.value);
           break;
       }
     }

@@ -36,6 +36,7 @@
 .wrapper-5 {
   display: grid;
   gap: 10;
+  margin: 40;
   grid-template-columns: 100 100 100;
   background-color: #fff;
   color: #444;
@@ -43,8 +44,8 @@
   .box {
     background-color: #444;
     color: #fff;
-    border-radius: 5px;
-    padding: 20px;
+    border-radius: 5;
+    padding: 20;
 
     &.a {
       grid-column: 1 / 3;

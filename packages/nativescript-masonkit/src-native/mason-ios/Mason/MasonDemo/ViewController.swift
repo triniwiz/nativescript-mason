@@ -267,7 +267,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   deinit {
     print("Dispose controller")
   }
-    
+  var data:Data!
     override func viewDidLoad() {
       //  super.viewDidLoad()
 //        var i = 0
@@ -279,6 +279,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       container.frame = view.bounds
       
       view.addSubview(container)
+      
     
      // textSample()
         
@@ -288,7 +289,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
        //  showFlexExample()
         
-   //  showGridExample()
+   // showGridExample()
          // animationExample()
         
       wrapper5()
@@ -438,10 +439,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       node.style.gap = MasonSize(uniform: .Points(10 * scale))
       node.style.gridTemplateColumns = [.Single(.Points(points: 100 * scale)),.Single(.Points(points: 100 * scale)),.Single(.Points(points: 100 * scale))]
     }
-    wrapper5.backgroundColor = UIColor(hex: "#fff")
-     
-    
     container.addView(wrapper5)
+    
     
     let a = mason.createView()
     
@@ -502,8 +501,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     wrapper5.addView(c)
     wrapper5.addView(d)
     
-    container.node.computeWithMaxContent()
+//    container.node.computeWithMaxContent()
     
+    wrapper5.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
   }
     func wrapper6() {
         

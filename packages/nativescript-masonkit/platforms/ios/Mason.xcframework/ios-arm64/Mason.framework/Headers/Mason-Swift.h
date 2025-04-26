@@ -651,6 +651,7 @@ SWIFT_CLASS_NAMED("MasonNode")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class NSData;
 enum Position : NSInteger;
 enum Overflow : NSInteger;
 enum MasonTextAlign : NSInteger;
@@ -659,6 +660,7 @@ enum MasonTextAlign : NSInteger;
 
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
+@property (nonatomic, copy) NSData * _Nonnull values;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)node OBJC_DESIGNATED_INITIALIZER;
 @property (nonatomic) enum Display display;
 @property (nonatomic) enum Position position;
@@ -739,7 +741,6 @@ SWIFT_CLASS_NAMED("MasonStyle")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
-@class NSMutableData;
 @class NSCoder;
 @class NSMutableAttributedString;
 @class UIFont;
@@ -751,7 +752,7 @@ SWIFT_CLASS_NAMED("MasonText")
 @interface MasonText : UIView
 @property (nonatomic, readonly, strong) MasonText * _Nullable owner;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
-@property (nonatomic, readonly, strong) NSMutableData * _Nonnull textValues;
+@property (nonatomic, readonly, copy) NSData * _Nonnull textValues;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)masonNode OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
@@ -983,8 +984,6 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * 
 SWIFT_CLASS_NAMED("NSCMason")
 @interface NSCMason : NSObject
 @property (nonatomic, readonly) void * _Nullable nativePtr;
-@property (nonatomic, copy) NSDictionary<NSNumber *, MasonNode *> * _Nonnull nodes;
-@property (nonatomic, copy) NSDictionary<UIView *, MasonNode *> * _Nonnull viewNodes;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull shared;)
 + (NSCMason * _Nonnull)shared SWIFT_WARN_UNUSED_RESULT;
 + (void)setShared:(NSCMason * _Nonnull)value;

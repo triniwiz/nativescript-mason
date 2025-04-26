@@ -743,7 +743,6 @@ export function _setAlignContent(value, instance: View, initial = false) {
     return;
   }
   if (instance._hasNativeView) {
-    console.log(instance);
     if (instance._styleHelper) {
       instance._styleHelper.alignContent = value;
     }
@@ -1054,7 +1053,7 @@ export function _setAspectRatio(value, instance: View, initial = false) {
   if (!instance._hasNativeView) {
     return;
   }
-  instance._styleHelper.aspectRatio = value;
+  instance._styleHelper.aspectRatio = value ? value : Number.NaN;
 }
 
 export function _getAspectRatio(instance: View) {
@@ -1069,8 +1068,6 @@ function _parseGridLine(value): { value: number; type: any; native_value?: any }
   let parsedValue = undefined;
   let parsedType = undefined;
   let nativeValue = undefined;
-
-  console.log('_parseGridLine', value);
 
   if (value === 'auto' || value === undefined) {
     parsedValue = 0;
@@ -1237,7 +1234,7 @@ export function _setRowGap(value, instance: View, initial = false) {
 
 export function _getRowGap(instance: View) {
   if (!instance._hasNativeView) {
-    return instance.style.gap;
+    return instance.style.rowGap;
   }
   return instance._styleHelper.rowGap;
 }
@@ -1671,7 +1668,6 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
       }
     }
     instance.ios.gridTemplateColumns = array;
-    console.log('gridTemplateColumns', instance.ios.gridTemplateColumns);
   }
 }
 

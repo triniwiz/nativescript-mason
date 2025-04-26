@@ -249,21 +249,6 @@ export class View extends ViewBase {
       View.layoutChild(this, child, x, y, width, height);
       i++;
     }
-    /*
-    this.eachLayoutChild((child, last) => {
-      console.log('eachLayoutChild', i, children.count);
-      layout = children.objectAtIndex(i);
-      const x = layout.x;
-      const y = layout.y;
-      const width = layout.x + layout.width;
-      const height = layout.y + layout.height;
-      View.layoutChild(this, child, x, y, width, height);
-      if (last) {
-        return;
-      }
-      i++;
-    });
-    */
   }
 
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
@@ -347,7 +332,6 @@ export class View extends ViewBase {
   }
 
   _setNativeViewFrame(nativeView: any, frame: CGRect): void {
-    console.log('view:_setNativeViewFrame', nativeView, frame.origin.x, frame.origin.y, frame.size.width, frame.size.height);
     nativeView.frame = frame;
   }
 

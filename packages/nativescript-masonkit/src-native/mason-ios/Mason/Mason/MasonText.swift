@@ -196,37 +196,65 @@ public class MasonText: UIView, MasonView {
   let actualNode: MasonNode
   private var children: [TextChild] = []
   internal var attachments: [ViewHelper] = []
-  public let textValues: NSMutableData
   
-  private static func createTextValues() -> NSMutableData{
-    let data = NSMutableData(length: Int(TextStyleKeys.TEXT_WRAP) + 4)!
-    let pointer = data.mutableBytes
+  public internal(set) var textValues: Data = MasonText.createTextStyles()
+  
+  
+  private func getUInt32(_ index: Int) -> UInt32 {
+    return textValues.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> UInt32 in
+      rawBufferPointer.load(fromByteOffset: index, as: UInt32.self)
+    }
+  }
+  
+  private func setUInt32(_ index: Int, _ value: UInt32) {
+    textValues.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: UInt32.self)
+    }
+  }
+  
+  private func getInt32(_ index: Int) -> Int32 {
+    return textValues.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Int32 in
+      rawBufferPointer.load(fromByteOffset: index, as: Int32.self)
+    }
+  }
+  
+  private func setInt32(_ index: Int, _ value: Int32) {
+    textValues.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Int32.self)
+    }
+  }
+  
+  
+  private func getFloat(_ index: Int) -> Float {
+    return textValues.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Float in
+      rawBufferPointer.load(fromByteOffset: index, as: Float.self)
+    }
+  }
+  
+  private func setFloat(_ index: Int, _ value: Float) {
+    textValues.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Float.self)
+    }
+  }
+  
+  private static func createTextStyles() -> Data{
+    var data = Data(count: Int(TextStyleKeys.TEXT_WRAP) + 4)
     
-    let color = pointer.advanced(by: TextStyleKeys.COLOR).assumingMemoryBound(to: UInt32.self)
-    color.pointee = 0xFF000000
-    
-    
-    let bgColor = pointer.advanced(by: TextStyleKeys.BACKGROUND_COLOR).assumingMemoryBound(to: UInt32.self)
-    bgColor.pointee = 0
-    
-    let decorationColor = pointer.advanced(by: TextStyleKeys.DECORATION_COLOR).assumingMemoryBound(to: UInt32.self)
-    decorationColor.pointee = UNSET_COLOR
-    
-    let size = pointer.advanced(by: TextStyleKeys.SIZE).assumingMemoryBound(to: Float.self)
-    size.pointee = Float(UIFont.systemFontSize)
-    
-    
-    let wrap = pointer.advanced(by: TextStyleKeys.TEXT_WRAP).assumingMemoryBound(to: Int32.self)
-    wrap.pointee = 0
-    
+    data.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+      rawBufferPointer.storeBytes(of: 0xFF000000, toByteOffset: TextStyleKeys.COLOR, as: UInt32.self)
+      rawBufferPointer.storeBytes(of: 0, toByteOffset: TextStyleKeys.BACKGROUND_COLOR, as: UInt32.self)
+      rawBufferPointer.storeBytes(of: UNSET_COLOR, toByteOffset: TextStyleKeys.DECORATION_COLOR, as: UInt32.self)
+      rawBufferPointer.storeBytes(of: Float(UIFont.systemFontSize), toByteOffset: TextStyleKeys.SIZE, as: Float.self)
+      rawBufferPointer.storeBytes(of: 0, toByteOffset: TextStyleKeys.TEXT_WRAP, as: Int32.self)
+    }
    
     return data
   }
   
+  
   public init(mason: NSCMason) {
     node = MasonNode(mason: mason)
     actualNode = MasonNode(mason: mason)
-    textValues = MasonText.createTextValues()
     super.init(frame: .zero)
     isOpaque = false
     actualNode.data = self
@@ -241,7 +269,6 @@ public class MasonText: UIView, MasonView {
   public init(node masonNode: MasonNode){
     node = masonNode
     actualNode = MasonNode(mason: node.mason)
-    textValues = MasonText.createTextValues()
     super.init(frame: .zero)
     isOpaque = false
     actualNode.data = self
@@ -437,7 +464,7 @@ public class MasonText: UIView, MasonView {
   
   public var textTransform: TextTransform {
     get {
-      return TextTransform(rawValue:(textValues.bytes.advanced(by: TextStyleKeys.TRANSFORM).assumingMemoryBound(to: Int32.self).pointee))!
+      return TextTransform(rawValue:(getInt32(TextStyleKeys.TRANSFORM)))!
     }
     
     set {
@@ -462,6 +489,7 @@ public class MasonText: UIView, MasonView {
         // todo
         txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt as String)
       }
+      setInt32(TextStyleKeys.TRANSFORM, Int32(newValue.rawValue))
       if(!node.inBatch){
         invalidate()
       }
@@ -471,10 +499,11 @@ public class MasonText: UIView, MasonView {
   
   public var fontSize: CGFloat {
     get {
-      return CGFloat(textValues.bytes.advanced(by: TextStyleKeys.SIZE).assumingMemoryBound(to: Float.self).pointee)
+      return CGFloat(getFloat(TextStyleKeys.SIZE))
     }
     set {
-      textValues.mutableBytes.advanced(by: TextStyleKeys.SIZE).assumingMemoryBound(to: Float.self).pointee = Float(newValue)
+      
+      setFloat(TextStyleKeys.SIZE, Float(newValue))
       
       invalidateFont()
       
@@ -483,22 +512,20 @@ public class MasonText: UIView, MasonView {
   
   public var fontStyle: FontStyle {
     get {
-      let type = FontStyle(rawValue: textValues.bytes.advanced(by: TextStyleKeys.FONT_STYLE_TYPE).assumingMemoryBound(to: Int32.self).pointee)!
+      let type = FontStyle(rawValue: getInt32(TextStyleKeys.FONT_STYLE_TYPE))!
       return type
     }
     set {
-      textValues.mutableBytes.advanced(by: TextStyleKeys.FONT_STYLE_TYPE).assumingMemoryBound(to: Int32.self).pointee = newValue.rawValue
-      
-      textValues.mutableBytes.advanced(by: TextStyleKeys.FONT_STYLE_SLANT).assumingMemoryBound(to: Int32.self).pointee = 0
+      setInt32(TextStyleKeys.FONT_STYLE_TYPE, newValue.rawValue)
+      setInt32(TextStyleKeys.FONT_STYLE_SLANT, 0)
       
       invalidateFont()
     }
   }
   
   public func setFontStyle(_ style: FontStyle, slant: Int32) {
-    textValues.mutableBytes.advanced(by: TextStyleKeys.FONT_STYLE_TYPE).assumingMemoryBound(to: Int32.self).pointee = style.rawValue
-    
-    textValues.mutableBytes.advanced(by: TextStyleKeys.FONT_STYLE_SLANT).assumingMemoryBound(to: Int32.self).pointee = slant
+    setInt32(TextStyleKeys.FONT_STYLE_TYPE, style.rawValue)
+    setInt32(TextStyleKeys.FONT_STYLE_SLANT, slant)
     
     invalidateFont()
   }
@@ -599,10 +626,10 @@ public class MasonText: UIView, MasonView {
   
   public var color: UInt32 {
     get {
-      return textValues.bytes.advanced(by: TextStyleKeys.COLOR).assumingMemoryBound(to: UInt32.self).pointee
+      return getUInt32(TextStyleKeys.COLOR)
     }
     set {
-      textValues.mutableBytes.advanced(by: TextStyleKeys.COLOR).assumingMemoryBound(to: UInt32.self).pointee = newValue
+      setUInt32(TextStyleKeys.COLOR, newValue)
       if(!txt.string.isEmpty){
         let range = NSRange(0..<txt.string.count)
         txt.removeAttribute(.foregroundColor, range: range)
@@ -617,10 +644,10 @@ public class MasonText: UIView, MasonView {
   
   public var backgroundColorValue: UInt32 {
     get {
-      return textValues.bytes.advanced(by: TextStyleKeys.BACKGROUND_COLOR).assumingMemoryBound(to: UInt32.self).pointee
+      return getUInt32(TextStyleKeys.BACKGROUND_COLOR)
     }
     set {
-      textValues.mutableBytes.advanced(by: TextStyleKeys.BACKGROUND_COLOR).assumingMemoryBound(to: UInt32.self).pointee = newValue
+      setUInt32(TextStyleKeys.BACKGROUND_COLOR, newValue)
       if(!txt.string.isEmpty){
         let range = NSRange(0..<txt.string.count)
         txt.removeAttribute(.backgroundColor, range: range)
@@ -696,10 +723,11 @@ public class MasonText: UIView, MasonView {
   
   public var decorationColor: UInt32 {
     get {
-      return textValues.bytes.advanced(by: TextStyleKeys.DECORATION_COLOR).assumingMemoryBound(to: UInt32.self).pointee
+      return getUInt32(TextStyleKeys.DECORATION_COLOR)
     }
     set {
-      textValues.mutableBytes.advanced(by: TextStyleKeys.DECORATION_COLOR).assumingMemoryBound(to: UInt32.self).pointee = newValue
+      
+      setUInt32(TextStyleKeys.DECORATION_COLOR, newValue)
       
       updateDecoration(newValue, decorationLine)
     }
@@ -708,10 +736,10 @@ public class MasonText: UIView, MasonView {
   
   public var decorationLine: DecorationLine {
     get {
-      return DecorationLine(rawValue: textValues.bytes.advanced(by: TextStyleKeys.DECORATION_LINE).assumingMemoryBound(to: Int32.self).pointee)!
+      return DecorationLine(rawValue: getInt32(TextStyleKeys.DECORATION_LINE))!
     }
     set {
-      textValues.mutableBytes.advanced(by: TextStyleKeys.DECORATION_LINE).assumingMemoryBound(to: Int32.self).pointee = newValue.rawValue
+      setUInt32(TextStyleKeys.DECORATION_LINE,  UInt32(newValue.rawValue))
       
       updateDecoration(decorationColor, newValue)
     }
@@ -729,7 +757,7 @@ public class MasonText: UIView, MasonView {
   
   public var textWrap: TextWrap {
     set {
-      textValues.mutableBytes.advanced(by: TextStyleKeys.TEXT_WRAP).assumingMemoryBound(to: Int32.self).pointee = newValue.rawValue
+      setInt32(TextStyleKeys.TEXT_WRAP, newValue.rawValue)
       switch(newValue){
       case .NoWrap:
         root.node.markDirty()
@@ -748,7 +776,7 @@ public class MasonText: UIView, MasonView {
       }
     }
     get {
-      return TextWrap(rawValue: textValues.bytes.advanced(by: TextStyleKeys.TEXT_WRAP).assumingMemoryBound(to: Int32.self).pointee)!
+      return TextWrap(rawValue:getInt32(TextStyleKeys.TEXT_WRAP))!
     }
   }
   

@@ -15,7 +15,7 @@ NDK_TARGET=$TARGET
 # fi
 
 API_VERSION="21"
-NDK_VERSION="23.1.7779620"
+NDK_VERSION="28.1.13356709"
 NDK_HOST="darwin-x86_64"
 
 # needed so we can overwrite it in the CI
@@ -24,11 +24,12 @@ if [ -z "$NDK" ]; then
 fi
 
 TOOLS="$NDK/toolchains/llvm/prebuilt/$NDK_HOST"
-
+ANDROID_PLATFORM=21\
 AR=$TOOLS/bin/llvm-ar \
 CXX=$TOOLS/bin/${NDK_TARGET}${API_VERSION}-clang++ \
 RANLIB=$TOOLS/bin/llvm-ranlib \
 CXXFLAGS="--target=$NDK_TARGET" \
-RUSTFLAGS="-Zlocation-detail=none -C panic=abort -Zfmt-debug=none" \
-cargo +nightly build -Z build-std='std,panic_abort'  -Z build-std-features='panic_immediate_abort,optimize_for_size' --target $TARGET --release $EXTRA_ARGS -p mason-android
-#cargo +nightly build -Z build-std='std'  --target $TARGET $EXTRA_ARGS -p mason-android
+#RUSTFLAGS="-Zlocation-detail=none -C panic=abort -Zfmt-debug=none -C link-arg=-Wl,--hash-style=sysv -C link-arg=-Wl,-z,max-page-size=16384" \
+##cargo +nightly build -Z build-std='std,panic_abort'  -Z build-std-features='panic_immediate_abort,optimize_for_size' --target $TARGET --release $EXTRA_ARGS -p mason-android
+RUSTFLAGS="-C link-arg=-Wl,--hash-style=sysv -C link-arg=-Wl,-z,max-page-size=16384" \
+cargo +nightly build -Z build-std='std'  --target $TARGET $EXTRA_ARGS -p mason-android

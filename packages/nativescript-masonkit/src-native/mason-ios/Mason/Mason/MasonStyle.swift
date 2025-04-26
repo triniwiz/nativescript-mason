@@ -134,7 +134,7 @@ struct StyleKeys {
   static let ITEM_IS_TABLE = 316 // Byte
 }
 
-struct StateKeys: OptionSet {
+internal struct StateKeys: OptionSet {
   let rawValue: UInt64
   
   init(rawValue: UInt64) {
@@ -188,18 +188,35 @@ public class MasonStyle: NSObject {
   var inBatch = false
   
  
-  private lazy var values: NSMutableData = {
-    let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
+//  private lazy var values: NSMutableData = {
+//    let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
+//    guard let buffer else {
+//      // todo
+//      fatalError("Could not allocate style buffer")
+//    }
+//    
+//
+//    let data = Unmanaged<NSMutableData>.fromOpaque(buffer)
+//    
+//
+//    return data.takeRetainedValue()
+//  }()
+  
+  
+  public lazy var values: Data = {
+    let buffer = mason_style_get_style_buffer(node.mason.nativePtr, node.nativePtr)
     guard let buffer else {
       // todo
       fatalError("Could not allocate style buffer")
     }
-
-    let data = Unmanaged<NSMutableData>.fromOpaque(buffer)
     
+    let data = Data(bytesNoCopy: buffer.pointee.data, count: Int(buffer.pointee.size), deallocator: .none)
+    
+    mason_style_release_style_buffer(buffer)
 
-    return data.takeRetainedValue()
+    return data
   }()
+
 
   public init(node: MasonNode) {
     self.node = node
@@ -216,40 +233,73 @@ public class MasonStyle: NSObject {
     }
   }
   
+  private func getInt16(_ index: Int) -> Int16 {
+    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Int16 in
+      rawBufferPointer.load(fromByteOffset: index, as: Int16.self)
+    }
+  }
+  
+  private func setInt16(_ index: Int, _ value: Int16) {
+    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Int16.self)
+    }
+  }
+  
+  private func getInt32(_ index: Int) -> Int32 {
+    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Int32 in
+      rawBufferPointer.load(fromByteOffset: index, as: Int32.self)
+    }
+  }
+  
+  private func setInt32(_ index: Int, _ value: Int32) {
+    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Int32.self)
+    }
+  }
+  
+  
+  private func getFloat(_ index: Int) -> Float {
+    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Float in
+      rawBufferPointer.load(fromByteOffset: index, as: Float.self)
+    }
+  }
+  
+  private func setFloat(_ index: Int, _ value: Float) {
+    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
+      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Float.self)
+    }
+  }
+  
   public var display: Display {
     get {
-      print(values)
-      print(values.bytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self))
-      print(values.bytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self).pointee)
-      return Display(rawValue: values.bytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self).pointee)!
+      return Display(rawValue: getInt32(Int(StyleKeys.DISPLAY)))!
     }
     set {
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.DISPLAY)).assumingMemoryBound(to: Int32.self)
-      
-      value.pointee = Int32(newValue.rawValue)
-      
+      setInt32(StyleKeys.DISPLAY, Int32(newValue.rawValue))
       setOrAppendState(StateKeys.display)
     }
   }
   
-  public var position = Position.Relative {
-    didSet {
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.POSITION)).assumingMemoryBound(to: Int32.self)
+  public var position: Position {
+    get {
+      return Position(rawValue: getInt32(StyleKeys.POSITION))!
+    }
+    set {
+      setInt32(StyleKeys.POSITION, Int32(newValue.rawValue))
       
-      value.pointee = Int32(position.rawValue)
-      
-      setOrAppendState(StateKeys.display)
+      setOrAppendState(StateKeys.position)
     }
   }
   
   
   // TODO
-  public var direction = Direction.Inherit{
-    didSet {
+  public var direction: Direction{
+    get {
+      return Direction(rawValue: getInt32(StyleKeys.POSITION))!
+    }
+    set {
       // todo
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.DIRECTION)).assumingMemoryBound(to: Int32.self)
-      
-      value.pointee = Int32(direction.rawValue)
+      setInt32(StyleKeys.POSITION, Int32(newValue.rawValue))
       
       setOrAppendState(StateKeys.direction)
       
@@ -258,35 +308,34 @@ public class MasonStyle: NSObject {
   
   public var flexDirection: FlexDirection {
     get {
-      let value = values.bytes.advanced(by: Int(StyleKeys.FLEX_DIRECTION)).assumingMemoryBound(to: Int32.self)
-      return FlexDirection(rawValue: value.pointee)!
+      return FlexDirection(rawValue: getInt32(Int(StyleKeys.FLEX_DIRECTION)))!
     }
     set {
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.FLEX_DIRECTION)).assumingMemoryBound(to: Int32.self)
-      
-      value.pointee = Int32(newValue.rawValue)
+      setInt32(StyleKeys.FLEX_DIRECTION, Int32(newValue.rawValue))
       
       setOrAppendState(StateKeys.flexDirection)
     }
   }
   
   private func updateIntField(offset: Int, value: Int32, state: StateKeys){
-    let bytes = values.mutableBytes.advanced(by: offset).assumingMemoryBound(to: Int32.self)
-    bytes.pointee = value
+    setInt32(offset, value)
     setOrAppendState(state)
   }
   
   private func updateFloatField(offset: Int, value: Float, state: StateKeys){
-    let bytes = values.mutableBytes.advanced(by: offset).assumingMemoryBound(to: Float.self)
-    bytes.pointee = value
+    setFloat(offset, value)
     setOrAppendState(state)
   }
   
   
   
-  public var flexWrap = FlexWrap.NoWrap{
-    didSet {
-      updateIntField(offset: Int(StyleKeys.FLEX_WRAP), value:  Int32(flexWrap.rawValue), state: .flexWrap)
+  public var flexWrap: FlexWrap{
+    get {
+      return FlexWrap(rawValue: getInt32(StyleKeys.FLEX_WRAP))!
+    }
+    set {
+      setInt32(StyleKeys.FLEX_WRAP, newValue.rawValue)
+      setOrAppendState(.flexWrap)
     }
   }
   
@@ -301,118 +350,125 @@ public class MasonStyle: NSObject {
   //        }
   //    }
   //
-  public var overflowX = Overflow.Unset{
-    didSet {
-      updateIntField(offset: Int(StyleKeys.OVERFLOW_X), value:  Int32(overflowX.rawValue), state: .overflowX)
+  public var overflowX: Overflow{
+    get {
+      return Overflow(rawValue: getInt32(StyleKeys.OVERFLOW_X))!
+    }
+    set {
+      setInt32(StyleKeys.OVERFLOW_X, newValue.rawValue)
+      setOrAppendState(.overflowX)
     }
   }
   
-  public var overflowY = Overflow.Unset{
-    didSet {
-      updateIntField(offset: Int(StyleKeys.OVERFLOW_Y), value:  Int32(overflowY.rawValue), state: .overflowY)
+  public var overflowY: Overflow{
+    get {
+      return Overflow(rawValue: getInt32(StyleKeys.OVERFLOW_Y))!
+    }
+    set {
+      setInt32(StyleKeys.OVERFLOW_Y, newValue.rawValue)
+      setOrAppendState(.overflowY)
     }
   }
   
-  public var alignItems = AlignItems.Normal {
-    didSet {
-      updateIntField(offset: Int(StyleKeys.ALIGN_ITEMS), value:  Int32(alignItems.rawValue), state: .alignItems)
+  public var alignItems: AlignItems {
+    get {
+      return AlignItems(rawValue: getInt32(StyleKeys.ALIGN_ITEMS))!
+    }
+    set {
+      setInt32(StyleKeys.ALIGN_ITEMS, newValue.rawValue)
+      setOrAppendState(.alignItems)
     }
   }
   
-  public var alignSelf = AlignSelf.Normal {
-    didSet {
-      updateIntField(offset: Int(StyleKeys.ALIGN_SELF), value:  Int32(alignSelf.rawValue), state: .alignSelf)
+  public var alignSelf: AlignSelf  {
+    get {
+      return AlignSelf(rawValue: getInt32(StyleKeys.ALIGN_SELF))!
+    }
+    set {
+      setInt32(StyleKeys.ALIGN_SELF, newValue.rawValue)
+      setOrAppendState(.alignSelf)
     }
   }
   
-  public var alignContent = AlignContent.Normal{
-    didSet {
-      updateIntField(offset: Int(StyleKeys.ALIGN_CONTENT), value:  Int32(alignContent.rawValue), state: .alignContent)
+  public var alignContent: AlignContent {
+    get {
+      return AlignContent(rawValue: getInt32(StyleKeys.ALIGN_CONTENT))!
+    }
+    set {
+      setInt32(StyleKeys.ALIGN_CONTENT, newValue.rawValue)
+      setOrAppendState(.alignContent)
     }
   }
   
-  public var justifyItems = JustifyItems.Normal {
-    didSet {
-      updateIntField(offset: Int(StyleKeys.JUSTIFY_ITEMS), value:  Int32(justifyItems.rawValue), state: .justifyItems)
+  public var justifyItems: JustifyItems {
+    get {
+      return JustifyItems(rawValue: getInt32(StyleKeys.JUSTIFY_ITEMS))!
+    }
+    set {
+      setInt32(StyleKeys.JUSTIFY_ITEMS, newValue.rawValue)
+      setOrAppendState(.justifyItems)
     }
   }
   
-  public var justifySelf = JustifySelf.Normal {
-    didSet {
-      updateIntField(offset: Int(StyleKeys.JUSTIFY_SELF), value:  Int32(justifySelf.rawValue), state: .justifySelf)
+  public var justifySelf:  JustifySelf {
+    get {
+      return JustifySelf(rawValue: getInt32(StyleKeys.JUSTIFY_SELF))!
+    }
+    set {
+      setInt32(StyleKeys.JUSTIFY_SELF, newValue.rawValue)
+      setOrAppendState(.justifySelf)
     }
   }
   
-  public var justifyContent = JustifyContent.Normal {
-    didSet {
-      updateIntField(offset: Int(StyleKeys.JUSTIFY_CONTENT), value:  Int32(justifyContent.rawValue), state: .justifyContent)
+  public var justifyContent: JustifyContent {
+    get {
+      return JustifyContent(rawValue: getInt32(StyleKeys.JUSTIFY_CONTENT))!
+    }
+    set {
+      setInt32(StyleKeys.JUSTIFY_CONTENT, newValue.rawValue)
+      setOrAppendState(.justifyContent)
     }
   }
   
   public var inset: MasonRect<MasonLengthPercentageAuto>{
     get{
-      let bytes = values.bytes
-      var type = bytes.advanced(by: Int(StyleKeys.INSET_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
+      var type = getInt32(Int(StyleKeys.INSET_LEFT_TYPE))
+      var value = getFloat(Int(StyleKeys.INSET_LEFT_VALUE))
       
-      var value = bytes.advanced(by: Int(StyleKeys.INSET_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
+      let left = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
-      let left = MasonLengthPercentageAuto.fromValueType(value.pointee, Int(type.pointee))!
+      type = getInt32(Int(StyleKeys.INSET_LEFT_TYPE))
+      value = getFloat(Int(StyleKeys.INSET_RIGHT_VALUE))
       
+      let right = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
-      type = bytes.advanced(by: Int(StyleKeys.INSET_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(Int(StyleKeys.INSET_TOP_TYPE))
+      value = getFloat(Int(StyleKeys.INSET_TOP_VALUE))
       
-      value = bytes.advanced(by: Int(StyleKeys.INSET_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
+      let top = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
-      let right = MasonLengthPercentageAuto.fromValueType(value.pointee, Int(type.pointee))!
+      type = getInt32(Int(StyleKeys.INSET_BOTTOM_TYPE))
+      value = getFloat(Int(StyleKeys.INSET_BOTTOM_VALUE))
       
-      
-      type = bytes.advanced(by: Int(StyleKeys.INSET_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-      
-      value = bytes.advanced(by: Int(StyleKeys.INSET_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let top = MasonLengthPercentageAuto.fromValueType(value.pointee, Int(type.pointee))!
-      
-      
-      
-      type = bytes.advanced(by: Int(StyleKeys.INSET_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
-      
-      value = bytes.advanced(by: Int(StyleKeys.INSET_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let bottom = MasonLengthPercentageAuto.fromValueType(value.pointee, Int(type.pointee))!
+      let bottom = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
       
       return MasonRect(left, right, top, bottom)
     }
     set {
-      let bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.INSET_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.left.type
+    
+      setInt32(Int(StyleKeys.INSET_LEFT_TYPE), newValue.left.type)
+      setFloat(Int(StyleKeys.INSET_LEFT_VALUE), newValue.left.value)
       
-      var value = bytes.advanced(by: Int(StyleKeys.INSET_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.left.value
+      setInt32(Int(StyleKeys.INSET_RIGHT_TYPE), newValue.right.type)
+      setFloat(Int(StyleKeys.INSET_RIGHT_VALUE), newValue.right.value)
       
+      setInt32(Int(StyleKeys.INSET_TOP_TYPE), newValue.top.type)
+      setFloat(Int(StyleKeys.INSET_TOP_VALUE), newValue.top.value)
       
-      type = bytes.advanced(by: Int(StyleKeys.INSET_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.right.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.INSET_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.right.value
-      
-      
-      type = bytes.advanced(by: Int(StyleKeys.INSET_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.top.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.INSET_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.top.value
-      
-      
-      type = bytes.advanced(by: Int(StyleKeys.INSET_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.bottom.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.INSET_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.bottom.value
-      
-      
+      setInt32(Int(StyleKeys.INSET_BOTTOM_TYPE), newValue.bottom.type)
+      setFloat(Int(StyleKeys.INSET_BOTTOM_VALUE), newValue.bottom.value)
+ 
       setOrAppendState(.inset)
     }
   }
@@ -437,11 +493,9 @@ public class MasonStyle: NSObject {
   public func setInsetLeft(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentageAuto(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = left.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = left.value
+    setInt32(Int(StyleKeys.INSET_LEFT_TYPE), left.type)
+    setFloat(Int(StyleKeys.INSET_LEFT_VALUE), left.value)
+  
     
     setOrAppendState(.inset)
   }
@@ -451,11 +505,8 @@ public class MasonStyle: NSObject {
       return inset.left
     }
     set {
-      let type = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.type
-      
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.value
+      setInt32(StyleKeys.INSET_LEFT_TYPE, newValue.type)
+      setFloat(StyleKeys.INSET_LEFT_VALUE, newValue.value)
       
       setOrAppendState(.inset)
     }
@@ -464,11 +515,8 @@ public class MasonStyle: NSObject {
   public func setInsetRight(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentageAuto(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = right.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = right.value
+    setInt32(StyleKeys.INSET_RIGHT_TYPE, right.type)
+    setFloat(StyleKeys.INSET_RIGHT_VALUE, right.value)
     
     setOrAppendState(.inset)
   }
@@ -478,11 +526,8 @@ public class MasonStyle: NSObject {
       return inset.right
     }
     set {
-      let type = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.type
-      
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.value
+      setInt32(StyleKeys.INSET_RIGHT_TYPE, newValue.type)
+      setFloat(StyleKeys.INSET_RIGHT_VALUE, newValue.value)
       
       setOrAppendState(.inset)
     }
@@ -491,12 +536,9 @@ public class MasonStyle: NSObject {
   public func setInsetTop(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentageAuto(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = top.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = top.value
-    
+    setInt32(StyleKeys.INSET_TOP_TYPE, top.type)
+    setFloat(StyleKeys.INSET_TOP_VALUE, top.value)
+  
     setOrAppendState(.inset)
   }
   
@@ -505,11 +547,9 @@ public class MasonStyle: NSObject {
       return inset.top
     }
     set {
-      let type = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.type
       
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.value
+      setInt32(StyleKeys.INSET_TOP_TYPE, newValue.type)
+      setFloat(StyleKeys.INSET_TOP_VALUE, newValue.value)
       
       setOrAppendState(.inset)
     }
@@ -517,12 +557,10 @@ public class MasonStyle: NSObject {
   
   public func setInsetBottom(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentageAuto(value, type) else {return}
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = bottom.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = bottom.value
-    
+   
+    setInt32(StyleKeys.INSET_BOTTOM_TYPE, bottom.type)
+    setFloat(StyleKeys.INSET_BOTTOM_VALUE, bottom.value)
+  
     setOrAppendState(.inset)
   }
   
@@ -531,11 +569,8 @@ public class MasonStyle: NSObject {
       return inset.bottom
     }
     set {
-      let type = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.type
-      
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.INSET_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.value
+      setInt32(StyleKeys.INSET_BOTTOM_TYPE, newValue.type)
+      setFloat(StyleKeys.INSET_BOTTOM_VALUE, newValue.value)
       
       setOrAppendState(.inset)
     }
@@ -549,63 +584,45 @@ public class MasonStyle: NSObject {
   
   public var margin: MasonRect<MasonLengthPercentageAuto> {
     get{
-      let bytes = values.bytes
-      var type = bytes.advanced(by: Int(StyleKeys.MARGIN_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
+      var type = getInt32(StyleKeys.MARGIN_LEFT_TYPE)
+      var value = getFloat(StyleKeys.MARGIN_LEFT_VALUE)
       
-      var value = bytes.advanced(by: Int(StyleKeys.MARGIN_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let left = MasonLengthPercentageAuto.fromValueType(value.pointee, Int(type.pointee))!
+      let left = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
       
-      type = bytes.advanced(by: Int(StyleKeys.MARGIN_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.MARGIN_RIGHT_TYPE)
+      value =  getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
       
-      value = bytes.advanced(by: Int(StyleKeys.MARGIN_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let right = MasonLengthPercentageAuto.fromValueType(value.pointee, Int(type.pointee))!
+      let right = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
       
-      type = bytes.advanced(by: Int(StyleKeys.MARGIN_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.MARGIN_TOP_TYPE)
+      value =  getFloat(StyleKeys.MARGIN_TOP_VALUE)
       
-      value = bytes.advanced(by: Int(StyleKeys.MARGIN_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let top = MasonLengthPercentageAuto.fromValueType(value.pointee, Int(type.pointee))!
+      let top = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
       
       
-      type = bytes.advanced(by: Int(StyleKeys.MARGIN_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.MARGIN_BOTTOM_TYPE)
+      value =  getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
       
-      value = bytes.advanced(by: Int(StyleKeys.MARGIN_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let bottom = MasonLengthPercentageAuto.fromValueType(value.pointee, Int(type.pointee))!
+      let bottom = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
       
       return MasonRect(left, right, top, bottom)
     }
     set {
-      let bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.MARGIN_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.left.type
+      setInt32(Int(StyleKeys.MARGIN_LEFT_TYPE), newValue.left.type)
+      setFloat(Int(StyleKeys.MARGIN_LEFT_VALUE), newValue.left.value)
       
-      var value = bytes.advanced(by: Int(StyleKeys.MARGIN_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.left.value
+      setInt32(Int(StyleKeys.MARGIN_RIGHT_TYPE), newValue.right.type)
+      setFloat(Int(StyleKeys.MARGIN_RIGHT_VALUE), newValue.right.value)
       
-      type = bytes.advanced(by: Int(StyleKeys.MARGIN_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.right.type
+      setInt32(Int(StyleKeys.MARGIN_TOP_TYPE), newValue.top.type)
+      setFloat(Int(StyleKeys.MARGIN_TOP_VALUE), newValue.top.value)
       
-      value = bytes.advanced(by: Int(StyleKeys.MARGIN_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.right.value
-      
-      type = bytes.advanced(by: Int(StyleKeys.MARGIN_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.top.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.MARGIN_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.top.value
-      
-      type = bytes.advanced(by: Int(StyleKeys.MARGIN_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.bottom.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.MARGIN_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.bottom.value
+      setInt32(Int(StyleKeys.MARGIN_BOTTOM_TYPE), newValue.bottom.type)
+      setFloat(Int(StyleKeys.MARGIN_BOTTOM_VALUE), newValue.bottom.value)
       
       setOrAppendState(.margin)
     }
@@ -631,11 +648,8 @@ public class MasonStyle: NSObject {
   public func setMarginLeft(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentageAuto(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.MARGIN_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = left.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.MARGIN_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = left.value
+    setInt32(Int(StyleKeys.MARGIN_LEFT_TYPE), left.type)
+    setFloat(Int(StyleKeys.MARGIN_LEFT_VALUE), left.value)
     
     setOrAppendState(.margin)
   }
@@ -643,11 +657,8 @@ public class MasonStyle: NSObject {
   public func setMarginRight(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentageAuto(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.MARGIN_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = right.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.MARGIN_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = right.value
+    setInt32(Int(StyleKeys.MARGIN_RIGHT_TYPE), right.type)
+    setFloat(Int(StyleKeys.MARGIN_RIGHT_VALUE), right.value)
     
     setOrAppendState(.margin)
   }
@@ -655,22 +666,17 @@ public class MasonStyle: NSObject {
   public func setMarginTop(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentageAuto(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.MARGIN_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = top.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.MARGIN_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = top.value
+    setInt32(StyleKeys.MARGIN_TOP_TYPE, top.type)
+    setFloat(StyleKeys.MARGIN_TOP_VALUE, top.value)
     
     setOrAppendState(.margin)
   }
   
   public func setMarginBottom(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentageAuto(value, type) else {return}
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.MARGIN_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = bottom.type
     
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.MARGIN_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = bottom.value
+    setInt32(StyleKeys.MARGIN_BOTTOM_TYPE, bottom.type)
+    setFloat(StyleKeys.MARGIN_BOTTOM_VALUE, bottom.value)
     
     setOrAppendState(.margin)
   }
@@ -684,64 +690,41 @@ public class MasonStyle: NSObject {
   
   public var padding: MasonRect<MasonLengthPercentage> {
     get{
-      var type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
+      var type = getInt32(StyleKeys.PADDING_LEFT_TYPE)
+      var value = getFloat(StyleKeys.PADDING_LEFT_VALUE)
       
-      var value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
+      let left = MasonLengthPercentage.fromValueType(value, Int(type))!
       
-      let left = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
+      type = getInt32(StyleKeys.PADDING_RIGHT_TYPE)
+      value = getFloat(StyleKeys.PADDING_RIGHT_VALUE)
       
+      let right = MasonLengthPercentage.fromValueType(value, Int(type))!
       
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.PADDING_TOP_TYPE)
+      value = getFloat(StyleKeys.PADDING_TOP_VALUE)
       
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
+      let top = MasonLengthPercentage.fromValueType(value, Int(type))!
       
-      let right = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
+      type = getInt32(StyleKeys.PADDING_BOTTOM_TYPE)
+      value = getFloat(StyleKeys.PADDING_BOTTOM_VALUE)
       
-      
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let top = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
-      
-      
-      
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let bottom = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
+      let bottom = MasonLengthPercentage.fromValueType(value, Int(type))!
       
       
       return MasonRect(left, right, top, bottom)
     }
     set {
-      var type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.left.type
+      setInt32(StyleKeys.PADDING_LEFT_TYPE, newValue.left.type)
+      setFloat(StyleKeys.PADDING_LEFT_VALUE, newValue.left.value)
       
-      var value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.left.value
+      setInt32(StyleKeys.PADDING_RIGHT_TYPE, newValue.right.type)
+      setFloat(StyleKeys.PADDING_RIGHT_VALUE, newValue.right.value)
       
+      setInt32(StyleKeys.PADDING_TOP_TYPE, newValue.top.type)
+      setFloat(StyleKeys.PADDING_TOP_VALUE, newValue.top.value)
       
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.right.type
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.right.value
-      
-      
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.top.type
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.top.value
-      
-      
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.bottom.type
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.bottom.value
+      setInt32(StyleKeys.PADDING_BOTTOM_TYPE, newValue.bottom.type)
+      setFloat(StyleKeys.PADDING_BOTTOM_VALUE, newValue.bottom.value)
       
       setOrAppendState(.padding)
     }
@@ -767,11 +750,8 @@ public class MasonStyle: NSObject {
   
   public func setPaddingLeft(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentage(value, type) else {return}
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = left.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = left.value
+    setInt32(StyleKeys.PADDING_LEFT_TYPE, left.type)
+    setFloat(StyleKeys.PADDING_LEFT_VALUE, left.value)
     
     setOrAppendState(.padding)
   }
@@ -779,11 +759,8 @@ public class MasonStyle: NSObject {
   public func setPaddingRight(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentage(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = right.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = right.value
+    setInt32(StyleKeys.PADDING_RIGHT_TYPE, right.type)
+    setFloat(StyleKeys.PADDING_RIGHT_VALUE, right.value)
     
     setOrAppendState(.padding)
   }
@@ -791,11 +768,8 @@ public class MasonStyle: NSObject {
   public func setPaddingTop(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentage(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = top.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = top.value
+    setInt32(StyleKeys.PADDING_TOP_TYPE, top.type)
+    setFloat(StyleKeys.PADDING_TOP_VALUE, top.value)
     
     setOrAppendState(.padding)
   }
@@ -803,11 +777,8 @@ public class MasonStyle: NSObject {
   public func setPaddingBottom(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentage(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = bottom.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.PADDING_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = bottom.value
+    setInt32(StyleKeys.PADDING_BOTTOM_TYPE, bottom.type)
+    setFloat(StyleKeys.PADDING_BOTTOM_VALUE, bottom.value)
     
     setOrAppendState(.padding)
   }
@@ -821,63 +792,46 @@ public class MasonStyle: NSObject {
   
   public var border: MasonRect<MasonLengthPercentage> {
     get {
-      var type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
+      var type = getInt32(StyleKeys.BORDER_LEFT_TYPE)
+      var value = getFloat(StyleKeys.BORDER_LEFT_VALUE)
       
-      var value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
+      let left = MasonLengthPercentage.fromValueType(value, Int(type))!
       
-      let left = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
+      type = getInt32(StyleKeys.BORDER_RIGHT_TYPE)
       
+      value = getFloat(StyleKeys.BORDER_RIGHT_VALUE)
       
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let right = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
+      let right = MasonLengthPercentage.fromValueType(value, Int(type))!
       
       
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.BORDER_TOP_TYPE)
       
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_TOP_VALUE)).assumingMemoryBound(to: Float.self)
+      value = getFloat(StyleKeys.BORDER_TOP_VALUE)
       
-      let top = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
+      let top = MasonLengthPercentage.fromValueType(value, Int(type))!
       
       
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.BORDER_BOTTOM_TYPE)
       
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
+      value = getFloat(StyleKeys.BORDER_BOTTOM_VALUE)
       
-      let bottom = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
+      let bottom = MasonLengthPercentage.fromValueType(value, Int(type))!
       
       
       return MasonRect(left, right, top, bottom)
     }
     set {
-      var type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.left.type
+      setInt32(StyleKeys.BORDER_LEFT_TYPE, newValue.left.type)
+      setFloat(StyleKeys.BORDER_LEFT_VALUE, newValue.left.value)
       
-      var value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.left.value
+      setInt32(StyleKeys.BORDER_RIGHT_TYPE, newValue.right.type)
+      setFloat(StyleKeys.BORDER_RIGHT_VALUE, newValue.right.value)
       
+      setInt32(StyleKeys.BORDER_TOP_TYPE, newValue.top.type)
+      setFloat(StyleKeys.BORDER_TOP_VALUE, newValue.top.value)
       
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.right.type
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.right.value
-      
-      
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.top.type
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.top.value
-      
-      
-      type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_BOTTOM_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.bottom.type
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_BOTTOM_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.bottom.value
+      setInt32(StyleKeys.BORDER_BOTTOM_TYPE, newValue.bottom.type)
+      setFloat(StyleKeys.BORDER_BOTTOM_VALUE, newValue.bottom.value)
       
       setOrAppendState(.border)
     }
@@ -902,11 +856,8 @@ public class MasonStyle: NSObject {
   public func setBorderLeft(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentage(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_LEFT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = left.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_LEFT_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = left.value
+    setInt32(StyleKeys.BORDER_LEFT_TYPE, left.type)
+    setFloat(StyleKeys.BORDER_LEFT_VALUE,  left.value)
     
     setOrAppendState(.border)
   }
@@ -914,11 +865,8 @@ public class MasonStyle: NSObject {
   public func setBorderRight(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentage(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_RIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = right.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_RIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = right.value
+    setInt32(StyleKeys.BORDER_RIGHT_TYPE, right.type)
+    setFloat(StyleKeys.BORDER_RIGHT_VALUE, right.value)
     
     setOrAppendState(.border)
   }
@@ -926,11 +874,8 @@ public class MasonStyle: NSObject {
   public func setBorderTop(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentage(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = top.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = top.value
+    setInt32(StyleKeys.BORDER_TOP_TYPE, top.type)
+    setFloat(StyleKeys.BORDER_TOP_VALUE, top.value)
     
     setOrAppendState(.border)
   }
@@ -938,11 +883,8 @@ public class MasonStyle: NSObject {
   public func setBorderBottom(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentage(value, type) else {return}
     
-    let type = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_TOP_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = bottom.type
-    
-    let value = values.mutableBytes.advanced(by: Int(StyleKeys.BORDER_TOP_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = bottom.value
+    setInt32(StyleKeys.BORDER_TOP_TYPE, bottom.type)
+    setFloat(StyleKeys.BORDER_TOP_VALUE, bottom.value)
     
     setOrAppendState(.border)
   }
@@ -954,25 +896,44 @@ public class MasonStyle: NSObject {
   }
   
   
-  public var flexGrow: Float = 0 {
-    didSet {
-      updateFloatField(offset: Int(StyleKeys.FLEX_GROW), value:  flexGrow, state: .flexGrow)
+  public var flexGrow: Float {
+    get {
+      return getFloat(StyleKeys.FLEX_GROW)
+    }
+    set {
+      setFloat(StyleKeys.FLEX_GROW, newValue)
+      setOrAppendState(.flexGrow)
     }
   }
   
-  public var flexShrink: Float = 1 {
-    didSet {
-      updateFloatField(offset: Int(StyleKeys.FLEX_SHRINK), value:  flexShrink, state: .flexShrink)
+  public var flexShrink: Float {
+    get {
+      return getFloat(StyleKeys.FLEX_SHRINK)
+    }
+    set {
+      setFloat(StyleKeys.FLEX_SHRINK, newValue)
+      setOrAppendState(.flexShrink)
     }
   }
   
-  public var flexBasis = MasonDimension.Auto {
-    didSet {
-      let type = values.mutableBytes.advanced(by: Int(StyleKeys.FLEX_BASIS_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = flexBasis.type
+  public var flexBasis: MasonDimension {
+    get {
+      let type = getInt32(StyleKeys.FLEX_BASIS_TYPE)
+      let value = getFloat(StyleKeys.FLEX_BASIS_VALUE)
+      switch(getInt32(StyleKeys.FLEX_BASIS_TYPE)){
+      case 0:
+        return MasonDimension.Auto
+      case 1:
+        return MasonDimension.Points(value)
+      case 2:
+        return MasonDimension.Percent(value)
+      default: return MasonDimension.Auto // assert ??
+      }
       
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.FLEX_BASIS_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = flexBasis.value
+    }
+    set {
+      setInt32(StyleKeys.FLEX_BASIS_TYPE, newValue.type)
+      setFloat(StyleKeys.FLEX_BASIS_VALUE, newValue.value)
       
       setOrAppendState(.flexBasis)
     }
@@ -994,9 +955,13 @@ public class MasonStyle: NSObject {
     }
   }
   
-  public var scrollBarWidth = MasonDimension.Points(0.0) {
-    didSet {
-      updateFloatField(offset: Int(StyleKeys.SCROLLBAR_WIDTH), value:  scrollBarWidth.value, state: .scrollbarWidth)
+  public var scrollBarWidth: MasonDimension {
+    get {
+      return MasonDimension.Points(getFloat(StyleKeys.SCROLLBAR_WIDTH))
+    }
+    set {
+      setFloat(StyleKeys.SCROLLBAR_WIDTH, newValue.value)
+      setOrAppendState(.scrollbarWidth)
     }
   }
   
@@ -1004,50 +969,49 @@ public class MasonStyle: NSObject {
     scrollBarWidth = MasonDimension.Points(value);
   }
   
-  public var textAlign = MasonTextAlign.Auto {
-    didSet {
-      updateIntField(offset: Int(StyleKeys.TEXT_ALIGN), value:  Int32(textAlign.rawValue), state: .textAlign)
+  public var textAlign: MasonTextAlign {
+    get {
+      return MasonTextAlign(rawValue: getInt32(StyleKeys.TEXT_ALIGN))!
+    }
+    set {
+      setInt32(StyleKeys.TEXT_ALIGN, Int32(newValue.rawValue))
+      setOrAppendState(.textAlign)
     }
   }
   
-  public var boxSizing = MasonBoxSizing.BorderBox {
-    didSet {
-      updateIntField(offset: Int(StyleKeys.BOX_SIZING), value:  Int32(boxSizing.rawValue), state: .boxSizing)
+  public var boxSizing: MasonBoxSizing {
+    get {
+      return MasonBoxSizing(rawValue: getInt32(StyleKeys.BOX_SIZING))!
+    }
+    set {
+      setInt32(StyleKeys.BOX_SIZING, Int32(newValue.rawValue))
+      setOrAppendState(.boxSizing)
     }
   }
   
   
   public var minSize: MasonSize<MasonDimension>{
     get{
-      let bytes = values.bytes
-      var type = bytes.advanced(by: Int(StyleKeys.MIN_WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
+      var type = getInt32(StyleKeys.MIN_WIDTH_TYPE)
       
-      var value = values.mutableBytes.advanced(by: Int(StyleKeys.MIN_WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
+      var value = getFloat(StyleKeys.MIN_WIDTH_VALUE)
       
-      let width = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
+      let width = MasonDimension.fromValueType(value, Int(type))!
       
-      type = bytes.advanced(by: Int(StyleKeys.MIN_HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.MIN_HEIGHT_TYPE)
+      value = getFloat(StyleKeys.MIN_HEIGHT_VALUE)
       
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.MIN_HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let height = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
+      let height = MasonDimension.fromValueType(value, Int(type))!
       
       return MasonSize(width, height)
     }
     set {
-      let bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.MIN_WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.width.type
       
-      var value = bytes.advanced(by: Int(StyleKeys.MIN_WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.width.value
+      setInt32(StyleKeys.MIN_WIDTH_TYPE, newValue.width.type)
+      setFloat(StyleKeys.MIN_WIDTH_VALUE, newValue.width.value)
       
-      
-      type = bytes.advanced(by: Int(StyleKeys.MIN_HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.height.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.MIN_HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.height.value
+      setInt32(StyleKeys.MIN_HEIGHT_TYPE, newValue.height.type)
+      setFloat(StyleKeys.MIN_HEIGHT_VALUE, newValue.height.value)
       
       setOrAppendState(.minSize)
     }
@@ -1089,35 +1053,26 @@ public class MasonStyle: NSObject {
   public var size: MasonSize<MasonDimension>{
     get{
       
-      let bytes = values.bytes
+      var type = getInt32(StyleKeys.WIDTH_TYPE)
       
-      var type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
+      var value = getFloat(StyleKeys.WIDTH_VALUE)
       
-      var value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
+      let width = MasonDimension.fromValueType(value, Int(type))!
       
-      let width = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
+      type = getInt32(StyleKeys.HEIGHT_TYPE)
       
-      type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
+      value = getFloat(StyleKeys.HEIGHT_VALUE)
       
-      value = bytes.advanced(by: Int(StyleKeys.HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let height = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
+      let height = MasonDimension.fromValueType(value, Int(type))!
       
       return MasonSize(width, height)
     }
     set {
-      let bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.width.type
+      setInt32(StyleKeys.WIDTH_TYPE, newValue.width.type)
+      setFloat(StyleKeys.WIDTH_VALUE, newValue.width.value)
       
-      var value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.width.value
-      
-      type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.height.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.height.value
+      setInt32(StyleKeys.HEIGHT_TYPE, newValue.height.type)
+      setFloat(StyleKeys.HEIGHT_VALUE, newValue.height.value)
       
       setOrAppendState(.size)
     }
@@ -1145,12 +1100,8 @@ public class MasonStyle: NSObject {
     }
     
     set {
-      let bytes = values.mutableBytes
-      let type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.dimension.type
-      
-      let value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.dimension.value
+      setInt32(StyleKeys.WIDTH_TYPE, newValue.dimension.type)
+      setFloat(StyleKeys.WIDTH_VALUE, newValue.dimension.value)
       
       setOrAppendState(.size)
     }
@@ -1162,13 +1113,8 @@ public class MasonStyle: NSObject {
     }
     
     set {
-      let bytes = values.mutableBytes
-      let type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.dimension.type
-      
-      let value = bytes.advanced(by: Int(StyleKeys.HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.dimension.value
-      
+      setInt32(StyleKeys.HEIGHT_TYPE, newValue.dimension.type)
+      setFloat(StyleKeys.HEIGHT_VALUE, newValue.dimension.value)
       setOrAppendState(.size)
     }
   }
@@ -1176,12 +1122,9 @@ public class MasonStyle: NSObject {
   public func setSizeWidth(_ value: Float, _ type: Int) {
     guard let width = getDimension(value, type) else {return}
     
-    let bytes = values.mutableBytes
-    let type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = width.type
-    
-    let value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = width.value
+
+    setInt32(StyleKeys.WIDTH_TYPE, width.type)
+    setFloat(StyleKeys.WIDTH_VALUE, width.value)
     
     setOrAppendState(.size)
   }
@@ -1189,37 +1132,25 @@ public class MasonStyle: NSObject {
   public func setSizeHeight(_ value: Float, _ type: Int) {
     guard let height = getDimension(value, type) else {return}
     
-    let bytes = values.mutableBytes
-    let type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = height.type
-    
-    let value = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Float.self)
-    value.pointee = height.value
+    setInt32(StyleKeys.HEIGHT_TYPE, height.type)
+    setFloat(StyleKeys.HEIGHT_VALUE, height.value)
     
     setOrAppendState(.size)
   }
   
   public func setSizeWidth(_ width: MasonDimension) {
     
-    let bytes = values.mutableBytes
-    let type = bytes.advanced(by: Int(StyleKeys.WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = width.type
-    
-    let value = bytes.advanced(by: Int(StyleKeys.WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = width.value
+    setInt32(StyleKeys.WIDTH_TYPE, width.type)
+    setFloat(StyleKeys.WIDTH_VALUE, width.value)
     
     setOrAppendState(.size)
   }
   
   
   public func setSizeHeight(_ height: MasonDimension) {
-    
-    let bytes = values.mutableBytes
-    let type = bytes.advanced(by: Int(StyleKeys.HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-    type.pointee = height.type
-    
-    let value = bytes.advanced(by: Int(StyleKeys.HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-    value.pointee = height.value
+
+    setInt32(StyleKeys.HEIGHT_TYPE, height.type)
+    setFloat(StyleKeys.HEIGHT_VALUE, height.value)
     
     setOrAppendState(.size)
   }
@@ -1232,35 +1163,28 @@ public class MasonStyle: NSObject {
   
   public var maxSize: MasonSize<MasonDimension>{
     get{
-      let bytes = values.bytes
-      var type = bytes.advanced(by: Int(StyleKeys.MAX_WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
+      var type = getInt32(StyleKeys.MAX_WIDTH_TYPE)
       
-      var value = values.mutableBytes.advanced(by: Int(StyleKeys.MAX_WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
+      var value = getFloat(StyleKeys.MAX_WIDTH_VALUE)
       
-      let width = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
+      let width = MasonDimension.fromValueType(value, Int(type))!
       
-      type = bytes.advanced(by: Int(StyleKeys.MAX_HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.MAX_HEIGHT_TYPE)
       
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.MAX_HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
+      value = getFloat(StyleKeys.MAX_HEIGHT_VALUE)
       
-      let height = MasonDimension.fromValueType(value.pointee, Int(type.pointee))!
+      let height = MasonDimension.fromValueType(value, Int(type))!
       
       return MasonSize(width, height)
     }
     set {
-      let bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.MAX_WIDTH_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.width.type
       
-      var value = bytes.advanced(by: Int(StyleKeys.MAX_WIDTH_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.width.value
+      setInt32(StyleKeys.MAX_WIDTH_TYPE, newValue.width.type)
+      setFloat(StyleKeys.MAX_WIDTH_VALUE, newValue.width.value)
       
       
-      type = bytes.advanced(by: Int(StyleKeys.MAX_HEIGHT_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.height.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.MAX_HEIGHT_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.height.value
+      setInt32(StyleKeys.MAX_HEIGHT_TYPE, newValue.height.type)
+      setFloat(StyleKeys.MAX_HEIGHT_VALUE, newValue.height.value)
       
       setOrAppendState(.maxSize)
     }
@@ -1302,35 +1226,28 @@ public class MasonStyle: NSObject {
   
   public var gap: MasonSize<MasonLengthPercentage>{
     get{
-      let bytes = values.bytes
-      var type = bytes.advanced(by: Int(StyleKeys.GAP_ROW_TYPE)).assumingMemoryBound(to: Int32.self)
+      var type = getInt32(StyleKeys.GAP_ROW_TYPE)
+      var value = getFloat(StyleKeys.GAP_ROW_VALUE)
       
-      var value = values.mutableBytes.advanced(by: Int(StyleKeys.GAP_ROW_VALUE)).assumingMemoryBound(to: Float.self)
+      let width = MasonLengthPercentage.fromValueType(value, Int(type))!
       
-      let width = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
+      type = getInt32(StyleKeys.GAP_COLUMN_TYPE)
+      value = getFloat(StyleKeys.GAP_COLUMN_VALUE)
       
-      type = bytes.advanced(by: Int(StyleKeys.GAP_COLUMN_TYPE)).assumingMemoryBound(to: Int32.self)
-      
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.GAP_COLUMN_VALUE)).assumingMemoryBound(to: Float.self)
-      
-      let height = MasonLengthPercentage.fromValueType(value.pointee, Int(type.pointee))!
+      let height = MasonLengthPercentage.fromValueType(value, Int(type))!
       
       return MasonSize(width, height)
     }
     set {
-      let bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.GAP_ROW_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.width.type
+  
+      setInt32(StyleKeys.GAP_ROW_TYPE, newValue.width.type)
       
-      var value = bytes.advanced(by: Int(StyleKeys.GAP_ROW_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.width.value
+      setFloat(StyleKeys.GAP_ROW_VALUE, newValue.width.value)
       
       
-      type = bytes.advanced(by: Int(StyleKeys.GAP_COLUMN_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.height.type
+      setInt32(StyleKeys.GAP_COLUMN_TYPE, newValue.height.type)
       
-      value = bytes.advanced(by: Int(StyleKeys.GAP_COLUMN_VALUE)).assumingMemoryBound(to: Float.self)
-      value.pointee = newValue.height.value
+      setFloat(StyleKeys.GAP_COLUMN_VALUE,newValue.height.value)
       
       setOrAppendState(.gap)
     }
@@ -1373,9 +1290,24 @@ public class MasonStyle: NSObject {
   }
   
   
-  public var aspectRatio: Float? = nil{
-    didSet {
-      updateFloatField(offset: Int(StyleKeys.ASPECT_RATIO), value:  aspectRatio ?? Float.nan, state: .aspectRatio)
+  public var aspectRatio: Float?{
+    get {
+      let value = getFloat(StyleKeys.ASPECT_RATIO)
+      if(value.isNaN){
+        return nil
+      }
+      return value
+    }
+    set {
+      if let value = newValue {
+        if(value.isNaN){
+          setFloat(StyleKeys.ASPECT_RATIO, Float.nan)
+        }else {
+          setFloat(StyleKeys.ASPECT_RATIO, value)
+        }
+      }else {
+        setFloat(StyleKeys.ASPECT_RATIO, Float.nan)
+      }
     }
   }
   
@@ -1397,43 +1329,39 @@ public class MasonStyle: NSObject {
     }
   }
   
-  public var gridAutoFlow: GridAutoFlow = GridAutoFlow.Row{
-    didSet{
-      updateIntField(offset: Int(StyleKeys.GRID_AUTO_FLOW), value:  Int32(gridAutoFlow.rawValue), state: .gridAutoFlow)
+  public var gridAutoFlow: GridAutoFlow {
+    get {
+      return GridAutoFlow(rawValue: getInt32(StyleKeys.GRID_AUTO_FLOW))!
+    }
+
+    set {
+      setInt32(StyleKeys.GRID_AUTO_FLOW, Int32(newValue.rawValue))
+      setOrAppendState(.gridAutoFlow)
     }
   }
   
   public var gridColumn:  Line<GridPlacement> {
     get{
-      let bytes = values.bytes
-      var type = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_START_TYPE)).assumingMemoryBound(to: Int32.self)
+      var type = getInt32(StyleKeys.GRID_COLUMN_START_TYPE)
       
-      var value = values.mutableBytes.advanced(by: Int(StyleKeys.GRID_COLUMN_START_VALUE)).assumingMemoryBound(to: Int16.self)
+      var value = getInt16(StyleKeys.GRID_COLUMN_START_VALUE)
       
-      let start = GridPlacement.fromValueType(value.pointee, Int(type.pointee))!
+      let start = GridPlacement.fromValueType(value, Int(type))!
       
-      type = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_END_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.GRID_COLUMN_END_TYPE)
       
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.GRID_COLUMN_END_VALUE)).assumingMemoryBound(to: Int16.self)
+      value = getInt16(StyleKeys.GRID_COLUMN_END_VALUE)
       
-      let end = GridPlacement.fromValueType(value.pointee, Int(type.pointee))!
+      let end = GridPlacement.fromValueType(value, Int(type))!
       
       return Line(start, end)
     }
     set {
-      let bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_START_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.start.type
+      setInt32(StyleKeys.GRID_COLUMN_START_TYPE, newValue.start.type)
+      setInt16(StyleKeys.GRID_COLUMN_START_VALUE, newValue.start.placementValue)
       
-      var value = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_START_VALUE)).assumingMemoryBound(to: Int16.self)
-      value.pointee = newValue.start.placementValue
-      
-      
-      type = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_END_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.end.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_END_VALUE)).assumingMemoryBound(to: Int16.self)
-      value.pointee = newValue.end.placementValue
+      setInt32(StyleKeys.GRID_COLUMN_END_TYPE, newValue.end.type)
+      setInt16(StyleKeys.GRID_COLUMN_END_VALUE, newValue.end.placementValue)
       
       setOrAppendState(.gridColumn)
     }
@@ -1442,42 +1370,32 @@ public class MasonStyle: NSObject {
   
   public var gridColumnStart: GridPlacement {
     get {
-      let bytes = values.bytes
-      let type = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_START_TYPE)).assumingMemoryBound(to: Int32.self)
+      let type = getInt32(StyleKeys.GRID_COLUMN_START_TYPE)
       
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.GRID_COLUMN_START_VALUE)).assumingMemoryBound(to: Int16.self)
+      let value = getInt16(StyleKeys.GRID_COLUMN_START_VALUE)
       
-      return GridPlacement.fromValueType(value.pointee, Int(type.pointee))!
+      return GridPlacement.fromValueType(value, Int(type))!
     }
     
     set {
-      let bytes = values.mutableBytes
-      let type = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_START_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.type
-      
-      let value = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_START_VALUE)).assumingMemoryBound(to: Int16.self)
-      value.pointee = newValue.placementValue
+      setInt32(StyleKeys.GRID_COLUMN_START_TYPE, newValue.type)
+      setInt16(StyleKeys.GRID_COLUMN_START_VALUE, newValue.placementValue)
       setOrAppendState(.gridColumn)
     }
   }
   
   public var gridColumnEnd: GridPlacement {
     get {
-      let bytes = values.bytes
-      let type = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_END_TYPE)).assumingMemoryBound(to: Int32.self)
+      let type = getInt32(StyleKeys.GRID_COLUMN_END_TYPE)
       
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.GRID_COLUMN_END_VALUE)).assumingMemoryBound(to: Int16.self)
+      let value = getInt16(StyleKeys.GRID_COLUMN_END_VALUE)
       
-      return GridPlacement.fromValueType(value.pointee, Int(type.pointee))!
+      return GridPlacement.fromValueType(value, Int(type))!
     }
     
     set {
-      let bytes = values.mutableBytes
-      let type = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_END_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.type
-      
-      let value = bytes.advanced(by: Int(StyleKeys.GRID_COLUMN_END_VALUE)).assumingMemoryBound(to: Int16.self)
-      value.pointee = newValue.placementValue
+      setInt32(StyleKeys.GRID_COLUMN_END_TYPE, newValue.type)
+      setInt16(StyleKeys.GRID_COLUMN_END_VALUE, newValue.placementValue)
       setOrAppendState(.gridColumn)
     }
   }
@@ -1515,77 +1433,60 @@ public class MasonStyle: NSObject {
   
   public var gridRow:  Line<GridPlacement> {
     get{
-      let bytes = values.bytes
-      var type = bytes.advanced(by: Int(StyleKeys.GRID_ROW_START_TYPE)).assumingMemoryBound(to: Int32.self)
+      var type = getInt32(StyleKeys.GRID_ROW_START_TYPE)
       
-      var value = values.mutableBytes.advanced(by: Int(StyleKeys.GRID_ROW_START_VALUE)).assumingMemoryBound(to: Int16.self)
+      var value = getInt16(StyleKeys.GRID_ROW_START_VALUE)
       
-      let start = GridPlacement.fromValueType(value.pointee, Int(type.pointee))!
+      let start = GridPlacement.fromValueType(value, Int(type))!
       
-      type = bytes.advanced(by: Int(StyleKeys.GRID_ROW_END_TYPE)).assumingMemoryBound(to: Int32.self)
+      type = getInt32(StyleKeys.GRID_ROW_END_TYPE)
       
-      value = values.mutableBytes.advanced(by: Int(StyleKeys.GRID_ROW_END_VALUE)).assumingMemoryBound(to: Int16.self)
+      value = getInt16(StyleKeys.GRID_ROW_END_VALUE)
       
-      let end = GridPlacement.fromValueType(value.pointee, Int(type.pointee))!
+      let end = GridPlacement.fromValueType(value, Int(type))!
       
       return Line(start, end)
     }
     set {
-      let bytes = values.mutableBytes
-      var type = bytes.advanced(by: Int(StyleKeys.GRID_ROW_START_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.start.type
+      setInt32(StyleKeys.GRID_ROW_START_TYPE, newValue.start.type)
+      setInt16(StyleKeys.GRID_ROW_START_VALUE, newValue.start.placementValue)
       
-      var value = bytes.advanced(by: Int(StyleKeys.GRID_ROW_START_VALUE)).assumingMemoryBound(to: Int16.self)
-      value.pointee = newValue.start.placementValue
+      setInt32(StyleKeys.GRID_ROW_END_TYPE, newValue.end.type)
+      setInt16(StyleKeys.GRID_ROW_END_VALUE,  newValue.end.placementValue)
       
-      
-      type = bytes.advanced(by: Int(StyleKeys.GRID_ROW_END_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.end.type
-      
-      value = bytes.advanced(by: Int(StyleKeys.GRID_ROW_END_VALUE)).assumingMemoryBound(to: Int16.self)
-      value.pointee = newValue.end.placementValue
       setOrAppendState(.gridRow)
     }
   }
   
   public var gridRowStart: GridPlacement {
     get {
-      let bytes = values.bytes
-      let type = bytes.advanced(by: Int(StyleKeys.GRID_ROW_START_TYPE)).assumingMemoryBound(to: Int32.self)
+      let type = getInt32(StyleKeys.GRID_ROW_START_TYPE)
       
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.GRID_ROW_START_VALUE)).assumingMemoryBound(to: Int16.self)
+      let value = getInt16(StyleKeys.GRID_ROW_START_VALUE)
       
-      return GridPlacement.fromValueType(value.pointee, Int(type.pointee))!
+      return GridPlacement.fromValueType(value, Int(type))!
     }
     
     set {
-      let bytes = values.mutableBytes
-      let type = bytes.advanced(by: Int(StyleKeys.GRID_ROW_START_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.type
+      setInt32(StyleKeys.GRID_ROW_START_TYPE, newValue.type)
+      setInt16(StyleKeys.GRID_ROW_START_VALUE, newValue.placementValue)
       
-      let value = bytes.advanced(by: Int(StyleKeys.GRID_ROW_START_VALUE)).assumingMemoryBound(to: Int16.self)
-      value.pointee = newValue.placementValue
       setOrAppendState(.gridRow)
     }
   }
   
   public var gridRowEnd: GridPlacement {
     get {
-      let bytes = values.bytes
-      let type = bytes.advanced(by: Int(StyleKeys.GRID_ROW_END_TYPE)).assumingMemoryBound(to: Int32.self)
+      let type = getInt32(StyleKeys.GRID_ROW_END_TYPE)
+      let value = getInt16(StyleKeys.GRID_ROW_END_VALUE)
       
-      let value = values.mutableBytes.advanced(by: Int(StyleKeys.GRID_ROW_END_VALUE)).assumingMemoryBound(to: Int16.self)
-      
-      return GridPlacement.fromValueType(value.pointee, Int(type.pointee))!
+      return GridPlacement.fromValueType(value, Int(type))!
     }
     
     set {
-      let bytes = values.mutableBytes
-      let type = bytes.advanced(by: Int(StyleKeys.GRID_ROW_END_TYPE)).assumingMemoryBound(to: Int32.self)
-      type.pointee = newValue.type
+      setInt32(StyleKeys.GRID_ROW_END_TYPE,  newValue.type)
+      setInt16(StyleKeys.GRID_ROW_END_VALUE, newValue.placementValue)
       
-      let value = bytes.advanced(by: Int(StyleKeys.GRID_ROW_END_VALUE)).assumingMemoryBound(to: Int16.self)
-      value.pointee = newValue.placementValue
       setOrAppendState(.gridRow)
     }
   }
@@ -1819,8 +1720,10 @@ public class MasonStyle: NSObject {
     if (isDirty != -1) {
     //  mason_style_sync_style(node.mason.nativePtr, node.nativePtr, isDirty)
       
-
-      mason_style_sync_style_with_buffer(node.mason.nativePtr, node.nativePtr, isDirty, values.mutableBytes, UInt(values.length))
+      values.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) in
+        guard let ptr = ptr.baseAddress else {return}
+        mason_style_sync_style_with_buffer(node.mason.nativePtr, node.nativePtr, isDirty, ptr.assumingMemoryBound(to: UInt8.self), UInt(values.count))
+      }
       
       isDirty = -1
     }

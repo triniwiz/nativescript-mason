@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, colorProperty, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent } from '.';
-import { _forceStyleUpdate, _parseGridTemplates, _setAlignContent, _setColumnGap, _setDisplay, _setFlexDirection, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setRowGap, _setWidth, GridTemplates } from './helpers';
+import { _forceStyleUpdate, _parseGridTemplates, _setAlignContent, _setColumnGap, _setDisplay, _setFlexDirection, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setMarginBottom, _setMarginLeft, _setMarginRight, _setMarginTop, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setRowGap, _setWidth, GridTemplates } from './helpers';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 
 export const native_ = Symbol('[[native]]');
@@ -149,12 +149,26 @@ export const rowGapProperty = new CssProperty<Style, Length>({
   name: 'rowGap',
   cssName: 'row-gap',
   defaultValue: 0,
+  valueConverter(value) {
+    const parsed = CoreLength.parse(value);
+    if (typeof parsed === 'string') {
+      return 0;
+    }
+    return parsed;
+  },
 });
 
 export const columnGapProperty = new CssProperty<Style, Length>({
   name: 'columnGap',
   cssName: 'column-gap',
   defaultValue: 0,
+  valueConverter(value) {
+    const parsed = CoreLength.parse(value);
+    if (typeof parsed === 'string') {
+      return 0;
+    }
+    return parsed;
+  },
 });
 
 export const gapProperty = new ShorthandProperty<Style, Gap>({
@@ -187,8 +201,8 @@ export const gapProperty = new ShorthandProperty<Style, Gap>({
         const row = values[0];
         const column = values[1];
 
-        properties.push([gridColumnStartProperty, row]);
-        properties.push([gridColumnEndProperty, column]);
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, column]);
       }
     }
 
@@ -742,6 +756,18 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   display: Display;
   position: Position;
 
+  padding: string | CoreTypes.LengthType;
+  paddingLeft: CoreTypes.LengthType;
+  paddingRight: CoreTypes.LengthType;
+  paddingTop: CoreTypes.LengthType;
+  paddingBottom: CoreTypes.LengthType;
+
+  margin: string | number | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit;
+  marginLeft: CoreTypes.LengthType;
+  marginRight: CoreTypes.LengthType;
+  marginTop: CoreTypes.LengthType;
+  marginBottom: CoreTypes.LengthType;
+
   _children: any[] = [];
   _isMasonView = false;
   _isMasonChild = false;
@@ -840,6 +866,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
     this._children.splice(0);
   }
+
   [displayProperty.setNative](value) {
     _setDisplay(value, this as any);
   }
@@ -848,19 +875,54 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     _setFlexDirection(value, this as any);
   }
 
-  [widthProperty.setNative](value) {
-    _setWidth(value, this as any);
+  //@ts-ignore
+  set width(value) {
+    console.log('width set', value);
   }
 
-  [heightProperty.setNative](value) {
-    _setHeight(value, this as any);
+  get width(): any {
+    return 0;
   }
+
+  //@ts-ignore
+  set height(value) {
+    console.log('height set', value);
+  }
+
+  get height(): any {
+    return 0;
+  }
+
+  // [widthProperty.setNative](value) {
+  //  // _setWidth(value, this as any);
+  // }
+
+  // [heightProperty.setNative](value) {
+  //  // _setHeight(value, this as any);
+  // }
   [alignContentProperty.setNative](value) {
     _setAlignContent(value, this as any);
   }
   [justifyContentProperty.setNative](value) {
     _setJustifyContent(value, this as any);
   }
+
+  [marginLeftProperty.setNative](value) {
+    _setMarginLeft(value, this as any);
+  }
+
+  [marginRightProperty.setNative](value) {
+    _setMarginRight(value, this as any);
+  }
+
+  [marginBottomProperty.setNative](value) {
+    _setMarginBottom(value, this as any);
+  }
+
+  [marginTopProperty.setNative](value) {
+    _setMarginTop(value, this as any);
+  }
+
   [paddingLeftProperty.setNative](value) {
     _setPaddingLeft(value, this as any);
   }
@@ -892,12 +954,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     _setGridRowEnd(value, this as any);
   }
   [gridTemplateRowsProperty.setNative](value) {
-    console.log('gridTemplateRowsProperty', value);
     _setGridTemplateRows(_parseGridTemplates(value), this as any);
   }
 
   [gridTemplateColumnsProperty.setNative](value) {
-    console.log('gridTemplateColumnsProperty', value);
     _setGridTemplateColumns(_parseGridTemplates(value), this as any);
   }
 }

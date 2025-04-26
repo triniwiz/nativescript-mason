@@ -870,258 +870,6 @@
           },
           {
             "kind": "Var",
-            "name": "nodes",
-            "printedName": "nodes",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Dictionary",
-                "printedName": "[Swift.Int64 : Mason.MasonNode]",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Int64",
-                    "printedName": "Swift.Int64",
-                    "usr": "s:s5Int64V"
-                  },
-                  {
-                    "kind": "TypeNominal",
-                    "name": "MasonNode",
-                    "printedName": "Mason.MasonNode",
-                    "usr": "c:@M@Mason@objc(cs)MasonNode"
-                  }
-                ],
-                "usr": "s:SD"
-              }
-            ],
-            "declKind": "Var",
-            "usr": "c:@M@Mason@objc(cs)NSCMason(py)nodes",
-            "mangledName": "$s5Mason8NSCMasonC5nodesSDys5Int64VAA0A4NodeCGvp",
-            "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
-            "accessors": [
-              {
-                "kind": "Accessor",
-                "name": "Get",
-                "printedName": "Get()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Dictionary",
-                    "printedName": "[Swift.Int64 : Mason.MasonNode]",
-                    "children": [
-                      {
-                        "kind": "TypeNominal",
-                        "name": "Int64",
-                        "printedName": "Swift.Int64",
-                        "usr": "s:s5Int64V"
-                      },
-                      {
-                        "kind": "TypeNominal",
-                        "name": "MasonNode",
-                        "printedName": "Mason.MasonNode",
-                        "usr": "c:@M@Mason@objc(cs)MasonNode"
-                      }
-                    ],
-                    "usr": "s:SD"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)NSCMason(im)nodes",
-                "mangledName": "$s5Mason8NSCMasonC5nodesSDys5Int64VAA0A4NodeCGvg",
-                "moduleName": "Mason",
-                "implicit": true,
-                "declAttributes": ["ObjC"],
-                "accessorKind": "get"
-              },
-              {
-                "kind": "Accessor",
-                "name": "Set",
-                "printedName": "Set()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Void",
-                    "printedName": "()"
-                  },
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Dictionary",
-                    "printedName": "[Swift.Int64 : Mason.MasonNode]",
-                    "children": [
-                      {
-                        "kind": "TypeNominal",
-                        "name": "Int64",
-                        "printedName": "Swift.Int64",
-                        "usr": "s:s5Int64V"
-                      },
-                      {
-                        "kind": "TypeNominal",
-                        "name": "MasonNode",
-                        "printedName": "Mason.MasonNode",
-                        "usr": "c:@M@Mason@objc(cs)MasonNode"
-                      }
-                    ],
-                    "usr": "s:SD"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)NSCMason(im)setNodes:",
-                "mangledName": "$s5Mason8NSCMasonC5nodesSDys5Int64VAA0A4NodeCGvs",
-                "moduleName": "Mason",
-                "implicit": true,
-                "declAttributes": ["ObjC"],
-                "accessorKind": "set"
-              },
-              {
-                "kind": "Accessor",
-                "name": "Modify",
-                "printedName": "Modify()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Void",
-                    "printedName": "()"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "s:5Mason8NSCMasonC5nodesSDys5Int64VAA0A4NodeCGvM",
-                "mangledName": "$s5Mason8NSCMasonC5nodesSDys5Int64VAA0A4NodeCGvM",
-                "moduleName": "Mason",
-                "implicit": true,
-                "accessorKind": "_modify"
-              }
-            ]
-          },
-          {
-            "kind": "Var",
-            "name": "viewNodes",
-            "printedName": "viewNodes",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Dictionary",
-                "printedName": "[UIKit.UIView : Mason.MasonNode]",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "UIView",
-                    "printedName": "UIKit.UIView",
-                    "usr": "c:objc(cs)UIView"
-                  },
-                  {
-                    "kind": "TypeNominal",
-                    "name": "MasonNode",
-                    "printedName": "Mason.MasonNode",
-                    "usr": "c:@M@Mason@objc(cs)MasonNode"
-                  }
-                ],
-                "usr": "s:SD"
-              }
-            ],
-            "declKind": "Var",
-            "usr": "c:@M@Mason@objc(cs)NSCMason(py)viewNodes",
-            "mangledName": "$s5Mason8NSCMasonC9viewNodesSDySo6UIViewCAA0A4NodeCGvp",
-            "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
-            "accessors": [
-              {
-                "kind": "Accessor",
-                "name": "Get",
-                "printedName": "Get()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Dictionary",
-                    "printedName": "[UIKit.UIView : Mason.MasonNode]",
-                    "children": [
-                      {
-                        "kind": "TypeNominal",
-                        "name": "UIView",
-                        "printedName": "UIKit.UIView",
-                        "usr": "c:objc(cs)UIView"
-                      },
-                      {
-                        "kind": "TypeNominal",
-                        "name": "MasonNode",
-                        "printedName": "Mason.MasonNode",
-                        "usr": "c:@M@Mason@objc(cs)MasonNode"
-                      }
-                    ],
-                    "usr": "s:SD"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)NSCMason(im)viewNodes",
-                "mangledName": "$s5Mason8NSCMasonC9viewNodesSDySo6UIViewCAA0A4NodeCGvg",
-                "moduleName": "Mason",
-                "implicit": true,
-                "declAttributes": ["ObjC"],
-                "accessorKind": "get"
-              },
-              {
-                "kind": "Accessor",
-                "name": "Set",
-                "printedName": "Set()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Void",
-                    "printedName": "()"
-                  },
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Dictionary",
-                    "printedName": "[UIKit.UIView : Mason.MasonNode]",
-                    "children": [
-                      {
-                        "kind": "TypeNominal",
-                        "name": "UIView",
-                        "printedName": "UIKit.UIView",
-                        "usr": "c:objc(cs)UIView"
-                      },
-                      {
-                        "kind": "TypeNominal",
-                        "name": "MasonNode",
-                        "printedName": "Mason.MasonNode",
-                        "usr": "c:@M@Mason@objc(cs)MasonNode"
-                      }
-                    ],
-                    "usr": "s:SD"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)NSCMason(im)setViewNodes:",
-                "mangledName": "$s5Mason8NSCMasonC9viewNodesSDySo6UIViewCAA0A4NodeCGvs",
-                "moduleName": "Mason",
-                "implicit": true,
-                "declAttributes": ["ObjC"],
-                "accessorKind": "set"
-              },
-              {
-                "kind": "Accessor",
-                "name": "Modify",
-                "printedName": "Modify()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Void",
-                    "printedName": "()"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "s:5Mason8NSCMasonC9viewNodesSDySo6UIViewCAA0A4NodeCGvM",
-                "mangledName": "$s5Mason8NSCMasonC9viewNodesSDySo6UIViewCAA0A4NodeCGvM",
-                "moduleName": "Mason",
-                "implicit": true,
-                "accessorKind": "_modify"
-              }
-            ]
-          },
-          {
-            "kind": "Var",
             "name": "shared",
             "printedName": "shared",
             "children": [
@@ -5677,17 +5425,16 @@
             "children": [
               {
                 "kind": "TypeNominal",
-                "name": "NSMutableData",
-                "printedName": "Foundation.NSMutableData",
-                "usr": "c:objc(cs)NSMutableData"
+                "name": "Data",
+                "printedName": "Foundation.Data",
+                "usr": "s:10Foundation4DataV"
               }
             ],
             "declKind": "Var",
             "usr": "c:@M@Mason@objc(cs)MasonText(py)textValues",
-            "mangledName": "$s5Mason0A4TextC10textValuesSo13NSMutableDataCvp",
+            "mangledName": "$s5Mason0A4TextC10textValues10Foundation4DataVvp",
             "moduleName": "Mason",
-            "declAttributes": ["Final", "Preconcurrency", "Custom", "HasStorage", "AccessControl", "ObjC"],
-            "isLet": true,
+            "declAttributes": ["HasInitialValue", "Preconcurrency", "Custom", "HasStorage", "SetterAccess", "AccessControl", "ObjC"],
             "hasStorage": true,
             "accessors": [
               {
@@ -5697,17 +5444,17 @@
                 "children": [
                   {
                     "kind": "TypeNominal",
-                    "name": "NSMutableData",
-                    "printedName": "Foundation.NSMutableData",
-                    "usr": "c:objc(cs)NSMutableData"
+                    "name": "Data",
+                    "printedName": "Foundation.Data",
+                    "usr": "s:10Foundation4DataV"
                   }
                 ],
                 "declKind": "Accessor",
                 "usr": "c:@M@Mason@objc(cs)MasonText(im)textValues",
-                "mangledName": "$s5Mason0A4TextC10textValuesSo13NSMutableDataCvg",
+                "mangledName": "$s5Mason0A4TextC10textValues10Foundation4DataVvg",
                 "moduleName": "Mason",
                 "implicit": true,
-                "declAttributes": ["Final", "ObjC"],
+                "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               }
             ]
@@ -12460,6 +12207,89 @@
         "printedName": "MasonStyle",
         "children": [
           {
+            "kind": "Var",
+            "name": "values",
+            "printedName": "values",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Data",
+                "printedName": "Foundation.Data",
+                "usr": "s:10Foundation4DataV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonStyle(py)values",
+            "mangledName": "$s5Mason0A5StyleC6values10Foundation4DataVvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Lazy", "AccessControl", "RawDocComment", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Data",
+                    "printedName": "Foundation.Data",
+                    "usr": "s:10Foundation4DataV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)values",
+                "mangledName": "$s5Mason0A5StyleC6values10Foundation4DataVvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Data",
+                    "printedName": "Foundation.Data",
+                    "usr": "s:10Foundation4DataV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setValues:",
+                "mangledName": "$s5Mason0A5StyleC6values10Foundation4DataVvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason0A5StyleC6values10Foundation4DataVvM",
+                "mangledName": "$s5Mason0A5StyleC6values10Foundation4DataVvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
             "kind": "Constructor",
             "name": "init",
             "printedName": "init(node:)",
@@ -12581,8 +12411,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)position",
             "mangledName": "$s5Mason0A5StyleC8positionAA8PositionOvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -12600,7 +12429,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)position",
                 "mangledName": "$s5Mason0A5StyleC8positionAA8PositionOvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -12625,7 +12453,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setPosition:",
                 "mangledName": "$s5Mason0A5StyleC8positionAA8PositionOvs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -12665,8 +12492,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)direction",
             "mangledName": "$s5Mason0A5StyleC9directionAA9DirectionOvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "RawDocComment", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "RawDocComment", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -12684,7 +12510,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)direction",
                 "mangledName": "$s5Mason0A5StyleC9directionAA9DirectionOvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -12709,7 +12534,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setDirection:",
                 "mangledName": "$s5Mason0A5StyleC9directionAA9DirectionOvs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -12830,8 +12654,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)flexWrap",
             "mangledName": "$s5Mason0A5StyleC8flexWrapAA04FlexD0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -12849,7 +12672,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)flexWrap",
                 "mangledName": "$s5Mason0A5StyleC8flexWrapAA04FlexD0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -12874,7 +12696,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setFlexWrap:",
                 "mangledName": "$s5Mason0A5StyleC8flexWrapAA04FlexD0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -12914,8 +12735,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)overflowX",
             "mangledName": "$s5Mason0A5StyleC9overflowXAA8OverflowOvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "RawDocComment", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "RawDocComment", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -12933,7 +12753,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)overflowX",
                 "mangledName": "$s5Mason0A5StyleC9overflowXAA8OverflowOvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -12958,7 +12777,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setOverflowX:",
                 "mangledName": "$s5Mason0A5StyleC9overflowXAA8OverflowOvs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -12998,8 +12816,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)overflowY",
             "mangledName": "$s5Mason0A5StyleC9overflowYAA8OverflowOvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -13017,7 +12834,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)overflowY",
                 "mangledName": "$s5Mason0A5StyleC9overflowYAA8OverflowOvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -13042,7 +12858,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setOverflowY:",
                 "mangledName": "$s5Mason0A5StyleC9overflowYAA8OverflowOvs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -13082,8 +12897,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)alignItems",
             "mangledName": "$s5Mason0A5StyleC10alignItemsAA05AlignD0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -13101,7 +12915,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)alignItems",
                 "mangledName": "$s5Mason0A5StyleC10alignItemsAA05AlignD0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -13126,7 +12939,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setAlignItems:",
                 "mangledName": "$s5Mason0A5StyleC10alignItemsAA05AlignD0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -13166,8 +12978,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)alignSelf",
             "mangledName": "$s5Mason0A5StyleC9alignSelfAA05AlignD0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -13185,7 +12996,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)alignSelf",
                 "mangledName": "$s5Mason0A5StyleC9alignSelfAA05AlignD0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -13210,7 +13020,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setAlignSelf:",
                 "mangledName": "$s5Mason0A5StyleC9alignSelfAA05AlignD0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -13250,8 +13059,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)alignContent",
             "mangledName": "$s5Mason0A5StyleC12alignContentAA05AlignD0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -13269,7 +13077,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)alignContent",
                 "mangledName": "$s5Mason0A5StyleC12alignContentAA05AlignD0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -13294,7 +13101,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setAlignContent:",
                 "mangledName": "$s5Mason0A5StyleC12alignContentAA05AlignD0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -13334,8 +13140,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)justifyItems",
             "mangledName": "$s5Mason0A5StyleC12justifyItemsAA07JustifyD0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -13353,7 +13158,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)justifyItems",
                 "mangledName": "$s5Mason0A5StyleC12justifyItemsAA07JustifyD0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -13378,7 +13182,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setJustifyItems:",
                 "mangledName": "$s5Mason0A5StyleC12justifyItemsAA07JustifyD0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -13418,8 +13221,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)justifySelf",
             "mangledName": "$s5Mason0A5StyleC11justifySelfAA07JustifyD0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -13437,7 +13239,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)justifySelf",
                 "mangledName": "$s5Mason0A5StyleC11justifySelfAA07JustifyD0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -13462,7 +13263,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setJustifySelf:",
                 "mangledName": "$s5Mason0A5StyleC11justifySelfAA07JustifyD0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -13502,8 +13302,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)justifyContent",
             "mangledName": "$s5Mason0A5StyleC14justifyContentAA07JustifyD0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -13521,7 +13320,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)justifyContent",
                 "mangledName": "$s5Mason0A5StyleC14justifyContentAA07JustifyD0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -13546,7 +13344,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setJustifyContent:",
                 "mangledName": "$s5Mason0A5StyleC14justifyContentAA07JustifyD0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -15238,8 +15035,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)flexGrow",
             "mangledName": "$s5Mason0A5StyleC8flexGrowSfvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -15257,7 +15053,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)flexGrow",
                 "mangledName": "$s5Mason0A5StyleC8flexGrowSfvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -15282,7 +15077,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setFlexGrow:",
                 "mangledName": "$s5Mason0A5StyleC8flexGrowSfvs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -15322,8 +15116,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)flexShrink",
             "mangledName": "$s5Mason0A5StyleC10flexShrinkSfvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -15341,7 +15134,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)flexShrink",
                 "mangledName": "$s5Mason0A5StyleC10flexShrinkSfvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -15366,7 +15158,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setFlexShrink:",
                 "mangledName": "$s5Mason0A5StyleC10flexShrinkSfvs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -15406,8 +15197,7 @@
             "usr": "s:5Mason0A5StyleC9flexBasisAA0A9DimensionOvp",
             "mangledName": "$s5Mason0A5StyleC9flexBasisAA0A9DimensionOvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -15425,7 +15215,6 @@
                 "usr": "s:5Mason0A5StyleC9flexBasisAA0A9DimensionOvg",
                 "mangledName": "$s5Mason0A5StyleC9flexBasisAA0A9DimensionOvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "accessorKind": "get"
               },
               {
@@ -15449,7 +15238,6 @@
                 "usr": "s:5Mason0A5StyleC9flexBasisAA0A9DimensionOvs",
                 "mangledName": "$s5Mason0A5StyleC9flexBasisAA0A9DimensionOvs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "accessorKind": "set"
               },
               {
@@ -15518,8 +15306,7 @@
             "usr": "s:5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvp",
             "mangledName": "$s5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -15537,7 +15324,6 @@
                 "usr": "s:5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvg",
                 "mangledName": "$s5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "accessorKind": "get"
               },
               {
@@ -15561,7 +15347,6 @@
                 "usr": "s:5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvs",
                 "mangledName": "$s5Mason0A5StyleC14scrollBarWidthAA0A9DimensionOvs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "accessorKind": "set"
               },
               {
@@ -15624,8 +15409,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)textAlign",
             "mangledName": "$s5Mason0A5StyleC9textAlignAA0a4TextD0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -15643,7 +15427,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)textAlign",
                 "mangledName": "$s5Mason0A5StyleC9textAlignAA0a4TextD0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -15668,7 +15451,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setTextAlign:",
                 "mangledName": "$s5Mason0A5StyleC9textAlignAA0a4TextD0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -15708,8 +15490,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)boxSizing",
             "mangledName": "$s5Mason0A5StyleC9boxSizingAA0a3BoxD0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -15727,7 +15508,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)boxSizing",
                 "mangledName": "$s5Mason0A5StyleC9boxSizingAA0a3BoxD0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -15752,7 +15532,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setBoxSizing:",
                 "mangledName": "$s5Mason0A5StyleC9boxSizingAA0a3BoxD0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -17136,8 +16915,7 @@
             "usr": "s:5Mason0A5StyleC11aspectRatioSfSgvp",
             "mangledName": "$s5Mason0A5StyleC11aspectRatioSfSgvp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -17163,7 +16941,6 @@
                 "usr": "s:5Mason0A5StyleC11aspectRatioSfSgvg",
                 "mangledName": "$s5Mason0A5StyleC11aspectRatioSfSgvg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "accessorKind": "get"
               },
               {
@@ -17195,7 +16972,6 @@
                 "usr": "s:5Mason0A5StyleC11aspectRatioSfSgvs",
                 "mangledName": "$s5Mason0A5StyleC11aspectRatioSfSgvs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "accessorKind": "set"
               },
               {
@@ -17450,8 +17226,7 @@
             "usr": "c:@M@Mason@objc(cs)MasonStyle(py)gridAutoFlow",
             "mangledName": "$s5Mason0A5StyleC12gridAutoFlowAA04GriddE0Ovp",
             "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
-            "hasStorage": true,
+            "declAttributes": ["AccessControl", "ObjC"],
             "accessors": [
               {
                 "kind": "Accessor",
@@ -17469,7 +17244,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)gridAutoFlow",
                 "mangledName": "$s5Mason0A5StyleC12gridAutoFlowAA04GriddE0Ovg",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "get"
               },
@@ -17494,7 +17268,6 @@
                 "usr": "c:@M@Mason@objc(cs)MasonStyle(im)setGridAutoFlow:",
                 "mangledName": "$s5Mason0A5StyleC12gridAutoFlowAA04GriddE0Ovs",
                 "moduleName": "Mason",
-                "implicit": true,
                 "declAttributes": ["ObjC"],
                 "accessorKind": "set"
               },
@@ -34569,21 +34342,21 @@
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCMason.swift",
       "kind": "Dictionary",
-      "offset": 272,
+      "offset": 274,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCMason.swift",
       "kind": "Dictionary",
-      "offset": 324,
+      "offset": 328,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCMason.swift",
       "kind": "BooleanLiteral",
-      "offset": 563,
+      "offset": 567,
       "length": 4,
       "value": "true"
     },
@@ -34982,21 +34755,21 @@
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonText.swift",
       "kind": "StringLiteral",
-      "offset": 15085,
+      "offset": 15815,
       "length": 8,
       "value": "\"normal\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonText.swift",
       "kind": "BooleanLiteral",
-      "offset": 27486,
+      "offset": 27542,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 29280,
+      "offset": 29336,
       "length": 2,
       "value": "-1"
     },
@@ -35780,1043 +35553,1022 @@
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 3772,
+      "offset": 3781,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 3777,
+      "offset": 3786,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 3831,
+      "offset": 3840,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 3836,
+      "offset": 3845,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 3890,
+      "offset": 3899,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 3895,
+      "offset": 3904,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 3949,
+      "offset": 3958,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 3954,
+      "offset": 3963,
       "length": 1,
       "value": "3"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4008,
+      "offset": 4017,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4013,
+      "offset": 4022,
       "length": 1,
       "value": "4"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4067,
+      "offset": 4076,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4072,
+      "offset": 4081,
       "length": 1,
       "value": "5"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4126,
+      "offset": 4135,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4131,
+      "offset": 4140,
       "length": 1,
       "value": "6"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4185,
+      "offset": 4194,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4190,
+      "offset": 4199,
       "length": 1,
       "value": "7"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4244,
+      "offset": 4253,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4249,
+      "offset": 4258,
       "length": 1,
       "value": "8"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4303,
+      "offset": 4312,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4308,
+      "offset": 4317,
       "length": 1,
       "value": "9"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4362,
+      "offset": 4371,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4367,
+      "offset": 4376,
       "length": 2,
       "value": "10"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4422,
+      "offset": 4431,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4427,
+      "offset": 4436,
       "length": 2,
       "value": "11"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4482,
+      "offset": 4491,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4487,
+      "offset": 4496,
       "length": 2,
       "value": "12"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4542,
+      "offset": 4551,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4547,
+      "offset": 4556,
       "length": 2,
       "value": "13"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4602,
+      "offset": 4611,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4607,
+      "offset": 4616,
       "length": 2,
       "value": "14"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4662,
+      "offset": 4671,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4667,
+      "offset": 4676,
       "length": 2,
       "value": "15"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4722,
+      "offset": 4731,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4727,
+      "offset": 4736,
       "length": 2,
       "value": "16"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4782,
+      "offset": 4791,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4787,
+      "offset": 4796,
       "length": 2,
       "value": "17"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4842,
+      "offset": 4851,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4847,
+      "offset": 4856,
       "length": 2,
       "value": "18"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4902,
+      "offset": 4911,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4907,
+      "offset": 4916,
       "length": 2,
       "value": "19"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4962,
+      "offset": 4971,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 4967,
+      "offset": 4976,
       "length": 2,
       "value": "20"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5022,
+      "offset": 5031,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5027,
+      "offset": 5036,
       "length": 2,
       "value": "21"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5082,
+      "offset": 5091,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5087,
+      "offset": 5096,
       "length": 2,
       "value": "22"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5142,
+      "offset": 5151,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5147,
+      "offset": 5156,
       "length": 2,
       "value": "23"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5202,
+      "offset": 5211,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5207,
+      "offset": 5216,
       "length": 2,
       "value": "24"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5262,
+      "offset": 5271,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5267,
+      "offset": 5276,
       "length": 2,
       "value": "25"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5322,
+      "offset": 5331,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5327,
+      "offset": 5336,
       "length": 2,
       "value": "26"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5382,
+      "offset": 5391,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5387,
+      "offset": 5396,
       "length": 2,
       "value": "27"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5442,
+      "offset": 5451,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5447,
+      "offset": 5456,
       "length": 2,
       "value": "28"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5502,
+      "offset": 5511,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5507,
+      "offset": 5516,
       "length": 2,
       "value": "29"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5562,
+      "offset": 5571,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5567,
+      "offset": 5576,
       "length": 2,
       "value": "30"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5622,
+      "offset": 5631,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5627,
+      "offset": 5636,
       "length": 2,
       "value": "31"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5682,
+      "offset": 5691,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5687,
+      "offset": 5696,
       "length": 2,
       "value": "32"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "IntegerLiteral",
-      "offset": 5795,
+      "offset": 5804,
       "length": 2,
       "value": "-1"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 5827,
+      "offset": 5836,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 5871,
+      "offset": 5880,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 6076,
+      "offset": 6449,
       "length": 33,
       "value": "\"Could not allocate style buffer\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
-      "kind": "IntegerLiteral",
-      "offset": 34115,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
-      "kind": "IntegerLiteral",
-      "offset": 34271,
-      "length": 1,
-      "value": "1"
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
-      "kind": "FloatLiteral",
-      "offset": 35213,
-      "length": 3,
-      "value": "0.0"
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 47914,
+      "offset": 37090,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 47878,
+      "offset": 37054,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 48072,
+      "offset": 37248,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 48036,
+      "offset": 37212,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 55987,
+      "offset": 42382,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 55951,
+      "offset": 42346,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "BooleanLiteral",
-      "offset": 56162,
+      "offset": 42557,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "Array",
-      "offset": 56126,
+      "offset": 42521,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62469,
+      "offset": 49024,
       "length": 11,
       "value": "\"undefined\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62574,
+      "offset": 49129,
       "length": 15,
       "value": "\"(MasonStyle)(\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62606,
+      "offset": 49161,
       "length": 32,
       "value": "\"display: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62635,
+      "offset": 49190,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62650,
+      "offset": 49205,
       "length": 34,
       "value": "\"position: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62681,
+      "offset": 49236,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62696,
+      "offset": 49251,
       "length": 44,
       "value": "\"flexDirection: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62737,
+      "offset": 49292,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62752,
+      "offset": 49307,
       "length": 109,
       "value": "\"overflow: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62812,
+      "offset": 49367,
       "length": 45,
       "value": "\"\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62834,
+      "offset": 49389,
       "length": 1,
       "value": "\" \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62856,
+      "offset": 49411,
       "length": 5,
       "value": "\"\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62858,
+      "offset": 49413,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62873,
+      "offset": 49428,
       "length": 34,
       "value": "\"flexWrap: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62904,
+      "offset": 49459,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62919,
+      "offset": 49474,
       "length": 38,
       "value": "\"alignItems: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62954,
+      "offset": 49509,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 62969,
+      "offset": 49524,
       "length": 36,
       "value": "\"alignSelf: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63002,
+      "offset": 49557,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63017,
+      "offset": 49572,
       "length": 42,
       "value": "\"alignContent: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63056,
+      "offset": 49611,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63071,
+      "offset": 49626,
       "length": 42,
       "value": "\"justifyItems: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63110,
+      "offset": 49665,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63125,
+      "offset": 49680,
       "length": 40,
       "value": "\"justifySelf: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63162,
+      "offset": 49717,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63177,
+      "offset": 49732,
       "length": 46,
       "value": "\"justifyContent: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63220,
+      "offset": 49775,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63235,
+      "offset": 49790,
       "length": 34,
       "value": "\"position: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63266,
+      "offset": 49821,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63281,
+      "offset": 49836,
       "length": 30,
       "value": "\"margin: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63308,
+      "offset": 49863,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63323,
+      "offset": 49878,
       "length": 32,
       "value": "\"padding: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63352,
+      "offset": 49907,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63367,
+      "offset": 49922,
       "length": 30,
       "value": "\"border: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63394,
+      "offset": 49949,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63409,
+      "offset": 49964,
       "length": 24,
       "value": "\"gap: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63430,
+      "offset": 49985,
       "length": 1,
       "value": "\", \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63445,
+      "offset": 50000,
       "length": 36,
       "value": "\"flexGrow: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63479,
+      "offset": 50034,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63493,
+      "offset": 50048,
       "length": 40,
       "value": "\"flexShrink: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63531,
+      "offset": 50086,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63545,
+      "offset": 50100,
       "length": 35,
       "value": "\"flexBasis: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63578,
+      "offset": 50133,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63592,
+      "offset": 50147,
       "length": 25,
       "value": "\"size: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63615,
+      "offset": 50170,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63629,
+      "offset": 50184,
       "length": 31,
       "value": "\"minSize: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63658,
+      "offset": 50213,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63672,
+      "offset": 50227,
       "length": 31,
       "value": "\"maxSize: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63701,
+      "offset": 50256,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63715,
+      "offset": 50270,
       "length": 30,
       "value": "\"aspectRatio: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63743,
+      "offset": 50298,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63757,
+      "offset": 50312,
       "length": 32,
       "value": "\"gridAutoRows: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63787,
+      "offset": 50342,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63801,
+      "offset": 50356,
       "length": 38,
       "value": "\"gridAutoColumns: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63837,
+      "offset": 50392,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63851,
+      "offset": 50406,
       "length": 73,
       "value": "\"gridColumn: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63892,
+      "offset": 50447,
       "length": 1,
       "value": "\" \\ \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63922,
+      "offset": 50477,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63936,
+      "offset": 50491,
       "length": 64,
       "value": "\"gridRow: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63971,
+      "offset": 50526,
       "length": 1,
       "value": "\" \\ \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 63998,
+      "offset": 50553,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 64012,
+      "offset": 50567,
       "length": 40,
       "value": "\"gridTemplateRows: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 64050,
+      "offset": 50605,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 64064,
+      "offset": 50619,
       "length": 46,
       "value": "\"gridTemplateColumns: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 64108,
+      "offset": 50663,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 64122,
+      "offset": 50677,
       "length": 36,
       "value": "\"scrollBarWidth: \""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 64156,
+      "offset": 50711,
       "length": 1,
       "value": "\",\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonStyle.swift",
       "kind": "StringLiteral",
-      "offset": 64170,
+      "offset": 50725,
       "length": 3,
       "value": "\")\""
     },
