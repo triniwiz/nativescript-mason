@@ -81,13 +81,13 @@ impl Drop for Node {
 #[derive(Debug)]
 pub struct NodeContextInner {
     #[cfg(not(target_os = "android"))]
-    data: *mut c_void,
+    data: *mut  std::os::raw::c_void,
     #[cfg(target_os = "android")]
     jvm: Option<jni::JavaVM>,
     #[cfg(target_os = "android")]
     measure: Option<jni::objects::GlobalRef>,
     #[cfg(not(target_os = "android"))]
-    measure: Option<extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong>,
+    measure: Option<extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) -> c_longlong>,
     style: StyleContext,
     guard: Rc<()>,
 }
@@ -95,9 +95,9 @@ pub struct NodeContextInner {
 impl NodeContextInner {
     #[cfg(not(target_os = "android"))]
     pub fn new(
-        data: *mut c_void,
+        data: *mut  std::os::raw::c_void,
         measure: Option<
-            extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong,
+            extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) -> c_longlong,
         >,
     ) -> NodeContextInner {
         Self {
@@ -237,8 +237,8 @@ impl StyleContext {
 
     #[cfg(target_vendor = "apple")]
     #[track_caller]
-    pub fn buffer_raw(&self) -> *mut c_void {
-        objc2::rc::Retained::into_raw(self.buffer.clone()) as *mut c_void
+    pub fn buffer_raw(&self) -> *mut  std::os::raw::c_void {
+        objc2::rc::Retained::into_raw(self.buffer.clone()) as *mut  std::os::raw::c_void
     }
 
     #[cfg(target_os = "android")]
@@ -267,9 +267,9 @@ impl StyleContext {
 impl NodeContext {
     #[cfg(not(target_os = "android"))]
     pub fn new(
-        data: *mut c_void,
+        data: *mut  std::os::raw::c_void,
         measure: Option<
-            extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong,
+            extern "C" fn(*const  std::os::raw::c_void,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float,  std::os::raw::c_float) -> c_longlong,
         >,
     ) -> Self {
         Self(Rc::new(RefCell::new(NodeContextInner::new(data, measure))))
