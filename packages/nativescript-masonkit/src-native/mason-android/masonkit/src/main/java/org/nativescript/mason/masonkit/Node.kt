@@ -185,11 +185,7 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
   }
 
   fun getChildAt(index: Int): Node? {
-    return try {
-      children[index]
-    } catch (e: Exception) {
-      null
-    }
+    return children.getOrNull(index)
   }
 
   fun addChild(child: Node): Node {
