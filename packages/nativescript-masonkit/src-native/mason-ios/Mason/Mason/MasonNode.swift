@@ -233,7 +233,7 @@ public class MasonNode: NSObject {
     mason_node_add_child_at(mason.nativePtr, nativePtr, child.nativePtr, UInt(index))
     
     child.owner = self
-    if(index == 0 && children.isEmpty){
+    if(index == -1 || index == children.count){
       children.append(child)
     }else {
       children.insert(child, at: index)

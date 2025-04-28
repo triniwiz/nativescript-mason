@@ -38,7 +38,10 @@ class TextActivity : AppCompatActivity() {
     val root = Mason.shared.createView(this)
     val a = Mason.shared.createTextView(this)
     a.updateText("A")
+    val b = Mason.shared.createTextView(this)
+    b.updateText("B")
     root.addView(a, 0)
+    root.addView(b, 1)
     setContentView(root)
   }
 
