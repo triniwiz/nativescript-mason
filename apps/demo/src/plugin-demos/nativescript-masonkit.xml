@@ -5,6 +5,7 @@
     </ActionBar>
   </Page.actionBar>
 
+<ui:View class="body">
 
   <!-- <ui:View loaded="loaded">
 
@@ -38,7 +39,7 @@
 
 
 
-  <!-- <ui:View class="wrapper-5">
+  <ui:View class="wrapper-5">
 
     <ui:View id="boxA" class="box a">
       <ui:Text text="A" />
@@ -55,7 +56,7 @@
     <ui:View id="boxD" class="box d">
       <ui:Text text="D" />
     </ui:View>
-  </ui:View> -->
+  </ui:View>
 
 
 
@@ -64,7 +65,7 @@
 
 
 
-  <ui:View class="wrapper-6">
+  <!-- <ui:View class="wrapper-6">
     <ui:View class="box a">
       <ui:Text text="This is box A."></ui:Text>
       <ui:Text text="align-self: stretch"></ui:Text>
@@ -90,7 +91,7 @@
       <ui:Text text="The align-self property is used to align the content inside the grid-area."></ui:Text>
     </ui:View> 
 
-  </ui:View> 
+  </ui:View>  -->
 
 
   <!-- <ui:View class="grid-example">
@@ -226,4 +227,6 @@
       </ScrollView>
 
       -->
+
+</ui:View>
 </Page>

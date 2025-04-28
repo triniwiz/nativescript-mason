@@ -211,8 +211,8 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
       throw IllegalStateException("Child already has a parent, it must be removed first.");
     }
 
-    if (index == -1) {
-      this.addChild(child);
+    if (index == -1 || index == 0 && children.isEmpty()) {
+      this.addChild(child)
       return
     }
 

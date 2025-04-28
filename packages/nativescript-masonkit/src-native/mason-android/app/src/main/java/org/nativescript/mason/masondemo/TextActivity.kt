@@ -33,7 +33,13 @@ class TextActivity : AppCompatActivity() {
 //    root.addView(a)
 //    root.addView(b)
 //    setContentView(root)
-    testWrap()
+    // testWrap()
+
+    val root = Mason.shared.createView(this)
+    val a = Mason.shared.createTextView(this)
+    a.updateText("A")
+    root.addView(a, 0)
+    setContentView(root)
   }
 
   fun testWrap() {

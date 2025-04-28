@@ -292,10 +292,18 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
    // showGridExample()
          // animationExample()
         
-      wrapper5()
+     // wrapper5()
     
-    
+            let root = mason.createView()
+            root.backgroundColor = .red
       
+            let a = mason.createTextView()
+            a.text = "Hello"
+      
+      root.addView(a, at: 0)
+            container.addView(root)
+    
+      root.node.computeWithMaxContent()
       
         
        // imageExample()
