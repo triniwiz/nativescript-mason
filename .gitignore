@@ -54,3 +54,6 @@ packages/**/native-src/mason-ios/**/build
 /Cargo.lock
 *.xcuserstate
 packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason.xcodeproj/xcuserdata/nstudio.xcuserdatad/xcschemes/xcschememanagement.plist
+
+.nx/cache
+.nx/workspace-data
