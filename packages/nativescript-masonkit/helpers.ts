@@ -1668,9 +1668,6 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
       }
     }
     instance.ios.gridTemplateColumns = array;
-    console.log('gridTemplateColumns', instance.ios.gridTemplateColumns);
-    console.log('gridTemplateColumns', instance.ios.gridTemplateColumns.count);
-    console.log(instance.ios.style);
   }
 }
 

@@ -609,7 +609,6 @@ export class Style {
     return parseLengthPercentageAuto(type, value);
   }
   set width(value: LengthAuto) {
-    console.log('set width', value);
     switch (typeof value) {
       case 'string':
         setInt32(this.style_view, StyleKeys.WIDTH_TYPE, 0);
