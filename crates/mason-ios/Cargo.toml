@@ -6,7 +6,7 @@ edition = "2021"
 
 [lib]
 name = "masonnative"
-crate-type = ["staticlib", "cdylib"]
+crate-type = ["staticlib"]
 
 [dependencies]
 mason-c = { path = "../mason-c" }

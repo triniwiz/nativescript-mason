@@ -83,7 +83,7 @@ module.exports = {
         description: 'Focus on @triniwiz/nativescript-masonkit',
       },
       reset: {
-        script: 'nx g @triniwiz/plugin-tools:focus-packages',
+        script: 'nx g @nativescript/plugin-tools:focus-packages',
         description: 'Reset Focus',
       },
     },
