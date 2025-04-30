@@ -160,7 +160,9 @@ class View @JvmOverloads constructor(
 
     for (i in 0 until childrenCount) {
       node.getChildAt(i)?.let {
-        applyLayoutRecursive(it, layout.children[i])
+        layout.children.getOrNull(i)?.let { children ->
+          applyLayoutRecursive(it, children)
+        }
       }
     }
   }
