@@ -1802,17 +1802,17 @@ public enum FontStyle: Int, RawRepresentable, CustomStringConvertible {
 
 @objc(TextWrap)
 public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
-    case NoWrap
     case Wrap
+    case NoWrap
     case Balance
     
     public typealias RawValue = Int32
     
     public var rawValue: RawValue {
         switch self {
-        case .NoWrap:
-            return 0
         case .Wrap:
+            return 0
+        case .NoWrap:
             return 1
         case .Balance:
             return 2
@@ -1823,9 +1823,9 @@ public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
     public init?(rawValue: RawValue) {
         switch rawValue {
         case 0:
-          self = .NoWrap
-        case 1:
           self = .Wrap
+        case 1:
+          self = .NoWrap
         case 2:
           self = .Balance
         default:
@@ -1841,6 +1841,120 @@ public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
             return "wrap"
         case .Balance:
             return "balance"
+        }
+    }
+  
+  public var description: String {
+    return cssValue
+  }
+}
+
+
+@objc(WhiteSpace)
+public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
+    case Normal
+    case Pre
+    case PreWrap
+    case PreLine
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Normal:
+            return 0
+        case .Pre:
+            return 1
+        case .PreWrap:
+            return 2
+        case .PreLine:
+            return 3
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+          self = .Normal
+        case 1:
+          self = .Pre
+        case 2:
+          self = .PreWrap
+        case 3:
+          self = .PreLine
+        default:
+            return nil
+        }
+    }
+      
+    var cssValue: String {
+        switch self {
+        case .Normal:
+            return "normal"
+        case .Pre:
+            return "pre"
+        case .PreWrap:
+            return "pre-wrap"
+        case .PreLine:
+          return "pre-line"
+        }
+    }
+  
+  public var description: String {
+    return cssValue
+  }
+}
+
+
+@objc(MasonLineHeight)
+public enum LineHeight: Int, RawRepresentable, CustomStringConvertible {
+    case Normal
+    case Pre
+    case PreWrap
+    case PreLine
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Normal:
+            return 0
+        case .Pre:
+            return 1
+        case .PreWrap:
+            return 2
+        case .PreLine:
+            return 3
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+          self = .Normal
+        case 1:
+          self = .Pre
+        case 2:
+          self = .PreWrap
+        case 3:
+          self = .PreLine
+        default:
+            return nil
+        }
+    }
+      
+    var cssValue: String {
+        switch self {
+        case .Normal:
+            return "normal"
+        case .Pre:
+            return "pre"
+        case .PreWrap:
+            return "pre-wrap"
+        case .PreLine:
+          return "pre-line"
         }
     }
   

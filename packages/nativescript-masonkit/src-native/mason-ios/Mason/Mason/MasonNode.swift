@@ -137,20 +137,24 @@ public class MasonNode: NSObject {
     return current
   }
   
+  internal var computeCache: CGSize?
   public func compute() {
     mason_node_compute(mason.nativePtr, nativePtr)
   }
   
   public func compute(_ width: Float, _ height: Float) {
     mason_node_compute_wh(mason.nativePtr, nativePtr, width, height)
+    computeCache = CGSize(width: CGFloat(width), height: CGFloat(height))
   }
   
   public func computeMaxContent() {
     mason_node_compute_max_content(mason.nativePtr, nativePtr)
+    computeCache = CGSize(width: CGFloat(-2), height: CGFloat(-2))
   }
   
   public func computeMinContent() {
     mason_node_compute_min_content(mason.nativePtr, nativePtr)
+    computeCache = CGSize(width: CGFloat(-1), height: CGFloat(-1))
   }
   
   public func computeWithSize(_ width: Float, _ height: Float){

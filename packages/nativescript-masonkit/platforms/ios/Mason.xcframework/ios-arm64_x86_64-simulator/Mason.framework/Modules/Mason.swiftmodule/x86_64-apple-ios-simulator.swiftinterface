@@ -52,6 +52,7 @@ public struct Line<T> {
   @objc public func clear()
   @objc public func createView() -> Mason.MasonUIView
   @objc public func createTextView() -> Mason.MasonText
+  @objc public func createTextView(type: Mason.MasonTextType) -> Mason.MasonText
   @objc public func createNode() -> Mason.MasonNode
   public func createNode(measure: @escaping Mason.MasonNode.MeasureFunc) -> Mason.MasonNode
   @objc public func printTree(_ node: Mason.MasonNode)
@@ -193,6 +194,29 @@ extension UIKit.UIColor {
   public static func colorFromRGBA(_ rgba: Swift.UInt32) -> UIKit.UIColor
   public func toUInt32() -> Swift.UInt32
 }
+@objc(MasonTextType) public enum MasonTextType : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+  case None
+  case P
+  case Span
+  case Code
+  case H1
+  case H2
+  case H3
+  case H4
+  case H5
+  case H6
+  case Li
+  case Blockquote
+  case B
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.MasonTextType.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.MasonTextType.RawValue)
+  public var description: Swift.String {
+    get
+  }
+}
 @_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonView {
   @objc @_Concurrency.MainActor @preconcurrency public var owner: Mason.MasonText? {
     get
@@ -201,6 +225,8 @@ extension UIKit.UIColor {
   @objc @_Concurrency.MainActor @preconcurrency public var textValues: Foundation.Data {
     get
   }
+  @objc @_Concurrency.MainActor @preconcurrency final public let type: Mason.MasonTextType
+  @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason, type textType: Mason.MasonTextType)
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason)
   @objc @_Concurrency.MainActor @preconcurrency public init(node masonNode: Mason.MasonNode)
   @objc @_Concurrency.MainActor @preconcurrency public var uiView: UIKit.UIView {
@@ -251,6 +277,10 @@ extension UIKit.UIColor {
     @objc set
   }
   @objc @_Concurrency.MainActor @preconcurrency public var decorationLine: Mason.DecorationLine {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var whiteSpace: Mason.WhiteSpace {
     @objc get
     @objc set
   }
@@ -1068,14 +1098,42 @@ public enum GridPlacement : Swift.Codable {
   }
 }
 @objc(TextWrap) public enum TextWrap : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
-  case NoWrap
   case Wrap
+  case NoWrap
   case Balance
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.TextWrap.RawValue {
     get
   }
   public init?(rawValue: Mason.TextWrap.RawValue)
+  public var description: Swift.String {
+    get
+  }
+}
+@objc(WhiteSpace) public enum WhiteSpace : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+  case Normal
+  case Pre
+  case PreWrap
+  case PreLine
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.WhiteSpace.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.WhiteSpace.RawValue)
+  public var description: Swift.String {
+    get
+  }
+}
+@objc(MasonLineHeight) public enum LineHeight : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+  case Normal
+  case Pre
+  case PreWrap
+  case PreLine
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.LineHeight.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.LineHeight.RawValue)
   public var description: Swift.String {
     get
   }
@@ -1337,6 +1395,8 @@ public protocol MasonView {
   @objc @_Concurrency.MainActor @preconcurrency public func getColumnGap() -> Mason.MasonLengthPercentageCompat
   @objc deinit
 }
+extension Mason.MasonTextType : Swift.Equatable {}
+extension Mason.MasonTextType : Swift.Hashable {}
 extension Mason.MasonDimensionCompatType : Swift.Equatable {}
 extension Mason.MasonDimensionCompatType : Swift.Hashable {}
 extension Mason.MasonLengthPercentageAutoCompatType : Swift.Equatable {}
@@ -1383,3 +1443,7 @@ extension Mason.FontStyle : Swift.Equatable {}
 extension Mason.FontStyle : Swift.Hashable {}
 extension Mason.TextWrap : Swift.Equatable {}
 extension Mason.TextWrap : Swift.Hashable {}
+extension Mason.WhiteSpace : Swift.Equatable {}
+extension Mason.WhiteSpace : Swift.Hashable {}
+extension Mason.LineHeight : Swift.Equatable {}
+extension Mason.LineHeight : Swift.Hashable {}

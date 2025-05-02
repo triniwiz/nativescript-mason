@@ -45,6 +45,7 @@ object TextStyleKeys {
   const val FONT_STYLE_TYPE = 32
   const val FONT_STYLE_SLANT = 36
   const val TEXT_WRAP = 40
+  const val WHITE_SPACE = 40
 }
 
 const val UNSET_COLOR = 0xDEADBEEF
@@ -64,6 +65,7 @@ value class TextStateKeys internal constructor(val bits: Long) {
     val FONT_STYLE = TextStateKeys(1L shl 8)
     val FONT_STYLE_SLANT = TextStateKeys(1L shl 9)
     val TEXT_WRAP = TextStateKeys(1L shl 10)
+    val WHITE_SPACE = TextStateKeys(1L shl 11)
   }
 
   infix fun or(other: TextStateKeys): TextStateKeys = TextStateKeys(bits or other.bits)
@@ -128,13 +130,13 @@ class TextView @JvmOverloads constructor(
   }
 
   val textValues: ByteBuffer by lazy {
-    ByteBuffer.allocateDirect(44).apply {
+    ByteBuffer.allocateDirect(48).apply {
       order(ByteOrder.nativeOrder())
       putInt(TextStyleKeys.COLOR, Color.BLACK)
       putInt(TextStyleKeys.DECORATION_COLOR, UNSET_COLOR.toInt())
       putInt(TextStyleKeys.TEXT_ALIGN, Start.value)
       putInt(TextStyleKeys.TEXT_JUSTIFY, TextJustify.None.value)
-      putInt(TextStyleKeys.SIZE, 15)
+      putInt(TextStyleKeys.SIZE, (15 * resources.displayMetrics.density).toInt())
     }
   }
 
@@ -165,11 +167,16 @@ class TextView @JvmOverloads constructor(
         updateDecorationLine(decorationLine, decorationColor)
       }
 
-      if (value.hasFlag(TextStateKeys.TRANSFORM)) {
-        applyTransform(textTransform, true)
+      var dirty = false
+      if (value.hasFlag(TextStateKeys.TRANSFORM) || value.hasFlag(TextStateKeys.TEXT_WRAP) || value.hasFlag(
+          TextStateKeys.WHITE_SPACE
+        )
+      ) {
+        applyTransform(textTransform, true, whiteSpace, textWrap)
+        dirty = true
       }
 
-      if (value.hasFlag(TextStateKeys.TEXT_WRAP)) {
+      if (dirty) {
         node.dirty()
         invalidate()
       }
@@ -254,7 +261,23 @@ class TextView @JvmOverloads constructor(
       return Styles.TextWrap.fromInt(textValues.getInt(TextStyleKeys.TEXT_WRAP))
     }
     set(value) {
+      val changed = value != textWrap
       textValues.putInt(TextStyleKeys.TEXT_WRAP, value.value)
+      applyTransform(textTransform, changed, whiteSpace, value)
+      node.dirty()
+      if (!node.inBatch) {
+        rootNode.computeMaxContent()
+      }
+    }
+
+  var whiteSpace: Styles.WhiteSpace
+    get() {
+      return Styles.WhiteSpace.fromInt(textValues.getInt(TextStyleKeys.WHITE_SPACE))
+    }
+    set(value) {
+      val changed = value != whiteSpace
+      textValues.putInt(TextStyleKeys.WHITE_SPACE, value.value)
+      applyTransform(textTransform, changed, value, textWrap)
       node.dirty()
       if (!node.inBatch) {
         rootNode.computeMaxContent()
@@ -356,35 +379,67 @@ class TextView @JvmOverloads constructor(
     return builder.toString()
   }
 
-  private fun applyTransform(value: Styles.TextTransform, changed: Boolean) {
-    if (spannable.isEmpty()) {
+  private fun balancedText(input: String): String {
+    // todo
+    return input
+  }
+
+
+  private fun applyTransform(
+    value: Styles.TextTransform,
+    changed: Boolean,
+    whiteSpace: Styles.WhiteSpace,
+    textWrap: Styles.TextWrap
+  ) {
+    if (!changed || spannable.isEmpty()) {
       return
     }
+
+
+    var transformedText = spannableText ?: return
+
+    transformedText = when (whiteSpace) {
+      Styles.WhiteSpace.Normal -> transformedText.replace(Regex("\\s+"), " ")
+      Styles.WhiteSpace.Pre -> transformedText
+      Styles.WhiteSpace.PreWrap -> transformedText
+      Styles.WhiteSpace.PreLine -> transformedText.replace(Regex("[ \t]+"), " ")
+    }
+
+    transformedText = when (textWrap) {
+      Styles.TextWrap.NoWrap -> transformedText.replace("\n", " ")
+      Styles.TextWrap.Wrap -> transformedText
+      Styles.TextWrap.Balance -> {
+        balancedText(transformedText)
+      }
+    }
+
     when (value) {
       Styles.TextTransform.None -> {
-        spannable.replace(0, spannable.length, spannableText)
+        spannable.replace(0, spannable.length, transformedText)
       }
 
       Styles.TextTransform.Capitalize -> {
-        spannable.replace(0, spannable.length, spannableText?.capitalize(Locale.ROOT))
+        spannable.replace(
+          0, spannable.length,
+          transformedText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() })
       }
 
       Styles.TextTransform.Uppercase -> {
-        spannable.replace(0, spannable.length, spannableText?.uppercase())
+        spannable.replace(0, spannable.length, transformedText.uppercase())
       }
 
       Styles.TextTransform.Lowercase -> {
-        spannable.replace(0, spannable.length, spannableText?.lowercase())
+        spannable.replace(0, spannable.length, transformedText.lowercase())
       }
 
       Styles.TextTransform.FullWidth -> {
-        spannable.replace(0, spannable.length, spannableText?.let {
+        spannable.replace(0, spannable.length, transformedText.let {
           fullWidthTransformed(it)
         })
       }
 
       Styles.TextTransform.FullSizeKana -> {
-        spannable.replace(0, spannable.length, spannableText?.let {
+        spannable.replace(0, spannable.length, transformedText.let {
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             fullWidthKana(it)
           } else {
@@ -394,8 +449,7 @@ class TextView @JvmOverloads constructor(
       }
 
       Styles.TextTransform.MathAuto -> {
-        // TODO
-        spannable.replace(0, spannable.length, spannableText)
+        spannable.replace(0, spannable.length, transformedText)
       }
     }
   }
@@ -407,7 +461,12 @@ class TextView @JvmOverloads constructor(
     set(value) {
       val changed = value != textTransform
       textValues.putInt(TextStyleKeys.TRANSFORM, value.value)
-      applyTransform(value, changed)
+      applyTransform(value, changed, whiteSpace, textWrap)
+
+      node.dirty()
+      if (!node.inBatch) {
+        rootNode.computeMaxContent()
+      }
     }
 
   private fun updateColor(color: Int, replace: Boolean = false) {

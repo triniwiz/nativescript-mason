@@ -467,6 +467,13 @@ SWIFT_CLASS_NAMED("LineGridPlacementCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonLineHeight, "LineHeight", open) {
+  MasonLineHeightNormal = 0,
+  MasonLineHeightPre = 1,
+  MasonLineHeightPreWrap = 2,
+  MasonLineHeightPreLine = 3,
+};
+
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonBoxSizing, "MasonBoxSizing", open) {
   MasonBoxSizingBorderBox = 0,
   MasonBoxSizingContentBox = 1,
@@ -743,11 +750,13 @@ SWIFT_CLASS_NAMED("MasonStyle")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+enum MasonTextType : NSInteger;
 @class NSCoder;
 @class NSMutableAttributedString;
 @class UIFont;
 enum TextTransform : NSInteger;
 @class UIColor;
+enum WhiteSpace : NSInteger;
 enum TextWrap : NSInteger;
 
 SWIFT_CLASS_NAMED("MasonText")
@@ -755,6 +764,8 @@ SWIFT_CLASS_NAMED("MasonText")
 @property (nonatomic, readonly, strong) MasonText * _Nullable owner;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, copy) NSData * _Nonnull textValues;
+@property (nonatomic, readonly) enum MasonTextType type;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)masonNode OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
@@ -779,6 +790,7 @@ SWIFT_CLASS_NAMED("MasonText")
 - (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
 @property (nonatomic) uint32_t decorationColor;
 @property (nonatomic) enum DecorationLine decorationLine;
+@property (nonatomic) enum WhiteSpace whiteSpace;
 @property (nonatomic) enum TextWrap textWrap;
 - (void)drawRect:(CGRect)rect;
 - (void)addView:(UIView * _Nonnull)view :(NSInteger)index;
@@ -796,6 +808,22 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextAlign, "MasonTextAlign", open) {
   MasonTextAlignJustify = 4,
   MasonTextAlignStart = 5,
   MasonTextAlignEnd = 6,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
+  MasonTextTypeNone = 0,
+  MasonTextTypeP = 1,
+  MasonTextTypeSpan = 2,
+  MasonTextTypeCode = 3,
+  MasonTextTypeH1 = 4,
+  MasonTextTypeH2 = 5,
+  MasonTextTypeH3 = 6,
+  MasonTextTypeH4 = 7,
+  MasonTextTypeH5 = 8,
+  MasonTextTypeH6 = 9,
+  MasonTextTypeLi = 10,
+  MasonTextTypeBlockquote = 11,
+  MasonTextTypeB = 12,
 };
 
 
@@ -994,6 +1022,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (void)clear;
 - (MasonUIView * _Nonnull)createView SWIFT_WARN_UNUSED_RESULT;
 - (MasonText * _Nonnull)createTextView SWIFT_WARN_UNUSED_RESULT;
+- (MasonText * _Nonnull)createTextViewWithType:(enum MasonTextType)type SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createNode SWIFT_WARN_UNUSED_RESULT;
 - (void)printTree:(MasonNode * _Nonnull)node;
 - (MasonNode * _Nonnull)createTextNode SWIFT_WARN_UNUSED_RESULT;
@@ -1022,8 +1051,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, TextTransform, "TextTransform", open) {
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, TextWrap, "TextWrap", open) {
-  TextWrapNoWrap = 0,
-  TextWrapWrap = 1,
+  TextWrapWrap = 0,
+  TextWrapNoWrap = 1,
   TextWrapBalance = 2,
 };
 
@@ -1038,6 +1067,13 @@ SWIFT_CLASS_NAMED("TrackSizingFunction")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+
+typedef SWIFT_ENUM_NAMED(NSInteger, WhiteSpace, "WhiteSpace", open) {
+  WhiteSpaceNormal = 0,
+  WhiteSpacePre = 1,
+  WhiteSpacePreWrap = 2,
+  WhiteSpacePreLine = 3,
+};
 
 #endif
 #if __has_attribute(external_source_symbol)
@@ -1516,6 +1552,13 @@ SWIFT_CLASS_NAMED("LineGridPlacementCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonLineHeight, "LineHeight", open) {
+  MasonLineHeightNormal = 0,
+  MasonLineHeightPre = 1,
+  MasonLineHeightPreWrap = 2,
+  MasonLineHeightPreLine = 3,
+};
+
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonBoxSizing, "MasonBoxSizing", open) {
   MasonBoxSizingBorderBox = 0,
   MasonBoxSizingContentBox = 1,
@@ -1792,11 +1835,13 @@ SWIFT_CLASS_NAMED("MasonStyle")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+enum MasonTextType : NSInteger;
 @class NSCoder;
 @class NSMutableAttributedString;
 @class UIFont;
 enum TextTransform : NSInteger;
 @class UIColor;
+enum WhiteSpace : NSInteger;
 enum TextWrap : NSInteger;
 
 SWIFT_CLASS_NAMED("MasonText")
@@ -1804,6 +1849,8 @@ SWIFT_CLASS_NAMED("MasonText")
 @property (nonatomic, readonly, strong) MasonText * _Nullable owner;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, copy) NSData * _Nonnull textValues;
+@property (nonatomic, readonly) enum MasonTextType type;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)masonNode OBJC_DESIGNATED_INITIALIZER;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
@@ -1828,6 +1875,7 @@ SWIFT_CLASS_NAMED("MasonText")
 - (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
 @property (nonatomic) uint32_t decorationColor;
 @property (nonatomic) enum DecorationLine decorationLine;
+@property (nonatomic) enum WhiteSpace whiteSpace;
 @property (nonatomic) enum TextWrap textWrap;
 - (void)drawRect:(CGRect)rect;
 - (void)addView:(UIView * _Nonnull)view :(NSInteger)index;
@@ -1845,6 +1893,22 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextAlign, "MasonTextAlign", open) {
   MasonTextAlignJustify = 4,
   MasonTextAlignStart = 5,
   MasonTextAlignEnd = 6,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
+  MasonTextTypeNone = 0,
+  MasonTextTypeP = 1,
+  MasonTextTypeSpan = 2,
+  MasonTextTypeCode = 3,
+  MasonTextTypeH1 = 4,
+  MasonTextTypeH2 = 5,
+  MasonTextTypeH3 = 6,
+  MasonTextTypeH4 = 7,
+  MasonTextTypeH5 = 8,
+  MasonTextTypeH6 = 9,
+  MasonTextTypeLi = 10,
+  MasonTextTypeBlockquote = 11,
+  MasonTextTypeB = 12,
 };
 
 
@@ -2043,6 +2107,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (void)clear;
 - (MasonUIView * _Nonnull)createView SWIFT_WARN_UNUSED_RESULT;
 - (MasonText * _Nonnull)createTextView SWIFT_WARN_UNUSED_RESULT;
+- (MasonText * _Nonnull)createTextViewWithType:(enum MasonTextType)type SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createNode SWIFT_WARN_UNUSED_RESULT;
 - (void)printTree:(MasonNode * _Nonnull)node;
 - (MasonNode * _Nonnull)createTextNode SWIFT_WARN_UNUSED_RESULT;
@@ -2071,8 +2136,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, TextTransform, "TextTransform", open) {
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, TextWrap, "TextWrap", open) {
-  TextWrapNoWrap = 0,
-  TextWrapWrap = 1,
+  TextWrapWrap = 0,
+  TextWrapNoWrap = 1,
   TextWrapBalance = 2,
 };
 
@@ -2087,6 +2152,13 @@ SWIFT_CLASS_NAMED("TrackSizingFunction")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+
+typedef SWIFT_ENUM_NAMED(NSInteger, WhiteSpace, "WhiteSpace", open) {
+  WhiteSpaceNormal = 0,
+  WhiteSpacePre = 1,
+  WhiteSpacePreWrap = 2,
+  WhiteSpacePreLine = 3,
+};
 
 #endif
 #if __has_attribute(external_source_symbol)

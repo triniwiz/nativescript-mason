@@ -294,16 +294,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
      // wrapper5()
     
-            let root = mason.createView()
-            root.backgroundColor = .red
-      
-            let a = mason.createTextView()
-            a.text = "Hello"
-      
-      root.addView(a, at: 0)
-            container.addView(root)
-    
-      root.node.computeWithMaxContent()
       
         
        // imageExample()
@@ -311,16 +301,17 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       
    //  testLateUpdate()
       
+      headers()
+      
 //      let root = mason.createView()
 //      root.backgroundColor = .red
 //      
 //      container.addView(root)
 //      
-//      let a = mason.createTextView()
+//      let a = mason.createTextView(type: .H1)
 //      let b = mason.createTextView()
 //      print(a.style.valuesCompat)
-//      
-//      a.addView(b)
+//
 //      root.addView(a)
 //      
 //      
@@ -345,6 +336,58 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //      
 //      root.node.computeWithMaxContent()
     }
+  
+  func headers(){
+    
+    let root = mason.createView()
+    
+    container.addView(root)
+    
+    let h1 = mason.createTextView(type: .H1)
+    h1.text = "This is heading 1"
+    
+    let h2 = mason.createTextView(type: .H2)
+    h2.text = "This is heading 2"
+    
+    let h3 = mason.createTextView(type: .H3)
+    h3.text = "This is heading 3"
+    
+    let h4 = mason.createTextView(type: .H4)
+    h4.text = "This is heading 4"
+    
+    let h5 = mason.createTextView(type: .H5)
+    h5.text = "This is heading 5"
+    
+    let h6 = mason.createTextView(type: .H6)
+    h6.text = "This is heading 6"
+    
+    let p = mason.createTextView(type: .P)
+    
+    let b = mason.createTextView(type: .B)
+    b.text = "Tip:"
+
+    p.addView(b)
+    
+    p.text = " Use h1 to h6 elements only for headings. Do not use them just to make text bold or big. Use other tags for that."
+    
+    root.addView(h1)
+    root.addView(h2)
+    root.addView(h3)
+    root.addView(h4)
+    root.addView(h5)
+    root.addView(h6)
+    root.addView(p)
+    
+    
+    
+    let blockQ = mason.createTextView(type: .Blockquote)
+    blockQ.text = "For 50 years, WWF has been protecting the future of nature. The world's leading conservation organization, WWF works in 100 countries and is supported by 1.2 million members in the United States and close to 5 million globally."
+    
+    root.addView(blockQ)
+    
+    root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+
+  }
   
   func testLateUpdate(){
     let root = mason.createView()

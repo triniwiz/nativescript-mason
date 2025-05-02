@@ -510,6 +510,17 @@ declare class MasonLengthPercentageSizeCompat extends NSObject {
 	width: MasonLengthPercentageCompat;
 }
 
+declare const enum MasonLineHeight {
+
+	Normal = 0,
+
+	Pre = 1,
+
+	PreWrap = 2,
+
+	PreLine = 3
+}
+
 declare class MasonNode extends NSObject {
 
 	static alloc(): MasonNode; // inherited from NSObject
@@ -647,7 +658,9 @@ declare class MasonStyle extends NSObject {
 
 	textAlign: MasonTextAlign;
 
-	values: NSMutableData;
+	values: NSData;
+
+	valuesCompat: NSMutableData;
 
 	constructor(o: { node: MasonNode; });
 
@@ -787,13 +800,21 @@ declare class MasonText extends UIView {
 
 	textTransform: TextTransform;
 
-	textValues: NSMutableData;
+	readonly textValues: NSData;
 
 	textWrap: TextWrap;
 
+	txtToRender: NSMutableAttributedString;
+
+	readonly type: MasonTextType;
+
 	readonly uiView: UIView;
 
+	whiteSpace: WhiteSpace;
+
 	constructor(o: { mason: NSCMason; });
+
+	constructor(o: { mason: NSCMason; type: MasonTextType; });
 
 	constructor(o: { node: MasonNode; });
 
@@ -803,6 +824,8 @@ declare class MasonText extends UIView {
 
 	initWithMason(mason: NSCMason): this;
 
+	initWithMasonType(mason: NSCMason, textType: MasonTextType): this;
+
 	initWithNode(masonNode: MasonNode): this;
 
 	invalidateStyle(state: number): void;
@@ -810,6 +833,8 @@ declare class MasonText extends UIView {
 	isNodeDirty(): boolean;
 
 	markNodeDirty(): void;
+
+	removeView(view: UIView): void;
 
 	setBackgroundColorWithUi(color: UIColor): void;
 
@@ -839,6 +864,35 @@ declare const enum MasonTextAlign {
 	Start = 5,
 
 	End = 6
+}
+
+declare const enum MasonTextType {
+
+	None = 0,
+
+	P = 1,
+
+	Span = 2,
+
+	Code = 3,
+
+	H1 = 4,
+
+	H2 = 5,
+
+	H3 = 6,
+
+	H4 = 7,
+
+	H5 = 8,
+
+	H6 = 9,
+
+	Li = 10,
+
+	Blockquote = 11,
+
+	B = 12
 }
 
 declare class MasonUIView extends UIView {
@@ -1215,6 +1269,8 @@ declare class NSCMason extends NSObject {
 
 	createTextView(): MasonText;
 
+	createTextViewWithType(type: MasonTextType): MasonText;
+
 	createView(): MasonUIView;
 
 	nodeForView(view: UIView, isLeaf: boolean): MasonNode;
@@ -1272,9 +1328,9 @@ declare const enum TextTransform {
 
 declare const enum TextWrap {
 
-	NoWrap = 0,
+	Wrap = 0,
 
-	Wrap = 1,
+	NoWrap = 1,
 
 	Balance = 2
 }
@@ -1292,6 +1348,17 @@ declare class TrackSizingFunction extends NSObject {
 	readonly isRepeating: boolean;
 
 	readonly value: any;
+}
+
+declare const enum WhiteSpace {
+
+	Normal = 0,
+
+	Pre = 1,
+
+	PreWrap = 2,
+
+	PreLine = 3
 }
 
 declare function mason_clear(mason: interop.Pointer | interop.Reference<any>): void;
@@ -1365,6 +1432,8 @@ declare function mason_style_get_grid_auto_columns(mason: interop.Pointer | inte
 declare function mason_style_get_grid_auto_rows(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>;
 
 declare function mason_style_get_style_buffer(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonBuffer>;
+
+declare function mason_style_get_style_buffer_apple(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
 
 declare function mason_style_release_style_buffer(buffer: interop.Pointer | interop.Reference<CMasonBuffer>): void;
 

@@ -290,6 +290,18 @@ public class MasonStyle: NSObject {
     valuesCompat.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
   }
   
+  private func updateIntField(offset: Int, value: Int32, state: StateKeys){
+    setInt32(offset, value)
+    setOrAppendState(state)
+  }
+  
+  private func updateFloatField(offset: Int, value: Float, state: StateKeys){
+    setFloat(offset, value)
+    setOrAppendState(state)
+  }
+  
+  
+  
   public var display: Display {
     get {
       return Display(rawValue: getInt32(Int(StyleKeys.DISPLAY)))!
@@ -336,17 +348,6 @@ public class MasonStyle: NSObject {
       setOrAppendState(StateKeys.flexDirection)
     }
   }
-  
-  private func updateIntField(offset: Int, value: Int32, state: StateKeys){
-    setInt32(offset, value)
-    setOrAppendState(state)
-  }
-  
-  private func updateFloatField(offset: Int, value: Float, state: StateKeys){
-    setFloat(offset, value)
-    setOrAppendState(state)
-  }
-  
   
   
   public var flexWrap: FlexWrap{

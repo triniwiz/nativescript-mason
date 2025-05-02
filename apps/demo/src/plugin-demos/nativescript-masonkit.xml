@@ -23,13 +23,22 @@
   </ui:View> -->
 
 
+    <ui:View>
+    <ui:Text text="topLeft" style.position="absolute"/>
+    <ui:Text text="topRight" style.position="absolute" style.right="0"/>
+    <ui:Text text="bottomLeft" style.position="absolute" style.bottom="0"/>
+    <ui:Text text="bottomRight" style.position="absolute" style.right="0" style.bottom="0"/>
+  </ui:View>
+
+
+
 
   <!-- <ui:View class="flex-example" color="white" loaded="loaded">
     <ui:Text text="a" class="a">
         <ui:Text text="aa" class="a"/>
         <ui:Text text="ab" class="a"/>
-        <ui:Text text="b" class="b"/>
     </ui:Text>
+    <ui:Text text="b" class="b"/>
   </ui:View> -->
 
 
@@ -39,7 +48,7 @@
 
 
 
-  <ui:View class="wrapper-5">
+  <!-- <ui:View class="wrapper-5">
 
     <ui:View id="boxA" class="box a">
       <ui:Text text="A" />
@@ -56,7 +65,7 @@
     <ui:View id="boxD" class="box d">
       <ui:Text text="D" />
     </ui:View>
-  </ui:View>
+  </ui:View> -->
 
 
 

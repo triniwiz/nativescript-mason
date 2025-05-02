@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent } from '.';
-import { _forceStyleUpdate, _parseGridTemplates, _setAlignContent, _setColumnGap, _setDisplay, _setFlexDirection, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setMarginBottom, _setMarginLeft, _setMarginRight, _setMarginTop, _setMinHeight, _setMinWidth, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setRowGap, _setWidth, GridTemplates } from './helpers';
+import { _forceStyleUpdate, _getJustifyItems, _parseGridTemplates, _setAlignContent, _setAlignItems, _setAlignSelf, _setBottom, _setColumnGap, _setDisplay, _setFlexBasis, _setFlexDirection, _setFlexGrow, _setFlexShrink, _setFlexWrap, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setJustifyItems, _setJustifySelf, _setLeft, _setMarginBottom, _setMarginLeft, _setMarginRight, _setMarginTop, _setMinHeight, _setMinWidth, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setPosition, _setRight, _setRowGap, _setTop, _setWidth, GridTemplates } from './helpers';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 
 export const native_ = Symbol('[[native]]');
@@ -261,6 +261,7 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: CoreLength.parse,
 });
 
 export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
@@ -269,6 +270,7 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: CoreLength.parse,
 });
 
 export const positionProperty = new CssProperty<Style, Position>({
@@ -294,6 +296,7 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: CoreLength.parse,
 });
 
 export const rightProperty = new CssProperty<Style, LengthAuto>({
@@ -302,6 +305,7 @@ export const rightProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: CoreLength.parse,
 });
 
 export const topProperty = new CssProperty<Style, LengthAuto>({
@@ -310,6 +314,7 @@ export const topProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: CoreLength.parse,
 });
 
 export const bottomProperty = new CssProperty<Style, LengthAuto>({
@@ -318,12 +323,15 @@ export const bottomProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: CoreLength.parse,
 });
 
 export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   name: 'flexBasis',
   cssName: 'flex-basis',
   defaultValue: 'auto',
+  equalityComparer: NSLength.equals,
+  valueConverter: CoreLength.parse,
 });
 
 export const gridRowGapProperty = new ShorthandProperty<Style, Gap>({
@@ -744,7 +752,6 @@ export const textProperty = new Property<TextBase, string>({
   defaultValue: '',
 });
 
-@CSSType('View')
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: UIView;
@@ -755,6 +762,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   gridRow: string;
   display: Display;
   position: Position;
+
+  inset: string | CoreTypes.LengthType;
+  left: CoreTypes.LengthType;
+  right: CoreTypes.LengthType;
+  top: CoreTypes.LengthType;
+  bottom: CoreTypes.LengthType;
 
   padding: string | CoreTypes.LengthType;
   paddingLeft: CoreTypes.LengthType;
@@ -871,8 +884,68 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     _setDisplay(value, this as any);
   }
 
+  [positionProperty.setNative](value) {
+    _setPosition(value, this as any);
+  }
+
+  [flexWrapProperty.setNative](value) {
+    _setFlexWrap(value, this as any);
+  }
+
   [flexDirectionProperty.setNative](value) {
     _setFlexDirection(value, this as any);
+  }
+
+  [flexGrowProperty.setNative](value) {
+    _setFlexGrow(value, this as any);
+  }
+
+  [flexShrinkProperty.setNative](value) {
+    _setFlexShrink(value, this as any);
+  }
+
+  [flexBasisProperty.setNative](value) {
+    _setFlexBasis(value, this as any);
+  }
+
+  [alignItemsProperty.setNative](value) {
+    _setAlignItems(value, this as any);
+  }
+
+  [alignSelfProperty.setNative](value) {
+    _setAlignSelf(value, this as any);
+  }
+
+  [alignContentProperty.setNative](value) {
+    _setAlignContent(value, this as any);
+  }
+
+  [justifyItemsProperty.setNative](value) {
+    _setJustifyItems(value, this as any);
+  }
+
+  [justifySelfProperty.setNative](value) {
+    _setJustifySelf(value, this as any);
+  }
+
+  [justifyContentProperty.setNative](value) {
+    _setJustifyContent(value, this as any);
+  }
+
+  [leftProperty.setNative](value) {
+    _setLeft(value, this as any);
+  }
+
+  [rightProperty.setNative](value) {
+    _setRight(value, this as any);
+  }
+
+  [bottomProperty.setNative](value) {
+    _setBottom(value, this as any);
+  }
+
+  [topProperty.setNative](value) {
+    _setTop(value, this as any);
   }
 
   [minWidthProperty.setNative](value) {
@@ -889,13 +962,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   [heightProperty.setNative](value) {
     _setHeight(value, this as any);
-  }
-
-  [alignContentProperty.setNative](value) {
-    _setAlignContent(value, this as any);
-  }
-  [justifyContentProperty.setNative](value) {
-    _setJustifyContent(value, this as any);
   }
 
   [marginLeftProperty.setNative](value) {
@@ -953,7 +1019,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 }
 
-@CSSType('Text')
 export class TextBase extends ViewBase {
   text: string;
   textWrap: 'nowrap' | 'wrap' | 'balance';

@@ -163,6 +163,7 @@ struct TextStyleKeys {
   static let FONT_STYLE_TYPE = 32
   static let FONT_STYLE_SLANT = 36
   static let TEXT_WRAP = 40
+  static let WHITE_SPACE = 44
 }
 
 struct TextStateKeys: OptionSet {
@@ -183,10 +184,131 @@ struct TextStateKeys: OptionSet {
   static let fontStyle       = TextStateKeys(rawValue: 1 << 8)
   static let fontStyleSlant    = TextStateKeys(rawValue: 1 << 9)
   static let textWrap    = TextStateKeys(rawValue: 1 << 10)
+  static let whiteSpace    = TextStateKeys(rawValue: 1 << 11)
 }
 
 let VIEW_PLACEHOLDER = "[[__view__]]"
 let UNSET_COLOR = UInt32(0xDEADBEEF)
+
+
+@objc(MasonTextType)
+public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
+  case None
+  case P
+  case Span
+  case Code
+  case H1
+  case H2
+  case H3
+  case H4
+  case H5
+  case H6
+  case Li
+  case Blockquote
+  case B
+  
+  public typealias RawValue = Int32
+  
+  public var rawValue: RawValue {
+    switch self {
+    case .None:
+      return 0
+    case .P:
+      return 1
+    case .Span:
+      return 2
+    case .Code:
+      return 3
+    case .H1:
+      return 4
+    case .H2:
+      return 5
+    case .H3:
+      return 6
+    case .H4:
+      return 7
+    case .H5:
+      return 8
+    case .H6:
+      return 9
+    case .Li:
+      return 10
+    case .Blockquote:
+      return 11
+    case .B:
+      return 12
+    }
+  }
+  
+  
+  public init?(rawValue: RawValue) {
+    switch rawValue {
+    case 0:
+      self = .None
+    case 1:
+      self = .P
+    case 2:
+      self = .Span
+    case 3:
+      self = .Code
+    case 4:
+      self = .H1
+    case 5:
+      self = .H2
+    case 6:
+      self = .H3
+    case 7:
+      self = .H4
+    case 8:
+      self = .H5
+    case 9:
+      self = .H6
+    case 10:
+      self = .Li
+    case 11:
+      self = .Blockquote
+    case 12:
+      self = .B
+    default:
+      return nil
+    }
+  }
+  
+  var cssValue: String {
+    switch self {
+    case .None:
+      return "text"
+    case .P:
+      return "p"
+    case .Span:
+      return "span"
+    case .Code:
+      return "code"
+    case .H1:
+      return "h1"
+    case .H2:
+      return "h2"
+    case .H3:
+      return "h3"
+    case .H4:
+      return "h4"
+    case .H5:
+      return "h5"
+    case .H6:
+      return "h6"
+    case .Li:
+      return "li"
+    case .Blockquote:
+      return "blockquote"
+    case .B:
+      return "b"
+    }
+  }
+  
+  public var description: String {
+    return cssValue
+  }
+}
 
 @objc(MasonText)
 @objcMembers
@@ -238,7 +360,7 @@ public class MasonText: UIView, MasonView {
   }
   
   private static func createTextStyles() -> Data{
-    var data = Data(count: Int(TextStyleKeys.TEXT_WRAP) + 4)
+    var data = Data(count: Int(TextStyleKeys.WHITE_SPACE) + 4)
     
     data.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
       rawBufferPointer.storeBytes(of: 0xFF000000, toByteOffset: TextStyleKeys.COLOR, as: UInt32.self)
@@ -247,42 +369,110 @@ public class MasonText: UIView, MasonView {
       rawBufferPointer.storeBytes(of: Float(UIFont.systemFontSize), toByteOffset: TextStyleKeys.SIZE, as: Float.self)
       rawBufferPointer.storeBytes(of: 0, toByteOffset: TextStyleKeys.TEXT_WRAP, as: Int32.self)
     }
-   
+    
     return data
   }
   
+  public let type: MasonTextType
   
-  public init(mason: NSCMason) {
-    node = MasonNode(mason: mason)
-    actualNode = MasonNode(mason: mason)
-    super.init(frame: .zero)
+  private func initText(){
     isOpaque = false
     actualNode.data = self
-    // node.style.display = .Flex
     actualNode.measureFunc = { known, available in
       return MasonText.measure(self, known, available)
     }
     actualNode.setMeasureFunction(actualNode.measureFunc!)
     node.addChild(actualNode)
+    let scale = NSCMason.scale
+    node.inBatch = true
+    switch(type){
+    case .None:
+      // noop
+      break
+    case .P:
+      break
+    case .Span:
+      break
+    case .Code:
+      break
+    case .H1:
+      font = UIFont.preferredFont(forTextStyle: .largeTitle)
+      node.style.margin = MasonRect(.Points(0), .Points(0), .Points(16 * scale), .Points(16 * scale))
+      paragraphStyle.paragraphSpacing = CGFloat( 8 * scale)
+      break
+    case .H2:
+      font = UIFont.preferredFont(forTextStyle: .title1)
+      node.style.margin = MasonRect(.Points(0), .Points(0), .Points(14 * scale), .Points(14 * scale))
+      paragraphStyle.paragraphSpacing = CGFloat( 7 * scale)
+      break
+    case .H3:
+      font = UIFont.preferredFont(forTextStyle: .title2)
+      node.style.margin = MasonRect(.Points(0), .Points(0), .Points(12 * scale), .Points(12 * scale))
+      paragraphStyle.paragraphSpacing = CGFloat( 6 * scale)
+      break
+    case .H4:
+      font = UIFont.preferredFont(forTextStyle: .title3)
+      node.style.margin = MasonRect(.Points(0), .Points(0), .Points(10 * scale), .Points(10 * scale))
+      paragraphStyle.paragraphSpacing = CGFloat( 5 * scale)
+      break
+    case .H5:
+      font = UIFont.preferredFont(forTextStyle: .subheadline)
+      node.style.margin = MasonRect(.Points(0), .Points(0), .Points(8 * scale), .Points(8 * scale))
+      paragraphStyle.paragraphSpacing = CGFloat( 4 * scale)
+      break
+    case .H6:
+      font = UIFont.preferredFont(forTextStyle: .footnote)
+      node.style.margin = MasonRect(.Points(0), .Points(0), .Points(6 * scale), .Points(6 * scale))
+      paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
+      break
+    case .Li:
+      break
+    case .Blockquote:
+      
+      font = UIFont.italicSystemFont(ofSize: fontSize)
+      let indent: Float = 40 * scale
+
+       node.style.margin = MasonRect(.Points(indent), .Points(0), .Points(indent), .Points(0))
+      paragraphStyle.headIndent = CGFloat(40)
+      paragraphStyle.firstLineHeadIndent =  CGFloat(40)
+      
+      break
+    case .B:
+      font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
+      break
+    }
+    
+    node.inBatch = false
+  }
+  
+  
+  public init(mason: NSCMason, type textType: MasonTextType){
+    node = MasonNode(mason: mason)
+    actualNode = MasonNode(mason: mason)
+    type = textType
+    super.init(frame: .zero)
+    initText()
+  }
+  
+  public init(mason: NSCMason) {
+    node = MasonNode(mason: mason)
+    actualNode = MasonNode(mason: mason)
+    type = .None
+    super.init(frame: .zero)
+    initText()
   }
   
   public init(node masonNode: MasonNode){
     node = masonNode
     actualNode = MasonNode(mason: node.mason)
+    type = .None
     super.init(frame: .zero)
-    isOpaque = false
-    actualNode.data = self
-   // node.style.display = .Flex
-    actualNode.measureFunc = { known, available in
-      return MasonText.measure(self, known, available)
-    }
-    actualNode.setMeasureFunction(actualNode.measureFunc!)
-    node.addChild(actualNode)
+    initText()
   }
   
   
   private static func measure(_ view: MasonText, _ known: CGSize?, _ available: CGSize) -> CGSize {
-   
+    
     view.node.lastMeasureKnownSize = known
     view.node.lastMeasureAvailableSize = available
     
@@ -306,14 +496,16 @@ public class MasonText: UIView, MasonView {
     }
     
     
+    
     if(view.owner == nil && view.textWrap != .NoWrap && available.width.isFinite && available.width > 0){
       var maxWidth = CGFloat.greatestFiniteMagnitude
       if(!available.width.isNaN && available.width > 0){
         maxWidth = available.width / CGFloat(NSCMason.scale)
       }
       
+      
       size =  measureBlock(text: txt, maxWidth: maxWidth)
-  
+      
       if let height = known?.height, !height.isNaN {
         size.height = height
       }
@@ -349,7 +541,7 @@ public class MasonText: UIView, MasonView {
   public func configure(_ block: (MasonNode) -> Void) {
     node.configure(block)
   }
-
+  
   
   public func updateText(_ value: String?){
     text = value ?? ""
@@ -463,33 +655,68 @@ public class MasonText: UIView, MasonView {
   }
   
   
+  private func applyTextStyles(originalText: String, whiteSpace: WhiteSpace, textTransform: TextTransform, textWrap: TextWrap) -> String {
+    
+    
+    var processedText: String
+    switch whiteSpace {
+    case .Normal:
+      processedText = originalText.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      paragraphStyle.lineBreakMode = .byWordWrapping
+    case .Pre:
+      processedText = originalText
+      paragraphStyle.lineBreakMode = .byClipping
+    case .PreWrap:
+      processedText = originalText
+      paragraphStyle.lineBreakMode = .byWordWrapping
+    case .PreLine:
+      processedText = originalText.replacingOccurrences(of: "[ \t]+", with: " ", options: .regularExpression)
+      paragraphStyle.lineBreakMode = .byWordWrapping
+    }
+    
+    if textWrap == .NoWrap && whiteSpace == .Normal {
+      processedText = processedText.replacingOccurrences(of: "\n", with: " ")
+    }
+    
+    switch textTransform {
+    case .None:
+      return processedText
+    case .Capitalize:
+      return processedText.capitalized
+    case .Uppercase:
+      return processedText.uppercased()
+    case .Lowercase:
+      return processedText.lowercased()
+    case .FullWidth:
+      return fullWidthTransformed(processedText)
+    case .FullSizeKana:
+      return processedText.applyingTransform(.fullwidthToHalfwidth, reverse: true) ?? processedText
+    case .MathAuto:
+      // TODO: implement proper math transform
+      return processedText
+    }
+  }
+  
   public var textTransform: TextTransform {
     get {
       return TextTransform(rawValue:(getInt32(TextStyleKeys.TRANSFORM)))!
     }
     
     set {
-      switch(newValue){
-      case .None:
-        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt as String)
-      case .Capitalize:
-        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt.capitalized as String)
-      case .Uppercase:
-        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt.uppercased() as String)
-      case .Lowercase:
-        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt.lowercased() as String)
-      case .FullWidth:
-        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: fullWidthTransformed(originalTxt) as String)
-      case .FullSizeKana:
-        if let full = originalTxt.applyingTransform(.fullwidthToHalfwidth, reverse: true) {
-          txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: full)
-        }else {
-          txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt)
-        }
-      case .MathAuto:
-        // todo
-        txt.replaceCharacters(in: NSRange(0..<txt.string.count), with: originalTxt as String)
-      }
+      let styled = applyTextStyles(
+        originalText: originalTxt,
+        whiteSpace: whiteSpace,
+        textTransform: newValue,
+        textWrap: textWrap
+      )
+      
+      let range = NSRange(0..<txt.string.count)
+      
+      txt.replaceCharacters(in:range, with: styled)
+      
+      txt.removeAttribute(.paragraphStyle, range: range)
+      txt.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
+      
       setInt32(TextStyleKeys.TRANSFORM, Int32(newValue.rawValue))
       if(!node.inBatch){
         invalidate()
@@ -756,24 +983,67 @@ public class MasonText: UIView, MasonView {
   }
   
   
+  
+  public var whiteSpace: WhiteSpace {
+    set {
+      
+      setInt32(TextStyleKeys.WHITE_SPACE, newValue.rawValue)
+      
+      let styledText = applyTextStyles(
+        originalText: originalTxt,
+        whiteSpace: newValue,
+        textTransform: textTransform,
+        textWrap: textWrap
+      )
+      
+      let range = NSRange(0..<txt.string.count)
+      txt.replaceCharacters(in: range, with: styledText)
+      
+      
+      txt.removeAttribute(.paragraphStyle, range: range)
+      txt.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
+      
+      root.node.markDirty()
+      
+      invalidate()
+      
+      if(!node.inBatch){
+        if let size = root.node.computeCache {
+          root.node.computeWithSize(Float(size.width), Float(size.height))
+        }
+      }
+    }
+    get {
+      return WhiteSpace(rawValue:getInt32(TextStyleKeys.WHITE_SPACE))!
+    }
+  }
+  
+  
   public var textWrap: TextWrap {
     set {
       setInt32(TextStyleKeys.TEXT_WRAP, newValue.rawValue)
-      switch(newValue){
-      case .NoWrap:
-        root.node.markDirty()
-        break
-      case .Wrap:
-        root.node.markDirty()
-        break
-      case .Balance:
-        // noop
-        root.node.markDirty()
-        break
-      }
+      
+      let styledText = applyTextStyles(
+        originalText: originalTxt,
+        whiteSpace: whiteSpace,
+        textTransform: textTransform,
+        textWrap: newValue
+      )
+      
+      let range = NSRange(0..<txt.string.count)
+      txt.replaceCharacters(in: range, with: styledText)
+      
+      txt.removeAttribute(.paragraphStyle, range: range)
+      txt.addAttribute(.paragraphStyle, value: paragraphStyle, range: range)
+      
+      root.node.markDirty()
+      
+      invalidate()
       
       if(!node.inBatch){
-        rootNode.computeMaxContent()
+        if let size = root.node.computeCache {
+          root.node.computeWithSize(Float(size.width), Float(size.height))
+        }
       }
     }
     get {
@@ -861,7 +1131,7 @@ public class MasonText: UIView, MasonView {
   
   public override func draw(_ rect: CGRect) {
     guard let context = UIGraphicsGetCurrentContext() else { return }
-
+    
     context.textMatrix = .identity
     context.saveGState()
     context.translateBy(x: 0, y: bounds.height)
@@ -880,7 +1150,7 @@ public class MasonText: UIView, MasonView {
     
     var bounds = CGRect(origin: bounds.origin, size: bounds.size)
     
-        
+    
     if let layout = self.node.layoutCache {
       if(!layout.padding.isEmpty()){
         let scale = NSCMason.scale
@@ -894,7 +1164,7 @@ public class MasonText: UIView, MasonView {
     let path = CGPath(rect: bounds, transform: nil)
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
     
-
+    
     CTFrameDraw(frame, context)
     
     
@@ -923,8 +1193,8 @@ public class MasonText: UIView, MasonView {
             let x = origin.x + xOffset
             _ = CGFloat((layout.y / NSCMason.scale))
             
-           // let layoutX = CGFloat(layout.x / NSCMason.scale)
-           // let layoutY = CGFloat(layout.y / NSCMason.scale)
+            // let layoutX = CGFloat(layout.x / NSCMason.scale)
+            // let layoutY = CGFloat(layout.y / NSCMason.scale)
             
             let runBounds = CGRect(
               x: x,
@@ -987,22 +1257,22 @@ public class MasonText: UIView, MasonView {
     return current
   }
   
-  private func rebuildText() -> NSMutableAttributedString {
-      let result = NSMutableAttributedString()
-      
-      result.append(self.txt)
-      
-      for child in children {
-          if let childTextView = child.view as? MasonText {
-              result.append(childTextView.rebuildText())
-          } else if let attachment = child.attachment {
-            result.append(attachment)
-          }
+  func rebuildText() -> NSMutableAttributedString {
+    let result = NSMutableAttributedString()
+    
+    for child in children {
+      if let childTextView = child.view as? MasonText {
+        result.append(childTextView.rebuildText())
+      } else if let attachment = child.attachment {
+        result.append(attachment)
       }
-      
-      return result
+    }
+    
+    result.append(self.txt)
+    
+    return result
   }
-
+  
   
   private func createViewAttachment(view: UIView, mason: NSCMason) -> (ViewHelper, NSMutableAttributedString){
     let attachment = ViewHelper(view: view, mason: node.mason)
@@ -1020,34 +1290,34 @@ public class MasonText: UIView, MasonView {
   
   
   public func addView(_ view: UIView, _ index: Int = -1) {
-      guard !children.contains(where: { $0.view === view }) else { return }
+    guard !children.contains(where: { $0.view === view }) else { return }
+    
+    if let textView = view as? MasonText {
+      textView.owner = self
       
-      if let textView = view as? MasonText {
-          textView.owner = self
-          
-          children.insert(TextChild(
-              text: textView,
-              view: view,
-              attachment: nil
-          ), at: index >= 0 ? index : children.count)
-          
-          node.addChild(textView.node)
-          
-      } else {
-          let (attachmentView, attachment) = createViewAttachment(view: view, mason: node.mason)
-          
-        
-          children.insert(TextChild(
-              text: nil,
-              view: view,
-              attachment: attachment,
-              attachmentView: attachmentView
-          ), at: index >= 0 ? index : children.count)
-          
-          node.addChild(attachmentView.node)
-      }
+      children.insert(TextChild(
+        text: textView,
+        view: view,
+        attachment: nil
+      ), at: index >= 0 ? index : children.count)
       
-      root.invalidate()
+      node.addChild(textView.node)
+      
+    } else {
+      let (attachmentView, attachment) = createViewAttachment(view: view, mason: node.mason)
+      
+      
+      children.insert(TextChild(
+        text: nil,
+        view: view,
+        attachment: attachment,
+        attachmentView: attachmentView
+      ), at: index >= 0 ? index : children.count)
+      
+      node.addChild(attachmentView.node)
+    }
+    
+    root.invalidate()
   }
   
   public func removeView(_ view: UIView){
@@ -1061,38 +1331,39 @@ public class MasonText: UIView, MasonView {
   
   
   public var text: String? {
-      get {
-          return txt.string
+    get {
+      return txt.string
+    }
+    set {
+      let string = newValue ?? ""
+      
+      
+      var attributes: [NSAttributedString.Key: Any] = [
+        .font: font,
+        .paragraphStyle: paragraphStyle,
+        .foregroundColor: UIColor.colorFromARGB(color)
+      ]
+      if backgroundColorValue != 0 {
+        attributes[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
       }
-      set {
-          let string = newValue ?? ""
-          
-          var attributes: [NSAttributedString.Key: Any] = [
-              .font: font,
-              .paragraphStyle: paragraphStyle,
-              .foregroundColor: UIColor.colorFromARGB(color)
-          ]
-          if backgroundColorValue != 0 {
-              attributes[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
-          }
-          
-          switch decorationLine {
-          case .LineThrough:
-              attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
-              attributes[.strikethroughColor] = getDecorationColor()
-          case .Underline:
-              attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
-              attributes[.underlineColor] = getDecorationColor()
-          default:
-              break
-          }
-          
-          actualNode.markDirty()
-          
-          txt = NSMutableAttributedString(string: string, attributes: attributes)
-          
-          invalidate()
+      
+      switch decorationLine {
+      case .LineThrough:
+        attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+        attributes[.strikethroughColor] = getDecorationColor()
+      case .Underline:
+        attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
+        attributes[.underlineColor] = getDecorationColor()
+      default:
+        break
       }
+      
+      actualNode.markDirty()
+      
+      txt = NSMutableAttributedString(string: string, attributes: attributes)
+      
+      invalidate()
+    }
   }
   
   

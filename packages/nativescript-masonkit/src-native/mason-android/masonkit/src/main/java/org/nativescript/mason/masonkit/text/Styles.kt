@@ -75,15 +75,15 @@ class Styles {
   }
 
   enum class TextWrap(val value: Int) {
-    NoWrap(0),
-    Wrap(1),
+    Wrap(0),
+    NoWrap(1),
     Balance(2);
 
     companion object {
       fun fromInt(value: Int): TextWrap {
         return when (value) {
-          0 -> NoWrap
-          1 -> Wrap
+          0 -> Wrap
+          1 -> NoWrap
           2 -> Balance
           else -> throw IllegalArgumentException("Unknown enum value: $value")
         }
@@ -102,6 +102,25 @@ class Styles {
           0 -> Normal
           1 -> Italic
           2 -> Oblique
+          else -> throw IllegalArgumentException("Unknown enum value: $value")
+        }
+      }
+    }
+  }
+
+  enum class WhiteSpace(val value: Int) {
+    Normal(0),
+    Pre(1),
+    PreWrap(2),
+    PreLine(3);
+
+    companion object {
+      fun fromInt(value: Int): WhiteSpace {
+        return when (value) {
+          0 -> Normal
+          1 -> Pre
+          2 -> PreWrap
+          3 -> PreLine
           else -> throw IllegalArgumentException("Unknown enum value: $value")
         }
       }
