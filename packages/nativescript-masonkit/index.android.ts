@@ -2,6 +2,34 @@ import { backgroundColorProperty, Color, colorProperty, Utils } from '@nativescr
 import { TextBase, ViewBase, style_, textProperty, MasonChild, textWrapProperty } from './common';
 import { Style } from './style';
 
+const enum TextType {
+  None = 0,
+
+  P = 1,
+
+  Span = 2,
+
+  Code = 3,
+
+  H1 = 4,
+
+  H2 = 5,
+
+  H3 = 6,
+
+  H4 = 7,
+
+  H5 = 8,
+
+  H6 = 9,
+
+  Li = 10,
+
+  Blockquote = 11,
+
+  B = 12,
+}
+
 export class Tree {
   _base: org.nativescript.mason.masonkit.Mason;
   private static _tree: Tree;
@@ -63,9 +91,11 @@ export class View extends ViewBase {
     return this._view as org.nativescript.mason.masonkit.View;
   }
 
+  // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view as org.nativescript.mason.masonkit.View;
 
+    // @ts-ignore
     child._masonParent = this;
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
@@ -77,10 +107,12 @@ export class View extends ViewBase {
     return false;
   }
 
+  // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
     view._masonParent = undefined;
     view._isMasonView = false;
     view._isMasonChild = false;
+    // @ts-ignore
     super._removeViewFromNativeVisualTree(view);
   }
 }
@@ -98,12 +130,53 @@ export class Text extends TextBase {
   _hasNativeView = false;
   _inBatch = false;
   private _view: org.nativescript.mason.masonkit.TextView;
-  constructor() {
+  constructor(type: TextType = 0) {
     super();
-    const view = Tree.instance.createTextView(Utils.android.getCurrentActivity() || Utils.android.getApplicationContext()) as org.nativescript.mason.masonkit.TextView;
-    this._view = view;
+    const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
+    switch (type) {
+      case TextType.None:
+        this._view = Tree.instance.createTextView(context);
+        break;
+      case TextType.P:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.P);
+        break;
+      case TextType.Span:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.Span);
+        break;
+      case TextType.Code:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.Code);
+        break;
+      case TextType.H1:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.H1);
+        break;
+      case TextType.H2:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.H2);
+        break;
+      case TextType.H3:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.H3);
+        break;
+      case TextType.H4:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.H4);
+        break;
+      case TextType.H5:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.H5);
+        break;
+      case TextType.H6:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.H6);
+        break;
+      case TextType.Li:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.Li);
+        break;
+      case TextType.Blockquote:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.Blockquote);
+        break;
+      case TextType.B:
+        this._view = Tree.instance.native.createTextView(context, org.nativescript.mason.masonkit.TextType.B);
+        break;
+    }
+
     this._hasNativeView = true;
-    this[style_] = Style.fromView(this as never, view, true);
+    this[style_] = Style.fromView(this as never, this._view, true);
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -160,6 +233,7 @@ export class Text extends TextBase {
     }
   }
 
+  // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
 

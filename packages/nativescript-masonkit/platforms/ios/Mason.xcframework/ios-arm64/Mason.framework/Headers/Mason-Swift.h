@@ -281,6 +281,7 @@ typedef unsigned int swift_uint4  __attribute__((__ext_vector_type__(4)));
 #pragma clang diagnostic ignored "-Watimport-in-framework-header"
 #endif
 @import CoreFoundation;
+@import CoreGraphics;
 @import Foundation;
 @import ObjectiveC;
 @import UIKit;
@@ -751,9 +752,9 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @end
 
 enum MasonTextType : NSInteger;
+@class NSCFontFace;
 @class NSCoder;
 @class NSMutableAttributedString;
-@class UIFont;
 enum TextTransform : NSInteger;
 @class UIColor;
 enum WhiteSpace : NSInteger;
@@ -765,6 +766,7 @@ SWIFT_CLASS_NAMED("MasonText")
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, copy) NSData * _Nonnull textValues;
 @property (nonatomic, readonly) enum MasonTextType type;
+@property (nonatomic, readonly, strong) NSCFontFace * _Nonnull font;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)masonNode OBJC_DESIGNATED_INITIALIZER;
@@ -776,7 +778,6 @@ SWIFT_CLASS_NAMED("MasonText")
 - (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
 - (void)updateText:(NSString * _Nullable)value;
 @property (nonatomic, strong) NSMutableAttributedString * _Nonnull txtToRender;
-@property (nonatomic, readonly, strong) UIFont * _Nonnull font;
 - (void)invalidateStyle:(int64_t)state;
 @property (nonatomic) enum TextTransform textTransform;
 @property (nonatomic) CGFloat fontSize;
@@ -838,10 +839,8 @@ SWIFT_CLASS_NAMED("MasonUIView")
 + (MasonUIView * _Nonnull)createGridView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
 + (MasonUIView * _Nonnull)createFlexView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
 + (MasonUIView * _Nonnull)createBlockView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
-@property (nonatomic, readonly) int64_t masonPtr;
-@property (nonatomic, readonly) int64_t masonNodePtr;
-@property (nonatomic, readonly, copy) NSString * _Nonnull masonPtrs;
 @property (nonatomic, strong) MasonStyle * _Nonnull style;
+- (void)requestLayout;
 - (void)addView:(UIView * _Nonnull)view;
 - (void)addView:(UIView * _Nonnull)view at:(NSInteger)at;
 - (void)syncStyle:(NSString * _Nonnull)state;
@@ -1009,6 +1008,99 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MinSizing * 
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
+
+
+SWIFT_CLASS_NAMED("NSCFontDescriptors")
+@interface NSCFontDescriptors : NSObject
+- (nonnull instancetype)initWithFamily:(NSString * _Nonnull)family OBJC_DESIGNATED_INITIALIZER;
+- (void)update:(NSString * _Nonnull)value;
+- (void)setFontWeight:(NSString * _Nonnull)value;
+- (void)setFontStyle:(NSString * _Nonnull)value;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, NSCFontDisplay, "NSCFontDisplay", open) {
+  NSCFontDisplayAuto = 0,
+  NSCFontDisplayBlock = 1,
+  NSCFontDisplayFallback = 2,
+  NSCFontDisplayOptional = 3,
+  NSCFontDisplaySwap = 4,
+};
+
+enum NSCFontFaceStatus : NSInteger;
+enum NSCFontWeight : NSInteger;
+
+SWIFT_CLASS_NAMED("NSCFontFace")
+@interface NSCFontFace : NSObject
+@property (nonatomic, readonly) CGFontRef _Nullable font;
+@property (nonatomic, readonly, strong) NSData * _Nullable fontData;
+- (void)updateDescriptorWithValue:(NSString * _Nonnull)value;
++ (NSCFontFace * _Nullable)loadFromStyleWithStyle:(NSString * _Nonnull)style SWIFT_WARN_UNUSED_RESULT;
++ (void)importFromRemoteWithUrl:(NSString * _Nonnull)url load:(BOOL)load callback:(void (^ _Nonnull)(NSArray<NSCFontFace *> * _Nullable, NSString * _Nullable))callback;
+- (nonnull instancetype)initWithFamily:(NSString * _Nonnull)family OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithFamily:(NSString * _Nonnull)family source:(NSString * _Nonnull)source OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithFamily:(NSString * _Nonnull)family data:(NSData * _Nonnull)source OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init:(NSString * _Nonnull)family :(NSString * _Nullable)source :(NSCFontDescriptors * _Nullable)descriptors OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init:(NSString * _Nonnull)family data:(NSData * _Nullable)data :(NSCFontDescriptors * _Nullable)descriptors OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic) enum NSCFontFaceStatus status;
+@property (nonatomic) enum NSCFontDisplay display;
+- (void)setFontDisplayWithValue:(NSString * _Nonnull)value;
+@property (nonatomic, copy) NSString * _Nonnull style;
+- (void)setFontStyleWithValue:(NSString * _Nonnull)value angle:(NSString * _Nullable)angle;
+@property (nonatomic) enum NSCFontWeight weight;
+- (void)setFontWeightWithValue:(NSString * _Nonnull)value;
+@property (nonatomic, readonly, copy) NSString * _Nonnull family;
+@property (nonatomic, readonly, copy) NSString * _Nonnull ascentOverride;
+@property (nonatomic, readonly, copy) NSString * _Nonnull descentOverride;
+- (void)load:(void (^ _Nonnull)(NSString * _Nullable))callback;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum NSCFontFaceSetStatus : NSInteger;
+@class NSEnumerator;
+
+SWIFT_CLASS_NAMED("NSCFontFaceSet")
+@interface NSCFontFaceSet : NSObject
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) NSCFontFaceSet * _Nonnull instance;)
++ (NSCFontFaceSet * _Nonnull)instance SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic) enum NSCFontFaceSetStatus status;
+@property (nonatomic, copy) void (^ _Nullable onStatus)(enum NSCFontFaceSetStatus);
+- (NSEnumerator * _Nonnull)iter SWIFT_WARN_UNUSED_RESULT;
+- (NSArray * _Nonnull)array SWIFT_WARN_UNUSED_RESULT;
+- (void)add:(NSCFontFace * _Nonnull)font;
+- (void)clear;
+- (void)delete:(NSCFontFace * _Nonnull)font;
+- (BOOL)check:(NSString * _Nonnull)font :(NSString * _Nullable)text SWIFT_WARN_UNUSED_RESULT;
+- (void)load:(NSString * _Nonnull)font :(NSString * _Nullable)text :(void (^ _Nonnull)(NSArray<NSCFontFace *> * _Nonnull, NSString * _Nullable))callback;
+@property (nonatomic, readonly) NSInteger size;
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, NSCFontFaceSetStatus, "NSCFontFaceSetStatus", open) {
+  NSCFontFaceSetStatusLoading = 0,
+  NSCFontFaceSetStatusLoaded = 1,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, NSCFontFaceStatus, "NSCFontFaceStatus", open) {
+  NSCFontFaceStatusUnloaded = 0,
+  NSCFontFaceStatusLoading = 1,
+  NSCFontFaceStatusLoaded = 2,
+  NSCFontFaceStatusError = 3,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, NSCFontWeight, "NSCFontWeight", open) {
+  NSCFontWeightThin = 0,
+  NSCFontWeightExtraLight = 1,
+  NSCFontWeightLight = 2,
+  NSCFontWeightNormal = 3,
+  NSCFontWeightMedium = 4,
+  NSCFontWeightSemiBold = 5,
+  NSCFontWeightBold = 6,
+  NSCFontWeightExtraBold = 7,
+  NSCFontWeightBlack = 8,
+};
 
 
 SWIFT_CLASS_NAMED("NSCMason")

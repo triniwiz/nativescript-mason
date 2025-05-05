@@ -375,6 +375,8 @@ public class MasonText: UIView, MasonView {
   
   public let type: MasonTextType
   
+  public internal(set) var font: NSCFontFace = NSCFontFace(family: "sans-serif")
+  
   private func initText(){
     isOpaque = false
     actualNode.data = self
@@ -396,51 +398,58 @@ public class MasonText: UIView, MasonView {
     case .Code:
       break
     case .H1:
-      font = UIFont.preferredFont(forTextStyle: .largeTitle)
+      fontSize = 32
+      font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(16 * scale), .Points(16 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 8 * scale)
       break
     case .H2:
-      font = UIFont.preferredFont(forTextStyle: .title1)
+      fontSize = 24
+      font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(14 * scale), .Points(14 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 7 * scale)
       break
     case .H3:
-      font = UIFont.preferredFont(forTextStyle: .title2)
+      fontSize = 18
+      font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(12 * scale), .Points(12 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 6 * scale)
       break
     case .H4:
-      font = UIFont.preferredFont(forTextStyle: .title3)
+      fontSize = 16
+      font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(10 * scale), .Points(10 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 5 * scale)
       break
     case .H5:
-      font = UIFont.preferredFont(forTextStyle: .subheadline)
+      fontSize = 13
+      font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(8 * scale), .Points(8 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 4 * scale)
       break
     case .H6:
-      font = UIFont.preferredFont(forTextStyle: .footnote)
+      fontSize = 10
+      font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(6 * scale), .Points(6 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
       break
     case .Li:
       break
     case .Blockquote:
-      
-      font = UIFont.italicSystemFont(ofSize: fontSize)
+      font.style = "italic"
       let indent: Float = 40 * scale
-
-       node.style.margin = MasonRect(.Points(indent), .Points(0), .Points(indent), .Points(0))
+      
+      node.style.margin = MasonRect(.Points(indent), .Points(0), .Points(indent), .Points(0))
       paragraphStyle.headIndent = CGFloat(40)
       paragraphStyle.firstLineHeadIndent =  CGFloat(40)
       
       break
     case .B:
-      font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
+      font.weight = .bold
       break
     }
+    
+    font.loadSync { _ in }
     
     node.inBatch = false
   }
@@ -552,8 +561,6 @@ public class MasonText: UIView, MasonView {
   public var txtToRender = NSMutableAttributedString()
   internal var paragraphStyle = NSMutableParagraphStyle()
   
-  public internal(set) var font: UIFont = UIFont.systemFont(ofSize: UIFont.systemFontSize)
-  
   
   
   internal var effectiveText: NSMutableAttributedString {
@@ -615,24 +622,12 @@ public class MasonText: UIView, MasonView {
   }
   
   private func invalidateFont(){
-    font = UIFont.systemFont(ofSize: fontSize, weight: weight)
-    
-    switch(fontStyle){
-    case .Italic:
-      font = UIFont(descriptor: font.fontDescriptor.withSymbolicTraits(.traitItalic)!, size: fontSize)
-      break
-    case .Oblique:
-      // font.fontDescriptor.withSymbolicTraits(.traitItalic)
-      // todo
-      break
-    default:
-      // noop
-      break
-    }
-    
     if(!txt.string.isEmpty){
       let range = NSRange(location: 0, length: txt.string.count)
       txt.removeAttribute(.font, range: range)
+      let font = CTFontCreateWithGraphicsFont(font.font!, fontSize, nil, nil)
+      
+      
       txt.addAttribute(.font, value: font, range: range)
     }
     
@@ -723,6 +718,7 @@ public class MasonText: UIView, MasonView {
       }
     }
   }
+  
   
   
   public var fontSize: CGFloat {
@@ -1337,6 +1333,11 @@ public class MasonText: UIView, MasonView {
     set {
       let string = newValue ?? ""
       
+      if(font.font == nil){
+        font.loadSync { _ in }
+      }
+      
+      let font = NSCFontFaceSet.instance.font(for: font.font!, size: fontSize)
       
       var attributes: [NSAttributedString.Key: Any] = [
         .font: font,

@@ -13,6 +13,34 @@ function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | 
   }
 }
 
+const enum TextType {
+  None = 0,
+
+  P = 1,
+
+  Span = 2,
+
+  Code = 3,
+
+  H1 = 4,
+
+  H2 = 5,
+
+  H3 = 6,
+
+  H4 = 7,
+
+  H5 = 8,
+
+  H6 = 9,
+
+  Li = 10,
+
+  Blockquote = 11,
+
+  B = 12,
+}
+
 export class Tree {
   _base: NSCMason;
   private static _tree: Tree;
@@ -87,7 +115,7 @@ export class View extends ViewBase {
       const y = layout.y;
       const width = x + layout.width;
       const height = y + layout.height;
-      View.layoutChild(this, child, x, y, width, height);
+      View.layoutChild(this as never, child, x, y, width, height);
       i++;
     }
   }
@@ -111,7 +139,7 @@ export class View extends ViewBase {
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
           this.eachLayoutChild((child) => {
-            ViewBase.measureChild(this, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
+            ViewBase.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
           });
 
           this.setMeasuredDimension(w, h);
@@ -126,7 +154,7 @@ export class View extends ViewBase {
           this.setMeasuredDimension(w, h);
 
           this.eachLayoutChild((child) => {
-            ViewBase.measureChild(this, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
+            ViewBase.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
           });
         }
       } else {
@@ -137,7 +165,7 @@ export class View extends ViewBase {
         this.setMeasuredDimension(w, h);
 
         this.eachLayoutChild((child) => {
-          ViewBase.measureChild(this, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
+          ViewBase.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
         });
       }
     }
@@ -147,8 +175,10 @@ export class View extends ViewBase {
     nativeView.frame = frame;
   }
 
+  // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view;
+    // @ts-ignore
     child._masonParent = this;
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
@@ -164,10 +194,12 @@ export class View extends ViewBase {
     return false;
   }
 
+  // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
     view._masonParent = undefined;
     view._isMasonView = false;
     view._isMasonChild = false;
+    // @ts-ignore
     super._removeViewFromNativeVisualTree(view);
   }
 }
@@ -178,12 +210,52 @@ export class Text extends TextBase {
   _inBatch = false;
   _isText = true;
   private _view: MasonText;
-  constructor() {
+  constructor(type: TextType = 0) {
     super();
-    const view = Tree.instance.createTextView();
-    this._view = view;
+    switch (type) {
+      case TextType.None:
+        this._view = Tree.instance.createTextView();
+        break;
+      case TextType.P:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.P);
+        break;
+      case TextType.Span:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.Span);
+        break;
+      case TextType.Code:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.Code);
+        break;
+      case TextType.H1:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.H1);
+        break;
+      case TextType.H2:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.H2);
+        break;
+      case TextType.H3:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.H3);
+        break;
+      case TextType.H4:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.H4);
+        break;
+      case TextType.H5:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.H5);
+        break;
+      case TextType.H6:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.H6);
+        break;
+      case TextType.Li:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.Li);
+        break;
+      case TextType.Blockquote:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.Blockquote);
+        break;
+      case TextType.B:
+        this._view = Tree.instance.native.createTextViewWithType(MasonTextType.B);
+        break;
+    }
+
     this._hasNativeView = true;
-    this[style_] = Style.fromView(this as never, view, true);
+    this[style_] = Style.fromView(this as never, this._view, true);
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -393,6 +465,7 @@ export class Text extends TextBase {
     }
   }
 
+  // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild & { text?: string }, atIndex = -1): boolean {
     const nativeView = this._view;
 

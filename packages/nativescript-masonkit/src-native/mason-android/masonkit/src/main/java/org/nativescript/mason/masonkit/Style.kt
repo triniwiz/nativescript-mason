@@ -7,6 +7,63 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
+enum class TextType(val value: Int) {
+  None(0),
+  P(1),
+  Span(2),
+  Code(3),
+  H1(4),
+  H2(5),
+  H3(6),
+  H4(7),
+  H5(8),
+  H6(9),
+  Li(10),
+  Blockquote(11),
+  B(12);
+
+  val cssValue: String
+    get() {
+      return when (this) {
+        None -> "text"
+        P -> "p"
+        Span -> "span"
+        Code -> "code"
+        H1 -> "h1"
+        H2 -> "h2"
+        H3 -> "h3"
+        H4 -> "h4"
+        H5 -> "h5"
+        H6 -> "h6"
+        Li -> "li"
+        Blockquote -> "blockquote"
+        B -> "b"
+      }
+    }
+
+  companion object {
+    fun fromInt(value: Int): TextType {
+      return when (value) {
+        0 -> None
+        1 -> P
+        2 -> Span
+        3 -> Code
+        4 -> H1
+        5 -> H2
+        6 -> H3
+        7 -> H4
+        8 -> H5
+        9 -> H6
+        10 -> Li
+        11 -> Blockquote
+        12 -> B
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
+
 enum class AlignItems(val value: Int) {
   Normal(-1),
   Start(0),

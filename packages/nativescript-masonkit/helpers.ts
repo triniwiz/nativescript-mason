@@ -830,7 +830,6 @@ export function _setTop(value, instance: View, initial = false) {
     return;
   }
 
-  console.log('typeof', typeof value);
   instance._styleHelper.top = value;
 }
 

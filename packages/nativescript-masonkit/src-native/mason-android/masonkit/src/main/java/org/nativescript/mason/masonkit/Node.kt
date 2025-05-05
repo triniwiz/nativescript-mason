@@ -9,6 +9,8 @@ import java.lang.ref.WeakReference
 
 
 class Node internal constructor(internal val mason: Mason, internal var nativePtr: Long) {
+  internal var computeCacheWidth: Float? = null
+  internal var computeCacheHeight: Float? = null
   var layoutCache: Layout? = null
     internal set
   internal var knownWidth: Float? = null
@@ -142,44 +144,34 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
       }
     }
 
-  fun rootCompute() {
-    root?.compute()
-  }
-
-  fun rootCompute(width: Float, height: Float) {
-    root?.compute(width, height)
-  }
-
-  fun rootComputeMaxContent() {
-    root?.computeMaxContent()
-  }
-
-  fun rootComputeMinContent() {
-    root?.computeMinContent()
-  }
-
-  fun rootComputeWithViewSize() {
-    root?.computeWithViewSize()
-  }
-
   fun compute() {
+    computeCacheWidth = -2f
+    computeCacheHeight = -2f
     nativeCompute(mason.nativePtr, nativePtr)
   }
 
   fun compute(width: Float, height: Float) {
+    computeCacheWidth = width
+    computeCacheHeight = height
     nativeComputeWH(mason.nativePtr, nativePtr, width, height)
   }
 
   fun computeMaxContent() {
+    computeCacheWidth = -2f
+    computeCacheHeight = -2f
     nativeComputeMaxContent(mason.nativePtr, nativePtr)
   }
 
   fun computeMinContent() {
+    computeCacheWidth = -1f
+    computeCacheHeight = -1f
     nativeComputeMinContent(mason.nativePtr, nativePtr)
   }
 
   fun computeWithViewSize() {
     (data as View?)?.let {
+      computeCacheWidth = it.width.toFloat()
+      computeCacheHeight = it.height.toFloat()
       compute(it.width.toFloat(), it.height.toFloat())
     }
   }

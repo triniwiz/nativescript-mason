@@ -2,10 +2,8 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Typeface
-import android.net.Uri
 import android.os.Build
 import android.util.Log
-import androidx.core.content.res.ResourcesCompat
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -15,6 +13,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.regex.Matcher
 import java.util.regex.Pattern
+import androidx.core.net.toUri
 
 val FONT_FAMILY_PATTERN = Regex("font-family:\\s*'([^']+)';")
 val FONT_STYLE_PATTERN =
@@ -29,11 +28,15 @@ val FONT_FACE_PATTERN: Pattern = Pattern.compile("@font-face\\s*\\{([^}]+)\\}")
 class FontFace {
   var font: Typeface? = null
     private set
+
   var fontFamily: String
     private set
+
   private var fontData: ByteBuffer? = null
+
   var fontPath: String? = null
     private set
+
   private var localOrRemoteSource: String? = null
   private var fontDescriptors: NSCFontDescriptors
 
@@ -216,6 +219,8 @@ class FontFace {
     ExtraBold(800),
     Black(900);
 
+    val isBold: Boolean
+      get() = weight >= 700
     val raw: Int
       get() {
         return weight
@@ -269,7 +274,6 @@ class FontFace {
     }
 
     internal fun update(value: String) {
-
       val matcher: Matcher = FONT_FACE_PATTERN.matcher(value)
       while (matcher.find()) {
         val match = matcher.group(1)
@@ -292,7 +296,6 @@ class FontFace {
           this.setFontStyle(fontStyle)
         }
       }
-
     }
 
     fun setFontWeight(value: String) {
@@ -452,8 +455,7 @@ class FontFace {
   }
 
   private fun getMathFont(weight: Int, italic: Boolean = false): Typeface {
-    val value = weight.coerceIn(100, 1000)
-    when (value) {
+    when (val value = weight.coerceIn(100, 1000)) {
       in 100..499 -> {
         if (italic) {
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -506,7 +508,7 @@ class FontFace {
   private fun cacheData(context: Context, source: String): Typeface {
     val nsFonts = File(context.filesDir, "ns_fonts")
     nsFonts.mkdir()
-    val uri = Uri.parse(source)
+    val uri = source.toUri()
     if (uri.lastPathSegment == null) {
       throw Error("Invalid source $source")
     }

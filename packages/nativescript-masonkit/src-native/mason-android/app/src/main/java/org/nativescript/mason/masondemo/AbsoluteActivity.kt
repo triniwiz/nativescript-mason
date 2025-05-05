@@ -119,9 +119,9 @@ class AbsoluteActivity : AppCompatActivity() {
 
     //rootLayout.addView(child)
 
-    // absTextText(rootLayout)
+     absTextText(rootLayout)
 
-    regularTextText(rootLayout)
+   // regularTextText(rootLayout)
 
     setContentView(rootLayout)
 
@@ -200,9 +200,15 @@ class AbsoluteActivity : AppCompatActivity() {
 
     rootLayout.addView(bottomRight)
 
-    val bottomLeft = mason.createTextView(this)
 
-    bottomLeft.text = "Bottom Left"
+    val bottomLeft = mason.createView(this)
+
+
+    val bottomLeftTxt = mason.createTextView(this)
+
+    bottomLeftTxt.text = "Bottom Left"
+
+    bottomLeft.addView(bottomLeftTxt)
 
     bottomLeft.configure {
      style.position = Position.Absolute

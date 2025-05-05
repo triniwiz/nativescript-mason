@@ -290,7 +290,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
        //  showFlexExample()
         
    // showGridExample()
-         // animationExample()
+          animationExample()
         
      // wrapper5()
     
@@ -301,7 +301,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       
    //  testLateUpdate()
       
-      headers()
+   //   headers()
       
 //      let root = mason.createView()
 //      root.backgroundColor = .red
@@ -675,8 +675,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
       let root = mason.createView()
         root.backgroundColor = .blue
-        let width = Float(view.frame.size.width)
-        let height = Float(view.frame.size.height)
+      let width = Float(container.frame.size.width)
+        let height = Float(container.frame.size.height)
         root.configure({ node in
             node.style.size = MasonSize( .Points(width * scale), .Points(height * scale))
             node.style.flexDirection = .Column
@@ -684,13 +684,14 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
         view!.addSubview(root)
         
-      root.node.computeWithMaxContent()
+      root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
         
         UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
             root.setSizeHeight(0.3, 2)
             root.setSizeWidth(0.3, 2)
             root.backgroundColor = .red
-          root.node.computeWithMaxContent()
+          
+          root.requestLayout()
         }
         
         

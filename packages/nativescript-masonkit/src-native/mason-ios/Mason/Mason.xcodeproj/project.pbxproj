@@ -10,6 +10,8 @@
 		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F1046D052D8C0B8B00228EE2 /* MasonText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1046D042D8C0B8B00228EE2 /* MasonText.swift */; };
+		F13B6C7B2DC81AC800624D17 /* NSCFontFaceSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */; };
+		F13B6C7D2DC81AE100624D17 /* NSCFontFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		F184839C293534D800EC35F4 /* MasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F184839B293534D800EC35F4 /* MasonTests.swift */; };
@@ -95,6 +97,8 @@
 
 /* Begin PBXFileReference section */
 		F1046D042D8C0B8B00228EE2 /* MasonText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonText.swift; sourceTree = "<group>"; };
+		F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFaceSet.swift; sourceTree = "<group>"; };
+		F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFace.swift; sourceTree = "<group>"; };
 		F184838C293534D800EC35F4 /* Mason.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mason.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184838F293534D800EC35F4 /* Mason.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mason.h; sourceTree = "<group>"; };
 		F1848390293534D800EC35F4 /* Mason.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Mason.docc; sourceTree = "<group>"; };
@@ -216,6 +220,8 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */,
+				F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */,
 				F184838F293534D800EC35F4 /* Mason.h */,
 				F1848390293534D800EC35F4 /* Mason.docc */,
 				F18483DA29356C3A00EC35F4 /* MasonUIView.swift */,
@@ -504,6 +510,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F13B6C7D2DC81AE100624D17 /* NSCFontFace.swift in Sources */,
 				F1E4F95E296266A60091913B /* MasonLine.swift in Sources */,
 				F1E4F958296241FD0091913B /* MinMax.swift in Sources */,
 				F18483E329357AC900EC35F4 /* NSCMason.swift in Sources */,
@@ -517,6 +524,7 @@
 				F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */,
 				F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */,
 				F1E4F956296231A50091913B /* MasonCompat.swift in Sources */,
+				F13B6C7B2DC81AC800624D17 /* NSCFontFaceSet.swift in Sources */,
 				F1E4F95229622AD60091913B /* MasonRect.swift in Sources */,
 				F18483DD29356C7800EC35F4 /* MasonStyle.swift in Sources */,
 				F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */,

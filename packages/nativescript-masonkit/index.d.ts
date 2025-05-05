@@ -13,6 +13,8 @@ export type Position = 'absolute' | 'relative';
 
 export type Display = 'none' | 'flex' | 'grid' | 'block';
 
+export type BoxSizing = 'border-box' | 'content-box';
+
 export type Overflow = 'visible' | 'hidden' | 'scroll';
 
 export type FlexWrap = 'no-wrap' | 'wrap' | 'wrap-reverse';

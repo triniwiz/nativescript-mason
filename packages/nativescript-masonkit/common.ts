@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
-import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent } from '.';
-import { _forceStyleUpdate, _getJustifyItems, _parseGridTemplates, _setAlignContent, _setAlignItems, _setAlignSelf, _setBottom, _setColumnGap, _setDisplay, _setFlexBasis, _setFlexDirection, _setFlexGrow, _setFlexShrink, _setFlexWrap, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setJustifyItems, _setJustifySelf, _setLeft, _setMarginBottom, _setMarginLeft, _setMarginRight, _setMarginTop, _setMinHeight, _setMinWidth, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setPosition, _setRight, _setRowGap, _setTop, _setWidth, GridTemplates } from './helpers';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
+import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing } from '.';
+import { _forceStyleUpdate, _getJustifyItems, _parseGridTemplates, _setAlignContent, _setAlignItems, _setAlignSelf, _setBottom, _setColumnGap, _setDisplay, _setFlexBasis, _setFlexDirection, _setFlexGrow, _setFlexShrink, _setFlexWrap, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setJustifyItems, _setJustifySelf, _setLeft, _setMarginBottom, _setMarginLeft, _setMarginRight, _setMarginTop, _setMinHeight, _setMinWidth, _setOverflowX, _setOverflowY, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setPosition, _setRight, _setRowGap, _setScrollbarWidth, _setTop, _setWidth, GridTemplates } from './helpers';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 
 export const native_ = Symbol('[[native]]');
@@ -27,8 +27,10 @@ function overflowConverter(value) {
       case 0:
         return 'visible';
       case 1:
-        return 'hidden';
+        return 'clip';
       case 2:
+        return 'hidden';
+      case 3:
         return 'scroll';
     }
   }
@@ -36,6 +38,7 @@ function overflowConverter(value) {
   switch (value) {
     case 'visible':
     case 'hidden':
+    case 'clip':
     case 'scroll':
       return value;
     default:
@@ -43,11 +46,45 @@ function overflowConverter(value) {
   }
 }
 
-export const overflowProperty = new CssProperty<Style, Overflow>({
+const overFlow = /^\s*(visible|hidden|clip|scroll|auto)(?:\s+(visible|hidden|clip|scroll|auto))?\s*$/;
+
+export const overflowProperty = new ShorthandProperty<Style, Overflow>({
   name: 'overflow',
   cssName: 'overflow',
-  defaultValue: 'visible',
-  valueConverter: overflowConverter,
+  getter: function () {
+    if (this.overflowX === this.overflowY) {
+      return this.overflowX;
+    }
+    return `${this.overflowX} ${this.overflowY}`;
+  },
+  converter(value) {
+    const properties: [CssProperty<any, any>, any][] = [];
+
+    if (typeof value === 'string') {
+      const values = value.match(overFlow);
+
+      const length = values.length;
+      if (length === 0) {
+        return properties;
+      }
+
+      if (length === 1) {
+        const xy = values[0];
+        properties.push([overflowXProperty, xy]);
+        properties.push([overflowYProperty, xy]);
+      }
+
+      if (length > 1) {
+        const x = values[0];
+        const y = values[1];
+
+        properties.push([overflowXProperty, x]);
+        properties.push([overflowYProperty, y]);
+      }
+    }
+
+    return properties;
+  },
 });
 
 export const overflowXProperty = new CssProperty<Style, Overflow>({
@@ -289,6 +326,39 @@ export const positionProperty = new CssProperty<Style, Position>({
 //   cssName: 'flex-wrap',
 //   defaultValue: 'no-wrap',
 // });
+
+const insetProperty = new ShorthandProperty<Style, string | CoreTypes.LengthType>({
+  name: 'inset',
+  cssName: 'inset',
+  getter: function (this: Style) {
+    if (CorePercentLength.equals(this.top, this.right) && CorePercentLength.equals(this.top, this.bottom) && CorePercentLength.equals(this.top, this.left)) {
+      return this.top as never;
+    }
+
+    return `${CorePercentLength.convertToString(this.paddingTop)} ${CorePercentLength.convertToString(this.paddingRight)} ${CorePercentLength.convertToString(this.paddingBottom)} ${CorePercentLength.convertToString(this.paddingLeft)}`;
+  },
+  converter: convertToInsets,
+});
+
+function convertToInsets(value: string | CoreTypes.LengthType): [CssProperty<Style, CoreTypes.PercentLengthType>, CoreTypes.PercentLengthType][] {
+  if (typeof value === 'string' && value !== 'auto') {
+    const thickness = parseShorthandPositioning(value);
+
+    return [
+      [topProperty, CorePercentLength.parse(thickness.top)],
+      [rightProperty, CorePercentLength.parse(thickness.right)],
+      [bottomProperty, CorePercentLength.parse(thickness.bottom)],
+      [leftProperty, CorePercentLength.parse(thickness.left)],
+    ];
+  } else {
+    return [
+      [topProperty, value],
+      [rightProperty, value],
+      [bottomProperty, value],
+      [leftProperty, value],
+    ];
+  }
+}
 
 export const leftProperty = new CssProperty<Style, LengthAuto>({
   name: 'left',
@@ -740,46 +810,63 @@ const flexProperty = new ShorthandProperty({
   },
 });
 
+// @ts-ignore
 export const textWrapProperty = new Property<TextBase, 'nowrap' | 'wrap' | 'balance'>({
   name: 'textWrap',
   affectsLayout: true,
   defaultValue: 'nowrap',
 });
 
+// @ts-ignore
 export const textProperty = new Property<TextBase, string>({
   name: 'text',
   affectsLayout: true,
   defaultValue: '',
 });
 
+export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
+  name: 'boxSizing',
+  cssName: 'box-sizing',
+  defaultValue: 'border-box',
+});
+
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: UIView;
+
+  display: Display;
+  boxSizing: BoxSizing;
+
+  overflow: Overflow | `${Overflow} ${Overflow}`;
+  overflowX: Overflow;
+  overflowY: Overflow;
+
   gridGap: Gap;
   gap: Gap;
   gridArea: string;
   gridColumn: string;
   gridRow: string;
-  display: Display;
   position: Position;
 
-  inset: string | CoreTypes.LengthType;
-  left: CoreTypes.LengthType;
-  right: CoreTypes.LengthType;
-  top: CoreTypes.LengthType;
-  bottom: CoreTypes.LengthType;
+  inset: CoreTypes.PercentLengthType;
+  // @ts-ignore
+  left: CoreTypes.PercentLengthType;
+  right: CoreTypes.PercentLengthType;
+  // @ts-ignore
+  top: CoreTypes.PercentLengthType;
+  bottom: CoreTypes.PercentLengthType;
 
-  padding: string | CoreTypes.LengthType;
+  padding: CoreTypes.LengthType;
   paddingLeft: CoreTypes.LengthType;
   paddingRight: CoreTypes.LengthType;
   paddingTop: CoreTypes.LengthType;
   paddingBottom: CoreTypes.LengthType;
 
-  margin: string | number | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit;
-  marginLeft: CoreTypes.LengthType;
-  marginRight: CoreTypes.LengthType;
-  marginTop: CoreTypes.LengthType;
-  marginBottom: CoreTypes.LengthType;
+  margin: CoreTypes.PercentLengthType;
+  marginLeft: CoreTypes.PercentLengthType;
+  marginRight: CoreTypes.PercentLengthType;
+  marginTop: CoreTypes.PercentLengthType;
+  marginBottom: CoreTypes.PercentLengthType;
 
   _children: any[] = [];
   _isMasonView = false;
@@ -848,7 +935,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return this._children.indexOf(child);
   }
   getChildById(id: string) {
-    return getViewById(this, id);
+    return getViewById(this as never, id);
   }
 
   addChild(child: any) {
@@ -882,6 +969,18 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   [displayProperty.setNative](value) {
     _setDisplay(value, this as any);
+  }
+
+  [overflowXProperty.setNative](value) {
+    _setOverflowX(value, this as any);
+  }
+
+  [overflowYProperty.setNative](value) {
+    _setOverflowY(value, this as any);
+  }
+
+  [scrollBarWidthProperty.setNative](value) {
+    _setScrollbarWidth(value, this as any);
   }
 
   [positionProperty.setNative](value) {
@@ -1039,6 +1138,10 @@ textWrapProperty.register(TextBase);
 // flexWrapProperty.register(Style);
 // flexGrowProperty.register(Style);
 // flexShrinkProperty.register(Style);
+
+insetProperty.register(Style);
+
+boxSizingProperty.register(Style);
 
 alignItemsProperty.register(Style);
 alignSelfProperty.register(Style);

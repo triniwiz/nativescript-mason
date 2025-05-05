@@ -4,10 +4,14 @@ import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.Paint
 import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.graphics.drawable.Drawable
+import android.text.TextPaint
 import android.text.style.DynamicDrawableSpan
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import org.nativescript.mason.masonkit.FontFace
 import org.nativescript.mason.masonkit.Node
 
 class Spans {
@@ -18,11 +22,39 @@ class Spans {
     DecorationLine,
     Justify,
     Tracking,
-    Size
+    Size,
+    Typeface
   }
 
   interface NSCSpan {
     val type: Type
+  }
+
+  class TypefaceSpan(private val typeface: Typeface, private val isBold: Boolean = false) :
+    android.text.style.MetricAffectingSpan(),
+    NSCSpan {
+    override val type: Type
+      get() = Type.Typeface
+
+    override fun updateDrawState(tp: TextPaint?) {
+      if (isBold && !typeface.isBold) {
+        tp?.isFakeBoldText = true
+      }
+      tp?.typeface = typeface
+    }
+
+    override fun updateMeasureState(textPaint: TextPaint) {
+      if (isBold && !typeface.isBold) {
+        textPaint.isFakeBoldText = true
+      }
+
+      textPaint.typeface = typeface
+    }
+  }
+
+  class TypefaceSpan2(family: String) : android.text.style.TypefaceSpan(family), NSCSpan {
+    override val type: Type
+      get() = Type.Typeface
   }
 
   class SizeSpan(size: Int, scale: Boolean = false) :

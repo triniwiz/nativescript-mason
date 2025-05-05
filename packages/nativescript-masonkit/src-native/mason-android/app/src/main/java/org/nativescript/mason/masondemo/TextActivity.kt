@@ -11,6 +11,7 @@ import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
+import org.nativescript.mason.masonkit.TextType
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
 import org.nativescript.mason.masonkit.text.Styles
@@ -36,15 +37,58 @@ class TextActivity : AppCompatActivity() {
     // testWrap()
 
     val root = Mason.shared.createView(this)
-    val a = Mason.shared.createTextView(this)
-    a.updateText("A")
-    val b = Mason.shared.createTextView(this)
-    b.updateText("B")
-    val c = Mason.shared.createTextView(this)
-    c.updateText("C")
-    root.addView(a, 0)
-    root.addView(b, 1)
-    root.addView(c, 2)
+//    val a = Mason.shared.createTextView(this)
+//    a.updateText("A")
+//    val b = Mason.shared.createTextView(this)
+//    b.updateText("B")
+//    val c = Mason.shared.createTextView(this)
+//    c.updateText("C")
+//    root.addView(a, 0)
+//    root.addView(b, 1)
+//    root.addView(c, 2)
+
+
+    val h1 = Mason.shared.createTextView(this, TextType.H1)
+    h1.updateText("This is heading 1")
+
+    val h2 = Mason.shared.createTextView(this, TextType.H2)
+    h2.updateText("This is heading 2")
+
+    val h3 = Mason.shared.createTextView(this, TextType.H3)
+    h3.updateText("This is heading 3")
+
+    val h4 = Mason.shared.createTextView(this, TextType.H4)
+    h4.updateText("This is heading 4")
+
+    val h5 = Mason.shared.createTextView(this, TextType.H5)
+    h5.updateText("This is heading 5")
+
+    val h6 = Mason.shared.createTextView(this, TextType.H6)
+    h6.updateText("This is heading 6")
+
+    val p = Mason.shared.createTextView(this, TextType.P)
+
+    val b = Mason.shared.createTextView(this, TextType.B)
+
+    val pchild = Mason.shared.createTextView(this, TextType.P)
+
+    b.updateText("Tip:")
+
+    p.addView(b)
+
+    pchild.updateText(" Use h1 to h6 elements only for headings. Do not use them just to make text bold or big. Use other tags for that.")
+
+    p.addView(pchild)
+
+    root.addView(h1)
+    root.addView(h2)
+    root.addView(h3)
+    root.addView(h4)
+    root.addView(h5)
+    root.addView(h6)
+    root.addView(p)
+
+
     setContentView(root)
   }
 

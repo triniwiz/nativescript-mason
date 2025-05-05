@@ -7,10 +7,10 @@ import android.os.Build
 import android.text.BoringLayout
 import android.text.Layout
 import android.text.Spannable
+import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.StaticLayout
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import androidx.annotation.RequiresApi
 import org.nativescript.mason.masonkit.TextAlign.Start
@@ -21,14 +21,8 @@ import org.nativescript.mason.masonkit.text.Styles.TextJustify
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.Locale
-import kotlin.collections.MutableList
-import kotlin.collections.any
 import kotlin.collections.component1
 import kotlin.collections.component2
-import kotlin.collections.indexOfFirst
-import kotlin.collections.iterator
-import kotlin.collections.mutableListOf
-import kotlin.collections.mutableMapOf
 import kotlin.collections.set
 import kotlin.math.ceil
 import kotlin.math.max
@@ -82,6 +76,11 @@ class TextView @JvmOverloads constructor(
   private var spannable = SpannableStringBuilder("")
   private var spans = mutableMapOf<Spans.Type, Spans.NSCSpan>()
 
+  lateinit var font: FontFace
+    private set
+
+  lateinit var type: TextType
+    private set
 
   override lateinit var node: Node
     private set
@@ -98,13 +97,98 @@ class TextView @JvmOverloads constructor(
     val attachment: Spans.NSCSpan?
   )
 
+  constructor(context: Context, mason: Mason) : this(context, mason, TextType.None)
 
-  constructor(context: Context, mason: Mason) : this(context) {
+  constructor(context: Context, mason: Mason, type: TextType) : this(context) {
     node = mason.createNode(this)
     actualNode = mason.createNode(this).apply {
       data = this@TextView
     }
+    this.type = type
 
+    val scale = context.resources.displayMetrics.density
+    val margin = { top: Float, bottom: Float ->
+      Rect<LengthPercentageAuto>(
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(top * scale),
+        LengthPercentageAuto.Points(bottom * scale)
+      )
+    }
+
+    node.inBatch = true
+    when (type) {
+
+      TextType.Code -> {
+        font = FontFace("monospace")
+        setBackgroundColor(0xFFEFEFEF.toInt())
+      }
+
+      TextType.H1 -> {
+        font = FontFace("sans-serif")
+        font.weight = FontFace.NSCFontWeight.Bold
+        spans[Spans.Type.Size] = Spans.SizeSpan(32, true)
+        node.style.margin = margin(16f, 16f)
+      }
+
+      TextType.H2 -> {
+        font = FontFace("sans-serif")
+        font.weight = FontFace.NSCFontWeight.Bold
+        spans[Spans.Type.Size] = Spans.SizeSpan(24, true)
+        node.style.margin = margin(14f, 14f)
+      }
+
+      TextType.H3 -> {
+        font = FontFace("sans-serif")
+        font.weight = FontFace.NSCFontWeight.Bold
+        spans[Spans.Type.Size] = Spans.SizeSpan(18, true)
+        node.style.margin = margin(12f, 12f)
+      }
+
+      TextType.H4 -> {
+        font = FontFace("sans-serif")
+        font.weight = FontFace.NSCFontWeight.Bold
+        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
+        node.style.margin = margin(10f, 10f)
+      }
+
+      TextType.H5 -> {
+        font = FontFace("sans-serif")
+        font.weight = FontFace.NSCFontWeight.Bold
+        spans[Spans.Type.Size] = Spans.SizeSpan(13, true)
+        node.style.margin = margin(8f, 8f)
+      }
+
+      TextType.H6 -> {
+        font = FontFace("sans-serif")
+        font.weight = FontFace.NSCFontWeight.Bold
+        spans[Spans.Type.Size] = Spans.SizeSpan(10, true)
+        node.style.margin = margin(6f, 6f)
+      }
+
+      TextType.Li -> {
+        font = FontFace("sans-serif")
+      }
+
+      TextType.Blockquote -> {
+        font = FontFace("sans-serif")
+      }
+
+      TextType.B -> {
+        font = FontFace("sans-serif")
+        font.weight = FontFace.NSCFontWeight.Bold
+      }
+
+      else -> {
+        font = FontFace("sans-serif")
+      }
+    }
+
+    font.loadSync(context) {}
+
+    spans[Spans.Type.Typeface] =
+      Spans.TypefaceSpan(font.font!!, font.weight.isBold)
+    node.inBatch = false
   }
 
   init {
@@ -118,11 +202,13 @@ class TextView @JvmOverloads constructor(
       }
     }
 
-    // node.style.display = Display.Flex
     node.addChild(actualNode)
 
     setSpannableFactory(object : Spannable.Factory() {
       override fun newSpannable(source: CharSequence): Spannable {
+        if (source is String) {
+          return SpannableString(source)
+        }
         return source as Spannable
       }
     })
@@ -191,23 +277,7 @@ class TextView @JvmOverloads constructor(
     return true
   }
 
-  val masonPtr: Long
-    get() {
-      return node.mason.getNativePtr()
-    }
-
-  val masonNodePtr: Long
-    get() {
-      return node.getNativePtr()
-    }
-
-  val masonPtrs: String
-    get() {
-      return node.mason.getNativePtr().toString() + ":" + masonNodePtr.toString()
-    }
-
-
-  var includePadding = false
+  var includePadding = true
 
   var textAlign: TextAlign
     get() {
@@ -255,6 +325,14 @@ class TextView @JvmOverloads constructor(
       }
     }
 
+  var fontStyle: FontFace.NSCFontStyle
+    set(value) {
+      font.style = value
+    }
+    get() {
+      return font.style
+    }
+
 
   var textWrap: Styles.TextWrap
     get() {
@@ -264,10 +342,7 @@ class TextView @JvmOverloads constructor(
       val changed = value != textWrap
       textValues.putInt(TextStyleKeys.TEXT_WRAP, value.value)
       applyTransform(textTransform, changed, whiteSpace, value)
-      node.dirty()
-      if (!node.inBatch) {
-        rootNode.computeMaxContent()
-      }
+      markDirtyAndRecompute()
     }
 
   var whiteSpace: Styles.WhiteSpace
@@ -278,11 +353,19 @@ class TextView @JvmOverloads constructor(
       val changed = value != whiteSpace
       textValues.putInt(TextStyleKeys.WHITE_SPACE, value.value)
       applyTransform(textTransform, changed, value, textWrap)
-      node.dirty()
-      if (!node.inBatch) {
-        rootNode.computeMaxContent()
+      markDirtyAndRecompute()
+    }
+
+  private fun markDirtyAndRecompute() {
+    node.dirty()
+    if (!node.inBatch) {
+      rootNode.computeCacheWidth?.let { width ->
+        rootNode.computeCacheHeight?.let { height ->
+          rootNode.compute(width, height)
+        }
       }
     }
+  }
 
   private fun fullWidthTransformed(string: String): String {
     val result = StringBuilder(string.length)
@@ -395,7 +478,6 @@ class TextView @JvmOverloads constructor(
       return
     }
 
-
     var transformedText = spannableText ?: return
 
     transformedText = when (whiteSpace) {
@@ -462,11 +544,7 @@ class TextView @JvmOverloads constructor(
       val changed = value != textTransform
       textValues.putInt(TextStyleKeys.TRANSFORM, value.value)
       applyTransform(value, changed, whiteSpace, textWrap)
-
-      node.dirty()
-      if (!node.inBatch) {
-        rootNode.computeMaxContent()
-      }
+      markDirtyAndRecompute()
     }
 
   private fun updateColor(color: Int, replace: Boolean = false) {

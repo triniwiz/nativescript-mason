@@ -10,6 +10,97 @@ import UIKit
 import _Concurrency
 import _StringProcessing
 import _SwiftConcurrencyShims
+@objc(NSCFontDisplay) public enum NSCFontDisplay : Swift.Int, Swift.RawRepresentable, Swift.Codable {
+  case auto
+  case block
+  case fallback
+  case optional
+  case swap
+  public typealias RawValue = Swift.Int
+  public init?(rawValue: Swift.Int)
+  public var rawValue: Swift.Int {
+    get
+  }
+}
+@objc(NSCFontWeight) public enum NSCFontWeight : Swift.Int, Swift.RawRepresentable, Swift.Codable {
+  case thin
+  case extraLight
+  case light
+  case normal
+  case medium
+  case semiBold
+  case bold
+  case extraBold
+  case black
+  public typealias RawValue = Swift.Int
+  public init?(rawValue: Swift.Int)
+  public var rawValue: Swift.Int {
+    get
+  }
+  public var uiFontWeight: UIKit.UIFont.Weight {
+    get
+  }
+}
+@objcMembers @objc(NSCFontDescriptors) public class NSCFontDescriptors : ObjectiveC.NSObject, Swift.Codable {
+  @objc public init(family: Swift.String)
+  @objc public func update(_ value: Swift.String)
+  @objc public func setFontWeight(_ value: Swift.String)
+  @objc public func setFontStyle(_ value: Swift.String)
+  @objc deinit
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+}
+@objc(NSCFontFaceStatus) public enum NSCFontFaceStatus : Swift.Int, Swift.RawRepresentable {
+  case unloaded
+  case loading
+  case loaded
+  case error
+  public typealias RawValue = Swift.Int
+  public init?(rawValue: Swift.Int)
+  public var rawValue: Swift.Int {
+    get
+  }
+}
+@objcMembers @objc(NSCFontFace) public class NSCFontFace : ObjectiveC.NSObject {
+  @objc public var font: CoreGraphics.CGFont? {
+    get
+  }
+  @objc public var fontData: Foundation.NSData? {
+    get
+  }
+  @objc public func updateDescriptor(value: Swift.String)
+  @objc public static func loadFromStyle(style: Swift.String) -> Mason.NSCFontFace?
+  @objc public static func importFromRemote(url: Swift.String, load: Swift.Bool, callback: @escaping ([Mason.NSCFontFace]?, Swift.String?) -> Swift.Void)
+  @objc public init(family: Swift.String)
+  @objc public init(family: Swift.String, source: Swift.String)
+  @objc public init(family: Swift.String, data source: Foundation.NSData)
+  @objc public init(_ family: Swift.String, _ source: Swift.String? = nil, _ descriptors: Mason.NSCFontDescriptors? = nil)
+  @objc public init(_ family: Swift.String, data: Foundation.NSData? = nil, _ descriptors: Mason.NSCFontDescriptors? = nil)
+  @objc public var status: Mason.NSCFontFaceStatus
+  @objc public var display: Mason.NSCFontDisplay
+  @objc public func setFontDisplay(value: Swift.String)
+  @objc public var style: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public func setFontStyle(value: Swift.String, angle: Swift.String?)
+  @objc public var weight: Mason.NSCFontWeight {
+    @objc get
+    @objc set
+  }
+  @objc public func setFontWeight(value: Swift.String)
+  @objc public var family: Swift.String {
+    @objc get
+  }
+  @objc public var ascentOverride: Swift.String {
+    @objc get
+  }
+  @objc public var descentOverride: Swift.String {
+    @objc get
+  }
+  @objc public func load(_ callback: @escaping (Swift.String?) -> Swift.Void)
+  @objc deinit
+}
 public struct Line<T> {
   public init(_ start: T, _ end: T)
 }
@@ -226,6 +317,9 @@ extension UIKit.UIColor {
     get
   }
   @objc @_Concurrency.MainActor @preconcurrency final public let type: Mason.MasonTextType
+  @objc @_Concurrency.MainActor @preconcurrency public var font: Mason.NSCFontFace {
+    get
+  }
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason, type textType: Mason.MasonTextType)
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason)
   @objc @_Concurrency.MainActor @preconcurrency public init(node masonNode: Mason.MasonNode)
@@ -240,9 +334,6 @@ extension UIKit.UIColor {
   @objc @_Concurrency.MainActor @preconcurrency public func configure(_ block: (Mason.MasonNode) -> Swift.Void)
   @objc @_Concurrency.MainActor @preconcurrency public func updateText(_ value: Swift.String?)
   @objc @_Concurrency.MainActor @preconcurrency public var txtToRender: Foundation.NSMutableAttributedString
-  @objc @_Concurrency.MainActor @preconcurrency public var font: UIKit.UIFont {
-    get
-  }
   @objc @_Concurrency.MainActor @preconcurrency public func invalidateStyle(_ state: Swift.Int64)
   @objc @_Concurrency.MainActor @preconcurrency public var textTransform: Mason.TextTransform {
     @objc get
@@ -416,6 +507,32 @@ extension UIKit.UIColor {
     @objc get
   }
   @objc public static let Auto: Mason.GridPlacementCompat
+  @objc deinit
+}
+@objc(NSCFontFaceSetStatus) public enum NSCFontFaceSetStatus : Swift.Int, Swift.RawRepresentable {
+  case loading
+  case loaded
+  public typealias RawValue = Swift.Int
+  public init?(rawValue: Swift.Int)
+  public var rawValue: Swift.Int {
+    get
+  }
+}
+@_inheritsConvenienceInitializers @objcMembers @objc(NSCFontFaceSet) public class NSCFontFaceSet : ObjectiveC.NSObject {
+  @objc public static let instance: Mason.NSCFontFaceSet
+  @objc public var status: Mason.NSCFontFaceSetStatus
+  @objc public var onStatus: ((Mason.NSCFontFaceSetStatus) -> Swift.Void)?
+  @objc public func iter() -> Foundation.NSEnumerator
+  @objc public func array() -> [Any]
+  @objc public func add(_ font: Mason.NSCFontFace)
+  @objc public func clear()
+  @objc public func delete(_ font: Mason.NSCFontFace)
+  @objc public func check(_ font: Swift.String, _ text: Swift.String?) -> Swift.Bool
+  @objc public func load(_ font: Swift.String, _ text: Swift.String?, _ callback: @escaping ([Mason.NSCFontFace], Swift.String?) -> Swift.Void)
+  @objc public var size: Swift.Int {
+    @objc get
+  }
+  @objc override dynamic public init()
   @objc deinit
 }
 @objcMembers @objc(MasonDimensionRectCompat) public class MasonDimensionRectCompat : ObjectiveC.NSObject, Swift.Codable {
@@ -1157,19 +1274,11 @@ public protocol MasonView {
   @objc @_Concurrency.MainActor @preconcurrency public static func createGridView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
   @objc @_Concurrency.MainActor @preconcurrency public static func createFlexView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
   @objc @_Concurrency.MainActor @preconcurrency public static func createBlockView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
-  @objc @_Concurrency.MainActor @preconcurrency public var masonPtr: Swift.Int64 {
-    @objc get
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var masonNodePtr: Swift.Int64 {
-    @objc get
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var masonPtrs: Swift.String {
-    @objc get
-  }
   @objc @_Concurrency.MainActor @preconcurrency public var style: Mason.MasonStyle {
     @objc get
     @objc set
   }
+  @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, at: Swift.Int)
   @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String)
@@ -1395,8 +1504,16 @@ public protocol MasonView {
   @objc @_Concurrency.MainActor @preconcurrency public func getColumnGap() -> Mason.MasonLengthPercentageCompat
   @objc deinit
 }
+extension Mason.NSCFontDisplay : Swift.Equatable {}
+extension Mason.NSCFontDisplay : Swift.Hashable {}
+extension Mason.NSCFontWeight : Swift.Equatable {}
+extension Mason.NSCFontWeight : Swift.Hashable {}
+extension Mason.NSCFontFaceStatus : Swift.Equatable {}
+extension Mason.NSCFontFaceStatus : Swift.Hashable {}
 extension Mason.MasonTextType : Swift.Equatable {}
 extension Mason.MasonTextType : Swift.Hashable {}
+extension Mason.NSCFontFaceSetStatus : Swift.Equatable {}
+extension Mason.NSCFontFaceSetStatus : Swift.Hashable {}
 extension Mason.MasonDimensionCompatType : Swift.Equatable {}
 extension Mason.MasonDimensionCompatType : Swift.Hashable {}
 extension Mason.MasonLengthPercentageAutoCompatType : Swift.Equatable {}

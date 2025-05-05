@@ -2,11 +2,13 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
+import androidx.core.content.withStyledAttributes
+import androidx.core.util.size
+import androidx.core.view.isGone
 import com.google.gson.Gson
 import kotlin.math.roundToInt
 
@@ -49,22 +51,6 @@ class View @JvmOverloads constructor(
     return false
   }
 
-  val masonPtr: Long
-    get() {
-      return node.mason.getNativePtr()
-    }
-
-  val masonNodePtr: Long
-    get() {
-      return node.getNativePtr()
-    }
-
-  val masonPtrs: String
-    get() {
-      return node.mason.getNativePtr()
-        .toString() + ":" + masonNodePtr.toString()
-    }
-
 
   fun updateNodeAndStyle() {
     node.style.updateNativeStyle()
@@ -88,7 +74,7 @@ class View @JvmOverloads constructor(
 
     if (view != null && view != this) {
       var realLayout = layout
-      if (view.visibility == GONE) {
+      if (view.isGone) {
         return
       }
 
@@ -387,7 +373,7 @@ class View @JvmOverloads constructor(
     var insetTop: LengthPercentageAuto = LengthPercentageAuto.Auto
     var insetBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
 
-    for (i in 0 until layoutParameters.numericAttributes.size()) {
+    for (i in 0 until layoutParameters.numericAttributes.size) {
       val attribute: Int = layoutParameters.numericAttributes.keyAt(i)
       val value: Float = layoutParameters.numericAttributes.valueAt(i)
 
@@ -611,7 +597,7 @@ class View @JvmOverloads constructor(
       }
     }
 
-    for (i in 0 until layoutParameters.stringAttributes.size()) {
+    for (i in 0 until layoutParameters.stringAttributes.size) {
       val attribute: Int = layoutParameters.stringAttributes.keyAt(i)
       val value: String = layoutParameters.stringAttributes.valueAt(i)
 
@@ -1924,41 +1910,41 @@ class View @JvmOverloads constructor(
     }
 
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs) {
-      val a = context.obtainStyledAttributes(attrs, R.styleable.mason)
+      context.withStyledAttributes(attrs, R.styleable.mason) {
 
-      if (width >= 0) {
-        numericAttributes.append(R.styleable.mason_mason_width, width.toFloat())
-      }
+        if (width >= 0) {
+          numericAttributes.append(R.styleable.mason_mason_width, width.toFloat())
+        }
 
-      if (height >= 0) {
-        numericAttributes.append(
-          R.styleable.mason_mason_height, height.toFloat()
-        )
-      }
+        if (height >= 0) {
+          numericAttributes.append(
+            R.styleable.mason_mason_height, height.toFloat()
+          )
+        }
 
-      val attributeCount = a.indexCount
-      for (i in 0 until attributeCount) {
-        val attribute = a.getIndex(i)
-        val typedValue = TypedValue()
-        a.getValue(attribute, typedValue)
-        when (typedValue.type) {
-          TypedValue.TYPE_DIMENSION -> {
-            numericAttributes.put(
-              attribute, a.getDimensionPixelSize(attribute, 0).toFloat()
-            )
-          }
+        val attributeCount = indexCount
+        for (i in 0 until attributeCount) {
+          val attribute = getIndex(i)
+          val typedValue = TypedValue()
+          getValue(attribute, typedValue)
+          when (typedValue.type) {
+            TypedValue.TYPE_DIMENSION -> {
+              numericAttributes.put(
+                attribute, getDimensionPixelSize(attribute, 0).toFloat()
+              )
+            }
 
-          TypedValue.TYPE_STRING -> {
-            stringAttributes.put(attribute, a.getString(attribute))
-          }
+            TypedValue.TYPE_STRING -> {
+              stringAttributes.put(attribute, getString(attribute))
+            }
 
-          else -> {
-            numericAttributes.put(attribute, a.getFloat(attribute, 0f))
+            else -> {
+              numericAttributes.put(attribute, getFloat(attribute, 0f))
+            }
           }
         }
-      }
 
-      a.recycle()
+      }
     }
 
   }

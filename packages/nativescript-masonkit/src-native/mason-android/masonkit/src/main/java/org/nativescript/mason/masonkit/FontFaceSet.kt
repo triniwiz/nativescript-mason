@@ -3,7 +3,7 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import java.util.concurrent.Executors
 
-val familyNamePattern = Regex("""(?:\d+px\s+)(["']?)([\w\s]+)\1$""")
+val familyNamePattern = Regex("""\d+px\s+(["']?)([\w\s]+)\1$""")
 
 class FontFaceSet {
   private val fontCache = mutableSetOf<FontFace>()

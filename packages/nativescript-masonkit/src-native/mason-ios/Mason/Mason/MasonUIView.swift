@@ -72,32 +72,6 @@ public class MasonUIView: UIView, MasonView {
       return view
     }
     
-    
-    @objc public var masonPtr: Int64 {
-      if(mason.nativePtr == nil){
-            return 0
-        }
-        guard let ptr = UnsafeRawPointer(mason.nativePtr) else {return 0}
-        
-        return Int64(Int(bitPattern: ptr))
-    }
-    
-    @objc public var masonNodePtr: Int64 {
-      if(node.nativePtr == nil){
-            return 0
-        }
-        guard let ptr = UnsafeRawPointer(node.nativePtr) else {return 0}
-        
-        return Int64(Int(bitPattern: ptr))
-    }
-    
-
-    
-    @objc public var masonPtrs: String {
-        return "\(masonPtr):\(masonNodePtr)"
-    }
-
-    
     @objc public var style: MasonStyle {
         get {
             return node.style
@@ -107,6 +81,12 @@ public class MasonUIView: UIView, MasonView {
             node.style = newValue
         }
     }
+  
+  public func requestLayout(){
+    if let cache = node.computeCache {
+      node.computeWithSize(Float(cache.width), Float(cache.height))
+    }
+  }
   
     
 

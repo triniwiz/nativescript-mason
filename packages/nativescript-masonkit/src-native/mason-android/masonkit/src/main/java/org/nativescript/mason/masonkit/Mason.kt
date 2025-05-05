@@ -10,7 +10,6 @@ import java.util.WeakHashMap
 
 class Mason {
 
-
   internal val nativePtr by lazy {
     nativeInit()
   }
@@ -60,8 +59,9 @@ class Mason {
     return View(context, this)
   }
 
-  fun createTextView(context: Context): TextView {
-    return TextView(context, this)
+  @JvmOverloads
+  fun createTextView(context: Context, type: TextType = TextType.None): TextView {
+    return TextView(context, this, type)
   }
 
   fun nodeForView(view: android.view.View): Node {
@@ -93,6 +93,7 @@ class Mason {
   fun requestLayout(node: Long) {
     nodes[node]?.style?.updateNativeStyle()
   }
+
   fun requestLayout(view: android.view.View) {
     if (view is View) {
       nodes[view.node.nativePtr]?.style?.updateNativeStyle()

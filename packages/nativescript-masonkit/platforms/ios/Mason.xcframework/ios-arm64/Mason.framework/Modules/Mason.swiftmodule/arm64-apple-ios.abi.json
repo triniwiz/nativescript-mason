@@ -13,6 +13,2599 @@
         "declAttributes": ["RawDocComment"]
       },
       {
+        "kind": "Import",
+        "name": "UIKit",
+        "printedName": "UIKit",
+        "declKind": "Import",
+        "moduleName": "Mason"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "NSCFontDisplay",
+        "printedName": "NSCFontDisplay",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "auto",
+            "printedName": "auto",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontDisplay.Type) -> Mason.NSCFontDisplay",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDisplay",
+                    "printedName": "Mason.NSCFontDisplay",
+                    "usr": "c:@M@Mason@E@NSCFontDisplay"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontDisplay.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontDisplay",
+                        "printedName": "Mason.NSCFontDisplay",
+                        "usr": "c:@M@Mason@E@NSCFontDisplay"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontDisplay@NSCFontDisplayAuto",
+            "mangledName": "$s5Mason14NSCFontDisplayO4autoyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 0
+          },
+          {
+            "kind": "Var",
+            "name": "block",
+            "printedName": "block",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontDisplay.Type) -> Mason.NSCFontDisplay",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDisplay",
+                    "printedName": "Mason.NSCFontDisplay",
+                    "usr": "c:@M@Mason@E@NSCFontDisplay"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontDisplay.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontDisplay",
+                        "printedName": "Mason.NSCFontDisplay",
+                        "usr": "c:@M@Mason@E@NSCFontDisplay"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontDisplay@NSCFontDisplayBlock",
+            "mangledName": "$s5Mason14NSCFontDisplayO5blockyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 1
+          },
+          {
+            "kind": "Var",
+            "name": "fallback",
+            "printedName": "fallback",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontDisplay.Type) -> Mason.NSCFontDisplay",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDisplay",
+                    "printedName": "Mason.NSCFontDisplay",
+                    "usr": "c:@M@Mason@E@NSCFontDisplay"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontDisplay.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontDisplay",
+                        "printedName": "Mason.NSCFontDisplay",
+                        "usr": "c:@M@Mason@E@NSCFontDisplay"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontDisplay@NSCFontDisplayFallback",
+            "mangledName": "$s5Mason14NSCFontDisplayO8fallbackyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 2
+          },
+          {
+            "kind": "Var",
+            "name": "optional",
+            "printedName": "optional",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontDisplay.Type) -> Mason.NSCFontDisplay",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDisplay",
+                    "printedName": "Mason.NSCFontDisplay",
+                    "usr": "c:@M@Mason@E@NSCFontDisplay"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontDisplay.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontDisplay",
+                        "printedName": "Mason.NSCFontDisplay",
+                        "usr": "c:@M@Mason@E@NSCFontDisplay"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontDisplay@NSCFontDisplayOptional",
+            "mangledName": "$s5Mason14NSCFontDisplayO8optionalyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 3
+          },
+          {
+            "kind": "Var",
+            "name": "swap",
+            "printedName": "swap",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontDisplay.Type) -> Mason.NSCFontDisplay",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDisplay",
+                    "printedName": "Mason.NSCFontDisplay",
+                    "usr": "c:@M@Mason@E@NSCFontDisplay"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontDisplay.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontDisplay",
+                        "printedName": "Mason.NSCFontDisplay",
+                        "usr": "c:@M@Mason@E@NSCFontDisplay"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontDisplay@NSCFontDisplaySwap",
+            "mangledName": "$s5Mason14NSCFontDisplayO4swapyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 4
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(rawValue:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.NSCFontDisplay?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDisplay",
+                    "printedName": "Mason.NSCFontDisplay",
+                    "usr": "c:@M@Mason@E@NSCFontDisplay"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:5Mason14NSCFontDisplayO8rawValueACSgSi_tcfc",
+            "mangledName": "$s5Mason14NSCFontDisplayO8rawValueACSgSi_tcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Var",
+            "name": "rawValue",
+            "printedName": "rawValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason14NSCFontDisplayO8rawValueSivp",
+            "mangledName": "$s5Mason14NSCFontDisplayO8rawValueSivp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason14NSCFontDisplayO8rawValueSivg",
+                "mangledName": "$s5Mason14NSCFontDisplayO8rawValueSivg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "c:@M@Mason@E@NSCFontDisplay",
+        "mangledName": "$s5Mason14NSCFontDisplayO",
+        "moduleName": "Mason",
+        "objc_name": "NSCFontDisplay",
+        "declAttributes": ["AccessControl", "ObjC"],
+        "enumRawTypeName": "Int",
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "RawRepresentable",
+            "printedName": "RawRepresentable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "RawValue",
+                "printedName": "RawValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:SY",
+            "mangledName": "$sSY"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Decodable",
+            "printedName": "Decodable",
+            "usr": "s:Se",
+            "mangledName": "$sSe"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Encodable",
+            "printedName": "Encodable",
+            "usr": "s:SE",
+            "mangledName": "$sSE"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "NSCFontWeight",
+        "printedName": "NSCFontWeight",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "thin",
+            "printedName": "thin",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontWeight.Type) -> Mason.NSCFontWeight",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontWeight.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontWeight",
+                        "printedName": "Mason.NSCFontWeight",
+                        "usr": "c:@M@Mason@E@NSCFontWeight"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontWeight@NSCFontWeightThin",
+            "mangledName": "$s5Mason13NSCFontWeightO4thinyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 0
+          },
+          {
+            "kind": "Var",
+            "name": "extraLight",
+            "printedName": "extraLight",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontWeight.Type) -> Mason.NSCFontWeight",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontWeight.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontWeight",
+                        "printedName": "Mason.NSCFontWeight",
+                        "usr": "c:@M@Mason@E@NSCFontWeight"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontWeight@NSCFontWeightExtraLight",
+            "mangledName": "$s5Mason13NSCFontWeightO10extraLightyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 1
+          },
+          {
+            "kind": "Var",
+            "name": "light",
+            "printedName": "light",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontWeight.Type) -> Mason.NSCFontWeight",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontWeight.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontWeight",
+                        "printedName": "Mason.NSCFontWeight",
+                        "usr": "c:@M@Mason@E@NSCFontWeight"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontWeight@NSCFontWeightLight",
+            "mangledName": "$s5Mason13NSCFontWeightO5lightyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 2
+          },
+          {
+            "kind": "Var",
+            "name": "normal",
+            "printedName": "normal",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontWeight.Type) -> Mason.NSCFontWeight",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontWeight.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontWeight",
+                        "printedName": "Mason.NSCFontWeight",
+                        "usr": "c:@M@Mason@E@NSCFontWeight"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontWeight@NSCFontWeightNormal",
+            "mangledName": "$s5Mason13NSCFontWeightO6normalyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 3
+          },
+          {
+            "kind": "Var",
+            "name": "medium",
+            "printedName": "medium",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontWeight.Type) -> Mason.NSCFontWeight",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontWeight.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontWeight",
+                        "printedName": "Mason.NSCFontWeight",
+                        "usr": "c:@M@Mason@E@NSCFontWeight"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontWeight@NSCFontWeightMedium",
+            "mangledName": "$s5Mason13NSCFontWeightO6mediumyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 4
+          },
+          {
+            "kind": "Var",
+            "name": "semiBold",
+            "printedName": "semiBold",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontWeight.Type) -> Mason.NSCFontWeight",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontWeight.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontWeight",
+                        "printedName": "Mason.NSCFontWeight",
+                        "usr": "c:@M@Mason@E@NSCFontWeight"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontWeight@NSCFontWeightSemiBold",
+            "mangledName": "$s5Mason13NSCFontWeightO8semiBoldyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 5
+          },
+          {
+            "kind": "Var",
+            "name": "bold",
+            "printedName": "bold",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontWeight.Type) -> Mason.NSCFontWeight",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontWeight.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontWeight",
+                        "printedName": "Mason.NSCFontWeight",
+                        "usr": "c:@M@Mason@E@NSCFontWeight"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontWeight@NSCFontWeightBold",
+            "mangledName": "$s5Mason13NSCFontWeightO4boldyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 6
+          },
+          {
+            "kind": "Var",
+            "name": "extraBold",
+            "printedName": "extraBold",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontWeight.Type) -> Mason.NSCFontWeight",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontWeight.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontWeight",
+                        "printedName": "Mason.NSCFontWeight",
+                        "usr": "c:@M@Mason@E@NSCFontWeight"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontWeight@NSCFontWeightExtraBold",
+            "mangledName": "$s5Mason13NSCFontWeightO9extraBoldyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 7
+          },
+          {
+            "kind": "Var",
+            "name": "black",
+            "printedName": "black",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontWeight.Type) -> Mason.NSCFontWeight",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontWeight.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontWeight",
+                        "printedName": "Mason.NSCFontWeight",
+                        "usr": "c:@M@Mason@E@NSCFontWeight"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontWeight@NSCFontWeightBlack",
+            "mangledName": "$s5Mason13NSCFontWeightO5blackyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 8
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(rawValue:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.NSCFontWeight?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:5Mason13NSCFontWeightO8rawValueACSgSi_tcfc",
+            "mangledName": "$s5Mason13NSCFontWeightO8rawValueACSgSi_tcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Var",
+            "name": "rawValue",
+            "printedName": "rawValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason13NSCFontWeightO8rawValueSivp",
+            "mangledName": "$s5Mason13NSCFontWeightO8rawValueSivp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason13NSCFontWeightO8rawValueSivg",
+                "mangledName": "$s5Mason13NSCFontWeightO8rawValueSivg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "uiFontWeight",
+            "printedName": "uiFontWeight",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Weight",
+                "printedName": "UIKit.UIFont.Weight",
+                "usr": "c:@T@UIFontWeight"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason13NSCFontWeightO06uiFontC0So06UIFontC0avp",
+            "mangledName": "$s5Mason13NSCFontWeightO06uiFontC0So06UIFontC0avp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Weight",
+                    "printedName": "UIKit.UIFont.Weight",
+                    "usr": "c:@T@UIFontWeight"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason13NSCFontWeightO06uiFontC0So06UIFontC0avg",
+                "mangledName": "$s5Mason13NSCFontWeightO06uiFontC0So06UIFontC0avg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "c:@M@Mason@E@NSCFontWeight",
+        "mangledName": "$s5Mason13NSCFontWeightO",
+        "moduleName": "Mason",
+        "objc_name": "NSCFontWeight",
+        "declAttributes": ["AccessControl", "ObjC"],
+        "enumRawTypeName": "Int",
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "RawRepresentable",
+            "printedName": "RawRepresentable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "RawValue",
+                "printedName": "RawValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:SY",
+            "mangledName": "$sSY"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Decodable",
+            "printedName": "Decodable",
+            "usr": "s:Se",
+            "mangledName": "$sSe"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Encodable",
+            "printedName": "Encodable",
+            "usr": "s:SE",
+            "mangledName": "$sSE"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "NSCFontDescriptors",
+        "printedName": "NSCFontDescriptors",
+        "children": [
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(family:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontDescriptors",
+                "printedName": "Mason.NSCFontDescriptors",
+                "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors(im)initWithFamily:",
+            "mangledName": "$s5Mason18NSCFontDescriptorsC6familyACSS_tcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "update",
+            "printedName": "update(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors(im)update:",
+            "mangledName": "$s5Mason18NSCFontDescriptorsC6updateyySSF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setFontWeight",
+            "printedName": "setFontWeight(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors(im)setFontWeight:",
+            "mangledName": "$s5Mason18NSCFontDescriptorsC13setFontWeightyySSF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setFontStyle",
+            "printedName": "setFontStyle(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors(im)setFontStyle:",
+            "mangledName": "$s5Mason18NSCFontDescriptorsC12setFontStyleyySSF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontDescriptors",
+                "printedName": "Mason.NSCFontDescriptors",
+                "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors(im)init",
+            "mangledName": "$s5Mason18NSCFontDescriptorsCACycfc",
+            "moduleName": "Mason",
+            "overriding": true,
+            "implicit": true,
+            "objc_name": "init",
+            "declAttributes": ["Dynamic", "ObjC", "Override"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(from:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontDescriptors",
+                "printedName": "Mason.NSCFontDescriptors",
+                "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Decoder",
+                "printedName": "any Swift.Decoder",
+                "usr": "s:s7DecoderP"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:5Mason18NSCFontDescriptorsC4fromACs7Decoder_p_tKcfc",
+            "mangledName": "$s5Mason18NSCFontDescriptorsC4fromACs7Decoder_p_tKcfc",
+            "moduleName": "Mason",
+            "implicit": true,
+            "declAttributes": ["Required"],
+            "throwing": true,
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "encode",
+            "printedName": "encode(to:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Encoder",
+                "printedName": "any Swift.Encoder",
+                "usr": "s:s7EncoderP"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:5Mason18NSCFontDescriptorsC6encode2toys7Encoder_p_tKF",
+            "mangledName": "$s5Mason18NSCFontDescriptorsC6encode2toys7Encoder_p_tKF",
+            "moduleName": "Mason",
+            "implicit": true,
+            "throwing": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors",
+        "mangledName": "$s5Mason18NSCFontDescriptorsC",
+        "moduleName": "Mason",
+        "objc_name": "NSCFontDescriptors",
+        "declAttributes": ["AccessControl", "ObjC", "ObjCMembers"],
+        "superclassUsr": "c:objc(cs)NSObject",
+        "superclassNames": ["ObjectiveC.NSObject"],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Decodable",
+            "printedName": "Decodable",
+            "usr": "s:Se",
+            "mangledName": "$sSe"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Encodable",
+            "printedName": "Encodable",
+            "usr": "s:SE",
+            "mangledName": "$sSE"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CVarArg",
+            "printedName": "CVarArg",
+            "usr": "s:s7CVarArgP",
+            "mangledName": "$ss7CVarArgP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_KeyValueCodingAndObservingPublishing",
+            "printedName": "_KeyValueCodingAndObservingPublishing",
+            "usr": "s:10Foundation37_KeyValueCodingAndObservingPublishingP",
+            "mangledName": "$s10Foundation37_KeyValueCodingAndObservingPublishingP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_KeyValueCodingAndObserving",
+            "printedName": "_KeyValueCodingAndObserving",
+            "usr": "s:10Foundation27_KeyValueCodingAndObservingP",
+            "mangledName": "$s10Foundation27_KeyValueCodingAndObservingP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomStringConvertible",
+            "printedName": "CustomStringConvertible",
+            "usr": "s:s23CustomStringConvertibleP",
+            "mangledName": "$ss23CustomStringConvertibleP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomDebugStringConvertible",
+            "printedName": "CustomDebugStringConvertible",
+            "usr": "s:s28CustomDebugStringConvertibleP",
+            "mangledName": "$ss28CustomDebugStringConvertibleP"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "NSCFontFaceStatus",
+        "printedName": "NSCFontFaceStatus",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "unloaded",
+            "printedName": "unloaded",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontFaceStatus.Type) -> Mason.NSCFontFaceStatus",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceStatus",
+                    "printedName": "Mason.NSCFontFaceStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontFaceStatus.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontFaceStatus",
+                        "printedName": "Mason.NSCFontFaceStatus",
+                        "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontFaceStatus@NSCFontFaceStatusUnloaded",
+            "mangledName": "$s5Mason17NSCFontFaceStatusO8unloadedyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 0
+          },
+          {
+            "kind": "Var",
+            "name": "loading",
+            "printedName": "loading",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontFaceStatus.Type) -> Mason.NSCFontFaceStatus",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceStatus",
+                    "printedName": "Mason.NSCFontFaceStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontFaceStatus.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontFaceStatus",
+                        "printedName": "Mason.NSCFontFaceStatus",
+                        "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontFaceStatus@NSCFontFaceStatusLoading",
+            "mangledName": "$s5Mason17NSCFontFaceStatusO7loadingyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 1
+          },
+          {
+            "kind": "Var",
+            "name": "loaded",
+            "printedName": "loaded",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontFaceStatus.Type) -> Mason.NSCFontFaceStatus",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceStatus",
+                    "printedName": "Mason.NSCFontFaceStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontFaceStatus.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontFaceStatus",
+                        "printedName": "Mason.NSCFontFaceStatus",
+                        "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontFaceStatus@NSCFontFaceStatusLoaded",
+            "mangledName": "$s5Mason17NSCFontFaceStatusO6loadedyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 2
+          },
+          {
+            "kind": "Var",
+            "name": "error",
+            "printedName": "error",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontFaceStatus.Type) -> Mason.NSCFontFaceStatus",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceStatus",
+                    "printedName": "Mason.NSCFontFaceStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontFaceStatus.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontFaceStatus",
+                        "printedName": "Mason.NSCFontFaceStatus",
+                        "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontFaceStatus@NSCFontFaceStatusError",
+            "mangledName": "$s5Mason17NSCFontFaceStatusO5erroryA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 3
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(rawValue:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.NSCFontFaceStatus?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceStatus",
+                    "printedName": "Mason.NSCFontFaceStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:5Mason17NSCFontFaceStatusO8rawValueACSgSi_tcfc",
+            "mangledName": "$s5Mason17NSCFontFaceStatusO8rawValueACSgSi_tcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Var",
+            "name": "rawValue",
+            "printedName": "rawValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason17NSCFontFaceStatusO8rawValueSivp",
+            "mangledName": "$s5Mason17NSCFontFaceStatusO8rawValueSivp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason17NSCFontFaceStatusO8rawValueSivg",
+                "mangledName": "$s5Mason17NSCFontFaceStatusO8rawValueSivg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "c:@M@Mason@E@NSCFontFaceStatus",
+        "mangledName": "$s5Mason17NSCFontFaceStatusO",
+        "moduleName": "Mason",
+        "objc_name": "NSCFontFaceStatus",
+        "declAttributes": ["AccessControl", "ObjC"],
+        "enumRawTypeName": "Int",
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "RawRepresentable",
+            "printedName": "RawRepresentable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "RawValue",
+                "printedName": "RawValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:SY",
+            "mangledName": "$sSY"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "NSCFontFace",
+        "printedName": "NSCFontFace",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "font",
+            "printedName": "font",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "CoreGraphics.CGFont?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CGFont",
+                    "printedName": "CoreGraphics.CGFont",
+                    "usr": "c:@T@CGFontRef"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(py)font",
+            "mangledName": "$s5Mason11NSCFontFaceC4fontSo9CGFontRefaSgvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "SetterAccess", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "CoreGraphics.CGFont?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "CGFont",
+                        "printedName": "CoreGraphics.CGFont",
+                        "usr": "c:@T@CGFontRef"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)font",
+                "mangledName": "$s5Mason11NSCFontFaceC4fontSo9CGFontRefaSgvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "fontData",
+            "printedName": "fontData",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Foundation.NSData?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSData",
+                    "printedName": "Foundation.NSData",
+                    "usr": "c:objc(cs)NSData"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(py)fontData",
+            "mangledName": "$s5Mason11NSCFontFaceC8fontDataSo6NSDataCSgvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "SetterAccess", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Foundation.NSData?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSData",
+                        "printedName": "Foundation.NSData",
+                        "usr": "c:objc(cs)NSData"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)fontData",
+                "mangledName": "$s5Mason11NSCFontFaceC8fontDataSo6NSDataCSgvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "updateDescriptor",
+            "printedName": "updateDescriptor(value:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)updateDescriptorWithValue:",
+            "mangledName": "$s5Mason11NSCFontFaceC16updateDescriptor5valueySS_tF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "loadFromStyle",
+            "printedName": "loadFromStyle(style:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.NSCFontFace?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFace",
+                    "printedName": "Mason.NSCFontFace",
+                    "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(cm)loadFromStyleWithStyle:",
+            "mangledName": "$s5Mason11NSCFontFaceC13loadFromStyle5styleACSgSS_tFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "importFromRemote",
+            "printedName": "importFromRemote(url:load:callback:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "([Mason.NSCFontFace]?, Swift.String?) -> ()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "([Mason.NSCFontFace]?, Swift.String?)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Optional",
+                        "printedName": "[Mason.NSCFontFace]?",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Array",
+                            "printedName": "[Mason.NSCFontFace]",
+                            "children": [
+                              {
+                                "kind": "TypeNominal",
+                                "name": "NSCFontFace",
+                                "printedName": "Mason.NSCFontFace",
+                                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+                              }
+                            ],
+                            "usr": "s:Sa"
+                          }
+                        ],
+                        "usr": "s:Sq"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Optional",
+                        "printedName": "Swift.String?",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "String",
+                            "printedName": "Swift.String",
+                            "usr": "s:SS"
+                          }
+                        ],
+                        "usr": "s:Sq"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(cm)importFromRemoteWithUrl:load:callback:",
+            "mangledName": "$s5Mason11NSCFontFaceC16importFromRemote3url4load8callbackySS_SbySayACGSg_SSSgtctFZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["Final", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(family:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFace",
+                "printedName": "Mason.NSCFontFace",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)initWithFamily:",
+            "mangledName": "$s5Mason11NSCFontFaceC6familyACSS_tcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(family:source:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFace",
+                "printedName": "Mason.NSCFontFace",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)initWithFamily:source:",
+            "mangledName": "$s5Mason11NSCFontFaceC6family6sourceACSS_SStcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(family:data:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFace",
+                "printedName": "Mason.NSCFontFace",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "NSData",
+                "printedName": "Foundation.NSData",
+                "usr": "c:objc(cs)NSData"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)initWithFamily:data:",
+            "mangledName": "$s5Mason11NSCFontFaceC6family4dataACSS_So6NSDataCtcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFace",
+                "printedName": "Mason.NSCFontFace",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.NSCFontDescriptors?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDescriptors",
+                    "printedName": "Mason.NSCFontDescriptors",
+                    "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)init:::",
+            "mangledName": "$s5Mason11NSCFontFaceCyACSS_SSSgAA0B11DescriptorsCSgtcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(_:data:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFace",
+                "printedName": "Mason.NSCFontFace",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Foundation.NSData?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSData",
+                    "printedName": "Foundation.NSData",
+                    "usr": "c:objc(cs)NSData"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.NSCFontDescriptors?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDescriptors",
+                    "printedName": "Mason.NSCFontDescriptors",
+                    "usr": "c:@M@Mason@objc(cs)NSCFontDescriptors"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)init:data::",
+            "mangledName": "$s5Mason11NSCFontFaceC_4data_ACSS_So6NSDataCSgAA0B11DescriptorsCSgtcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Var",
+            "name": "status",
+            "printedName": "status",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFaceStatus",
+                "printedName": "Mason.NSCFontFaceStatus",
+                "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(py)status",
+            "mangledName": "$s5Mason11NSCFontFaceC6statusAA0bC6StatusOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceStatus",
+                    "printedName": "Mason.NSCFontFaceStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)status",
+                "mangledName": "$s5Mason11NSCFontFaceC6statusAA0bC6StatusOvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceStatus",
+                    "printedName": "Mason.NSCFontFaceStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceStatus"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)setStatus:",
+                "mangledName": "$s5Mason11NSCFontFaceC6statusAA0bC6StatusOvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason11NSCFontFaceC6statusAA0bC6StatusOvM",
+                "mangledName": "$s5Mason11NSCFontFaceC6statusAA0bC6StatusOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "display",
+            "printedName": "display",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontDisplay",
+                "printedName": "Mason.NSCFontDisplay",
+                "usr": "c:@M@Mason@E@NSCFontDisplay"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(py)display",
+            "mangledName": "$s5Mason11NSCFontFaceC7displayAA0B7DisplayOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDisplay",
+                    "printedName": "Mason.NSCFontDisplay",
+                    "usr": "c:@M@Mason@E@NSCFontDisplay"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)display",
+                "mangledName": "$s5Mason11NSCFontFaceC7displayAA0B7DisplayOvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontDisplay",
+                    "printedName": "Mason.NSCFontDisplay",
+                    "usr": "c:@M@Mason@E@NSCFontDisplay"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)setDisplay:",
+                "mangledName": "$s5Mason11NSCFontFaceC7displayAA0B7DisplayOvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason11NSCFontFaceC7displayAA0B7DisplayOvM",
+                "mangledName": "$s5Mason11NSCFontFaceC7displayAA0B7DisplayOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "setFontDisplay",
+            "printedName": "setFontDisplay(value:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)setFontDisplayWithValue:",
+            "mangledName": "$s5Mason11NSCFontFaceC14setFontDisplay5valueySS_tF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "style",
+            "printedName": "style",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(py)style",
+            "mangledName": "$s5Mason11NSCFontFaceC5styleSSvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)style",
+                "mangledName": "$s5Mason11NSCFontFaceC5styleSSvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)setStyle:",
+                "mangledName": "$s5Mason11NSCFontFaceC5styleSSvs",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason11NSCFontFaceC5styleSSvM",
+                "mangledName": "$s5Mason11NSCFontFaceC5styleSSvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "setFontStyle",
+            "printedName": "setFontStyle(value:angle:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)setFontStyleWithValue:angle:",
+            "mangledName": "$s5Mason11NSCFontFaceC12setFontStyle5value5angleySS_SSSgtF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "weight",
+            "printedName": "weight",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontWeight",
+                "printedName": "Mason.NSCFontWeight",
+                "usr": "c:@M@Mason@E@NSCFontWeight"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(py)weight",
+            "mangledName": "$s5Mason11NSCFontFaceC6weightAA0B6WeightOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)weight",
+                "mangledName": "$s5Mason11NSCFontFaceC6weightAA0B6WeightOvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontWeight",
+                    "printedName": "Mason.NSCFontWeight",
+                    "usr": "c:@M@Mason@E@NSCFontWeight"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)setWeight:",
+                "mangledName": "$s5Mason11NSCFontFaceC6weightAA0B6WeightOvs",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason11NSCFontFaceC6weightAA0B6WeightOvM",
+                "mangledName": "$s5Mason11NSCFontFaceC6weightAA0B6WeightOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "setFontWeight",
+            "printedName": "setFontWeight(value:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)setFontWeightWithValue:",
+            "mangledName": "$s5Mason11NSCFontFaceC13setFontWeight5valueySS_tF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "family",
+            "printedName": "family",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(py)family",
+            "mangledName": "$s5Mason11NSCFontFaceC6familySSvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)family",
+                "mangledName": "$s5Mason11NSCFontFaceC6familySSvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "ascentOverride",
+            "printedName": "ascentOverride",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(py)ascentOverride",
+            "mangledName": "$s5Mason11NSCFontFaceC14ascentOverrideSSvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)ascentOverride",
+                "mangledName": "$s5Mason11NSCFontFaceC14ascentOverrideSSvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "descentOverride",
+            "printedName": "descentOverride",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(py)descentOverride",
+            "mangledName": "$s5Mason11NSCFontFaceC15descentOverrideSSvp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)descentOverride",
+                "mangledName": "$s5Mason11NSCFontFaceC15descentOverrideSSvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "load",
+            "printedName": "load(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Swift.String?) -> ()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Swift.String?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)load:",
+            "mangledName": "$s5Mason11NSCFontFaceC4loadyyySSSgcF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFace",
+                "printedName": "Mason.NSCFontFace",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFace(im)init",
+            "mangledName": "$s5Mason11NSCFontFaceCACycfc",
+            "moduleName": "Mason",
+            "overriding": true,
+            "implicit": true,
+            "objc_name": "init",
+            "declAttributes": ["Dynamic", "ObjC", "Override"],
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "c:@M@Mason@objc(cs)NSCFontFace",
+        "mangledName": "$s5Mason11NSCFontFaceC",
+        "moduleName": "Mason",
+        "objc_name": "NSCFontFace",
+        "declAttributes": ["AccessControl", "ObjC", "ObjCMembers"],
+        "superclassUsr": "c:objc(cs)NSObject",
+        "superclassNames": ["ObjectiveC.NSObject"],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CVarArg",
+            "printedName": "CVarArg",
+            "usr": "s:s7CVarArgP",
+            "mangledName": "$ss7CVarArgP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_KeyValueCodingAndObservingPublishing",
+            "printedName": "_KeyValueCodingAndObservingPublishing",
+            "usr": "s:10Foundation37_KeyValueCodingAndObservingPublishingP",
+            "mangledName": "$s10Foundation37_KeyValueCodingAndObservingPublishingP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_KeyValueCodingAndObserving",
+            "printedName": "_KeyValueCodingAndObserving",
+            "usr": "s:10Foundation27_KeyValueCodingAndObservingP",
+            "mangledName": "$s10Foundation27_KeyValueCodingAndObservingP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomStringConvertible",
+            "printedName": "CustomStringConvertible",
+            "usr": "s:s23CustomStringConvertibleP",
+            "mangledName": "$ss23CustomStringConvertibleP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomDebugStringConvertible",
+            "printedName": "CustomDebugStringConvertible",
+            "usr": "s:s28CustomDebugStringConvertibleP",
+            "mangledName": "$ss28CustomDebugStringConvertibleP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "Mason",
+        "declAttributes": ["RawDocComment"]
+      },
+      {
         "kind": "TypeDecl",
         "name": "Line",
         "printedName": "Line",
@@ -6216,6 +8809,47 @@
             ]
           },
           {
+            "kind": "Var",
+            "name": "font",
+            "printedName": "font",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFace",
+                "printedName": "Mason.NSCFontFace",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonText(py)font",
+            "mangledName": "$s5Mason0A4TextC4fontAA11NSCFontFaceCvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "Preconcurrency", "Custom", "HasStorage", "SetterAccess", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFace",
+                    "printedName": "Mason.NSCFontFace",
+                    "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonText(im)font",
+                "mangledName": "$s5Mason0A4TextC4fontAA11NSCFontFaceCvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
             "kind": "Constructor",
             "name": "init",
             "printedName": "init(mason:type:)",
@@ -6561,47 +9195,6 @@
                 "moduleName": "Mason",
                 "implicit": true,
                 "accessorKind": "_modify"
-              }
-            ]
-          },
-          {
-            "kind": "Var",
-            "name": "font",
-            "printedName": "font",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "UIFont",
-                "printedName": "UIKit.UIFont",
-                "usr": "c:objc(cs)UIFont"
-              }
-            ],
-            "declKind": "Var",
-            "usr": "c:@M@Mason@objc(cs)MasonText(py)font",
-            "mangledName": "$s5Mason0A4TextC4fontSo6UIFontCvp",
-            "moduleName": "Mason",
-            "declAttributes": ["HasInitialValue", "Preconcurrency", "Custom", "HasStorage", "SetterAccess", "AccessControl", "ObjC"],
-            "hasStorage": true,
-            "accessors": [
-              {
-                "kind": "Accessor",
-                "name": "Get",
-                "printedName": "Get()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "UIFont",
-                    "printedName": "UIKit.UIFont",
-                    "usr": "c:objc(cs)UIFont"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)MasonText(im)font",
-                "mangledName": "$s5Mason0A4TextC4fontSo6UIFontCvg",
-                "moduleName": "Mason",
-                "implicit": true,
-                "declAttributes": ["ObjC"],
-                "accessorKind": "get"
               }
             ]
           },
@@ -10603,6 +13196,885 @@
         "declAttributes": ["AccessControl", "ObjC", "ObjCMembers"],
         "superclassUsr": "c:objc(cs)NSObject",
         "hasMissingDesignatedInitializers": true,
+        "superclassNames": ["ObjectiveC.NSObject"],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CVarArg",
+            "printedName": "CVarArg",
+            "usr": "s:s7CVarArgP",
+            "mangledName": "$ss7CVarArgP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_KeyValueCodingAndObservingPublishing",
+            "printedName": "_KeyValueCodingAndObservingPublishing",
+            "usr": "s:10Foundation37_KeyValueCodingAndObservingPublishingP",
+            "mangledName": "$s10Foundation37_KeyValueCodingAndObservingPublishingP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "_KeyValueCodingAndObserving",
+            "printedName": "_KeyValueCodingAndObserving",
+            "usr": "s:10Foundation27_KeyValueCodingAndObservingP",
+            "mangledName": "$s10Foundation27_KeyValueCodingAndObservingP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomStringConvertible",
+            "printedName": "CustomStringConvertible",
+            "usr": "s:s23CustomStringConvertibleP",
+            "mangledName": "$ss23CustomStringConvertibleP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "CustomDebugStringConvertible",
+            "printedName": "CustomDebugStringConvertible",
+            "usr": "s:s28CustomDebugStringConvertibleP",
+            "mangledName": "$ss28CustomDebugStringConvertibleP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "Mason",
+        "declAttributes": ["RawDocComment"]
+      },
+      {
+        "kind": "Import",
+        "name": "CoreText",
+        "printedName": "CoreText",
+        "declKind": "Import",
+        "moduleName": "Mason"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "NSCFontFaceSetStatus",
+        "printedName": "NSCFontFaceSetStatus",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "loading",
+            "printedName": "loading",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontFaceSetStatus.Type) -> Mason.NSCFontFaceSetStatus",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceSetStatus",
+                    "printedName": "Mason.NSCFontFaceSetStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontFaceSetStatus.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontFaceSetStatus",
+                        "printedName": "Mason.NSCFontFaceSetStatus",
+                        "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontFaceSetStatus@NSCFontFaceSetStatusLoading",
+            "mangledName": "$s5Mason20NSCFontFaceSetStatusO7loadingyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 0
+          },
+          {
+            "kind": "Var",
+            "name": "loaded",
+            "printedName": "loaded",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Mason.NSCFontFaceSetStatus.Type) -> Mason.NSCFontFaceSetStatus",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceSetStatus",
+                    "printedName": "Mason.NSCFontFaceSetStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Mason.NSCFontFaceSetStatus.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontFaceSetStatus",
+                        "printedName": "Mason.NSCFontFaceSetStatus",
+                        "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "c:@M@Mason@E@NSCFontFaceSetStatus@NSCFontFaceSetStatusLoaded",
+            "mangledName": "$s5Mason20NSCFontFaceSetStatusO6loadedyA2CmF",
+            "moduleName": "Mason",
+            "declAttributes": ["ObjC"],
+            "fixedbinaryorder": 1
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(rawValue:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Mason.NSCFontFaceSetStatus?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceSetStatus",
+                    "printedName": "Mason.NSCFontFaceSetStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:5Mason20NSCFontFaceSetStatusO8rawValueACSgSi_tcfc",
+            "mangledName": "$s5Mason20NSCFontFaceSetStatusO8rawValueACSgSi_tcfc",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Var",
+            "name": "rawValue",
+            "printedName": "rawValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:5Mason20NSCFontFaceSetStatusO8rawValueSivp",
+            "mangledName": "$s5Mason20NSCFontFaceSetStatusO8rawValueSivp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason20NSCFontFaceSetStatusO8rawValueSivg",
+                "mangledName": "$s5Mason20NSCFontFaceSetStatusO8rawValueSivg",
+                "moduleName": "Mason",
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "c:@M@Mason@E@NSCFontFaceSetStatus",
+        "mangledName": "$s5Mason20NSCFontFaceSetStatusO",
+        "moduleName": "Mason",
+        "objc_name": "NSCFontFaceSetStatus",
+        "declAttributes": ["AccessControl", "ObjC"],
+        "enumRawTypeName": "Int",
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "RawRepresentable",
+            "printedName": "RawRepresentable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "RawValue",
+                "printedName": "RawValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:SY",
+            "mangledName": "$sSY"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "NSCFontFaceSet",
+        "printedName": "NSCFontFaceSet",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "instance",
+            "printedName": "instance",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFaceSet",
+                "printedName": "Mason.NSCFontFaceSet",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(cpy)instance",
+            "mangledName": "$s5Mason14NSCFontFaceSetC8instanceACvpZ",
+            "moduleName": "Mason",
+            "static": true,
+            "declAttributes": ["HasInitialValue", "Final", "HasStorage", "AccessControl", "ObjC"],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceSet",
+                    "printedName": "Mason.NSCFontFaceSet",
+                    "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(cm)instance",
+                "mangledName": "$s5Mason14NSCFontFaceSetC8instanceACvgZ",
+                "moduleName": "Mason",
+                "static": true,
+                "implicit": true,
+                "declAttributes": ["Final", "ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "status",
+            "printedName": "status",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFaceSetStatus",
+                "printedName": "Mason.NSCFontFaceSetStatus",
+                "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(py)status",
+            "mangledName": "$s5Mason14NSCFontFaceSetC6statusAA0bcD6StatusOvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceSetStatus",
+                    "printedName": "Mason.NSCFontFaceSetStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)status",
+                "mangledName": "$s5Mason14NSCFontFaceSetC6statusAA0bcD6StatusOvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSCFontFaceSetStatus",
+                    "printedName": "Mason.NSCFontFaceSetStatus",
+                    "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)setStatus:",
+                "mangledName": "$s5Mason14NSCFontFaceSetC6statusAA0bcD6StatusOvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason14NSCFontFaceSetC6statusAA0bcD6StatusOvM",
+                "mangledName": "$s5Mason14NSCFontFaceSetC6statusAA0bcD6StatusOvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "onStatus",
+            "printedName": "onStatus",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "((Mason.NSCFontFaceSetStatus) -> ())?",
+                "children": [
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "(Mason.NSCFontFaceSetStatus) -> ()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "NSCFontFaceSetStatus",
+                        "printedName": "Mason.NSCFontFaceSetStatus",
+                        "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                      }
+                    ]
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(py)onStatus",
+            "mangledName": "$s5Mason14NSCFontFaceSetC8onStatusyAA0bcdF0OcSgvp",
+            "moduleName": "Mason",
+            "declAttributes": ["HasInitialValue", "HasStorage", "AccessControl", "ObjC"],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "((Mason.NSCFontFaceSetStatus) -> ())?",
+                    "children": [
+                      {
+                        "kind": "TypeFunc",
+                        "name": "Function",
+                        "printedName": "(Mason.NSCFontFaceSetStatus) -> ()",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Void",
+                            "printedName": "()"
+                          },
+                          {
+                            "kind": "TypeNominal",
+                            "name": "NSCFontFaceSetStatus",
+                            "printedName": "Mason.NSCFontFaceSetStatus",
+                            "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                          }
+                        ]
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)onStatus",
+                "mangledName": "$s5Mason14NSCFontFaceSetC8onStatusyAA0bcdF0OcSgvg",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "((Mason.NSCFontFaceSetStatus) -> ())?",
+                    "children": [
+                      {
+                        "kind": "TypeFunc",
+                        "name": "Function",
+                        "printedName": "(Mason.NSCFontFaceSetStatus) -> ()",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Void",
+                            "printedName": "()"
+                          },
+                          {
+                            "kind": "TypeNominal",
+                            "name": "NSCFontFaceSetStatus",
+                            "printedName": "Mason.NSCFontFaceSetStatus",
+                            "usr": "c:@M@Mason@E@NSCFontFaceSetStatus"
+                          }
+                        ]
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)setOnStatus:",
+                "mangledName": "$s5Mason14NSCFontFaceSetC8onStatusyAA0bcdF0OcSgvs",
+                "moduleName": "Mason",
+                "implicit": true,
+                "declAttributes": ["ObjC"],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:5Mason14NSCFontFaceSetC8onStatusyAA0bcdF0OcSgvM",
+                "mangledName": "$s5Mason14NSCFontFaceSetC8onStatusyAA0bcdF0OcSgvM",
+                "moduleName": "Mason",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "iter",
+            "printedName": "iter()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSEnumerator",
+                "printedName": "Foundation.NSEnumerator",
+                "usr": "c:objc(cs)NSEnumerator"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)iter",
+            "mangledName": "$s5Mason14NSCFontFaceSetC4iterSo12NSEnumeratorCyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "array",
+            "printedName": "array()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Any]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "ProtocolComposition",
+                    "printedName": "Any"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)array",
+            "mangledName": "$s5Mason14NSCFontFaceSetC5arraySayypGyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "add",
+            "printedName": "add(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFace",
+                "printedName": "Mason.NSCFontFace",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)add:",
+            "mangledName": "$s5Mason14NSCFontFaceSetC3addyyAA0bC0CF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "clear",
+            "printedName": "clear()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)clear",
+            "mangledName": "$s5Mason14NSCFontFaceSetC5clearyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "delete",
+            "printedName": "delete(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFace",
+                "printedName": "Mason.NSCFontFace",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)delete:",
+            "mangledName": "$s5Mason14NSCFontFaceSetC6deleteyyAA0bC0CF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "check",
+            "printedName": "check(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)check::",
+            "mangledName": "$s5Mason14NSCFontFaceSetC5checkySbSS_SSSgtF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "load",
+            "printedName": "load(_:_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "([Mason.NSCFontFace], Swift.String?) -> ()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "([Mason.NSCFontFace], Swift.String?)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Array",
+                        "printedName": "[Mason.NSCFontFace]",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "NSCFontFace",
+                            "printedName": "Mason.NSCFontFace",
+                            "usr": "c:@M@Mason@objc(cs)NSCFontFace"
+                          }
+                        ],
+                        "usr": "s:Sa"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Optional",
+                        "printedName": "Swift.String?",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "String",
+                            "printedName": "Swift.String",
+                            "usr": "s:SS"
+                          }
+                        ],
+                        "usr": "s:Sq"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)load:::",
+            "mangledName": "$s5Mason14NSCFontFaceSetC4loadyySS_SSSgySayAA0bC0CG_AEtctF",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "size",
+            "printedName": "size",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(py)size",
+            "mangledName": "$s5Mason14NSCFontFaceSetC4sizeSivp",
+            "moduleName": "Mason",
+            "declAttributes": ["AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)size",
+                "mangledName": "$s5Mason14NSCFontFaceSetC4sizeSivg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSCFontFaceSet",
+                "printedName": "Mason.NSCFontFaceSet",
+                "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet(im)init",
+            "mangledName": "$s5Mason14NSCFontFaceSetCACycfc",
+            "moduleName": "Mason",
+            "overriding": true,
+            "implicit": true,
+            "objc_name": "init",
+            "declAttributes": ["Dynamic", "ObjC", "Override"],
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "c:@M@Mason@objc(cs)NSCFontFaceSet",
+        "mangledName": "$s5Mason14NSCFontFaceSetC",
+        "moduleName": "Mason",
+        "objc_name": "NSCFontFaceSet",
+        "declAttributes": ["AccessControl", "ObjC", "ObjCMembers"],
+        "superclassUsr": "c:objc(cs)NSObject",
+        "inheritsConvenienceInitializers": true,
         "superclassNames": ["ObjectiveC.NSObject"],
         "conformances": [
           {
@@ -30414,123 +33886,6 @@
           },
           {
             "kind": "Var",
-            "name": "masonPtr",
-            "printedName": "masonPtr",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Int64",
-                "printedName": "Swift.Int64",
-                "usr": "s:s5Int64V"
-              }
-            ],
-            "declKind": "Var",
-            "usr": "c:@M@Mason@objc(cs)MasonUIView(py)masonPtr",
-            "mangledName": "$s5Mason0A6UIViewC8masonPtrs5Int64Vvp",
-            "moduleName": "Mason",
-            "declAttributes": ["Preconcurrency", "Custom", "AccessControl", "ObjC"],
-            "accessors": [
-              {
-                "kind": "Accessor",
-                "name": "Get",
-                "printedName": "Get()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Int64",
-                    "printedName": "Swift.Int64",
-                    "usr": "s:s5Int64V"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)MasonUIView(im)masonPtr",
-                "mangledName": "$s5Mason0A6UIViewC8masonPtrs5Int64Vvg",
-                "moduleName": "Mason",
-                "declAttributes": ["ObjC"],
-                "accessorKind": "get"
-              }
-            ]
-          },
-          {
-            "kind": "Var",
-            "name": "masonNodePtr",
-            "printedName": "masonNodePtr",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Int64",
-                "printedName": "Swift.Int64",
-                "usr": "s:s5Int64V"
-              }
-            ],
-            "declKind": "Var",
-            "usr": "c:@M@Mason@objc(cs)MasonUIView(py)masonNodePtr",
-            "mangledName": "$s5Mason0A6UIViewC12masonNodePtrs5Int64Vvp",
-            "moduleName": "Mason",
-            "declAttributes": ["Preconcurrency", "Custom", "AccessControl", "ObjC"],
-            "accessors": [
-              {
-                "kind": "Accessor",
-                "name": "Get",
-                "printedName": "Get()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "Int64",
-                    "printedName": "Swift.Int64",
-                    "usr": "s:s5Int64V"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)MasonUIView(im)masonNodePtr",
-                "mangledName": "$s5Mason0A6UIViewC12masonNodePtrs5Int64Vvg",
-                "moduleName": "Mason",
-                "declAttributes": ["ObjC"],
-                "accessorKind": "get"
-              }
-            ]
-          },
-          {
-            "kind": "Var",
-            "name": "masonPtrs",
-            "printedName": "masonPtrs",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "String",
-                "printedName": "Swift.String",
-                "usr": "s:SS"
-              }
-            ],
-            "declKind": "Var",
-            "usr": "c:@M@Mason@objc(cs)MasonUIView(py)masonPtrs",
-            "mangledName": "$s5Mason0A6UIViewC9masonPtrsSSvp",
-            "moduleName": "Mason",
-            "declAttributes": ["Preconcurrency", "Custom", "AccessControl", "ObjC"],
-            "accessors": [
-              {
-                "kind": "Accessor",
-                "name": "Get",
-                "printedName": "Get()",
-                "children": [
-                  {
-                    "kind": "TypeNominal",
-                    "name": "String",
-                    "printedName": "Swift.String",
-                    "usr": "s:SS"
-                  }
-                ],
-                "declKind": "Accessor",
-                "usr": "c:@M@Mason@objc(cs)MasonUIView(im)masonPtrs",
-                "mangledName": "$s5Mason0A6UIViewC9masonPtrsSSvg",
-                "moduleName": "Mason",
-                "declAttributes": ["ObjC"],
-                "accessorKind": "get"
-              }
-            ]
-          },
-          {
-            "kind": "Var",
             "name": "style",
             "printedName": "style",
             "children": [
@@ -30609,6 +33964,24 @@
                 "accessorKind": "_modify"
               }
             ]
+          },
+          {
+            "kind": "Function",
+            "name": "requestLayout",
+            "printedName": "requestLayout()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonUIView(im)requestLayout",
+            "mangledName": "$s5Mason0A6UIViewC13requestLayoutyyF",
+            "moduleName": "Mason",
+            "declAttributes": ["Preconcurrency", "Custom", "AccessControl", "ObjC"],
+            "funcSelfKind": "NonMutating"
           },
           {
             "kind": "Function",
@@ -35967,6 +39340,181 @@
   },
   "ConstValues": [
     {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 291,
+      "length": 5,
+      "value": "1"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 304,
+      "length": 8,
+      "value": "2"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 320,
+      "length": 8,
+      "value": "3"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 336,
+      "length": 4,
+      "value": "4"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 963,
+      "length": 10,
+      "value": "1"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 981,
+      "length": 5,
+      "value": "2"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 994,
+      "length": 6,
+      "value": "3"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 1008,
+      "length": 6,
+      "value": "4"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 1022,
+      "length": 8,
+      "value": "5"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 1038,
+      "length": 4,
+      "value": "6"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 1050,
+      "length": 9,
+      "value": "7"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 1067,
+      "length": 5,
+      "value": "8"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 4834,
+      "length": 7,
+      "value": "1"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 4849,
+      "length": 6,
+      "value": "2"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "IntegerLiteral",
+      "offset": 4863,
+      "length": 5,
+      "value": "3"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "StringLiteral",
+      "offset": 5355,
+      "length": 29,
+      "value": "\"font-family:\\s*'([^']+)';\""
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "StringLiteral",
+      "offset": 5408,
+      "length": 70,
+      "value": "\"font-style:\\s*(normal|italic|oblique(?:\\s+([-]?\\d+(\\.\\d+)?deg))?);\""
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "StringLiteral",
+      "offset": 5503,
+      "length": 27,
+      "value": "\"font-weight:\\s*([^;]+);\""
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "StringLiteral",
+      "offset": 5556,
+      "length": 28,
+      "value": "\"font-display:\\s*([^;]+);\""
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "StringLiteral",
+      "offset": 5602,
+      "length": 48,
+      "value": "\"src:\\s*url\\(([^)]+)\\)\\s*format\\('([^']+)'\\);\""
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "StringLiteral",
+      "offset": 6000,
+      "length": 26,
+      "value": "\"NSCFontFace Loader Queue\""
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "StringLiteral",
+      "offset": 6077,
+      "length": 27,
+      "value": "\"com.github.triniwiz.Mason\""
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "Dictionary",
+      "offset": 6141,
+      "length": 358,
+      "value": "[(\"serif\", \"Times New Roman\"), (\"sans-serif\", \"Helvetica\"), (\"monospace\", \"Courier\"), (\"cursive\", \"Snell Roundhand\"), (\"fantasy\", \"Papyrus\"), (\"system-ui\", \"San Francisco\"), (\"ui-serif\", \"Times New Roman\"), (\"ui-sans-serif\", \"San Francisco\"), (\"ui-monospace\", \"Menlo\"), (\"ui-rounded\", \"SF Rounded\"), (\"emoji\", \"Apple Color Emoji\")]"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "BooleanLiteral",
+      "offset": 12530,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFace.swift",
+      "kind": "BooleanLiteral",
+      "offset": 13647,
+      "length": 5,
+      "value": "false"
+    },
+    {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCMason.swift",
       "kind": "Dictionary",
       "offset": 274,
@@ -36487,21 +40035,28 @@
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonText.swift",
       "kind": "StringLiteral",
-      "offset": 20744,
+      "offset": 9950,
+      "length": 12,
+      "value": "\"sans-serif\""
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonText.swift",
+      "kind": "StringLiteral",
+      "offset": 20336,
       "length": 8,
       "value": "\"normal\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonText.swift",
       "kind": "BooleanLiteral",
-      "offset": 33737,
+      "offset": 33329,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 35487,
+      "offset": 35079,
       "length": 2,
       "value": "-1"
     },
@@ -36679,6 +40234,27 @@
       "offset": 4375,
       "length": 1,
       "value": "0"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFaceSet.swift",
+      "kind": "IntegerLiteral",
+      "offset": 232,
+      "length": 6,
+      "value": "1"
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFaceSet.swift",
+      "kind": "StringLiteral",
+      "offset": 591,
+      "length": 36,
+      "value": "\"(?:\\d+px\\s+)(['\"]?[\\w\\s]+['\"]?)$\""
+    },
+    {
+      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/NSCFontFaceSet.swift",
+      "kind": "StringLiteral",
+      "offset": 975,
+      "length": 29,
+      "value": "\"NSCFontFaceSet Loader Queue\""
     },
     {
       "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonRect.swift",
@@ -39066,55 +42642,6 @@
       "offset": 40587,
       "length": 7,
       "value": "3"
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonUIView.swift",
-      "kind": "IntegerLiteral",
-      "offset": 1690,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonUIView.swift",
-      "kind": "IntegerLiteral",
-      "offset": 1773,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonUIView.swift",
-      "kind": "IntegerLiteral",
-      "offset": 1934,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonUIView.swift",
-      "kind": "IntegerLiteral",
-      "offset": 2016,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonUIView.swift",
-      "kind": "StringLiteral",
-      "offset": 2144,
-      "length": 29,
-      "value": "\"\""
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonUIView.swift",
-      "kind": "StringLiteral",
-      "offset": 2156,
-      "length": 1,
-      "value": "\":\""
-    },
-    {
-      "filePath": "/Users/triniwiz/Documents/GitHub/nativescript-mason/packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason/MasonUIView.swift",
-      "kind": "StringLiteral",
-      "offset": 2172,
-      "length": 1,
-      "value": "\"\""
     }
   ]
 }
