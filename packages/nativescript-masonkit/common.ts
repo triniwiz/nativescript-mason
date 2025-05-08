@@ -46,6 +46,22 @@ function overflowConverter(value) {
   }
 }
 
+function masonLengthParse(value) {
+  try {
+    return CoreLength.parse(value);
+  } catch (e) {
+    return undefined;
+  }
+}
+
+function masonLengthPercentParse(value) {
+  try {
+    return CorePercentLength.parse(value);
+  } catch (e) {
+    return undefined;
+  }
+}
+
 const overFlow = /^\s*(visible|hidden|clip|scroll|auto)(?:\s+(visible|hidden|clip|scroll|auto))?\s*$/;
 
 export const overflowProperty = new ShorthandProperty<Style, Overflow>({
@@ -128,7 +144,7 @@ export const paddingLeftProperty = new CssProperty<Style, CoreTypes.LengthType>(
       Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
     }
   },
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const paddingRightProperty = new CssProperty<Style, CoreTypes.LengthType>({
@@ -145,7 +161,7 @@ export const paddingRightProperty = new CssProperty<Style, CoreTypes.LengthType>
       Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
     }
   },
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const paddingTopProperty = new CssProperty<Style, CoreTypes.LengthType>({
@@ -162,7 +178,7 @@ export const paddingTopProperty = new CssProperty<Style, CoreTypes.LengthType>({
       Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
     }
   },
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const paddingBottomProperty = new CssProperty<Style, CoreTypes.LengthType>({
@@ -179,7 +195,7 @@ export const paddingBottomProperty = new CssProperty<Style, CoreTypes.LengthType
       Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
     }
   },
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const rowGapProperty = new CssProperty<Style, Length>({
@@ -298,7 +314,7 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
@@ -307,7 +323,7 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const positionProperty = new CssProperty<Style, Position>({
@@ -345,10 +361,10 @@ function convertToInsets(value: string | CoreTypes.LengthType): [CssProperty<Sty
     const thickness = parseShorthandPositioning(value);
 
     return [
-      [topProperty, CorePercentLength.parse(thickness.top)],
-      [rightProperty, CorePercentLength.parse(thickness.right)],
-      [bottomProperty, CorePercentLength.parse(thickness.bottom)],
-      [leftProperty, CorePercentLength.parse(thickness.left)],
+      [topProperty, masonLengthPercentParse(thickness.top)],
+      [rightProperty, masonLengthPercentParse(thickness.right)],
+      [bottomProperty, masonLengthPercentParse(thickness.bottom)],
+      [leftProperty, masonLengthPercentParse(thickness.left)],
     ];
   } else {
     return [
@@ -366,7 +382,7 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const rightProperty = new CssProperty<Style, LengthAuto>({
@@ -375,7 +391,7 @@ export const rightProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const topProperty = new CssProperty<Style, LengthAuto>({
@@ -384,7 +400,7 @@ export const topProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const bottomProperty = new CssProperty<Style, LengthAuto>({
@@ -393,7 +409,7 @@ export const bottomProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   // @ts-ignore
   equalityComparer: NSLength.equals,
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
@@ -401,7 +417,7 @@ export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'flex-basis',
   defaultValue: 'auto',
   equalityComparer: NSLength.equals,
-  valueConverter: CoreLength.parse,
+  valueConverter: masonLengthParse,
 });
 
 export const gridRowGapProperty = new ShorthandProperty<Style, Gap>({
@@ -1129,6 +1145,18 @@ export class TextBase extends ViewBase {
 
 textProperty.register(TextBase);
 textWrapProperty.register(TextBase);
+
+// @ts-ignore
+export const srcProperty = new Property<ImageBase, string>({
+  name: 'src',
+  defaultValue: '',
+});
+
+export class ImageBase extends ViewBase {
+  src: string;
+}
+
+srcProperty.register(ImageBase);
 
 /**
  * Props are already defined in core flexbox layout,

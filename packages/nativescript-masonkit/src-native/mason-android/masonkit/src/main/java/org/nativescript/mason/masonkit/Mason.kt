@@ -59,9 +59,14 @@ class Mason {
     return View(context, this)
   }
 
+
   @JvmOverloads
   fun createTextView(context: Context, type: TextType = TextType.None): TextView {
     return TextView(context, this, type)
+  }
+
+  fun createImageView(context: Context): Img {
+    return Img(context, this)
   }
 
   fun nodeForView(view: android.view.View): Node {

@@ -62,6 +62,11 @@ public class NSCMason: NSObject {
     return MasonText(mason: self, type: type)
   }
   
+  
+  public func createImageView()-> MasonImg {
+    return MasonImg(mason: self)
+  }
+  
   public func createNode() -> MasonNode{
     return MasonNode(mason: self)
   }

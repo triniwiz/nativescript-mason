@@ -525,6 +525,30 @@ SWIFT_CLASS_NAMED("MasonDimensionSizeCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class MasonStyle;
+@class MasonNode;
+@class UIView;
+@class NSCMason;
+@class NSCoder;
+@class UIImage;
+
+SWIFT_CLASS_NAMED("MasonImg")
+@interface MasonImg : UIImageView
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
+- (void)markNodeDirty;
+- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
+- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
+@property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, copy) NSString * _Nullable src;
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+- (void)syncStyle:(NSString * _Nonnull)state;
+- (nonnull instancetype)initWithImage:(UIImage * _Nullable)image SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithImage:(UIImage * _Nullable)image highlightedImage:(UIImage * _Nullable)highlightedImage SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
 
 SWIFT_CLASS_NAMED("MasonLayout")
 @interface MasonLayout : NSObject
@@ -626,8 +650,6 @@ SWIFT_CLASS_NAMED("MasonLengthPercentageSizeCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
-@class MasonStyle;
-@class NSCMason;
 
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
@@ -753,7 +775,6 @@ SWIFT_CLASS_NAMED("MasonStyle")
 
 enum MasonTextType : NSInteger;
 @class NSCFontFace;
-@class NSCoder;
 @class NSMutableAttributedString;
 enum TextTransform : NSInteger;
 @class UIColor;
@@ -1115,6 +1136,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (MasonUIView * _Nonnull)createView SWIFT_WARN_UNUSED_RESULT;
 - (MasonText * _Nonnull)createTextView SWIFT_WARN_UNUSED_RESULT;
 - (MasonText * _Nonnull)createTextViewWithType:(enum MasonTextType)type SWIFT_WARN_UNUSED_RESULT;
+- (MasonImg * _Nonnull)createImageView SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createNode SWIFT_WARN_UNUSED_RESULT;
 - (void)printTree:(MasonNode * _Nonnull)node;
 - (MasonNode * _Nonnull)createTextNode SWIFT_WARN_UNUSED_RESULT;
@@ -1165,6 +1187,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, WhiteSpace, "WhiteSpace", open) {
   WhiteSpacePre = 1,
   WhiteSpacePreWrap = 2,
   WhiteSpacePreLine = 3,
+  WhiteSpaceNowrap = 4,
 };
 
 #endif

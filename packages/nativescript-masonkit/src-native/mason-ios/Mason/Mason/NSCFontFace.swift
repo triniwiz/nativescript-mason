@@ -9,10 +9,28 @@
 import Foundation
 import UIKit
 
-enum NSCFontStyle {
+enum NSCFontStyle: Codable {
   case normal
   case italic
-  case oblique(Int)
+  case oblique(Int?)
+  
+  var cssValue: String {
+      switch self {
+      case .normal:
+          return "normal"
+      case .italic:
+          return "italic"
+      case .oblique(let value):
+        guard let value = value else {
+          return "oblique"
+        }
+        return "oblique \(value)"
+      }
+  }
+
+public var description: String {
+  return cssValue
+}
 }
 
 @objc(NSCFontDisplay)
@@ -149,7 +167,38 @@ public class NSCFontDescriptors: NSObject, Codable{
   var ascentOverride: String
   var descentOverride: String
   var display: NSCFontDisplay
-  var style: String
+  internal var styleValue: NSCFontStyle
+  var style: String {
+    get {
+      styleValue.cssValue
+    }
+    set {
+      let fontStyle = "font-style:\(newValue);"
+      var parsedStyle = ""
+      var angle: Int? = nil
+      if let fontStyleMatch = NSCFontFace.matchObliqueWithAngle(fontStylePattern, in: fontStyle) {
+        parsedStyle = fontStyleMatch.0
+        angle = Int(fontStyleMatch.1 ?? "", radix: 10)
+      } else {
+        parsedStyle = NSCFontFace.matchPattern(fontStylePattern, in: fontStyle) ?? ""
+      }
+    
+      switch(parsedStyle){
+      case "normal":
+        styleValue = .normal
+        break
+      case "italic":
+        styleValue = .italic
+        break
+      case "oblique":
+        styleValue = .oblique(angle)
+        break
+      default:
+        // noop
+        break
+      }
+    }
+  }
   var stretch: String
   var unicodeRange: String
   var featureSettings: String
@@ -161,7 +210,7 @@ public class NSCFontDescriptors: NSObject, Codable{
     self.ascentOverride = "normal"
     self.descentOverride = "normal"
     self.display = .auto
-    self.style = "normal"
+    self.styleValue = .normal
     self.stretch = "normal";
     self.unicodeRange = "U+0-10FFFF";
     self.featureSettings = "normal";
@@ -221,15 +270,43 @@ public class NSCFontDescriptors: NSObject, Codable{
   }
   
   public func setFontStyle(_ value: String){
-    let fontStyle = "font-style: \(value)"
+    let fontStyle = "font-style: \(value);"
     if let fontStyleMatch = NSCFontFace.matchObliqueWithAngle(fontStylePattern, in: fontStyle) {
       // todo
-      self.style = "\(fontStyleMatch.0)\(fontStyleMatch.1 ?? "")"
+
+      let angle = Int(fontStyleMatch.1 ?? "", radix: 10)
+   
+      switch(fontStyleMatch.0){
+      case "normal":
+        styleValue = .normal
+        break
+      case "italic":
+        styleValue = .italic
+        break
+      case "oblique":
+        styleValue = .oblique(angle)
+        break
+      default:
+        // noop
+        break
+      }
       
-      //  setFontStyle(value: fontStyleMatch.0, angle: fontStyleMatch.1)
+      
     } else if let fontStyleMatch = NSCFontFace.matchPattern(fontStylePattern, in: fontStyle)  {
-      //  setFontStyle(value: fontStyleMatch, angle: nil)
-      self.style = fontStyleMatch
+         switch(fontStyleMatch){
+         case "normal":
+           styleValue = .normal
+           break
+         case "italic":
+           styleValue = .italic
+           break
+         case "oblique":
+           styleValue = .oblique(nil)
+           break
+         default:
+           // noop
+           break
+         }
     }
   }
 }
@@ -637,10 +714,23 @@ public class NSCFontFace: NSObject {
           self.font = CGFont(systemFont.fontName as CFString)
           return nil
         }
+     
         guard let newFont = UIFont(name: name, size: 16) else {
           self.font = CGFont(UIFont.systemFont(ofSize: 16).fontName as CFString)
           return nil
         }
+        switch(fontDescriptors.styleValue){
+        case .normal:
+          break
+        case .italic:
+          if let descriptor = newFont.fontDescriptor.withSymbolicTraits(.traitItalic) {
+            let fontValue = UIFont(descriptor: descriptor, size: 16)
+            self.font = CGFont(fontValue.fontName as CFString)
+          }
+        case .oblique(_):
+          break
+        }
+        
         self.font = CGFont(newFont.fontName as CFString)
         return nil
       }

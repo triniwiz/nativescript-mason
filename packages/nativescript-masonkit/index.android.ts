@@ -1,5 +1,5 @@
-import { backgroundColorProperty, Color, colorProperty, Utils } from '@nativescript/core';
-import { TextBase, ViewBase, style_, textProperty, MasonChild, textWrapProperty } from './common';
+import { backgroundColorProperty, Color, colorProperty, CSSType, Utils } from '@nativescript/core';
+import { TextBase, ViewBase, style_, textProperty, MasonChild, textWrapProperty, ImageBase, srcProperty } from './common';
 import { Style } from './style';
 
 const enum TextType {
@@ -55,6 +55,10 @@ export class Tree {
 
   createTextView(context) {
     return this.native.createTextView(context);
+  }
+
+  createImageView(context) {
+    return this.native.createImageView(context);
   }
 }
 
@@ -246,4 +250,51 @@ export class Text extends TextBase {
 
     return false;
   }
+}
+
+@CSSType('img')
+export class Img extends ImageBase {
+  [style_];
+  _hasNativeView = false;
+  _inBatch = false;
+  private _view;
+  constructor() {
+    super();
+    const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
+    this._view = Tree.instance.createImageView(context);
+    this._hasNativeView = true;
+    this[style_] = Style.fromView(this as never, this._view);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  get android() {
+    return this._view;
+  }
+
+  get _styleHelper() {
+    if (this[style_] === undefined) {
+      this[style_] = Style.fromView(this as never, this._view);
+    }
+    return this[style_];
+  }
+
+  createNativeView() {
+    return this._view;
+  }
+
+  [srcProperty.setNative](value) {
+    const nativeView = this._view as org.nativescript.mason.masonkit.Img;
+    if (nativeView) {
+      nativeView.setSrc(value);
+    }
+  }
+
+  // [backgroundColorProperty.setNative](value) {
+  //   if (typeof value === 'number') {
+  //     this[style_].backgroundColor = value;
+  //   } else if (value instanceof Color) {
+  //     this[style_].backgroundColor = value.android;
+  //   }
+  // }
 }

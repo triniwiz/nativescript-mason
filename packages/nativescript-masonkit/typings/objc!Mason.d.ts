@@ -363,6 +363,58 @@ declare class MasonDimensionSizeCompat extends NSObject {
 	width: MasonDimensionCompat;
 }
 
+declare class MasonImg extends UIImageView {
+
+	static alloc(): MasonImg; // inherited from NSObject
+
+	static appearance(): MasonImg; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 */
+	static appearanceForTraitCollection(trait: UITraitCollection): MasonImg; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 * @deprecated 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonImg; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonImg; // inherited from UIAppearance
+
+	/**
+	 * @since 5.0
+	 * @deprecated 9.0
+	 */
+	static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonImg; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonImg; // inherited from UIAppearance
+
+	static new(): MasonImg; // inherited from NSObject
+
+	readonly mason: NSCMason;
+
+	readonly node: MasonNode;
+
+	src: string;
+
+	readonly style: MasonStyle;
+
+	readonly uiView: UIView;
+
+	configure(block: (p1: MasonNode) => void): void;
+
+	isNodeDirty(): boolean;
+
+	markNodeDirty(): void;
+}
+
 declare class MasonLayout extends NSObject {
 
 	static alloc(): MasonLayout; // inherited from NSObject
@@ -782,7 +834,7 @@ declare class MasonText extends UIView {
 
 	decorationLine: DecorationLine;
 
-	readonly font: UIFont;
+	readonly font: NSCFontFace;
 
 	fontSize: number;
 
@@ -992,12 +1044,6 @@ declare class MasonUIView extends UIView {
 
 	readonly mason: NSCMason;
 
-	readonly masonNodePtr: number;
-
-	readonly masonPtr: number;
-
-	readonly masonPtrs: string;
-
 	readonly node: MasonNode;
 
 	overflowX: Overflow;
@@ -1087,6 +1133,8 @@ declare class MasonUIView extends UIView {
 	isNodeDirty(): boolean;
 
 	markNodeDirty(): void;
+
+	requestLayout(): void;
 
 	setBorder(left: number, top: number, right: number, bottom: number): void;
 
@@ -1249,6 +1297,163 @@ declare class MinSizing extends NSObject {
 	static readonly MinContent: MinSizing;
 }
 
+declare class NSCFontDescriptors extends NSObject {
+
+	static alloc(): NSCFontDescriptors; // inherited from NSObject
+
+	static new(): NSCFontDescriptors; // inherited from NSObject
+
+	constructor(o: { family: string; });
+
+	initWithFamily(family: string): this;
+
+	setFontStyle(value: string): void;
+
+	setFontWeight(value: string): void;
+
+	update(value: string): void;
+}
+
+declare const enum NSCFontDisplay {
+
+	Auto = 0,
+
+	Block = 1,
+
+	Fallback = 2,
+
+	Optional = 3,
+
+	Swap = 4
+}
+
+declare class NSCFontFace extends NSObject {
+
+	static alloc(): NSCFontFace; // inherited from NSObject
+
+	static importFromRemoteWithUrlLoadCallback(url: string, load: boolean, callback: (p1: NSArray<NSCFontFace>, p2: string) => void): void;
+
+	static loadFromStyleWithStyle(style: string): NSCFontFace;
+
+	static new(): NSCFontFace; // inherited from NSObject
+
+	readonly ascentOverride: string;
+
+	readonly descentOverride: string;
+
+	display: NSCFontDisplay;
+
+	readonly family: string;
+
+	readonly font: any;
+
+	readonly fontData: NSData;
+
+	status: NSCFontFaceStatus;
+
+	style: string;
+
+	weight: NSCFontWeight;
+
+	constructor();
+
+	constructor(o: { data: string; });
+
+	constructor(o: { family: string; });
+
+	constructor(o: { family: string; data: NSData; });
+
+	constructor(o: { family: string; source: string; });
+
+	init(family: string, source: string, descriptors: NSCFontDescriptors): this;
+
+	initData(family: string, data: NSData, descriptors: NSCFontDescriptors): this;
+
+	initWithFamily(family: string): this;
+
+	initWithFamilyData(family: string, source: NSData): this;
+
+	initWithFamilySource(family: string, source: string): this;
+
+	load(callback: (p1: string) => void): void;
+
+	setFontDisplayWithValue(value: string): void;
+
+	setFontStyleWithValueAngle(value: string, angle: string): void;
+
+	setFontWeightWithValue(value: string): void;
+
+	updateDescriptorWithValue(value: string): void;
+}
+
+declare class NSCFontFaceSet extends NSObject {
+
+	static alloc(): NSCFontFaceSet; // inherited from NSObject
+
+	static new(): NSCFontFaceSet; // inherited from NSObject
+
+	onStatus: (p1: NSCFontFaceSetStatus) => void;
+
+	readonly size: number;
+
+	status: NSCFontFaceSetStatus;
+
+	static readonly instance: NSCFontFaceSet;
+
+	add(font: NSCFontFace): void;
+
+	array(): NSArray<any>;
+
+	check(font: string, text: string): boolean;
+
+	clear(): void;
+
+	delete(font: NSCFontFace): void;
+
+	iter(): NSEnumerator<any>;
+
+	load(font: string, text: string, callback: (p1: NSArray<NSCFontFace>, p2: string) => void): void;
+}
+
+declare const enum NSCFontFaceSetStatus {
+
+	Loading = 0,
+
+	Loaded = 1
+}
+
+declare const enum NSCFontFaceStatus {
+
+	Unloaded = 0,
+
+	Loading = 1,
+
+	Loaded = 2,
+
+	Error = 3
+}
+
+declare const enum NSCFontWeight {
+
+	Thin = 0,
+
+	ExtraLight = 1,
+
+	Light = 2,
+
+	Normal = 3,
+
+	Medium = 4,
+
+	SemiBold = 5,
+
+	Bold = 6,
+
+	ExtraBold = 7,
+
+	Black = 8
+}
+
 declare class NSCMason extends NSObject {
 
 	static alloc(): NSCMason; // inherited from NSObject
@@ -1262,6 +1467,8 @@ declare class NSCMason extends NSObject {
 	static shared: NSCMason;
 
 	clear(): void;
+
+	createImageView(): MasonImg;
 
 	createNode(): MasonNode;
 
@@ -1358,7 +1565,9 @@ declare const enum WhiteSpace {
 
 	PreWrap = 2,
 
-	PreLine = 3
+	PreLine = 3,
+
+	Nowrap = 4
 }
 
 declare function mason_clear(mason: interop.Pointer | interop.Reference<any>): void;

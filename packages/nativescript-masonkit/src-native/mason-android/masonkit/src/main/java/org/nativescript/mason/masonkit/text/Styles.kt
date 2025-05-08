@@ -1,5 +1,13 @@
 package org.nativescript.mason.masonkit.text
 
+import org.nativescript.mason.masonkit.text.Styles.TextTransform.Capitalize
+import org.nativescript.mason.masonkit.text.Styles.TextTransform.FullSizeKana
+import org.nativescript.mason.masonkit.text.Styles.TextTransform.FullWidth
+import org.nativescript.mason.masonkit.text.Styles.TextTransform.Lowercase
+import org.nativescript.mason.masonkit.text.Styles.TextTransform.MathAuto
+import org.nativescript.mason.masonkit.text.Styles.TextTransform.None
+import org.nativescript.mason.masonkit.text.Styles.TextTransform.Uppercase
+
 class Styles {
   enum class TextJustify(val value: Int) {
     None(-1),
@@ -125,5 +133,33 @@ class Styles {
         }
       }
     }
+  }
+
+  enum class TextOverflow(val value: Int) {
+    Clip(0),
+    Ellipse(1),
+    Custom(2);
+
+    var token: String? = null
+      internal set
+
+    companion object {
+      @JvmOverloads
+      fun fromInt(value: Int, token: String? = null): TextOverflow {
+        return when (value) {
+          0 -> Clip
+          1 -> Ellipse.apply {
+            this.token = token
+          }
+
+          2 -> Custom.apply {
+            this.token = token
+          }
+
+          else -> throw IllegalArgumentException("Unknown enum value: $value")
+        }
+      }
+    }
+
   }
 }

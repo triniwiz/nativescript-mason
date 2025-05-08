@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreText
+import UIKit
 
 
 @objc(NSCFontFaceSetStatus)
@@ -56,6 +57,16 @@ public class NSCFontFaceSet: NSObject {
     if let cached = uiFontCache.object(forKey: key) {
       return cached
     }
+    
+//    let fontDescriptorAttributes = [
+//        kCTFontNameAttribute: "Courier",
+//        kCTFontTraitsAttribute: [
+//          kCTFontWeightTrait: UIFont.Weight.black.rawValue,
+//        ]
+//    ] as [CFString : Any]
+//    let fontDescriptor = CTFontDescriptorCreateWithAttributes(fontDescriptorAttributes as CFDictionary)
+//    
+//    
     let ctFont = CTFontCreateWithGraphicsFont(cgFont, size, nil, nil)
     uiFontCache.setObject(ctFont, forKey: key)
     return ctFont

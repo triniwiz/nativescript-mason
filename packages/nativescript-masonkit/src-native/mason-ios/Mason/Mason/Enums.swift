@@ -1856,6 +1856,7 @@ public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
     case Pre
     case PreWrap
     case PreLine
+    case Nowrap
     
     public typealias RawValue = Int32
     
@@ -1869,6 +1870,8 @@ public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
             return 2
         case .PreLine:
             return 3
+        case .Nowrap:
+          return 4
         }
     }
     
@@ -1883,6 +1886,8 @@ public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
           self = .PreWrap
         case 3:
           self = .PreLine
+        case  4:
+          self = .Nowrap
         default:
             return nil
         }
@@ -1898,6 +1903,8 @@ public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
             return "pre-wrap"
         case .PreLine:
           return "pre-line"
+        case .Nowrap:
+          return "nowrap"
         }
     }
   
@@ -1962,3 +1969,42 @@ public enum LineHeight: Int, RawRepresentable, CustomStringConvertible {
     return cssValue
   }
 }
+
+public enum TextOverflow: CustomStringConvertible {
+  case Clip
+  case Ellipse(String?)
+  case Custom(String)
+  
+  var rawValue: Int32 {
+    switch(self){
+    case .Clip:
+      return 0
+    case .Ellipse(let value):
+      guard let value = value else {
+        return 1
+      }
+      return 2
+    case .Custom(_):
+      return 3
+    }
+  }
+
+  var cssValue: String {
+    switch self {
+    case .Clip:
+      return "clip"
+    case .Ellipse(let value):
+      guard let value = value else {
+        return "ellipsis"
+      }
+      return "ellipsis \(value)"
+    case .Custom(let value):
+      return value
+    }
+  }
+  
+  public var description: String {
+    return cssValue
+  }
+}
+

@@ -931,10 +931,11 @@ class Style internal constructor(private var node: Node) {
 
   var inBatch = false
     set(value) {
-      if (field && !value) {
+      val changed = field && !value
+      field = value
+      if (changed) {
         updateNativeStyle()
       }
-      field = value
     }
 
   fun configure(block: (Style) -> Unit) {

@@ -360,17 +360,17 @@ public class MasonStyle: NSObject {
     }
   }
   
-  //  public var overflow: Overflow{
-  //        get {
-  //          return Overflow.
-  //        }
-  //        set {
-  //        // todo
-  //          updateIntField(offset: Int(StyleKeys.OVERFLOW_X), value:  Int32(overflowX.rawValue), state: .overflowX)
-  //          updateIntField(offset: Int(StyleKeys.OVERFLOW_Y), value:  Int32(overflowY.rawValue), state: .overflowY)
-  //        }
-  //    }
-  //
+//    public var overflow: Overflow{
+//          get {
+//            return Overflow.
+//          }
+//          set {
+//          // todo
+//            updateIntField(offset: Int(StyleKeys.OVERFLOW_X), value:  Int32(overflowX.rawValue), state: .overflowX)
+//            updateIntField(offset: Int(StyleKeys.OVERFLOW_Y), value:  Int32(overflowY.rawValue), state: .overflowY)
+//          }
+//      }
+//  
   public var overflowX: Overflow{
     get {
       return Overflow(rawValue: getInt32(StyleKeys.OVERFLOW_X))!

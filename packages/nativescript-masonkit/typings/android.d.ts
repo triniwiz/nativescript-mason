@@ -697,6 +697,36 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
+				export class Img implements org.nativescript.mason.masonkit.MasonView, org.nativescript.mason.masonkit.MeasureFunc {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.Img>;
+					public configure(param0: any): void;
+					public setInBatch(value: boolean): void;
+					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public getSrc(): string;
+					public getStyle(): org.nativescript.mason.masonkit.Style;
+					public constructor($this$_init__u24lambda_u240: globalAndroid.content.Context, this_: org.nativescript.mason.masonkit.Mason);
+					public isLeaf(): boolean;
+					public syncStyle(this_: string): void;
+					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, value: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet);
+					public onMeasure(layout: number, width: number): void;
+					public setSrc(it: string): void;
+					public isNodeDirty(): boolean;
+					public getNode(): org.nativescript.mason.masonkit.Node;
+					public markNodeDirty(): void;
+					public constructor(context: globalAndroid.content.Context);
+					public getInBatch(): boolean;
+					public configure(block: any): void;
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
 				export class JustifyContent {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.JustifyContent>;
 					public static Normal: org.nativescript.mason.masonkit.JustifyContent;
@@ -1028,6 +1058,7 @@ declare module org {
 					public getNodes$masonkit_release(): java.util.WeakHashMap<java.lang.Long,org.nativescript.mason.masonkit.Node>;
 					public requestLayout(view: globalAndroid.view.View): void;
 					public createView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.View;
+					public createImageView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.Img;
 					public nodeForView($this$nodeForView_u24lambda_u247_u24lambda_u246: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
 					public constructor();
 					public getNativePtr$masonkit_release(): number;
@@ -2148,17 +2179,18 @@ declare module org {
 				export module TextStateKeys {
 					export class Companion {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextStateKeys.Companion>;
-						public "getDECORATION_LINE-Zvr9YrE"(): number;
 						public "getTEXT_ALIGN-Zvr9YrE"(): number;
 						public "getBACKGROUND_COLOR-Zvr9YrE"(): number;
 						public "getTRANSFORM-Zvr9YrE"(): number;
-						public "getTEXT_WRAP-Zvr9YrE"(): number;
 						public "getCOLOR-Zvr9YrE"(): number;
-						public "getFONT_STYLE_SLANT-Zvr9YrE"(): number;
 						public "getWHITE_SPACE-Zvr9YrE"(): number;
 						public "getTEXT_JUSTIFY-Zvr9YrE"(): number;
-						public "getDECORATION_COLOR-Zvr9YrE"(): number;
 						public "getSIZE-Zvr9YrE"(): number;
+						public "getDECORATION_LINE-Zvr9YrE"(): number;
+						public "getTEXT_WRAP-Zvr9YrE"(): number;
+						public "getFONT_STYLE_SLANT-Zvr9YrE"(): number;
+						public "getDECORATION_COLOR-Zvr9YrE"(): number;
+						public "getTEXT_OVERFLOW-Zvr9YrE"(): number;
 						public "getFONT_STYLE-Zvr9YrE"(): number;
 					}
 				}
@@ -2186,6 +2218,7 @@ declare module org {
 					public static FONT_STYLE_SLANT: number = 36;
 					public static TEXT_WRAP: number = 40;
 					public static WHITE_SPACE: number = 40;
+					public static TEXT_OVERFLOW: number = 44;
 				}
 			}
 		}
@@ -2243,17 +2276,31 @@ declare module org {
 					public setIncludePadding(value: boolean): void;
 					public onMeasure(layout: number, specWidth: number): void;
 					public addView(view: globalAndroid.view.View): void;
-					public setFontStyle(value: org.nativescript.mason.masonkit.FontFace.NSCFontStyle): void;
 					public removeView(it: globalAndroid.view.View): void;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
 					public setTextJustify(value: org.nativescript.mason.masonkit.text.Styles.TextJustify): void;
+					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet);
+					public getDecorationColor(): number;
+					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, value: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public getTextValues(): java.nio.ByteBuffer;
+					public getColor(): number;
+					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public getIncludePadding(): boolean;
+					public setWhiteSpace(this_: org.nativescript.mason.masonkit.text.Styles.WhiteSpace): void;
+					public isNodeDirty(): boolean;
+					public getWhiteSpace(): org.nativescript.mason.masonkit.text.Styles.WhiteSpace;
+					public getFontStyle(): org.nativescript.mason.masonkit.FontFace.NSCFontStyle;
+					public constructor(context: globalAndroid.content.Context);
+					public setTextAlign(value: org.nativescript.mason.masonkit.TextAlign): void;
+					public configureText(block: any): void;
+					public syncStyle(backgroundColor: string, value: string): void;
+					public setTextOverflow(value: org.nativescript.mason.masonkit.text.Styles.TextOverflow): void;
+					public setFontStyle(value: org.nativescript.mason.masonkit.FontFace.NSCFontStyle): void;
 					public getTextWrap(): org.nativescript.mason.masonkit.text.Styles.TextWrap;
 					public getType(): org.nativescript.mason.masonkit.TextType;
-					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet);
 					public setDecorationColor(value: number): void;
 					public markNodeDirty(): void;
 					public setTextWrap(this_: org.nativescript.mason.masonkit.text.Styles.TextWrap): void;
-					public getDecorationColor(): number;
 					public setBackgroundColorValue(value: number): void;
 					public getFont(): org.nativescript.mason.masonkit.FontFace;
 					public setFontSize(value: number): void;
@@ -2261,29 +2308,17 @@ declare module org {
 					public addView(it: globalAndroid.view.View, element$iv: number): void;
 					public setColor(value: number): void;
 					public getTextTransform(): org.nativescript.mason.masonkit.text.Styles.TextTransform;
-					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, value: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
-					public getTextValues(): java.nio.ByteBuffer;
-					public getColor(): number;
-					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public getBackgroundColorValue(): number;
-					public getIncludePadding(): boolean;
+					public getTextOverflow(): org.nativescript.mason.masonkit.text.Styles.TextOverflow;
 					public getValues(): java.nio.ByteBuffer;
-					public setWhiteSpace(this_: org.nativescript.mason.masonkit.text.Styles.WhiteSpace): void;
 					public getDecorationLine(): org.nativescript.mason.masonkit.text.Styles.DecorationLine;
 					public isLeaf(): boolean;
 					public setTextTransform(this_: org.nativescript.mason.masonkit.text.Styles.TextTransform): void;
 					public constructor($this$_init__u24lambda_u240: globalAndroid.content.Context, scale: org.nativescript.mason.masonkit.Mason, margin: org.nativescript.mason.masonkit.TextType);
-					public isNodeDirty(): boolean;
 					public getNode(): org.nativescript.mason.masonkit.Node;
-					public getWhiteSpace(): org.nativescript.mason.masonkit.text.Styles.WhiteSpace;
-					public getFontStyle(): org.nativescript.mason.masonkit.FontFace.NSCFontStyle;
-					public constructor(context: globalAndroid.content.Context);
-					public setTextAlign(value: org.nativescript.mason.masonkit.TextAlign): void;
-					public configureText(block: any): void;
 					public updateText(text: string): void;
 					public getTextJustify(): org.nativescript.mason.masonkit.text.Styles.TextJustify;
 					public constructor(context: globalAndroid.content.Context, mason: org.nativescript.mason.masonkit.Mason);
-					public syncStyle(backgroundColor: string, value: string): void;
 					public getFontSize(): number;
 				}
 				export module TextView {
@@ -2782,6 +2817,25 @@ declare module org {
 							}
 							export class WhenMappings {
 								public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.TextJustify.WhenMappings>;
+							}
+						}
+						export class TextOverflow {
+							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.TextOverflow>;
+							public static Clip: org.nativescript.mason.masonkit.text.Styles.TextOverflow;
+							public static Ellipse: org.nativescript.mason.masonkit.text.Styles.TextOverflow;
+							public static Custom: org.nativescript.mason.masonkit.text.Styles.TextOverflow;
+							public static values(): androidNative.Array<org.nativescript.mason.masonkit.text.Styles.TextOverflow>;
+							public static getEntries(): any;
+							public static valueOf(value: string): org.nativescript.mason.masonkit.text.Styles.TextOverflow;
+							public setToken$masonkit_release(value: string): void;
+							public getValue(): number;
+							public getToken(): string;
+						}
+						export module TextOverflow {
+							export class Companion {
+								public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Styles.TextOverflow.Companion>;
+								public fromInt(value: number): org.nativescript.mason.masonkit.text.Styles.TextOverflow;
+								public fromInt($this$fromInt_u24lambda_u240: number, value: string): org.nativescript.mason.masonkit.text.Styles.TextOverflow;
 							}
 						}
 						export class TextTransform {

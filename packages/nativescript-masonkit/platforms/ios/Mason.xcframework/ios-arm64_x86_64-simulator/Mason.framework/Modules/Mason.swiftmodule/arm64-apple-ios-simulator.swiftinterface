@@ -144,6 +144,7 @@ public struct Line<T> {
   @objc public func createView() -> Mason.MasonUIView
   @objc public func createTextView() -> Mason.MasonText
   @objc public func createTextView(type: Mason.MasonTextType) -> Mason.MasonText
+  @objc public func createImageView() -> Mason.MasonImg
   @objc public func createNode() -> Mason.MasonNode
   public func createNode(measure: @escaping Mason.MasonNode.MeasureFunc) -> Mason.MasonNode
   @objc public func printTree(_ node: Mason.MasonNode)
@@ -335,6 +336,10 @@ extension UIKit.UIColor {
   @objc @_Concurrency.MainActor @preconcurrency public func updateText(_ value: Swift.String?)
   @objc @_Concurrency.MainActor @preconcurrency public var txtToRender: Foundation.NSMutableAttributedString
   @objc @_Concurrency.MainActor @preconcurrency public func invalidateStyle(_ state: Swift.Int64)
+  @_Concurrency.MainActor @preconcurrency public var textOverflow: Mason.TextOverflow {
+    get
+    set
+  }
   @objc @_Concurrency.MainActor @preconcurrency public var textTransform: Mason.TextTransform {
     @objc get
     @objc set
@@ -871,6 +876,25 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
   }
   @objc deinit
 }
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonImg) @_Concurrency.MainActor @preconcurrency public class MasonImg : UIKit.UIImageView, Mason.MasonView {
+  @objc @_Concurrency.MainActor @preconcurrency public var style: Mason.MasonStyle {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public func markNodeDirty()
+  @objc @_Concurrency.MainActor @preconcurrency public func isNodeDirty() -> Swift.Bool
+  @objc @_Concurrency.MainActor @preconcurrency public func configure(_ block: (Mason.MasonNode) -> Swift.Void)
+  @objc @_Concurrency.MainActor @preconcurrency public var uiView: UIKit.UIView {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode
+  @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
+  @objc @_Concurrency.MainActor @preconcurrency public var src: Swift.String? {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String)
+  @objc deinit
+}
 @objc(MasonDimensionCompatType) public enum MasonDimensionCompatType : Swift.Int, Swift.RawRepresentable, Swift.Codable {
   case Auto
   case Points
@@ -1232,6 +1256,7 @@ public enum GridPlacement : Swift.Codable {
   case Pre
   case PreWrap
   case PreLine
+  case Nowrap
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.WhiteSpace.RawValue {
     get
@@ -1251,6 +1276,14 @@ public enum GridPlacement : Swift.Codable {
     get
   }
   public init?(rawValue: Mason.LineHeight.RawValue)
+  public var description: Swift.String {
+    get
+  }
+}
+public enum TextOverflow : Swift.CustomStringConvertible {
+  case Clip
+  case Ellipse(Swift.String?)
+  case Custom(Swift.String)
   public var description: Swift.String {
     get
   }

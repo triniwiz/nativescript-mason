@@ -40,6 +40,7 @@ object TextStyleKeys {
   const val FONT_STYLE_SLANT = 36
   const val TEXT_WRAP = 40
   const val WHITE_SPACE = 40
+  const val TEXT_OVERFLOW = 44
 }
 
 const val UNSET_COLOR = 0xDEADBEEF
@@ -60,6 +61,7 @@ value class TextStateKeys internal constructor(val bits: Long) {
     val FONT_STYLE_SLANT = TextStateKeys(1L shl 9)
     val TEXT_WRAP = TextStateKeys(1L shl 10)
     val WHITE_SPACE = TextStateKeys(1L shl 11)
+    val TEXT_OVERFLOW = TextStateKeys(1L shl 12)
   }
 
   infix fun or(other: TextStateKeys): TextStateKeys = TextStateKeys(bits or other.bits)
@@ -67,7 +69,7 @@ value class TextStateKeys internal constructor(val bits: Long) {
   infix fun hasFlag(flag: TextStateKeys): Boolean = (bits and flag.bits) != 0L
 }
 
-const val VIEW_PLACEHOLDER = "[[__view__]]"
+const val VIEW_PLACEHOLDER = "\uFFFC"
 
 class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null
@@ -118,7 +120,6 @@ class TextView @JvmOverloads constructor(
 
     node.inBatch = true
     when (type) {
-
       TextType.Code -> {
         font = FontFace("monospace")
         setBackgroundColor(0xFFEFEFEF.toInt())
@@ -216,7 +217,7 @@ class TextView @JvmOverloads constructor(
   }
 
   val textValues: ByteBuffer by lazy {
-    ByteBuffer.allocateDirect(48).apply {
+    ByteBuffer.allocateDirect(52).apply {
       order(ByteOrder.nativeOrder())
       putInt(TextStyleKeys.COLOR, Color.BLACK)
       putInt(TextStyleKeys.DECORATION_COLOR, UNSET_COLOR.toInt())
@@ -256,6 +257,8 @@ class TextView @JvmOverloads constructor(
       var dirty = false
       if (value.hasFlag(TextStateKeys.TRANSFORM) || value.hasFlag(TextStateKeys.TEXT_WRAP) || value.hasFlag(
           TextStateKeys.WHITE_SPACE
+        ) || value.hasFlag(
+          TextStateKeys.TEXT_OVERFLOW
         )
       ) {
         applyTransform(textTransform, true, whiteSpace, textWrap)
@@ -354,6 +357,13 @@ class TextView @JvmOverloads constructor(
       textValues.putInt(TextStyleKeys.WHITE_SPACE, value.value)
       applyTransform(textTransform, changed, value, textWrap)
       markDirtyAndRecompute()
+    }
+
+  var textOverflow: Styles.TextOverflow = Styles.TextOverflow.Clip
+    set(value) {
+      field = value
+      textValues.putInt(TextStyleKeys.TEXT_WRAP, value.value)
+      invalidate()
     }
 
   private fun markDirtyAndRecompute() {
@@ -466,7 +476,6 @@ class TextView @JvmOverloads constructor(
     // todo
     return input
   }
-
 
   private fun applyTransform(
     value: Styles.TextTransform,
@@ -764,7 +773,7 @@ class TextView @JvmOverloads constructor(
     return result
   }
 
-  private fun invalidateView() {
+  internal fun invalidateView() {
     if (owner != null) {
       owner?.invalidateView()
       return

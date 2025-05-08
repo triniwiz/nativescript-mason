@@ -8,10 +8,9 @@ import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.text.TextPaint
 import android.text.style.DynamicDrawableSpan
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
-import org.nativescript.mason.masonkit.FontFace
+import androidx.core.graphics.withSave
 import org.nativescript.mason.masonkit.Node
 
 class Spans {
@@ -164,14 +163,22 @@ class Spans {
       end: Int,
       fm: Paint.FontMetricsInt?
     ): Int {
+      val viewHeight = view.measuredHeight
       if (fm != null) {
-        val textHeight = fm.descent - fm.ascent
-        val viewHeight = view.measuredHeight
+        val fontMetrics = paint.fontMetricsInt
+        val fontHeight = fontMetrics.descent - fontMetrics.ascent
+        val extra = viewHeight - fontHeight
 
-        if (viewHeight > textHeight) {
-          val extraHeight = (viewHeight - textHeight) / 2
-          fm.ascent -= extraHeight
-          fm.descent += extraHeight
+        if (extra > 0) {
+          fm.ascent = fontMetrics.ascent - extra
+          fm.descent = fontMetrics.descent
+          fm.top = fontMetrics.top - extra
+          fm.bottom = fontMetrics.bottom
+        } else {
+          fm.ascent = fontMetrics.ascent
+          fm.descent = fontMetrics.descent
+          fm.top = fontMetrics.top
+          fm.bottom = fontMetrics.bottom
         }
       }
       return view.measuredWidth
@@ -188,18 +195,18 @@ class Spans {
       bottom: Int,
       paint: Paint
     ) {
-      canvas.save()
-      val width = view.measuredWidth
-      val height = view.measuredHeight
+      canvas.withSave {
+        val width = view.measuredWidth
+        val height = view.measuredHeight
 
-      val fontMetrics = paint.fontMetricsInt
-      val baselineOffset = y + fontMetrics.descent - height
+        val fontMetrics = paint.fontMetricsInt
+        val baselineOffset = y + fontMetrics.descent - height
 
+        translate(x, baselineOffset.toFloat())
+        view.layout(0, 0, width, height)
 
-      canvas.translate(x, baselineOffset.toFloat())
-      view.layout(0, 0, width, height)
-      view.draw(canvas)
-      canvas.restore()
+        view.draw(this)
+      }
     }
 
     override fun getDrawable(): Drawable {
