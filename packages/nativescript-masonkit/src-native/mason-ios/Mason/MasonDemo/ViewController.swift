@@ -356,12 +356,29 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     txt.addView(img)
     
+    
+    let view = mason.createView()
+    view.node.style.size = MasonSize(.Points(400), .Points(400))
+    view.backgroundColor = .purple
+    
+    let txtView = mason.createTextView()
+    txtView.text = "Hello World"
+    
+    view.addView(txtView)
+    
+    txt.addView(view)
+    
     root.addView(txt)
     
-
+  
+    root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
     
     
-    container.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
+      img.configure { node in
+        node.style.size = MasonSize(.Points(200), .Points(200))
+      }
+    }
   }
   
   func headers(){

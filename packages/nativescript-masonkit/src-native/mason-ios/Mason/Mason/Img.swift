@@ -56,8 +56,12 @@ public class MasonImg: UIImageView, MasonView {
         DispatchQueue.main.async {
           self.image = image
           self.node.markDirty()
-          if let size = self.rootNode.computeCache {
-            self.rootNode.computeWithSize(Float(size.width), Float(size.height))
+//          if let size = self.rootNode.computeCache {
+//            self.rootNode.computeWithSize(Float(size.width), Float(size.height))
+//          }
+          
+          if let view = (self.node.owner?.data ?? self.node.owner?.children.first?.data) as? UIView {
+            view.setNeedsDisplay()
           }
           
         }
@@ -72,6 +76,7 @@ public class MasonImg: UIImageView, MasonView {
     mason = doc
     super.init(frame: .zero)
     node.data = self
+    isOpaque = false
     node.measureFunc = { known, available in
       return MasonImg.measure(self, known, available)
     }

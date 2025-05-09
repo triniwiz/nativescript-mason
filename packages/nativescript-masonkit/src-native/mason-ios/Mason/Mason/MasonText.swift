@@ -140,9 +140,11 @@ class ViewHelper {
       let rendererFormat = UIGraphicsImageRendererFormat.default()
       rendererFormat.opaque = view.isOpaque
       
+      
       self.image = UIGraphicsImageRenderer(size: view.bounds.size, format: rendererFormat).image { ctx in
         view.layer.render(in: ctx.cgContext)
       }
+      
     }
     
   }
