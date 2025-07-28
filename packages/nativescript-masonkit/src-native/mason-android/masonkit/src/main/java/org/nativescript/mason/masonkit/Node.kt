@@ -1,8 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.os.Build
-import android.util.Log
-import android.view.View.MeasureSpec
 import dalvik.annotation.optimization.CriticalNative
 import dalvik.annotation.optimization.FastNative
 import java.lang.ref.WeakReference
@@ -11,8 +8,9 @@ import java.lang.ref.WeakReference
 class Node internal constructor(internal val mason: Mason, internal var nativePtr: Long) {
   internal var computeCacheWidth: Float? = null
   internal var computeCacheHeight: Float? = null
-  var layoutCache: Layout? = null
+  var computedLayout: Layout = Layout.empty()
     internal set
+
   internal var knownWidth: Float? = null
   internal var knownHeight: Float? = null
   internal var availableWidth: Float? = null
@@ -29,57 +27,25 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
       val view = this@Node.data as? android.view.View
 
       if (knownDimensions.width != null && knownDimensions.height != null) {
-        if (view != null) {
-          view.measure(
-            MeasureSpec.makeMeasureSpec(knownDimensions.width!!.toInt(), MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec(knownDimensions.height!!.toInt(), MeasureSpec.EXACTLY)
-          )
-          return Size(view.measuredWidth.toFloat(), view.measuredHeight.toFloat())
-        }
-
         return Size(knownDimensions.width!!, knownDimensions.height!!)
       }
 
-      val width = if (knownDimensions.width != null) {
-        MeasureSpec.makeMeasureSpec(knownDimensions.width!!.toInt(), MeasureSpec.EXACTLY)
-      } else if (availableSpace.width != null) {
-        if (availableSpace.width == -1f || availableSpace.width == -2f) {
-          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-        } else {
-          MeasureSpec.makeMeasureSpec(availableSpace.width!!.toInt(), MeasureSpec.AT_MOST)
-        }
-      } else {
-        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-      }
+      val width = knownDimensions.width ?: view?.measuredWidth?.toFloat() ?: 0f
 
+      val height = knownDimensions.height ?: view?.measuredHeight?.toFloat() ?: 0f
 
-      val height = if (knownDimensions.height != null) {
-        MeasureSpec.makeMeasureSpec(knownDimensions.height!!.toInt(), MeasureSpec.EXACTLY)
-      } else if (availableSpace.height != null) {
-        if (availableSpace.height == -1f || availableSpace.height == -2f) {
-          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-        } else {
-          MeasureSpec.makeMeasureSpec(availableSpace.height!!.toInt(), MeasureSpec.AT_MOST)
-        }
-      } else {
-        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-      }
-
-
-      if (view != null) {
-        view.measure(width, height)
-        return Size(view.measuredWidth.toFloat(), view.measuredHeight.toFloat())
-      }
-
-      return Size(
-        knownDimensions.width ?: 0f,
-        knownDimensions.height ?: 0f
-      )
+      return Size(width, height)
     }
   }
 
+
+  internal var isText = false
   var data: Any? = null
-    internal set
+    internal set(value) {
+      field = value
+      isText = data is TextView
+    }
+
 
   var owner: Node? = null
     internal set
@@ -144,6 +110,7 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
       }
     }
 
+
   fun compute() {
     computeCacheWidth = -2f
     computeCacheHeight = -2f
@@ -191,15 +158,25 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
 
     children.add(child)
 
+    (child.data as? MasonView)?.onNodeAttached()
+
     return child
   }
 
   fun addChildAt(child: Node, index: Int) {
+    var shifting = false
     if (child.owner != null) {
-      throw IllegalStateException("Child already has a parent, it must be removed first.");
+      if (child.owner == this) {
+        if (children.indexOfFirst { it == child } == index) {
+          return
+        }
+        shifting = true
+      } else {
+        throw IllegalStateException("Child already has a parent, it must be removed first.");
+      }
     }
 
-    if (index == -1 || index == children.count()) {
+    if (!shifting && (index == -1 || index == children.count())) {
       this.addChild(child)
       return
     }
@@ -207,6 +184,8 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
     nativeAddChildAt(mason.nativePtr, nativePtr, child.nativePtr, index)
 
     child.owner = this
+
+    (child.data as? MasonView)?.onNodeAttached()
 
     val ret = children.set(index, child)
 
@@ -218,17 +197,20 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
       throw IllegalStateException("Child already has a parent, it must be removed first.");
     }
 
-    nativeInsertChildBefore(
-      mason.nativePtr,
-      nativePtr,
-      child.nativePtr,
-      referenceChild.nativePtr
-    )
-
-    child.owner = this
     val index = children.indexOf(referenceChild)
     if (index != -1) {
+      nativeInsertChildBefore(
+        mason.nativePtr,
+        nativePtr,
+        child.nativePtr,
+        referenceChild.nativePtr
+      )
+
+      child.owner = this
+
       children.add(index, child)
+
+      (child.data as? MasonView)?.onNodeAttached()
     }
   }
 
@@ -237,28 +219,34 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
       throw IllegalStateException("Child already has a parent, it must be removed first.");
     }
 
-    nativeInsertChildAfter(
-      mason.nativePtr,
-      nativePtr,
-      child.nativePtr,
-      referenceChild.nativePtr
-    )
-
-    child.owner = this
     val index = children.indexOf(referenceChild)
     if (index != -1) {
+
+      nativeInsertChildAfter(
+        mason.nativePtr,
+        nativePtr,
+        child.nativePtr,
+        referenceChild.nativePtr
+      )
+
+      child.owner = this
       val newPosition = index + 1
       if (newPosition == children.size) {
         children.add(child)
       } else {
         children.add(newPosition, child)
       }
+
+      (child.data as? MasonView)?.onNodeAttached()
     }
   }
 
   fun removeChildren() {
     nativeRemoveChildren(mason.nativePtr, nativePtr)
-    children.forEach { it.owner = null }
+    children.forEach {
+      it.owner = null
+      (it.data as? MasonView)?.onNodeDetached()
+    }
     children.clear()
   }
 
@@ -273,6 +261,8 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
 
     children.remove(child)
 
+    (child.data as? MasonView)?.onNodeDetached()
+
     return child
   }
 
@@ -283,13 +273,11 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
       return null
     }
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      children.removeIf { it.nativePtr == removedNode }
-    } else {
-      val position = children.indexOfFirst { it.nativePtr == removedNode }
-      if (position != -1) {
-        children.removeAt(position)
-      }
+    val position = children.indexOfFirst { it.nativePtr == removedNode }
+    if (position != -1) {
+      val child = children[position]
+      children.removeAt(position)
+      (child.data as? MasonView)?.onNodeDetached()
     }
 
     return mason.nodes[removedNode]?.apply {
@@ -343,7 +331,9 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
 
     @CriticalNative
     @JvmStatic
-    external fun nativeNewNode(mason: Long): Long
+    external fun nativeNewNode(
+      mason: Long
+    ): Long
 
     @JvmStatic
     external fun nativeNewNodeWithChildren(

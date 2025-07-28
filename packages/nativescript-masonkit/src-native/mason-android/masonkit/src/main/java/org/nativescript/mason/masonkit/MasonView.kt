@@ -1,6 +1,9 @@
 package org.nativescript.mason.masonkit
 
 interface MasonView {
+  fun onNodeAttached(){}
+  fun onNodeDetached(){}
+
   fun isLeaf(): Boolean
 
   val style: Style

@@ -1743,12 +1743,6 @@ public class MasonStyle: NSObject {
 //      }
 //
       
-      
-      
-      mason_style_sync_style_with_buffer(node.mason.nativePtr, node.nativePtr, isDirty, valuesCompat.mutableBytes, UInt(values.count))
-      
-      
-      
       isDirty = -1
     }
     

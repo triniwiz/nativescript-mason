@@ -1,7 +1,7 @@
 import { layout } from '@nativescript/core/utils';
-import type { Gap, GridAutoFlow, Length, LengthAuto, View } from '.';
-import { CoreTypes } from '@nativescript/core';
-import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf } from './helpers';
+import type { GridAutoFlow, Length, LengthAuto, View } from '.';
+import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
+import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine } from './utils';
 
 enum StyleKeys {
   DISPLAY = 0,
@@ -96,7 +96,12 @@ enum StyleKeys {
   TEXT_ALIGN = 304,
   BOX_SIZING = 308,
   OVERFLOW = 312,
-  ITEM_IS_TABLE = 316, //Byte
+  ITEM_IS_TABLE = 316,
+  ITEM_IS_REPLACED = 320,
+  DISPLAY_MODE = 324,
+  FORCE_INLINE = 328,
+  MIN_CONTENT = 332,
+  MAX_CONTENT = 336,
 }
 
 enum TextStyleKeys {
@@ -171,6 +176,11 @@ class StateKeys {
   static readonly BOX_SIZING = new StateKeys(1n << 30n);
   static readonly OVERFLOW = new StateKeys(1n << 31n);
   static readonly ITEM_IS_TABLE = new StateKeys(1n << 32n);
+  static readonly ITEM_IS_REPLACED = new StateKeys(1n << 33n);
+  static readonly DISPLAY_MODE = new StateKeys(1n << 34n);
+  static readonly FORCE_INLINE = new StateKeys(1n << 35n);
+  static readonly MIN_CONTENT = new StateKeys(1n << 36n);
+  static readonly MAX_CONTENT = new StateKeys(1n << 37n);
 
   or(other: StateKeys): StateKeys {
     return new StateKeys(this.bits | other.bits);
@@ -213,6 +223,22 @@ class TextStateKeys {
     return (this.bits & flag.bits) !== 0n;
   }
 }
+
+const getUint16 = (view: DataView, offset: number) => {
+  return view.getUint16(offset, true);
+};
+
+const setUint16 = (view: DataView, offset: number, value: number) => {
+  view.setUint16(offset, value, true);
+};
+
+const getInt16 = (view: DataView, offset: number) => {
+  return view.getInt16(offset, true);
+};
+
+const setInt16 = (view: DataView, offset: number, value: number) => {
+  view.setInt16(offset, value, true);
+};
 
 const getUint32 = (view: DataView, offset: number) => {
   return view.getUint32(offset, true);
@@ -350,6 +376,32 @@ export class Style {
     return this.view_;
   }
 
+  get boxSizing(): 'border-box' | 'content-box' {
+    switch (getUint32(this.style_view, StyleKeys.BOX_SIZING)) {
+      case 0:
+        return 'border-box';
+      case 1:
+        return 'content-box';
+    }
+  }
+
+  set boxSizing(value: 'border-box' | 'content-box') {
+    let boxSizing = -1;
+    switch (value) {
+      case 'border-box':
+        boxSizing = 0;
+        break;
+      case 'content-box':
+        boxSizing = 1;
+        break;
+    }
+
+    if (boxSizing !== -1) {
+      setUint32(this.style_view, StyleKeys.BOX_SIZING, boxSizing);
+      this.setOrAppendState(StateKeys.BOX_SIZING);
+    }
+  }
+
   get color() {
     if (!this.text_style_view) {
       // BLACK ?
@@ -391,13 +443,33 @@ export class Style {
     return getInt32(this.text_style_view, TextStyleKeys.TEXT_ALIGN);
   }
 
-  set textWrap(value: number) {
+  set textWrap(value: number | 'nowrap' | 'wrap' | 'balance') {
     if (!this.text_style_view) {
       return;
     }
 
-    setInt32(this.text_style_view, TextStyleKeys.TEXT_WRAP, value);
-    this.setOrAppendTextState(TextStateKeys.TEXT_WRAP);
+    let wrap = -1;
+
+    switch (value) {
+      case 'nowrap':
+        wrap = 0;
+        break;
+      case 'wrap':
+        wrap = 1;
+        break;
+      case 'balance':
+        wrap = 2;
+        break;
+    }
+
+    if (typeof value === 'number' && value >= 0 && value < 3) {
+      wrap = value;
+    }
+
+    if (wrap !== -1) {
+      setInt32(this.text_style_view, TextStyleKeys.TEXT_WRAP, wrap);
+      this.setOrAppendTextState(TextStateKeys.TEXT_WRAP);
+    }
   }
 
   get styleView(): DataView {
@@ -414,10 +486,19 @@ export class Style {
         return 'grid';
       case 3:
         return 'block';
+      case 4:
+        return 'inline';
+      case 5:
+        return 'inline-block';
+      case 6:
+        return 'inline-flex';
+      case 7:
+        return 'inline-grid';
+      default:
     }
   }
 
-  set display(value: 'none' | 'flex' | 'grid' | 'block') {
+  set display(value: 'none' | 'flex' | 'grid' | 'block' | 'inline' | 'inline-block' | 'inline-flex' | 'inline-grid') {
     let display = -1;
     switch (value) {
       case 'none':
@@ -431,6 +512,18 @@ export class Style {
         break;
       case 'block':
         display = 3;
+        break;
+      case 'inline':
+        display = 4;
+        break;
+      case 'inline-block':
+        display = 5;
+        break;
+      case 'inline-flex':
+        display = 6;
+        break;
+      case 'inline-grid':
+        display = 7;
         break;
     }
     if (display != -1) {
@@ -1288,8 +1381,40 @@ export class Style {
     this.setOrAppendState(StateKeys.PADDING);
   }
 
+  get gridGap() {
+    return this.gap;
+  }
+
+  set gridGap(value: string) {
+    this.gap = value;
+  }
+
   get gap() {
     return `${this.rowGap} ${this.columnGap}`;
+  }
+
+  set gap(value: string) {
+    if (typeof value === 'string') {
+      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
+
+      const length = values.length;
+      if (length === 0) {
+        return;
+      }
+
+      if (length === 1) {
+        const row = values[0];
+        this.rowGap = CoreLength.parse(row) as never;
+        this.columnGap = CoreLength.parse(row) as never;
+      }
+
+      if (length > 1) {
+        const row = values[0];
+        const column = values[1];
+        this.rowGap = CoreLength.parse(row) as never;
+        this.columnGap = CoreLength.parse(column) as never;
+      }
+    }
   }
 
   get rowGap(): Length {
@@ -1557,8 +1682,107 @@ export class Style {
     this.setOrAppendState(StateKeys.ALIGN_CONTENT);
   }
 
-  justifyItems: JustifyItems;
-  justifySelf: JustifySelf;
+  get justifyItems() {
+    switch (getInt32(this.style_view, StyleKeys.JUSTIFY_ITEMS)) {
+      case JustifyItems.Normal:
+        return 'normal';
+      case JustifyItems.Start:
+        return 'start';
+      case JustifyItems.End:
+        return 'end';
+      case JustifyItems.Center:
+        return 'center';
+      case JustifyItems.Baseline:
+        return 'baseline';
+      case JustifyItems.Stretch:
+        return 'stretch';
+      case JustifyItems.FlexStart:
+        return 'flex-start';
+      case JustifyItems.FlexEnd:
+        return 'flex-end';
+    }
+  }
+  set justifyItems(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
+    switch (value) {
+      case 'normal':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Normal);
+        break;
+      case 'start':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Start);
+        break;
+      case 'end':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.End);
+        break;
+      case 'center':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Center);
+        break;
+      case 'baseline':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Baseline);
+        break;
+      case 'stretch':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.Stretch);
+        break;
+      case 'flex-start':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.FlexStart);
+        break;
+      case 'flex-end':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_ITEMS, JustifyItems.FlexEnd);
+        break;
+    }
+    this.setOrAppendState(StateKeys.JUSTIFY_ITEMS);
+  }
+
+  get justifySelf() {
+    switch (getInt32(this.style_view, StyleKeys.JUSTIFY_SELF)) {
+      case JustifySelf.Normal:
+        return 'normal';
+      case JustifySelf.Start:
+        return 'start';
+      case JustifySelf.End:
+        return 'end';
+      case JustifySelf.Center:
+        return 'center';
+      case JustifySelf.Baseline:
+        return 'baseline';
+      case JustifySelf.Stretch:
+        return 'stretch';
+      case JustifySelf.FlexStart:
+        return 'flex-start';
+      case JustifySelf.FlexEnd:
+        return 'flex-end';
+    }
+  }
+
+  set justifySelf(value: 'normal' | 'start' | 'end' | 'center' | 'baseline' | 'stretch' | 'flex-start' | 'flex-end') {
+    switch (value) {
+      case 'normal':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Normal);
+        break;
+      case 'start':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Start);
+        break;
+      case 'end':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.End);
+        break;
+      case 'center':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Center);
+        break;
+      case 'baseline':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Baseline);
+        break;
+      case 'stretch':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.Stretch);
+        break;
+      case 'flex-start':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.FlexStart);
+        break;
+      case 'flex-end':
+        setInt32(this.style_view, StyleKeys.JUSTIFY_SELF, JustifySelf.FlexEnd);
+        break;
+    }
+    this.setOrAppendState(StateKeys.JUSTIFY_SELF);
+  }
+
   get justifyContent() {
     switch (getInt32(this.style_view, StyleKeys.JUSTIFY_CONTENT)) {
       case JustifyContent.Normal:
@@ -1613,8 +1837,28 @@ export class Style {
     }
     this.setOrAppendState(StateKeys.JUSTIFY_CONTENT);
   }
-  gridAutoRows: string;
-  gridAutoColumns: string;
+  get gridAutoRows() {
+    return '';
+  }
+
+  set gridAutoRows(value: string) {
+    if (typeof value === 'string') {
+      _setGridAutoRows(value, this.view_ as never);
+    } else {
+    }
+  }
+
+  get gridAutoColumns() {
+    return '';
+  }
+
+  set gridAutoColumns(value: string) {
+    if (typeof value === 'string') {
+      _setGridAutoColumns(value, this.view_ as never);
+    } else {
+    }
+  }
+
   get gridAutoFlow(): GridAutoFlow {
     switch (getInt32(this.style_view, StyleKeys.GRID_AUTO_FLOW)) {
       case 0:
@@ -1645,17 +1889,221 @@ export class Style {
     }
   }
 
-  gridRowGap: Gap;
-  gridColumnGap: Gap;
-  gridArea: string;
-  gridColumn: string;
-  gridColumnStart: string;
-  gridColumnEnd: string;
-  gridRow: string;
-  gridRowStart: string;
-  gridRowEnd: string;
+  get gridRowGap() {
+    return this.rowGap;
+  }
+
+  set gridRowGap(value: Length) {
+    this.rowGap = value;
+  }
+
+  get gridColumnGap() {
+    return this.columnGap;
+  }
+
+  set gridColumnGap(value: Length) {
+    this.columnGap = value;
+  }
+
+  // gridArea: string;
+  get gridColumn() {
+    return `${this.gridColumnStart} / ${this.gridColumnEnd}`;
+  }
+  get gridColumnStart(): string {
+    switch (getInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE)) {
+      case 0:
+        return 'auto';
+      case 1: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE);
+        if (value === 0) {
+          return 'span';
+        }
+        return `span ${value}`;
+      }
+      case 2: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE);
+        if (value === 1) {
+          return 'auto';
+        }
+        return `${value}`;
+      }
+    }
+  }
+
+  set gridColumnStart(value: string) {
+    const line = _parseGridLine(value);
+    if (line === null) {
+      return;
+    }
+
+    switch (line.type) {
+      case 'auto':
+        setInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE, 0);
+        setInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE, 1);
+        break;
+      case 'span':
+        if (line.value !== undefined) {
+          setInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE, 1);
+          setInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE, line.value);
+        }
+        break;
+      case 'line':
+        if (line.value !== undefined) {
+          setInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE, 2);
+          setInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE, line.value);
+        }
+        break;
+    }
+  }
+
+  get gridColumnEnd(): string {
+    switch (getInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE)) {
+      case 0:
+        return 'auto';
+      case 1: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE);
+        if (value === 0) {
+          return 'span';
+        }
+        return `span ${value}`;
+      }
+      case 2: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE);
+        if (value === 1) {
+          return 'auto';
+        }
+        return `${value}`;
+      }
+    }
+  }
+
+  set gridColumnEnd(value: string) {
+    const line = _parseGridLine(value);
+    if (line === null) {
+      return;
+    }
+
+    switch (line.type) {
+      case 'auto':
+        setInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE, 0);
+        setInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE, 1);
+        break;
+      case 'span':
+        if (line.value !== undefined) {
+          setInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE, 1);
+          setInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE, line.value);
+        }
+        break;
+      case 'line':
+        if (line.value !== undefined) {
+          setInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE, 2);
+          setInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE, line.value);
+        }
+        break;
+    }
+  }
+
+  get gridRow(): string {
+    return `${this.gridRowStart} / ${this.gridRowEnd}`;
+  }
+
+  get gridRowStart(): string {
+    switch (getInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE)) {
+      case 0:
+        return 'auto';
+      case 1: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE);
+        if (value === 0) {
+          return 'span';
+        }
+        return `span ${value}`;
+      }
+      case 2: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE);
+        if (value === 1) {
+          return 'auto';
+        }
+        return `${value}`;
+      }
+    }
+  }
+
+  set gridRowStart(value: string) {
+    const line = _parseGridLine(value);
+    if (line === null) {
+      return;
+    }
+
+    switch (line.type) {
+      case 'auto':
+        setInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE, 0);
+        setInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE, 1);
+        break;
+      case 'span':
+        if (line.value !== undefined) {
+          setInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE, 1);
+          setInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE, line.value);
+        }
+        break;
+      case 'line':
+        if (line.value !== undefined) {
+          setInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE, 2);
+          setInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE, line.value);
+        }
+        break;
+    }
+  }
+
+  get gridRowEnd(): string {
+    switch (getInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE)) {
+      case 0:
+        return 'auto';
+      case 1: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE);
+        if (value === 0) {
+          return 'span';
+        }
+        return `span ${value}`;
+      }
+      case 2: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE);
+        if (value === 1) {
+          return 'auto';
+        }
+        return `${value}`;
+      }
+    }
+  }
+
+  set gridRowEnd(value: string) {
+    const line = _parseGridLine(value);
+    if (line === null) {
+      return;
+    }
+
+    switch (line.type) {
+      case 'auto':
+        setInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE, 0);
+        setInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE, 1);
+        break;
+      case 'span':
+        if (line.value !== undefined) {
+          setInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE, 1);
+          setInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE, line.value);
+        }
+        break;
+      case 'line':
+        if (line.value !== undefined) {
+          setInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE, 2);
+          setInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE, line.value);
+        }
+        break;
+    }
+  }
+
   gridTemplateRows: string;
   gridTemplateColumns: string;
+
   get overflow() {
     const x = this.overflowX;
     const y = this.overflowY;
@@ -1828,12 +2276,25 @@ export class Style {
         top: this.paddingTop,
         bottom: this.paddingBottom,
       },
+      border: {
+        left: this.borderLeft,
+        right: this.borderRight,
+        top: this.borderTop,
+        bottom: this.borderBottom,
+      },
+      aspectRatio: this.aspectRatio,
+      flexBasis: this.flexBasis,
+      overflow: this.overflow,
+      flexShrink: this.flexShrink,
+      scrollBarWidth: this.scrollBarWidth,
       gap: this.gap,
       gridAutoFlow: this.gridAutoFlow,
       gridAutoColumns: this.gridAutoColumns,
       gridAutoRows: this.gridAutoRows,
       gridColumn: this.gridColumn,
       gridRow: this.gridRow,
+      gridTemplateRows: this.gridTemplateRows,
+      gridTemplateColumns: this.gridTemplateColumns,
     };
   }
 }

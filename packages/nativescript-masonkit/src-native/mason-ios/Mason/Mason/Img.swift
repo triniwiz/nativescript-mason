@@ -54,15 +54,11 @@ public class MasonImg: UIImageView, MasonView {
         }
 
         DispatchQueue.main.async {
+          print(self.bounds)
           self.image = image
           self.node.markDirty()
-//          if let size = self.rootNode.computeCache {
-//            self.rootNode.computeWithSize(Float(size.width), Float(size.height))
-//          }
           
-          if let view = (self.node.owner?.data ?? self.node.owner?.children.first?.data) as? UIView {
-            view.setNeedsDisplay()
-          }
+          self.setNeedsDisplay()
           
         }
       })
@@ -98,6 +94,7 @@ public class MasonImg: UIImageView, MasonView {
   
   private static func measure(_ view: MasonImg, _ known: CGSize?, _ available: CGSize) -> CGSize {
     var ret = CGSize.zero
+    print(known, available)
     if let known = known {
       if(!known.width.isNaN && !known.height.isNaN){
         return known

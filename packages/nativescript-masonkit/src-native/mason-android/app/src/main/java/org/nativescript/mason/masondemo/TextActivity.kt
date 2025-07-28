@@ -1,12 +1,17 @@
 package org.nativescript.mason.masondemo
 
+import android.animation.ValueAnimator
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
-import android.widget.ImageView
-import android.widget.LinearLayout
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.Display
+import org.nativescript.mason.masonkit.Img
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
@@ -23,91 +28,133 @@ class TextActivity : AppCompatActivity() {
   lateinit var root: View
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
+    root = Mason.shared.createView(this)
+    ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+      val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+      root.style.padding = Rect(
+        LengthPercentage.Points(systemBars.left.toFloat()),
+        LengthPercentage.Points(systemBars.right.toFloat()),
+        LengthPercentage.Points(systemBars.top.toFloat()),
+        LengthPercentage.Points(systemBars.bottom.toFloat())
+      )
 
-//    val root = Mason.shared.createView(this)
-//
-//    val a = Mason.shared.createTextView(this)
-//    a.updateText("A")
-//
-//    val b = Mason.shared.createTextView(this)
-//    b.updateText("B")
-//    root.addView(a)
-//    root.addView(b)
-//    setContentView(root)
+      insets
+    }
+
+    // basicNesting()
+    testText()
+    // textWithImage()
+    // basicBlock()
     // testWrap()
-
-    val root = Mason.shared.createView(this)
-//    val a = Mason.shared.createTextView(this)
-//    a.updateText("A")
-//    val b = Mason.shared.createTextView(this)
-//    b.updateText("B")
-//    val c = Mason.shared.createTextView(this)
-//    c.updateText("C")
-//    root.addView(a, 0)
-//    root.addView(b, 1)
-//    root.addView(c, 2)
-
-
-    val h1 = Mason.shared.createTextView(this, TextType.H1)
-    h1.updateText("This is heading 1")
-
-    val h2 = Mason.shared.createTextView(this, TextType.H2)
-    h2.updateText("This is heading 2")
-
-    val h3 = Mason.shared.createTextView(this, TextType.H3)
-    h3.updateText("This is heading 3")
-
-    val h4 = Mason.shared.createTextView(this, TextType.H4)
-    h4.updateText("This is heading 4")
-
-    val h5 = Mason.shared.createTextView(this, TextType.H5)
-    h5.updateText("This is heading 5")
-
-    val h6 = Mason.shared.createTextView(this, TextType.H6)
-    h6.updateText("This is heading 6")
-
-    val p = Mason.shared.createTextView(this, TextType.P)
-
-    val b = Mason.shared.createTextView(this, TextType.B)
-
-    val pchild = Mason.shared.createTextView(this, TextType.P)
-
-    b.updateText("Tip:")
-
-    p.addView(b)
-
-    pchild.updateText(" Use h1 to h6 elements only for headings. Do not use them just to make text bold or big. Use other tags for that.")
-
-    p.addView(pchild)
-
-    root.addView(h1)
-    root.addView(h2)
-    root.addView(h3)
-    root.addView(h4)
-    root.addView(h5)
-    root.addView(h6)
-    root.addView(p)
-
-
     setContentView(root)
   }
 
-  fun testWrap() {
-    val root = View(this)
+  fun textWithImage() {
+    val txt = TextView(this)
+    txt.setBackgroundColor(Color.CYAN)
+    txt.backgroundColorValue = Color.GREEN
+    txt.color = Color.RED
+    txt.updateText("Inline Image ")
 
+    val img = Img(this)
+    img.setBackgroundColor(Color.BLUE)
+
+    img.node.style.size = Size(
+      Dimension.Points(150f), Dimension.Points(150f)
+    )
+
+    txt.addView(img)
+    img.setImageResource(R.mipmap.ic_launcher_ns)
+
+
+    root.addView(txt)
+
+
+  }
+
+  fun basicNesting() {
+
+    val a = TextView(this)
+    a.updateText("This should")
+
+
+    val b = TextView(this)
+    b.updateText(" be Inlined")
+    b.color = Color.RED
+
+    val c = TextView(this)
+    c.updateText(" Nice!!!")
+    c.color = Color.BLUE
+
+
+    // a.addView(b)
+    a.addView(b)
+    a.addView(c)
+    root.addView(a)
+    //setContentView(root)
+  }
+
+  fun basicBlock() {
+
+    val a = TextView(this)
+    a.updateText("This should")
+
+
+    val b = TextView(this)
+    b.updateText(" be different")
+    b.color = Color.RED
+
+    val c = TextView(this)
+    c.updateText(" Lines!!!")
+    c.color = Color.BLUE
+
+
+    // a.addView(b)
+    root.addView(a)
+    root.addView(b)
+    root.addView(c)
+    //setContentView(root)
+  }
+
+  fun basicInline() {
+
+    val a = TextView(this, Mason.shared, TextType.Span)
+    a.updateText("This should")
+
+
+    val b = TextView(this, Mason.shared, TextType.Span)
+    b.updateText(" be Inlined")
+    b.color = Color.RED
+
+    val c = TextView(this, Mason.shared, TextType.Span)
+    c.updateText(" Nice!!!")
+    c.color = Color.BLUE
+
+
+    // a.addView(b)
+    root.addView(a)
+    root.addView(b)
+    root.addView(c)
+    //setContentView(root)
+  }
+
+  fun testWrap() {
     val a = TextView(this)
     a.textWrap = Styles.TextWrap.Wrap
     a.updateText("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris.")
 
 
     val b = TextView(this)
+    b.style.display = Display.Inline
     b.updateText("Looking Out")
     b.color = Color.RED
+    b.backgroundColorValue = Color.BLUE
 
     Log.d("com.test", "a $a b $b")
 
-    a.addView(b)
     root.addView(a)
+    a.addView(b)
     setContentView(root)
 
     Timer().schedule(2000L) {
@@ -138,7 +185,7 @@ class TextActivity : AppCompatActivity() {
 //    text.textAlign = TextAlign.Justify
 //    text.textJustify = TextJustify.InterWord
 
-    val img = ImageView(this)
+    val img = Img(this)
     img.setImageResource(R.mipmap.ic_launcher_ns)
 
 
@@ -156,20 +203,27 @@ class TextActivity : AppCompatActivity() {
     text3.updateText(
       "Just adding a break here"
     )
-    val img2 = ImageView(this)
+    val img2 = Img(this)
     img2.setImageResource(R.mipmap.ic_launcher)
 
-    Mason.shared.nodeForView(img2).configure {
-      style.size = Size(Dimension.Points(300f), Dimension.Points(300f))
+    img2.configure {
+      style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
     }
 
-    val view = LinearLayout(this)
-    view.setBackgroundColor(Color.RED)
-    Mason.shared.nodeForView(view).configure {
+    val img3 = Img(this)
+    img3.setImageResource(R.mipmap.ic_launcher_ns)
+
+    img3.configure {
       style.size = Size(Dimension.Points(110f), Dimension.Points(110f))
     }
 
-    val view2 = Mason.shared.createView(this)
+    val view = View(this)
+    view.setBackgroundColor(Color.RED)
+    view.configure {
+      style.size = Size(Dimension.Points(120f), Dimension.Points(120f))
+    }
+
+    val view2 = View(this)
     view2.setBackgroundColor(Color.BLUE)
     view2.configure {
       style.size = Size(Dimension.Points(150f), Dimension.Points(150f))
@@ -178,8 +232,7 @@ class TextActivity : AppCompatActivity() {
     val nest1 = Mason.shared.createTextView(this)
     nest1.updateText("This")
     nest1.color = Color.RED
-    nest1.backgroundColorValue = Color.parseColor("#FFA500")
-
+    nest1.backgroundColorValue = "#FFA500".toColorInt()
 
 
     Timer().schedule(3000L) {
@@ -191,7 +244,7 @@ class TextActivity : AppCompatActivity() {
           nest1.color = Color.CYAN
 
 
-          Timer().schedule(3000L) {
+          Timer().schedule(1000L) {
             runOnUiThread {
               nest1.configureText {
                 this.updateText(
@@ -208,12 +261,12 @@ class TextActivity : AppCompatActivity() {
 
     val nest11 = Mason.shared.createTextView(this)
     nest11.color = Color.BLUE
-    nest11.backgroundColorValue = Color.parseColor("red")
+    nest11.backgroundColorValue = Color.RED
 
     val nest111 = Mason.shared.createTextView(this)
     nest111.updateText(" testing")
     nest111.color = Color.YELLOW
-    nest111.backgroundColorValue = Color.parseColor("#FFC0CB")
+    nest111.backgroundColorValue = "#FFC0CB".toColorInt()
 
     val nest1111 = Mason.shared.createTextView(this)
     nest1111.color = Color.GREEN
@@ -221,7 +274,7 @@ class TextActivity : AppCompatActivity() {
 
     nest1.addView(nest11)
 
-    Timer().schedule(3000L) {
+    Timer().schedule(4500L) {
       runOnUiThread {
         // nest1.removeView(nest1111)
         nest11.updateText(" is")
@@ -233,9 +286,10 @@ class TextActivity : AppCompatActivity() {
 
     nest1.addView(nest1111)
 
-    nest1.addView(img)
+    //  nest1.addView(img)
 
 
+    /*
     Timer().schedule(3000L) {
       runOnUiThread {
         // nest1.removeView(nest1111)
@@ -263,41 +317,45 @@ class TextActivity : AppCompatActivity() {
       }
     }
 
+    */
+
 
     text.addView(img)
 
     text.addView(img2)
 
+    text.addView(img3)
+
     text.addView(view)
 
-    text.addView(text2)
-    text.addView(text3)
+//    text.addView(text2)
+//    text.addView(text3)
 
 
-    // text.addView(nest1)
+    text.addView(nest1)
 
-    root.addView(nest1)
+    root.addView(text)
 
 
-    /*
-        ValueAnimator()
-          .apply {
-            startDelay = 2000
-            duration = 3000
-            setFloatValues(1F, .3F, 1F)
-            addUpdateListener { animator ->
-              Log.d("com.test", "animate")
-              val per = animator.animatedValue as Float
-              mason.nodeForView(view).configure {
-                it.style.size = Size(
-                  Dimension.Points((it.style.size.width as Dimension.Points).points * per),
-                  Dimension.Points((it.style.size.height as Dimension.Points).points * per)
-                )
-              }
-            }
-          }.start()
+    val size = view.style.size
+    ValueAnimator()
+      .apply {
+        startDelay = 2000
+        duration = 3000
+        setFloatValues(1F, .3F, 1F)
+        repeatCount = ValueAnimator.INFINITE
+        repeatMode = ValueAnimator.REVERSE
+        addUpdateListener { animator ->
+          val per = animator.animatedValue as Float
+          val newWidth = (size.width as Dimension.Points).points * per
+          val newHeight = (size.height as Dimension.Points).points * per
+          view.style.size = Size(
+            Dimension.Points(newWidth),
+            Dimension.Points(newHeight)
+          )
+        }
+      }.start()
 
-        */
 
   }
 }

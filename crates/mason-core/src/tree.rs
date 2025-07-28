@@ -1,0 +1,975 @@
+use crate::node::{Node, NodeData, NodeRef};
+use crate::style::{DisplayMode, Style};
+use crate::utils::compute_leaf;
+use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
+use taffy::{
+    compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
+    compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
+    CacheTree, ClearState, Display, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput,
+    LayoutPartialTree, MaybeMath, MaybeResolve, NodeId, PrintTree, ResolveOrZero, RoundTree, Size,
+    TraversePartialTree, TraverseTree,
+};
+
+new_key_type! {
+   pub struct Id;
+}
+
+impl From<Id> for NodeId {
+    fn from(value: Id) -> Self {
+        NodeId::from(value.data().as_ffi())
+    }
+}
+
+impl From<NodeId> for Id {
+    fn from(value: NodeId) -> Self {
+        KeyData::from_ffi(value.into()).into()
+    }
+}
+
+#[derive(Debug)]
+pub struct Tree {
+    pub(crate) nodes: SlotMap<Id, Node>,
+    pub(crate) parents: SecondaryMap<Id, Option<Id>>,
+    pub(crate) children: SecondaryMap<Id, Vec<Id>>,
+    pub(crate) node_data: SecondaryMap<Id, NodeData>,
+    pub(crate) use_rounding: bool,
+}
+
+impl Tree {
+    pub fn new() -> Self {
+        Self {
+            nodes: Default::default(),
+            parents: Default::default(),
+            children: Default::default(),
+            node_data: Default::default(),
+            use_rounding: true,
+        }
+    }
+
+    pub fn with_capacity(value: usize) -> Self {
+        Self {
+            nodes: SlotMap::with_capacity_and_key(value),
+            parents: SecondaryMap::with_capacity(value),
+            children: SecondaryMap::with_capacity(value),
+            node_data: SecondaryMap::with_capacity(value),
+            use_rounding: true,
+        }
+    }
+
+    pub fn print_tree(&self, root: Id) {
+        print_tree(self, root.into());
+    }
+
+    #[inline(always)]
+    fn node_from_id(&self, node_id: NodeId) -> &Node {
+        self.nodes.get(node_id.into()).unwrap()
+    }
+
+    #[inline(always)]
+    fn node_from_id_mut(&mut self, node_id: NodeId) -> &mut Node {
+        self.nodes.get_mut(node_id.into()).unwrap()
+    }
+
+    pub fn get_node_data(&self, node_id: NodeId) -> &NodeData {
+        self.node_data.get(node_id.into()).unwrap()
+    }
+
+    pub fn get_node_data_mut(&mut self, node_id: NodeId) -> &mut NodeData {
+        self.node_data.get_mut(node_id.into()).unwrap()
+    }
+
+    pub fn children(&self, node_id: Id) -> Vec<NodeRef> {
+        self.children
+            .get(node_id)
+            .and_then(|children| {
+                Some(
+                    children
+                        .iter()
+                        .map(|child| {
+                            let id = *child;
+                            let node = self.nodes.get(id).unwrap();
+                            NodeRef {
+                                id,
+                                guard: node.guard.clone(),
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .unwrap_or(vec![])
+    }
+
+    pub fn children_id(&self, node_id: Id) -> &[Id] {
+        self.children.get(node_id.into()).unwrap()
+    }
+
+    pub fn compute_layout(
+        &mut self,
+        root: NodeId,
+        available_space: Size<AvailableSpace>,
+        use_rounding: bool,
+    ) {
+        compute_root_layout(self, root, available_space);
+        if use_rounding {
+            round_layout(self, root)
+        }
+    }
+
+    pub fn layout(&self, node: Id) -> &Layout {
+        let node = &self.nodes[node];
+        if self.use_rounding {
+            return &node.final_layout;
+        }
+        &node.unrounded_layout
+    }
+
+    pub fn create_node(&mut self) -> NodeRef {
+        let node = Node::new();
+        let guard = node.guard.clone();
+        let id = self.nodes.insert(node);
+        self.parents.insert(id, None);
+        self.children.insert(id, Vec::new());
+        self.node_data.insert(id, NodeData::default());
+        NodeRef { id, guard }
+    }
+
+    fn set_parent(&mut self, child: Id, parent: Option<Id>) -> bool {
+        match self.parents.insert(child, parent) {
+            Some(old_parent) => old_parent != parent,
+            None => true,
+        }
+    }
+
+    pub fn detach(&mut self, child: Id) {
+        if let Some(Some(parent)) = self.parents.remove(child) {
+            if let Some(children) = self.children.get_mut(parent) {
+                children.retain(|&id| id != child);
+            }
+            if let Some(node) = self.nodes.get_mut(parent) {
+                node.mark_dirty();
+            }
+        }
+    }
+
+    pub fn append(&mut self, parent: Id, child: Id) {
+        self.detach(child);
+        let same = self.set_parent(child, Some(parent));
+        if same {
+            let children = self.children.get_mut(parent).unwrap();
+            children.push(child);
+            self.mark_dirty(parent);
+        }
+    }
+
+    pub fn append_children(&mut self, parent: Id, children: &[Id]) {
+        for child in children.iter() {
+            self.detach(*child);
+            self.append(parent, *child);
+        }
+    }
+
+    pub fn child_count(&self, node: Id) -> usize {
+        self.children.get(node).map_or(0, Vec::len)
+    }
+
+    pub(crate) fn has_children(&self, id: Id) -> bool {
+        self.children.get(id).map_or(0, Vec::len) > 0
+    }
+
+    pub fn child_at(&self, node: Id, index: usize) -> Option<NodeRef> {
+        let children = self.children.get(node)?;
+        let child_id = children.get(index)?;
+        let child_node = self.nodes.get(*child_id)?;
+        Some(NodeRef {
+            id: *child_id,
+            guard: child_node.guard.clone(),
+        })
+    }
+
+    pub fn clear(&mut self) {
+        self.nodes.clear();
+        self.parents.clear();
+        self.children.clear();
+        self.node_data.clear();
+    }
+
+    pub fn is_children_same(&self, node: Id, children: &[Id]) -> bool {
+        let Some(ids) = self.children.get(node) else {
+            return false;
+        };
+
+        if ids.len() != children.len() {
+            return false;
+        }
+
+        if ids.is_empty() {
+            return true;
+        }
+
+        ids == children
+    }
+
+    pub fn dirty(&self, node: Id) -> bool {
+        self.nodes
+            .get(node)
+            .map(|node| node.cache.is_empty())
+            .unwrap_or(false)
+    }
+
+    fn remove_from_parent(&mut self, parent: Id, node: Id) {
+        if let Some(children) = self.children.get_mut(parent) {
+            if let Some(position) = children.iter().position(|&id| id == node) {
+                children.remove(position);
+                if let Some(node) = self.nodes.get_mut(parent) {
+                    node.mark_dirty();
+                }
+            }
+        }
+    }
+
+    pub fn insert_after(&mut self, parent: Id, node: Id, child: Id) {
+        if let Some(pos) = self
+            .children
+            .get(parent)
+            .and_then(|children| children.iter().position(|&id| id == node))
+        {
+            self.detach(child);
+
+            let children = self.children.get_mut(parent).unwrap();
+            let mut insert_pos = pos + 1;
+
+            if let Some(existing_pos) = children.iter().position(|&id| id == child) {
+                children.remove(existing_pos);
+                if existing_pos < insert_pos {
+                    insert_pos -= 1;
+                }
+            }
+
+            children.insert(insert_pos, child);
+            self.parents.insert(child, Some(parent));
+
+            if let Some(node) = self.nodes.get_mut(parent) {
+                node.mark_dirty();
+            }
+        }
+    }
+
+    pub fn insert_before(&mut self, parent: Id, node: Id, child: Id) {
+        if let Some(pos) = self
+            .children
+            .get(parent)
+            .and_then(|children| children.iter().position(|&id| id == node))
+        {
+            self.detach(child);
+
+            let children = self.children.get_mut(parent).unwrap();
+            let mut insert_pos = pos;
+
+            if let Some(existing_pos) = children.iter().position(|&id| id == child) {
+                children.remove(existing_pos);
+                if existing_pos < insert_pos {
+                    insert_pos -= 1;
+                }
+            }
+
+            children.insert(insert_pos, child);
+            self.parents.insert(child, Some(parent));
+
+            if let Some(node) = self.nodes.get_mut(parent) {
+                node.mark_dirty();
+            }
+        }
+    }
+
+    pub fn add_child_at_index(&mut self, node: Id, child: Id, index: usize) {
+        if let Some(children) = self.children.get(node) {
+            if let Some(current_index) = children.iter().position(|&id| id == child) {
+                if current_index == index {
+                    return;
+                }
+            }
+        }
+
+        self.detach(child);
+
+        if let Some(children) = self.children.get_mut(node) {
+            if let Some(current_index) = children.iter().position(|&id| id == child) {
+                children.remove(current_index);
+                let insert_index = if current_index < index {
+                    index - 1
+                } else {
+                    index
+                };
+                children.insert(insert_index.min(children.len()), child);
+            } else {
+                children.insert(index.min(children.len()), child);
+            }
+
+            self.parents.insert(child, Some(node));
+
+            if let Some(node_data) = self.nodes.get_mut(node) {
+                node_data.mark_dirty();
+            }
+        }
+    }
+
+    pub fn mark_dirty(&mut self, node: Id) {
+        let mut current = Some(node);
+        while let Some(id) = current {
+            match self.nodes[id].mark_dirty() {
+                ClearState::AlreadyEmpty => break,
+                ClearState::Cleared => {
+                    current = self.parents.get(id).copied().flatten();
+                }
+            }
+        }
+    }
+
+    pub fn replace_child_at_index(&mut self, node: Id, child: Id, index: usize) -> Option<NodeRef> {
+        let replaced = self.children.get(node).and_then(|children| {
+            if index < children.len() {
+                Some(children[index])
+            } else {
+                None
+            }
+        })?;
+
+        if replaced == child {
+            return self.nodes.get_mut(replaced).map(|node| NodeRef {
+                id: replaced,
+                guard: node.guard.clone(),
+            });
+        }
+
+        self.detach(child);
+
+        if let Some(children) = self.children.get_mut(node) {
+            children[index] = child;
+        }
+
+        self.parents.remove(replaced);
+
+        self.parents.insert(child, Some(node));
+
+        if let Some(node_data) = self.nodes.get_mut(node) {
+            node_data.mark_dirty();
+        }
+
+        self.nodes.get_mut(replaced).map(|node| NodeRef {
+            id: replaced,
+            guard: node.guard.clone(),
+        })
+    }
+
+    pub fn remove_child_at_index(&mut self, node: Id, index: usize) -> Option<NodeRef> {
+        if let Some(children) = self.children.get_mut(node) {
+            if index < children.len() {
+                let removed = children.remove(index);
+                self.detach(removed);
+                return Some(NodeRef {
+                    id: removed,
+                    guard: self.nodes.get_mut(removed)?.guard.clone(),
+                });
+            }
+        }
+        None
+    }
+
+    pub fn remove(&mut self, parent: Id, child: Id) -> Option<NodeRef> {
+        let is_child = self.children.get_mut(parent)?.iter().any(|&id| id == child);
+        if is_child {
+            self.detach(child);
+            self.nodes.get(child).map(|node| NodeRef {
+                id: child,
+                guard: node.guard.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn remove_all(&mut self, parent: Id) {
+        if let Some(children) = self.children.get_mut(parent) {
+            if children.is_empty() {
+                return;
+            }
+
+            for child in children.iter() {
+                self.parents.remove(*child);
+            }
+
+            children.clear();
+
+            if let Some(node) = self.nodes.get_mut(parent) {
+                node.mark_dirty();
+            }
+        }
+    }
+
+    pub fn root(&self, node: Id) -> Option<NodeRef> {
+        let mut current_id = Some(node);
+        let mut last_id = current_id;
+
+        while let Some(id) = current_id {
+            last_id = Some(id);
+            current_id = self.parents.get(id).copied().flatten();
+        }
+
+        last_id.and_then(|id| {
+            self.nodes.get(id).map(|node_data| NodeRef {
+                id,
+                guard: node_data.guard.clone(),
+            })
+        })
+    }
+
+    pub fn set_style(&mut self, node: Id, style: Style) {
+        if let Some(node) = self.nodes.get_mut(node) {
+            node.style.copy_from(&style);
+            node.mark_dirty();
+        }
+    }
+
+    pub fn with_style<F>(&self, node: Id, func: F)
+    where
+        F: FnOnce(&Style),
+    {
+        if let Some(node) = self.nodes.get(node) {
+            func(&node.style);
+        }
+    }
+
+    pub fn with_style_mut<F>(&mut self, node: Id, func: F)
+    where
+        F: FnOnce(&mut Style),
+    {
+        if let Some(node) = self.nodes.get_mut(node) {
+            func(&mut node.style);
+            node.mark_dirty();
+        }
+    }
+
+    pub fn compute_inline_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
+        let id: Id = node_id.into();
+        let node = self.nodes.get(id).unwrap();
+        let has_children = self.has_children(id);
+        let has_measure = node.has_measure;
+        let measure = self.node_data.get(id).unwrap().copy_measure();
+        let style = node.style.clone();
+
+        let inputs = LayoutInput {
+            known_dimensions: Size::NONE,
+            ..inputs
+        };
+
+        compute_leaf_layout(
+            inputs,
+            &style,
+            |_val, _basis| 0.0,
+            |known_dimensions, available_space| {
+                if !has_children {
+                    if !has_measure {
+                        compute_leaf(&style, &inputs)
+                    } else {
+                        measure.measure(known_dimensions, available_space)
+                    }
+                } else {
+                    let available_width = available_space.width.unwrap_or(f32::INFINITY);
+
+                    let mut x = 0.0;
+                    let mut y = 0.0;
+                    let mut line_height: f32 = 0.0;
+                    let mut max_line_width: f32 = 0.0;
+                    let mut total_height: f32 = 0.0;
+
+                    let mut width: f32 = 0.;
+                    let mut height: f32 = 0.;
+
+                    let padding = style
+                        .get_padding()
+                        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
+
+                    let border = style
+                        .get_border()
+                        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
+
+                    let container_pb = padding + border;
+
+                    let pbw = container_pb.horizontal_components().sum();
+                    let pbh = container_pb.vertical_components().sum();
+
+                    let child_ids = self.child_ids(node_id.into()).collect::<Vec<_>>();
+
+                    let mut line: Vec<(Id, Size<f32>)> = Vec::new();
+
+                    for child in child_ids {
+                        let layout = self.compute_child_layout(
+                            child,
+                            LayoutInput {
+                                known_dimensions: Size::NONE,
+                                parent_size: Size {
+                                    width: match available_space.width {
+                                        AvailableSpace::Definite(val) => Some(val),
+                                        _ => None,
+                                    },
+                                    height: match available_space.height {
+                                        AvailableSpace::Definite(val) => Some(val),
+                                        _ => None,
+                                    },
+                                },
+                                ..inputs
+                            },
+                        );
+
+                        let size = layout.size;
+
+                        if x + size.width > available_width && !line.is_empty() {
+                            let mut lx = 0.0;
+                            for (id, sz) in line.drain(..) {
+                                let node = self.nodes.get_mut(id).unwrap();
+                                node.unrounded_layout.location.x = lx;
+                                node.unrounded_layout.location.y = y;
+                                node.unrounded_layout.size = sz;
+                                lx += sz.width;
+                            }
+
+                            y += line_height;
+                            total_height += line_height;
+                            max_line_width = max_line_width.max(x);
+                            x = 0.0;
+                            line_height = 0.0;
+                        }
+
+                        x += size.width;
+                        line_height = line_height.max(size.height);
+                        line.push((child.into(), size));
+                    }
+
+                    let mut lx = 0.0;
+                    for (id, sz) in line.drain(..) {
+                        let node = self.nodes.get_mut(id).unwrap();
+                        node.unrounded_layout.location.x = lx;
+                        node.unrounded_layout.location.y = y;
+                        node.unrounded_layout.size = sz;
+                        lx += sz.width;
+                    }
+
+                    max_line_width = max_line_width.max(x);
+                    total_height += line_height;
+
+                    width = max_line_width;
+                    height = total_height;
+
+                    let content_sizes = self.nodes.get(id).unwrap().style.content_sizes();
+                    let computed_width = match available_space.width {
+                        AvailableSpace::MinContent => content_sizes.0.width,
+                        AvailableSpace::MaxContent => content_sizes.1.width,
+                        AvailableSpace::Definite(limit) => {
+                            limit.min(content_sizes.1.width).max(content_sizes.0.width)
+                        }
+                    }
+                    .ceil();
+
+                    let style_width = style
+                        .get_size()
+                        .width
+                        .maybe_resolve(inputs.parent_size.width, |_, _| 0.0);
+
+                    let min_width = style
+                        .get_min_size()
+                        .width
+                        .maybe_resolve(inputs.parent_size.width, |_, _| 0.0);
+
+                    let max_width = style
+                        .get_max_size()
+                        .width
+                        .maybe_resolve(inputs.parent_size.width, |_, _| 0.0);
+
+                    if style_width.or(min_width).or(max_width).is_some() {
+                        width = width.max(
+                            style_width
+                                .unwrap_or(computed_width + pbw)
+                                .max(computed_width)
+                                .maybe_clamp(min_width, max_width)
+                                - pbw,
+                        );
+                    }
+
+                    let computed_height = match available_space.height {
+                        AvailableSpace::MinContent => content_sizes.0.height,
+                        AvailableSpace::MaxContent => content_sizes.1.height,
+                        AvailableSpace::Definite(limit) => limit
+                            .min(content_sizes.1.height)
+                            .max(content_sizes.0.height),
+                    }
+                    .ceil();
+
+                    let style_height = style
+                        .get_size()
+                        .height
+                        .maybe_resolve(inputs.parent_size.height, |_, _| 0.0);
+
+                    let min_height = style
+                        .get_min_size()
+                        .height
+                        .maybe_resolve(inputs.parent_size.height, |_, _| 0.0);
+
+                    let max_height = style
+                        .get_max_size()
+                        .height
+                        .maybe_resolve(inputs.parent_size.height, |_, _| 0.0);
+
+                    if style_height.or(min_height).or(max_height).is_some() {
+                        height = height.max(
+                            style_height
+                                .unwrap_or(computed_height + pbh)
+                                .max(computed_height)
+                                .maybe_clamp(min_height, max_height)
+                                - pbh,
+                        );
+                    }
+
+                    Size { width, height }
+                }
+            },
+        )
+    }
+}
+
+impl TraverseTree for Tree {}
+
+pub struct ChildIter<'a>(std::slice::Iter<'a, Id>);
+impl Iterator for ChildIter<'_> {
+    type Item = NodeId;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().copied().map(NodeId::from)
+    }
+}
+
+impl TraversePartialTree for Tree {
+    type ChildIter<'a> = ChildIter<'a>;
+
+    fn child_ids(&self, node_id: NodeId) -> Self::ChildIter<'_> {
+        ChildIter(self.children.get(node_id.into()).unwrap().iter())
+    }
+
+    fn child_count(&self, node_id: NodeId) -> usize {
+        self.children.get(node_id.into()).map_or(0, Vec::len)
+    }
+
+    fn get_child_id(&self, node_id: NodeId, index: usize) -> NodeId {
+        let children = self.children.get(node_id.into()).unwrap();
+        let child: Id = children[index];
+        NodeId::from(<Id as Into<NodeId>>::into(child))
+    }
+}
+
+impl LayoutPartialTree for Tree {
+    type CoreContainerStyle<'a>
+        = &'a Style
+    where
+        Self: 'a;
+
+    fn get_core_container_style(&self, node_id: NodeId) -> Self::CoreContainerStyle<'_> {
+        &self.node_from_id(node_id).style
+    }
+
+    fn resolve_calc_value(&self, _val: *const (), _basis: f32) -> f32 {
+        0.0
+    }
+
+    fn set_unrounded_layout(&mut self, node_id: NodeId, layout: &Layout) {
+        self.node_from_id_mut(node_id).unrounded_layout = *layout;
+    }
+
+    fn compute_child_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
+        compute_cached_layout(self, node_id, inputs, |tree, node_id, inputs| {
+            let id: Id = node_id.into();
+            let node = tree.nodes.get(id).unwrap();
+            let has_children = tree.has_children(id);
+            let node_data = tree.node_data.get(id).unwrap();
+            let force_inline = node.style.force_inline();
+            let mode = node.style.display_mode();
+            if force_inline {
+                return tree.compute_inline_layout(node_id, inputs);
+            }
+
+            match mode {
+                DisplayMode::None => match (node.style.get_display(), has_children) {
+                    (Display::None, _) => compute_hidden_layout(tree, node_id),
+                    (Display::Block, true) => compute_block_layout(tree, node_id, inputs),
+                    (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
+                    (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
+                    (_, false) => {
+                        let has_measure = node.has_measure;
+
+                        let mut final_size: Size<f32> = if !has_measure {
+                            compute_leaf(&node.style, &inputs)
+                        } else {
+                            Size::default()
+                        };
+
+                        let mut output = compute_leaf_layout(
+                            inputs,
+                            &node.style,
+                            |_val, _basis| 0.0,
+                            |known_dimensions, available_space| {
+                                if !has_measure {
+                                    return final_size;
+                                }
+                                node_data.measure(known_dimensions, available_space)
+                            },
+                        );
+
+                        if !has_measure {
+                            // force final size
+                            let node = tree.nodes.get_mut(id).unwrap();
+                            node.unrounded_layout.size = final_size;
+                            output.size = final_size;
+                        }
+
+                        output
+                    }
+                },
+                DisplayMode::Inline | DisplayMode::Box => {
+                    tree.compute_inline_layout(node_id, inputs)
+                }
+            }
+        })
+    }
+}
+
+impl CacheTree for Tree {
+    #[inline]
+    fn cache_get(
+        &self,
+        node_id: NodeId,
+        known_dimensions: Size<Option<f32>>,
+        available_space: Size<AvailableSpace>,
+        run_mode: taffy::RunMode,
+    ) -> Option<LayoutOutput> {
+        self.node_from_id(node_id)
+            .cache
+            .get(known_dimensions, available_space, run_mode)
+    }
+
+    #[inline]
+    fn cache_store(
+        &mut self,
+        node_id: NodeId,
+        known_dimensions: Size<Option<f32>>,
+        available_space: Size<AvailableSpace>,
+        run_mode: taffy::RunMode,
+        layout_output: taffy::LayoutOutput,
+    ) {
+        self.node_from_id_mut(node_id).cache.store(
+            known_dimensions,
+            available_space,
+            run_mode,
+            layout_output,
+        )
+    }
+
+    #[inline]
+    fn cache_clear(&mut self, node_id: NodeId) {
+        self.node_from_id_mut(node_id).cache.clear();
+    }
+}
+
+impl taffy::LayoutFlexboxContainer for Tree {
+    type FlexboxContainerStyle<'a>
+        = &'a Style
+    where
+        Self: 'a;
+
+    type FlexboxItemStyle<'a>
+        = &'a Style
+    where
+        Self: 'a;
+
+    fn get_flexbox_container_style(&self, node_id: NodeId) -> Self::FlexboxContainerStyle<'_> {
+        &self.node_from_id(node_id).style
+    }
+
+    fn get_flexbox_child_style(&self, child_node_id: NodeId) -> Self::FlexboxItemStyle<'_> {
+        &self.node_from_id(child_node_id).style
+    }
+}
+
+impl taffy::LayoutGridContainer for Tree {
+    type GridContainerStyle<'a>
+        = &'a Style
+    where
+        Self: 'a;
+
+    type GridItemStyle<'a>
+        = &'a Style
+    where
+        Self: 'a;
+
+    fn get_grid_container_style(&self, node_id: NodeId) -> Self::GridContainerStyle<'_> {
+        &self.node_from_id(node_id).style
+    }
+
+    fn get_grid_child_style(&self, child_node_id: NodeId) -> Self::GridItemStyle<'_> {
+        &self.node_from_id(child_node_id).style
+    }
+}
+
+impl taffy::LayoutBlockContainer for Tree {
+    type BlockContainerStyle<'a>
+        = &'a Style
+    where
+        Self: 'a;
+    type BlockItemStyle<'a>
+        = &'a Style
+    where
+        Self: 'a;
+
+    fn get_block_container_style(&self, node_id: NodeId) -> Self::BlockContainerStyle<'_> {
+        &self.node_from_id(node_id).style
+    }
+
+    fn get_block_child_style(&self, child_node_id: NodeId) -> Self::BlockItemStyle<'_> {
+        &self.node_from_id(child_node_id).style
+    }
+}
+
+impl RoundTree for Tree {
+    fn get_unrounded_layout(&self, node_id: NodeId) -> &Layout {
+        &self.node_from_id(node_id).unrounded_layout
+    }
+
+    fn set_final_layout(&mut self, node_id: NodeId, layout: &Layout) {
+        self.node_from_id_mut(node_id).final_layout = *layout;
+    }
+}
+
+impl PrintTree for Tree {
+    fn get_debug_label(&self, node_id: NodeId) -> &'static str {
+        let node = self.node_from_id(node_id);
+
+        if node.style.force_inline() {
+            return "INLINE";
+        }
+
+        let mode = node.style.display_mode();
+        match mode {
+            DisplayMode::None => match node.style.get_display() {
+                Display::Block => "BLOCK",
+                Display::Flex => "FLEX",
+                Display::Grid => "GRID",
+                Display::None => "NONE",
+            },
+            DisplayMode::Inline => "INLINE",
+            DisplayMode::Box => match node.style.get_display() {
+                Display::Block => "INLINE-BLOCK",
+                Display::Flex => "INLINE-FLEX",
+                Display::Grid => "INLINE-GRID",
+                Display::None => "NONE",
+            },
+        }
+    }
+
+    #[inline(always)]
+    fn get_final_layout(&self, node_id: NodeId) -> &Layout {
+        &self.nodes[node_id.into()].final_layout
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn print_tree(tree: &impl PrintTree, root: NodeId) {
+    println!("TREE");
+    print_node(tree, root, false, String::new());
+
+    /// Recursive function that prints each node in the tree
+    fn print_node(tree: &impl PrintTree, node_id: NodeId, has_sibling: bool, lines_string: String) {
+        let layout = &tree.get_final_layout(node_id);
+        let display = tree.get_debug_label(node_id);
+        let num_children = tree.child_count(node_id);
+
+        let fork_string = if has_sibling {
+            "├── "
+        } else {
+            "└── "
+        };
+        println!(
+            "{lines}{fork} {display} [x: {x:<4} y: {y:<4} w: {width:<4} h: {height:<4} content_w: {content_width:<4} content_h: {content_height:<4} border: l:{bl} r:{br} t:{bt} b:{bb}, padding: l:{pl} r:{pr} t:{pt} b:{pb}] ({key:?})",
+            lines = lines_string,
+            fork = fork_string,
+            display = display,
+            x = layout.location.x,
+            y = layout.location.y,
+            width = layout.size.width,
+            height = layout.size.height,
+            content_width = layout.content_size.width,
+            content_height = layout.content_size.height,
+            bl = layout.border.left,
+            br = layout.border.right,
+            bt = layout.border.top,
+            bb = layout.border.bottom,
+            pl = layout.padding.left,
+            pr = layout.padding.right,
+            pt = layout.padding.top,
+            pb = layout.padding.bottom,
+            key = node_id,
+        );
+        let bar = if has_sibling { "│   " } else { "    " };
+        let new_string = lines_string + bar;
+
+        // Recurse into children
+        for (index, child) in tree.child_ids(node_id).enumerate() {
+            let has_sibling = index < num_children - 1;
+            print_node(tree, child, has_sibling, new_string.clone());
+        }
+    }
+}
+
+#[cfg(target_os = "android")]
+pub fn print_tree(tree: &impl PrintTree, root: NodeId) {
+    log::info!("TREE");
+    print_node(tree, root, false, String::new());
+
+    /// Recursive function that prints each node in the tree
+    fn print_node(tree: &impl PrintTree, node_id: NodeId, has_sibling: bool, lines_string: String) {
+        let layout = &tree.get_final_layout(node_id);
+        let display = tree.get_debug_label(node_id);
+        let num_children = tree.child_count(node_id);
+
+        let fork_string = if has_sibling {
+            "├── "
+        } else {
+            "└── "
+        };
+
+        log::info!(
+            "{lines}{fork} {display} [x: {x:<4} y: {y:<4} w: {width:<4} h: {height:<4} content_w: {content_width:<4} content_h: {content_height:<4} border: l:{bl} r:{br} t:{bt} b:{bb}, padding: l:{pl} r:{pr} t:{pt} b:{pb}] ({key:?})",
+            lines = lines_string,
+            fork = fork_string,
+            display = display,
+            x = layout.location.x,
+            y = layout.location.y,
+            width = layout.size.width,
+            height = layout.size.height,
+            content_width = layout.content_size.width,
+            content_height = layout.content_size.height,
+            bl = layout.border.left,
+            br = layout.border.right,
+            bt = layout.border.top,
+            bb = layout.border.bottom,
+            pl = layout.padding.left,
+            pr = layout.padding.right,
+            pt = layout.padding.top,
+            pb = layout.padding.bottom,
+            key = node_id,
+        );
+        let bar = if has_sibling { "│   " } else { "    " };
+        let new_string = lines_string + bar;
+
+        // Recurse into children
+        for (index, child) in tree.child_ids(node_id).enumerate() {
+            let has_sibling = index < num_children - 1;
+            print_node(tree, child, has_sibling, new_string.clone());
+        }
+    }
+}

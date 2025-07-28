@@ -11,7 +11,7 @@ import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.Transition
 
 class Img @JvmOverloads constructor(
-  context: Context, attrs: AttributeSet? = null
+  context: Context, attrs: AttributeSet? = null, override: Boolean = false
 ) : AppCompatImageView(context, attrs), MasonView, MeasureFunc {
   override lateinit var node: Node
     private set
@@ -21,34 +21,46 @@ class Img @JvmOverloads constructor(
   override fun setImageBitmap(bm: Bitmap?) {
     super.setImageBitmap(bm)
     currentBitmap = bm
+    if (src.isEmpty()) {
+      markDirtyAndRecompute()
+    }
   }
 
-  constructor(context: Context, mason: Mason) : this(context) {
+  override fun setImageResource(resId: Int) {
+    super.setImageResource(resId)
+    if (src.isEmpty()) {
+      markDirtyAndRecompute()
+    }
+  }
+
+  constructor(context: Context, mason: Mason) : this(context, null, true) {
     node = mason.createNode(this).apply {
       data = this@Img
     }
   }
 
   init {
-    if (!::node.isInitialized) {
-      node = Mason.shared.createNode(this).apply {
-        data = this@Img
+    if (!override) {
+      if (!::node.isInitialized) {
+        node = Mason.shared.createNode(this).apply {
+          data = this@Img
+        }
       }
     }
   }
 
   private val rootNode: Node
     get() {
-      var current = this.node
-      while (current.owner != null) {
-        current = current.owner!!
-      }
-      return current
+      return node.root ?: node
     }
 
-  override fun requestLayout() {
-    super.requestLayout()
+  override fun onNodeAttached() {
     markDirtyAndRecompute()
+  }
+
+  override fun invalidate() {
+    markDirtyAndRecompute()
+    super.invalidate()
   }
 
   private fun markDirtyAndRecompute() {
@@ -57,10 +69,9 @@ class Img @JvmOverloads constructor(
       if (parent == null) {
         val parent = node.owner
         if (parent?.data != null) {
-          (parent.data as? TextView)?.let {
-
-            it.requestLayout()
-            //  it.invalidate()
+          (parent.data as? TextView)?.apply {
+            invalidateView()
+            requestLayout()
           }
         }
       } else {
@@ -145,14 +156,14 @@ class Img @JvmOverloads constructor(
       setMeasuredDimension(
         specWidth, specHeight
       )
-    } else if (parent !is View) {
+    } else if (parent !is MasonView) {
       node.compute(
         View.mapMeasureSpec(specWidthMode, specWidth).value,
         View.mapMeasureSpec(specHeightMode, specHeight).value
       )
 
       val layout = node.layout()
-      node.layoutCache = layout
+      node.computedLayout = layout
 
       setMeasuredDimension(
         layout.width.toInt(),
@@ -204,6 +215,11 @@ class Img @JvmOverloads constructor(
         ret.height = it.toFloat()
       }
     }
+
+    if (width != null && height != null) {
+      drawable.setBounds(0, 0, knownDimensions.width!!.toInt(), knownDimensions.height!!.toInt())
+    }
+
 
     return ret
   }

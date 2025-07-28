@@ -62,6 +62,7 @@ export class Tree {
   }
 }
 
+@CSSType('View')
 export class View extends ViewBase {
   [style_];
   private _view: org.nativescript.mason.masonkit.View;
@@ -72,7 +73,9 @@ export class View extends ViewBase {
     const view = Tree.instance.createView(Utils.android.getCurrentActivity() || Utils.android.getApplicationContext()) as never;
     this._hasNativeView = true;
     this._view = view;
+    this._isMasonView = true;
   }
+
   get _styleHelper() {
     if (this[style_] === undefined) {
       this[style_] = Style.fromView(this as never, this._view);
@@ -129,6 +132,7 @@ const enum TextWrap {
   Balance = 2,
 }
 
+@CSSType('Text')
 export class Text extends TextBase {
   [style_];
   _hasNativeView = false;
@@ -180,6 +184,7 @@ export class Text extends TextBase {
     }
 
     this._hasNativeView = true;
+    this._isMasonView = true;
     this[style_] = Style.fromView(this as never, this._view, true);
   }
 

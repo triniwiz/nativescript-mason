@@ -1,10 +1,10 @@
-use std::ffi::{c_float, c_int, c_short, c_void};
+use std::ffi::{c_float, c_int, c_short};
 
 use crate::{CMason, CMasonNode};
-use mason_core::style::min_max_from_values;
+use mason_core::style::utils::min_max_from_values;
 use mason_core::{
     CompactLength, Dimension, GridPlacement, GridTrackRepetition, LengthPercentage,
-    LengthPercentageAuto, NonRepeatedTrackSizingFunction, Overflow, Rect, Size, Style,
+    LengthPercentageAuto, NonRepeatedTrackSizingFunction, Overflow, Rect, Size,
     TrackSizingFunction,
 };
 
@@ -938,7 +938,7 @@ pub extern "C" fn mason_style_set_with_values(
         let grid_template_rows = to_vec_track_sizing_function(grid_template_rows);
         let grid_template_columns = to_vec_track_sizing_function(grid_template_columns);
 
-        let style = mason_core::style::from_ffi(
+        let style = mason_core::style::utils::from_ffi(
             display,
             position,
             direction,
@@ -1023,88 +1023,8 @@ pub extern "C" fn mason_style_set_with_values(
             text_align,
             box_sizing,
         );
-        mason.set_style(&node.0, style);
+        mason.set_style(node.0.id(), style);
     }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_sync_style(mason: *mut CMason, node: *mut CMasonNode, state: i64) {
-    if mason.is_null() || node.is_null() || state < 0 {
-        return;
-    }
-    unsafe {
-        let mason = &mut (*mason);
-        let node = &(*node).0;
-
-        let mut updated_style: Option<Style> = None;
-        if let (Some(context), Some(style)) = (mason.0.get_node_context(node), mason.0.style(node))
-        {
-            let mut style = style.clone();
-            let data = context.style_data();
-            mason_core::style::sync_node_style_with_buffer(data.data(), state as u64, &mut style);
-            updated_style = Some(style);
-        }
-        if let Some(style) = updated_style {
-            mason.0.set_style_sync_buffer(node, style, false);
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_sync_style_with_buffer(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-    state: i64,
-    buffer: *mut u8,
-    buffer_size: usize,
-) {
-    if mason.is_null() || node.is_null() || state < 0 || buffer.is_null() {
-        return;
-    }
-    unsafe {
-        let mason = &mut (*mason);
-        let node = &(*node).0;
-
-        let mut updated_style: Option<Style> = None;
-        if let Some(style) = mason.0.style(node) {
-            let mut style = style.clone();
-            let data = std::slice::from_raw_parts(buffer, buffer_size);
-            mason_core::style::sync_node_style_with_buffer(data, state as u64, &mut style);
-            updated_style = Some(style);
-        }
-        if let Some(style) = updated_style {
-            mason.0.set_style_sync_buffer(node, style, false);
-            if let Some(s) = mason.0.style(node) {}
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_sync_compute_and_layout(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-    data: *mut u8,
-    size: usize,
-    state: i64,
-    layout: extern "C" fn(*const c_float) -> *mut c_void,
-) -> *mut c_void {
-    if mason.is_null() || node.is_null() || data.is_null() || size == 0 || state < 0 {
-        return layout(std::ptr::null_mut());
-    }
-    let mut output = vec![];
-    unsafe {
-        let mason = &mut (*mason);
-        let node_id = &(*node).0;
-        let buffer = unsafe { std::slice::from_raw_parts_mut(data, size) };
-        mason.0.with_style_mut(node_id, |style| {
-            mason_core::style::sync_node_style_with_buffer(buffer, state as u64, style)
-        });
-
-        mason.0.compute(node_id);
-        output = mason.0.layout(node_id);
-    }
-
-    layout(output.as_ptr())
 }
 
 #[repr(C)]
@@ -1135,36 +1055,13 @@ pub extern "C" fn mason_style_get_style_buffer(
         let mason = &mut *mason;
         let node = &mut *node;
 
-        let mut data = node.0.style_data_mut();
-        let ptr = {
-            let data = data.data_mut();
-            (data.as_mut_ptr(), data.len())
-        };
-        drop(data);
+        let mut data = mason.0.style_data_raw_mut(node.0.id());
 
-        return Box::into_raw(Box::new(CMasonBuffer {
-            data: ptr.0,
-            size: ptr.1,
-        }));
-
-        /*
-        if let Some(context) = mason.0.get_node_context_mut(&node.0) {
-            let mut data =         node.0.style_data_mut()
-            let ptr = {
-                let data = data.data_mut();
-                (data.as_mut_ptr(), data.len())
-            };
-            drop(data);
-            drop(context);
-
-            return Box::into_raw(Box::new(CMasonBuffer {
-                data: ptr.0,
-                size: ptr.1,
-            }));
-        }
-        */
+        Box::into_raw(Box::new(CMasonBuffer {
+            data: data.0,
+            size: data.1,
+        }))
     }
-    std::ptr::null_mut()
 }
 
 #[cfg(target_vendor = "apple")]
@@ -1180,12 +1077,8 @@ pub extern "C" fn mason_style_get_style_buffer_apple(
         let mason = &mut *mason;
         let node = &(*node).0;
 
-        if let Some(context) = mason.0.get_node_context(node) {
-            return context.style_data().buffer_raw();
-        }
+        mason.0.style_data(node.id())
     }
-
-    std::ptr::null_mut()
 }
 
 #[no_mangle]
@@ -1199,8 +1092,9 @@ pub extern "C" fn mason_style_get_grid_auto_rows(
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
-        if let Some(style) = mason.0.style(&node.0) {
-            let ret: Vec<CMasonMinMax> = style.grid_auto_rows.iter().map(|v| (*v).into()).collect();
+        if let Some(style) = mason.0.style(node.0.id()) {
+            let ret: Vec<CMasonMinMax> =
+                style.get_grid_auto_rows().iter().map(|v| (*v).into()).collect();
 
             return Box::into_raw(Box::new(ret.into()));
         }
@@ -1227,15 +1121,10 @@ pub extern "C" fn mason_style_set_grid_auto_rows(
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
-        let mut updated_style: Option<Style> = None;
-        if let Some(style) = mason.0.style(&node.0) {
-            let mut style = style.clone();
-            style.grid_auto_rows = rows;
-            updated_style = Some(style);
-        }
-        if let Some(style) = updated_style {
-            mason.0.set_style_sync_buffer(&node.0, style, false);
-        }
+
+        mason.0.with_style_mut(node.0.id(), |style| {
+            style.set_grid_auto_rows(rows);
+        });
     }
 }
 
@@ -1250,9 +1139,9 @@ pub extern "C" fn mason_style_get_grid_auto_columns(
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
-        if let Some(style) = mason.0.style(&node.0) {
+        if let Some(style) = mason.0.style(node.0.id()) {
             let ret: Vec<CMasonMinMax> = style
-                .grid_auto_columns
+                .get_grid_auto_columns()
                 .clone()
                 .into_iter()
                 .map(|v| v.into())
@@ -1283,15 +1172,9 @@ pub extern "C" fn mason_style_set_grid_auto_columns(
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
-        let mut updated_style: Option<Style> = None;
-        if let Some(style) = mason.0.style(&node.0) {
-            let mut style = style.clone();
-            style.grid_auto_columns = columns;
-            updated_style = Some(style);
-        }
-        if let Some(style) = updated_style {
-            mason.0.set_style_sync_buffer(&node.0, style, false);
-        }
+        mason.0.with_style_mut(node.0.id(), |style| {
+            style.set_grid_auto_columns(columns);
+        });
     }
 }
 
@@ -1307,9 +1190,9 @@ pub extern "C" fn mason_style_get_grid_template_rows(
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
-        if let Some(style) = mason.0.style(&node.0) {
+        if let Some(style) = mason.0.style(node.0.id()) {
             let rows: Vec<_> = style
-                .grid_template_rows
+                .get_grid_template_rows()
                 .clone()
                 .into_iter()
                 .map(|v| v.into())
@@ -1334,8 +1217,8 @@ pub extern "C" fn mason_style_set_grid_template_rows(
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
-        mason.0.with_style_mut(&node.0, |style| {
-            style.grid_template_rows = to_vec_track_sizing_function(value);
+        mason.0.with_style_mut(node.0.id(), |style| {
+            style.set_grid_template_rows(to_vec_track_sizing_function(value));
         });
     }
 }
@@ -1351,9 +1234,9 @@ pub extern "C" fn mason_style_get_grid_template_columns(
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
-        if let Some(style) = mason.0.style(&node.0) {
+        if let Some(style) = mason.0.style(node.0.id()) {
             let column: Vec<_> = style
-                .grid_template_columns
+                .get_grid_template_columns()
                 .clone()
                 .into_iter()
                 .map(|v| v.into())
@@ -1378,8 +1261,8 @@ pub extern "C" fn mason_style_set_grid_template_columns(
     unsafe {
         let mason = &mut *mason;
         let node = &mut *node;
-        mason.0.with_style_mut(&node.0, |style| {
-            style.grid_template_columns = to_vec_track_sizing_function(value);
+        mason.0.with_style_mut(node.0.id(), |style| {
+            style.set_grid_template_columns(to_vec_track_sizing_function(value));
         });
     }
 }

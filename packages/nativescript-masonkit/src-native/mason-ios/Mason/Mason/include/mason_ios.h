@@ -8,4 +8,4 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#endif /* MASON_IOS_H */
+#endif  /* MASON_IOS_H */

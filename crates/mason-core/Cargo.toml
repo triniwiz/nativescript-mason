@@ -4,13 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-taffy = { git = "https://github.com/DioxusLabs/taffy.git", rev = "c3ecb7" }
+taffy = { git = "https://github.com/DioxusLabs/taffy.git", rev = "d60049689993e3b7c02bed22dac268c9445c4eb4"}
 bitflags = "2.9.0"
 log = "0.4.26"
+slotmap = "1.0.7"
 
-[target.'cfg(target_os = "android")'.dependencies]
+#[target.'cfg(target_os = "android")'.dependencies]
+#jni = { git = "https://github.com/jni-rs/jni-rs.git", rev = "1a4a345b1e65aca405e856046ff2661d37edde6d" }
 jni = "0.21.1"
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
 objc2 = "0.6.1"
-objc2-foundation = {version = "0.3.1", features = ["alloc", "NSData"]}
+objc2-foundation = { version = "0.3.1", features = ["alloc", "NSData"] }

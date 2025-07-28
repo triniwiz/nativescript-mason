@@ -1,7 +1,7 @@
 use std::ffi::{c_float, c_longlong, c_void};
 
 use crate::{CMason, CMasonNode};
-use mason_core::{NodeContext, Size};
+use mason_core::Size;
 
 #[repr(C)]
 pub enum AvailableSpace {
@@ -95,7 +95,7 @@ pub extern "C" fn mason_node_new_node(mason: *mut CMason) -> *mut CMasonNode {
     }
     unsafe {
         let mason = &mut (*mason).0;
-        Box::into_raw(Box::new(CMasonNode(mason.create_node(None))))
+        Box::into_raw(Box::new(CMasonNode(mason.create_node())))
     }
 }
 
@@ -113,9 +113,9 @@ pub extern "C" fn mason_node_new_node_with_context(
     unsafe {
         let mason = &mut (*mason).0;
 
-        let context = NodeContext::new(measure_data, measure);
+        let node_id = mason.create_node();
 
-        let node_id = mason.create_node(Some(context));
+        mason.set_measure(node_id.id(), measure, measure_data);
 
         Box::into_raw(Box::new(CMasonNode(node_id)))
     }
@@ -143,8 +143,8 @@ pub extern "C" fn mason_node_new_node_with_children(
             })
             .collect();
 
-        let node_id = mason.create_node(None);
-        mason.set_children(&node_id, &data);
+        let node_id = mason.create_node();
+        mason.set_children(node_id.id(), &data);
 
         Box::into_raw(Box::new(CMasonNode(node_id)))
     }
@@ -163,7 +163,7 @@ pub extern "C" fn mason_node_layout(
         let mason = &(*mason).0;
         let node = &(*node).0;
 
-        let output = mason.layout(node);
+        let output = mason.layout(node.id());
 
         layout(output.as_ptr())
     }
@@ -182,7 +182,7 @@ pub extern "C" fn mason_node_compute_wh(
     unsafe {
         let mason = &mut (*mason).0;
         let node = &(*node).0;
-        mason.compute_wh(node, width, height);
+        mason.compute_wh(node.id(), width, height);
     }
 }
 
@@ -200,7 +200,7 @@ pub extern "C" fn mason_node_compute_size(
         let mason = &mut (*mason).0;
         let node = &(*node).0;
         mason.compute_size(
-            node,
+            node.id(),
             Size::<mason_core::AvailableSpace> {
                 width: width.into(),
                 height: height.into(),
@@ -218,7 +218,7 @@ pub extern "C" fn mason_node_compute_max_content(mason: *mut CMason, node: *mut 
         let mason = &mut (*mason).0;
         let node = &(*node).0;
         let size = Size::max_content();
-        mason.compute_size(node, size);
+        mason.compute_size(node.id(), size);
     }
 }
 
@@ -231,7 +231,7 @@ pub extern "C" fn mason_node_compute_min_content(mason: *mut CMason, node: *mut 
         let mason = &mut (*mason).0;
         let node = &(*node).0;
         let size = Size::min_content();
-        mason.compute_size(node, size);
+        mason.compute_size(node.id(), size);
     }
 }
 
@@ -243,10 +243,9 @@ pub extern "C" fn mason_node_compute(mason: *mut CMason, node: *mut CMasonNode) 
     unsafe {
         let mason = &mut (*mason).0;
         let node = &(*node).0;
-        mason.compute(node);
+        mason.compute(node.id());
     }
 }
-
 
 #[no_mangle]
 pub extern "C" fn mason_node_get_child_at(
@@ -261,7 +260,7 @@ pub extern "C" fn mason_node_get_child_at(
         let mason = &(*mason).0;
         let node_id = &(*node).0;
 
-        match mason.child_at_index(node_id, index) {
+        match mason.child_at_index(node_id.id(), index) {
             None => std::ptr::null_mut(),
             Some(id) => Box::into_raw(Box::new(CMasonNode(id))),
         }
@@ -293,7 +292,7 @@ pub extern "C" fn mason_node_set_children(
             })
             .collect();
 
-        mason.set_children(node_id, &data);
+        mason.set_children(node_id.id(), &data);
     }
 }
 
@@ -326,7 +325,7 @@ pub extern "C" fn mason_node_add_children(
             })
             .collect();
 
-        mason.add_children(node_id, &data);
+        mason.add_children(node_id.id(), &data);
     }
 }
 
@@ -344,7 +343,7 @@ pub extern "C" fn mason_node_add_child(
         let node = &(*node).0;
         let child = &(*child).0;
 
-        mason.add_child(node, child);
+        mason.add_child(node.id(), child.id());
     }
 }
 
@@ -364,7 +363,7 @@ pub extern "C" fn mason_node_replace_child_at(
         let child_id = &(*child).0;
 
         let ret = mason
-            .replace_child_at_index(node_id, child_id, index)
+            .replace_child_at_index(node_id.id(), child_id.id(), index)
             .map(|v| Box::into_raw(Box::new(CMasonNode(v))))
             .unwrap_or_else(std::ptr::null_mut);
 
@@ -386,7 +385,7 @@ pub extern "C" fn mason_node_add_child_at(
         let mason = &mut (*mason).0;
         let node_id = &(*node).0;
         let child_id = &(*child).0;
-        mason.add_child_at_index(node_id, child_id, index);
+        mason.add_child_at_index(node_id.id(), child_id.id(), index);
     }
 }
 
@@ -405,7 +404,7 @@ pub extern "C" fn mason_node_insert_child_before(
         let node_id = &(*node).0;
         let child_id = &(*child).0;
         let reference_id = &(*reference).0;
-        mason.insert_child_before(node_id, child_id, reference_id);
+        mason.insert_child_before(node_id.id(), child_id.id(), reference_id.id());
     }
 }
 
@@ -424,7 +423,7 @@ pub extern "C" fn mason_node_insert_child_after(
         let node_id = &(*node).0;
         let child_id = &(*child).0;
         let reference_id = &(*reference).0;
-        mason.insert_child_after(node_id, child_id, reference_id);
+        mason.insert_child_after(node_id.id(), child_id.id(), reference_id.id());
     }
 }
 
@@ -437,7 +436,7 @@ pub extern "C" fn mason_node_dirty(mason: *mut CMason, node: *mut CMasonNode) ->
         let mason = &(*mason).0;
         let node_id = &(*node).0;
 
-        mason.dirty(node_id)
+        mason.dirty(node_id.id())
     }
 }
 
@@ -450,7 +449,7 @@ pub extern "C" fn mason_node_mark_dirty(mason: *mut CMason, node: *mut CMasonNod
         let mason = &mut (*mason);
         let node_id = &(*node).0;
 
-        mason.0.mark_dirty(node_id);
+        mason.0.mark_dirty(node_id.id());
     }
 }
 
@@ -465,7 +464,7 @@ pub extern "C" fn mason_node_is_children_same(
         let mason = &(*mason).0;
         let node_id = &(*node).0;
 
-        if children_size != mason.child_count(node_id) {
+        if children_size != mason.child_count(node_id.id()) {
             return false;
         }
 
@@ -479,7 +478,7 @@ pub extern "C" fn mason_node_is_children_same(
             })
             .collect();
 
-        mason.is_children_same(node_id, &data)
+        mason.is_children_same(node_id.id(), &data)
     }
 }
 
@@ -493,7 +492,7 @@ pub extern "C" fn mason_node_remove_children(mason: *mut CMason, node: *mut CMas
 
         let node_id = &(*node).0;
 
-        mason.remove_children(node_id);
+        mason.remove_children(node_id.id());
     }
 }
 
@@ -511,7 +510,7 @@ pub extern "C" fn mason_node_remove_child_at(
         let node_id = &(*node).0;
 
         mason
-            .remove_child_at_index(node_id, index)
+            .remove_child_at_index(node_id.id(), index)
             .map(|v| Box::into_raw(Box::new(CMasonNode(v))))
             .unwrap_or_else(std::ptr::null_mut)
     }
@@ -532,7 +531,7 @@ pub extern "C" fn mason_node_remove_child(
         let child_id = &(*child).0;
 
         mason
-            .remove_child(node_id, child_id)
+            .remove_child(node_id.id(), child_id.id())
             .map(|v| Box::into_raw(Box::new(CMasonNode(v))))
             .unwrap_or_else(std::ptr::null_mut)
     }
@@ -551,7 +550,7 @@ pub extern "C" fn mason_node_get_children(
         let node_id = &&(*node).0;
 
         let buf = mason
-            .children(node_id)
+            .children(node_id.id())
             .into_iter()
             .map(|v| Box::into_raw(Box::new(CMasonNode(v))))
             .collect::<Vec<_>>();
@@ -583,11 +582,11 @@ pub extern "C" fn mason_node_set_context(
     unsafe {
         let mason = &mut (*mason).0;
         let node_id = &(*node).0;
-        let context = NodeContext::new(measure_data, measure);
-        mason.set_node_context(node_id, context);
+        mason.set_measure(node_id.id(), measure, measure_data);
     }
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn mason_node_remove_context(mason: *mut CMason, node: *mut CMasonNode) {
     if mason.is_null() || node.is_null() {
@@ -596,6 +595,6 @@ pub extern "C" fn mason_node_remove_context(mason: *mut CMason, node: *mut CMaso
     unsafe {
         let mason = &mut (*mason).0;
         let node_id = &(*node);
-        //  mason.set_node_context(node_id, None);
+        mason.set_measure(node_id.0.id(), None, 0 as _);
     }
 }

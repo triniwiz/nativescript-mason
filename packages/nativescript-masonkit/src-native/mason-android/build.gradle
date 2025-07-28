@@ -8,13 +8,14 @@ buildscript {
   }
 
   dependencies {
-    classpath 'com.github.triniwiz.rust-android-gradle:org.mozilla.rust-android-gradle.rust-android.gradle.plugin:27893e31a2'
+//    classpath 'com.github.triniwiz.rust-android-gradle:org.mozilla.rust-android-gradle.rust-android.gradle.plugin:27893e31a2'
   }
 }
 
 
 plugins {
-    id 'com.android.application' version '8.3.2' apply false
-    id 'com.android.library' version '8.3.2' apply false
+    id 'com.android.application' version '8.11.1' apply false
+    id 'com.android.library' version '8.11.1' apply false
     id 'org.jetbrains.kotlin.android' version '1.9.20' apply false
+    id 'org.mozilla.rust-android-gradle.rust-android' version '0.9.6' apply false
 }

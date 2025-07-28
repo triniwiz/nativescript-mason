@@ -3,19 +3,18 @@ extern crate mason_c;
 use android_logger::Config;
 use itertools::izip;
 use jni::objects::{GlobalRef, JClass, JMethodID, JObject};
-use jni::sys::{jint, jlong};
+use jni::sys::{jfloat, jint, jlong, jobjectArray, jshort};
 use jni::JavaVM;
 use jni::{JNIEnv, NativeMethod};
 use log::LevelFilter;
 use once_cell::sync::OnceCell;
 use std::ffi::c_void;
-use std::sync::Arc;
 
-use mason_core::LengthPercentage;
 use mason_core::{
-    auto, fit_content, flex, length, max_content, min_content, percent, Mason,
+    auto, fit_content, flex, length, max_content, min_content, percent, Mason, NodeRef,
     NonRepeatedTrackSizingFunction, TrackSizingFunction,
 };
+use mason_core::{LengthPercentage, JVM};
 
 mod node;
 pub mod style;
@@ -121,12 +120,6 @@ pub struct CMasonNonRepeatedTrackSizingFunction(NonRepeatedTrackSizingFunction);
 #[derive(Clone, PartialEq, Debug)]
 pub struct CMasonTrackSizingFunction(TrackSizingFunction);
 
-const JVM: OnceCell<Arc<JavaVM>> = OnceCell::new();
-
-fn get_java_vm() -> Option<Arc<JavaVM>> {
-    JVM.get().cloned()
-}
-
 const ANDROID_O: i32 = 26;
 
 pub(crate) const BUILD_VERSION_CLASS: &str = "android/os/Build$VERSION";
@@ -136,7 +129,7 @@ const MASON_CLASS: &str = "org/nativescript/mason/masonkit/Mason";
 const STYLE_CLASS: &str = "org/nativescript/mason/masonkit/Style";
 
 #[no_mangle]
-pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint {
+pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint {
     {
         android_logger::init_once(Config::default().with_max_level(LevelFilter::Info));
 
@@ -221,7 +214,7 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                 "nativeRemoveContext",
                 "nativeComputeWithSizeAndLayout",
                 "nativeGetChildren",
-                "nativeLayout"
+                "nativeLayout",
             ];
 
             let node_signatures = if ret >= ANDROID_O {
@@ -249,7 +242,7 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     "(JJ)V",
                     "(JJFF)[F",
                     "(JJ)[J",
-                    "(JJ)[F"
+                    "(JJ)[F",
                 ]
             } else {
                 [
@@ -276,7 +269,7 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
                     "!(JJ)V",
                     "!(JJFF)[F",
                     "!(JJ)[J",
-                    "!(JJ)[F"
+                    "!(JJ)[F",
                 ]
             };
 
@@ -349,38 +342,18 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
 
             let style_class = env.find_class(STYLE_CLASS).unwrap();
 
-            let style_method_names = [
-                "nativeSyncStyle",
-                "nativeUpdateStyleBuffer",
-                "nativeGetStyleBuffer",
-            ];
+            let style_method_names = ["nativeGetStyleBuffer"];
 
             let style_signatures = if ret >= ANDROID_O {
-                [
-                    "(JJJ)V",
-                    "(JJLjava/nio/ByteBuffer;)V",
-                    "(JJ)Ljava/nio/ByteBuffer;",
-                ]
+                ["(JJ)Ljava/nio/ByteBuffer;"]
             } else {
-                [
-                    "!(JJJ)V",
-                    "!(JJLjava/nio/ByteBuffer;)V",
-                    "!(JJ)Ljava/nio/ByteBuffer;",
-                ]
+                ["!(JJ)Ljava/nio/ByteBuffer;"]
             };
 
             let style_methods = if ret >= ANDROID_O {
-                [
-                    style::nativeSyncStyle as *mut c_void,
-                    style::nativeUpdateStyleBuffer as *mut c_void,
-                    style::nativeGetStyleBuffer as *mut c_void,
-                ]
+                [style::nativeGetStyleBuffer as *mut c_void]
             } else {
-                [
-                    style::nativeSyncStyleNormal as *mut c_void,
-                    style::nativeUpdateStyleBuffer as *mut c_void,
-                    style::nativeGetStyleBuffer as *mut c_void,
-                ]
+                [style::nativeGetStyleBuffer as *mut c_void]
             };
 
             let style_native_methods: Vec<NativeMethod> =
@@ -472,7 +445,8 @@ pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -> jint 
         }
 
         unsafe {
-            JVM.get_or_init(|| Arc::new(vm));
+            let _ = vm.attach_current_thread_permanently();
+            JVM.get_or_init(|| vm);
         }
 
         log::info!("Mason library loaded");
@@ -569,5 +543,22 @@ fn mason_util_create_non_repeated_track_sizing_function_with_type_value(
         store.push(value);
     } else {
         store[index as usize] = value;
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePrintTree(
+    _: JNIEnv,
+    _: JObject,
+    mason: jlong,
+    node: jlong,
+) {
+    if mason == 0 || node == 0 {
+        return;
+    }
+    unsafe {
+        let mut mason = &*(mason as *const Mason);
+        let node = &*(node as *const NodeRef);
+        mason.print_tree(node.id());
     }
 }

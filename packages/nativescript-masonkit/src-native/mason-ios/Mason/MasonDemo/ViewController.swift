@@ -280,7 +280,44 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     view.addSubview(container)
     
-    imageTest()
+    
+   // let root = mason.createView()
+   // container.addView(root)
+    
+    /*
+    
+    let text = mason.createTextView(type: .Pre)
+    root.addView(text)
+    text.text = """
+                 S
+                 A
+                LUT
+                 M
+                O N
+                D  E
+                DONT
+               E SUIS
+               LA LAN
+              G U E  É
+             L O Q U E N
+            TE      QUESA
+           B  O  U  C  H  E
+          O        P A R I S
+         T I R E   ET   TIRERA
+        T O U             JOURS
+       AUX                  A  L
+     LEM                      ANDS   - Apollinaire
+    """
+    
+    mason.printTree(root.node)
+    
+    
+    root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    
+    
+    */
+    
+   imageTest()
     
     
     // textSample()
@@ -354,7 +391,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     img.node.style.size = MasonSize(.Points(300), .Points(300))
     img.src = "https://picsum.photos/600/600"
     
-    txt.addView(img)
+    root.addView(img)
     
     
     let view = mason.createView()
@@ -368,7 +405,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     txt.addView(view)
     
-    root.addView(txt)
+   // root.addView(txt)
     
   
     root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))

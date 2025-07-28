@@ -1,14 +1,13 @@
-use jni::objects::{JByteBuffer, JClass, JObject, JObjectArray};
+use crate::TRACK_SIZING_FUNCTION;
+use jni::objects::{JClass, JObject, JObjectArray};
 use jni::signature::ReturnType;
-use jni::sys::{jfloat, jint, jlong, jobject, jobjectArray, jshort};
+use jni::sys::{jfloat, jint, jlong, jobjectArray, jshort};
 use jni::JNIEnv;
-use mason_core::style::min_max_from_values;
+use mason_core::style::utils::min_max_from_values;
 use mason_core::{
-    CompactLength, GridTrackRepetition, Mason, Node, NonRepeatedTrackSizingFunction, Style,
+    CompactLength, GridTrackRepetition, Mason, NodeRef, NonRepeatedTrackSizingFunction,
     TrackSizingFunction,
 };
-
-use crate::TRACK_SIZING_FUNCTION;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct CMasonMinMax {
@@ -601,148 +600,35 @@ pub unsafe fn to_vec_track_sizing_function(
 }
 
 #[no_mangle]
-pub extern "system" fn nativeGetStyleBuffer(
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBufferData(
     mut env: JNIEnv,
-    _: JClass,
+    _: JObject,
     mason: jlong,
     node: jlong,
-) -> jobject {
+    grid_auto_rows: jobjectArray,
+    grid_auto_columns: jobjectArray,
+    grid_template_rows: jobjectArray,
+    grid_template_columns: jobjectArray,
+) {
     if mason == 0 || node == 0 {
-        return JObject::null().into_raw();
+        return;
     }
+    let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_rows);
+    let grid_auto_columns =
+        to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_columns);
+    let grid_template_rows = to_vec_track_sizing_function_jni(&mut env, grid_template_rows);
+    let grid_template_columns = to_vec_track_sizing_function_jni(&mut env, grid_template_columns);
+
     unsafe {
         let mason = &mut *(mason as *mut Mason);
-        let node = &mut *(node as *mut Node);
-        if let Some(buffer) = node.style_data().buffer() {
-            return buffer.as_raw();
-        }
-
-        if node.jvm().is_none() {
-            node.set_jvm(env.get_java_vm().ok())
-        }
-
-        let buffer = node.style_data().buffer();
-        return match buffer {
-            Some(buffer) => buffer.as_raw(),
-            _ => {
-                let mut data = node.style_data_mut();
-                let len = data.data().len();
-                let ptr = data.data_mut().as_mut_ptr();
-
-                if let Some((Some(global), Some(buffer))) = env
-                    .new_direct_byte_buffer(ptr, len)
-                    .and_then(|buffer| Ok((env.new_global_ref(&buffer).ok(), Some(buffer))))
-                    .ok()
-                {
-                    data.set_buffer(Some(global));
-                    return buffer.into_raw();
-                }
-
-                JObject::null().into_raw()
-            }
-        };
-
-        /*
-        if let Some(context) = mason.get_node_context(node) {
-            if let Some(buffer) = context.style_data().buffer() {
-                return buffer.as_raw();
-            }
-        }
-        if let Some(mut context) = mason.get_node_context_mut(node) {
-            if context.jvm().is_none() {
-                context.set_jvm(env.get_java_vm().ok())
-            }
-
-            let buffer = context.style_data().buffer();
-            return match buffer {
-                Some(buffer) => buffer.as_raw(),
-                _ => {
-                    let mut data = context.style_data_mut();
-                    let len = data.data().len();
-                    let ptr = data.data_mut().as_mut_ptr();
-
-                    if let Some((Some(global), Some(buffer))) = env
-                        .new_direct_byte_buffer(ptr, len)
-                        .and_then(|buffer| Ok((env.new_global_ref(&buffer).ok(), Some(buffer))))
-                        .ok()
-                    {
-                        data.set_buffer(Some(global));
-                        return buffer.into_raw();
-                    }
-
-                    JObject::null().into_raw()
-                }
-            };
-        }
-
-        */
+        let node = &*(node as *mut NodeRef);
+        mason.with_style_mut(node.id().into(), |style| {
+            style.set_grid_auto_rows(grid_auto_rows);
+            style.set_grid_auto_columns(grid_auto_columns);
+            style.set_grid_template_rows(grid_template_rows);
+            style.set_grid_template_columns(grid_template_columns);
+        })
     }
-    JObject::null().into_raw()
-}
-
-#[no_mangle]
-pub extern "system" fn nativeUpdateStyleBuffer(
-    env: JNIEnv,
-    _: JClass,
-    mason: jlong,
-    node: jlong,
-    buffer: JByteBuffer,
-) {
-    unsafe {
-        let mason = &mut *(mason as *mut Mason);
-        let node = &*(node as *mut Node);
-
-        if let Some(style) = mason.style(node) {
-            match (
-                env.get_direct_buffer_address(&buffer),
-                env.get_direct_buffer_capacity(&buffer),
-            ) {
-                (Ok(pointer), Ok(size)) => {
-                    let buffer = unsafe { std::slice::from_raw_parts_mut(pointer, size) };
-                    mason_core::style::sync_style_buffer(buffer, &style);
-                }
-                (_, _) => {}
-            }
-        }
-    }
-}
-
-fn sync_style(mason: jlong, node: jlong, state: jlong) {
-    unsafe {
-        let mason = &mut *(mason as *mut Mason);
-        let node = &*(node as *mut Node);
-
-        if state < 0 {
-            return;
-        }
-
-        let mut updated_style: Option<Style> = None;
-        if let (Some(context), Some(style)) = (mason.get_node_context(node), mason.style(node)) {
-            let mut style = style.clone();
-            let data = context.style_data();
-            mason_core::style::sync_node_style_with_buffer(data.data(), state as u64, &mut style);
-            updated_style = Some(style);
-        }
-        if let Some(style) = updated_style {
-            mason.set_style_sync_buffer(node, style, false);
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "system" fn nativeSyncStyleNormal(
-    _: JNIEnv,
-    _: JClass,
-    mason: jlong,
-    node: jlong,
-    state: jlong,
-) {
-    sync_style(mason, node, state);
-}
-
-#[no_mangle]
-pub extern "system" fn nativeSyncStyle(mason: jlong, node: jlong, state: jlong) {
-    sync_style(mason, node, state);
 }
 
 #[no_mangle]
@@ -846,8 +732,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
 
     unsafe {
         let mason = &mut *(mason as *mut Mason);
-        let node = &*(node as *mut Node);
-        let style = mason_core::style::from_ffi(
+        let node = &*(node as *mut NodeRef);
+        let style = mason_core::style::utils::from_ffi(
             display,
             position,
             direction,
@@ -932,6 +818,31 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
             text_align,
             box_sizing,
         );
-        mason.set_style(node, style);
+        mason.set_style(node.id(), style);
+    }
+}
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "system" fn nativeGetStyleBuffer(
+    _: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jni::sys::jobject {
+    if mason == 0 || node == 0 {
+        return JObject::null().into_raw();
+    }
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &mut *(node as *mut NodeRef);
+
+        let buffer = mason.style_data(node.id());
+
+        if buffer.is_null() {
+            return JObject::null().into_raw();
+        }
+
+        buffer.as_raw()
     }
 }

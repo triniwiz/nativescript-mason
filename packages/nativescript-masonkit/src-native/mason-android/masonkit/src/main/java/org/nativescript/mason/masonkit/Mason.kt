@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
-import org.nativescript.mason.masonkit.Node.Companion
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 
@@ -26,12 +25,16 @@ class Mason {
     return nativePtr
   }
 
+  fun printTree(node: Node) {
+    nativePrintTree(nativePtr, node.nativePtr)
+  }
+
   @JvmOverloads
   fun createNode(children: Array<Node>? = null): Node {
     val nodePtr = children?.let {
       Node.nativeNewNodeWithChildren(
         nativePtr,
-        children.map { it.nativePtr }.toLongArray()
+        children.map { it.nativePtr }.toLongArray(),
       )
     } ?: Node.nativeNewNode(nativePtr)
     return Node(this, nodePtr).apply {
@@ -86,7 +89,6 @@ class Mason {
           // is leaf to ensure it triggers android's view measure
           val node = createNode().apply {
             data = view
-            setMeasureFunction(measureFunc)
           }
           viewNodes[view] = node
           node
@@ -100,8 +102,8 @@ class Mason {
   }
 
   fun requestLayout(view: android.view.View) {
-    if (view is View) {
-      nodes[view.node.nativePtr]?.style?.updateNativeStyle()
+    if (view is MasonView) {
+      view.style.updateNativeStyle()
     } else {
       viewNodes[view]?.style?.updateNativeStyle()
     }
@@ -124,8 +126,8 @@ class Mason {
       if (didInit) {
         return
       }
-      System.loadLibrary("masonnative")
       didInit = true
+      System.loadLibrary("masonnative")
     }
 
     init {
@@ -160,5 +162,8 @@ class Mason {
     @JvmStatic
     @CriticalNative
     private external fun nativeDestroy(mason: Long)
+
+    @JvmStatic
+    private external fun nativePrintTree(mason: Long, node: Long)
   }
 }

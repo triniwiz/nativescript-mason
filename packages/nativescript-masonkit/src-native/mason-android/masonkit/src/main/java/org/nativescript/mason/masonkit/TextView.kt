@@ -1,7 +1,9 @@
 package org.nativescript.mason.masonkit
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
+import android.graphics.text.LineBreaker
 import android.icu.text.Transliterator
 import android.os.Build
 import android.text.BoringLayout
@@ -11,6 +13,7 @@ import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.StaticLayout
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import androidx.annotation.RequiresApi
 import org.nativescript.mason.masonkit.TextAlign.Start
@@ -72,7 +75,7 @@ value class TextStateKeys internal constructor(val bits: Long) {
 const val VIEW_PLACEHOLDER = "\uFFFC"
 
 class TextView @JvmOverloads constructor(
-  context: Context, attrs: AttributeSet? = null
+  context: Context, attrs: AttributeSet? = null, override: Boolean = false
 ) : androidx.appcompat.widget.AppCompatTextView(context, attrs), MasonView, MeasureFunc {
   private var spannableText: String? = null
   private var spannable = SpannableStringBuilder("")
@@ -81,32 +84,42 @@ class TextView @JvmOverloads constructor(
   lateinit var font: FontFace
     private set
 
-  lateinit var type: TextType
+  var type: TextType = TextType.None
     private set
 
   override lateinit var node: Node
     private set
 
-  // using two nodes to ensure measure is handled correctly
-  private lateinit var actualNode: Node
+  internal lateinit var textNode: Node
 
   private var owner: TextView? = null
   private val children: MutableList<TextChild> = mutableListOf()
 
   private data class TextChild(
-    val view: View,
-    val text: TextView?,
-    val attachment: Spans.NSCSpan?
+    val view: View, val text: TextView?, val attachment: Spans.NSCSpan?, val node: Node
   )
 
-  constructor(context: Context, mason: Mason) : this(context, mason, TextType.None)
+  constructor(context: Context, mason: Mason) : this(context, null, true) {
+    setup(mason)
+  }
 
-  constructor(context: Context, mason: Mason, type: TextType) : this(context) {
-    node = mason.createNode(this)
-    actualNode = mason.createNode(this).apply {
-      data = this@TextView
-    }
+  constructor(context: Context, mason: Mason, type: TextType) : this(context, null, true) {
     this.type = type
+    setup(mason)
+  }
+
+  init {
+    if (!::node.isInitialized && !override) {
+      setup(Mason.shared)
+    }
+  }
+
+  private fun setup(mason: Mason) {
+    node = mason.createNode(this)
+    textNode = mason.createNode(this).apply {
+      data = this@TextView
+      style.display = Display.Inline
+    }
 
     val scale = context.resources.displayMetrics.density
     val margin = { top: Float, bottom: Float ->
@@ -119,9 +132,16 @@ class TextView @JvmOverloads constructor(
     }
 
     node.inBatch = true
+
     when (type) {
+      TextType.Span -> {
+        font = FontFace("sans-serif")
+        style.display = Display.Inline
+      }
+
       TextType.Code -> {
         font = FontFace("monospace")
+        style.display = Display.Inline
         setBackgroundColor(0xFFEFEFEF.toInt())
       }
 
@@ -178,6 +198,12 @@ class TextView @JvmOverloads constructor(
       TextType.B -> {
         font = FontFace("sans-serif")
         font.weight = FontFace.NSCFontWeight.Bold
+        style.display = Display.Inline
+      }
+
+      TextType.Pre -> {
+        font = FontFace("monospace")
+        whiteSpace = Styles.WhiteSpace.Pre
       }
 
       else -> {
@@ -187,23 +213,8 @@ class TextView @JvmOverloads constructor(
 
     font.loadSync(context) {}
 
-    spans[Spans.Type.Typeface] =
-      Spans.TypefaceSpan(font.font!!, font.weight.isBold)
+    spans[Spans.Type.Typeface] = Spans.TypefaceSpan(font.font!!, font.weight.isBold)
     node.inBatch = false
-  }
-
-  init {
-    if (!::node.isInitialized) {
-      node = Mason.shared.createNode(this)
-    }
-
-    if (!::actualNode.isInitialized) {
-      actualNode = Mason.shared.createNode(this).apply {
-        data = this@TextView
-      }
-    }
-
-    node.addChild(actualNode)
 
     setSpannableFactory(object : Spannable.Factory() {
       override fun newSpannable(source: CharSequence): Spannable {
@@ -300,11 +311,7 @@ class TextView @JvmOverloads constructor(
 
   private val rootNode: Node
     get() {
-      var current = this.node
-      while (current.owner != null) {
-        current = current.owner!!
-      }
-      return current
+      return this.node.root ?: node
     }
 
   private fun updateFontSize(value: Int) {
@@ -372,6 +379,7 @@ class TextView @JvmOverloads constructor(
       rootNode.computeCacheWidth?.let { width ->
         rootNode.computeCacheHeight?.let { height ->
           rootNode.compute(width, height)
+          (rootNode.data as? View)?.requestLayout()
         }
       }
     }
@@ -397,23 +405,85 @@ class TextView @JvmOverloads constructor(
   }
 
   private val halfwidthToFullwidthMap: Map<Char, Char> = mapOf(
-    'ｦ' to 'ヲ', 'ｧ' to 'ァ', 'ｨ' to 'ィ', 'ｩ' to 'ゥ', 'ｪ' to 'ェ', 'ｫ' to 'ォ',
-    'ｬ' to 'ャ', 'ｭ' to 'ュ', 'ｮ' to 'ョ', 'ｯ' to 'ッ', 'ｰ' to 'ー', 'ｱ' to 'ア',
-    'ｲ' to 'イ', 'ｳ' to 'ウ', 'ｴ' to 'エ', 'ｵ' to 'オ', 'ｶ' to 'カ', 'ｷ' to 'キ',
-    'ｸ' to 'ク', 'ｹ' to 'ケ', 'ｺ' to 'コ', 'ｻ' to 'サ', 'ｼ' to 'シ', 'ｽ' to 'ス',
-    'ｾ' to 'セ', 'ｿ' to 'ソ', 'ﾀ' to 'タ', 'ﾁ' to 'チ', 'ﾂ' to 'ツ', 'ﾃ' to 'テ',
-    'ﾄ' to 'ト', 'ﾅ' to 'ナ', 'ﾆ' to 'ニ', 'ﾇ' to 'ヌ', 'ﾈ' to 'ネ', 'ﾉ' to 'ノ',
-    'ﾊ' to 'ハ', 'ﾋ' to 'ヒ', 'ﾌ' to 'フ', 'ﾍ' to 'ヘ', 'ﾎ' to 'ホ', 'ﾏ' to 'マ',
-    'ﾐ' to 'ミ', 'ﾑ' to 'ム', 'ﾒ' to 'メ', 'ﾓ' to 'モ', 'ﾔ' to 'ヤ', 'ﾕ' to 'ユ',
-    'ﾖ' to 'ヨ', 'ﾗ' to 'ラ', 'ﾘ' to 'リ', 'ﾙ' to 'ル', 'ﾚ' to 'レ', 'ﾛ' to 'ロ',
-    'ﾜ' to 'ワ', 'ﾝ' to 'ン'
+    'ｦ' to 'ヲ',
+    'ｧ' to 'ァ',
+    'ｨ' to 'ィ',
+    'ｩ' to 'ゥ',
+    'ｪ' to 'ェ',
+    'ｫ' to 'ォ',
+    'ｬ' to 'ャ',
+    'ｭ' to 'ュ',
+    'ｮ' to 'ョ',
+    'ｯ' to 'ッ',
+    'ｰ' to 'ー',
+    'ｱ' to 'ア',
+    'ｲ' to 'イ',
+    'ｳ' to 'ウ',
+    'ｴ' to 'エ',
+    'ｵ' to 'オ',
+    'ｶ' to 'カ',
+    'ｷ' to 'キ',
+    'ｸ' to 'ク',
+    'ｹ' to 'ケ',
+    'ｺ' to 'コ',
+    'ｻ' to 'サ',
+    'ｼ' to 'シ',
+    'ｽ' to 'ス',
+    'ｾ' to 'セ',
+    'ｿ' to 'ソ',
+    'ﾀ' to 'タ',
+    'ﾁ' to 'チ',
+    'ﾂ' to 'ツ',
+    'ﾃ' to 'テ',
+    'ﾄ' to 'ト',
+    'ﾅ' to 'ナ',
+    'ﾆ' to 'ニ',
+    'ﾇ' to 'ヌ',
+    'ﾈ' to 'ネ',
+    'ﾉ' to 'ノ',
+    'ﾊ' to 'ハ',
+    'ﾋ' to 'ヒ',
+    'ﾌ' to 'フ',
+    'ﾍ' to 'ヘ',
+    'ﾎ' to 'ホ',
+    'ﾏ' to 'マ',
+    'ﾐ' to 'ミ',
+    'ﾑ' to 'ム',
+    'ﾒ' to 'メ',
+    'ﾓ' to 'モ',
+    'ﾔ' to 'ヤ',
+    'ﾕ' to 'ユ',
+    'ﾖ' to 'ヨ',
+    'ﾗ' to 'ラ',
+    'ﾘ' to 'リ',
+    'ﾙ' to 'ル',
+    'ﾚ' to 'レ',
+    'ﾛ' to 'ロ',
+    'ﾜ' to 'ワ',
+    'ﾝ' to 'ン'
   )
 
   private val dakutenMap: Map<Char, Char> = mapOf(
-    'カ' to 'ガ', 'キ' to 'ギ', 'ク' to 'グ', 'ケ' to 'ゲ', 'コ' to 'ゴ',
-    'サ' to 'ザ', 'シ' to 'ジ', 'ス' to 'ズ', 'セ' to 'ゼ', 'ソ' to 'ゾ',
-    'タ' to 'ダ', 'チ' to 'ヂ', 'ツ' to 'ヅ', 'テ' to 'デ', 'ト' to 'ド',
-    'ハ' to 'バ', 'ヒ' to 'ビ', 'フ' to 'ブ', 'ヘ' to 'ベ', 'ホ' to 'ボ',
+    'カ' to 'ガ',
+    'キ' to 'ギ',
+    'ク' to 'グ',
+    'ケ' to 'ゲ',
+    'コ' to 'ゴ',
+    'サ' to 'ザ',
+    'シ' to 'ジ',
+    'ス' to 'ズ',
+    'セ' to 'ゼ',
+    'ソ' to 'ゾ',
+    'タ' to 'ダ',
+    'チ' to 'ヂ',
+    'ツ' to 'ヅ',
+    'テ' to 'デ',
+    'ト' to 'ド',
+    'ハ' to 'バ',
+    'ヒ' to 'ビ',
+    'フ' to 'ブ',
+    'ヘ' to 'ベ',
+    'ホ' to 'ボ',
     'ウ' to 'ヴ'
   )
 
@@ -426,15 +496,15 @@ class TextView @JvmOverloads constructor(
     var lastFullwidthKanaIndex = -1
 
     for (char in string) {
-      when {
-        char in 'ｦ'..'ﾝ' -> {
+      when (char) {
+        in 'ｦ'..'ﾝ' -> {
           // Halfwidth Kana
           val fullwidth = halfwidthToFullwidthMap[char] ?: char
           builder.append(fullwidth)
           lastFullwidthKanaIndex = builder.length - 1
         }
 
-        char == 'ﾞ' -> {
+        'ﾞ' -> {
           if (lastFullwidthKanaIndex != -1) {
             val base = builder[lastFullwidthKanaIndex]
             val combined = dakutenMap[base] ?: base
@@ -445,7 +515,7 @@ class TextView @JvmOverloads constructor(
           lastFullwidthKanaIndex = -1
         }
 
-        char == 'ﾟ' -> {
+        'ﾟ' -> {
           if (lastFullwidthKanaIndex != -1) {
             val base = builder[lastFullwidthKanaIndex]
             val combined = handakutenMap[base] ?: base
@@ -456,7 +526,7 @@ class TextView @JvmOverloads constructor(
           lastFullwidthKanaIndex = -1
         }
 
-        char in '\u0021'..'\u007E' -> {
+        in '\u0021'..'\u007E' -> {
           // Fullwidth ASCII
           val fullwidth = (char.code + 0xFEE0).toChar()
           builder.append(fullwidth)
@@ -511,7 +581,8 @@ class TextView @JvmOverloads constructor(
 
       Styles.TextTransform.Capitalize -> {
         spannable.replace(
-          0, spannable.length,
+          0,
+          spannable.length,
           transformedText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() })
       }
 
@@ -674,7 +745,6 @@ class TextView @JvmOverloads constructor(
     batching = false
   }
 
-
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     val specWidth = MeasureSpec.getSize(widthMeasureSpec)
     val specHeight = MeasureSpec.getSize(heightMeasureSpec)
@@ -682,14 +752,14 @@ class TextView @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-    if (owner == null && parent !is org.nativescript.mason.masonkit.View) {
+    if (owner == null && parent !is MasonView) {
       node.compute(
         mapMeasureSpec(specWidthMode, specWidth).value,
         mapMeasureSpec(specHeightMode, specHeight).value
       )
 
       val layout = node.layout()
-      node.layoutCache = layout
+      node.computedLayout = layout
       setMeasuredDimension(
         layout.width.toInt(),
         layout.height.toInt(),
@@ -705,19 +775,21 @@ class TextView @JvmOverloads constructor(
   private fun measureLayout(
     knownWidth: Float, knownHeight: Float, availableWidth: Float, availableHeight: Float
   ): Layout? {
-    val boring = BoringLayout.isBoring(spannable, paint)
+    val textToMeasure = spannableText ?: ""
+    val boring = BoringLayout.isBoring(textToMeasure, paint)
     val width = boring?.let {
       Float.NaN
-    } ?: Layout.getDesiredWidth(spannable, paint)
+    } ?: Layout.getDesiredWidth(textToMeasure, paint)
+
+    val inline = node.style.display == Display.Inline
 
     val isWidthUnConstrained =
       (availableWidth.isNaN() || availableWidth == -1f || availableWidth == -2f) && knownWidth.isNaN()
-
-    return if (boring == null && (isWidthUnConstrained && !width.isNaN() && width <= knownWidth)) {
-      createLayout(spannable, ceil(width).toInt())
+    return if (boring == null && (isWidthUnConstrained || (!width.isNaN() && width <= knownWidth))) {
+      createLayout(textToMeasure, ceil(width).toInt())
     } else if (boring != null && (isWidthUnConstrained || boring.width <= knownWidth)) {
       BoringLayout.make(
-        spannable,
+        textToMeasure,
         paint,
         max(boring.width, 0),
         Layout.Alignment.ALIGN_NORMAL,
@@ -727,16 +799,24 @@ class TextView @JvmOverloads constructor(
         includePadding
       )
     } else {
-      createLayout(spannable, ceil(knownWidth.takeIf { !it.isNaN() } ?: availableWidth).toInt())
+      val maxWidth = knownWidth.takeIf { !it.isNaN() } ?: availableWidth
+      createLayout(textToMeasure, ceil(maxWidth).toInt())
     }
   }
 
-  private fun createLayout(spannable: Spannable, maxWidth: Int): Layout {
+  @SuppressLint("WrongConstant")
+  private fun createLayout(spannable: String, maxWidth: Int): Layout {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      val builder = StaticLayout.Builder.obtain(
+      var builder = StaticLayout.Builder.obtain(
         spannable, 0, spannable.length, paint, maxWidth
-      )
-        .setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(includePadding)
+      ).setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(includePadding)
+      if (type == TextType.Pre) {
+        builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+          builder.setBreakStrategy(LineBreaker.BREAK_STRATEGY_SIMPLE)
+        } else {
+          builder.setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE)
+        }
+      }
 
       return builder.build()
     } else {
@@ -748,28 +828,48 @@ class TextView @JvmOverloads constructor(
 
   private fun rebuildText(): SpannableStringBuilder {
     val result = SpannableStringBuilder()
-
+    markDirtyAndRecompute()
+    val ownStart = result.length
     result.append(spannable)
+    val ownEnd = result.length
 
-    for (child in children) {
-      when {
-        child.view is TextView -> {
-          result.append(child.view.rebuildText())
-        }
+    if (result.isEmpty()) {
+      return result
+    }
 
-        child.attachment != null -> {
-          val attachment = SpannableStringBuilder(VIEW_PLACEHOLDER)
-          attachment.setSpan(
-            child.attachment,
-            0,
-            VIEW_PLACEHOLDER.length,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-          )
-          result.append(attachment)
-        }
+    if (ownStart < ownEnd) {
+      for ((_, span) in spans) {
+        result.setSpan(span, ownStart, ownEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
       }
     }
 
+    for (child in children) {
+      when {
+        child.text != null -> {
+          val childText = child.text.rebuildText()
+          val start = result.length
+          result.append(childText)
+          val end = result.length
+
+          for ((_, span) in child.text.spans) {
+            if (start == end) {
+              continue
+            }
+            result.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+          }
+        }
+
+        child.attachment != null -> {
+          val start = result.length
+          result.append(VIEW_PLACEHOLDER)
+          val end = result.length
+          result.setSpan(
+            child.attachment, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+          )
+        }
+      }
+    }
+    spannableText = result.toString()
     return result
   }
 
@@ -779,20 +879,47 @@ class TextView @JvmOverloads constructor(
       return
     }
 
+
     val rebuilt = rebuildText()
     setText(rebuilt, BufferType.SPANNABLE)
+    invalidate()
+    requestLayout()
+  }
+
+  override fun invalidate() {
+    if (::node.isInitialized) {
+      node.dirty()
+    }
+    super.invalidate()
+  }
+
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+    node.computedLayout.let { parentLayout ->
+      parentLayout.children.forEachIndexed { index, layout ->
+        children.getOrNull(index)?.let {
+          it.node.computedLayout = layout
+        }
+      }
+    }
   }
 
   fun updateText(text: String?) {
     if (text == spannableText) {
       return
     }
+
+    if (text == null) {
+      node.removeChild(textNode)
+    } else {
+      node.addChildAt(textNode, 0)
+    }
+
     spannableText = text
     spannable.clearSpans()
     spannable.clear()
     spannable.append(text ?: "")
     applySpans()
-    actualNode.dirty()
+    node.dirty()
     invalidateView()
   }
 
@@ -804,11 +931,19 @@ class TextView @JvmOverloads constructor(
     }
     val isText = view is TextView
     var attachment: Spans.NSCSpan? = null
-    if (!isText) {
-      attachment = Spans.ViewSpannable(view, Mason.shared.nodeForView(view))
+    val childNode = if (view is MasonView) {
+      view.node
+    } else {
+      Mason.shared.nodeForView(view)
     }
 
-    val child = TextChild(view, view as? TextView, attachment)
+    if (!isText) {
+      attachment = Spans.ViewSpannable(view, childNode)
+    } else {
+      (view as TextView).owner = this
+    }
+
+    val child = TextChild(view, view as? TextView, attachment, childNode)
 
     if (index == -1 || index >= children.size) {
       children.add(child)
@@ -816,15 +951,8 @@ class TextView @JvmOverloads constructor(
       children.add(index, child)
     }
 
-    if (isText) {
-      (view as TextView).owner = this
-    }
+    node.addChild(childNode)
 
-    if (view is MasonView) {
-      node.addChild(view.node)
-    } else {
-      node.addChild(node.mason.nodeForView(view))
-    }
 
     invalidateView()
   }
@@ -851,8 +979,6 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-  // called for leaf views
-  @SuppressWarnings("deprecated")
   override fun measure(
     knownDimensions: Size<Float?>, availableSpace: Size<Float?>
   ): Size<Float> {
@@ -862,12 +988,10 @@ class TextView @JvmOverloads constructor(
     )
     val height = knownDimensions.height?.takeIf {
       !it.isNaN() && it >= 0
-    } ?: availableSpace.height?.takeIf {
-      !it.isNaN() && it >= 0
-    }
+    } ?: layout?.height ?: 0
 
     return layout?.let {
-      Size(it.width.toFloat(), height ?: it.height.toFloat())
+      Size(it.width.toFloat(), height.toFloat())
     } ?: Size(0f, 0f)
   }
 }

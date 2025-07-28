@@ -1,18 +1,26 @@
 package org.nativescript.mason.masondemo
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.text.SpannableStringBuilder
-import android.util.Log
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masondemo.databinding.ActivityMainBinding
-import org.nativescript.mason.masonkit.*
+import org.nativescript.mason.masonkit.Mason
 
 class MainActivity : AppCompatActivity() {
   private lateinit var binding: ActivityMainBinding
   val mason = Mason()
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
+
+    ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { view, insets ->
+      val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+      view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+      insets
+    }
 
     /*
     val now = System.currentTimeMillis()

@@ -2,11 +2,16 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing } from '.';
-import { _forceStyleUpdate, _getJustifyItems, _parseGridTemplates, _setAlignContent, _setAlignItems, _setAlignSelf, _setBottom, _setColumnGap, _setDisplay, _setFlexBasis, _setFlexDirection, _setFlexGrow, _setFlexShrink, _setFlexWrap, _setGridColumnEnd, _setGridColumnStart, _setGridRowEnd, _setGridRowStart, _setGridTemplateColumns, _setGridTemplateRows, _setHeight, _setJustifyContent, _setJustifyItems, _setJustifySelf, _setLeft, _setMarginBottom, _setMarginLeft, _setMarginRight, _setMarginTop, _setMinHeight, _setMinWidth, _setOverflowX, _setOverflowY, _setPaddingBottom, _setPaddingLeft, _setPaddingRight, _setPaddingTop, _setPosition, _setRight, _setRowGap, _setScrollbarWidth, _setTop, _setWidth, GridTemplates } from './helpers';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
-
+import { _forceStyleUpdate, _setGridAutoRows, GridTemplates } from './utils';
+import { Style as MasonStyle } from './style';
 export const native_ = Symbol('[[native]]');
 export const style_ = Symbol('[[style]]');
+
+function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
+  const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
+  return ret._styleHelper as MasonStyle;
+}
 
 export interface MasonChild extends ViewBase {
   _isMasonChild: boolean;
@@ -108,6 +113,12 @@ export const overflowXProperty = new CssProperty<Style, Overflow>({
   cssName: 'overflow-x',
   defaultValue: 'visible',
   valueConverter: overflowConverter,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.overflowX = newValue;
+    }
+  },
 });
 
 export const overflowYProperty = new CssProperty<Style, Overflow>({
@@ -115,6 +126,12 @@ export const overflowYProperty = new CssProperty<Style, Overflow>({
   cssName: 'overflow-y',
   defaultValue: 'visible',
   valueConverter: overflowConverter,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.overflowY = newValue;
+    }
+  },
 });
 
 const paddingProperty = new ShorthandProperty<Style, string | CoreTypes.LengthType>({
@@ -137,9 +154,9 @@ export const paddingLeftProperty = new CssProperty<Style, CoreTypes.LengthType>(
   affectsLayout: global.isIOS,
   equalityComparer: CoreLength.equals,
   valueChanged: (target, oldValue, newValue) => {
-    const view = target.viewRef.get();
+    const view = getViewStyle(target.viewRef);
     if (view) {
-      view.effectivePaddingLeft = CoreLength.toDevicePixels(newValue, 0);
+      view.paddingLeft = CoreLength.toDevicePixels(newValue, 0);
     } else {
       Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
     }
@@ -154,9 +171,9 @@ export const paddingRightProperty = new CssProperty<Style, CoreTypes.LengthType>
   affectsLayout: global.isIOS,
   equalityComparer: CoreLength.equals,
   valueChanged: (target, oldValue, newValue) => {
-    const view = target.viewRef.get();
+    const view = getViewStyle(target.viewRef);
     if (view) {
-      view.effectivePaddingRight = CoreLength.toDevicePixels(newValue, 0);
+      view.paddingRight = CoreLength.toDevicePixels(newValue, 0);
     } else {
       Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
     }
@@ -171,9 +188,9 @@ export const paddingTopProperty = new CssProperty<Style, CoreTypes.LengthType>({
   affectsLayout: global.isIOS,
   equalityComparer: CoreLength.equals,
   valueChanged: (target, oldValue, newValue) => {
-    const view = target.viewRef.get();
+    const view = getViewStyle(target.viewRef);
     if (view) {
-      view.effectivePaddingTop = CoreLength.toDevicePixels(newValue, 0);
+      view.paddingTop = CoreLength.toDevicePixels(newValue, 0);
     } else {
       Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
     }
@@ -188,9 +205,9 @@ export const paddingBottomProperty = new CssProperty<Style, CoreTypes.LengthType
   affectsLayout: global.isIOS,
   equalityComparer: CoreLength.equals,
   valueChanged: (target, oldValue, newValue) => {
-    const view = target.viewRef.get();
+    const view = getViewStyle(target.viewRef);
     if (view) {
-      view.effectivePaddingBottom = CoreLength.toDevicePixels(newValue, 0);
+      view.paddingBottom = CoreLength.toDevicePixels(newValue, 0);
     } else {
       Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
     }
@@ -209,6 +226,12 @@ export const rowGapProperty = new CssProperty<Style, Length>({
     }
     return parsed;
   },
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.rowGap = newValue;
+    }
+  },
 });
 
 export const columnGapProperty = new CssProperty<Style, Length>({
@@ -221,6 +244,12 @@ export const columnGapProperty = new CssProperty<Style, Length>({
       return 0;
     }
     return parsed;
+  },
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.columnGap = newValue;
+    }
   },
 });
 
@@ -281,7 +310,13 @@ export const displayProperty = new CssProperty<Style, Display>({
   name: 'display',
   cssName: 'display',
   defaultValue: 'block',
-  valueConverter(value) {
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.display = newValue;
+    }
+  },
+  valueConverter: function (value) {
     if (typeof value === 'number') {
       switch (value) {
         case 0:
@@ -292,6 +327,14 @@ export const displayProperty = new CssProperty<Style, Display>({
           return 'grid';
         case 3:
           return 'block';
+        case 4:
+          return 'inline';
+        case 5:
+          return 'inline-block';
+        case 6:
+          return 'inline-flex';
+        case 7:
+          return 'inline-grid';
       }
     }
 
@@ -300,10 +343,13 @@ export const displayProperty = new CssProperty<Style, Display>({
       case 'flex':
       case 'grid':
       case 'block':
+      case 'inline':
+      case 'inline-block':
+      case 'inline-flex':
+      case 'inline-grid':
         return value;
       default:
-        // todo throw???
-        return 'block';
+        throw new Error(`Invalid display value: ${value}`);
     }
   },
 });
@@ -315,6 +361,14 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   equalityComparer: NSLength.equals,
   valueConverter: masonLengthParse,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maxWidth = newValue;
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
 });
 
 export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
@@ -324,12 +378,24 @@ export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   equalityComparer: NSLength.equals,
   valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maxHeight = newValue;
+    }
+  },
 });
 
 export const positionProperty = new CssProperty<Style, Position>({
   name: 'position',
   cssName: 'position',
   defaultValue: 'relative',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.position = newValue;
+    }
+  },
 });
 
 // export const flexDirectionProperty = new CssProperty<Style, FlexDirection>({
@@ -383,6 +449,12 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   equalityComparer: NSLength.equals,
   valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.left = newValue;
+    }
+  },
 });
 
 export const rightProperty = new CssProperty<Style, LengthAuto>({
@@ -392,6 +464,12 @@ export const rightProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   equalityComparer: NSLength.equals,
   valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.right = newValue;
+    }
+  },
 });
 
 export const topProperty = new CssProperty<Style, LengthAuto>({
@@ -401,6 +479,12 @@ export const topProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   equalityComparer: NSLength.equals,
   valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.top = newValue;
+    }
+  },
 });
 
 export const bottomProperty = new CssProperty<Style, LengthAuto>({
@@ -410,6 +494,12 @@ export const bottomProperty = new CssProperty<Style, LengthAuto>({
   // @ts-ignore
   equalityComparer: NSLength.equals,
   valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.bottom = newValue;
+    }
+  },
 });
 
 export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
@@ -418,6 +508,12 @@ export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   defaultValue: 'auto',
   equalityComparer: NSLength.equals,
   valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.flexBasis = newValue;
+    }
+  },
 });
 
 export const gridRowGapProperty = new ShorthandProperty<Style, Gap>({
@@ -446,60 +542,120 @@ export const aspectRatioProperty = new CssProperty<Style, number>({
   name: 'aspectRatio',
   cssName: 'aspect-ratio',
   defaultValue: Number.NaN,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.aspectRatio = newValue;
+    }
+  },
 });
 
 export const alignItemsProperty = new CssProperty<Style, AlignItems>({
   name: 'alignItems',
   cssName: 'align-items',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.alignItems = newValue;
+    }
+  },
 });
 
 export const alignSelfProperty = new CssProperty<Style, AlignSelf>({
   name: 'alignSelf',
   cssName: 'align-self',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.alignSelf = newValue;
+    }
+  },
 });
 
 export const alignContentProperty = new CssProperty<Style, AlignContent>({
   name: 'alignContent',
   cssName: 'align-content',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.alignContent = newValue as never;
+    }
+  },
 });
 
 export const justifyItemsProperty = new CssProperty<Style, JustifyItems>({
   name: 'justifyItems',
   cssName: 'justify-items',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.justifyItems = newValue;
+    }
+  },
 });
 
 export const justifySelfProperty = new CssProperty<Style, JustifySelf>({
   name: 'justifySelf',
   cssName: 'justify-self',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.justifySelf = newValue;
+    }
+  },
 });
 
 export const justifyContentProperty = new CssProperty<Style, JustifyContent>({
   name: 'justifyContent',
   cssName: 'justify-content',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.justifyContent = newValue as never;
+    }
+  },
 });
 
 export const gridAutoRowsProperty = new CssProperty<Style, string>({
   name: 'gridAutoRows',
   cssName: 'grid-auto-rows',
   defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridAutoRows = newValue;
+    }
+  },
 });
 
 export const gridAutoColumnsProperty = new CssProperty<Style, string>({
   name: 'gridAutoColumns',
   cssName: 'grid-auto-columns',
   defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridAutoColumns = newValue;
+    }
+  },
 });
 
 export const gridAutoFlowProperty = new CssProperty<Style, GridAutoFlow>({
   name: 'gridAutoFlow',
   cssName: 'grid-auto-flow',
   defaultValue: 'row',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridAutoFlow = newValue;
+    }
+  },
 });
 
 function parseGridColumnOrRow(value: string) {
@@ -621,12 +777,24 @@ export const gridColumnStartProperty = new CssProperty<Style, string>({
   name: 'gridColumnStart',
   cssName: 'grid-column-start',
   defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridColumnStart = newValue;
+    }
+  },
 });
 
 export const gridColumnEndProperty = new CssProperty<Style, string>({
   name: 'gridColumnEnd',
   cssName: 'grid-column-end',
   defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridColumnEnd = newValue;
+    }
+  },
 });
 
 export const gridColumnProperty = new ShorthandProperty<Style, string>({
@@ -677,12 +845,24 @@ export const gridRowStartProperty = new CssProperty<Style, string>({
   name: 'gridRowStart',
   cssName: 'grid-row-start',
   defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridRowStart = newValue;
+    }
+  },
 });
 
 export const gridRowEndProperty = new CssProperty<Style, string>({
   name: 'gridRowEnd',
   cssName: 'grid-row-end',
   defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridRowEnd = newValue;
+    }
+  },
 });
 
 export const gridRowProperty = new ShorthandProperty<Style, string>({
@@ -732,12 +912,26 @@ export const gridTemplateRowsProperty = new CssProperty<Style, Array<GridTemplat
   name: 'gridTemplateRows',
   cssName: 'grid-template-rows',
   defaultValue: null,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      // view.gridTemplateRows = newValue;
+      console.log('gridTemplateRowsProperty valueChanged', newValue);
+    }
+  },
 });
 
 export const gridTemplateColumnsProperty = new CssProperty<Style, Array<GridTemplates>>({
   name: 'gridTemplateColumns',
   cssName: 'grid-template-columns',
   defaultValue: null,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      // view.gridTemplateColumns = newValue;
+      console.log('gridTemplateColumnsProperty valueChanged', newValue);
+    }
+  },
 });
 
 // flex-flow: <flex-direction> || <flex-wrap>
@@ -831,6 +1025,12 @@ export const textWrapProperty = new Property<TextBase, 'nowrap' | 'wrap' | 'bala
   name: 'textWrap',
   affectsLayout: true,
   defaultValue: 'nowrap',
+  valueChanged(target: any, oldValue, newValue) {
+    const view = target?.viewRef ? getViewStyle(target.viewRef) : target.view;
+    if (view) {
+      view.textWrap = newValue;
+    }
+  },
 });
 
 // @ts-ignore
@@ -844,45 +1044,30 @@ export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
   name: 'boxSizing',
   cssName: 'box-sizing',
   defaultValue: 'border-box',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.boxSizing = newValue;
+    }
+  },
 });
 
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: UIView;
 
-  display: Display;
-  boxSizing: BoxSizing;
-
   overflow: Overflow | `${Overflow} ${Overflow}`;
-  overflowX: Overflow;
-  overflowY: Overflow;
 
   gridGap: Gap;
   gap: Gap;
   gridArea: string;
   gridColumn: string;
   gridRow: string;
-  position: Position;
 
-  inset: CoreTypes.PercentLengthType;
-  // @ts-ignore
-  left: CoreTypes.PercentLengthType;
-  right: CoreTypes.PercentLengthType;
-  // @ts-ignore
-  top: CoreTypes.PercentLengthType;
-  bottom: CoreTypes.PercentLengthType;
-
-  padding: CoreTypes.LengthType;
-  paddingLeft: CoreTypes.LengthType;
-  paddingRight: CoreTypes.LengthType;
-  paddingTop: CoreTypes.LengthType;
-  paddingBottom: CoreTypes.LengthType;
-
-  margin: CoreTypes.PercentLengthType;
-  marginLeft: CoreTypes.PercentLengthType;
-  marginRight: CoreTypes.PercentLengthType;
-  marginTop: CoreTypes.PercentLengthType;
-  marginBottom: CoreTypes.PercentLengthType;
+  inset: LengthAuto;
+  padding: Length;
+  margin: LengthAuto;
+  border: Length;
 
   _children: any[] = [];
   _isMasonView = false;
@@ -890,7 +1075,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   constructor() {
     super();
-    this._isMasonView = true;
   }
 
   forceStyleUpdate() {
@@ -983,154 +1167,282 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     this._children.splice(0);
   }
 
-  [displayProperty.setNative](value) {
-    _setDisplay(value, this as any);
+  get boxSizing(): BoxSizing {
+    return this.style.boxSizing;
   }
 
-  [overflowXProperty.setNative](value) {
-    _setOverflowX(value, this as any);
+  set boxSizing(value: BoxSizing) {
+    this.style.boxSizing = value;
   }
 
-  [overflowYProperty.setNative](value) {
-    _setOverflowY(value, this as any);
+  get display() {
+    return this.style.display;
   }
 
-  [scrollBarWidthProperty.setNative](value) {
-    _setScrollbarWidth(value, this as any);
+  set display(value: Display) {
+    this.style.display = value;
   }
 
-  [positionProperty.setNative](value) {
-    _setPosition(value, this as any);
+  get overflowX() {
+    return this.style.overflowX;
+  }
+
+  set overflowX(value: Overflow) {
+    this.style.overflowX = value;
+  }
+
+  get overflowY() {
+    return this.style.overflowY;
+  }
+
+  set overflowY(value: Overflow) {
+    this.style.overflowY = value;
+  }
+
+  get scrollBarWidth() {
+    return this.style.scrollBarWidth;
+  }
+
+  set scrollBarWidth(value: Length) {
+    this.style.scrollBarWidth = value;
+  }
+
+  get position() {
+    return this.style.position;
+  }
+
+  set position(value: Position) {
+    this.style.position = value;
   }
 
   [flexWrapProperty.setNative](value) {
-    _setFlexWrap(value, this as any);
+    // _setFlexWrap(value, this as any);
   }
 
   [flexDirectionProperty.setNative](value) {
-    _setFlexDirection(value, this as any);
+    // _setFlexDirection(value, this as any);
   }
 
   [flexGrowProperty.setNative](value) {
-    _setFlexGrow(value, this as any);
+    // _setFlexGrow(value, this as any);
   }
 
   [flexShrinkProperty.setNative](value) {
-    _setFlexShrink(value, this as any);
+    //  _setFlexShrink(value, this as any);
   }
 
   [flexBasisProperty.setNative](value) {
-    _setFlexBasis(value, this as any);
+    //  _setFlexBasis(value, this as any);
   }
 
   [alignItemsProperty.setNative](value) {
-    _setAlignItems(value, this as any);
+    //  _setAlignItems(value, this as any);
   }
 
   [alignSelfProperty.setNative](value) {
-    _setAlignSelf(value, this as any);
+    // _setAlignSelf(value, this as any);
   }
 
   [alignContentProperty.setNative](value) {
-    _setAlignContent(value, this as any);
+    // _setAlignContent(value, this as any);
   }
 
   [justifyItemsProperty.setNative](value) {
-    _setJustifyItems(value, this as any);
+    // _setJustifyItems(value, this as any);
   }
 
   [justifySelfProperty.setNative](value) {
-    _setJustifySelf(value, this as any);
+    //  _setJustifySelf(value, this as any);
   }
 
   [justifyContentProperty.setNative](value) {
-    _setJustifyContent(value, this as any);
+    //  _setJustifyContent(value, this as any);
   }
 
   [leftProperty.setNative](value) {
-    _setLeft(value, this as any);
+    //  _setLeft(value, this as any);
   }
 
   [rightProperty.setNative](value) {
-    _setRight(value, this as any);
+    //  _setRight(value, this as any);
   }
 
   [bottomProperty.setNative](value) {
-    _setBottom(value, this as any);
+    // _setBottom(value, this as any);
   }
 
   [topProperty.setNative](value) {
-    _setTop(value, this as any);
+    // _setTop(value, this as any);
   }
 
-  [minWidthProperty.setNative](value) {
-    _setMinWidth(value, this as any);
+  //@ts-ignore
+  set minWidth(value: LengthAuto) {
+    //@ts-ignore
+    this.style.minWidth = value;
   }
 
-  [minHeightProperty.setNative](value) {
-    _setMinHeight(value, this as any);
+  //@ts-ignore
+  get minWidth(): LengthAuto {
+    return this.style.minWidth;
   }
 
-  [widthProperty.setNative](value) {
-    _setWidth(value, this as any);
+  //@ts-ignore
+  set minHeight(value: LengthAuto) {
+    //@ts-ignore
+    this.style.minHeight = value;
   }
 
-  [heightProperty.setNative](value) {
-    _setHeight(value, this as any);
+  //@ts-ignore
+  get minHeight(): LengthAuto {
+    return this.style.minHeight;
+  }
+
+  //@ts-ignore
+  set width(value: LengthAuto) {
+    this.style.width = value;
+  }
+
+  get width(): LengthAuto {
+    return this.style.width;
+  }
+
+  //@ts-ignore
+  set height(value: LengthAuto) {
+    this.style.height = value;
+  }
+
+  get height(): LengthAuto {
+    return this.style.height;
+  }
+
+  //@ts-ignore
+  get minHeight(): LengthAuto {
+    return this.style.minHeight;
+  }
+
+  set maxWidth(value: LengthAuto) {
+    this.style.maxWidth = value;
+  }
+
+  get maxWidth(): LengthAuto {
+    return this.style.maxWidth;
+  }
+
+  set maxHeight(value: LengthAuto) {
+    this.style.maxHeight = value;
+  }
+
+  get maxHeight(): LengthAuto {
+    return this.style.maxHeight;
   }
 
   [marginLeftProperty.setNative](value) {
-    _setMarginLeft(value, this as any);
+    // _setMarginLeft(value, this as any);
   }
 
   [marginRightProperty.setNative](value) {
-    _setMarginRight(value, this as any);
+    // _setMarginRight(value, this as any);
   }
 
   [marginBottomProperty.setNative](value) {
-    _setMarginBottom(value, this as any);
+    // _setMarginBottom(value, this as any);
   }
 
   [marginTopProperty.setNative](value) {
-    _setMarginTop(value, this as any);
+    // _setMarginTop(value, this as any);
   }
 
   [paddingLeftProperty.setNative](value) {
-    _setPaddingLeft(value, this as any);
+    // _setPaddingLeft(value, this as any);
   }
   [paddingRightProperty.setNative](value) {
-    _setPaddingRight(value, this as any);
+    //  _setPaddingRight(value, this as any);
   }
   [paddingTopProperty.setNative](value) {
-    _setPaddingTop(value, this as any);
+    // _setPaddingTop(value, this as any);
   }
   [paddingBottomProperty.setNative](value) {
-    _setPaddingBottom(value, this as any);
-  }
-  [rowGapProperty.setNative](value) {
-    _setRowGap(value, this as any);
-  }
-  [columnGapProperty.setNative](value) {
-    _setColumnGap(value, this as any);
-  }
-  [gridColumnStartProperty.setNative](value) {
-    _setGridColumnStart(value, this as any);
-  }
-  [gridColumnEndProperty.setNative](value) {
-    _setGridColumnEnd(value, this as any);
-  }
-  [gridRowStartProperty.setNative](value) {
-    _setGridRowStart(value, this as any);
-  }
-  [gridRowEndProperty.setNative](value) {
-    _setGridRowEnd(value, this as any);
-  }
-  [gridTemplateRowsProperty.setNative](value) {
-    _setGridTemplateRows(_parseGridTemplates(value), this as any);
+    // _setPaddingBottom(value, this as any);
   }
 
-  [gridTemplateColumnsProperty.setNative](value) {
-    _setGridTemplateColumns(_parseGridTemplates(value), this as any);
+  set rowGap(value: Length) {
+    this.style.rowGap = value;
+  }
+
+  get rowGap(): Length {
+    return this.style.rowGap;
+  }
+
+  set columnGap(value: Length) {
+    this.style.columnGap = value;
+  }
+
+  get columnGap(): Length {
+    return this.style.columnGap;
+  }
+
+  set gridColumnStart(value: string) {
+    this.style.gridColumnStart = value;
+  }
+
+  get gridColumnStart(): string {
+    return this.style.gridColumnStart;
+  }
+
+  set gridColumnEnd(value: string) {
+    this.style.gridColumnEnd = value;
+  }
+
+  get gridColumnEnd(): string {
+    return this.style.gridColumnEnd;
+  }
+
+  set gridRowStart(value: string) {
+    this.style.gridRowStart = value;
+  }
+
+  get gridRowStart(): string {
+    return this.style.gridRowStart;
+  }
+
+  set gridRowEnd(value: string) {
+    this.style.gridRowEnd = value;
+  }
+
+  get gridRowEnd(): string {
+    return this.style.gridRowEnd;
+  }
+
+  set gridTemplateRows(value: string) {
+    this.style.gridTemplateRows = value;
+  }
+
+  get gridTemplateRows(): string {
+    return this.style.gridTemplateRows;
+  }
+
+  set gridTemplateColumns(value: string) {
+    this.style.gridTemplateColumns = value;
+  }
+
+  get gridTemplateColumns(): string {
+    return this.style.gridTemplateColumns;
+  }
+
+  set gridAutoColumns(value: string) {
+    this.style.gridAutoColumns = value;
+  }
+
+  get gridAutoColumns(): string {
+    return this.style.gridAutoColumns;
+  }
+
+  set gridAutoRows(value: string) {
+    this.style.gridAutoRows = value;
+  }
+
+  get gridAutoRows(): string {
+    return this.style.gridAutoRows;
   }
 }
 

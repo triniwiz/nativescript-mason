@@ -1,4 +1,10 @@
-use taffy::{AlignContent, AlignItems, AlignSelf, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow, JustifyContent, Overflow, Position, TextAlign};
+use crate::style::DisplayMode;
+use crate::Style;
+use taffy::{
+    AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, Display, FlexDirection,
+    FlexWrap, GridAutoFlow, JustifyContent, LayoutInput, MaybeMath, MaybeResolve, Overflow,
+    Position, ResolveOrZero, Size, TextAlign,
+};
 
 pub const fn box_sizing_from_enum(value: i32) -> Option<BoxSizing> {
     match value {
@@ -261,5 +267,117 @@ pub const fn grid_auto_flow_to_enum(value: GridAutoFlow) -> i32 {
         GridAutoFlow::Column => 1,
         GridAutoFlow::RowDense => 2,
         GridAutoFlow::ColumnDense => 3,
+    }
+}
+
+pub const fn boxing_size_from_enum(value: i32) -> Option<BoxSizing> {
+    match value {
+        0 => Some(BoxSizing::BorderBox),
+        1 => Some(BoxSizing::ContentBox),
+        _ => None,
+    }
+}
+
+pub const fn boxing_size_to_enum(value: BoxSizing) -> i32 {
+    match value {
+        BoxSizing::BorderBox => 0,
+        BoxSizing::ContentBox => 1,
+    }
+}
+
+pub const fn display_mode_from_enum(value: i32) -> Option<DisplayMode> {
+    match value {
+        0 => Some(DisplayMode::None),
+        1 => Some(DisplayMode::Inline),
+        2 => Some(DisplayMode::Box),
+        _ => None,
+    }
+}
+
+pub const fn display_mode_to_enum(value: DisplayMode) -> i32 {
+    match value {
+        DisplayMode::None => 0,
+        DisplayMode::Inline => 1,
+        DisplayMode::Box => 2,
+    }
+}
+
+pub(crate) fn resolve_fallback_size(
+    known: Option<f32>,
+    available: AvailableSpace,
+    size: Option<f32>,
+    style_min: Option<f32>,
+    style_max: Option<f32>,
+    content_min: f32,
+    content_max: f32,
+    padding_border: f32,
+) -> f32 {
+    known.unwrap_or_else(|| {
+        let size = size.or(known).unwrap_or_else(|| match available {
+            AvailableSpace::MinContent => style_min.unwrap_or(content_min),
+            AvailableSpace::MaxContent => style_max.unwrap_or(content_max.max(f32::INFINITY)),
+            AvailableSpace::Definite(w) => w,
+        });
+
+        let min = style_min.unwrap_or(content_min);
+        let max = style_max.unwrap_or(content_max).max(f32::INFINITY);
+
+        size.clamp(min, max) - padding_border
+    })
+}
+
+
+pub(crate) fn compute_leaf(
+    style: &Style,
+    inputs: &LayoutInput,
+) -> Size<f32> {
+
+    let padding = style
+        .get_padding()
+        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
+
+    let border = style
+        .get_border()
+        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
+
+    let size = style
+        .get_size()
+        .maybe_resolve(inputs.parent_size, |_val, _basis| 0.0);
+
+    let min_size = style
+        .get_min_size()
+        .maybe_resolve(inputs.parent_size, |_val, _basis| 0.0);
+
+    let max_size = style
+        .get_max_size()
+        .maybe_resolve(inputs.parent_size, |_val, _basis| 0.0);
+
+    let content_sizes = style.content_sizes();
+
+    let container_pb = padding + border;
+    let pbw = container_pb.horizontal_components().sum();
+    let pbh = container_pb.vertical_components().sum();
+
+    Size {
+        width: resolve_fallback_size(
+            inputs.known_dimensions.width,
+            inputs.available_space.width,
+            size.width,
+            min_size.width,
+            max_size.width,
+            content_sizes.0.width,
+            content_sizes.1.width,
+            pbw,
+        ),
+        height: resolve_fallback_size(
+            inputs.known_dimensions.height,
+            inputs.available_space.height,
+            size.height,
+            min_size.height,
+            max_size.height,
+            content_sizes.0.height,
+            content_sizes.1.height,
+            pbh,
+        ),
     }
 }

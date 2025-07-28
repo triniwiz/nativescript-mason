@@ -216,6 +216,7 @@ public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
   case Li
   case Blockquote
   case B
+  case Pre
   
   public typealias RawValue = Int32
   
@@ -247,6 +248,8 @@ public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
       return 11
     case .B:
       return 12
+    case .Pre:
+      return 13
     }
   }
   
@@ -279,6 +282,8 @@ public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
       self = .Blockquote
     case 12:
       self = .B
+    case 13:
+      self = .Pre
     default:
       return nil
     }
@@ -312,6 +317,8 @@ public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
       return "blockquote"
     case .B:
       return "b"
+    case .Pre:
+      return "pre"
     }
   }
   
@@ -456,6 +463,10 @@ public class MasonText: UIView, MasonView {
       break
     case .B:
       font.weight = .bold
+      break
+    case .Pre:
+      font = NSCFontFace(family: "ui-monospace")
+      whiteSpace = .Pre
       break
     }
     

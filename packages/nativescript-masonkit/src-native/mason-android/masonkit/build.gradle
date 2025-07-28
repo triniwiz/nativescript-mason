@@ -35,19 +35,21 @@ cargo {
   module = "../../../../../"
   libname = "masonnative"
 
-  targets = ["arm64"]
- // targets = ["x86"]
   apiLevels = [
-    "arm": 21,
-    "arm64": 21,
-    "x86": 21,
+    "arm"   : 21,
+    "arm64" : 21,
+    "x86"   : 21,
     "x86_64": 21
   ]
   targets = ["arm", "arm64", "x86", "x86_64"]
   profile = "release"
   targetDirectory = "../../../../../target"
-  verbose = true
+  verbose = false
   extraCargoBuildArguments = ['-p', 'mason-android']
+
+  exec = { spec, toolchain ->
+    spec.environment("RUSTFLAGS", "-C link-arg=-Wl,--hash-style=sysv -C link-arg=-Wl,-z,max-page-size=16384")
+  }
 }
 
 tasks.configureEach { task ->
@@ -56,15 +58,25 @@ tasks.configureEach { task ->
   }
 }
 
+//afterEvaluate {
+//    tasks.withType(com.nishtahir.CargoBuildTask).configureEach { buildTask ->
+//        tasks.withType(com.android.build.gradle.tasks.MergeSourceSetFolders).configureEach {
+//            inputs.dir(layout.buildDirectory.dir("rustJniLibs${File.separator}${buildTask.toolchain.folder}"))
+//            dependsOn(buildTask)
+//        }
+//    }
+//}
+
+
 dependencies {
 
-  implementation 'androidx.core:core-ktx:1.9.0'
-  implementation 'androidx.appcompat:appcompat:1.5.1'
-  implementation 'com.google.code.gson:gson:2.10.1'
+  implementation 'androidx.core:core-ktx:1.16.0'
+  implementation 'androidx.appcompat:appcompat:1.7.1'
+  implementation 'com.google.code.gson:gson:2.13.1'
   testImplementation 'junit:junit:4.13.2'
-  androidTestImplementation 'androidx.test.ext:junit:1.1.4'
-  androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
-  implementation 'com.github.bumptech.glide:glide:4.14.2'
-  annotationProcessor 'com.github.bumptech.glide:compiler:4.14.2'
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+  implementation 'com.github.bumptech.glide:glide:4.16.0'
+  annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
 }
 

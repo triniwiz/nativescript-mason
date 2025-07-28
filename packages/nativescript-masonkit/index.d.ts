@@ -3,15 +3,15 @@ import { CoreTypes } from '@nativescript/core';
 import { TextBase, ViewBase } from './common';
 import { LengthPercentage } from '@nativescript/core/css/parser';
 
-export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit;
+export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | `${number}px` | `${number}%` | `${number}dip`;
 
-export type LengthAuto = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | 'auto';
+export type LengthAuto = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | 'auto' | `${number}px` | `${number}%` | `${number}dip`;
 
 export type SizeLength = { width: LengthType; height: LengthType };
 
 export type Position = 'absolute' | 'relative';
 
-export type Display = 'none' | 'flex' | 'grid' | 'block';
+export type Display = 'none' | 'flex' | 'grid' | 'block' | 'inline' | 'inline-block' | 'inline-flex' | 'inline-grid';
 
 export type BoxSizing = 'border-box' | 'content-box';
 
@@ -40,6 +40,7 @@ export type JustifyContent = AlignContent;
 export type GridAutoFlow = 'row' | 'column' | 'row dense' | 'column dense' | 'dense';
 
 export class View extends ViewBase {
+  boxSizing: BoxSizing;
   display: Display;
   position: Position;
   flexDirection: FlexDirection;
@@ -141,6 +142,8 @@ export class Img extends ViewBase {
   flexWrap: FlexWrap;
   flex: string | 'auto' | 'none' | number | 'initial';
   flexFlow: string;
+  minWidth: LengthAuto;
+  minHeight: LengthAuto;
   width: LengthAuto;
   height: LengthAuto;
   maxWidth: LengthAuto;
@@ -178,21 +181,24 @@ export class Img extends ViewBase {
   overflow: Overflow;
   overflowX: Overflow;
   overflowY: Overflow;
-  scrollBarWidth: number | CoreTypes.LengthType;
+  scrollBarWidth: Length;
 }
 
 declare module '@nativescript/core/ui/styling/style' {
   interface Style {
+    boxSizing: BoxSizing;
     display: Display;
     position: Position;
     flexDirection: FlexDirection;
     flexWrap: FlexWrap;
     flex: string | 'auto' | 'none' | number | 'initial';
     flexFlow: string;
-    width: LengthPercentage | string | number;
-    height: LengthPercentage | string | number;
-    maxWidth: LengthPercentage | string | number;
-    maxHeight: LengthPercentage | string | number;
+    minWidth: LengthAuto;
+    minHeight: LengthAuto;
+    width: LengthAuto;
+    height: LengthAuto;
+    maxWidth: LengthAuto;
+    maxHeight: LengthAuto;
     left: Length;
     right: Length;
     top: Length;
@@ -226,6 +232,6 @@ declare module '@nativescript/core/ui/styling/style' {
     overflow: Overflow;
     overflowX: Overflow;
     overflowY: Overflow;
-    scrollBarWidth: number | CoreTypes.LengthType;
+    scrollBarWidth: Length;
   }
 }

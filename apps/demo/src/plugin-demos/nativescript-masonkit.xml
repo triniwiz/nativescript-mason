@@ -10,8 +10,9 @@
 <ui:View class="body">
 
   <ui:View width="100%" height="100%">
-
-    <ui:Text text="This" backgroundColor="blue" color="orange" textWrap="wrap">
+<ui:Text text="This in a span" style="display:inline" backgroundColor="blue" color="orange" textWrap="wrap" text="Help"></ui:Text>
+</ui:View>
+    <!-- <ui:Text text="This" backgroundColor="blue" color="orange" textWrap="wrap">
       <ui:Text text=" is" backgroundColor="red" color="green" loaded="textLoaded"/>
       <ui:Text text=" a" backgroundColor="purple" color="white" loaded="textLoaded"/>
       <ui:Text text=" nested text" backgroundColor="teal" color="black" loaded="textLoaded"/>
@@ -24,7 +25,7 @@
       </ui:View>
     </ui:View>
     <ui:Img height="200" width="200" src="https://picsum.photos/600/600"></ui:Img>
-  </ui:View>
+  </ui:View> -->
 
 
     <!-- <ui:View width="100%" height="100%">

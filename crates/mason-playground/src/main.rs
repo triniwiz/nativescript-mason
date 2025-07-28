@@ -1,9 +1,14 @@
+use mason_core::style::{DisplayMode, StyleKeys};
 use mason_core::{
-    AvailableSpace, Dimension, Display, LengthPercentage, LengthPercentageAuto,
-    Mason, MeasureOutput, NodeContext, Position, Rect, Size, Style,
+    Dimension, Display, LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, Rect, Size,
 };
-use rand::Rng;
 use std::ffi::{c_longlong, c_void};
+
+#[derive(Debug)]
+struct NodeData {
+    id: i32,
+    text: Option<String>,
+}
 
 fn main() {
     // flex_example();
@@ -11,20 +16,164 @@ fn main() {
     // t();
     //absolute();
     // leafTest();
-    textText()
+    // textText()
+    // p()
+    // p_size();
+    //single_child();
+    single_child_percentage();
 }
-#[derive(Debug)]
-struct NodeData {
-    id: i32,
-    text: Option<String>,
+
+fn single_child_percentage() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(400.),
+            height: Dimension::length(400.),
+        });
+        style.set_padding(Rect {
+            left: LengthPercentage::length(0.),
+            right: LengthPercentage::length(0.),
+            top: LengthPercentage::length(50.),
+            bottom: LengthPercentage::length(0.),
+        });
+    });
+
+    let child = mason.create_node();
+    mason.with_style_mut(child.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::percent(1.),
+            height: Dimension::percent(1.),
+        });
+    });
+    mason.add_child(root.id(), child.id());
+
+    mason.compute_wh(root.id(), 400.0, 400.0);
+    mason.print_tree(root.id());
+    // let layout = mason.layout(root.id());
+    // println!("layout: {:?}", layout);
+}
+
+fn single_child() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_padding(Rect {
+            left: LengthPercentage::length(0.),
+            right: LengthPercentage::length(0.),
+            top: LengthPercentage::length(50.),
+            bottom: LengthPercentage::length(0.),
+        });
+    });
+
+    let child = mason.create_node();
+    mason.with_style_mut(child.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(100.),
+            height: Dimension::length(100.),
+        });
+    });
+    mason.add_child(root.id(), child.id());
+
+    mason.compute_wh(root.id(), 400.0, 400.0);
+    mason.print_tree(root.id());
+    // let layout = mason.layout(root.id());
+    // println!("layout: {:?}", layout);
+}
+fn p_size() {
+    let mut mason = Mason::new();
+
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_top_inset(LengthPercentageAuto::length(100.));
+    });
+
+    let p = mason.create_node();
+    mason.with_style_mut(p.id(), |style| {
+        style.set_display_mode(DisplayMode::Box);
+        style.set_display(Display::Block);
+        style.set_size(Size {
+            width: Dimension::length(150.0),
+            height: Dimension::length(300.0),
+        });
+    });
+
+    let text = mason.create_node();
+    mason.with_style_mut(text.id(), |style| {
+        style.set_display_mode(DisplayMode::Inline);
+        style.set_size(Size {
+            width: Dimension::length(50.0),
+            height: Dimension::length(50.0),
+        });
+    });
+
+    mason.add_child(p.id(), text.id());
+
+    mason.add_child(root.id(), p.id());
+
+    mason.compute_wh(root.id(), 400., 400.);
+
+    mason.print_tree(root.id());
+}
+
+fn span() {
+    let mut mason = Mason::new();
+
+    extern "C" fn measure_text(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        println!(
+            "measure_text {:?} {:?} x {:?}  ....  {:?} x {:?}",
+            data, width, height, available_space_width, available_space_height
+        );
+        MeasureOutput::make(300., 100.)
+    }
+
+    let root = mason.create_node();
+
+    let p = mason.create_node();
+    mason.set_measure(p.id(), Some(measure_text), 0 as _);
+    mason.with_style_mut(p.id(), |style| {
+        style.set_display_mode(DisplayMode::Box);
+        style.set_width(Dimension::length(600.));
+    });
+
+    let text = mason.create_node();
+    mason.set_measure(text.id(), Some(measure_text), 0 as _);
+
+    mason.with_style_mut(text.id(), |style| {
+        style.set_display_mode(DisplayMode::Inline);
+        let size = style.data().len();
+        let buf = style.data_mut().as_mut_ptr() as *mut f32;
+        let style_int = unsafe { std::slice::from_raw_parts_mut(buf, size / 4) };
+        style_int[StyleKeys::MIN_CONTENT_WIDTH as usize / 4] = 20.;
+        style_int[StyleKeys::MAX_CONTENT_WIDTH as usize / 4] = 300.;
+        style_int[StyleKeys::MIN_CONTENT_HEIGHT as usize / 4] = 200.;
+        style_int[StyleKeys::MAX_CONTENT_HEIGHT as usize / 4] = 300.;
+    });
+
+    mason.add_child(p.id(), text.id());
+
+    mason.add_child(root.id(), p.id());
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(p.id());
 }
 
 fn textText() {
     let mut mason = Mason::new();
-    let mut root_style = Style::default();
-    root_style.display = Display::Block;
-    root_style.size.width = Dimension::length(600.);
-    let root = mason.create_node(None);
+    let root = mason.create_node();
+    mason.with_style_mut(root.id(), |style| {
+        style.set_width(Dimension::length(600.));
+    });
 
     extern "C" fn measure_text(
         data: *const c_void,
@@ -35,458 +184,511 @@ fn textText() {
     ) -> c_longlong {
         let data = unsafe { &*(data as *const NodeData) };
         println!(
-            "{:?} {:?} x {:?}  ....  {:?} x {:?}",
+            "measure_text {:?} {:?} x {:?}  ....  {:?} x {:?}",
             data, width, height, available_space_width, available_space_height
         );
-        let width = data.text.as_ref().and_then(|value| Some(value.len() * 10)).unwrap_or_default();
-        MeasureOutput::make(width as f32, 1.)
+        let width = data
+            .text
+            .as_ref()
+            .and_then(|value| Some(value.len() * 10))
+            .unwrap_or_default();
+        println!("width {:?}", width);
+
+        if data.id == 1 {
+            return MeasureOutput::make(500., 100.);
+        }
+
+        MeasureOutput::make(width as f32, 100.)
     }
 
-    let text_root = mason.create_node(None);
-    let mut text_style = Style::default();
-    text_style.display = Display::Flex;
-
-    mason.set_style(&text_root, text_style);
+    let text_root = mason.create_node();
 
     let first_data = NodeData {
         id: 0,
         text: Some("This".to_string()),
     };
 
-    let first_context =
-        NodeContext::new(Box::into_raw(Box::new(first_data)) as _, Some(measure_text));
-    let first_text_actual_node = mason.create_node(Some(first_context));
+    // let first_context =
+    //     NodeContext::new() as _, Some(measure_text));
+    let first_text_actual_node = mason.create_node();
 
-    mason.add_child(&text_root, &first_text_actual_node);
+    mason.with_style_mut(first_text_actual_node.id(), |style| {
+        //  style.set_display(Display::Flex);
+        // style.set_display_mode(DisplayMode::Box);
+        // int_slice[StyleKeys::FORCE_INLINE as usize / 4] = 1;
+    });
+
+    mason.set_measure(
+        first_text_actual_node.id(),
+        Some(measure_text),
+        Box::into_raw(Box::new(first_data)) as _,
+    );
+
+    // mason.add_child(&text_root, &first_text_actual_node);
 
     let second_data = NodeData {
         id: 1,
         text: Some(" is".to_string()),
     };
 
-    let second_context =
-        NodeContext::new(Box::into_raw(Box::new(second_data)) as _, Some(measure_text));
-    let second_text_actual_node = mason.create_node(Some(second_context));
+    // let second_context =
+    //     NodeContext::new(Box::into_raw(Box::new(second_data)) as _, Some(measure_text));
+    let second_text_actual_node = mason.create_node();
 
-    mason.add_child(&text_root, &second_text_actual_node);
+    mason.with_style_mut(second_text_actual_node.id(), |style| {
+        style.set_display_mode(DisplayMode::Inline);
 
+        // let buffer = style.data_mut();
+        // let int_slice = unsafe {
+        //     std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut i32, buffer.len() / 4)
+        // };
+        //
+        //  int_slice[StyleKeys::FORCE_INLINE as usize / 4] = 1;
+    });
 
+    mason.set_measure(
+        second_text_actual_node.id(),
+        Some(measure_text),
+        Box::into_raw(Box::new(second_data)) as _,
+    );
 
+    mason.add_child(text_root.id(), first_text_actual_node.id());
 
+    mason.add_child(first_text_actual_node.id(), second_text_actual_node.id());
 
-    mason.add_child(&root, &text_root);
-    mason.compute_wh(&root, 1000., 1000.);
-    let layout = mason.layout(&root);
-    println!("layout: {:?}", layout);
-  //  mason.print_tree(&root);
+    mason.add_child(root.id(), text_root.id());
+
+    println!(
+        "first {:?} ... second {:?}",
+        first_text_actual_node.id(),
+        second_text_actual_node.id()
+    );
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+    let mut layout = mason.layout(root.id());
+    println!("layout: {:?} {:?}", layout[3], layout[4]);
+
+    layout = mason.layout(text_root.id());
+
+    println!("layout: {:?} {:?}", layout[3], layout[4]);
+
+    layout = mason.layout(first_text_actual_node.id());
+
+    println!("layout: {:?} {:?}", layout[3], layout[4]);
+
+    layout = mason.layout(second_text_actual_node.id());
+
+    println!("layout: {:?} {:?}", layout[3], layout[4]);
+
+    mason.print_tree(root.id());
 }
-fn leafTest() {
-    let mut mason = Mason::new();
-
-    extern "C" fn measure_(
-        data: *const c_void,
-        width: f32,
-        height: f32,
-        available_space_width: f32,
-        available_space_height: f32,
-    ) -> c_longlong {
-        let data = unsafe { &*(data as *const NodeData) };
-        println!(
-            "{:?} {:?} x {:?}  ....  {:?} x {:?}",
-            data, width, height, available_space_width, available_space_height
-        );
-        MeasureOutput::make(100., 200.)
-    }
-
-    let root_data = NodeData { id: 0, text: None };
-    let ctx = NodeContext::new(Box::into_raw(Box::new(root_data)) as _, Some(measure_));
-    let root = mason.create_node(None);
-
-    let mut root_style = Style::default();
-    root_style.display = Display::Block;
-    // root_style.flex_direction = FlexDirection::Column;
-    mason.set_style(&root, root_style);
-
-    let leaf_a_data = NodeData { id: 1, text: None };
-    let leaf_a_ctx = NodeContext::new(Box::into_raw(Box::new(leaf_a_data)) as _, Some(measure_));
-    let leaf_a = mason.create_node(Some(leaf_a_ctx));
-
-    let mut leaf_a_style = Style::default();
-    leaf_a_style.display = Display::Flex;
-    leaf_a_style.min_size = Size {
-        width: Dimension::length(100.),
-        height: Dimension::length(100.),
-    };
-
-    leaf_a_style.size = Size {
-        width: Dimension::length(100.),
-        height: Dimension::length(100.),
-    };
-
-    mason.set_style(&leaf_a, leaf_a_style);
-
-    mason.add_child(&root, &leaf_a);
-
-    mason.compute_wh(&root, 1206.0, 2622.0);
-
-    //  mason.compute(&root);
-    mason.print_tree(&root);
-}
+// fn leafTest() {
+//     let mut mason = Mason::new();
+//
+//     extern "C" fn measure_(
+//         data: *const c_void,
+//         width: f32,
+//         height: f32,
+//         available_space_width: f32,
+//         available_space_height: f32,
+//     ) -> c_longlong {
+//         let data = unsafe { &*(data as *const NodeData) };
+//         println!(
+//             "{:?} {:?} x {:?}  ....  {:?} x {:?}",
+//             data, width, height, available_space_width, available_space_height
+//         );
+//         MeasureOutput::make(100., 200.)
+//     }
+//
+//     let root_data = NodeData { id: 0, text: None };
+//     let ctx = NodeContext::new(Box::into_raw(Box::new(root_data)) as _, Some(measure_));
+//     let root = mason.create_node(None);
+//
+//     let mut root_style = Style::default();
+//     root_style.display = Display::Block;
+//     // root_style.flex_direction = FlexDirection::Column;
+//     mason.set_style(&root, root_style);
+//
+//     let leaf_a_data = NodeData { id: 1, text: None };
+//     let leaf_a_ctx = NodeContext::new(Box::into_raw(Box::new(leaf_a_data)) as _, Some(measure_));
+//     let leaf_a = mason.create_node(Some(leaf_a_ctx));
+//
+//     let mut leaf_a_style = Style::default();
+//     leaf_a_style.display = Display::Flex;
+//     leaf_a_style.min_size = Size {
+//         width: Dimension::length(100.),
+//         height: Dimension::length(100.),
+//     };
+//
+//     leaf_a_style.size = Size {
+//         width: Dimension::length(100.),
+//         height: Dimension::length(100.),
+//     };
+//
+//     mason.set_style(&leaf_a, leaf_a_style);
+//
+//     mason.add_child(&root, &leaf_a);
+//
+//     mason.compute_wh(&root, 1206.0, 2622.0);
+//
+//     //  mason.compute(&root);
+//     mason.print_tree(&root);
+// }
 
 #[derive(Debug)]
 struct Data {
     kind: i32,
 }
 
-fn absolute() -> Option<()> {
-    let mut mason = Mason::new();
-
-    extern "C" fn measure_f(
-        data: *const c_void,
-        width: f32,
-        height: f32,
-        available_space_width: f32,
-        available_space_height: f32,
-    ) -> c_longlong {
-        MeasureOutput::make(100., 200.)
-    }
-
-    let child = mason.create_node(None);
-
-    {
-        let mut style = Style::default();
-        style.display = Display::Block;
-        style.position = Position::Absolute;
-
-        style.inset = Rect {
-            right: LengthPercentageAuto::length(0.),
-            top: LengthPercentageAuto::auto(),
-            left: LengthPercentageAuto::auto(),
-            bottom: LengthPercentageAuto::percent(0.5),
-        };
-
-        style.max_size = Size {
-            width: Dimension::length(12.),
-            height: Dimension::length(12.),
-        };
-
-        /*
-        style.padding = Rect {
-            left: LengthPercentage::length(2.),
-            right: LengthPercentage::length(4.),
-            top: LengthPercentage::length(6.),
-            bottom: LengthPercentage::length(8.),
-        };
-
-        style.border = Rect {
-            left: LengthPercentage::length(1.),
-            right: LengthPercentage::length(3.),
-            top: LengthPercentage::length(5.),
-            bottom: LengthPercentage::length(7.),
-        };
-        */
-
-        mason.set_style(&child, style);
-    }
-
-    let root_id = mason.create_node(None);
-
-    let mut style = Style::default();
-    style.display = Display::Block;
-    style.size = Size {
-        width: Dimension::length(1080.0),
-        height: Dimension::length(1984.0),
-    };
-
-    mason.set_style(&root_id, style);
-
-    mason.add_children(&root_id, &[child.id()]);
-
-    mason.compute_layout(
-        &root_id,
-        Size {
-            width: AvailableSpace::Definite(1080.0),
-            height: AvailableSpace::Definite(1984.0),
-        },
-    );
-
-    let layout = mason.layout(&root_id);
-
-    mason.print_tree(&root_id);
-
-    Some(())
-}
-
-fn t() -> Option<()> {
-    let mut mason = Mason::new();
-    let mut root_style = Style::default();
-    root_style.display = Display::Block;
-
-    let mut style = Style::default();
-    style.display = Display::Block;
-
-    extern "C" fn measure_f(
-        data: *const c_void,
-        width: f32,
-        height: f32,
-        available_space_width: f32,
-        available_space_height: f32,
-    ) -> c_longlong {
-        MeasureOutput::make(100., 200.)
-    }
-
-    let child = mason.create_node(None);
-
-    /*
-
-        TREE
-    └──  BLOCK [x: 0    y: 0    w: 100  h: 26   content_w: 12   content_h: 26   border: l:0 r:0 t:0 b:0, padding: l:0 r:0 t:0 b:0] (NodeId(4294967298))
-        └──  LEAF [x: 0    y: 0    w: 12   h: 26   content_w: 8    content_h: 0    border: l:1 r:3 t:5 b:7, padding: l:2 r:4 t:6 b:8] (NodeId(4294967297))
-
-         */
-
-    {
-        let mut style = Style::default();
-        style.display = Display::Block;
-
-        style.max_size = Size {
-            width: Dimension::length(12.),
-            height: Dimension::length(12.),
-        };
-        style.padding = Rect {
-            left: LengthPercentage::length(2.),
-            right: LengthPercentage::length(4.),
-            top: LengthPercentage::length(6.),
-            bottom: LengthPercentage::length(8.),
-        };
-
-        style.border = Rect {
-            left: LengthPercentage::length(1.),
-            right: LengthPercentage::length(3.),
-            top: LengthPercentage::length(5.),
-            bottom: LengthPercentage::length(7.),
-        };
-
-        mason.set_style(&child, style);
-    }
-
-    let root_id = mason.create_node(None);
-
-    mason.add_children(&root_id, &[child.id()]);
-
-    mason.compute_layout(
-        &root_id,
-        Size {
-            width: AvailableSpace::Definite(1080.0),
-            height: AvailableSpace::Definite(1984.0),
-        },
-    );
-
-    mason.print_tree(&root_id);
-
-    Some(())
-}
-
-fn percent_example() {
-    let mut mason = Mason::new();
-    let root_id = mason.create_node(None);
-
-    let mut rng = rand::rng();
-    let random_size = vec![(0f32, 0f32); 1000]
-        .into_iter()
-        .map(|size| {
-            let width: f32 = rng.random_range(0.0..1.);
-
-            let height: f32 = rng.random_range(0.0..1.);
-
-            (width, height)
-        })
-        .collect::<Vec<_>>();
-
-    struct Data {
-        ptr: *const (f32, f32),
-        len: usize,
-    }
-
-    extern "C" fn measure(
-        data: *const c_void,
-        width: f32,
-        height: f32,
-        available_space_width: f32,
-        available_space_height: f32,
-    ) -> c_longlong {
-        println!("??");
-        MeasureOutput::make(100., 200.)
-    }
-
-    let data = Box::into_raw(Box::new(Data {
-        ptr: random_size.as_ptr(),
-        len: random_size.len(),
-    }));
-
-    for i in 0..1000 {
-        let ctx = NodeContext::new(data as _, Some(measure));
-        let child_id = mason.create_node(Some(ctx));
-
-        {
-            //  let child = mason.get_node_mut(child_id).unwrap();
-            let size = random_size[i];
-            let width = size.0;
-            let height = size.1;
-
-            let mut buffer = [0u8; 310];
-
-            let size = Size {
-                width: Dimension::percent(width),
-                height: Dimension::percent(height),
-            };
-
-            // child.style_mut().size = size;
-        }
-
-        mason.add_child(&root_id, &child_id);
-    }
-
-    {
-        //  let mut root = mason.get_node_mut(root_id).unwrap();
-        // root.set_rounded(true);
-        //  root.style_mut().size = Size {
-        //      width: Dimension::percent(1.),
-        //      height: Dimension::percent(1.),
-        //  };
-    }
-
-    let child_a_id = mason.create_node(None);
-
-    {
-        //   let child_a = mason.get_node_mut(child_a_id).unwrap();
-
-        let size = Size {
-            width: Dimension::percent(0.25),
-            height: Dimension::percent(1.),
-        };
-
-        // child_a.style_mut().size = size;
-    }
-
-    mason.add_child(&root_id, &child_a_id);
-
-    let child_b_id = mason.create_node(None);
-
-    {
-        //  let child_b = mason.get_node_mut(child_b_id).unwrap();
-
-        let ctx = NodeContext::new(data as _, Some(measure));
-        mason.set_node_context(&child_b_id, ctx)
-    }
-
-    mason.add_child(&root_id, &child_a_id);
-
-    mason.add_child(&root_id, &child_b_id);
-
-    /* let mut child_a_style = Style::default();
-
-    let size = Size::<Dimension>::new_with_dim(Dimension::Points(1500.), Dimension::Points(3000.));
-
-    child_a_style.set_size(size);
-
-    let child_a = mason.new_node_with_measure_func(child_a_style, MeasureFunc::Boxed(Box::new(|known,available|{
-
-        println!("{:?} {:?}", &known, &available);
-
-        known.unwrap_or(Size::<f32>::new(f32::NAN,f32::NAN).into())
-    }))).unwrap();
-
-    let mut child_b_style = Style::default();
-
-    child_b_style.set_size(size);
-
-    let child_b = mason.new_node_with_measure_func(child_b_style, MeasureFunc::Boxed(Box::new(|known,available|{
-
-        println!("{:?} {:?}", &known, &available);
-
-        known.unwrap_or(Size::<f32>::new(f32::NAN,f32::NAN).into())
-    }))).unwrap();
-
-    // mason.add_children(root, &[child_a, child_b]);
-
-    mason.add_child(root, child_a);
-
-    mason.add_child(root, child_b);
-
-    */
-
-    mason.compute(&root_id);
-    // mason.compute_size(root, root_size);
-    //mason.compute_wh(root_id, 1179.0, 2556.0);
-
-    // let layout = root.layout();
-    //  println!(
-    //      "layout {:?} {}",
-    //      mason.layout(root_id),
-    //      mason.child_count(root_id)
-    //  );
-
-    mason.print_tree(&root_id);
-}
-
-fn flex_example() {
-    // let mut mason = Mason::default();
-    //
-    // let mut style = Style::default();
-    //
-    // let root_size =
-    //     Size::<Dimension>::new_with_dim(Dimension::length(1179.0), Dimension::length(2556.0));
-    //
-    // // style.set_size(root_size);
-    //
-    // style.set_flex_direction(FlexDirection::Column);
-    //
-    // let root = mason.new_node(style).unwrap();
-    //
-    // let mut child_a_style = Style::default();
-    //
-    // let size = Size::<Dimension>::new_with_dim(Dimension::length(1500.), Dimension::length(3000.));
-    //
-    // child_a_style.set_size(size);
-    //
-    // extern "C" fn func(
-    //     data: *const c_void,
-    //     width: f32,
-    //     height: f32,
-    //     available_space_width: f32,
-    //     available_space_height: f32,
-    // ) -> c_longlong {
-    //     println!(
-    //         "{:?} {:?} {} {}",
-    //         width, height, available_space_width, available_space_width
-    //     );
-    //
-    //     MeasureOutput::make(width, height)
-    // };
-    //
-    // let context = NodeContext::new(0 as _, Some(func));
-    //
-    // let child_a = mason.new_node_with_context(child_a_style, context).unwrap();
-    //
-    // let mut child_b_style = Style::default();
-    //
-    // child_b_style.set_size(size);
-    //
-    // let context2 = NodeContext::new(0 as _, Some(func));
-    //
-    // let child_b = mason
-    //     .new_node_with_context(child_b_style, context2)
-    //     .unwrap();
-    //
-    // // mason.add_children(root, &[child_a, child_b]);
-    //
-    // mason.add_child(root, child_a);
-    //
-    // mason.add_child(root, child_b);
-    //
-    // mason.compute_size(root, Size::<AvailableSpace>::max_content());
-    // // mason.compute_wh(root, 1000., 1000.);
-    //
-    // println!("layout {:?}", mason.layout(root))
-}
+// fn absolute() -> Option<()> {
+//     let mut mason = Mason::new();
+//
+//     extern "C" fn measure_f(
+//         data: *const c_void,
+//         width: f32,
+//         height: f32,
+//         available_space_width: f32,
+//         available_space_height: f32,
+//     ) -> c_longlong {
+//         MeasureOutput::make(100., 200.)
+//     }
+//
+//     let child = mason.create_node(None);
+//
+//     {
+//         let mut style = Style::default();
+//         style.display = Display::Block;
+//         style.position = Position::Absolute;
+//
+//         style.inset = Rect {
+//             right: LengthPercentageAuto::length(0.),
+//             top: LengthPercentageAuto::auto(),
+//             left: LengthPercentageAuto::auto(),
+//             bottom: LengthPercentageAuto::percent(0.5),
+//         };
+//
+//         style.max_size = Size {
+//             width: Dimension::length(12.),
+//             height: Dimension::length(12.),
+//         };
+//
+//         /*
+//         style.padding = Rect {
+//             left: LengthPercentage::length(2.),
+//             right: LengthPercentage::length(4.),
+//             top: LengthPercentage::length(6.),
+//             bottom: LengthPercentage::length(8.),
+//         };
+//
+//         style.border = Rect {
+//             left: LengthPercentage::length(1.),
+//             right: LengthPercentage::length(3.),
+//             top: LengthPercentage::length(5.),
+//             bottom: LengthPercentage::length(7.),
+//         };
+//         */
+//
+//         mason.set_style(&child, style);
+//     }
+//
+//     let root_id = mason.create_node(None);
+//
+//     let mut style = Style::default();
+//     style.display = Display::Block;
+//     style.size = Size {
+//         width: Dimension::length(1080.0),
+//         height: Dimension::length(1984.0),
+//     };
+//
+//     mason.set_style(&root_id, style);
+//
+//     mason.add_children(&root_id, &[child.id()]);
+//
+//     mason.compute_layout(
+//         &root_id,
+//         Size {
+//             width: AvailableSpace::Definite(1080.0),
+//             height: AvailableSpace::Definite(1984.0),
+//         },
+//     );
+//
+//     let layout = mason.layout(&root_id);
+//
+//     mason.print_tree(&root_id);
+//
+//     Some(())
+// }
+//
+// fn t() -> Option<()> {
+//     let mut mason = Mason::new();
+//     let mut root_style = Style::default();
+//     root_style.display = Display::Block;
+//
+//     let mut style = Style::default();
+//     style.display = Display::Block;
+//
+//     extern "C" fn measure_f(
+//         data: *const c_void,
+//         width: f32,
+//         height: f32,
+//         available_space_width: f32,
+//         available_space_height: f32,
+//     ) -> c_longlong {
+//         MeasureOutput::make(100., 200.)
+//     }
+//
+//     let child = mason.create_node(None);
+//
+//     /*
+//
+//         TREE
+//     └──  BLOCK [x: 0    y: 0    w: 100  h: 26   content_w: 12   content_h: 26   border: l:0 r:0 t:0 b:0, padding: l:0 r:0 t:0 b:0] (NodeId(4294967298))
+//         └──  LEAF [x: 0    y: 0    w: 12   h: 26   content_w: 8    content_h: 0    border: l:1 r:3 t:5 b:7, padding: l:2 r:4 t:6 b:8] (NodeId(4294967297))
+//
+//          */
+//
+//     {
+//         let mut style = Style::default();
+//         style.display = Display::Block;
+//
+//         style.max_size = Size {
+//             width: Dimension::length(12.),
+//             height: Dimension::length(12.),
+//         };
+//         style.padding = Rect {
+//             left: LengthPercentage::length(2.),
+//             right: LengthPercentage::length(4.),
+//             top: LengthPercentage::length(6.),
+//             bottom: LengthPercentage::length(8.),
+//         };
+//
+//         style.border = Rect {
+//             left: LengthPercentage::length(1.),
+//             right: LengthPercentage::length(3.),
+//             top: LengthPercentage::length(5.),
+//             bottom: LengthPercentage::length(7.),
+//         };
+//
+//         mason.set_style(&child, style);
+//     }
+//
+//     let root_id = mason.create_node(None);
+//
+//     mason.add_children(&root_id, &[child.id()]);
+//
+//     mason.compute_layout(
+//         &root_id,
+//         Size {
+//             width: AvailableSpace::Definite(1080.0),
+//             height: AvailableSpace::Definite(1984.0),
+//         },
+//     );
+//
+//     mason.print_tree(&root_id);
+//
+//     Some(())
+// }
+//
+// fn percent_example() {
+//     let mut mason = Mason::new();
+//     let root_id = mason.create_node(None);
+//
+//     let mut rng = rand::rng();
+//     let random_size = vec![(0f32, 0f32); 1000]
+//         .into_iter()
+//         .map(|size| {
+//             let width: f32 = rng.random_range(0.0..1.);
+//
+//             let height: f32 = rng.random_range(0.0..1.);
+//
+//             (width, height)
+//         })
+//         .collect::<Vec<_>>();
+//
+//     struct Data {
+//         ptr: *const (f32, f32),
+//         len: usize,
+//     }
+//
+//     extern "C" fn measure(
+//         data: *const c_void,
+//         width: f32,
+//         height: f32,
+//         available_space_width: f32,
+//         available_space_height: f32,
+//     ) -> c_longlong {
+//         println!("??");
+//         MeasureOutput::make(100., 200.)
+//     }
+//
+//     let data = Box::into_raw(Box::new(Data {
+//         ptr: random_size.as_ptr(),
+//         len: random_size.len(),
+//     }));
+//
+//     for i in 0..1000 {
+//         let ctx = NodeContext::new(data as _, Some(measure));
+//         let child_id = mason.create_node(Some(ctx));
+//
+//         {
+//             //  let child = mason.get_node_mut(child_id).unwrap();
+//             let size = random_size[i];
+//             let width = size.0;
+//             let height = size.1;
+//
+//             let mut buffer = [0u8; 310];
+//
+//             let size = Size {
+//                 width: Dimension::percent(width),
+//                 height: Dimension::percent(height),
+//             };
+//
+//             // child.style_mut().size = size;
+//         }
+//
+//         mason.add_child(&root_id, &child_id);
+//     }
+//
+//     {
+//         //  let mut root = mason.get_node_mut(root_id).unwrap();
+//         // root.set_rounded(true);
+//         //  root.style_mut().size = Size {
+//         //      width: Dimension::percent(1.),
+//         //      height: Dimension::percent(1.),
+//         //  };
+//     }
+//
+//     let child_a_id = mason.create_node(None);
+//
+//     {
+//         //   let child_a = mason.get_node_mut(child_a_id).unwrap();
+//
+//         let size = Size {
+//             width: Dimension::percent(0.25),
+//             height: Dimension::percent(1.),
+//         };
+//
+//         // child_a.style_mut().size = size;
+//     }
+//
+//     mason.add_child(&root_id, &child_a_id);
+//
+//     let child_b_id = mason.create_node(None);
+//
+//     {
+//         //  let child_b = mason.get_node_mut(child_b_id).unwrap();
+//
+//         let ctx = NodeContext::new(data as _, Some(measure));
+//         mason.set_node_context(&child_b_id, ctx)
+//     }
+//
+//     mason.add_child(&root_id, &child_a_id);
+//
+//     mason.add_child(&root_id, &child_b_id);
+//
+//     /* let mut child_a_style = Style::default();
+//
+//     let size = Size::<Dimension>::new_with_dim(Dimension::Points(1500.), Dimension::Points(3000.));
+//
+//     child_a_style.set_size(size);
+//
+//     let child_a = mason.new_node_with_measure_func(child_a_style, MeasureFunc::Boxed(Box::new(|known,available|{
+//
+//         println!("{:?} {:?}", &known, &available);
+//
+//         known.unwrap_or(Size::<f32>::new(f32::NAN,f32::NAN).into())
+//     }))).unwrap();
+//
+//     let mut child_b_style = Style::default();
+//
+//     child_b_style.set_size(size);
+//
+//     let child_b = mason.new_node_with_measure_func(child_b_style, MeasureFunc::Boxed(Box::new(|known,available|{
+//
+//         println!("{:?} {:?}", &known, &available);
+//
+//         known.unwrap_or(Size::<f32>::new(f32::NAN,f32::NAN).into())
+//     }))).unwrap();
+//
+//     // mason.add_children(root, &[child_a, child_b]);
+//
+//     mason.add_child(root, child_a);
+//
+//     mason.add_child(root, child_b);
+//
+//     */
+//
+//     mason.compute(&root_id);
+//     // mason.compute_size(root, root_size);
+//     //mason.compute_wh(root_id, 1179.0, 2556.0);
+//
+//     // let layout = root.layout();
+//     //  println!(
+//     //      "layout {:?} {}",
+//     //      mason.layout(root_id),
+//     //      mason.child_count(root_id)
+//     //  );
+//
+//     mason.print_tree(&root_id);
+// }
+//
+// fn flex_example() {
+//     // let mut mason = Mason::default();
+//     //
+//     // let mut style = Style::default();
+//     //
+//     // let root_size =
+//     //     Size::<Dimension>::new_with_dim(Dimension::length(1179.0), Dimension::length(2556.0));
+//     //
+//     // // style.set_size(root_size);
+//     //
+//     // style.set_flex_direction(FlexDirection::Column);
+//     //
+//     // let root = mason.new_node(style).unwrap();
+//     //
+//     // let mut child_a_style = Style::default();
+//     //
+//     // let size = Size::<Dimension>::new_with_dim(Dimension::length(1500.), Dimension::length(3000.));
+//     //
+//     // child_a_style.set_size(size);
+//     //
+//     // extern "C" fn func(
+//     //     data: *const c_void,
+//     //     width: f32,
+//     //     height: f32,
+//     //     available_space_width: f32,
+//     //     available_space_height: f32,
+//     // ) -> c_longlong {
+//     //     println!(
+//     //         "{:?} {:?} {} {}",
+//     //         width, height, available_space_width, available_space_width
+//     //     );
+//     //
+//     //     MeasureOutput::make(width, height)
+//     // };
+//     //
+//     // let context = NodeContext::new(0 as _, Some(func));
+//     //
+//     // let child_a = mason.new_node_with_context(child_a_style, context).unwrap();
+//     //
+//     // let mut child_b_style = Style::default();
+//     //
+//     // child_b_style.set_size(size);
+//     //
+//     // let context2 = NodeContext::new(0 as _, Some(func));
+//     //
+//     // let child_b = mason
+//     //     .new_node_with_context(child_b_style, context2)
+//     //     .unwrap();
+//     //
+//     // // mason.add_children(root, &[child_a, child_b]);
+//     //
+//     // mason.add_child(root, child_a);
+//     //
+//     // mason.add_child(root, child_b);
+//     //
+//     // mason.compute_size(root, Size::<AvailableSpace>::max_content());
+//     // // mason.compute_wh(root, 1000., 1000.);
+//     //
+//     // println!("layout {:?}", mason.layout(root))
+// }

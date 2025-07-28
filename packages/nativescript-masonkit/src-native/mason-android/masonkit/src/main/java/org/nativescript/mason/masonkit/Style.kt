@@ -1,26 +1,24 @@
 package org.nativescript.mason.masonkit
 
 import android.view.View
-import dalvik.annotation.optimization.CriticalNative
 import dalvik.annotation.optimization.FastNative
+import org.nativescript.mason.masonkit.Display.Block
+import org.nativescript.mason.masonkit.Display.Flex
+import org.nativescript.mason.masonkit.Display.Grid
+import org.nativescript.mason.masonkit.Display.Inline
+import org.nativescript.mason.masonkit.Display.InlineBlock
+import org.nativescript.mason.masonkit.Display.InlineFlex
+import org.nativescript.mason.masonkit.Display.InlineGrid
+import org.nativescript.mason.masonkit.Display.None
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
 enum class TextType(val value: Int) {
-  None(0),
-  P(1),
-  Span(2),
-  Code(3),
-  H1(4),
-  H2(5),
-  H3(6),
-  H4(7),
-  H5(8),
-  H6(9),
-  Li(10),
-  Blockquote(11),
-  B(12);
+  None(0), P(1), Span(2), Code(3), H1(4), H2(5), H3(6), H4(7), H5(8), H6(9), Li(10), Blockquote(11), B(
+    12
+  ),
+  Pre(13);
 
   val cssValue: String
     get() {
@@ -38,6 +36,7 @@ enum class TextType(val value: Int) {
         Li -> "li"
         Blockquote -> "blockquote"
         B -> "b"
+        Pre -> "pre"
       }
     }
 
@@ -57,22 +56,15 @@ enum class TextType(val value: Int) {
         10 -> Li
         11 -> Blockquote
         12 -> B
+        13 -> Pre
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
   }
 }
 
-
 enum class AlignItems(val value: Int) {
-  Normal(-1),
-  Start(0),
-  End(1),
-  Center(2),
-  Baseline(3),
-  Stretch(4),
-  FlexStart(5),
-  FlexEnd(6);
+  Normal(-1), Start(0), End(1), Center(2), Baseline(3), Stretch(4), FlexStart(5), FlexEnd(6);
 
   val cssValue: String
     get() {
@@ -106,14 +98,7 @@ enum class AlignItems(val value: Int) {
 }
 
 enum class AlignSelf(val value: Int) {
-  Normal(-1),
-  Start(0),
-  End(1),
-  Center(2),
-  Baseline(3),
-  Stretch(4),
-  FlexStart(5),
-  FlexEnd(6);
+  Normal(-1), Start(0), End(1), Center(2), Baseline(3), Stretch(4), FlexStart(5), FlexEnd(6);
 
   val cssValue: String
     get() {
@@ -147,16 +132,10 @@ enum class AlignSelf(val value: Int) {
 }
 
 enum class AlignContent(val value: Int) {
-  Normal(-1),
-  Start(0),
-  End(1),
-  Center(2),
-  Stretch(3),
-  SpaceBetween(4),
-  SpaceAround(5),
-  SpaceEvenly(6),
-  FlexStart(7),
-  FlexEnd(8);
+  Normal(-1), Start(0), End(1), Center(2), Stretch(3), SpaceBetween(4), SpaceAround(5), SpaceEvenly(
+    6
+  ),
+  FlexStart(7), FlexEnd(8);
 
   val cssValue: String
     get() {
@@ -195,9 +174,7 @@ enum class AlignContent(val value: Int) {
 }
 
 enum class Direction(val value: Int) {
-  Inherit(0),
-  LTR(1),
-  RTL(2);
+  Inherit(0), LTR(1), RTL(2);
 
   val cssValue: String
     get() {
@@ -220,11 +197,23 @@ enum class Direction(val value: Int) {
   }
 }
 
+internal enum class DisplayMode(val value: Int) {
+  None(0), Inline(1), Box(2);
+
+  companion object {
+    fun fromInt(value: Int): DisplayMode {
+      return when (value) {
+        0 -> None
+        1 -> Inline
+        2 -> Box
+        else -> throw IllegalArgumentException("Unknown enum value: $value")
+      }
+    }
+  }
+}
+
 enum class Display(val value: Int) {
-  None(0),
-  Flex(1),
-  Grid(2),
-  Block(3);
+  None(0), Flex(1), Grid(2), Block(3), Inline(4), InlineBlock(5), InlineFlex(6), InlineGrid(7);
 
   val cssValue: String
     get() {
@@ -233,6 +222,10 @@ enum class Display(val value: Int) {
         Flex -> "flex"
         Grid -> "grid"
         Block -> "block"
+        Inline -> "inline"
+        InlineBlock -> "inline-block"
+        InlineFlex -> "inline-flex"
+        InlineGrid -> "inline-grid"
       }
     }
 
@@ -243,6 +236,10 @@ enum class Display(val value: Int) {
         1 -> Flex
         2 -> Grid
         3 -> Block
+        4 -> Inline
+        5 -> InlineBlock
+        6 -> InlineFlex
+        7 -> InlineGrid
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -250,10 +247,7 @@ enum class Display(val value: Int) {
 }
 
 enum class FlexDirection(val value: Int) {
-  Row(0),
-  Column(1),
-  RowReverse(2),
-  ColumnReverse(3);
+  Row(0), Column(1), RowReverse(2), ColumnReverse(3);
 
   val cssValue: String
     get() {
@@ -279,14 +273,7 @@ enum class FlexDirection(val value: Int) {
 }
 
 enum class JustifySelf(val value: Int) {
-  Normal(-1),
-  Start(0),
-  End(1),
-  Center(2),
-  Baseline(3),
-  Stretch(4),
-  FlexStart(5),
-  FlexEnd(6);
+  Normal(-1), Start(0), End(1), Center(2), Baseline(3), Stretch(4), FlexStart(5), FlexEnd(6);
 
   val cssValue: String
     get() {
@@ -320,14 +307,7 @@ enum class JustifySelf(val value: Int) {
 }
 
 enum class JustifyItems(val value: Int) {
-  Normal(-1),
-  Start(0),
-  End(1),
-  Center(2),
-  Baseline(3),
-  Stretch(4),
-  FlexStart(5),
-  FlexEnd(6);
+  Normal(-1), Start(0), End(1), Center(2), Baseline(3), Stretch(4), FlexStart(5), FlexEnd(6);
 
   val cssValue: String
     get() {
@@ -361,16 +341,10 @@ enum class JustifyItems(val value: Int) {
 }
 
 enum class JustifyContent(val value: Int) {
-  Normal(-1),
-  Start(0),
-  End(1),
-  Center(2),
-  Stretch(3),
-  SpaceBetween(4),
-  SpaceAround(5),
-  SpaceEvenly(6),
-  FlexStart(7),
-  FlexEnd(7);
+  Normal(-1), Start(0), End(1), Center(2), Stretch(3), SpaceBetween(4), SpaceAround(5), SpaceEvenly(
+    6
+  ),
+  FlexStart(7), FlexEnd(7);
 
   val cssValue: String
     get() {
@@ -408,10 +382,7 @@ enum class JustifyContent(val value: Int) {
 }
 
 enum class Overflow(val value: Int) {
-  Unset(-1),
-  Visible(0),
-  Hidden(1),
-  Scroll(2);
+  Unset(-1), Visible(0), Hidden(1), Scroll(2);
 
   val cssValue: String
     get() {
@@ -437,8 +408,7 @@ enum class Overflow(val value: Int) {
 }
 
 enum class Position(val value: Int) {
-  Relative(0),
-  Absolute(1);
+  Relative(0), Absolute(1);
 
   val cssValue: String
     get() {
@@ -460,9 +430,7 @@ enum class Position(val value: Int) {
 }
 
 enum class FlexWrap(val value: Int) {
-  NoWrap(0),
-  Wrap(1),
-  WrapReverse(2);
+  NoWrap(0), Wrap(1), WrapReverse(2);
 
   val cssValue: String
     get() {
@@ -486,10 +454,7 @@ enum class FlexWrap(val value: Int) {
 }
 
 enum class GridAutoFlow(val value: Int) {
-  Row(0),
-  Column(1),
-  RowDense(2),
-  ColumnDense(3);
+  Row(0), Column(1), RowDense(2), ColumnDense(3);
 
   val cssValue: String
     get() {
@@ -515,13 +480,7 @@ enum class GridAutoFlow(val value: Int) {
 }
 
 enum class TextAlign(val value: Int) {
-  Auto(0),
-  Left(1),
-  Right(2),
-  Center(3),
-  Justify(4),
-  Start(5),
-  End(6);
+  Auto(0), Left(1), Right(2), Center(3), Justify(4), Start(5), End(6);
 
   val cssValue: String
     get() {
@@ -553,8 +512,7 @@ enum class TextAlign(val value: Int) {
 }
 
 enum class BoxSizing(val value: Int) {
-  BorderBox(0),
-  ContentBox(1);
+  BorderBox(0), ContentBox(1);
 
   val cssValue: String
     get() {
@@ -736,7 +694,7 @@ val Array<TrackSizingFunction>.jsonValue: String
 val Array<TrackSizingFunction>.cssValue: String
   get() {
     if (isEmpty()) {
-      return ""
+      return "[]"
     }
     val builder = StringBuilder()
     val last = this.lastIndex
@@ -847,6 +805,11 @@ object StyleKeys {
   const val BOX_SIZING = 308
   const val OVERFLOW = 312
   const val ITEM_IS_TABLE = 316 //Byte
+  const val ITEM_IS_REPLACED = 320 //Byte
+  const val DISPLAY_MODE = 324
+  const val FORCE_INLINE = 328
+  const val MIN_CONTENT = 332
+  const val MAX_CONTENT = 336
 }
 
 @JvmInline
@@ -885,6 +848,11 @@ value class StateKeys internal constructor(val bits: Long) {
     val BOX_SIZING = StateKeys(1L shl 30)
     val OVERFLOW = StateKeys(1L shl 31)
     val ITEM_IS_TABLE = StateKeys(1L shl 32)
+    val ITEM_IS_REPLACED = StateKeys(1L shl 33)
+    val DISPLAY_MODE = StateKeys(1L shl 34)
+    val FORCE_INLINE = StateKeys(1L shl 35)
+    val MIN_CONTENT = StateKeys(1L shl 36)
+    val MAX_CONTENT = StateKeys(1L shl 37)
   }
 
   infix fun or(other: StateKeys): StateKeys = StateKeys(bits or other.bits)
@@ -894,15 +862,9 @@ value class StateKeys internal constructor(val bits: Long) {
 
 
 class Style internal constructor(private var node: Node) {
-  val values: ByteBuffer =
-    nativeGetStyleBuffer(node.mason.nativePtr, node.nativePtr)?.apply {
-      order(ByteOrder.nativeOrder())
-    } ?: ByteBuffer.allocateDirect(
-      StyleKeys.ITEM_IS_TABLE + 4
-    ).apply {
-      order(ByteOrder.nativeOrder())
-      nativeUpdateStyleBuffer(node.mason.nativePtr, node.nativePtr, this)
-    }
+  val values: ByteBuffer = nativeGetStyleBuffer(node.mason.nativePtr, node.nativePtr).apply {
+    order(ByteOrder.nativeOrder())
+  }
 
   internal var isDirty = -1L
   private var isSlowDirty = false
@@ -944,12 +906,80 @@ class Style internal constructor(private var node: Node) {
     inBatch = false
   }
 
-  var display: Display
+  // allow overriding of the display
+  internal var forceInline: Boolean
     get() {
-      return Display.fromInt(values.getInt(StyleKeys.DISPLAY))
+      return values.getInt(StyleKeys.FORCE_INLINE) != 0
     }
     set(value) {
-      values.putInt(StyleKeys.DISPLAY, value.value)
+      values.putInt(
+        StyleKeys.FORCE_INLINE, if (value) {
+          1
+        } else {
+          0
+        }
+      )
+      setOrAppendState(StateKeys.FORCE_INLINE)
+    }
+
+  var display: Display
+    get() {
+      val mode = DisplayMode.fromInt(values.getInt(StyleKeys.DISPLAY_MODE))
+      return when (mode) {
+        DisplayMode.None -> {
+          Display.fromInt(values.getInt(StyleKeys.DISPLAY))
+        }
+
+        DisplayMode.Inline -> {
+          Inline
+        }
+
+        DisplayMode.Box -> {
+          when (Display.fromInt(values.getInt(StyleKeys.DISPLAY))) {
+            Flex -> InlineFlex
+            Grid -> InlineGrid
+            Block -> InlineBlock
+            else -> {
+              // invalidate state
+              // Block, Flex, Grid
+              throw IllegalStateException("Display cannot be anything other than 0,1,2 when mode is set")
+            }
+          }
+        }
+      }
+    }
+    set(value) {
+      if (value == Inline && !node.isText) {
+        return
+      }
+      var displayMode = DisplayMode.None
+      val display = when (value) {
+        None, Flex, Grid, Block -> value.value
+        Inline -> {
+          displayMode = DisplayMode.Inline
+          Block.value
+        }
+
+        InlineBlock -> {
+          displayMode = DisplayMode.Box
+          Block.value
+        }
+
+        InlineFlex -> {
+          displayMode = DisplayMode.Box
+          Flex.value
+        }
+
+        InlineGrid -> {
+          displayMode = DisplayMode.Box
+          Grid.value
+        }
+      }
+
+      values.putInt(StyleKeys.DISPLAY_MODE, displayMode.value)
+      setOrAppendState(StateKeys.DISPLAY_MODE)
+
+      values.putInt(StyleKeys.DISPLAY, display)
       setOrAppendState(StateKeys.DISPLAY)
     }
 
@@ -1096,20 +1126,13 @@ class Style internal constructor(private var node: Node) {
     get() {
       return Rect(
         LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.INSET_LEFT_TYPE),
-          values.getFloat(StyleKeys.INSET_LEFT_VALUE)
-        )!!,
-        LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.INSET_RIGHT_TYPE),
-          values.getFloat(StyleKeys.INSET_RIGHT_VALUE)
-        )!!,
-        LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.INSET_TOP_TYPE),
-          values.getFloat(StyleKeys.INSET_TOP_VALUE)
-        )!!,
-        LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.INSET_BOTTOM_TYPE),
-          values.getFloat(StyleKeys.INSET_BOTTOM_VALUE)
+          values.getInt(StyleKeys.INSET_LEFT_TYPE), values.getFloat(StyleKeys.INSET_LEFT_VALUE)
+        )!!, LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.INSET_RIGHT_TYPE), values.getFloat(StyleKeys.INSET_RIGHT_VALUE)
+        )!!, LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.INSET_TOP_TYPE), values.getFloat(StyleKeys.INSET_TOP_VALUE)
+        )!!, LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.INSET_BOTTOM_TYPE), values.getFloat(StyleKeys.INSET_BOTTOM_VALUE)
         )!!
       )
     }
@@ -1192,18 +1215,12 @@ class Style internal constructor(private var node: Node) {
     get() {
       return Rect(
         LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.MARGIN_LEFT_TYPE),
-          values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
-        )!!,
-        LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.MARGIN_RIGHT_TYPE),
-          values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
-        )!!,
-        LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.MARGIN_TOP_TYPE),
-          values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
-        )!!,
-        LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
+        )!!, LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
+        )!!, LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
+        )!!, LengthPercentageAuto.fromTypeValue(
           values.getInt(StyleKeys.MARGIN_BOTTOM_TYPE),
           values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
         )!!
@@ -1288,18 +1305,13 @@ class Style internal constructor(private var node: Node) {
     get() {
       return Rect(
         LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.PADDING_LEFT_TYPE),
-          values.getFloat(StyleKeys.PADDING_LEFT_VALUE)
-        )!!,
-        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.PADDING_LEFT_TYPE), values.getFloat(StyleKeys.PADDING_LEFT_VALUE)
+        )!!, LengthPercentage.fromTypeValue(
           values.getInt(StyleKeys.PADDING_RIGHT_TYPE),
           values.getFloat(StyleKeys.PADDING_RIGHT_VALUE)
-        )!!,
-        LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.PADDING_TOP_TYPE),
-          values.getFloat(StyleKeys.PADDING_TOP_VALUE)
-        )!!,
-        LengthPercentage.fromTypeValue(
+        )!!, LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.PADDING_TOP_TYPE), values.getFloat(StyleKeys.PADDING_TOP_VALUE)
+        )!!, LengthPercentage.fromTypeValue(
           values.getInt(StyleKeys.PADDING_BOTTOM_TYPE),
           values.getFloat(StyleKeys.PADDING_BOTTOM_VALUE)
         )!!
@@ -1383,18 +1395,12 @@ class Style internal constructor(private var node: Node) {
     get() {
       return Rect(
         LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.BORDER_LEFT_TYPE),
-          values.getFloat(StyleKeys.BORDER_LEFT_VALUE)
-        )!!,
-        LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.BORDER_RIGHT_TYPE),
-          values.getFloat(StyleKeys.BORDER_RIGHT_VALUE)
-        )!!,
-        LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.BORDER_TOP_TYPE),
-          values.getFloat(StyleKeys.BORDER_TOP_VALUE)
-        )!!,
-        LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.BORDER_LEFT_TYPE), values.getFloat(StyleKeys.BORDER_LEFT_VALUE)
+        )!!, LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.BORDER_RIGHT_TYPE), values.getFloat(StyleKeys.BORDER_RIGHT_VALUE)
+        )!!, LengthPercentage.fromTypeValue(
+          values.getInt(StyleKeys.BORDER_TOP_TYPE), values.getFloat(StyleKeys.BORDER_TOP_VALUE)
+        )!!, LengthPercentage.fromTypeValue(
           values.getInt(StyleKeys.BORDER_BOTTOM_TYPE),
           values.getFloat(StyleKeys.BORDER_BOTTOM_VALUE)
         )!!
@@ -1979,17 +1985,36 @@ class Style internal constructor(private var node: Node) {
         boxSizing.value
       )
       resetState()
-      if (node.data is View) {
-        (node.data as View).requestLayout()
+      when (val data = node.owner?.data) {
+        is TextView -> {
+          data.invalidateView()
+        }
+
+        is org.nativescript.mason.masonkit.View -> {
+          data.invalidateLayout()
+        }
+
+        is View -> {
+          data.requestLayout()
+        }
       }
       return
     }
 
     if (isDirty != -1L) {
-      nativeSyncStyle(node.mason.nativePtr, node.nativePtr, isDirty)
       resetState()
-      if (node.data is View) {
-        (node.data as View).requestLayout()
+      when (val data = node.owner?.data) {
+        is TextView -> {
+          data.invalidateView()
+        }
+
+        is org.nativescript.mason.masonkit.View -> {
+          data.invalidateLayout()
+        }
+
+        is View -> {
+          data.requestLayout()
+        }
       }
       return
     }
@@ -2003,29 +2028,25 @@ class Style internal constructor(private var node: Node) {
     var marginBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
 
     LengthPercentageAuto.fromTypeValue(
-      values.getInt(StyleKeys.MARGIN_LEFT_TYPE),
-      values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
+      values.getInt(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
     )?.let {
       marginLeft = it
     }
 
     LengthPercentageAuto.fromTypeValue(
-      values.getInt(StyleKeys.MARGIN_RIGHT_TYPE),
-      values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
+      values.getInt(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
     )?.let {
       marginRight = it
     }
 
     LengthPercentageAuto.fromTypeValue(
-      values.getInt(StyleKeys.MARGIN_TOP_TYPE),
-      values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
+      values.getInt(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
     )?.let {
       marginTop = it
     }
 
     LengthPercentageAuto.fromTypeValue(
-      values.getInt(StyleKeys.MARGIN_BOTTOM_TYPE),
-      values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
+      values.getInt(StyleKeys.MARGIN_BOTTOM_TYPE), values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
     )?.let {
       marginBottom = it
     }
@@ -2035,12 +2056,10 @@ class Style internal constructor(private var node: Node) {
 
   fun getNativeSize(): Size<Dimension> {
     val width = Dimension.fromTypeValue(
-      values.getInt(StyleKeys.WIDTH_TYPE),
-      values.getFloat(StyleKeys.WIDTH_VALUE)
+      values.getInt(StyleKeys.WIDTH_TYPE), values.getFloat(StyleKeys.WIDTH_VALUE)
     )
     val height = Dimension.fromTypeValue(
-      values.getInt(StyleKeys.HEIGHT_TYPE),
-      values.getFloat(StyleKeys.HEIGHT_VALUE)
+      values.getInt(StyleKeys.HEIGHT_TYPE), values.getFloat(StyleKeys.HEIGHT_VALUE)
     )
     return Size(width as Dimension, height as Dimension)
   }
@@ -2113,29 +2132,23 @@ class Style internal constructor(private var node: Node) {
       Mason.initLib()
     }
 
-    @JvmStatic
-    external fun nativeUpdateStyleBuffer(
-      mason: Long,
-      node: Long,
-      buffer: ByteBuffer,
-    )
-
     @FastNative
     @JvmStatic
     external fun nativeGetStyleBuffer(
       mason: Long,
       node: Long,
-    ): ByteBuffer?
+    ): ByteBuffer
 
 
     @JvmStatic
-    @CriticalNative
-    external fun nativeSyncStyle(
+    external fun nativeNonBufferData(
       mason: Long,
       node: Long,
-      state: Long
+      gridAutoRows: Array<MinMax>,
+      gridAutoColumns: Array<MinMax>,
+      gridTemplateRows: Array<TrackSizingFunction>,
+      gridTemplateColumns: Array<TrackSizingFunction>
     )
-
 
     @JvmStatic
     external fun nativeUpdateWithValues(

@@ -10,7 +10,7 @@ pub fn node_compute(mason: *mut CMason, node: *const CMasonNode) {
     unsafe {
         let mason = &mut (*mason).0;
         let node = &(*node).0;
-        mason.compute(node);
+        mason.compute(node.id());
     }
 }
 
@@ -19,7 +19,7 @@ pub fn node_compute_min_content(mason: *mut CMason, node: *const CMasonNode) {
         let mason = &mut (*mason).0;
         let node = &(*node).0;
         let size = Size::<AvailableSpace>::min_content();
-        mason.compute_size(node, size);
+        mason.compute_size(node.id(), size);
     }
 }
 
@@ -28,7 +28,7 @@ pub fn node_compute_max_content(mason: *mut CMason, node: *const CMasonNode) {
         let mason = &mut (*mason).0;
         let node = &(*node).0;
         let size = Size::max_content();
-        mason.compute_size(node, size);
+        mason.compute_size(node.id(), size);
     }
 }
 
@@ -37,7 +37,7 @@ pub fn node_compute_wh(mason: *mut CMason, node: *const CMasonNode, width: f32, 
         let mason = &mut (*mason);
         let node = &(*node).0;
         mason.with_mut(|mason| {
-            mason.compute_wh(node, width, height);
+            mason.compute_wh(node.id(), width, height);
         })
     }
 }
@@ -48,7 +48,7 @@ pub fn node_mark_dirty(mason: *mut CMason, node: *const CMasonNode) {
 
         let node_id = &(*node).0;
 
-        mason.mark_dirty(node_id);
+        mason.mark_dirty(node_id.id());
     }
 }
 
@@ -58,7 +58,7 @@ pub fn node_dirty(mason: *const CMason, node: *const CMasonNode) -> bool {
 
         let node_id = &(*node).0;
 
-        mason.dirty(node_id)
+        mason.dirty(node_id.id())
     }
 }
 

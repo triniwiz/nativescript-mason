@@ -282,6 +282,10 @@ declare module org {
 					public static Flex: org.nativescript.mason.masonkit.Display;
 					public static Grid: org.nativescript.mason.masonkit.Display;
 					public static Block: org.nativescript.mason.masonkit.Display;
+					public static Inline: org.nativescript.mason.masonkit.Display;
+					public static InlineBlock: org.nativescript.mason.masonkit.Display;
+					public static InlineFlex: org.nativescript.mason.masonkit.Display;
+					public static InlineGrid: org.nativescript.mason.masonkit.Display;
 					public getCssValue(): string;
 					public static values(): androidNative.Array<org.nativescript.mason.masonkit.Display>;
 					public getValue(): number;
@@ -295,6 +299,31 @@ declare module org {
 					}
 					export class WhenMappings {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.Display.WhenMappings>;
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export class DisplayMode {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.DisplayMode>;
+					public static None: org.nativescript.mason.masonkit.DisplayMode;
+					public static Inline: org.nativescript.mason.masonkit.DisplayMode;
+					public static Box: org.nativescript.mason.masonkit.DisplayMode;
+					public static values(): androidNative.Array<org.nativescript.mason.masonkit.DisplayMode>;
+					public static getEntries(): any;
+					public getValue(): number;
+					public static valueOf(value: string): org.nativescript.mason.masonkit.DisplayMode;
+				}
+				export module DisplayMode {
+					export class Companion {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.DisplayMode.Companion>;
+						public fromInt(value: number): org.nativescript.mason.masonkit.DisplayMode;
 					}
 				}
 			}
@@ -700,23 +729,31 @@ declare module org {
 				export class Img implements org.nativescript.mason.masonkit.MasonView, org.nativescript.mason.masonkit.MeasureFunc {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Img>;
 					public configure(param0: any): void;
+					public setImageResource(resId: number): void;
 					public setInBatch(value: boolean): void;
-					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
 					public getSrc(): string;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
+					public onNodeAttached(): void;
+					public onNodeDetached(): void;
+					public onMeasure(layout: number, width: number): void;
+					public markNodeDirty(): void;
+					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet, context: boolean);
+					public getInBatch(): boolean;
+					public configure(block: any): void;
+					public setImageBitmap(bm: globalAndroid.graphics.Bitmap): void;
+					public setCurrentBitmap$masonkit_release(value: globalAndroid.graphics.Bitmap): void;
+					public getCurrentBitmap$masonkit_release(): globalAndroid.graphics.Bitmap;
+					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public constructor($this$_init__u24lambda_u240: globalAndroid.content.Context, this_: org.nativescript.mason.masonkit.Mason);
 					public isLeaf(): boolean;
 					public syncStyle(this_: string): void;
 					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, value: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
-					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet);
-					public onMeasure(layout: number, width: number): void;
 					public setSrc(it: string): void;
 					public isNodeDirty(): boolean;
 					public getNode(): org.nativescript.mason.masonkit.Node;
-					public markNodeDirty(): void;
 					public constructor(context: globalAndroid.content.Context);
-					public getInBatch(): boolean;
-					public configure(block: any): void;
+					public invalidate(): void;
 				}
 			}
 		}
@@ -1057,6 +1094,7 @@ declare module org {
 					public createNode(): org.nativescript.mason.masonkit.Node;
 					public getNodes$masonkit_release(): java.util.WeakHashMap<java.lang.Long,org.nativescript.mason.masonkit.Node>;
 					public requestLayout(view: globalAndroid.view.View): void;
+					public printTree(node: org.nativescript.mason.masonkit.Node): void;
 					public createView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.View;
 					public createImageView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.Img;
 					public nodeForView($this$nodeForView_u24lambda_u247_u24lambda_u246: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
@@ -1090,6 +1128,8 @@ declare module org {
 					 * Constructs a new instance of the org.nativescript.mason.masonkit.MasonView interface with the provided implementation. An empty constructor exists calling super() when extending the interface class.
 					 */
 					public constructor(implementation: {
+						onNodeAttached(): void;
+						onNodeDetached(): void;
 						isLeaf(): boolean;
 						getStyle(): org.nativescript.mason.masonkit.Style;
 						getNode(): org.nativescript.mason.masonkit.Node;
@@ -1103,6 +1143,8 @@ declare module org {
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public markNodeDirty(): void;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
+					public onNodeAttached(): void;
+					public onNodeDetached(): void;
 					public isLeaf(): boolean;
 				}
 				export module MasonView {
@@ -1110,7 +1152,9 @@ declare module org {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.MasonView.DefaultImpls>;
 						public static getStyle($this: org.nativescript.mason.masonkit.MasonView): org.nativescript.mason.masonkit.Style;
 						public static configure($this: org.nativescript.mason.masonkit.MasonView, block: any): void;
+						public static onNodeDetached($this: org.nativescript.mason.masonkit.MasonView): void;
 						public static isNodeDirty($this: org.nativescript.mason.masonkit.MasonView): boolean;
+						public static onNodeAttached($this: org.nativescript.mason.masonkit.MasonView): void;
 						public static markNodeDirty($this: org.nativescript.mason.masonkit.MasonView): void;
 					}
 				}
@@ -1459,15 +1503,16 @@ declare module org {
 					public getMason$masonkit_release(): org.nativescript.mason.masonkit.Mason;
 					public getMeasureFunc$masonkit_release(): org.nativescript.mason.masonkit.MeasureFunc;
 					public layout(): org.nativescript.mason.masonkit.Layout;
-					public setData$masonkit_release(value: any): void;
 					public setChildren$masonkit_release(value: java.util.ArrayList<org.nativescript.mason.masonkit.Node>): void;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
 					public getOwner(): org.nativescript.mason.masonkit.Node;
 					public insertChildAfter(index: org.nativescript.mason.masonkit.Node, this_: org.nativescript.mason.masonkit.Node): void;
 					public removeMeasureFunction(): void;
 					public getChildAt(index: number): org.nativescript.mason.masonkit.Node;
+					public setText$masonkit_release(value: boolean): void;
 					public setMeasureFunction(measure: org.nativescript.mason.masonkit.MeasureFunc): void;
 					public getAvailableHeight$masonkit_release(): java.lang.Float;
+					public setData$masonkit_release(value: any): void;
 					public removeChildAt(it: number): org.nativescript.mason.masonkit.Node;
 					public getChildren$masonkit_release(): java.util.ArrayList<org.nativescript.mason.masonkit.Node>;
 					public getInBatch(): boolean;
@@ -1480,29 +1525,30 @@ declare module org {
 					public getKnownHeight$masonkit_release(): java.lang.Float;
 					public setKnownWidth$masonkit_release(value: java.lang.Float): void;
 					public compute(width: number, height: number): void;
+					public isText$masonkit_release(): boolean;
 					public getComputeCacheWidth$masonkit_release(): java.lang.Float;
-					public getLayoutCache(): org.nativescript.mason.masonkit.Layout;
 					public removeChild(this_: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Node;
 					public static nativeNewNodeWithChildren(param0: number, param1: androidNative.Array<number>): number;
-					public addChildAt(this_: org.nativescript.mason.masonkit.Node, child: number): void;
 					public isDirty(): boolean;
 					public setNativePtr$masonkit_release(value: number): void;
 					public computeWithViewSize(): void;
 					public setKnownHeight$masonkit_release(value: java.lang.Float): void;
+					public setComputedLayout$masonkit_release(value: org.nativescript.mason.masonkit.Layout): void;
 					public setOwner$masonkit_release(value: org.nativescript.mason.masonkit.Node): void;
 					public setComputeCacheWidth$masonkit_release(value: java.lang.Float): void;
 					public getRoot(): org.nativescript.mason.masonkit.Node;
 					public setMeasureFunc$masonkit_release(value: org.nativescript.mason.masonkit.MeasureFunc): void;
 					public configure(block: any): void;
 					public constructor(mason: org.nativescript.mason.masonkit.Mason, nativePtr: number);
-					public setLayoutCache$masonkit_release(value: org.nativescript.mason.masonkit.Layout): void;
 					public removeChildren(): void;
 					public setAvailableWidth$masonkit_release(value: java.lang.Float): void;
 					public setComputeCacheHeight$masonkit_release(value: java.lang.Float): void;
 					public getAvailableWidth$masonkit_release(): java.lang.Float;
 					public dirty(): void;
 					public static nativeNewNode(param0: number): number;
+					public getComputedLayout(): org.nativescript.mason.masonkit.Layout;
 					public getKnownWidth$masonkit_release(): java.lang.Float;
+					public addChildAt(it: org.nativescript.mason.masonkit.Node, item$iv: number): void;
 					public getChildren(): java.util.List<org.nativescript.mason.masonkit.Node>;
 					public getNativePtr$masonkit_release(): number;
 					public getComputeCacheHeight$masonkit_release(): java.lang.Float;
@@ -1528,183 +1574,190 @@ declare module org {
 		export module mason {
 			export module masonkit {
 				export class NodeHelper {
-					public static class: java.lang.Class<org.nativescript.mason.masonkit.NodeHelper>;
-					public static INSTANCE: org.nativescript.mason.masonkit.NodeHelper;
-					public setInset(node: org.nativescript.mason.masonkit.Node, left: number, left_type: number, top: number, top_type: number, right: number, right_type: number, bottom: number, bottom_type: number): void;
 					public batchCreateViews(this_: globalAndroid.content.Context): void;
-					public setSize(node: org.nativescript.mason.masonkit.Node, width: number, height: number): void;
-					public setMaxSizeWidth(node: org.nativescript.mason.masonkit.Node, value: org.nativescript.mason.masonkit.Dimension): void;
-					public setGap(node: org.nativescript.mason.masonkit.Node, width: number, height: number): void;
-					public setPosition(node: org.nativescript.mason.masonkit.Node, position: org.nativescript.mason.masonkit.Position): void;
-					public setRowGap(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getPosition(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Position;
-					public getAlignContent(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.AlignContent;
-					public getAlignItems(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.AlignItems;
-					public getOverflowY(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Overflow;
-					public getStylePaddingRight(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public setOverflowY(node: org.nativescript.mason.masonkit.Node, overflow: org.nativescript.mason.masonkit.Overflow): void;
-					public getFlexShrink(node: org.nativescript.mason.masonkit.Node): number;
-					public setGridAutoColumns(node: org.nativescript.mason.masonkit.Node, gridAutoColumns: androidNative.Array<org.nativescript.mason.masonkit.MinMax>): void;
-					public setBorder(node: org.nativescript.mason.masonkit.Node, left: number, left_type: number, top: number, top_type: number, right: number, right_type: number, bottom: number, bottom_type: number): void;
-					public setFlexGrow(node: org.nativescript.mason.masonkit.Node, flexGrow: number): void;
-					public getStylePaddingTop(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public getInsetLeft(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
-					public setJustifyContent(node: org.nativescript.mason.masonkit.Node, justifyContent: org.nativescript.mason.masonkit.JustifyContent): void;
-					public getGridAutoFlow(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridAutoFlow;
-					public setPaddingTop(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getDisplay(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Display;
-					public setOverflow(node: org.nativescript.mason.masonkit.Node, overflow: org.nativescript.mason.masonkit.Overflow): void;
-					public setGridTemplateColumns(node: org.nativescript.mason.masonkit.Node, gridTemplateColumns: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
-					public setDirection(node: org.nativescript.mason.masonkit.Node, direction: org.nativescript.mason.masonkit.Direction): void;
-					public getMaxSize(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
-					public setGapRow(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setDisplay(node: org.nativescript.mason.masonkit.Node, display: org.nativescript.mason.masonkit.Display): void;
-					public setMargin(node: org.nativescript.mason.masonkit.Node, left: org.nativescript.mason.masonkit.LengthPercentageAuto, top: org.nativescript.mason.masonkit.LengthPercentageAuto, right: org.nativescript.mason.masonkit.LengthPercentageAuto, bottom: org.nativescript.mason.masonkit.LengthPercentageAuto): void;
-					public setFlexWrap(node: org.nativescript.mason.masonkit.Node, flexWrap: org.nativescript.mason.masonkit.FlexWrap): void;
-					public getMinSizeCssValue(node: org.nativescript.mason.masonkit.Node): string;
-					public setBorderWithValueType(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getMinSizeHeight(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
-					public setMinSizeWidth(node: org.nativescript.mason.masonkit.Node, value: org.nativescript.mason.masonkit.Dimension): void;
-					public getBorderCssValue(node: org.nativescript.mason.masonkit.Node): string;
-					public getPaddingCssValue(node: org.nativescript.mason.masonkit.Node): string;
-					public setJustifySelf(node: org.nativescript.mason.masonkit.Node, justifySelf: org.nativescript.mason.masonkit.JustifySelf): void;
+					public setMargin(this_: globalAndroid.view.View, view: number, left: number, left_type: number, top: number, top_type: number, right: number, right_type: number, bottom: number): void;
+					public setPaddingBottom(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setPadding(this_: globalAndroid.view.View, view: number, left: number, top: number, right: number): void;
+					public getMarginRight(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentageAuto;
+					public getMinSizeHeight(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Dimension;
+					public setGridColumnStart(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.GridPlacement): void;
+					public getFlexGrow(this_: globalAndroid.view.View): number;
+					public setSizeWidth(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getGridAutoColumns(this_: globalAndroid.view.View): androidNative.Array<org.nativescript.mason.masonkit.MinMax>;
+					public setInsetBottom(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getSizeCssValue(this_: globalAndroid.view.View): string;
+					public getMinSize(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+					public setBorderBottom(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setMinSizeHeight(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension): void;
+					public setGridColumn(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>): void;
+					public getGridColumnStart(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.GridPlacement;
+					public setAspectRatio(this_: globalAndroid.view.View, view: java.lang.Float): void;
+					public getJustifyContent(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.JustifyContent;
+					public setMaxSize(this_: globalAndroid.view.View, view: number, width: number, widthType: number, height: number): void;
+					public setGridAutoColumns(this_: globalAndroid.view.View, view: androidNative.Array<org.nativescript.mason.masonkit.MinMax>): void;
+					public getMarginLeft(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentageAuto;
+					public getFlexDirection(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.FlexDirection;
+					public getGridRowStart(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.GridPlacement;
+					public setJustifySelf(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.JustifySelf): void;
+					public setAlignSelf(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.AlignSelf): void;
+					public setDirection(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Direction): void;
+					public getBorderCssValue(this_: globalAndroid.view.View): string;
+					public setMarginTop(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getInsetRight(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentageAuto;
+					public getMaxSize(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+					public getMinSizeWidth(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Dimension;
+					public setGap(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.LengthPercentage, row: org.nativescript.mason.masonkit.LengthPercentage): void;
+					public getJustifyItems(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.JustifyItems;
+					public setSize(this_: globalAndroid.view.View, view: number, width: number): void;
+					public getMinSizeCssValue(this_: globalAndroid.view.View): string;
+					public getFlexWrap(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.FlexWrap;
+					public getPadding(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
+					public setSize(this_: globalAndroid.view.View, view: number, width: number, widthType: number, height: number): void;
+					public getGapRow(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public getFlexShrink(this_: globalAndroid.view.View): number;
+					public setGap(this_: globalAndroid.view.View, view: number, width: number): void;
+					public setInsetTop(this_: globalAndroid.view.View, view: number, value: number): void;
 					public longRunningFunction(): number;
-					public setColumnGap(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getJustifySelf(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.JustifySelf;
-					public setPaddingLeft(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getOverflow(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Overflow;
-					public setMaxSize(node: org.nativescript.mason.masonkit.Node, width: number, height: number): void;
-					public setInsetBottom(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setBorderBottom(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setMarginRight(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getMarginJsonValue(node: org.nativescript.mason.masonkit.Node): string;
-					public setScrollBarWidth(node: org.nativescript.mason.masonkit.Node, scrollBarWidth: number): void;
-					public setBorderLeft(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setPaddingRight(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setPaddingWithValueType(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setInsetWithValueType(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getTextAlign(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.TextAlign;
-					public setBorderTop(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getAspectRatio(node: org.nativescript.mason.masonkit.Node): java.lang.Float;
-					public getFlexDirection(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.FlexDirection;
-					public getMarginCssValue(node: org.nativescript.mason.masonkit.Node): string;
-					public getPadding(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
-					public setMinSize(node: org.nativescript.mason.masonkit.Node, width: number, height: number): void;
-					public setInsetRight(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getSizeCssValue(node: org.nativescript.mason.masonkit.Node): string;
-					public setMinSize(node: org.nativescript.mason.masonkit.Node, width: org.nativescript.mason.masonkit.Dimension, height: org.nativescript.mason.masonkit.Dimension): void;
-					public setJustifyItems(node: org.nativescript.mason.masonkit.Node, justifyItems: org.nativescript.mason.masonkit.JustifyItems): void;
-					public setMinSizeWidth(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getSizeHeight(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
-					public setTextAlign(node: org.nativescript.mason.masonkit.Node, align: org.nativescript.mason.masonkit.TextAlign): void;
-					public getGridTemplateColumns(node: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
-					public setGridColumnStart(node: org.nativescript.mason.masonkit.Node, gridColumnStart: org.nativescript.mason.masonkit.GridPlacement): void;
-					public getBorderBottom(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public getMinSizeJsonValue(node: org.nativescript.mason.masonkit.Node): string;
+					public getGridColumn(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>;
+					public static getShared(): org.nativescript.mason.masonkit.NodeHelper;
+					public setFlexWrap(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.FlexWrap): void;
+					public setGridColumnEnd(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.GridPlacement): void;
+					public getStylePaddingRight(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public setBorder(this_: globalAndroid.view.View, view: number, left: number, left_type: number, top: number, top_type: number, right: number, right_type: number, bottom: number): void;
+					public getGridColumnEnd(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.GridPlacement;
+					public getSizeWidth(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Dimension;
+					public setOverflowX(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Overflow): void;
+					public setPaddingRight(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setGapRow(view: globalAndroid.view.View, value: number, type: number): void;
+					public getDirection(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Direction;
+					public getAlignSelf(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.AlignSelf;
+					public getMaxSizeCssValue(this_: globalAndroid.view.View): string;
+					public configure(view: globalAndroid.view.View, block: any): void;
+					public setGridRow(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>): void;
+					public setRowGap(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getGap(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.LengthPercentage>;
+					public setSizeHeight(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setMaxSizeHeight(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension): void;
+					public getBorderTop(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public setMinSizeWidth(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getOverflowY(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Overflow;
+					public getScrollBarWidth(this_: globalAndroid.view.View): number;
+					public getFlexBasis(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Dimension;
+					public getMason(): org.nativescript.mason.masonkit.Mason;
+					public getMinSizeJsonValue(this_: globalAndroid.view.View): string;
+					public getInsetBottom(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentageAuto;
+					public getMaxSizeHeight(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Dimension;
+					public getAspectRatio(this_: globalAndroid.view.View): java.lang.Float;
+					public setGridRowEnd(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.GridPlacement): void;
+					public getPaddingCssValue(this_: globalAndroid.view.View): string;
+					public setGridAutoRows(this_: globalAndroid.view.View, view: androidNative.Array<org.nativescript.mason.masonkit.MinMax>): void;
+					public getDisplay(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Display;
+					public setBorder(this_: globalAndroid.view.View, view: number, left: number, top: number, right: number): void;
+					public setFlexShrink(this_: globalAndroid.view.View, view: number): void;
+					public getGridAutoFlow(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.GridAutoFlow;
+					public setDisplay(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Display): void;
+					public setPaddingTop(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setPaddingWithValueType(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setBorderTop(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setInsetRight(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getGridTemplateColumns(this_: globalAndroid.view.View): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
 					public getViews(): java.util.ArrayList<org.nativescript.mason.masonkit.View>;
-					public getBorderLeft(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public setPaddingBottom(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setBorderRight(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setPosition(node: org.nativescript.mason.masonkit.Node, left: number, top: number, right: number, bottom: number): void;
-					public setMargin(node: org.nativescript.mason.masonkit.Node, left: number, left_type: number, top: number, top_type: number, right: number, right_type: number, bottom: number, bottom_type: number): void;
-					public getGapColumn(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public configure(node: org.nativescript.mason.masonkit.Node, block: any): void;
-					public setFlexBasis(node: org.nativescript.mason.masonkit.Node, flexBasis: org.nativescript.mason.masonkit.Dimension): void;
-					public setAlignSelf(node: org.nativescript.mason.masonkit.Node, alignSelf: org.nativescript.mason.masonkit.AlignSelf): void;
-					public setMaxSize(node: org.nativescript.mason.masonkit.Node, width: number, width_type: number, height: number, height_type: number): void;
-					public setPadding(node: org.nativescript.mason.masonkit.Node, left: number, left_type: number, top: number, top_type: number, right: number, right_type: number, bottom: number, bottom_type: number): void;
-					public getMargin(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>;
-					public getMaxSizeWidth(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
-					public setMarginLeft(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setGridColumn(node: org.nativescript.mason.masonkit.Node, gridColumn: org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>): void;
-					public getInset(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>;
-					public getMaxSizeHeight(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
-					public setInsetTop(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setPosition(node: org.nativescript.mason.masonkit.Node, left: org.nativescript.mason.masonkit.LengthPercentageAuto, top: org.nativescript.mason.masonkit.LengthPercentageAuto, right: org.nativescript.mason.masonkit.LengthPercentageAuto, bottom: org.nativescript.mason.masonkit.LengthPercentageAuto): void;
-					public setMaxSize(node: org.nativescript.mason.masonkit.Node, width: org.nativescript.mason.masonkit.Dimension, height: org.nativescript.mason.masonkit.Dimension): void;
-					public setGridAutoFlow(node: org.nativescript.mason.masonkit.Node, gridAutoFlow: org.nativescript.mason.masonkit.GridAutoFlow): void;
-					public setSize(node: org.nativescript.mason.masonkit.Node, width: org.nativescript.mason.masonkit.Dimension, height: org.nativescript.mason.masonkit.Dimension): void;
-					public setInsetLeft(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setMinSizeHeight(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setGridAutoRows(node: org.nativescript.mason.masonkit.Node, gridAutoRows: androidNative.Array<org.nativescript.mason.masonkit.MinMax>): void;
-					public getOverflowX(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Overflow;
+					public setSizeWidth(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension): void;
+					public getSizeJsonValue(this_: globalAndroid.view.View): string;
+					public setMaxSizeWidth(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setPadding(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.LengthPercentage, left: org.nativescript.mason.masonkit.LengthPercentage, top: org.nativescript.mason.masonkit.LengthPercentage, right: org.nativescript.mason.masonkit.LengthPercentage): void;
+					public setMinSizeWidth(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension): void;
+					public getBorderLeft(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public setMarginBottom(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getSize(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
+					public setMaxSize(this_: globalAndroid.view.View, view: number, width: number): void;
+					public setPaddingLeft(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getMarginJsonValue(this_: globalAndroid.view.View): string;
+					public setFlexBasis(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setBorderWithValueType(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getInsetTop(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentageAuto;
+					public setOverflow(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Overflow): void;
+					public setBorder(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.LengthPercentage, left: org.nativescript.mason.masonkit.LengthPercentage, top: org.nativescript.mason.masonkit.LengthPercentage, right: org.nativescript.mason.masonkit.LengthPercentage): void;
+					public getInsetCssValue(this_: globalAndroid.view.View): string;
+					public getStylePaddingLeft(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public getBorderRight(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public getMarginCssValue(this_: globalAndroid.view.View): string;
 					public logPerf(time: number): void;
-					public setGridRow(node: org.nativescript.mason.masonkit.Node, gridRow: org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>): void;
-					public setFlexShrink(node: org.nativescript.mason.masonkit.Node, flexShrink: number): void;
-					public getInsetBottom(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
-					public setMarginBottom(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getGridColumnStart(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridPlacement;
-					public setGap(node: org.nativescript.mason.masonkit.Node, row: org.nativescript.mason.masonkit.LengthPercentage, column: org.nativescript.mason.masonkit.LengthPercentage): void;
-					public getBorderTop(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public getGridRowEnd(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridPlacement;
-					public setGridRowEnd(node: org.nativescript.mason.masonkit.Node, gridRowEnd: org.nativescript.mason.masonkit.GridPlacement): void;
-					public setMinSize(node: org.nativescript.mason.masonkit.Node, width: number, width_type: number, height: number, height_type: number): void;
-					public setMaxSizeHeight(node: org.nativescript.mason.masonkit.Node, value: org.nativescript.mason.masonkit.Dimension): void;
-					public setGridTemplateRows(node: org.nativescript.mason.masonkit.Node, gridTemplateRows: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
-					public setOverflowX(node: org.nativescript.mason.masonkit.Node, overflow: org.nativescript.mason.masonkit.Overflow): void;
-					public setFlexBasis(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getGridRow(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>;
-					public getFlexBasis(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
-					public getMaxSizeJsonValue(node: org.nativescript.mason.masonkit.Node): string;
-					public getGapRow(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public getStylePaddingBottom(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public getBoxSizing(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.BoxSizing;
-					public setGridRowStart(node: org.nativescript.mason.masonkit.Node, gridRowStart: org.nativescript.mason.masonkit.GridPlacement): void;
-					public getPaddingJsonValue(node: org.nativescript.mason.masonkit.Node): string;
-					public getJustifyItems(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.JustifyItems;
-					public getSize(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
-					public setPadding(node: org.nativescript.mason.masonkit.Node, left: org.nativescript.mason.masonkit.LengthPercentage, top: org.nativescript.mason.masonkit.LengthPercentage, right: org.nativescript.mason.masonkit.LengthPercentage, bottom: org.nativescript.mason.masonkit.LengthPercentage): void;
-					public setMargin(node: org.nativescript.mason.masonkit.Node, left: number, top: number, right: number, bottom: number): void;
-					public setTextAlign(node: org.nativescript.mason.masonkit.Node, sizing: org.nativescript.mason.masonkit.BoxSizing): void;
-					public setMarginTop(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setMaxSizeHeight(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getGridColumnEnd(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridPlacement;
-					public setSizeHeight(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setGridColumnEnd(node: org.nativescript.mason.masonkit.Node, gridColumnEnd: org.nativescript.mason.masonkit.GridPlacement): void;
-					public setSizeWidth(node: org.nativescript.mason.masonkit.Node, value: org.nativescript.mason.masonkit.Dimension): void;
-					public getMarginTop(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
-					public getMaxSizeCssValue(node: org.nativescript.mason.masonkit.Node): string;
-					public getStylePaddingLeft(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public setBorder(node: org.nativescript.mason.masonkit.Node, left: org.nativescript.mason.masonkit.LengthPercentage, top: org.nativescript.mason.masonkit.LengthPercentage, right: org.nativescript.mason.masonkit.LengthPercentage, bottom: org.nativescript.mason.masonkit.LengthPercentage): void;
-					public getAlignSelf(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.AlignSelf;
-					public getJustifyContent(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.JustifyContent;
-					public getInsetTop(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
-					public getGridAutoColumns(node: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.MinMax>;
-					public getGridTemplateRows(node: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
-					public getInsetRight(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
-					public getSizeWidth(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
-					public setMaxSizeWidth(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getDirection(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Direction;
-					public setGap(node: org.nativescript.mason.masonkit.Node, width: number, width_type: number, height: number, height_type: number): void;
-					public setGapColumn(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getGridRowStart(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.GridPlacement;
-					public getMarginBottom(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
-					public setAlignItems(node: org.nativescript.mason.masonkit.Node, alignItems: org.nativescript.mason.masonkit.AlignItems): void;
-					public getGap(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.LengthPercentage>;
-					public getMarginLeft(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
-					public getBorderRight(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentage;
-					public getMinSize(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
-					public setMarginWithValueType(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public setSizeWidth(node: org.nativescript.mason.masonkit.Node, value: number, type: number): void;
-					public getGridColumn(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>;
-					public getFlexWrap(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.FlexWrap;
-					public getInsetCssValue(node: org.nativescript.mason.masonkit.Node): string;
-					public setSize(node: org.nativescript.mason.masonkit.Node, width: number, width_type: number, height: number, height_type: number): void;
-					public getSizeJsonValue(node: org.nativescript.mason.masonkit.Node): string;
-					public setFlexDirection(node: org.nativescript.mason.masonkit.Node, direction: org.nativescript.mason.masonkit.FlexDirection): void;
-					public getFlexGrow(node: org.nativescript.mason.masonkit.Node): number;
-					public getBorder(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
-					public getInsetJsonValue(node: org.nativescript.mason.masonkit.Node): string;
-					public getGridAutoRows(node: org.nativescript.mason.masonkit.Node): androidNative.Array<org.nativescript.mason.masonkit.MinMax>;
-					public setAspectRatio(node: org.nativescript.mason.masonkit.Node, aspectRatio: java.lang.Float): void;
-					public getBorderJsonValue(node: org.nativescript.mason.masonkit.Node): string;
-					public getScrollBarWidth(node: org.nativescript.mason.masonkit.Node): number;
-					public setPadding(node: org.nativescript.mason.masonkit.Node, left: number, top: number, right: number, bottom: number): void;
-					public getMarginRight(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.LengthPercentageAuto;
-					public setAlignContent(node: org.nativescript.mason.masonkit.Node, alignContent: org.nativescript.mason.masonkit.AlignContent): void;
-					public getMinSizeWidth(node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.Dimension;
-					public setBorder(node: org.nativescript.mason.masonkit.Node, left: number, top: number, right: number, bottom: number): void;
-					public setMinSizeHeight(node: org.nativescript.mason.masonkit.Node, value: org.nativescript.mason.masonkit.Dimension): void;
+					public setJustifyItems(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.JustifyItems): void;
+					public getMaxSizeJsonValue(this_: globalAndroid.view.View): string;
+					public setTextAlign(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.BoxSizing): void;
+					public setGridTemplateColumns(this_: globalAndroid.view.View, view: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
+					public setPosition(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Position): void;
+					public setGridRowStart(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.GridPlacement): void;
+					public setMargin(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.LengthPercentageAuto, left: org.nativescript.mason.masonkit.LengthPercentageAuto, top: org.nativescript.mason.masonkit.LengthPercentageAuto, right: org.nativescript.mason.masonkit.LengthPercentageAuto): void;
+					public getInsetJsonValue(this_: globalAndroid.view.View): string;
+					public setMinSize(this_: globalAndroid.view.View, view: number, width: number): void;
+					public getInsetLeft(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentageAuto;
+					public getGapColumn(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public getBorderBottom(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public setFlexDirection(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.FlexDirection): void;
+					public setInset(this_: globalAndroid.view.View, view: number, left: number, left_type: number, top: number, top_type: number, right: number, right_type: number, bottom: number): void;
+					public setMinSizeHeight(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getBoxSizing(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.BoxSizing;
+					public getOverflow(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Overflow;
+					public setPadding(this_: globalAndroid.view.View, view: number, left: number, left_type: number, top: number, top_type: number, right: number, right_type: number, bottom: number): void;
+					public getMarginBottom(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentageAuto;
+					public getMarginTop(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentageAuto;
+					public setInsetWithValueType(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setMaxSizeWidth(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension): void;
+					public setBorderRight(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setInsetLeft(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getGridRow(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>;
+					public getStylePaddingTop(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public getGridTemplateRows(this_: globalAndroid.view.View): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
+					public getMargin(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>;
+					public setTextAlign(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.TextAlign): void;
+					public getBorder(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
+					public setOverflowY(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Overflow): void;
+					public getPaddingJsonValue(this_: globalAndroid.view.View): string;
+					public setMargin(this_: globalAndroid.view.View, view: number, left: number, top: number, right: number): void;
+					public setFlexBasis(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension): void;
+					public setJustifyContent(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.JustifyContent): void;
+					public getTextAlign(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.TextAlign;
+					public setMaxSizeHeight(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setGapColumn(view: globalAndroid.view.View, value: number, type: number): void;
+					public setBorderLeft(this_: globalAndroid.view.View, view: number, value: number): void;
+					public setMinSize(this_: globalAndroid.view.View, view: number, width: number, widthType: number, height: number): void;
+					public setSize(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension, width: org.nativescript.mason.masonkit.Dimension): void;
+					public setMarginRight(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getInset(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>;
+					public getMaxSizeWidth(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Dimension;
+					public setFlexGrow(this_: globalAndroid.view.View, view: number): void;
+					public setScrollBarWidth(this_: globalAndroid.view.View, view: number): void;
+					public getAlignItems(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.AlignItems;
+					public setAlignContent(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.AlignContent): void;
+					public getBorderJsonValue(this_: globalAndroid.view.View): string;
+					public getGridAutoRows(this_: globalAndroid.view.View): androidNative.Array<org.nativescript.mason.masonkit.MinMax>;
+					public getPosition(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Position;
+					public setMarginWithValueType(this_: globalAndroid.view.View, view: number, value: number): void;
+					public constructor(mason: org.nativescript.mason.masonkit.Mason);
+					public setGridAutoFlow(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.GridAutoFlow): void;
+					public setAlignItems(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.AlignItems): void;
+					public getOverflowX(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Overflow;
+					public getStylePaddingBottom(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.LengthPercentage;
+					public setMarginLeft(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getGridRowEnd(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.GridPlacement;
+					public getAlignContent(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.AlignContent;
+					public setPosition(this_: globalAndroid.view.View, view: number, left: number, top: number, right: number): void;
+					public setMaxSize(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension, width: org.nativescript.mason.masonkit.Dimension): void;
+					public setGridTemplateRows(this_: globalAndroid.view.View, view: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
+					public setMinSize(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension, width: org.nativescript.mason.masonkit.Dimension): void;
+					public setPosition(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.LengthPercentageAuto, left: org.nativescript.mason.masonkit.LengthPercentageAuto, top: org.nativescript.mason.masonkit.LengthPercentageAuto, right: org.nativescript.mason.masonkit.LengthPercentageAuto): void;
+					public getJustifySelf(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.JustifySelf;
+					public setColumnGap(this_: globalAndroid.view.View, view: number, value: number): void;
+					public getSizeHeight(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Dimension;
+					public setGap(this_: globalAndroid.view.View, view: number, width: number, widthType: number, height: number): void;
+				}
+				export module NodeHelper {
+					export class Companion {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.NodeHelper.Companion>;
+						public static getShared(): org.nativescript.mason.masonkit.NodeHelper;
+					}
 				}
 			}
 		}
@@ -1848,6 +1901,7 @@ declare module org {
 						public "getJUSTIFY_ITEMS-U0xtSZA"(): number;
 						public "getSCROLLBAR_WIDTH-U0xtSZA"(): number;
 						public "getALIGN_SELF-U0xtSZA"(): number;
+						public "getITEM_IS_REPLACED-U0xtSZA"(): number;
 						public "getMAX_SIZE-U0xtSZA"(): number;
 						public "getMARGIN-U0xtSZA"(): number;
 						public "getFLEX_SHRINK-U0xtSZA"(): number;
@@ -1866,9 +1920,13 @@ declare module org {
 						public "getOVERFLOW-U0xtSZA"(): number;
 						public "getPOSITION-U0xtSZA"(): number;
 						public "getFLEX_GROW-U0xtSZA"(): number;
+						public "getFORCE_INLINE-U0xtSZA"(): number;
+						public "getMIN_CONTENT-U0xtSZA"(): number;
 						public "getDISPLAY-U0xtSZA"(): number;
 						public "getOVERFLOW_X-U0xtSZA"(): number;
+						public "getDISPLAY_MODE-U0xtSZA"(): number;
 						public "getTEXT_ALIGN-U0xtSZA"(): number;
+						public "getMAX_CONTENT-U0xtSZA"(): number;
 						public "getGRID_ROW-U0xtSZA"(): number;
 						public "getMIN_SIZE-U0xtSZA"(): number;
 						public "getASPECT_RATIO-U0xtSZA"(): number;
@@ -1892,6 +1950,7 @@ declare module org {
 					public getGridRowStart(): org.nativescript.mason.masonkit.GridPlacement;
 					public setInsetTop(it: number, top: number): void;
 					public getGap(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.LengthPercentage>;
+					public setInBatch(this_: boolean): void;
 					public setJustifySelf(value: org.nativescript.mason.masonkit.JustifySelf): void;
 					public setFlexDirection(value: org.nativescript.mason.masonkit.FlexDirection): void;
 					public getBoxSizing(): org.nativescript.mason.masonkit.BoxSizing;
@@ -1912,13 +1971,13 @@ declare module org {
 					public getOverflow(): org.nativescript.mason.masonkit.Overflow;
 					public setMarginLeft(it: number, left: number): void;
 					public setGridTemplateColumns(value: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
-					public static nativeSyncStyle(param0: number, param1: number, param2: number): void;
 					public getOverflowX(): org.nativescript.mason.masonkit.Overflow;
 					public getInset(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>;
 					public getMaxSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
 					public setBorderWithValueType(it: number, border: number): void;
 					public getGridRowEnd(): org.nativescript.mason.masonkit.GridPlacement;
 					public getFlexGrow(): number;
+					public getForceInline$masonkit_release(): boolean;
 					public getOverflowY(): org.nativescript.mason.masonkit.Overflow;
 					public setGridColumnEnd(value: org.nativescript.mason.masonkit.GridPlacement): void;
 					public getDirection(): org.nativescript.mason.masonkit.Direction;
@@ -1939,12 +1998,11 @@ declare module org {
 					public getPadding(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
 					public setMinSizeHeight(it: number, height: number): void;
 					public setMargin(value: org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentageAuto>): void;
-					public static nativeUpdateStyleBuffer(param0: number, param1: number, param2: java.nio.ByteBuffer): void;
 					public setFlexBasis(it: number, this_: number): void;
 					public setMarginBottom(it: number, bottom: number): void;
 					public setPaddingLeft(it: number, left: number): void;
 					public getBorder(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
-					public setDisplay(value: org.nativescript.mason.masonkit.Display): void;
+					public setDisplay(display: org.nativescript.mason.masonkit.Display): void;
 					public setGridAutoColumns(value: androidNative.Array<org.nativescript.mason.masonkit.MinMax>): void;
 					public setJustifyContent(value: org.nativescript.mason.masonkit.JustifyContent): void;
 					public setGridRow(value: org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>): void;
@@ -1955,7 +2013,6 @@ declare module org {
 					public getAlignSelf(): org.nativescript.mason.masonkit.AlignSelf;
 					public setBorderLeft(it: number, left: number): void;
 					public setPosition(value: org.nativescript.mason.masonkit.Position): void;
-					public setInBatch(value: boolean): void;
 					public setFlexBasis(value: org.nativescript.mason.masonkit.Dimension): void;
 					public getGridAutoRows(): androidNative.Array<org.nativescript.mason.masonkit.MinMax>;
 					public setGridColumnStart(value: org.nativescript.mason.masonkit.GridPlacement): void;
@@ -1993,6 +2050,7 @@ declare module org {
 					public getGridTemplateColumns(): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
 					public setBorderBottom(it: number, bottom: number): void;
 					public setMaxSizeWidth(value: org.nativescript.mason.masonkit.Dimension): void;
+					public static nativeNonBufferData(param0: number, param1: number, param2: androidNative.Array<org.nativescript.mason.masonkit.MinMax>, param3: androidNative.Array<org.nativescript.mason.masonkit.MinMax>, param4: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>, param5: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
 					public getGridAutoFlow(): org.nativescript.mason.masonkit.GridAutoFlow;
 					public getAspectRatio(): java.lang.Float;
 					public setScrollBarWidth(value: number): void;
@@ -2011,6 +2069,7 @@ declare module org {
 					public getFlexShrink(): number;
 					public setBorderTop(it: number, top: number): void;
 					public setFlexWrap(value: org.nativescript.mason.masonkit.FlexWrap): void;
+					public setForceInline$masonkit_release(value: boolean): void;
 					public getScrollBarWidth(): number;
 					public setGap(height: number, this_: number, widthValue: number, widthType: number): void;
 					public setSize(value: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>): void;
@@ -2021,9 +2080,11 @@ declare module org {
 					export class Companion {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.Style.Companion>;
 						public nativeGetStyleBuffer(mason: number, node: number): java.nio.ByteBuffer;
-						public nativeSyncStyle(mason: number, node: number, state: number): void;
 						public nativeUpdateWithValues(mason: number, node: number, display: number, position: number, direction: number, flexDirection: number, flexWrap: number, overflow: number, alignItems: number, alignSelf: number, alignContent: number, justifyItems: number, justifySelf: number, justifyContent: number, insetLeftType: number, insetLeftValue: number, insetRightType: number, insetRightValue: number, insetTopType: number, insetTopValue: number, insetBottomType: number, insetBottomValue: number, marginLeftType: number, marginLeftValue: number, marginRightType: number, marginRightValue: number, marginTopType: number, marginTopValue: number, marginBottomType: number, marginBottomValue: number, paddingLeftType: number, paddingLeftValue: number, paddingRightType: number, paddingRightValue: number, paddingTopType: number, paddingTopValue: number, paddingBottomType: number, paddingBottomValue: number, borderLeftType: number, borderLeftValue: number, borderRightType: number, borderRightValue: number, borderTopType: number, borderTopValue: number, borderBottomType: number, borderBottomValue: number, flexGrow: number, flexShrink: number, flexBasisType: number, flexBasisValue: number, widthType: number, widthValue: number, heightType: number, heightValue: number, minWidthType: number, minWidthValue: number, minHeightType: number, minHeightValue: number, maxWidthType: number, maxWidthValue: number, maxHeightType: number, maxHeightValue: number, gapRowType: number, gapRowValue: number, gapColumnType: number, gapColumnValue: number, aspectRatio: number, gridAutoRows: androidNative.Array<org.nativescript.mason.masonkit.MinMax>, gridAutoColumns: androidNative.Array<org.nativescript.mason.masonkit.MinMax>, gridAutoFlow: number, gridColumnStartType: number, gridColumnStartValue: number, gridColumnEndType: number, gridColumnEndValue: number, gridRowStartType: number, gridRowStartValue: number, gridRowEndType: number, gridRowEndValue: number, gridTemplateRows: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>, gridTemplateColumns: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>, overflowX: number, overflowY: number, scrollBarWidth: number, textAlign: number, boxSizing: number): void;
-						public nativeUpdateStyleBuffer(mason: number, node: number, buffer: java.nio.ByteBuffer): void;
+						public nativeNonBufferData(mason: number, node: number, gridAutoRows: androidNative.Array<org.nativescript.mason.masonkit.MinMax>, gridAutoColumns: androidNative.Array<org.nativescript.mason.masonkit.MinMax>, gridTemplateRows: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>, gridTemplateColumns: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
+					}
+					export class WhenMappings {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.Style.WhenMappings>;
 					}
 				}
 			}
@@ -2118,6 +2179,28 @@ declare module org {
 					public static BOX_SIZING: number = 308;
 					public static OVERFLOW: number = 312;
 					public static ITEM_IS_TABLE: number = 316;
+					public static ITEM_IS_REPLACED: number = 320;
+					public static DISPLAY_MODE: number = 324;
+					public static FORCE_INLINE: number = 328;
+					public static MIN_CONTENT: number = 332;
+					public static MAX_CONTENT: number = 336;
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export class Text extends org.nativescript.mason.masonkit.MeasureFunc {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.Text>;
+					public measure(knownDimensions: org.nativescript.mason.masonkit.Size<java.lang.Float>, availableSpace: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public getNode(): org.nativescript.mason.masonkit.Node;
+					public constructor();
+					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public constructor(mason: org.nativescript.mason.masonkit.Mason);
 				}
 			}
 		}
@@ -2244,6 +2327,7 @@ declare module org {
 					public static Li: org.nativescript.mason.masonkit.TextType;
 					public static Blockquote: org.nativescript.mason.masonkit.TextType;
 					public static B: org.nativescript.mason.masonkit.TextType;
+					public static Pre: org.nativescript.mason.masonkit.TextType;
 					public getCssValue(): string;
 					public static values(): androidNative.Array<org.nativescript.mason.masonkit.TextType>;
 					public getValue(): number;
@@ -2270,6 +2354,7 @@ declare module org {
 			export module masonkit {
 				export class TextView implements org.nativescript.mason.masonkit.MasonView, org.nativescript.mason.masonkit.MeasureFunc {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.TextView>;
+					public textNode: org.nativescript.mason.masonkit.Node;
 					public setDecorationLine(value: org.nativescript.mason.masonkit.text.Styles.DecorationLine): void;
 					public configure(param0: any): void;
 					public getTextAlign(): org.nativescript.mason.masonkit.TextAlign;
@@ -2279,27 +2364,33 @@ declare module org {
 					public removeView(it: globalAndroid.view.View): void;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
 					public setTextJustify(value: org.nativescript.mason.masonkit.text.Styles.TextJustify): void;
-					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet);
 					public getDecorationColor(): number;
-					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, value: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public getTextValues(): java.nio.ByteBuffer;
 					public getColor(): number;
 					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public getIncludePadding(): boolean;
 					public setWhiteSpace(this_: org.nativescript.mason.masonkit.text.Styles.WhiteSpace): void;
+					public setTextNode$masonkit_release(value: org.nativescript.mason.masonkit.Node): void;
 					public isNodeDirty(): boolean;
 					public getWhiteSpace(): org.nativescript.mason.masonkit.text.Styles.WhiteSpace;
 					public getFontStyle(): org.nativescript.mason.masonkit.FontFace.NSCFontStyle;
 					public constructor(context: globalAndroid.content.Context);
 					public setTextAlign(value: org.nativescript.mason.masonkit.TextAlign): void;
 					public configureText(block: any): void;
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet, override: boolean);
 					public syncStyle(backgroundColor: string, value: string): void;
+					public invalidate(): void;
 					public setTextOverflow(value: org.nativescript.mason.masonkit.text.Styles.TextOverflow): void;
 					public setFontStyle(value: org.nativescript.mason.masonkit.FontFace.NSCFontStyle): void;
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
 					public getTextWrap(): org.nativescript.mason.masonkit.text.Styles.TextWrap;
+					public onNodeAttached(): void;
+					public onNodeDetached(): void;
 					public getType(): org.nativescript.mason.masonkit.TextType;
+					public constructor(context: globalAndroid.content.Context, mason: org.nativescript.mason.masonkit.Mason, type: org.nativescript.mason.masonkit.TextType);
 					public setDecorationColor(value: number): void;
 					public markNodeDirty(): void;
+					public onLayout(it: boolean, value: number, index: number, layout: number, value: number): void;
 					public setTextWrap(this_: org.nativescript.mason.masonkit.text.Styles.TextWrap): void;
 					public setBackgroundColorValue(value: number): void;
 					public getFont(): org.nativescript.mason.masonkit.FontFace;
@@ -2310,11 +2401,13 @@ declare module org {
 					public getTextTransform(): org.nativescript.mason.masonkit.text.Styles.TextTransform;
 					public getBackgroundColorValue(): number;
 					public getTextOverflow(): org.nativescript.mason.masonkit.text.Styles.TextOverflow;
+					public getTextNode$masonkit_release(): org.nativescript.mason.masonkit.Node;
 					public getValues(): java.nio.ByteBuffer;
 					public getDecorationLine(): org.nativescript.mason.masonkit.text.Styles.DecorationLine;
 					public isLeaf(): boolean;
+					public invalidateView$masonkit_release(): void;
 					public setTextTransform(this_: org.nativescript.mason.masonkit.text.Styles.TextTransform): void;
-					public constructor($this$_init__u24lambda_u240: globalAndroid.content.Context, scale: org.nativescript.mason.masonkit.Mason, margin: org.nativescript.mason.masonkit.TextType);
+					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, value: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public updateText(text: string): void;
 					public getTextJustify(): org.nativescript.mason.masonkit.text.Styles.TextJustify;
@@ -2324,17 +2417,19 @@ declare module org {
 				export module TextView {
 					export class TextChild {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextView.TextChild>;
-						public getAttachment(): org.nativescript.mason.masonkit.text.Spans.NSCSpan;
 						public equals(other: any): boolean;
 						public component1(): globalAndroid.view.View;
-						public getText(): org.nativescript.mason.masonkit.TextView;
+						public copy(view: globalAndroid.view.View, text: org.nativescript.mason.masonkit.TextView, attachment: org.nativescript.mason.masonkit.text.Spans.NSCSpan, node: org.nativescript.mason.masonkit.Node): org.nativescript.mason.masonkit.TextView.TextChild;
 						public hashCode(): number;
-						public getView(): globalAndroid.view.View;
-						public copy(view: globalAndroid.view.View, text: org.nativescript.mason.masonkit.TextView, attachment: org.nativescript.mason.masonkit.text.Spans.NSCSpan): org.nativescript.mason.masonkit.TextView.TextChild;
-						public component3(): org.nativescript.mason.masonkit.text.Spans.NSCSpan;
+						public constructor(view: globalAndroid.view.View, text: org.nativescript.mason.masonkit.TextView, attachment: org.nativescript.mason.masonkit.text.Spans.NSCSpan, node: org.nativescript.mason.masonkit.Node);
 						public toString(): string;
-						public constructor(view: globalAndroid.view.View, text: org.nativescript.mason.masonkit.TextView, attachment: org.nativescript.mason.masonkit.text.Spans.NSCSpan);
 						public component2(): org.nativescript.mason.masonkit.TextView;
+						public component4(): org.nativescript.mason.masonkit.Node;
+						public getAttachment(): org.nativescript.mason.masonkit.text.Spans.NSCSpan;
+						public getText(): org.nativescript.mason.masonkit.TextView;
+						public getView(): globalAndroid.view.View;
+						public getNode(): org.nativescript.mason.masonkit.Node;
+						public component3(): org.nativescript.mason.masonkit.text.Spans.NSCSpan;
 					}
 					export class WhenMappings {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextView.WhenMappings>;
@@ -2428,6 +2523,7 @@ declare module org {
 					public getFlexWrap(): org.nativescript.mason.masonkit.FlexWrap;
 					public setOverflowY(value: org.nativescript.mason.masonkit.Overflow): void;
 					public static createGridView(mason: org.nativescript.mason.masonkit.Mason, context: globalAndroid.content.Context): org.nativescript.mason.masonkit.View;
+					public addView($this$addView_u24lambda_u2411: globalAndroid.view.View, childNode: number, this_: globalAndroid.view.ViewGroup.LayoutParams): void;
 					public setPaddingLeft(value: number, type: number): void;
 					public getStylePaddingLeft(): org.nativescript.mason.masonkit.LengthPercentage;
 					public generateDefaultLayoutParams(): globalAndroid.view.ViewGroup.LayoutParams;
@@ -2440,7 +2536,6 @@ declare module org {
 					public getMarginRight(): org.nativescript.mason.masonkit.LengthPercentageAuto;
 					public setGridTemplateRows(value: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
 					public setMinSizeHeight(value: number, type: number): void;
-					public addView($this$addView_u24lambda_u248: globalAndroid.view.View, childNode: number, this_: globalAndroid.view.ViewGroup.LayoutParams): void;
 					public getAlignContent(): org.nativescript.mason.masonkit.AlignContent;
 					public setPaddingBottom(value: number, type: number): void;
 					public setMinSizeWidth(value: number, type: number): void;
@@ -2479,7 +2574,6 @@ declare module org {
 					public getGapRow(): org.nativescript.mason.masonkit.LengthPercentage;
 					public setInsetTop(value: number, type: number): void;
 					public getGridRow(): org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>;
-					public setStyleFromString(style: string): void;
 					public setMarginTop(value: number, type: number): void;
 					public addView(child: globalAndroid.view.View): void;
 					public setPaddingWithValueType(value: number, type: number): void;
@@ -2535,7 +2629,9 @@ declare module org {
 					public removeAllViewsInLayout(): void;
 					public setPaddingTop(value: number, type: number): void;
 					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
+					public onNodeAttached(): void;
 					public onMeasure(specHeight: number, specWidthMode: number): void;
+					public onNodeDetached(): void;
 					public getSizeWidth(): org.nativescript.mason.masonkit.Dimension;
 					public setMaxSizeWidth(value: number, type: number): void;
 					public markNodeDirty(): void;
@@ -2560,6 +2656,7 @@ declare module org {
 					public setPosition(left: org.nativescript.mason.masonkit.LengthPercentageAuto, top: org.nativescript.mason.masonkit.LengthPercentageAuto, right: org.nativescript.mason.masonkit.LengthPercentageAuto, bottom: org.nativescript.mason.masonkit.LengthPercentageAuto): void;
 					public getMinSizeHeight(): org.nativescript.mason.masonkit.Dimension;
 					public getGridColumn(): org.nativescript.mason.masonkit.Line<org.nativescript.mason.masonkit.GridPlacement>;
+					public invalidateLayout(): void;
 					public getStylePaddingTop(): org.nativescript.mason.masonkit.LengthPercentage;
 					public setPadding(left: org.nativescript.mason.masonkit.LengthPercentage, top: org.nativescript.mason.masonkit.LengthPercentage, right: org.nativescript.mason.masonkit.LengthPercentage, bottom: org.nativescript.mason.masonkit.LengthPercentage): void;
 					public setGap(row: org.nativescript.mason.masonkit.LengthPercentage, column: org.nativescript.mason.masonkit.LengthPercentage): void;
@@ -2728,24 +2825,11 @@ declare module org {
 						export class ViewSpannable implements org.nativescript.mason.masonkit.text.Spans.NSCSpan {
 							public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Spans.ViewSpannable>;
 							public constructor(view: globalAndroid.view.View, node: org.nativescript.mason.masonkit.Node);
+							public draw($this$draw_u24lambda_u241: globalAndroid.graphics.Canvas, $i$f$withSave: string, checkpoint$iv: number, $this$withSave$iv: number, layout: number, width: number, height: number, fontMetrics: number, fontHeight: globalAndroid.graphics.Paint): void;
 							public getNode(): org.nativescript.mason.masonkit.Node;
 							public getView(): globalAndroid.view.View;
-							public draw(height: globalAndroid.graphics.Canvas, fontMetrics: string, baselineOffset: number, this_: number, canvas: number, text: number, start: number, end: number, x: globalAndroid.graphics.Paint): void;
-							public getSize(textHeight: globalAndroid.graphics.Paint, viewHeight: string, this_: number, paint: number, text: globalAndroid.graphics.Paint.FontMetricsInt): number;
-							public getDrawable(): globalAndroid.graphics.drawable.Drawable;
+							public getSize(fontHeight: globalAndroid.graphics.Paint, centerY: string, halfViewHeight: number, it: number, layout: globalAndroid.graphics.Paint.FontMetricsInt): number;
 							public getType(): org.nativescript.mason.masonkit.text.Spans.Type;
-						}
-						export module ViewSpannable {
-							export class ViewDrawable {
-								public static class: java.lang.Class<org.nativescript.mason.masonkit.text.Spans.ViewSpannable.ViewDrawable>;
-								public draw(canvas: globalAndroid.graphics.Canvas): void;
-								public setAlpha(alpha: number): void;
-								public constructor(this$0: globalAndroid.view.View);
-								public setColorFilter(colorFilter: globalAndroid.graphics.ColorFilter): void;
-								public getView(): globalAndroid.view.View;
-								/** @deprecated */
-								public getOpacity(): number;
-							}
 						}
 					}
 				}

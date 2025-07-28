@@ -1,4 +1,4 @@
-use mason_core::{Mason, Node};
+use mason_core::{Mason, NodeRef};
 
 pub mod ffi;
 pub mod node;
@@ -55,11 +55,11 @@ pub extern "C" fn mason_print_tree(mason: *mut CMason, node: *mut CMasonNode) {
         return;
     }
     unsafe {
-        let mason = &mut *mason;
+        let mason = &*mason;
         let node = &*node;
-        mason.0.print_tree(&node.0);
+        mason.0.print_tree(node.0.id());
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct CMasonNode(Node);
+pub struct CMasonNode(NodeRef);

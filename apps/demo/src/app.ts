@@ -1,41 +1,27 @@
 import { Application, GridLayout } from '@nativescript/core';
 import { View } from '@triniwiz/nativescript-masonkit';
+import { Style } from '@triniwiz/nativescript-masonkit/style';
 
-declare const __non_webpack_require__;
+Application.android.on(Application.AndroidApplication.activityCreatedEvent, (args) => {
+  try {
+    const nativeView = org.nativescript.mason.masonkit.Mason.getShared().createView(args.activity);
+    const view = {
+      nativeView,
+      android: nativeView,
+      _hasNativeView: true,
+      _isMasonView: true,
+    };
+    const a = Style.fromView(view as never, nativeView, false);
+    a.display = 'grid';
+    a.gridAutoRows = '150px';
+    a.gridGap = '10px';
+    a.padding = '10px';
 
-// load with java system before requiring which in turn calls dlopen
-//java.lang.System.loadLibrary('masonnative');
-
-//__non_webpack_require__('system_lib://libmasonnativev8.so');
-
-//__non_webpack_require__('./libmasonnativev8.so');
-
-// try {
-//   console.log(global.__Mason_setWidth, global.__Mason_setHeight);
-// } catch (error) {
-//   console.log(error);
-// }
-
-/*
-console.time('legacy');
-const legacy = Array.from({ length: 1000 }).map((_, i) => {
-  const grid = new GridLayout();
-  grid.width = 100;
-  grid.height = 100;
-  return grid;
+    // console.log(a.style.gridAutoRows);
+    console.log(a);
+  } catch (error) {
+    console.log('Error:', error);
+  }
 });
-console.timeEnd('legacy');
-
-console.time('mason');
-const mason = Array.from({ length: 1000 }).map((_, i) => {
-  const grid = new View();
-  // grid.display = 'grid';
-  // grid.width = 100;
-  // grid.height = 100;
-  return grid;
-});
-console.timeEnd('mason');
-
-*/
 
 Application.run({ moduleName: 'app-root' });

@@ -1,13 +1,10 @@
 package org.nativescript.mason.masonkit.text
 
 import android.graphics.Canvas
-import android.graphics.ColorFilter
 import android.graphics.Paint
-import android.graphics.PixelFormat
 import android.graphics.Typeface
-import android.graphics.drawable.Drawable
 import android.text.TextPaint
-import android.text.style.DynamicDrawableSpan
+import android.text.style.ReplacementSpan
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.withSave
@@ -121,10 +118,10 @@ class Spans {
       get() = Type.ForegroundColor
   }
 
-  class ViewSpannable(val view: View, val node: Node) : DynamicDrawableSpan(), NSCSpan {
+  class ViewSpannable(val view: View, val node: Node) : ReplacementSpan(), NSCSpan {
+
     override val type: Type
       get() = Type.View
-    private val drawableCache = ViewDrawable(view)
 
     init {
       if (view.parent is ViewGroup) {
@@ -132,61 +129,33 @@ class Spans {
       }
     }
 
-    private inner class ViewDrawable(val view: View) : Drawable() {
-
-      override fun draw(canvas: Canvas) {
-        view.draw(canvas)
-      }
-
-      override fun setAlpha(alpha: Int) {
-        view.alpha = alpha.toFloat() / 255f
-      }
-
-      override fun setColorFilter(colorFilter: ColorFilter?) {}
-
-      @Deprecated(
-        "", ReplaceWith(
-          "if (view.alpha < 1f) PixelFormat.TRANSLUCENT else PixelFormat.OPAQUE",
-          "android.graphics.PixelFormat",
-          "android.graphics.PixelFormat"
-        )
-      )
-      override fun getOpacity(): Int {
-        return if (view.alpha < 1f) PixelFormat.TRANSLUCENT else PixelFormat.OPAQUE
-      }
-    }
-
     override fun getSize(
       paint: Paint,
-      text: CharSequence?,
+      text: CharSequence,
       start: Int,
       end: Int,
       fm: Paint.FontMetricsInt?
     ): Int {
-      val viewHeight = view.measuredHeight
-      if (fm != null) {
-        val fontMetrics = paint.fontMetricsInt
-        val fontHeight = fontMetrics.descent - fontMetrics.ascent
-        val extra = viewHeight - fontHeight
+      val layout = node.computedLayout
+      val width = layout.width.toInt()
+      val height = layout.height.toInt()
 
-        if (extra > 0) {
-          fm.ascent = fontMetrics.ascent - extra
-          fm.descent = fontMetrics.descent
-          fm.top = fontMetrics.top - extra
-          fm.bottom = fontMetrics.bottom
-        } else {
-          fm.ascent = fontMetrics.ascent
-          fm.descent = fontMetrics.descent
-          fm.top = fontMetrics.top
-          fm.bottom = fontMetrics.bottom
-        }
+      fm?.let {
+        val fontHeight = paint.fontMetricsInt.descent - paint.fontMetricsInt.ascent
+        val centerY = paint.fontMetricsInt.ascent + fontHeight / 2
+
+        val halfViewHeight = height / 2
+        it.ascent = centerY - halfViewHeight
+        it.descent = centerY + halfViewHeight
+        it.top = it.ascent
+        it.bottom = it.descent
       }
-      return view.measuredWidth
+      return width
     }
 
     override fun draw(
       canvas: Canvas,
-      text: CharSequence?,
+      text: CharSequence,
       start: Int,
       end: Int,
       x: Float,
@@ -195,22 +164,19 @@ class Spans {
       bottom: Int,
       paint: Paint
     ) {
+      val layout = node.computedLayout
+      val width = layout.width.toInt()
+      val height = layout.height.toInt()
+
+      val fontMetrics = paint.fontMetricsInt
+      val fontHeight = fontMetrics.descent - fontMetrics.ascent
+      val centerLine = y + fontMetrics.ascent + fontHeight / 2
+      val drawTop = centerLine - height / 2
+
       canvas.withSave {
-        val width = view.measuredWidth
-        val height = view.measuredHeight
-
-        val fontMetrics = paint.fontMetricsInt
-        val baselineOffset = y + fontMetrics.descent - height
-
-        translate(x, baselineOffset.toFloat())
-        view.layout(0, 0, width, height)
-
+        translate(x, drawTop.toFloat())
         view.draw(this)
       }
-    }
-
-    override fun getDrawable(): Drawable {
-      return drawableCache
     }
   }
 }

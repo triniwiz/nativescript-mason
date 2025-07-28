@@ -1,8 +1,7 @@
 use jni::objects::{JClass, JObject, JPrimitiveArray, ReleaseMode};
 use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, JNI_FALSE, JNI_TRUE};
 use jni::JNIEnv;
-
-use mason_core::{AvailableSpace, Mason, Node, NodeContext, Size};
+use mason_core::{AvailableSpace, Mason, NodeRef, Size};
 
 #[no_mangle]
 pub extern "system" fn NodeNativeDestroy(node: jlong) {
@@ -10,7 +9,7 @@ pub extern "system" fn NodeNativeDestroy(node: jlong) {
         return;
     }
     unsafe {
-        let _ = Box::from_raw(node as *mut Node);
+        let _ = Box::from_raw(node as *mut NodeRef);
     }
 }
 
@@ -20,7 +19,7 @@ pub extern "system" fn NodeNativeDestroyNormal(_env: JNIEnv, _: JClass, node: jl
         return;
     }
     unsafe {
-        let _ = Box::from_raw(node as *mut Node);
+        let _ = Box::from_raw(node as *mut NodeRef);
     }
 }
 
@@ -31,7 +30,7 @@ fn native_new_node(taffy: jlong) -> jlong {
 
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        Box::into_raw(Box::new(mason.create_node(None))) as jlong
+        Box::into_raw(Box::new(mason.create_node())) as jlong
     }
 }
 
@@ -41,7 +40,11 @@ pub extern "system" fn NodeNativeNewNode(taffy: jlong) -> jlong {
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeNewNodeNormal(_: JNIEnv, _: JClass, taffy: jlong) -> jlong {
+pub extern "system" fn NodeNativeNewNodeNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong
+) -> jlong {
     native_new_node(taffy)
 }
 
@@ -60,11 +63,11 @@ pub extern "system" fn NodeNativeNewNodeWithContext(
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
 
-        let jvm = env.get_java_vm().unwrap();
+        let node = mason.create_node();
 
-        let context = NodeContext::new(&mut env, Some(jvm), Some(measure));
+        mason.setup(node.id(), Some(measure));
 
-        Box::into_raw(Box::new(mason.create_node(Some(context)))) as jlong
+        Box::into_raw(Box::new(node)) as jlong
     }
 }
 
@@ -73,7 +76,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
     mut env: JNIEnv,
     _: JClass,
     taffy: jlong,
-    children: jlongArray,
+    children: jlongArray
 ) -> jlong {
     if taffy == 0 {
         return 0;
@@ -81,7 +84,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
 
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = mason.create_node(None);
+
+        let node = mason.create_node();
 
         let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
         match env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
@@ -89,10 +93,10 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
                 let data: Vec<_> =
                     std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, array.len())
                         .iter()
-                        .map(|v| (*(*v as *mut Node)).id())
+                        .map(|v| (*(*v as *mut NodeRef)).id())
                         .collect();
 
-                mason.append_node(&node, data.as_slice());
+                mason.append_node(node.id(), data.as_slice());
             }
             Err(_) => {}
         };
@@ -107,8 +111,8 @@ fn native_get_child_count(taffy: jlong, node: jlong) -> jint {
     }
     unsafe {
         let mason = &*(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let count = mason.child_count(node) as jint;
+        let node = &*(node as *mut NodeRef);
+        let count = mason.child_count(node.id()) as jint;
 
         count
     }
@@ -141,15 +145,15 @@ pub extern "system" fn nativeLayout(
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let output = mason.layout(node);
+        let node = &*(node as *mut NodeRef);
+        let output = mason.layout(node.id());
         let size = output.len();
         match env.new_float_array(size as i32) {
             Ok(array) => {
                 if let Err(_) = env.set_float_array_region(&array, 0, &output) {}
                 array.into_raw()
             }
-            Err(e) => env.new_float_array(0_i32).unwrap().into_raw(),
+            Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
         }
     }
 }
@@ -160,8 +164,8 @@ fn native_compute_wh(taffy: jlong, node: jlong, width: jfloat, height: jfloat) {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        mason.compute_wh(node, width, height);
+        let node = &*(node as *mut NodeRef);
+        mason.compute_wh(node.id(), width, height);
     }
 }
 
@@ -194,8 +198,8 @@ fn native_compute_size(taffy: jlong, node: jlong, size: jlong) {
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let size = Box::from_raw(size as *mut Size<AvailableSpace>);
-        let node = &*(node as *mut Node);
-        mason.compute_size(node, *size);
+        let node = &*(node as *mut NodeRef);
+        mason.compute_size(node.id(), *size);
 
         Box::leak(size);
     }
@@ -223,8 +227,8 @@ fn native_compute_max_content(taffy: jlong, node: jlong) {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        mason.compute(node);
+        let node = &*(node as *mut NodeRef);
+        mason.compute(node.id());
     }
 }
 
@@ -249,8 +253,8 @@ fn native_compute_min_content(taffy: jlong, node: jlong) {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        mason.compute_min(node);
+        let node = &*(node as *mut NodeRef);
+        mason.compute_min(node.id());
     }
 }
 
@@ -275,8 +279,8 @@ fn native_compute(taffy: jlong, node: jlong) {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        mason.compute(node);
+        let node = &*(node as *mut NodeRef);
+        mason.compute(node.id());
     }
 }
 
@@ -308,10 +312,10 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeAn
 
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        mason.compute(node);
+        let node = &*(node as *mut NodeRef);
+        mason.compute(node.id());
 
-        let output = mason.layout(node);
+        let output = mason.layout(node.id());
 
         let size = output.len();
         let result = env.new_float_array(size as i32).unwrap();
@@ -339,11 +343,11 @@ pub extern "system" fn nativeComputeWithSizeAndLayout(
 
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
+        let node = &*(node as *mut NodeRef);
 
-        mason.compute_wh(node, width, height);
+        mason.compute_wh(node.id(), width, height);
 
-        let output = mason.layout(node);
+        let output = mason.layout(node.id());
         match env.new_float_array(output.len() as i32) {
             Ok(array) => {
                 env.set_float_array_region(&array, 0, &output).unwrap();
@@ -360,8 +364,8 @@ fn native_get_child_at(taffy: jlong, node: jlong, index: jint) -> jlong {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        match mason.child_at_index(node, index as usize) {
+        let node = &*(node as *mut NodeRef);
+        match mason.child_at_index(node.id(), index as usize) {
             None => 0,
             Some(node) => Box::into_raw(Box::new(node)) as jlong,
         }
@@ -397,14 +401,14 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetChildr
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
+        let node = &*(node as *mut NodeRef);
 
         let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
         if let Ok(array) = env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
             let data = std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, array.len());
-            let data: Vec<_> = data.iter().map(|v| (*(*v as *mut Node)).id()).collect();
+            let data: Vec<_> = data.iter().map(|v| (*(*v as *mut NodeRef)).id()).collect();
             drop(array);
-            mason.set_children(node, data.as_slice());
+            mason.set_children(node.id(), data.as_slice());
         }
         drop(children);
     }
@@ -423,13 +427,13 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeAddChildr
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
+        let node = &*(node as *mut NodeRef);
         let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
 
         if let Ok(array) = env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
             let data = std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, array.len());
-            let data: Vec<_> = data.iter().map(|v| (*(*v as *mut Node)).id()).collect();
-            mason.add_children(node, data.as_slice());
+            let data: Vec<_> = data.iter().map(|v| (*(*v as *mut NodeRef)).id()).collect();
+            mason.add_children(node.id(), data.as_slice());
         };
     }
 }
@@ -440,9 +444,9 @@ fn native_add_child(taffy: jlong, node: jlong, child: jlong) {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let child = &*(child as *mut Node);
-        mason.add_child(node, child);
+        let node = &*(node as *mut NodeRef);
+        let child = &*(child as *mut NodeRef);
+        mason.add_child(node.id(), child.id());
     }
 }
 
@@ -468,10 +472,10 @@ fn native_replace_child_at(taffy: jlong, node: jlong, child: jlong, index: jint)
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let child = &*(child as *mut Node);
+        let node = &*(node as *mut NodeRef);
+        let child = &*(child as *mut NodeRef);
         let ret = mason
-            .replace_child_at_index(node, child, index as usize)
+            .replace_child_at_index(node.id(), child.id(), index as usize)
             .map(|v| Box::into_raw(Box::new(v)) as jlong)
             .unwrap_or_default();
 
@@ -507,9 +511,9 @@ fn native_add_child_at(taffy: jlong, node: jlong, child: jlong, index: jint) {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let child = &*(child as *mut Node);
-        mason.add_child_at_index(node, child, index as usize);
+        let node = &*(node as *mut NodeRef);
+        let child = &*(child as *mut NodeRef);
+        mason.add_child_at_index(node.id(), child.id(), index as usize);
     }
 }
 
@@ -536,10 +540,10 @@ fn native_insert_child_before(taffy: jlong, node: jlong, child: jlong, reference
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let child = &*(child as *mut Node);
-        let reference = &*(reference as *mut Node);
-        mason.insert_child_before(node, child, reference);
+        let node = &*(node as *mut NodeRef);
+        let child = &*(child as *mut NodeRef);
+        let reference = &*(reference as *mut NodeRef);
+        mason.insert_child_before(node.id(), child.id(), reference.id());
     }
 }
 
@@ -571,10 +575,10 @@ fn native_insert_child_after(taffy: jlong, node: jlong, child: jlong, reference:
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let child = &*(child as *mut Node);
-        let reference = &*(reference as *mut Node);
-        mason.insert_child_after(node, child, reference);
+        let node = &*(node as *mut NodeRef);
+        let child = &*(child as *mut NodeRef);
+        let reference = &*(reference as *mut NodeRef);
+        mason.insert_child_after(node.id(), child.id(), reference.id());
     }
 }
 
@@ -606,9 +610,9 @@ fn native_dirty(taffy: jlong, node: jlong) -> jboolean {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
+        let node = &*(node as *mut NodeRef);
 
-        if mason.dirty(node) {
+        if mason.dirty(node.id()) {
             return JNI_TRUE;
         }
     }
@@ -637,8 +641,8 @@ fn native_mark_dirty(taffy: jlong, node: jlong) {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        mason.mark_dirty(node);
+        let node = &*(node as *mut NodeRef);
+        mason.mark_dirty(node.id());
     }
 }
 
@@ -665,19 +669,19 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeIsChildre
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
+        let node = &*(node as *mut NodeRef);
 
         let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
         let ret = match env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
             Ok(array) => {
                 let size = array.len();
-                if mason.child_count(node) != size {
+                if mason.child_count(node.id()) != size {
                     return JNI_TRUE;
                 }
                 let data = std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, size);
-                let data: Vec<_> = data.iter().map(|v| (*(*v as *mut Node)).id()).collect();
+                let data: Vec<_> = data.iter().map(|v| (*(*v as *mut NodeRef)).id()).collect();
 
-                if mason.is_children_same(node, data.as_slice()) {
+                if mason.is_children_same(node.id(), data.as_slice()) {
                     return JNI_TRUE;
                 }
                 JNI_FALSE
@@ -695,8 +699,8 @@ fn native_remove_children(taffy: jlong, node: jlong) {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        mason.remove_children(node);
+        let node = &*(node as *mut NodeRef);
+        mason.remove_children(node.id());
     }
 }
 
@@ -721,10 +725,10 @@ fn native_remove_child_at(taffy: jlong, node: jlong, index: jint) -> jlong {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
+        let node = &*(node as *mut NodeRef);
 
         let ret = mason
-            .remove_child_at_index(node, index as usize)
+            .remove_child_at_index(node.id(), index as usize)
             .map(|v| Box::into_raw(Box::new(v)) as jlong)
             .unwrap_or_default();
 
@@ -754,9 +758,9 @@ fn native_remove_child(taffy: jlong, node: jlong, child: jlong) -> jlong {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let child = &*(child as *mut Node);
-        match mason.remove_child(node, child) {
+        let node = &*(node as *mut NodeRef);
+        let child = &*(child as *mut NodeRef);
+        match mason.remove_child(node.id(), child.id()) {
             None => 0,
             Some(value) => Box::into_raw(Box::new(value)) as jlong,
         }
@@ -791,8 +795,8 @@ pub extern "system" fn nativeGetChildren(
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let children = mason.children(node);
+        let node = &*(node as *mut NodeRef);
+        let children = mason.children(node.id());
 
         let array = env.new_long_array(children.len() as i32).unwrap();
         let buf: Vec<jlong> = children
@@ -818,11 +822,14 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetContex
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        let node = &*(node as *mut Node);
-        let measure = env.new_global_ref(measure).unwrap();
-        let jvm = env.get_java_vm().unwrap();
-        let context = NodeContext::new(&mut env, Some(jvm), Some(measure));
-        mason.set_node_context(node, context);
+        let node = &*(node as *mut NodeRef);
+        let measure = if measure.is_null() {
+            None
+        } else {
+            Some(env.new_global_ref(measure).unwrap())
+        };
+
+        mason.set_measure(node.id(), measure);
     }
 }
 
@@ -832,7 +839,8 @@ fn native_remove_context(taffy: jlong, node: jlong) {
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        // mason.set_node_context(node, None);
+        let node = &*(node as *mut NodeRef);
+        mason.set_measure(node.id(), None);
     }
 }
 

@@ -189,7 +189,9 @@ void mason_node_set_context(struct CMason *mason,
                             long long (*measure)(const void*, float, float, float, float));
 #endif
 
+#if !defined(TARGET_OS_ANDROID)
 void mason_node_remove_context(struct CMason *mason, struct CMasonNode *node);
+#endif
 
 void mason_destroy_non_repeated_track_sizing_function_array(struct CMasonNonRepeatedTrackSizingFunctionArray *array);
 
@@ -281,21 +283,6 @@ void mason_style_set_with_values(struct CMason *mason,
                                  int32_t text_align,
                                  int32_t box_sizing);
 
-void mason_style_sync_style(struct CMason *mason, struct CMasonNode *node, int64_t state);
-
-void mason_style_sync_style_with_buffer(struct CMason *mason,
-                                        struct CMasonNode *node,
-                                        int64_t state,
-                                        uint8_t *buffer,
-                                        uintptr_t buffer_size);
-
-void *mason_style_sync_compute_and_layout(struct CMason *mason,
-                                          struct CMasonNode *node,
-                                          uint8_t *data,
-                                          uintptr_t size,
-                                          int64_t state,
-                                          void *(*layout)(const float*));
-
 void mason_style_release_style_buffer(struct CMasonBuffer *buffer);
 
 struct CMasonBuffer *mason_style_get_style_buffer(struct CMason *mason, struct CMasonNode *node);
@@ -339,4 +326,4 @@ char *mason_util_parse_auto_repeating_track_sizing_function(struct CMasonTrackSi
 
 void mason_util_destroy_string(char *string);
 
-#endif /* MASON_C_H */
+#endif  /* MASON_C_H */

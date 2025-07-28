@@ -2,7 +2,6 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
@@ -36,20 +35,18 @@ class View @JvmOverloads constructor(
     }
   }
 
-  init {
-
-//    val layoutParams = if (attrs != null) {
-//      LayoutParams(context, attrs)
-//    } else {
-//      generateDefaultLayoutParams()
-//    }
-//
-//    applyLayoutParams(layoutParams as LayoutParams, node, this)
-  }
-
 
   override fun isLeaf(): Boolean {
     return false
+  }
+
+  fun invalidateLayout() {
+    val root = rootNode.data as? MasonView
+
+    root?.let {
+      it.markNodeDirty()
+      (root as? View)?.requestLayout()
+    }
   }
 
 
@@ -57,12 +54,29 @@ class View @JvmOverloads constructor(
     node.style.updateNativeStyle()
   }
 
-  fun setStyleFromString(style: String) {
+//  fun setStyleFromString(style: String) {
 //    try {
 //      val parsedStyle = gson.fromJson(style, Style::class.java)
 //      this.style = parsedStyle
 //    } catch (_: Exception) {
 //    }
+//  }
+
+  private val rootNode: Node
+    get() {
+      return this.node.root ?: node
+    }
+
+  private fun markDirtyAndRecompute() {
+    node.dirty()
+    if (!node.inBatch) {
+      rootNode.computeCacheWidth?.let { width ->
+        rootNode.computeCacheHeight?.let { height ->
+          rootNode.compute(width, height)
+          (rootNode.data as? android.view.View)?.requestLayout()
+        }
+      }
+    }
   }
 
   fun getStyleAsString(): String? {
@@ -71,7 +85,7 @@ class View @JvmOverloads constructor(
 
   private fun applyLayoutRecursive(node: Node, layout: Layout) {
     val view = node.data as? android.view.View
-    node.layoutCache = layout
+    node.computedLayout = layout
 
     if (view != null && view != this) {
       var realLayout = layout
@@ -80,65 +94,58 @@ class View @JvmOverloads constructor(
       }
 
       if (view is TextView) {
-        realLayout = view.node.layoutCache!!
+        realLayout = view.node.computedLayout
       }
 
       val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
       val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+      var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
+      var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
 
 
-      val widthSpec = if (realLayout.width.isInfinite()) {
-        MeasureSpec.UNSPECIFIED
-      } else if (width > 0) {
-        if (node.knownWidth != null) {
-          MeasureSpec.EXACTLY
+      if (view !is MasonView) {
+        val widthSpec = if (realLayout.width.isInfinite()) {
+          MeasureSpec.UNSPECIFIED
+        } else if (width > 0) {
+          if (node.knownWidth != null) {
+            MeasureSpec.EXACTLY
+          } else {
+            MeasureSpec.AT_MOST
+          }
         } else {
-          MeasureSpec.AT_MOST
+          MeasureSpec.UNSPECIFIED
         }
-      } else {
-        MeasureSpec.UNSPECIFIED
-      }
 
-      val heightSpec = if (realLayout.height.isInfinite()) {
-        MeasureSpec.UNSPECIFIED
-      } else if (height > 0) {
-        if (node.knownHeight != null) {
-          MeasureSpec.EXACTLY
+        val heightSpec = if (realLayout.height.isInfinite()) {
+          MeasureSpec.UNSPECIFIED
+        } else if (height > 0) {
+          if (node.knownHeight != null) {
+            MeasureSpec.EXACTLY
+          } else {
+            MeasureSpec.AT_MOST
+          }
         } else {
-          MeasureSpec.AT_MOST
+          MeasureSpec.UNSPECIFIED
         }
-      } else {
-        MeasureSpec.UNSPECIFIED
-      }
 
-      view.measure(
-        MeasureSpec.makeMeasureSpec(
-          width,
-          widthSpec
-        ),
-        MeasureSpec.makeMeasureSpec(
-          height,
-          heightSpec
+        view.measure(
+          MeasureSpec.makeMeasureSpec(
+            width,
+            widthSpec
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height,
+            heightSpec
+          )
         )
-      )
 
-      val right: Int
-      val bottom: Int
-
-      if (view is MasonView) {
-        if (view.isLeaf()) {
-          right = x + view.measuredWidth
-          bottom = y + view.measuredHeight
-        } else {
-          right = x + width
-          bottom = y + height
-        }
-      } else {
-        right = x + view.measuredWidth
-        bottom = y + view.measuredHeight
+        width = view.measuredWidth
+        height = view.measuredHeight
       }
+
+      val right: Int = x + width
+      val bottom: Int = y + height
+
 
       view.layout(x, y, right, bottom)
     }
