@@ -13,11 +13,11 @@ import com.google.gson.Gson
 import kotlin.math.roundToInt
 
 class View @JvmOverloads constructor(
-  context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
+  context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
 ) : ViewGroup(context, attrs, defStyleAttr), MasonView {
 
   override lateinit var node: Node
-    private set
+  // private set
 
   private val nodes = mutableMapOf<android.view.View, Node>()
 
@@ -28,25 +28,20 @@ class View @JvmOverloads constructor(
   }
 
   init {
-    if (!::node.isInitialized) {
-      node = Mason.shared.createNode().apply {
-        data = this@View
+    if (!override) {
+      if (!::node.isInitialized) {
+        node = Mason.shared.createNode().apply {
+          data = this@View
+        }
       }
     }
   }
 
 
+  internal var isScrollRoot = false
+
   override fun isLeaf(): Boolean {
     return false
-  }
-
-  fun invalidateLayout() {
-    val root = rootNode.data as? MasonView
-
-    root?.let {
-      it.markNodeDirty()
-      (root as? View)?.requestLayout()
-    }
   }
 
 
@@ -62,25 +57,13 @@ class View @JvmOverloads constructor(
 //    }
 //  }
 
-  private val rootNode: Node
-    get() {
-      return this.node.root ?: node
-    }
-
-  private fun markDirtyAndRecompute() {
-    node.dirty()
-    if (!node.inBatch) {
-      rootNode.computeCacheWidth?.let { width ->
-        rootNode.computeCacheHeight?.let { height ->
-          rootNode.compute(width, height)
-          (rootNode.data as? android.view.View)?.requestLayout()
-        }
-      }
-    }
-  }
-
   fun getStyleAsString(): String? {
-    return gson.toJson(style)
+    try {
+      return gson.toJson(style)
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+    return null
   }
 
   private fun applyLayoutRecursive(node: Node, layout: Layout) {
@@ -89,19 +72,34 @@ class View @JvmOverloads constructor(
 
     if (view != null && view != this) {
       var realLayout = layout
+      var isText = false
+      var hasWidthConstraint = false
+      var hasHeightConstraint = false
       if (view.isGone) {
         return
       }
 
       if (view is TextView) {
         realLayout = view.node.computedLayout
+        isText = true
+        hasWidthConstraint = node.style.size.width != Dimension.Auto
+        hasHeightConstraint = node.style.size.height != Dimension.Auto
       }
 
-      val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+      var x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
+      var y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
       var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
       var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
 
+      if (isText) {
+        if (!hasWidthConstraint) {
+          width = realLayout.contentSize.width.toInt()
+        }
+
+        if (!hasHeightConstraint) {
+          height = realLayout.contentSize.height.toInt()
+        }
+      }
 
       if (view !is MasonView) {
         val widthSpec = if (realLayout.width.isInfinite()) {
@@ -143,11 +141,20 @@ class View @JvmOverloads constructor(
         height = view.measuredHeight
       }
 
-      val right: Int = x + width
-      val bottom: Int = y + height
-
+      var right: Int = x + width
+      var bottom: Int = y + height
 
       view.layout(x, y, right, bottom)
+
+
+      if (view is Scroll) {
+        view.scrollRoot.layout(
+          0,
+          0,
+          realLayout.contentSize.width.toInt(),
+          realLayout.contentSize.height.toInt()
+        )
+      }
     }
 
     val childrenCount = node.getChildCount()
@@ -189,9 +196,7 @@ class View @JvmOverloads constructor(
 
   override fun addView(child: android.view.View) {
     addView(
-      child, -1, ViewGroup.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-      )
+      child, -1, -2
     )
   }
 

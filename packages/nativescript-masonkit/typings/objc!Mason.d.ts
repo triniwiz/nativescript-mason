@@ -1,65 +1,4 @@
 
-declare const enum AlignContent {
-
-	Normal = -1,
-
-	Start = 0,
-
-	End = 1,
-
-	Center = 2,
-
-	Stretch = 3,
-
-	SpaceBetween = 4,
-
-	SpaceAround = 5,
-
-	SpaceEvenly = 6,
-
-	FlexStart = 7,
-
-	FlexEnd = 8
-}
-
-declare const enum AlignItems {
-
-	Normal = -1,
-
-	Start = 0,
-
-	End = 1,
-
-	Center = 2,
-
-	Baseline = 3,
-
-	Stretch = 4,
-
-	FlexStart = 5,
-
-	FlexEnd = 6
-}
-
-declare const enum AlignSelf {
-
-	Normal = -1,
-
-	Start = 0,
-
-	End = 1,
-
-	Center = 2,
-
-	Baseline = 3,
-
-	Stretch = 4,
-
-	FlexStart = 5,
-
-	FlexEnd = 6
-}
-
 declare const enum AvailableSpace_Tag {
 
 	Definite = 0,
@@ -96,77 +35,6 @@ declare const enum CMasonTrackSizingFunction_Tag {
 	Repeat = 1
 }
 
-declare const enum DecorationLine {
-
-	None = 0,
-
-	Underline = 1,
-
-	Overline = 2,
-
-	LineThrough = 3
-}
-
-declare const enum Direction {
-
-	Inherit = 0,
-
-	LTR = 1,
-
-	RTL = 2
-}
-
-declare const enum Display {
-
-	None = 0,
-
-	Flex = 1,
-
-	Grid = 2,
-
-	Block = 3
-}
-
-declare const enum FlexDirection {
-
-	Row = 0,
-
-	Column = 1,
-
-	RowReverse = 2,
-
-	ColumnReverse = 3
-}
-
-declare const enum FlexGridAutoFlowWrap {
-
-	Row = 0,
-
-	Column = 1,
-
-	RowDense = 2,
-
-	ColumnDense = 3
-}
-
-declare const enum FlexWrap {
-
-	NoWrap = 0,
-
-	Wrap = 1,
-
-	WrapReverse = 2
-}
-
-declare const enum FontStyle {
-
-	Normal = 0,
-
-	Italic = 1,
-
-	Oblique = 2
-}
-
 declare class GridPlacementCompat extends NSObject {
 
 	static alloc(): GridPlacementCompat; // inherited from NSObject
@@ -177,7 +45,7 @@ declare class GridPlacementCompat extends NSObject {
 
 	readonly jsonValue: string;
 
-	readonly type: GridPlacementCompatType;
+	readonly type: MasonGridPlacementCompatType;
 
 	readonly value: number;
 
@@ -192,33 +60,18 @@ declare class GridPlacementCompat extends NSObject {
 	initWithSpan(span: number): this;
 }
 
-declare const enum GridPlacementCompatType {
+declare class LineGridPlacementCompat extends NSObject {
 
-	Auto = 0,
+	static alloc(): LineGridPlacementCompat; // inherited from NSObject
 
-	Line = 1,
+	static new(): LineGridPlacementCompat; // inherited from NSObject
 
-	Span = 2
+	readonly end: GridPlacementCompat;
+
+	readonly start: GridPlacementCompat;
 }
 
-declare class GridTrackRepetition extends NSObject {
-
-	static Count(value: number): GridTrackRepetition;
-
-	static alloc(): GridTrackRepetition; // inherited from NSObject
-
-	static new(): GridTrackRepetition; // inherited from NSObject
-
-	readonly type: number;
-
-	readonly value: number;
-
-	static readonly AutoFill: GridTrackRepetition;
-
-	static readonly AutoFit: GridTrackRepetition;
-}
-
-declare const enum JustifyContent {
+declare const enum MasonAlignContent {
 
 	Normal = -1,
 
@@ -241,7 +94,7 @@ declare const enum JustifyContent {
 	FlexEnd = 8
 }
 
-declare const enum JustifyItems {
+declare const enum MasonAlignItems {
 
 	Normal = -1,
 
@@ -260,7 +113,7 @@ declare const enum JustifyItems {
 	FlexEnd = 6
 }
 
-declare const enum JustifySelf {
+declare const enum MasonAlignSelf {
 
 	Normal = -1,
 
@@ -277,17 +130,6 @@ declare const enum JustifySelf {
 	FlexStart = 5,
 
 	FlexEnd = 6
-}
-
-declare class LineGridPlacementCompat extends NSObject {
-
-	static alloc(): LineGridPlacementCompat; // inherited from NSObject
-
-	static new(): LineGridPlacementCompat; // inherited from NSObject
-
-	readonly end: GridPlacementCompat;
-
-	readonly start: GridPlacementCompat;
 }
 
 declare const enum MasonBoxSizing {
@@ -295,6 +137,17 @@ declare const enum MasonBoxSizing {
 	BorderBox = 0,
 
 	ContentBox = 1
+}
+
+declare const enum MasonDecorationLine {
+
+	None = 0,
+
+	Underline = 1,
+
+	Overline = 2,
+
+	LineThrough = 3
 }
 
 declare class MasonDimensionCompat extends NSObject {
@@ -333,6 +186,17 @@ declare const enum MasonDimensionCompatType {
 	Percent = 2
 }
 
+declare class MasonDimensionPointCompat extends NSObject {
+
+	static alloc(): MasonDimensionPointCompat; // inherited from NSObject
+
+	static new(): MasonDimensionPointCompat; // inherited from NSObject
+
+	x: MasonDimensionCompat;
+
+	y: MasonDimensionCompat;
+}
+
 declare class MasonDimensionRectCompat extends NSObject {
 
 	static alloc(): MasonDimensionRectCompat; // inherited from NSObject
@@ -361,6 +225,100 @@ declare class MasonDimensionSizeCompat extends NSObject {
 	height: MasonDimensionCompat;
 
 	width: MasonDimensionCompat;
+}
+
+declare const enum MasonDirection {
+
+	Inherit = 0,
+
+	LTR = 1,
+
+	RTL = 2
+}
+
+declare const enum MasonDisplay {
+
+	None = 0,
+
+	Flex = 1,
+
+	Grid = 2,
+
+	Block = 3,
+
+	Inline = 4,
+
+	InlineBlock = 5,
+
+	InlineFlex = 6,
+
+	InlineGrid = 7
+}
+
+declare const enum MasonFlexDirection {
+
+	Row = 0,
+
+	Column = 1,
+
+	RowReverse = 2,
+
+	ColumnReverse = 3
+}
+
+declare const enum MasonFlexWrap {
+
+	NoWrap = 0,
+
+	Wrap = 1,
+
+	WrapReverse = 2
+}
+
+declare const enum MasonFontStyle {
+
+	Normal = 0,
+
+	Italic = 1,
+
+	Oblique = 2
+}
+
+declare const enum MasonGridAutoFlowWrap {
+
+	Row = 0,
+
+	Column = 1,
+
+	RowDense = 2,
+
+	ColumnDense = 3
+}
+
+declare const enum MasonGridPlacementCompatType {
+
+	Auto = 0,
+
+	Line = 1,
+
+	Span = 2
+}
+
+declare class MasonGridTrackRepetition extends NSObject {
+
+	static Count(value: number): MasonGridTrackRepetition;
+
+	static alloc(): MasonGridTrackRepetition; // inherited from NSObject
+
+	static new(): MasonGridTrackRepetition; // inherited from NSObject
+
+	readonly type: number;
+
+	readonly value: number;
+
+	static readonly AutoFill: MasonGridTrackRepetition;
+
+	static readonly AutoFit: MasonGridTrackRepetition;
 }
 
 declare class MasonImg extends UIImageView {
@@ -398,6 +356,8 @@ declare class MasonImg extends UIImageView {
 
 	static new(): MasonImg; // inherited from NSObject
 
+	didLayout: () => void;
+
 	readonly mason: NSCMason;
 
 	readonly node: MasonNode;
@@ -413,6 +373,73 @@ declare class MasonImg extends UIImageView {
 	isNodeDirty(): boolean;
 
 	markNodeDirty(): void;
+
+	requestLayout(): void;
+
+	syncStyle(state: string): void;
+
+	updateImage(image: UIImage): void;
+}
+
+declare const enum MasonJustifyContent {
+
+	Normal = -1,
+
+	Start = 0,
+
+	End = 1,
+
+	Center = 2,
+
+	Stretch = 3,
+
+	SpaceBetween = 4,
+
+	SpaceAround = 5,
+
+	SpaceEvenly = 6,
+
+	FlexStart = 7,
+
+	FlexEnd = 8
+}
+
+declare const enum MasonJustifyItems {
+
+	Normal = -1,
+
+	Start = 0,
+
+	End = 1,
+
+	Center = 2,
+
+	Baseline = 3,
+
+	Stretch = 4,
+
+	FlexStart = 5,
+
+	FlexEnd = 6
+}
+
+declare const enum MasonJustifySelf {
+
+	Normal = -1,
+
+	Start = 0,
+
+	End = 1,
+
+	Center = 2,
+
+	Baseline = 3,
+
+	Stretch = 4,
+
+	FlexStart = 5,
+
+	FlexEnd = 6
 }
 
 declare class MasonLayout extends NSObject {
@@ -468,6 +495,17 @@ declare const enum MasonLengthPercentageAutoCompatType {
 	Points = 1,
 
 	Percent = 2
+}
+
+declare class MasonLengthPercentageAutoPointCompat extends NSObject {
+
+	static alloc(): MasonLengthPercentageAutoPointCompat; // inherited from NSObject
+
+	static new(): MasonLengthPercentageAutoPointCompat; // inherited from NSObject
+
+	x: MasonLengthPercentageAutoCompat;
+
+	y: MasonLengthPercentageAutoCompat;
 }
 
 declare class MasonLengthPercentageAutoRectCompat extends NSObject {
@@ -532,6 +570,17 @@ declare const enum MasonLengthPercentageCompatType {
 	Percent = 1
 }
 
+declare class MasonLengthPercentagePointCompat extends NSObject {
+
+	static alloc(): MasonLengthPercentagePointCompat; // inherited from NSObject
+
+	static new(): MasonLengthPercentagePointCompat; // inherited from NSObject
+
+	x: MasonLengthPercentageCompat;
+
+	y: MasonLengthPercentageCompat;
+}
+
 declare class MasonLengthPercentageRectCompat extends NSObject {
 
 	static alloc(): MasonLengthPercentageRectCompat; // inherited from NSObject
@@ -581,11 +630,11 @@ declare class MasonNode extends NSObject {
 
 	readonly children: NSArray<MasonNode>;
 
+	readonly computedLayout: MasonLayout;
+
 	data: any;
 
 	readonly isDirty: boolean;
-
-	readonly layoutCache: MasonLayout;
 
 	readonly nativePtr: interop.Pointer | interop.Reference<any>;
 
@@ -628,39 +677,204 @@ declare class MasonNode extends NSObject {
 	setChildrenWithValue(value: NSArray<MasonNode> | MasonNode[]): void;
 }
 
+declare const enum MasonOverflow {
+
+	Visible = 0,
+
+	Hidden = 1,
+
+	Scroll = 2,
+
+	Clip = 3,
+
+	Auto = 4
+}
+
+declare class MasonOverflowPointCompat extends NSObject {
+
+	static alloc(): MasonOverflowPointCompat; // inherited from NSObject
+
+	static new(): MasonOverflowPointCompat; // inherited from NSObject
+
+	readonly cssValue: string;
+
+	x: MasonOverflow;
+
+	y: MasonOverflow;
+}
+
+declare const enum MasonPosition {
+
+	Relative = 0,
+
+	Absolute = 1
+}
+
+declare class MasonScroll extends UIScrollView implements UIScrollViewDelegate {
+
+	static alloc(): MasonScroll; // inherited from NSObject
+
+	static appearance(): MasonScroll; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 */
+	static appearanceForTraitCollection(trait: UITraitCollection): MasonScroll; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 * @deprecated 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonScroll; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonScroll; // inherited from UIAppearance
+
+	/**
+	 * @since 5.0
+	 * @deprecated 9.0
+	 */
+	static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonScroll; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonScroll; // inherited from UIAppearance
+
+	static new(): MasonScroll; // inherited from NSObject
+
+	readonly mason: NSCMason;
+
+	readonly node: MasonNode;
+
+	readonly style: MasonStyle;
+
+	readonly uiView: UIView;
+
+	readonly debugDescription: string; // inherited from NSObjectProtocol
+
+	readonly description: string; // inherited from NSObjectProtocol
+
+	readonly hash: number; // inherited from NSObjectProtocol
+
+	readonly isProxy: boolean; // inherited from NSObjectProtocol
+
+	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+
+	readonly  // inherited from NSObjectProtocol
+
+	addView(view: UIView): void;
+
+	addViewAt(view: UIView, at: number): void;
+
+	class(): typeof NSObject;
+
+	configure(block: (p1: MasonNode) => void): void;
+
+	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
+
+	isEqual(object: any): boolean;
+
+	isKindOfClass(aClass: typeof NSObject): boolean;
+
+	isMemberOfClass(aClass: typeof NSObject): boolean;
+
+	isNodeDirty(): boolean;
+
+	markNodeDirty(): void;
+
+	performSelector(aSelector: string): any;
+
+	performSelectorWithObject(aSelector: string, object: any): any;
+
+	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
+
+	requestLayout(): void;
+
+	respondsToSelector(aSelector: string): boolean;
+
+	retainCount(): number;
+
+	/**
+	 * @since 11.0
+	 */
+	scrollViewDidChangeAdjustedContentInset(scrollView: UIScrollView): void;
+
+	scrollViewDidEndDecelerating(scrollView: UIScrollView): void;
+
+	scrollViewDidEndDraggingWillDecelerate(scrollView: UIScrollView, decelerate: boolean): void;
+
+	scrollViewDidEndScrollingAnimation(scrollView: UIScrollView): void;
+
+	scrollViewDidEndZoomingWithViewAtScale(scrollView: UIScrollView, view: UIView, scale: number): void;
+
+	scrollViewDidScroll(scrollView: UIScrollView): void;
+
+	scrollViewDidScrollToTop(scrollView: UIScrollView): void;
+
+	/**
+	 * @since 3.2
+	 */
+	scrollViewDidZoom(scrollView: UIScrollView): void;
+
+	scrollViewShouldScrollToTop(scrollView: UIScrollView): boolean;
+
+	scrollViewWillBeginDecelerating(scrollView: UIScrollView): void;
+
+	scrollViewWillBeginDragging(scrollView: UIScrollView): void;
+
+	/**
+	 * @since 3.2
+	 */
+	scrollViewWillBeginZoomingWithView(scrollView: UIScrollView, view: UIView): void;
+
+	/**
+	 * @since 5.0
+	 */
+	scrollViewWillEndDraggingWithVelocityTargetContentOffset(scrollView: UIScrollView, velocity: CGPoint, targetContentOffset: interop.Pointer | interop.Reference<CGPoint>): void;
+
+	self(): this;
+
+	syncStyle(state: string): void;
+
+	viewForZoomingInScrollView(scrollView: UIScrollView): UIView;
+}
+
 declare class MasonStyle extends NSObject {
 
 	static alloc(): MasonStyle; // inherited from NSObject
 
 	static new(): MasonStyle; // inherited from NSObject
 
-	alignContent: AlignContent;
+	alignContent: MasonAlignContent;
 
-	alignItems: AlignItems;
+	alignItems: MasonAlignItems;
 
-	alignSelf: AlignSelf;
+	alignSelf: MasonAlignSelf;
 
 	borderCompat: MasonLengthPercentageRectCompat;
 
 	boxSizing: MasonBoxSizing;
 
-	direction: Direction;
+	direction: MasonDirection;
 
-	display: Display;
+	display: MasonDisplay;
 
-	flexDirection: FlexDirection;
+	flexDirection: MasonFlexDirection;
 
 	flexGrow: number;
 
 	flexShrink: number;
 
-	flexWrap: FlexWrap;
+	flexWrap: MasonFlexWrap;
 
 	gapCompat: MasonLengthPercentageSizeCompat;
 
 	gridAutoColumns: NSArray<MinMax>;
 
-	gridAutoFlow: FlexGridAutoFlowWrap;
+	gridAutoFlow: MasonGridAutoFlowWrap;
 
 	gridAutoRows: NSArray<MinMax>;
 
@@ -682,11 +896,11 @@ declare class MasonStyle extends NSObject {
 
 	insetCompat: MasonLengthPercentageAutoRectCompat;
 
-	justifyContent: JustifyContent;
+	justifyContent: MasonJustifyContent;
 
-	justifyItems: JustifyItems;
+	justifyItems: MasonJustifyItems;
 
-	justifySelf: JustifySelf;
+	justifySelf: MasonJustifySelf;
 
 	marginCompat: MasonLengthPercentageAutoRectCompat;
 
@@ -694,13 +908,15 @@ declare class MasonStyle extends NSObject {
 
 	minSizeCompat: MasonDimensionSizeCompat;
 
-	overflowX: Overflow;
+	overflowCompat: MasonOverflowPointCompat;
 
-	overflowY: Overflow;
+	overflowX: MasonOverflow;
+
+	overflowY: MasonOverflow;
 
 	paddingCompat: MasonLengthPercentageRectCompat;
 
-	position: Position;
+	position: MasonPosition;
 
 	sizeCompat: MasonDimensionSizeCompat;
 
@@ -832,13 +1048,13 @@ declare class MasonText extends UIView {
 
 	decorationColor: number;
 
-	decorationLine: DecorationLine;
+	decorationLine: MasonDecorationLine;
 
 	readonly font: NSCFontFace;
 
 	fontSize: number;
 
-	fontStyle: FontStyle;
+	fontStyle: MasonFontStyle;
 
 	fontWeight: string;
 
@@ -850,11 +1066,15 @@ declare class MasonText extends UIView {
 
 	text: string;
 
-	textTransform: TextTransform;
+	readonly textNode: MasonNode;
+
+	textOverflowCompat: MasonTextOverflowCompat;
+
+	textTransform: MasonTextTransform;
 
 	readonly textValues: NSData;
 
-	textWrap: TextWrap;
+	textWrap: MasonTextWrap;
 
 	txtToRender: NSMutableAttributedString;
 
@@ -862,7 +1082,7 @@ declare class MasonText extends UIView {
 
 	readonly uiView: UIView;
 
-	whiteSpace: WhiteSpace;
+	whiteSpace: MasonWhiteSpace;
 
 	constructor(o: { mason: NSCMason; });
 
@@ -894,7 +1114,7 @@ declare class MasonText extends UIView {
 
 	setDecorationColorWithUi(color: UIColor): void;
 
-	setFontStyleSlant(style: FontStyle, slant: number): void;
+	setFontStyleSlant(style: MasonFontStyle, slant: number): void;
 
 	syncStyle(state: string, textState: string): void;
 
@@ -916,6 +1136,36 @@ declare const enum MasonTextAlign {
 	Start = 5,
 
 	End = 6
+}
+
+declare class MasonTextOverflowCompat extends NSObject {
+
+	static Custom(value: string): MasonTextOverflowCompat;
+
+	static Ellipse(value: string): MasonTextOverflowCompat;
+
+	static alloc(): MasonTextOverflowCompat; // inherited from NSObject
+
+	static new(): MasonTextOverflowCompat; // inherited from NSObject
+
+	static readonly Clip: MasonTextOverflowCompat;
+}
+
+declare const enum MasonTextTransform {
+
+	None = 0,
+
+	Capitalize = 1,
+
+	Uppercase = 2,
+
+	Lowercase = 3,
+
+	FullWidth = 4,
+
+	FullSizeKana = 5,
+
+	MathAuto = 6
 }
 
 declare const enum MasonTextType {
@@ -944,7 +1194,18 @@ declare const enum MasonTextType {
 
 	Blockquote = 11,
 
-	B = 12
+	B = 12,
+
+	Pre = 13
+}
+
+declare const enum MasonTextWrap {
+
+	Wrap = 0,
+
+	NoWrap = 1,
+
+	Balance = 2
 }
 
 declare class MasonUIView extends UIView {
@@ -988,33 +1249,33 @@ declare class MasonUIView extends UIView {
 
 	static new(): MasonUIView; // inherited from NSObject
 
-	_position: Position;
+	_position: MasonPosition;
 
-	alignContent: AlignContent;
+	alignContent: MasonAlignContent;
 
-	alignItems: AlignItems;
+	alignItems: MasonAlignItems;
 
-	alignSelf: AlignSelf;
+	alignSelf: MasonAlignSelf;
 
 	aspectRatio: number;
 
-	direction: Direction;
+	direction: MasonDirection;
 
-	display: Display;
+	display: MasonDisplay;
 
 	flexBasisCompat: MasonDimensionCompat;
 
-	flexDirection: FlexDirection;
+	flexDirection: MasonFlexDirection;
 
 	flexGrow: number;
 
 	flexShrink: number;
 
-	flexWrap: FlexWrap;
+	flexWrap: MasonFlexWrap;
 
 	gridAutoColumns: NSArray<MinMax>;
 
-	gridAutoFlow: FlexGridAutoFlowWrap;
+	gridAutoFlow: MasonGridAutoFlowWrap;
 
 	gridAutoRows: NSArray<MinMax>;
 
@@ -1036,19 +1297,19 @@ declare class MasonUIView extends UIView {
 
 	inBatch: boolean;
 
-	justifyContent: JustifyContent;
+	justifyContent: MasonJustifyContent;
 
-	justifyItems: JustifyItems;
+	justifyItems: MasonJustifyItems;
 
-	justifySelf: JustifySelf;
+	justifySelf: MasonJustifySelf;
 
 	readonly mason: NSCMason;
 
 	readonly node: MasonNode;
 
-	overflowX: Overflow;
+	overflowX: MasonOverflow;
 
-	overflowY: Overflow;
+	overflowY: MasonOverflow;
 
 	scrollBarWidthCompat: MasonDimensionCompat;
 
@@ -1208,6 +1469,19 @@ declare class MasonUIView extends UIView {
 declare var MasonVersionNumber: number;
 
 declare var MasonVersionString: interop.Reference<number>;
+
+declare const enum MasonWhiteSpace {
+
+	Normal = 0,
+
+	Pre = 1,
+
+	PreWrap = 2,
+
+	PreLine = 3,
+
+	Nowrap = 4
+}
 
 declare class MaxSizing extends NSObject {
 
@@ -1472,6 +1746,8 @@ declare class NSCMason extends NSObject {
 
 	createNode(): MasonNode;
 
+	createScrollView(): MasonScroll;
+
 	createTextNode(): MasonNode;
 
 	createTextView(): MasonText;
@@ -1491,24 +1767,6 @@ interface NodeArray {
 }
 declare var NodeArray: interop.StructType<NodeArray>;
 
-declare const enum Overflow {
-
-	Unset = 0,
-
-	Visible = 1,
-
-	Hidden = 2,
-
-	Scroll = 3
-}
-
-declare const enum Position {
-
-	Relative = 0,
-
-	Absolute = 1
-}
-
 interface Repeat_Body {
 	_0: number;
 	_1: number;
@@ -1516,35 +1774,9 @@ interface Repeat_Body {
 }
 declare var Repeat_Body: interop.StructType<Repeat_Body>;
 
-declare const enum TextTransform {
-
-	None = 0,
-
-	Capitalize = 1,
-
-	Uppercase = 2,
-
-	Lowercase = 3,
-
-	FullWidth = 4,
-
-	FullSizeKana = 5,
-
-	MathAuto = 6
-}
-
-declare const enum TextWrap {
-
-	Wrap = 0,
-
-	NoWrap = 1,
-
-	Balance = 2
-}
-
 declare class TrackSizingFunction extends NSObject {
 
-	static AutoRepeat(gridTrackRepetition: GridTrackRepetition, value: NSArray<MinMax> | MinMax[]): TrackSizingFunction;
+	static AutoRepeat(gridTrackRepetition: MasonGridTrackRepetition, value: NSArray<MinMax> | MinMax[]): TrackSizingFunction;
 
 	static Single(value: MinMax): TrackSizingFunction;
 
@@ -1555,19 +1787,6 @@ declare class TrackSizingFunction extends NSObject {
 	readonly isRepeating: boolean;
 
 	readonly value: any;
-}
-
-declare const enum WhiteSpace {
-
-	Normal = 0,
-
-	Pre = 1,
-
-	PreWrap = 2,
-
-	PreLine = 3,
-
-	Nowrap = 4
 }
 
 declare function mason_clear(mason: interop.Pointer | interop.Reference<any>): void;
@@ -1649,12 +1868,6 @@ declare function mason_style_release_style_buffer(buffer: interop.Pointer | inte
 declare function mason_style_set_grid_auto_columns(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
 
 declare function mason_style_set_grid_auto_rows(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, value: interop.Pointer | interop.Reference<CMasonNonRepeatedTrackSizingFunctionArray>): void;
-
-declare function mason_style_sync_compute_and_layout(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, data: string | interop.Pointer | interop.Reference<any>, size: number, state: number, layout: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<number>) => interop.Pointer | interop.Reference<any>>): interop.Pointer | interop.Reference<any>;
-
-declare function mason_style_sync_style(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, state: number): void;
-
-declare function mason_style_sync_style_with_buffer(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, state: number, buffer: string | interop.Pointer | interop.Reference<any>, buffer_size: number): void;
 
 declare function mason_util_create_non_repeated_track_sizing_function_with_type_value(track_type: number, track_value: number): CMasonMinMax;
 

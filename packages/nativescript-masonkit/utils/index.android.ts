@@ -1,6 +1,6 @@
 // declare const __non_webpack_require__;
 
-import { Length, returnKeyTypeProperty, Utils } from '@nativescript/core';
+import { CoreTypes, Length, returnKeyTypeProperty, Utils } from '@nativescript/core';
 import { style_, ViewBase } from '../common';
 
 type View = ViewBase & {
@@ -9,7 +9,7 @@ type View = ViewBase & {
   _masonNodePtr: bigint;
   _inBatch: boolean;
   ios: MasonUIView;
-  android: org.nativescript.mason.masonkit.View & android.view.View;
+  android: org.nativescript.mason.masonkit.View & android.view.View & org.nativescript.mason.masonkit.MasonView;
   [style_]: Style;
   readonly _styleHelper: Style;
 };
@@ -23,6 +23,10 @@ const enum Overflow {
   Hidden = 1,
 
   Scroll = 2,
+
+  Clip = 3,
+
+  Auto = 4,
 }
 
 const enum Display {
@@ -218,6 +222,17 @@ export const enum JustifySelf {
   FlexStart = 5,
 
   FlexEnd = 6,
+}
+
+export function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit, parent = 0) {
+  switch (length.unit) {
+    case '%':
+      return length.value * parent;
+    case 'dip':
+      return Utils.layout.toDevicePixels(length.value);
+    case 'px':
+      return length.value;
+  }
 }
 
 let sharedMason = null;
@@ -444,7 +459,7 @@ function syncStyle(instance: View) {
   // noop
 }
 
-function _parseGridLine(value): { value: number; type: number } {
+export function _parseGridLine(value): { value: number; type: number } {
   let parsedValue = undefined;
   let parsedType = undefined;
 
@@ -750,7 +765,9 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View
     }
   }
 
-  org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateRows(instance.android, array);
+  instance.android.setGridTemplateRows(array);
+
+  // org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateRows(instance.android, array);
 }
 
 export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: View, initial = false) {
@@ -838,7 +855,7 @@ export function _setGridAutoRows(value, instance: View, initial = false) {
   }
 
   if (instance.android?.setGridAutoRows) {
-    // instance.android.setGridAutoRows(array);
+    instance.android.setGridAutoRows(array);
   } else {
     const node = org.nativescript.mason.masonkit.Mason.getShared().nodeForView(instance.android as never);
 

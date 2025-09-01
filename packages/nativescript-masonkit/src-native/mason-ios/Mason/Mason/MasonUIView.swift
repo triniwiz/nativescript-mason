@@ -83,8 +83,9 @@ public class MasonUIView: UIView, MasonView {
     }
   
   public func requestLayout(){
-    if let cache = node.computeCache {
-      node.computeWithSize(Float(cache.width), Float(cache.height))
+    node.markDirty()
+    if let root = node.root, let cache = root.computeCache {
+      root.computeWithSize(Float(cache.width), Float(cache.height))
     }
   }
   
@@ -121,7 +122,7 @@ public class MasonUIView: UIView, MasonView {
   
   public func syncStyle(_ state: String) {
     guard let stateValue = Int64(state, radix: 10) else {return}
-    let keys = StateKeys(rawValue: UInt64(stateValue))
+  //  let keys = StateKeys(rawValue: UInt64(stateValue))
     if (stateValue != -1) {
       style.isDirty = stateValue
       style.updateNativeStyle()

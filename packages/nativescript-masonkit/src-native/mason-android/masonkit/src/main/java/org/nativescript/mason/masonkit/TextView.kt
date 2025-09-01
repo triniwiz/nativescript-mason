@@ -13,9 +13,9 @@ import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.StaticLayout
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import androidx.annotation.RequiresApi
+import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.TextAlign.Start
 import org.nativescript.mason.masonkit.text.Spans
 import org.nativescript.mason.masonkit.text.Styles
@@ -24,9 +24,6 @@ import org.nativescript.mason.masonkit.text.Styles.TextJustify
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.Locale
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.set
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -115,6 +112,7 @@ class TextView @JvmOverloads constructor(
   }
 
   private fun setup(mason: Mason) {
+    TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
     node = mason.createNode(this)
     textNode = mason.createNode(this).apply {
       data = this@TextView
@@ -149,6 +147,7 @@ class TextView @JvmOverloads constructor(
         font = FontFace("sans-serif")
         font.weight = FontFace.NSCFontWeight.Bold
         spans[Spans.Type.Size] = Spans.SizeSpan(32, true)
+        paint.textSize = 32 * scale
         node.style.margin = margin(16f, 16f)
       }
 
@@ -156,6 +155,7 @@ class TextView @JvmOverloads constructor(
         font = FontFace("sans-serif")
         font.weight = FontFace.NSCFontWeight.Bold
         spans[Spans.Type.Size] = Spans.SizeSpan(24, true)
+        paint.textSize = 24 * scale
         node.style.margin = margin(14f, 14f)
       }
 
@@ -163,6 +163,7 @@ class TextView @JvmOverloads constructor(
         font = FontFace("sans-serif")
         font.weight = FontFace.NSCFontWeight.Bold
         spans[Spans.Type.Size] = Spans.SizeSpan(18, true)
+        paint.textSize = 18 * scale
         node.style.margin = margin(12f, 12f)
       }
 
@@ -170,6 +171,7 @@ class TextView @JvmOverloads constructor(
         font = FontFace("sans-serif")
         font.weight = FontFace.NSCFontWeight.Bold
         spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
+        paint.textSize = 16 * scale
         node.style.margin = margin(10f, 10f)
       }
 
@@ -177,6 +179,7 @@ class TextView @JvmOverloads constructor(
         font = FontFace("sans-serif")
         font.weight = FontFace.NSCFontWeight.Bold
         spans[Spans.Type.Size] = Spans.SizeSpan(13, true)
+        paint.textSize = 13 * scale
         node.style.margin = margin(8f, 8f)
       }
 
@@ -184,30 +187,41 @@ class TextView @JvmOverloads constructor(
         font = FontFace("sans-serif")
         font.weight = FontFace.NSCFontWeight.Bold
         spans[Spans.Type.Size] = Spans.SizeSpan(10, true)
+        paint.textSize = 10 * scale
         node.style.margin = margin(6f, 6f)
       }
 
       TextType.Li -> {
         font = FontFace("sans-serif")
+        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
+        paint.textSize = 16 * scale
       }
 
       TextType.Blockquote -> {
         font = FontFace("sans-serif")
+        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
+        paint.textSize = 16 * scale
       }
 
       TextType.B -> {
         font = FontFace("sans-serif")
         font.weight = FontFace.NSCFontWeight.Bold
+        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
+        paint.textSize = 16 * scale
         style.display = Display.Inline
       }
 
       TextType.Pre -> {
         font = FontFace("monospace")
+        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
+        paint.textSize = 16 * scale
         whiteSpace = Styles.WhiteSpace.Pre
       }
 
       else -> {
         font = FontFace("sans-serif")
+        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
+        paint.textSize = 16 * scale
       }
     }
 
@@ -309,16 +323,12 @@ class TextView @JvmOverloads constructor(
       textValues.putInt(TextStyleKeys.TEXT_JUSTIFY, value.value)
     }
 
-  private val rootNode: Node
-    get() {
-      return this.node.root ?: node
-    }
-
   private fun updateFontSize(value: Int) {
     spans[Spans.Type.Size]?.let {
       spannable.removeSpan(it)
     }
-    spans[Spans.Type.Size] = Spans.SizeSpan(value)
+    spans[Spans.Type.Size] = Spans.SizeSpan(value, true)
+    paint.textSize = value * resources.displayMetrics.density
     applySpans()
   }
 
@@ -369,7 +379,7 @@ class TextView @JvmOverloads constructor(
   var textOverflow: Styles.TextOverflow = Styles.TextOverflow.Clip
     set(value) {
       field = value
-      textValues.putInt(TextStyleKeys.TEXT_WRAP, value.value)
+      textValues.putInt(TextStyleKeys.TEXT_OVERFLOW, value.value)
       invalidate()
     }
 
@@ -781,10 +791,11 @@ class TextView @JvmOverloads constructor(
       Float.NaN
     } ?: Layout.getDesiredWidth(textToMeasure, paint)
 
-    val inline = node.style.display == Display.Inline
+
+    val isNoWrap = textWrap == Styles.TextWrap.NoWrap
 
     val isWidthUnConstrained =
-      (availableWidth.isNaN() || availableWidth == -1f || availableWidth == -2f) && knownWidth.isNaN()
+      (availableWidth.isNaN() || availableWidth == -1f || availableWidth == -2f || isNoWrap) && knownWidth.isNaN()
     return if (boring == null && (isWidthUnConstrained || (!width.isNaN() && width <= knownWidth))) {
       createLayout(textToMeasure, ceil(width).toInt())
     } else if (boring != null && (isWidthUnConstrained || boring.width <= knownWidth)) {
@@ -809,7 +820,10 @@ class TextView @JvmOverloads constructor(
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       var builder = StaticLayout.Builder.obtain(
         spannable, 0, spannable.length, paint, maxWidth
-      ).setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(includePadding)
+      )
+        .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+        .setIncludePad(includePadding)
+
       if (type == TextType.Pre) {
         builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
           builder.setBreakStrategy(LineBreaker.BREAK_STRATEGY_SIMPLE)
@@ -878,7 +892,6 @@ class TextView @JvmOverloads constructor(
       owner?.invalidateView()
       return
     }
-
 
     val rebuilt = rebuildText()
     setText(rebuilt, BufferType.SPANNABLE)

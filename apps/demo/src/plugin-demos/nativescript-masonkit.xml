@@ -1,5 +1,7 @@
 <Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="navigatingTo" class="p"
   xmlns:ui="@triniwiz/nativescript-masonkit"
+  xmlns:text="@triniwiz/nativescript-masonkit/text"
+  xmlns:scroll="@triniwiz/nativescript-masonkit/scroll"
   xmlns:web="@triniwiz/nativescript-masonkit/web"
   >
   <Page.actionBar>
@@ -7,11 +9,13 @@
     </ActionBar>
   </Page.actionBar>
 
-<ui:View class="body">
+<!-- <ui:View class="body" width="100%" height="100%"> -->
 
-  <ui:View width="100%" height="100%">
+
+  <!-- <ui:View width="100%" height="100%">
 <ui:Text text="This in a span" style="display:inline" backgroundColor="blue" color="orange" textWrap="wrap" text="Help"></ui:Text>
-</ui:View>
+</ui:View> -->
+<!-- <ui:View width="100%" height="100%"> -->
     <!-- <ui:Text text="This" backgroundColor="blue" color="orange" textWrap="wrap">
       <ui:Text text=" is" backgroundColor="red" color="green" loaded="textLoaded"/>
       <ui:Text text=" a" backgroundColor="purple" color="white" loaded="textLoaded"/>
@@ -27,16 +31,22 @@
     <ui:Img height="200" width="200" src="https://picsum.photos/600/600"></ui:Img>
   </ui:View> -->
 
+<!-- <GridLayout backgroundColor="red" rows="*,auto">
+  <ui:View backgroundColor="yellow" style="max-height: 300;"/>
+  <ContentView row="1" backgroundColor="green" height="100"/>
+</GridLayout> -->
 
-    <!-- <ui:View width="100%" height="100%">
-    <ui:Text text="topLeft" style.position="absolute" style.width="100" style.height="50"/>
-    <ui:Text text="topRight" style.position="absolute" style.right="0" style.top="0" style.width="100" style.height="50"/>
-    <ui:Text text="bottomLeft" style.position="absolute" style.bottom="0" style.left="0" style.width="100" style.height="50"/>
-    <ui:Text text="bottomRight" style.position="absolute" style.right="0" style.bottom="0" style.width="100" style.height="50"/>
-  </ui:View> -->
+  <!-- <ui:View id="absolute" width="100%" height="100%" style="background-color: red;"> -->
+    <!-- <text:Text text="topLeft" style.position="absolute" style.width="100" style.height="50"/>
+    <text:Text text="topRight" style.position="absolute" style.right="0" style.top="0" style.width="100" style.height="50"/>
+    <text:Text text="bottomLeft" style.position="absolute" style.bottom="0" style.left="0" style.width="100" style.height="50"/>
+    <text:Text text="bottomRight" style.position="absolute" style.right="0" style.bottom="0" style.width="100" style.height="50"/> -->
+  <!-- </ui:View> -->
 
 
-<!-- <web:h1 text="This is heading 1"></web:h1>
+ <!-- <scroll:Scroll style="overflow: scroll;"> -->
+ <!--
+<web:h1 text="This is heading 1"></web:h1>
 <web:h2 text="This is heading 2"></web:h2>
 <web:h3 text="This is heading 3"></web:h3>
 <web:h4 text="This is heading 4"></web:h4>
@@ -46,8 +56,30 @@
 <web:p>
 <web:b text="Tip:"></web:b>
 <web:span text=" Use h1 to h6 elements only for headings. Do not use them just to make text bold or big. Use other tags for that."></web:span>
-</web:p> -->
+<web:p text="
 
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec dapibus hendrerit elit, id rhoncus turpis accumsan quis. Donec ipsum tellus, tristique eget luctus sed, venenatis et nibh. Morbi euismod massa consequat, dignissim augue et, facilisis leo. Nulla a vestibulum massa, dapibus fringilla leo. Nulla imperdiet lacus leo, vel tincidunt dui commodo id. Vestibulum sagittis aliquet arcu. Quisque vitae imperdiet magna, sit amet lacinia ligula. Praesent ullamcorper accumsan risus eu eleifend. Curabitur a pharetra orci. Mauris fringilla elit at magna faucibus semper.
+
+Ut cursus magna sed augue rutrum dictum. Proin dignissim lorem nec sem pretium, fermentum mattis sapien mollis. Quisque ligula urna, cursus vitae velit eu, feugiat luctus ex. In auctor libero sit amet lobortis fermentum. Mauris sit amet aliquam augue. Duis vehicula suscipit imperdiet. Phasellus nec placerat lectus.
+
+Nam elementum volutpat magna, ac volutpat neque viverra at. Sed eu pulvinar est. Aenean ultrices pharetra sem, eget imperdiet arcu fermentum quis. Sed porta sit amet lacus quis viverra. Quisque in nunc id purus dictum viverra in nec dolor. Suspendisse potenti. Integer facilisis massa id mi ornare, et commodo neque ornare. Fusce sollicitudin libero in velit tempor, sit amet mattis ex condimentum. Nunc ac orci et arcu convallis volutpat vel eget odio. Morbi interdum ante tincidunt ligula condimentum tristique. Donec at bibendum libero. Curabitur aliquet metus ac libero commodo eleifend. Fusce pretium condimentum suscipit. Cras mauris erat, feugiat nec metus nec, ullamcorper dignissim quam.
+
+Ut faucibus arcu magna, in sagittis metus aliquam nec. Vestibulum laoreet laoreet sapien, id tincidunt ligula hendrerit sed. Suspendisse tristique, libero et placerat dictum, metus tellus luctus erat, sed faucibus elit nunc a erat. Sed vehicula vitae risus a luctus. Nam et aliquam magna. Nulla placerat sed augue at semper. Nam faucibus consequat velit id ullamcorper. In sollicitudin non arcu eget venenatis.
+
+Vivamus id feugiat massa. Curabitur viverra ultrices auctor. Nulla ultrices odio a ante auctor, vel condimentum lorem euismod. Maecenas nec odio ac odio iaculis lobortis. Mauris bibendum lectus non tempor laoreet. Nunc eu eros lorem. Vestibulum egestas mollis enim, sed dignissim mauris porta ullamcorper. Cras tempus odio ut felis lobortis auctor. Sed eu sodales nulla, vitae posuere tellus. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;
+
+Duis dapibus arcu eu sapien viverra, nec accumsan elit porttitor. Fusce a porttitor felis. Vivamus et eros a ipsum commodo rhoncus. Etiam vel facilisis orci, et cursus tellus. Donec ultricies augue sit amet venenatis iaculis. Integer non aliquet turpis. Aenean lacinia tortor augue, a pellentesque urna sollicitudin eu. Curabitur condimentum tortor interdum felis consequat hendrerit. Mauris vel lacus lacinia, luctus enim porttitor, commodo velit. Proin hendrerit orci eget luctus pharetra. Duis ut dolor et dui iaculis sagittis. Sed varius quis elit sed interdum. Maecenas magna quam, facilisis ut ullamcorper vitae, maximus at ante. Mauris tristique dolor metus, in tincidunt nulla vestibulum at.
+
+Curabitur mattis erat non erat varius lacinia. Integer nec iaculis tortor. Aliquam laoreet porta vestibulum. Duis malesuada velit purus, et tempus elit blandit nec. Vestibulum et aliquet leo. Aenean risus velit, convallis sit amet consequat et, tempus eget eros. Suspendisse ac scelerisque ipsum, fringilla dictum risus. Suspendisse finibus nulla sit amet mauris ornare, et pulvinar sapien tristique.
+
+Vestibulum vitae libero id mauris placerat porttitor vitae sed tellus. Quisque aliquet semper arcu, quis euismod orci convallis vitae. Pellentesque ullamcorper hendrerit augue vitae posuere. Donec efficitur congue lacus et ultrices. In at arcu eleifend, suscipit turpis nec, sollicitudin massa. Nam non eros risus. Mauris ut arcu sit amet erat pellentesque feugiat ultrices sit amet tortor. Quisque eget augue vitae eros faucibus interdum eu a felis. Donec hendrerit augue sit amet risus euismod, eu accumsan dolor feugiat.
+
+Sed vehicula egestas neque. Etiam rutrum ornare risus, sit amet volutpat leo fringilla non. Aliquam erat volutpat. Ut sit amet turpis ut ex convallis luctus. Vestibulum facilisis turpis augue, eget gravida libero sollicitudin at. Suspendisse mattis, odio semper aliquam aliquet, eros ante vulputate sem, in scelerisque erat ante eget ex. Aenean accumsan libero ut placerat viverra. Maecenas viverra est nulla, in consectetur augue congue vel. Nam sed eleifend ipsum. Pellentesque ultricies, justo eu vehicula dictum, mauris eros euismod neque, nec consequat nulla velit sit amet justo. Phasellus faucibus elementum congue. Duis odio orci, aliquam auctor vestibulum eget, vulputate faucibus tortor.
+
+Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt arcu in facilisis. Morbi at eros placerat, cursus erat non, iaculis dui. Mauris nisi ex, laoreet et mollis vel, ullamcorper ac tortor. Nam a consectetur metus. Mauris massa velit, tincidunt eu egestas ac, viverra sed ligula. Phasellus laoreet vestibulum gravida. Morbi hendrerit, massa ac vulputate mollis, erat quam aliquet eros, et tincidunt ipsum odio id odio. Donec ornare mi eget tempus dictum. In molestie elit vel lacus cursus maximus. "></web:p>
+</web:p> 
+-->
+<!-- </scroll:Scroll> -->
 
 
 
@@ -67,24 +99,24 @@
 
 
 
-  <!-- <ui:View class="wrapper-5">
+   <ui:View class="wrapper-5">
 
     <ui:View id="boxA" class="box a">
-      <ui:Text text="A" />
+      <text:Text text="A" />
     </ui:View>
 
     <ui:View id="boxB" class="box b">
-      <ui:Text text="B" />
+      <text:Text text="B" />
     </ui:View>
 
     <ui:View id="boxC" class="box c">
-      <ui:Text text="C" />
+      <text:Text text="C" />
     </ui:View>
 
     <ui:View id="boxD" class="box d">
-      <ui:Text text="D" />
+      <text:Text text="D" />
     </ui:View>
-  </ui:View> -->
+  </ui:View>
 
 
 
@@ -205,16 +237,17 @@
     </ScrollView> -->
 
 
-  <!--
-       <ScrollView>
+<!--
+
+       <ui:Scroll style="overflow:scroll">
       <ui:View class="p-20" backgroundColor="red" flexDirection="column">
-         <Image src="https://picsum.photos/200/300"/>
+         <ui:Img src="https://picsum.photos/200/300"/>
            <Button text="Test 1" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4" tap="{{ testIt }}" class="btn btn-primary"/>
 
-          <Image src="https://picsum.photos/200/300"/>
+          <ui:Img src="https://picsum.photos/200/300"/>
 
           <ui:View class="p-20" backgroundColor="green">
           <Button text="Test 1.1" tap="{{ testIt }}" class="btn btn-primary"/>
@@ -252,9 +285,11 @@
           <Button text="Test 4.5" tap="{{ testIt }}" class="btn btn-primary"/>
           </ui:View>
       </ui:View>
-      </ScrollView>
+      </ui:Scroll>
 
       -->
 
-</ui:View>
+      
+
+<!-- </ui:View> -->
 </Page>

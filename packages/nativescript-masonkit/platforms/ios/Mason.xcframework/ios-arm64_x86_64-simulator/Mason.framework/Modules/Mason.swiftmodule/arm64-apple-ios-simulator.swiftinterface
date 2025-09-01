@@ -1,7 +1,7 @@
 // swift-interface-format-version: 1.0
-// swift-compiler-version: Apple Swift version 6.0.2 effective-5.10 (swiftlang-6.0.2.1.2 clang-1600.0.26.4)
-// swift-module-flags: -target arm64-apple-ios15.6-simulator -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-bare-slash-regex -module-name Mason
-// swift-module-flags-ignorable: -no-verify-emitted-module-interface
+// swift-compiler-version: Apple Swift version 6.1.2 effective-5.10 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)
+// swift-module-flags: -target arm64-apple-ios15.6-simulator -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -module-name Mason
+// swift-module-flags-ignorable: -no-verify-emitted-module-interface -interface-compiler-version 6.1.2
 import CoreText
 import Foundation
 @_exported import Mason
@@ -144,7 +144,8 @@ public struct Line<T> {
   @objc public func createView() -> Mason.MasonUIView
   @objc public func createTextView() -> Mason.MasonText
   @objc public func createTextView(type: Mason.MasonTextType) -> Mason.MasonText
-  @objc public func createImageView() -> Mason.MasonImg
+  @objc public func createImageView() -> Mason.Img
+  @objc public func createScrollView() -> Mason.Scroll
   @objc public func createNode() -> Mason.MasonNode
   public func createNode(measure: @escaping Mason.MasonNode.MeasureFunc) -> Mason.MasonNode
   @objc public func printTree(_ node: Mason.MasonNode)
@@ -218,13 +219,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public var nativePtr: Swift.OpaquePointer? {
     get
   }
-  @objc public var layoutCache: Mason.MasonLayout? {
-    get
-  }
-  public var lastMeasureKnownSize: CoreFoundation.CGSize? {
-    get
-  }
-  public var lastMeasureAvailableSize: CoreFoundation.CGSize? {
+  @objc public var computedLayout: Mason.MasonLayout {
     get
   }
   public typealias MeasureFunc = (CoreFoundation.CGSize?, CoreFoundation.CGSize) -> CoreFoundation.CGSize
@@ -300,6 +295,7 @@ extension UIKit.UIColor {
   case Li
   case Blockquote
   case B
+  case Pre
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.MasonTextType.RawValue {
     get
@@ -314,7 +310,8 @@ extension UIKit.UIColor {
     get
   }
   @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode
-  @objc @_Concurrency.MainActor @preconcurrency public var textValues: Foundation.Data {
+  @objc @_Concurrency.MainActor @preconcurrency final public let textNode: Mason.MasonNode
+  @objc @_Concurrency.MainActor @preconcurrency public var textValues: Foundation.NSMutableData {
     get
   }
   @objc @_Concurrency.MainActor @preconcurrency final public let type: Mason.MasonTextType
@@ -339,6 +336,10 @@ extension UIKit.UIColor {
   @_Concurrency.MainActor @preconcurrency public var textOverflow: Mason.TextOverflow {
     get
     set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var textOverflowCompat: Mason.TextOverflowCompat {
+    @objc get
+    @objc set
   }
   @objc @_Concurrency.MainActor @preconcurrency public var textTransform: Mason.TextTransform {
     @objc get
@@ -617,6 +618,14 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc get
     @objc set
   }
+  @objc public var overflowCompat: Mason.MasonOverflowPointCompat {
+    @objc get
+    @objc set
+  }
+  public var overflow: Mason.MasonPoint<Mason.Overflow> {
+    get
+    set
+  }
   @objc public var overflowX: Mason.Overflow {
     @objc get
     @objc set
@@ -682,6 +691,22 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     get
     set
   }
+  public var marginLeft: Mason.MasonLengthPercentageAuto {
+    get
+    set
+  }
+  public var marginTop: Mason.MasonLengthPercentageAuto {
+    get
+    set
+  }
+  public var marginRight: Mason.MasonLengthPercentageAuto {
+    get
+    set
+  }
+  public var marginBottom: Mason.MasonLengthPercentageAuto {
+    get
+    set
+  }
   @objc public var marginCompat: Mason.MasonLengthPercentageAutoRectCompat {
     @objc get
     @objc set
@@ -735,11 +760,11 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     set
   }
   @objc public func setScrollBarWidth(_ value: Swift.Float)
-  @objc public var textAlign: Mason.MasonTextAlign {
+  @objc public var textAlign: Mason.TextAlign {
     @objc get
     @objc set
   }
-  @objc public var boxSizing: Mason.MasonBoxSizing {
+  @objc public var boxSizing: Mason.BoxSizing {
     @objc get
     @objc set
   }
@@ -876,7 +901,48 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
   }
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonImg) @_Concurrency.MainActor @preconcurrency public class MasonImg : UIKit.UIImageView, Mason.MasonView {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonOverflowPointCompat) public class MasonOverflowPointCompat : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var x: Mason.Overflow
+  @objc public var y: Mason.Overflow
+  public init(_ points: Mason.MasonPoint<Mason.Overflow>)
+  @objc public var cssValue: Swift.String {
+    @objc get
+  }
+  @objc deinit
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionPointCompat) public class MasonDimensionPointCompat : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var x: Mason.MasonDimensionCompat
+  @objc public var y: Mason.MasonDimensionCompat
+  public init(_ points: Mason.MasonPoint<Mason.MasonDimension>)
+  @objc deinit
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonLengthPercentageAutoPointCompat) public class MasonLengthPercentageAutoPointCompat : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var x: Mason.MasonLengthPercentageAutoCompat
+  @objc public var y: Mason.MasonLengthPercentageAutoCompat
+  public init(_ points: Mason.MasonPoint<Mason.MasonLengthPercentageAuto>)
+  @objc deinit
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonLengthPercentagePointCompat) public class MasonLengthPercentagePointCompat : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var x: Mason.MasonLengthPercentageCompat
+  @objc public var y: Mason.MasonLengthPercentageCompat
+  public init(_ points: Mason.MasonPoint<Mason.MasonLengthPercentage>)
+  @objc deinit
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+}
+public struct MasonPoint<T> : Swift.Codable where T : Swift.Decodable, T : Swift.Encodable {
+  public init(_ x: T, _ y: T)
+  public init(uniform: T)
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonImg) @_Concurrency.MainActor @preconcurrency public class Img : UIKit.UIImageView, Mason.MasonView {
   @objc @_Concurrency.MainActor @preconcurrency public var style: Mason.MasonStyle {
     @objc get
   }
@@ -888,10 +954,13 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
   }
   @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
+  @objc @_Concurrency.MainActor @preconcurrency public var didLayout: (() -> Swift.Void)?
+  @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
   @objc @_Concurrency.MainActor @preconcurrency public var src: Swift.String? {
     @objc get
     @objc set
   }
+  @objc @_Concurrency.MainActor @preconcurrency public func updateImage(_ image: UIKit.UIImage?)
   @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String)
   @objc deinit
 }
@@ -924,16 +993,16 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
   }
   public init?(rawValue: Mason.MasonLengthPercentageCompatType.RawValue)
 }
-@objc(MasonBoxSizing) public enum MasonBoxSizing : Swift.Int, Swift.RawRepresentable {
+@objc(MasonBoxSizing) public enum BoxSizing : Swift.Int, Swift.RawRepresentable {
   case BorderBox
   case ContentBox
   public typealias RawValue = Swift.Int32
-  public var rawValue: Mason.MasonBoxSizing.RawValue {
+  public var rawValue: Mason.BoxSizing.RawValue {
     get
   }
-  public init?(rawValue: Mason.MasonBoxSizing.RawValue)
+  public init?(rawValue: Mason.BoxSizing.RawValue)
 }
-@objc(MasonTextAlign) public enum MasonTextAlign : Swift.Int, Swift.RawRepresentable {
+@objc(MasonTextAlign) public enum TextAlign : Swift.Int, Swift.RawRepresentable {
   case Auto
   case Left
   case Right
@@ -942,15 +1011,15 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
   case Start
   case End
   public typealias RawValue = Swift.Int32
-  public var rawValue: Mason.MasonTextAlign.RawValue {
+  public var rawValue: Mason.TextAlign.RawValue {
     get
   }
-  public init?(rawValue: Mason.MasonTextAlign.RawValue)
+  public init?(rawValue: Mason.TextAlign.RawValue)
 }
 public func MasonDimensionFromPoints(value: Swift.Float) -> Mason.MasonDimension
 public func MasonDimensionFromPercent(value: Swift.Float) -> Mason.MasonDimension
 public let MasonDimensionAuto: Mason.MasonDimension
-public enum MasonDimension : Swift.Codable {
+public enum MasonDimension : Swift.Codable, Swift.Equatable {
   case Auto
   case Points(Swift.Float)
   case Percent(Swift.Float)
@@ -962,6 +1031,7 @@ public enum MasonDimension : Swift.Codable {
   }
   public init(from decoder: any Swift.Decoder) throws
   public func encode(to encoder: any Swift.Encoder) throws
+  public static func == (a: Mason.MasonDimension, b: Mason.MasonDimension) -> Swift.Bool
 }
 public func MasonLengthPercentageFromPoints(value: Swift.Float) -> Mason.MasonLengthPercentage
 public func MasonLengthPercentageFromPercent(value: Swift.Float) -> Mason.MasonLengthPercentage
@@ -995,7 +1065,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   public init(from decoder: any Swift.Decoder) throws
   public func encode(to encoder: any Swift.Encoder) throws
 }
-@objc(AlignItems) public enum AlignItems : Swift.Int, Swift.RawRepresentable {
+@objc(MasonAlignItems) public enum AlignItems : Swift.Int, Swift.RawRepresentable {
   case Normal = -1
   case Start
   case End
@@ -1010,7 +1080,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   }
   public init?(rawValue: Mason.AlignItems.RawValue)
 }
-@objc(AlignSelf) public enum AlignSelf : Swift.Int, Swift.RawRepresentable {
+@objc(MasonAlignSelf) public enum AlignSelf : Swift.Int, Swift.RawRepresentable {
   case Normal = -1
   case Start
   case End
@@ -1025,7 +1095,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   }
   public init?(rawValue: Mason.AlignSelf.RawValue)
 }
-@objc(AlignContent) public enum AlignContent : Swift.Int, Swift.RawRepresentable {
+@objc(MasonAlignContent) public enum AlignContent : Swift.Int, Swift.RawRepresentable {
   case Normal = -1
   case Start
   case End
@@ -1042,7 +1112,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   }
   public init?(rawValue: Mason.AlignContent.RawValue)
 }
-@objc(Direction) public enum Direction : Swift.Int, Swift.RawRepresentable {
+@objc(MasonDirection) public enum Direction : Swift.Int, Swift.RawRepresentable {
   case Inherit
   case LTR
   case RTL
@@ -1052,11 +1122,15 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   }
   public init?(rawValue: Mason.Direction.RawValue)
 }
-@objc(Display) public enum Display : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+@objc(MasonDisplay) public enum Display : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case None
   case Flex
   case Grid
   case Block
+  case Inline
+  case InlineBlock
+  case InlineFlex
+  case InlineGrid
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.Display.RawValue {
     get
@@ -1066,7 +1140,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
     get
   }
 }
-@objc(FlexDirection) public enum FlexDirection : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+@objc(MasonFlexDirection) public enum FlexDirection : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case Row
   case Column
   case RowReverse
@@ -1080,7 +1154,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
     get
   }
 }
-@objc(JustifyItems) public enum JustifyItems : Swift.Int, Swift.RawRepresentable {
+@objc(MasonJustifyItems) public enum JustifyItems : Swift.Int, Swift.RawRepresentable {
   case Normal = -1
   case Start
   case End
@@ -1095,7 +1169,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   }
   public init?(rawValue: Mason.JustifyItems.RawValue)
 }
-@objc(JustifySelf) public enum JustifySelf : Swift.Int, Swift.RawRepresentable {
+@objc(MasonJustifySelf) public enum JustifySelf : Swift.Int, Swift.RawRepresentable {
   case Normal = -1
   case Start
   case End
@@ -1110,7 +1184,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   }
   public init?(rawValue: Mason.JustifySelf.RawValue)
 }
-@objc(JustifyContent) public enum JustifyContent : Swift.Int, Swift.RawRepresentable {
+@objc(MasonJustifyContent) public enum JustifyContent : Swift.Int, Swift.RawRepresentable {
   case Normal = -1
   case Start
   case End
@@ -1127,18 +1201,19 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   }
   public init?(rawValue: Mason.JustifyContent.RawValue)
 }
-@objc(Overflow) public enum Overflow : Swift.Int, Swift.RawRepresentable {
-  case Unset
+@objc(MasonOverflow) public enum Overflow : Swift.Int, Swift.RawRepresentable, Swift.Codable {
   case Visible
   case Hidden
   case Scroll
+  case Clip
+  case Auto
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.Overflow.RawValue {
     get
   }
   public init?(rawValue: Mason.Overflow.RawValue)
 }
-@objc(Position) public enum Position : Swift.Int, Swift.RawRepresentable {
+@objc(MasonPosition) public enum Position : Swift.Int, Swift.RawRepresentable {
   case Relative
   case Absolute
   public typealias RawValue = Swift.Int32
@@ -1147,7 +1222,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   }
   public init?(rawValue: Mason.Position.RawValue)
 }
-@objc(FlexWrap) public enum FlexWrap : Swift.Int, Swift.RawRepresentable {
+@objc(MasonFlexWrap) public enum FlexWrap : Swift.Int, Swift.RawRepresentable {
   case NoWrap
   case Wrap
   case WrapReverse
@@ -1157,7 +1232,7 @@ public enum MasonLengthPercentageAuto : Swift.Codable {
   }
   public init?(rawValue: Mason.FlexWrap.RawValue)
 }
-@objc(FlexGridAutoFlowWrap) public enum GridAutoFlow : Swift.Int, Swift.RawRepresentable {
+@objc(MasonGridAutoFlowWrap) public enum GridAutoFlow : Swift.Int, Swift.RawRepresentable {
   case Row
   case Column
   case RowDense
@@ -1178,7 +1253,7 @@ public enum GridPlacement : Swift.Codable {
   public init(from decoder: any Swift.Decoder) throws
   public func encode(to encoder: any Swift.Encoder) throws
 }
-@objc(GridPlacementCompatType) public enum GridPlacementCompatType : Swift.Int, Swift.RawRepresentable {
+@objc(MasonGridPlacementCompatType) public enum GridPlacementCompatType : Swift.Int, Swift.RawRepresentable {
   case Auto
   case Line
   case Span
@@ -1188,7 +1263,7 @@ public enum GridPlacement : Swift.Codable {
   }
   public init?(rawValue: Mason.GridPlacementCompatType.RawValue)
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(GridTrackRepetition) public class GridTrackRepetition : ObjectiveC.NSObject {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonGridTrackRepetition) public class GridTrackRepetition : ObjectiveC.NSObject {
   @objc public var type: Swift.Int32 {
     @objc get
   }
@@ -1200,7 +1275,7 @@ public enum GridPlacement : Swift.Codable {
   @objc public static func Count(_ value: Swift.UInt16) -> Mason.GridTrackRepetition
   @objc deinit
 }
-@objc(DecorationLine) public enum DecorationLine : Swift.Int, Swift.RawRepresentable {
+@objc(MasonDecorationLine) public enum DecorationLine : Swift.Int, Swift.RawRepresentable {
   case None
   case Underline
   case Overline
@@ -1211,7 +1286,7 @@ public enum GridPlacement : Swift.Codable {
   }
   public init?(rawValue: Mason.DecorationLine.RawValue)
 }
-@objc(TextTransform) public enum TextTransform : Swift.Int, Swift.RawRepresentable {
+@objc(MasonTextTransform) public enum TextTransform : Swift.Int, Swift.RawRepresentable {
   case None
   case Capitalize
   case Uppercase
@@ -1225,7 +1300,7 @@ public enum GridPlacement : Swift.Codable {
   }
   public init?(rawValue: Mason.TextTransform.RawValue)
 }
-@objc(FontStyle) public enum FontStyle : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+@objc(MasonFontStyle) public enum FontStyle : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case Normal
   case Italic
   case Oblique
@@ -1238,7 +1313,7 @@ public enum GridPlacement : Swift.Codable {
     get
   }
 }
-@objc(TextWrap) public enum TextWrap : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+@objc(MasonTextWrap) public enum TextWrap : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case Wrap
   case NoWrap
   case Balance
@@ -1251,7 +1326,7 @@ public enum GridPlacement : Swift.Codable {
     get
   }
 }
-@objc(WhiteSpace) public enum WhiteSpace : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+@objc(MasonWhiteSpace) public enum WhiteSpace : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case Normal
   case Pre
   case PreWrap
@@ -1284,9 +1359,19 @@ public enum TextOverflow : Swift.CustomStringConvertible {
   case Clip
   case Ellipse(Swift.String?)
   case Custom(Swift.String)
+  public typealias RawValue = Swift.Int32
   public var description: Swift.String {
     get
   }
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonTextOverflowCompat) public class TextOverflowCompat : ObjectiveC.NSObject {
+  @objc public static let Clip: Mason.TextOverflowCompat
+  @objc public static func Ellipse(_ value: Swift.String? = nil) -> Mason.TextOverflowCompat
+  @objc public static func Custom(_ value: Swift.String) -> Mason.TextOverflowCompat
+  @objc override dynamic public var description: Swift.String {
+    @objc get
+  }
+  @objc deinit
 }
 public protocol MasonView {
   var style: Mason.MasonStyle { get }
@@ -1537,6 +1622,26 @@ public protocol MasonView {
   @objc @_Concurrency.MainActor @preconcurrency public func getColumnGap() -> Mason.MasonLengthPercentageCompat
   @objc deinit
 }
+@_hasMissingDesignatedInitializers @objc(MasonScroll) @objcMembers @_Concurrency.MainActor @preconcurrency public class Scroll : UIKit.UIScrollView, Mason.MasonView, UIKit.UIScrollViewDelegate {
+  @objc @_Concurrency.MainActor @preconcurrency public var style: Mason.MasonStyle {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public func markNodeDirty()
+  @objc @_Concurrency.MainActor @preconcurrency public func isNodeDirty() -> Swift.Bool
+  @objc @_Concurrency.MainActor @preconcurrency public func configure(_ block: (Mason.MasonNode) -> Swift.Void)
+  @objc @_Concurrency.MainActor @preconcurrency public var uiView: UIKit.UIView {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode
+  @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
+  @_Concurrency.MainActor @preconcurrency @objc public func scrollViewWillBeginDragging(_ scrollView: UIKit.UIScrollView)
+  @_Concurrency.MainActor @preconcurrency @objc public func scrollViewDidScroll(_ scrollView: UIKit.UIScrollView)
+  @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String)
+  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
+  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, at: Swift.Int)
+  @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
+  @objc deinit
+}
 extension Mason.NSCFontDisplay : Swift.Equatable {}
 extension Mason.NSCFontDisplay : Swift.Hashable {}
 extension Mason.NSCFontWeight : Swift.Equatable {}
@@ -1553,10 +1658,10 @@ extension Mason.MasonLengthPercentageAutoCompatType : Swift.Equatable {}
 extension Mason.MasonLengthPercentageAutoCompatType : Swift.Hashable {}
 extension Mason.MasonLengthPercentageCompatType : Swift.Equatable {}
 extension Mason.MasonLengthPercentageCompatType : Swift.Hashable {}
-extension Mason.MasonBoxSizing : Swift.Equatable {}
-extension Mason.MasonBoxSizing : Swift.Hashable {}
-extension Mason.MasonTextAlign : Swift.Equatable {}
-extension Mason.MasonTextAlign : Swift.Hashable {}
+extension Mason.BoxSizing : Swift.Equatable {}
+extension Mason.BoxSizing : Swift.Hashable {}
+extension Mason.TextAlign : Swift.Equatable {}
+extension Mason.TextAlign : Swift.Hashable {}
 extension Mason.AlignItems : Swift.Equatable {}
 extension Mason.AlignItems : Swift.Hashable {}
 extension Mason.AlignSelf : Swift.Equatable {}

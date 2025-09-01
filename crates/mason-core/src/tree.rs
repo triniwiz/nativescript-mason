@@ -693,7 +693,6 @@ impl LayoutPartialTree for Tree {
             if force_inline {
                 return tree.compute_inline_layout(node_id, inputs);
             }
-
             match mode {
                 DisplayMode::None => match (node.style.get_display(), has_children) {
                     (Display::None, _) => compute_hidden_layout(tree, node_id),

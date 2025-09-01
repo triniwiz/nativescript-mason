@@ -15,7 +15,7 @@ export type Display = 'none' | 'flex' | 'grid' | 'block' | 'inline' | 'inline-bl
 
 export type BoxSizing = 'border-box' | 'content-box';
 
-export type Overflow = 'visible' | 'hidden' | 'scroll';
+export type Overflow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
 
 export type FlexWrap = 'no-wrap' | 'wrap' | 'wrap-reverse';
 
@@ -39,7 +39,110 @@ export type JustifyContent = AlignContent;
 
 export type GridAutoFlow = 'row' | 'column' | 'row dense' | 'column dense' | 'dense';
 
-export class View extends ViewBase {
+declare module '@nativescript/core/ui/styling/style' {
+  interface Style {
+    boxSizing: BoxSizing;
+    display: Display;
+    position: Position;
+    flexDirection: FlexDirection;
+    flexWrap: FlexWrap;
+    flex: string | 'auto' | 'none' | number | 'initial';
+    flexFlow: string;
+    minWidth: LengthAuto;
+    minHeight: LengthAuto;
+    width: LengthAuto;
+    height: LengthAuto;
+    maxWidth: LengthAuto;
+    maxHeight: LengthAuto;
+    left: LengthAuto;
+    right: LengthAuto;
+    top: LengthAuto;
+    bottom: LengthAuto;
+    gridGap: Gap;
+    gap: Gap;
+    rowGap: Length;
+    columnGap: Length;
+    aspectRatio: number;
+    flexBasis: LengthPercentage | string | number;
+    alignItems: AlignItems;
+    alignSelf: AlignSelf;
+    alignContent: AlignContent;
+    justifyItems: JustifyItems;
+    justifySelf: JustifySelf;
+    justifyContent: JustifyContent;
+    gridAutoRows: string;
+    gridAutoColumns: string;
+    gridAutoFlow: GridAutoFlow;
+    gridRowGap: Gap;
+    gridColumnGap: Gap;
+    gridArea: string;
+    gridColumn: string;
+    gridColumnStart: string;
+    gridColumnEnd: string;
+    gridRow: string;
+    gridRowStart: string;
+    gridRowEnd: string;
+    gridTemplateRows: string;
+    gridTemplateColumns: string;
+    overflow: Overflow | `${Overflow} ${Overflow}`;
+    overflowX: Overflow;
+    overflowY: Overflow;
+    scrollBarWidth: Length;
+  }
+}
+
+interface Style {
+  boxSizing: BoxSizing;
+  display: Display;
+  position: Position;
+  flexDirection: FlexDirection;
+  flexWrap: FlexWrap;
+  flex: string | 'auto' | 'none' | number | 'initial';
+  flexFlow: string;
+  minWidth: LengthAuto;
+  minHeight: LengthAuto;
+  width: LengthAuto;
+  height: LengthAuto;
+  maxWidth: LengthAuto;
+  maxHeight: LengthAuto;
+  left: LengthAuto;
+  right: LengthAuto;
+  top: LengthAuto;
+  bottom: LengthAuto;
+  gridGap: Gap;
+  gap: Gap;
+  rowGap: Length;
+  columnGap: Length;
+  aspectRatio: number;
+  flexBasis: LengthPercentage | string | number;
+  alignItems: AlignItems;
+  alignSelf: AlignSelf;
+  alignContent: AlignContent;
+  justifyItems: JustifyItems;
+  justifySelf: JustifySelf;
+  justifyContent: JustifyContent;
+  gridAutoRows: string;
+  gridAutoColumns: string;
+  gridAutoFlow: GridAutoFlow;
+  gridRowGap: Gap;
+  gridColumnGap: Gap;
+  gridArea: string;
+  gridColumn: string;
+  gridColumnStart: string;
+  gridColumnEnd: string;
+  gridRow: string;
+  gridRowStart: string;
+  gridRowEnd: string;
+  gridTemplateRows: string;
+  gridTemplateColumns: string;
+  overflow: Overflow | `${Overflow} ${Overflow}`;
+  overflowX: Overflow;
+  overflowY: Overflow;
+  scrollBarWidth: Length;
+}
+
+interface IViewBase {
+  style: Style;
   boxSizing: BoxSizing;
   display: Display;
   position: Position;
@@ -87,151 +190,16 @@ export class View extends ViewBase {
   scrollBarWidth: number | CoreTypes.LengthType;
 }
 
-export class Text extends TextBase {
-  display: Display;
-  position: Position;
-  flexDirection: FlexDirection;
-  flexWrap: FlexWrap;
-  flex: string | 'auto' | 'none' | number | 'initial';
-  flexFlow: string;
-  width: LengthAuto;
-  height: LengthAuto;
-  maxWidth: LengthAuto;
-  maxHeight: LengthAuto;
-  left: Length;
-  right: Length;
-  top: Length;
-  bottom: Length;
-  gridGap: Gap;
-  gap: Gap;
-  rowGap: Length;
-  columnGap: Length;
-  aspectRatio: number;
-  flexBasis: Length;
-  alignItems: AlignItems;
-  alignSelf: AlignSelf;
-  alignContent: AlignContent;
-  justifyItems: JustifyItems;
-  justifySelf: JustifySelf;
-  justifyContent: JustifyContent;
-  gridAutoRows: string;
-  gridAutoColumns: string;
-  gridAutoFlow: GridAutoFlow;
-  gridRowGap: Gap;
-  gridColumnGap: Gap;
-  gridArea: string;
-  gridColumn: string;
-  gridColumnStart: string;
-  gridColumnEnd: string;
-  gridRow: string;
-  gridRowStart: string;
-  gridRowEnd: string;
-  gridTemplateRows: string;
-  gridTemplateColumns: string;
-  overflow: Overflow;
-  overflowX: Overflow;
-  overflowY: Overflow;
-  scrollBarWidth: number | CoreTypes.LengthType;
+class VBase extends ViewBase implements IViewBase {
+  style: Style;
 }
 
-export class Img extends ViewBase {
+export class View extends VBase {}
+
+export class Text extends VBase {}
+
+export class Img extends VBase {
   src: string;
-  display: Display;
-  position: Position;
-  flexDirection: FlexDirection;
-  flexWrap: FlexWrap;
-  flex: string | 'auto' | 'none' | number | 'initial';
-  flexFlow: string;
-  minWidth: LengthAuto;
-  minHeight: LengthAuto;
-  width: LengthAuto;
-  height: LengthAuto;
-  maxWidth: LengthAuto;
-  maxHeight: LengthAuto;
-  left: Length;
-  right: Length;
-  top: Length;
-  bottom: Length;
-  gridGap: Gap;
-  gap: Gap;
-  rowGap: Length;
-  columnGap: Length;
-  aspectRatio: number;
-  flexBasis: Length;
-  alignItems: AlignItems;
-  alignSelf: AlignSelf;
-  alignContent: AlignContent;
-  justifyItems: JustifyItems;
-  justifySelf: JustifySelf;
-  justifyContent: JustifyContent;
-  gridAutoRows: string;
-  gridAutoColumns: string;
-  gridAutoFlow: GridAutoFlow;
-  gridRowGap: Gap;
-  gridColumnGap: Gap;
-  gridArea: string;
-  gridColumn: string;
-  gridColumnStart: string;
-  gridColumnEnd: string;
-  gridRow: string;
-  gridRowStart: string;
-  gridRowEnd: string;
-  gridTemplateRows: string;
-  gridTemplateColumns: string;
-  overflow: Overflow;
-  overflowX: Overflow;
-  overflowY: Overflow;
-  scrollBarWidth: Length;
 }
 
-declare module '@nativescript/core/ui/styling/style' {
-  interface Style {
-    boxSizing: BoxSizing;
-    display: Display;
-    position: Position;
-    flexDirection: FlexDirection;
-    flexWrap: FlexWrap;
-    flex: string | 'auto' | 'none' | number | 'initial';
-    flexFlow: string;
-    minWidth: LengthAuto;
-    minHeight: LengthAuto;
-    width: LengthAuto;
-    height: LengthAuto;
-    maxWidth: LengthAuto;
-    maxHeight: LengthAuto;
-    left: Length;
-    right: Length;
-    top: Length;
-    bottom: Length;
-    gridGap: Gap;
-    gap: Gap;
-    rowGap: Length;
-    columnGap: Length;
-    aspectRatio: number;
-    flexBasis: LengthPercentage | string | number;
-    alignItems: AlignItems;
-    alignSelf: AlignSelf;
-    alignContent: AlignContent;
-    justifyItems: JustifyItems;
-    justifySelf: JustifySelf;
-    justifyContent: JustifyContent;
-    gridAutoRows: string;
-    gridAutoColumns: string;
-    gridAutoFlow: GridAutoFlow;
-    gridRowGap: Gap;
-    gridColumnGap: Gap;
-    gridArea: string;
-    gridColumn: string;
-    gridColumnStart: string;
-    gridColumnEnd: string;
-    gridRow: string;
-    gridRowStart: string;
-    gridRowEnd: string;
-    gridTemplateRows: string;
-    gridTemplateColumns: string;
-    overflow: Overflow;
-    overflowX: Overflow;
-    overflowY: Overflow;
-    scrollBarWidth: Length;
-  }
-}
+export class Scroll extends VBase {}

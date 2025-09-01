@@ -8,7 +8,7 @@ import UIKit
 
 @objcMembers
 @objc(MasonImg)
-public class MasonImg: UIImageView, MasonView {
+public class Img: UIImageView, MasonView {
   public var style: MasonStyle {
     return node.style
   }
@@ -40,6 +40,16 @@ public class MasonImg: UIImageView, MasonView {
     return current
   }
   
+  public var didLayout: (() -> Void)?
+  
+  public func requestLayout(){
+    node.markDirty()
+    if let root = node.root, let cache = root.computeCache {
+      root.computeWithSize(Float(cache.width), Float(cache.height))
+      didLayout?()
+    }
+  }
+  
   private var currentTask: URLSessionDataTask?
   public var src: String? {
     didSet {
@@ -49,15 +59,15 @@ public class MasonImg: UIImageView, MasonView {
       
       currentTask = URLSession.shared.dataTask(with: request, completionHandler: { data, response, error in
         guard let data = data,  let image = UIImage(data: data) else {
-          // todo
+          self.image = nil
+          self.requestLayout()
+          self.setNeedsDisplay()
           return
         }
 
         DispatchQueue.main.async {
-          print(self.bounds)
           self.image = image
-          self.node.markDirty()
-          
+          self.requestLayout()
           self.setNeedsDisplay()
           
         }
@@ -67,6 +77,14 @@ public class MasonImg: UIImageView, MasonView {
     }
   }
   
+  
+  
+  public func updateImage(_ image: UIImage?) {
+    self.image = image
+    requestLayout()
+    setNeedsDisplay()
+  }
+  
   init(mason doc: NSCMason) {
     node = doc.createNode()
     mason = doc
@@ -74,7 +92,7 @@ public class MasonImg: UIImageView, MasonView {
     node.data = self
     isOpaque = false
     node.measureFunc = { known, available in
-      return MasonImg.measure(self, known, available)
+      return Img.measure(self, known, available)
     }
     node.setMeasureFunction(node.measureFunc!)
   }
@@ -85,16 +103,15 @@ public class MasonImg: UIImageView, MasonView {
   
   public func syncStyle(_ state: String) {
     guard let stateValue = Int64(state, radix: 10) else {return}
-    let keys = StateKeys(rawValue: UInt64(stateValue))
+  //  let keys = StateKeys(rawValue: UInt64(stateValue))
     if (stateValue != -1) {
       style.isDirty = stateValue
       style.updateNativeStyle()
     }
   }
   
-  private static func measure(_ view: MasonImg, _ known: CGSize?, _ available: CGSize) -> CGSize {
+  private static func measure(_ view: Img, _ known: CGSize?, _ available: CGSize) -> CGSize {
     var ret = CGSize.zero
-    print(known, available)
     if let known = known {
       if(!known.width.isNaN && !known.height.isNaN){
         return known

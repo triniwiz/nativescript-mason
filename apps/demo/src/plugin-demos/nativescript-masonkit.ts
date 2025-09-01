@@ -9,6 +9,7 @@ export function navigatingTo(args: EventData) {
 
 export function textLoaded(args) {
   const view = args.object as Text;
+
   // const nativeView = view.nativeView as org.nativescript.mason.masonkit.TextView;
   // console.log('text loaded', nativeView.getOwner());
   // console.log('text loaded', view.nativeView.getCurrentText());

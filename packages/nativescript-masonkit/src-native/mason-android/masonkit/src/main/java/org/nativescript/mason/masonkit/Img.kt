@@ -49,11 +49,6 @@ class Img @JvmOverloads constructor(
     }
   }
 
-  private val rootNode: Node
-    get() {
-      return node.root ?: node
-    }
-
   override fun onNodeAttached() {
     markDirtyAndRecompute()
   }

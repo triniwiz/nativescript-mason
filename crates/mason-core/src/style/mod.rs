@@ -13,21 +13,50 @@ use crate::utils::{
     grid_auto_flow_from_enum, grid_auto_flow_to_enum, overflow_from_enum, overflow_to_enum,
     position_from_enum, position_to_enum, text_align_from_enum, text_align_to_enum,
 };
+#[cfg(target_os = "android")]
+use crate::JVM;
 use bitflags::bitflags;
+#[cfg(target_vendor = "apple")]
+use objc2::AnyThread;
+#[cfg(target_vendor = "apple")]
+use objc2::__framework_prelude::Retained;
+#[cfg(target_vendor = "apple")]
+use objc2_foundation::NSMutableData;
+
 use std::fmt::Formatter;
 use taffy::{
     AbsoluteAxis, AbstractAxis, AlignContent, AlignItems, AlignSelf, BlockContainerStyle,
     BlockItemStyle, BoxGenerationMode, BoxSizing, CoreStyle, Dimension, Display, FlexDirection,
     FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, GridAutoFlow, GridContainerStyle,
     GridItemStyle, GridPlacement, JustifyContent, JustifyItems, JustifySelf, LengthPercentage,
-    LengthPercentageAuto, Line, NonRepeatedTrackSizingFunction, Overflow, Point, Position, Rect,
-    Size, TextAlign, TrackSizingFunction,
+    LengthPercentageAuto, Line, NonRepeatedTrackSizingFunction, Point, Position, Rect, Size,
+    TextAlign, TrackSizingFunction,
 };
 
-#[cfg(target_os = "android")]
-use crate::JVM;
-
 pub mod utils;
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+pub enum Overflow {
+    #[default]
+    Visible,
+    Clip,
+    Hidden,
+    Scroll,
+    Auto,
+}
+
+impl Into<taffy::style::Overflow> for Overflow {
+    fn into(self) -> taffy::Overflow {
+        match self {
+            Overflow::Visible => taffy::Overflow::Visible,
+            Overflow::Clip => taffy::Overflow::Clip,
+            Overflow::Hidden => taffy::Overflow::Hidden,
+            Overflow::Scroll => taffy::Overflow::Scroll,
+            Overflow::Auto => taffy::Overflow::Scroll,
+        }
+    }
+}
+
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DisplayMode {
@@ -155,7 +184,7 @@ pub enum StyleKeys {
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct StateKeys: u64 {
-       const DISPLAY         = 1 << 0;
+        const DISPLAY         = 1 << 0;
         const POSITION        = 1 << 1;
         const DIRECTION       = 1 << 2;
         const FLEX_DIRECTION  = 1 << 3;
@@ -193,14 +222,16 @@ bitflags! {
         const FORCE_INLINE = 1 << 35;
         const MIN_CONTENT_WIDTH = 1 << 36;
         const MIN_CONTENT_HEIGHT = 1 << 37;
-         const MAX_CONTENT_WIDTH = 1 << 38;
+        const MAX_CONTENT_WIDTH = 1 << 38;
         const MAX_CONTENT_HEIGHT = 1 << 39;
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Style {
-    data: Vec<u8>,
+    raw_data: *mut u8,
+    raw_data_len: usize,
+    data_owned: bool,
     grid_template_rows: Vec<TrackSizingFunction>,
     grid_template_columns: Vec<TrackSizingFunction>,
     grid_auto_rows: Vec<NonRepeatedTrackSizingFunction>,
@@ -208,7 +239,7 @@ pub struct Style {
     #[cfg(target_os = "android")]
     pub(crate) buffer: jni::objects::GlobalRef,
     #[cfg(target_vendor = "apple")]
-    pub(crate) buffer: objc2::rc::Retained<objc2_foundation::NSMutableData>,
+    pub(crate) buffer: Retained<NSMutableData>,
 }
 
 struct DisplaySize<T> {
@@ -363,7 +394,123 @@ impl std::fmt::Display for Style {
             .field("inset", &DisplayRect::from(self.get_inset()))
             .field("aspectRatio", &self.get_aspect_ratio())
             .field("gap", &DisplaySize::from(self.get_gap()))
+            .field("alignItems", &self.get_align_items())
+            .field("alignSelf", &self.get_align_self())
+            .field("justifyItems", &self.get_justify_items())
+            .field("justifySelf", &self.get_justify_self())
+            .field("alignContent", &self.get_align_content())
+            .field("justifyContent", &self.get_justify_content())
+            .field("textAlign", &self.get_text_align())
+            .field("flexDirection", &self.get_flex_direction())
+            .field("flexWrap", &self.get_flex_wrap())
+            .field("flexGrow", &self.get_flex_grow())
+            .field("flexShrink", &self.get_flex_shrink())
+            .field(
+                "flex_basis",
+                &dimension_to_format_type_value(self.get_flex_basis()),
+            )
+            .field("grid_template_rows", &self.grid_template_rows())
+            .field("grid_template_columns", &self.grid_template_columns())
+            .field("grid_auto_rows", &self.grid_auto_rows())
+            .field("grid_auto_columns", &self.grid_auto_columns())
+            .field("grid_auto_flow", &self.grid_auto_flow())
+            .field("grid_row", &self.grid_row())
+            .field("grid_column", &self.grid_column())
             .finish()
+    }
+}
+
+impl Clone for Style {
+    #[cfg(target_os = "android")]
+    fn clone(&self) -> Self {
+        let mut clone = unsafe {
+            std::slice::from_raw_parts_mut(self.raw_data, self.raw_data_len)
+                .to_vec()
+                .into_boxed_slice()
+        };
+        let ptr = clone.as_mut_ptr();
+        let len = clone.len();
+
+        std::mem::forget(clone);
+
+        let jvm = JVM.get().unwrap();
+
+        let vm = jvm.attach_current_thread();
+        let mut env = vm.unwrap();
+        let db = unsafe {
+            let ret = env.new_direct_byte_buffer(ptr as _, len);
+            ret.unwrap()
+        };
+        let buffer_ref = env.new_global_ref(db).unwrap();
+
+        Self {
+            raw_data: ptr,
+            raw_data_len: len,
+            grid_template_rows: self.grid_template_rows.clone(),
+            grid_template_columns: self.grid_template_columns.clone(),
+            grid_auto_rows: self.grid_auto_rows.clone(),
+            grid_auto_columns: self.grid_auto_columns.clone(),
+            buffer: buffer_ref,
+            data_owned: true,
+        }
+    }
+
+    #[cfg(target_vendor = "apple")]
+    fn clone(&self) -> Self {
+        let clone =
+            unsafe { std::slice::from_raw_parts_mut(self.raw_data, self.raw_data_len).to_vec() };
+        let mut buffer = NSMutableData::from_vec(clone);
+        let (ptr, len) = {
+            let slice = unsafe { buffer.as_mut_bytes_unchecked() };
+            (slice.as_mut_ptr(), slice.len())
+        };
+
+        Self {
+            raw_data: ptr,
+            raw_data_len: len,
+            grid_template_rows: self.grid_template_rows.clone(),
+            grid_template_columns: self.grid_template_columns.clone(),
+            grid_auto_rows: self.grid_auto_rows.clone(),
+            grid_auto_columns: self.grid_auto_columns.clone(),
+            #[cfg(target_vendor = "apple")]
+            buffer,
+            data_owned: false,
+        }
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "android")))]
+    fn clone(&self) -> Self {
+        let mut clone = unsafe {
+            std::slice::from_raw_parts_mut(self.raw_data, self.raw_data_len)
+                .to_vec()
+                .into_boxed_slice()
+        };
+        let ptr = clone.as_mut_ptr();
+        let len = clone.len();
+
+        std::mem::forget(clone);
+        Self {
+            raw_data: ptr,
+            raw_data_len: len,
+            grid_template_rows: self.grid_template_rows.clone(),
+            grid_template_columns: self.grid_template_columns.clone(),
+            grid_auto_rows: self.grid_auto_rows.clone(),
+            grid_auto_columns: self.grid_auto_columns.clone(),
+            data_owned: true,
+        }
+    }
+}
+
+impl Drop for Style {
+    fn drop(&mut self) {
+        if self.data_owned {
+            let _ = unsafe {
+                Box::from_raw(std::slice::from_raw_parts_mut(
+                    self.raw_data,
+                    self.raw_data_len,
+                ))
+            };
+        }
     }
 }
 
@@ -401,12 +548,84 @@ impl Style {
 
         int_slice[StyleKeys::JUSTIFY_CONTENT as usize / 4] = -1;
 
+        int_slice[StyleKeys::MARGIN_LEFT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::MARGIN_TOP_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::MARGIN_RIGHT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::MARGIN_BOTTOM_TYPE as usize / 4] = 1;
+
         buffer
     }
 
+    #[cfg(target_os = "android")]
     pub fn copy_from(&mut self, other: &Style) {
-        self.data.extend_from_slice(&other.data);
-        self.data.copy_from_slice(&other.data);
+        let mut copy = unsafe {
+            std::slice::from_raw_parts_mut(other.raw_data, other.raw_data_len)
+                .to_vec()
+                .into_boxed_slice()
+        };
+        let _ = unsafe {
+            Box::from_raw(std::slice::from_raw_parts_mut(
+                self.raw_data,
+                self.raw_data_len,
+            ))
+        };
+        let ptr = copy.as_mut_ptr();
+        let len = copy.len();
+        self.raw_data = ptr;
+        self.raw_data_len = len;
+        std::mem::forget(copy);
+
+        let jvm = JVM.get().unwrap();
+
+        let vm = jvm.attach_current_thread();
+        let mut env = vm.unwrap();
+        let db = unsafe {
+            let ret = env.new_direct_byte_buffer(ptr as _, len);
+            ret.unwrap()
+        };
+
+        self.buffer = env.new_global_ref(db).unwrap();
+
+        self.grid_template_rows = other.grid_template_rows.clone();
+        self.grid_template_columns = other.grid_template_columns.clone();
+        self.grid_auto_rows = other.grid_auto_rows.clone();
+        self.grid_auto_columns = other.grid_auto_columns.clone();
+    }
+
+    #[cfg(not(any(target_vendor = "apple", target_os = "android")))]
+    pub fn copy_from(&mut self, other: &Style) {
+        let mut copy = unsafe {
+            std::slice::from_raw_parts_mut(other.raw_data, other.raw_data_len)
+                .to_vec()
+                .into_boxed_slice()
+        };
+        let _ = unsafe {
+            Box::from_raw(std::slice::from_raw_parts_mut(
+                self.raw_data,
+                self.raw_data_len,
+            ))
+        };
+        self.raw_data = copy.as_mut_ptr();
+        self.raw_data_len = copy.len();
+        std::mem::forget(copy);
+        self.grid_template_rows = other.grid_template_rows.clone();
+        self.grid_template_columns = other.grid_template_columns.clone();
+        self.grid_auto_rows = other.grid_auto_rows.clone();
+        self.grid_auto_columns = other.grid_auto_columns.clone();
+    }
+
+    #[cfg(target_vendor = "apple")]
+    pub fn copy_from(&mut self, other: &Style) {
+        self.buffer = NSMutableData::dataWithData(&other.buffer);
+        self.data_owned = false;
+        unsafe {
+            let buffer = self.buffer.as_mut_bytes_unchecked();
+            self.raw_data = buffer.as_mut_ptr();
+            self.raw_data_len = buffer.len();
+        }
         self.grid_template_rows = other.grid_template_rows.clone();
         self.grid_template_columns = other.grid_template_columns.clone();
         self.grid_auto_rows = other.grid_auto_rows.clone();
@@ -415,253 +634,282 @@ impl Style {
 
     #[cfg(target_os = "android")]
     pub fn new() -> Self {
-        let mut buffer = Self::default_data();
+        let mut buffer = Self::default_data().into_boxed_slice();
+        let ptr = buffer.as_mut_ptr();
+        let len = buffer.len();
+        std::mem::forget(buffer);
 
         let jvm = JVM.get().unwrap();
 
         let vm = jvm.attach_current_thread();
         let mut env = vm.unwrap();
         let db = unsafe {
-            let ret = env.new_direct_byte_buffer(buffer.as_mut_ptr() as _, buffer.len());
+            let ret = env.new_direct_byte_buffer(ptr as _, len);
             ret.unwrap()
         };
+
         let buffer_ref = env.new_global_ref(db).unwrap();
 
         Self {
-            data: buffer,
+            raw_data: ptr,
+            raw_data_len: len,
             grid_template_rows: Default::default(),
             grid_template_columns: Default::default(),
             grid_auto_rows: Default::default(),
             grid_auto_columns: Default::default(),
-            buffer: buffer_ref,
+            data_owned: true,
+            buffer: buffer_ref
         }
     }
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(target_vendor = "apple")]
     pub fn new() -> Self {
-        let mut buffer = Self::default_data();
-
+        let buffer = Self::default_data();
+        let buffer = NSMutableData::from_vec(buffer);
+        let raw = unsafe { buffer.as_mut_bytes_unchecked() };
+        let ptr = raw.as_mut_ptr();
+        let len = raw.len();
         Self {
             grid_template_rows: Default::default(),
             grid_template_columns: Default::default(),
             grid_auto_rows: Default::default(),
             grid_auto_columns: Default::default(),
             #[cfg(target_vendor = "apple")]
-            buffer: unsafe {
-                objc2_foundation::NSMutableData::dataWithBytesNoCopy_length_freeWhenDone(
-                    std::ptr::NonNull::new_unchecked(buffer.as_mut_ptr() as *mut _),
-                    buffer.len(),
-                    false,
-                )
-            },
-            data: buffer,
+            buffer: buffer,
+            raw_data: ptr,
+            raw_data_len: len,
+            data_owned: false,
         }
+    }
+
+    #[cfg(not(any(target_os = "android", target_vendor = "apple")))]
+    pub fn new() -> Self {
+        let mut buffer = Self::default_data().into_boxed_slice();
+        let ptr = buffer.as_mut_ptr();
+        let len = buffer.len();
+        std::mem::forget(buffer);
+
+        Self {
+            grid_template_rows: Default::default(),
+            grid_template_columns: Default::default(),
+            grid_auto_rows: Default::default(),
+            grid_auto_columns: Default::default(),
+            raw_data: ptr,
+            raw_data_len: len,
+            data_owned: true,
+        }
+    }
+
+    #[inline]
+    pub fn data(&self) -> &[u8] {
+        unsafe { std::slice::from_raw_parts(self.raw_data, self.raw_data_len) }
+    }
+
+    #[inline]
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        unsafe { std::slice::from_raw_parts_mut(self.raw_data, self.raw_data_len) }
     }
 
     pub(crate) fn min_content(&self) -> Size<f32> {
         Size {
-            width: get_style_data_f32(&self.data, StyleKeys::MIN_CONTENT_WIDTH),
-            height: get_style_data_f32(&self.data, StyleKeys::MIN_CONTENT_HEIGHT),
+            width: get_style_data_f32(self.data(), StyleKeys::MIN_CONTENT_WIDTH),
+            height: get_style_data_f32(self.data(), StyleKeys::MIN_CONTENT_HEIGHT),
         }
     }
 
     pub(crate) fn set_min_content(&mut self, value: Size<f32>) {
-        set_style_data_f32(&mut self.data, StyleKeys::MIN_CONTENT_WIDTH, value.width);
-        set_style_data_f32(&mut self.data, StyleKeys::MIN_CONTENT_HEIGHT, value.height);
+        set_style_data_f32(self.data_mut(), StyleKeys::MIN_CONTENT_WIDTH, value.width);
+        set_style_data_f32(self.data_mut(), StyleKeys::MIN_CONTENT_HEIGHT, value.height);
     }
 
     pub(crate) fn min_content_width(&self) -> f32 {
-        get_style_data_f32(&self.data, StyleKeys::MIN_CONTENT_WIDTH)
+        get_style_data_f32(self.data(), StyleKeys::MIN_CONTENT_WIDTH)
     }
 
     pub(crate) fn min_content_height(&self) -> f32 {
-        get_style_data_f32(&self.data, StyleKeys::MIN_CONTENT_HEIGHT)
+        get_style_data_f32(self.data(), StyleKeys::MIN_CONTENT_HEIGHT)
     }
 
     pub(crate) fn set_min_content_width(&mut self, value: f32) {
-        set_style_data_f32(&mut self.data, StyleKeys::MIN_CONTENT_WIDTH, value)
+        set_style_data_f32(self.data_mut(), StyleKeys::MIN_CONTENT_WIDTH, value)
     }
 
     pub(crate) fn set_min_content_height(&mut self, value: f32) {
-        set_style_data_f32(&mut self.data, StyleKeys::MIN_CONTENT_HEIGHT, value)
+        set_style_data_f32(self.data_mut(), StyleKeys::MIN_CONTENT_HEIGHT, value)
     }
 
     pub(crate) fn max_content(&self) -> Size<f32> {
         Size {
-            width: get_style_data_f32(&self.data, StyleKeys::MAX_CONTENT_WIDTH),
-            height: get_style_data_f32(&self.data, StyleKeys::MAX_CONTENT_HEIGHT),
+            width: get_style_data_f32(self.data(), StyleKeys::MAX_CONTENT_WIDTH),
+            height: get_style_data_f32(self.data(), StyleKeys::MAX_CONTENT_HEIGHT),
         }
     }
 
     pub(crate) fn set_max_content(&mut self, value: Size<f32>) {
-        set_style_data_f32(&mut self.data, StyleKeys::MAX_CONTENT_WIDTH, value.width);
-        set_style_data_f32(&mut self.data, StyleKeys::MAX_CONTENT_HEIGHT, value.height);
+        set_style_data_f32(self.data_mut(), StyleKeys::MAX_CONTENT_WIDTH, value.width);
+        set_style_data_f32(self.data_mut(), StyleKeys::MAX_CONTENT_HEIGHT, value.height);
     }
 
     pub(crate) fn max_content_width(&self) -> f32 {
-        get_style_data_f32(&self.data, StyleKeys::MAX_CONTENT_WIDTH)
+        get_style_data_f32(self.data(), StyleKeys::MAX_CONTENT_WIDTH)
     }
 
     pub(crate) fn max_content_height(&self) -> f32 {
-        get_style_data_f32(&self.data, StyleKeys::MAX_CONTENT_HEIGHT)
+        get_style_data_f32(self.data(), StyleKeys::MAX_CONTENT_HEIGHT)
     }
 
     pub(crate) fn set_max_content_width(&mut self, value: f32) {
-        set_style_data_f32(&mut self.data, StyleKeys::MAX_CONTENT_WIDTH, value)
+        set_style_data_f32(self.data_mut(), StyleKeys::MAX_CONTENT_WIDTH, value)
     }
 
     pub(crate) fn set_max_content_height(&mut self, value: f32) {
-        set_style_data_f32(&mut self.data, StyleKeys::MAX_CONTENT_HEIGHT, value)
+        set_style_data_f32(self.data_mut(), StyleKeys::MAX_CONTENT_HEIGHT, value)
     }
 
     pub(crate) fn content_sizes(&self) -> (Size<f32>, Size<f32>) {
         (
             Size {
-                width: get_style_data_f32(&self.data, StyleKeys::MIN_CONTENT_WIDTH),
-                height: get_style_data_f32(&self.data, StyleKeys::MIN_CONTENT_HEIGHT),
+                width: get_style_data_f32(self.data(), StyleKeys::MIN_CONTENT_WIDTH),
+                height: get_style_data_f32(self.data(), StyleKeys::MIN_CONTENT_HEIGHT),
             },
             Size {
-                width: get_style_data_f32(&self.data, StyleKeys::MAX_CONTENT_WIDTH),
-                height: get_style_data_f32(&self.data, StyleKeys::MAX_CONTENT_HEIGHT),
+                width: get_style_data_f32(self.data(), StyleKeys::MAX_CONTENT_WIDTH),
+                height: get_style_data_f32(self.data(), StyleKeys::MAX_CONTENT_HEIGHT),
             },
         )
     }
 
     pub(crate) fn content_width_sizes(&self) -> (f32, f32) {
         (
-            get_style_data_f32(&self.data, StyleKeys::MIN_CONTENT_WIDTH),
-            get_style_data_f32(&self.data, StyleKeys::MAX_CONTENT_WIDTH),
+            get_style_data_f32(self.data(), StyleKeys::MIN_CONTENT_WIDTH),
+            get_style_data_f32(self.data(), StyleKeys::MAX_CONTENT_WIDTH),
         )
     }
 
     pub(crate) fn content_height_sizes(&self) -> (f32, f32) {
         (
-            get_style_data_f32(&self.data, StyleKeys::MIN_CONTENT_HEIGHT),
-            get_style_data_f32(&self.data, StyleKeys::MAX_CONTENT_HEIGHT),
+            get_style_data_f32(self.data(), StyleKeys::MIN_CONTENT_HEIGHT),
+            get_style_data_f32(self.data(), StyleKeys::MAX_CONTENT_HEIGHT),
         )
     }
 
     // used to force inline when text-view doesn't set a tag
     pub(crate) fn force_inline(&self) -> bool {
-        get_style_data_i32(&self.data, StyleKeys::FORCE_INLINE) != 0
+        get_style_data_i32(self.data(), StyleKeys::FORCE_INLINE) != 0
     }
 
     pub fn display_mode(&self) -> DisplayMode {
-        display_mode_from_enum(get_style_data_i32(&self.data, StyleKeys::DISPLAY_MODE)).unwrap()
+        display_mode_from_enum(get_style_data_i32(self.data(), StyleKeys::DISPLAY_MODE)).unwrap()
     }
 
     pub fn set_display_mode(&mut self, value: DisplayMode) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::DISPLAY_MODE,
             display_mode_to_enum(value),
         );
     }
 
     pub fn get_display(&self) -> Display {
-        display_from_enum(get_style_data_i32(&self.data, StyleKeys::DISPLAY)).unwrap()
+        display_from_enum(get_style_data_i32(self.data(), StyleKeys::DISPLAY)).unwrap()
     }
 
     pub fn set_display(&mut self, value: Display) {
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::DISPLAY,
-            display_to_enum(value),
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::DISPLAY, display_to_enum(value));
     }
 
     pub fn get_item_is_table(&self) -> bool {
-        get_style_data_i32(&self.data, StyleKeys::ITEM_IS_TABLE) != 0
+        get_style_data_i32(self.data(), StyleKeys::ITEM_IS_TABLE) != 0
     }
     pub fn set_item_is_table(&mut self, value: bool) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::ITEM_IS_TABLE,
             if value { 1 } else { 0 },
         );
     }
 
     pub fn get_item_is_replaced(&self) -> bool {
-        get_style_data_i32(&self.data, StyleKeys::ITEM_IS_REPLACED) != 0
+        get_style_data_i32(self.data(), StyleKeys::ITEM_IS_REPLACED) != 0
     }
     pub fn set_item_is_replaced(&mut self, value: bool) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::ITEM_IS_REPLACED,
             if value { 1 } else { 0 },
         );
     }
 
     pub fn get_box_sizing(&self) -> BoxSizing {
-        boxing_size_from_enum(get_style_data_i32(&self.data, StyleKeys::BOX_SIZING)).unwrap()
+        boxing_size_from_enum(get_style_data_i32(self.data(), StyleKeys::BOX_SIZING)).unwrap()
     }
 
     pub fn set_box_sizing(&mut self, value: BoxSizing) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::BOX_SIZING,
             boxing_size_to_enum(value),
         );
     }
     pub fn get_overflow(&self) -> Point<Overflow> {
         Point {
-            x: overflow_from_enum(get_style_data_i32(&self.data, StyleKeys::OVERFLOW_X)).unwrap(),
-            y: overflow_from_enum(get_style_data_i32(&self.data, StyleKeys::OVERFLOW_Y)).unwrap(),
+            x: overflow_from_enum(get_style_data_i32(self.data(), StyleKeys::OVERFLOW_X)).unwrap(),
+            y: overflow_from_enum(get_style_data_i32(self.data(), StyleKeys::OVERFLOW_Y)).unwrap(),
         }
     }
 
     pub fn set_overflow(&mut self, value: Point<Overflow>) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::OVERFLOW_X,
             overflow_to_enum(value.x),
         );
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::OVERFLOW_Y,
             overflow_to_enum(value.y),
         );
     }
 
     pub fn get_overflow_x(&self) -> Overflow {
-        overflow_from_enum(get_style_data_i32(&self.data, StyleKeys::OVERFLOW_X)).unwrap()
+        overflow_from_enum(get_style_data_i32(self.data(), StyleKeys::OVERFLOW_X)).unwrap()
     }
 
     pub fn set_overflow_x(&mut self, value: Overflow) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::OVERFLOW_X,
             overflow_to_enum(value),
         )
     }
 
     pub fn get_overflow_y(&self) -> Overflow {
-        overflow_from_enum(get_style_data_i32(&self.data, StyleKeys::OVERFLOW_Y)).unwrap()
+        overflow_from_enum(get_style_data_i32(self.data(), StyleKeys::OVERFLOW_Y)).unwrap()
     }
 
     pub fn set_overflow_y(&mut self, value: Overflow) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::OVERFLOW_Y,
             overflow_to_enum(value),
         )
     }
 
     pub fn get_scrollbar_width(&self) -> f32 {
-        get_style_data_f32(&self.data, StyleKeys::SCROLLBAR_WIDTH)
+        get_style_data_f32(self.data(), StyleKeys::SCROLLBAR_WIDTH)
     }
 
     pub fn set_scrollbar_width(&mut self, value: f32) {
-        set_style_data_f32(self.data.as_mut_slice(), StyleKeys::SCROLLBAR_WIDTH, value)
+        set_style_data_f32(self.data_mut(), StyleKeys::SCROLLBAR_WIDTH, value)
     }
 
     pub fn get_position(&self) -> Position {
-        position_from_enum(get_style_data_i32(&self.data, StyleKeys::POSITION)).unwrap()
+        position_from_enum(get_style_data_i32(self.data(), StyleKeys::POSITION)).unwrap()
     }
 
     pub fn set_position(&mut self, value: Position) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::POSITION,
             position_to_enum(value),
         )
@@ -670,20 +918,20 @@ impl Style {
     pub fn get_inset(&self) -> Rect<LengthPercentageAuto> {
         Rect {
             left: length_percentage_auto_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::INSET_LEFT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::INSET_LEFT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::INSET_LEFT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::INSET_LEFT_VALUE),
             ),
             right: length_percentage_auto_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::INSET_RIGHT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::INSET_RIGHT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::INSET_RIGHT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::INSET_RIGHT_VALUE),
             ),
             top: length_percentage_auto_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::INSET_TOP_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::INSET_TOP_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::INSET_TOP_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::INSET_TOP_VALUE),
             ),
             bottom: length_percentage_auto_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::INSET_BOTTOM_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::INSET_BOTTOM_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::INSET_BOTTOM_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::INSET_BOTTOM_VALUE),
             ),
         }
     }
@@ -694,128 +942,88 @@ impl Style {
         let top = length_percentage_auto_to_type_value(value.top);
         let bottom = length_percentage_auto_to_type_value(value.bottom);
 
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::INSET_LEFT_TYPE, left.0);
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_LEFT_VALUE,
-            left.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::INSET_LEFT_TYPE, left.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::INSET_LEFT_VALUE, left.1);
 
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_RIGHT_TYPE,
-            right.0,
-        );
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_RIGHT_VALUE,
-            right.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::INSET_RIGHT_TYPE, right.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::INSET_RIGHT_VALUE, right.1);
 
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::INSET_TOP_TYPE, top.0);
-        set_style_data_f32(self.data.as_mut_slice(), StyleKeys::INSET_TOP_VALUE, top.1);
+        set_style_data_i32(self.data_mut(), StyleKeys::INSET_TOP_TYPE, top.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::INSET_TOP_VALUE, top.1);
 
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_BOTTOM_TYPE,
-            bottom.0,
-        );
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_BOTTOM_VALUE,
-            bottom.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::INSET_BOTTOM_TYPE, bottom.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::INSET_BOTTOM_VALUE, bottom.1);
     }
 
     pub fn set_left_inset(&mut self, value: LengthPercentageAuto) {
         let left = length_percentage_auto_to_type_value(value);
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::INSET_LEFT_TYPE, left.0);
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_LEFT_VALUE,
-            left.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::INSET_LEFT_TYPE, left.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::INSET_LEFT_VALUE, left.1);
     }
 
     pub fn left_inset(&self) -> LengthPercentageAuto {
         length_percentage_auto_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::INSET_LEFT_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::INSET_LEFT_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::INSET_LEFT_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::INSET_LEFT_VALUE),
         )
     }
 
     pub fn set_right_inset(&mut self, value: LengthPercentageAuto) {
         let right = length_percentage_auto_to_type_value(value);
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_RIGHT_TYPE,
-            right.0,
-        );
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_RIGHT_VALUE,
-            right.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::INSET_RIGHT_TYPE, right.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::INSET_RIGHT_VALUE, right.1);
     }
 
     pub fn right_inset(&self) -> LengthPercentageAuto {
         length_percentage_auto_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::INSET_RIGHT_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::INSET_RIGHT_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::INSET_RIGHT_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::INSET_RIGHT_VALUE),
         )
     }
 
     pub fn set_top_inset(&mut self, value: LengthPercentageAuto) {
         let top = length_percentage_auto_to_type_value(value);
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::INSET_TOP_TYPE, top.0);
-        set_style_data_f32(self.data.as_mut_slice(), StyleKeys::INSET_TOP_VALUE, top.1);
+        set_style_data_i32(self.data_mut(), StyleKeys::INSET_TOP_TYPE, top.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::INSET_TOP_VALUE, top.1);
     }
 
     pub fn top_inset(&self) -> LengthPercentageAuto {
         length_percentage_auto_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::INSET_TOP_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::INSET_TOP_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::INSET_TOP_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::INSET_TOP_VALUE),
         )
     }
 
     pub fn set_bottom_inset(&mut self, value: LengthPercentageAuto) {
         let bottom = length_percentage_auto_to_type_value(value);
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_BOTTOM_TYPE,
-            bottom.0,
-        );
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::INSET_BOTTOM_VALUE,
-            bottom.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::INSET_BOTTOM_TYPE, bottom.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::INSET_BOTTOM_VALUE, bottom.1);
     }
 
     pub fn bottom_inset(&self) -> LengthPercentageAuto {
         length_percentage_auto_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::INSET_BOTTOM_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::INSET_BOTTOM_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::INSET_BOTTOM_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::INSET_BOTTOM_VALUE),
         )
     }
 
     pub fn get_margin(&self) -> Rect<LengthPercentageAuto> {
         Rect {
             left: length_percentage_auto_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::MARGIN_LEFT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::MARGIN_LEFT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::MARGIN_LEFT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::MARGIN_LEFT_VALUE),
             ),
             right: length_percentage_auto_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::MARGIN_RIGHT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::MARGIN_RIGHT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::MARGIN_RIGHT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::MARGIN_RIGHT_VALUE),
             ),
             top: length_percentage_auto_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::MARGIN_TOP_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::MARGIN_TOP_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::MARGIN_TOP_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::MARGIN_TOP_VALUE),
             ),
             bottom: length_percentage_auto_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::MARGIN_BOTTOM_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::MARGIN_BOTTOM_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::MARGIN_BOTTOM_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::MARGIN_BOTTOM_VALUE),
             ),
         }
     }
@@ -826,46 +1034,30 @@ impl Style {
         let margin_top = length_percentage_auto_to_type_value(value.top);
         let margin_bottom = length_percentage_auto_to_type_value(value.bottom);
 
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_LEFT_TYPE,
-            margin_left.0,
-        );
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_LEFT_VALUE,
-            margin_left.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::MARGIN_LEFT_TYPE, margin_left.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_LEFT_VALUE, margin_left.1);
 
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::MARGIN_RIGHT_TYPE,
             margin_right.0,
         );
         set_style_data_f32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::MARGIN_RIGHT_VALUE,
             margin_right.1,
         );
 
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_TOP_TYPE,
-            margin_top.0,
-        );
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_TOP_VALUE,
-            margin_top.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::MARGIN_TOP_TYPE, margin_top.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_TOP_VALUE, margin_top.1);
 
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::MARGIN_BOTTOM_TYPE,
             margin_bottom.0,
         );
         set_style_data_f32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::MARGIN_BOTTOM_VALUE,
             margin_bottom.1,
         );
@@ -873,97 +1065,73 @@ impl Style {
 
     pub fn set_left_margin(&mut self, value: LengthPercentageAuto) {
         let left = length_percentage_auto_to_type_value(value);
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_LEFT_TYPE,
-            left.0,
-        );
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_LEFT_VALUE,
-            left.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::MARGIN_LEFT_TYPE, left.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_LEFT_VALUE, left.1);
     }
 
     pub fn left_margin(&self) -> LengthPercentageAuto {
         length_percentage_auto_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::MARGIN_LEFT_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::MARGIN_LEFT_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::MARGIN_LEFT_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::MARGIN_LEFT_VALUE),
         )
     }
 
     pub fn set_right_margin(&mut self, value: LengthPercentageAuto) {
         let right = length_percentage_auto_to_type_value(value);
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_RIGHT_TYPE,
-            right.0,
-        );
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_RIGHT_VALUE,
-            right.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::MARGIN_RIGHT_TYPE, right.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_RIGHT_VALUE, right.1);
     }
 
     pub fn right_margin(&self) -> LengthPercentageAuto {
         length_percentage_auto_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::MARGIN_RIGHT_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::MARGIN_RIGHT_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::MARGIN_RIGHT_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::MARGIN_RIGHT_VALUE),
         )
     }
 
     pub fn set_top_margin(&mut self, value: LengthPercentageAuto) {
         let top = length_percentage_auto_to_type_value(value);
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::MARGIN_TOP_TYPE, top.0);
-        set_style_data_f32(self.data.as_mut_slice(), StyleKeys::MARGIN_TOP_VALUE, top.1);
+        set_style_data_i32(self.data_mut(), StyleKeys::MARGIN_TOP_TYPE, top.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_TOP_VALUE, top.1);
     }
 
     pub fn top_margin(&self) -> LengthPercentageAuto {
         length_percentage_auto_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::MARGIN_TOP_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::MARGIN_TOP_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::MARGIN_TOP_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::MARGIN_TOP_VALUE),
         )
     }
 
     pub fn set_bottom_margin(&mut self, value: LengthPercentageAuto) {
         let bottom = length_percentage_auto_to_type_value(value);
-        set_style_data_i32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_BOTTOM_TYPE,
-            bottom.0,
-        );
-        set_style_data_f32(
-            self.data.as_mut_slice(),
-            StyleKeys::MARGIN_BOTTOM_VALUE,
-            bottom.1,
-        );
+        set_style_data_i32(self.data_mut(), StyleKeys::MARGIN_BOTTOM_TYPE, bottom.0);
+        set_style_data_f32(self.data_mut(), StyleKeys::MARGIN_BOTTOM_VALUE, bottom.1);
     }
 
     pub fn bottom_margin(&self) -> LengthPercentageAuto {
         length_percentage_auto_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::MARGIN_BOTTOM_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::MARGIN_BOTTOM_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::MARGIN_BOTTOM_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::MARGIN_BOTTOM_VALUE),
         )
     }
 
     pub fn get_padding(&self) -> Rect<LengthPercentage> {
         Rect {
             left: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::PADDING_LEFT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::PADDING_LEFT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::PADDING_LEFT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::PADDING_LEFT_VALUE),
             ),
             right: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::PADDING_RIGHT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::PADDING_RIGHT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::PADDING_RIGHT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::PADDING_RIGHT_VALUE),
             ),
             top: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::PADDING_TOP_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::PADDING_TOP_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::PADDING_TOP_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::PADDING_TOP_VALUE),
             ),
             bottom: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::PADDING_BOTTOM_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::PADDING_BOTTOM_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::PADDING_BOTTOM_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::PADDING_BOTTOM_VALUE),
             ),
         }
     }
@@ -974,7 +1142,7 @@ impl Style {
         let padding_top = length_percentage_to_type_value(value.top);
         let padding_bottom = length_percentage_to_type_value(value.bottom);
 
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
 
         set_style_data_i32(data, StyleKeys::PADDING_LEFT_TYPE, padding_left.0);
         set_style_data_f32(data, StyleKeys::PADDING_LEFT_VALUE, padding_left.1);
@@ -992,20 +1160,20 @@ impl Style {
     pub fn get_border(&self) -> Rect<LengthPercentage> {
         Rect {
             left: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::PADDING_LEFT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::PADDING_LEFT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::PADDING_LEFT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::PADDING_LEFT_VALUE),
             ),
             right: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::PADDING_RIGHT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::PADDING_RIGHT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::PADDING_RIGHT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::PADDING_RIGHT_VALUE),
             ),
             top: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::PADDING_TOP_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::PADDING_TOP_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::PADDING_TOP_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::PADDING_TOP_VALUE),
             ),
             bottom: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::PADDING_BOTTOM_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::PADDING_BOTTOM_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::PADDING_BOTTOM_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::PADDING_BOTTOM_VALUE),
             ),
         }
     }
@@ -1016,7 +1184,7 @@ impl Style {
         let border_top = length_percentage_to_type_value(value.top);
         let border_bottom = length_percentage_to_type_value(value.bottom);
 
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
 
         set_style_data_i32(data, StyleKeys::BORDER_LEFT_TYPE, border_left.0);
         set_style_data_f32(data, StyleKeys::BORDER_LEFT_VALUE, border_left.1);
@@ -1034,12 +1202,12 @@ impl Style {
     pub fn get_size(&self) -> Size<Dimension> {
         Size {
             width: dimension_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::WIDTH_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::WIDTH_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::WIDTH_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::WIDTH_VALUE),
             ),
             height: dimension_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::HEIGHT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::HEIGHT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::HEIGHT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::HEIGHT_VALUE),
             ),
         }
     }
@@ -1047,7 +1215,7 @@ impl Style {
     pub fn set_size(&mut self, value: Size<Dimension>) {
         let width = dimension_to_type_value(value.width);
 
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         set_style_data_i32(data, StyleKeys::WIDTH_TYPE, width.0);
         set_style_data_f32(data, StyleKeys::WIDTH_VALUE, width.1);
 
@@ -1059,27 +1227,27 @@ impl Style {
 
     pub fn width(&self) -> Dimension {
         dimension_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::WIDTH_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::WIDTH_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::WIDTH_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::WIDTH_VALUE),
         )
     }
 
     pub fn height(&self) -> Dimension {
         dimension_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::HEIGHT_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::HEIGHT_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::HEIGHT_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::HEIGHT_VALUE),
         )
     }
 
     pub fn set_width(&mut self, value: Dimension) {
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         let width = dimension_to_type_value(value);
         set_style_data_i32(data, StyleKeys::WIDTH_TYPE, width.0);
         set_style_data_f32(data, StyleKeys::WIDTH_VALUE, width.1);
     }
 
     pub fn set_height(&mut self, value: Dimension) {
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         let height = dimension_to_type_value(value);
         set_style_data_i32(data, StyleKeys::HEIGHT_TYPE, height.0);
         set_style_data_f32(data, StyleKeys::HEIGHT_VALUE, height.1);
@@ -1088,12 +1256,12 @@ impl Style {
     pub fn get_min_size(&self) -> Size<Dimension> {
         Size {
             width: dimension_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::MIN_WIDTH_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::MIN_WIDTH_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::MIN_WIDTH_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::MIN_WIDTH_VALUE),
             ),
             height: dimension_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::MIN_HEIGHT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::MIN_HEIGHT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::MIN_HEIGHT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::MIN_HEIGHT_VALUE),
             ),
         }
     }
@@ -1101,7 +1269,7 @@ impl Style {
     pub fn set_min_size(&mut self, value: Size<Dimension>) {
         let width = dimension_to_type_value(value.width);
 
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         set_style_data_i32(data, StyleKeys::MIN_WIDTH_TYPE, width.0);
         set_style_data_f32(data, StyleKeys::MIN_WIDTH_VALUE, width.1);
 
@@ -1112,14 +1280,14 @@ impl Style {
     }
 
     pub fn set_min_width(&mut self, value: Dimension) {
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         let width = dimension_to_type_value(value);
         set_style_data_i32(data, StyleKeys::MIN_WIDTH_TYPE, width.0);
         set_style_data_f32(data, StyleKeys::MIN_WIDTH_VALUE, width.1);
     }
 
     pub fn set_min_height(&mut self, value: Dimension) {
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         let height = dimension_to_type_value(value);
         set_style_data_i32(data, StyleKeys::MIN_HEIGHT_TYPE, height.0);
         set_style_data_f32(data, StyleKeys::MIN_HEIGHT_VALUE, height.1);
@@ -1128,12 +1296,12 @@ impl Style {
     pub fn get_max_size(&self) -> Size<Dimension> {
         Size {
             width: dimension_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::MAX_WIDTH_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::MAX_WIDTH_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::MAX_WIDTH_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::MAX_WIDTH_VALUE),
             ),
             height: dimension_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::MAX_HEIGHT_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::MAX_HEIGHT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::MAX_HEIGHT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::MAX_HEIGHT_VALUE),
             ),
         }
     }
@@ -1141,7 +1309,7 @@ impl Style {
     pub fn set_max_size(&mut self, value: Size<Dimension>) {
         let width = dimension_to_type_value(value.width);
 
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         set_style_data_i32(data, StyleKeys::MAX_WIDTH_TYPE, width.0);
         set_style_data_f32(data, StyleKeys::MAX_WIDTH_VALUE, width.1);
 
@@ -1152,7 +1320,7 @@ impl Style {
     }
 
     pub fn get_aspect_ratio(&self) -> Option<f32> {
-        let ratio = get_style_data_f32(&self.data, StyleKeys::ASPECT_RATIO);
+        let ratio = get_style_data_f32(self.data(), StyleKeys::ASPECT_RATIO);
         if ratio.is_nan() {
             return None;
         }
@@ -1161,18 +1329,18 @@ impl Style {
 
     pub fn set_aspect_ratio(&mut self, ratio: Option<f32>) {
         let ratio = ratio.unwrap_or_else(|| f32::NAN);
-        set_style_data_f32(&mut self.data, StyleKeys::ASPECT_RATIO, ratio);
+        set_style_data_f32(self.data_mut(), StyleKeys::ASPECT_RATIO, ratio);
     }
 
     pub fn get_gap(&self) -> Size<LengthPercentage> {
         Size {
             width: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::GAP_ROW_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::GAP_ROW_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::GAP_ROW_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::GAP_ROW_VALUE),
             ),
             height: length_percentage_from_type_value(
-                get_style_data_i32(&self.data, StyleKeys::GAP_COLUMN_TYPE),
-                get_style_data_f32(&self.data, StyleKeys::GAP_COLUMN_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::GAP_COLUMN_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::GAP_COLUMN_VALUE),
             ),
         }
     }
@@ -1180,7 +1348,7 @@ impl Style {
     pub fn set_gap(&mut self, value: Size<LengthPercentage>) {
         let gap_row = length_percentage_to_type_value(value.width);
 
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         set_style_data_i32(data, StyleKeys::GAP_ROW_TYPE, gap_row.0);
         set_style_data_f32(data, StyleKeys::GAP_ROW_VALUE, gap_row.1);
 
@@ -1191,7 +1359,7 @@ impl Style {
     }
 
     pub fn get_align_items(&self) -> Option<AlignItems> {
-        let value = get_style_data_i32(&self.data, StyleKeys::ALIGN_ITEMS);
+        let value = get_style_data_i32(self.data(), StyleKeys::ALIGN_ITEMS);
         align_items_from_enum(value)
     }
 
@@ -1200,11 +1368,11 @@ impl Style {
             Some(value) => align_items_to_enum(value),
             None => -1,
         };
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::ALIGN_ITEMS, align);
+        set_style_data_i32(self.data_mut(), StyleKeys::ALIGN_ITEMS, align);
     }
 
     pub fn get_align_self(&self) -> Option<AlignSelf> {
-        let value = get_style_data_i32(&self.data, StyleKeys::ALIGN_SELF);
+        let value = get_style_data_i32(self.data(), StyleKeys::ALIGN_SELF);
         align_self_from_enum(value)
     }
 
@@ -1213,11 +1381,11 @@ impl Style {
             Some(value) => align_self_to_enum(value),
             None => -1,
         };
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::ALIGN_SELF, align);
+        set_style_data_i32(self.data_mut(), StyleKeys::ALIGN_SELF, align);
     }
 
     pub fn get_align_content(&self) -> Option<AlignContent> {
-        let value = get_style_data_i32(&self.data, StyleKeys::ALIGN_CONTENT);
+        let value = get_style_data_i32(self.data(), StyleKeys::ALIGN_CONTENT);
         align_content_from_enum(value)
     }
 
@@ -1226,11 +1394,12 @@ impl Style {
             Some(value) => align_content_to_enum(value),
             None => -1,
         };
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::ALIGN_CONTENT, align);
+        println!("set_align_content {:?} {:?}", align, value);
+        set_style_data_i32(self.data_mut(), StyleKeys::ALIGN_CONTENT, align);
     }
 
     pub fn get_justify_items(&self) -> Option<JustifyItems> {
-        let value = get_style_data_i32(&self.data, StyleKeys::JUSTIFY_ITEMS);
+        let value = get_style_data_i32(self.data(), StyleKeys::JUSTIFY_ITEMS);
         align_items_from_enum(value)
     }
 
@@ -1239,11 +1408,11 @@ impl Style {
             Some(value) => align_items_to_enum(value),
             None => -1,
         };
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::JUSTIFY_ITEMS, align);
+        set_style_data_i32(self.data_mut(), StyleKeys::JUSTIFY_ITEMS, align);
     }
 
     pub fn get_justify_self(&self) -> Option<JustifySelf> {
-        let value = get_style_data_i32(&self.data, StyleKeys::JUSTIFY_SELF);
+        let value = get_style_data_i32(self.data(), StyleKeys::JUSTIFY_SELF);
         align_self_from_enum(value)
     }
 
@@ -1252,11 +1421,11 @@ impl Style {
             Some(value) => align_self_to_enum(value),
             None => -1,
         };
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::JUSTIFY_SELF, align);
+        set_style_data_i32(self.data_mut(), StyleKeys::JUSTIFY_SELF, align);
     }
 
     pub fn get_justify_content(&self) -> Option<JustifyContent> {
-        let value = get_style_data_i32(&self.data, StyleKeys::JUSTIFY_CONTENT);
+        let value = get_style_data_i32(self.data(), StyleKeys::JUSTIFY_CONTENT);
         align_content_from_enum(value)
     }
 
@@ -1265,83 +1434,85 @@ impl Style {
             Some(value) => align_content_to_enum(value),
             None => -1,
         };
-        set_style_data_i32(self.data.as_mut_slice(), StyleKeys::ALIGN_CONTENT, align);
+        set_style_data_i32(self.data_mut(), StyleKeys::JUSTIFY_CONTENT, align);
     }
 
     pub fn get_text_align(&self) -> TextAlign {
-        text_align_from_enum(get_style_data_i32(&self.data, StyleKeys::TEXT_ALIGN)).unwrap()
+        text_align_from_enum(get_style_data_i32(self.data(), StyleKeys::TEXT_ALIGN)).unwrap()
     }
 
     pub fn set_text_align(&mut self, value: TextAlign) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::TEXT_ALIGN,
             text_align_to_enum(value),
         )
     }
 
     pub fn get_flex_direction(&self) -> FlexDirection {
-        flex_direction_from_enum(get_style_data_i32(&self.data, StyleKeys::FLEX_DIRECTION)).unwrap()
+        flex_direction_from_enum(get_style_data_i32(self.data(), StyleKeys::FLEX_DIRECTION))
+            .unwrap()
     }
 
     pub fn set_flex_direction(&mut self, value: FlexDirection) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::FLEX_DIRECTION,
             flex_direction_to_enum(value),
         )
     }
 
     pub fn get_flex_wrap(&self) -> FlexWrap {
-        flex_wrap_from_enum(get_style_data_i32(&self.data, StyleKeys::FLEX_WRAP)).unwrap()
+        flex_wrap_from_enum(get_style_data_i32(self.data(), StyleKeys::FLEX_WRAP)).unwrap()
     }
 
     pub fn set_flex_wrap(&mut self, value: FlexWrap) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::FLEX_WRAP,
             flex_wrap_to_enum(value),
         )
     }
 
     pub fn get_flex_grow(&self) -> f32 {
-        get_style_data_f32(&self.data, StyleKeys::FLEX_GROW)
+        get_style_data_f32(self.data(), StyleKeys::FLEX_GROW)
     }
 
     pub fn set_flex_grow(&mut self, value: f32) {
-        set_style_data_f32(self.data.as_mut_slice(), StyleKeys::FLEX_GROW, value)
+        set_style_data_f32(self.data_mut(), StyleKeys::FLEX_GROW, value)
     }
 
     pub fn get_flex_shrink(&self) -> f32 {
-        get_style_data_f32(&self.data, StyleKeys::FLEX_SHRINK)
+        get_style_data_f32(self.data(), StyleKeys::FLEX_SHRINK)
     }
 
     pub fn set_flex_shrink(&mut self, value: f32) {
-        set_style_data_f32(self.data.as_mut_slice(), StyleKeys::FLEX_SHRINK, value)
+        set_style_data_f32(self.data_mut(), StyleKeys::FLEX_SHRINK, value)
     }
 
     pub fn get_flex_basis(&self) -> Dimension {
         dimension_from_type_value(
-            get_style_data_i32(&self.data, StyleKeys::FLEX_BASIS_TYPE),
-            get_style_data_f32(&self.data, StyleKeys::FLEX_BASIS_VALUE),
+            get_style_data_i32(self.data(), StyleKeys::FLEX_BASIS_TYPE),
+            get_style_data_f32(self.data(), StyleKeys::FLEX_BASIS_VALUE),
         )
     }
 
     pub fn set_flex_basis(&mut self, value: Dimension) {
         let basis = dimension_to_type_value(value);
 
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         set_style_data_i32(data, StyleKeys::FLEX_BASIS_TYPE, basis.0);
         set_style_data_f32(data, StyleKeys::FLEX_BASIS_VALUE, basis.1);
     }
 
     pub fn get_grid_auto_flow(&self) -> GridAutoFlow {
-        grid_auto_flow_from_enum(get_style_data_i32(&self.data, StyleKeys::GRID_AUTO_FLOW)).unwrap()
+        grid_auto_flow_from_enum(get_style_data_i32(self.data(), StyleKeys::GRID_AUTO_FLOW))
+            .unwrap()
     }
 
     pub fn set_grid_auto_flow(&mut self, value: GridAutoFlow) {
         set_style_data_i32(
-            self.data.as_mut_slice(),
+            self.data_mut(),
             StyleKeys::GRID_AUTO_FLOW,
             grid_auto_flow_to_enum(value),
         )
@@ -1350,18 +1521,18 @@ impl Style {
     pub fn get_grid_row(&self) -> Line<GridPlacement> {
         Line {
             start: utils::grid_placement(
-                get_style_data_i32(&self.data, StyleKeys::GRID_ROW_START_TYPE),
-                utils::get_style_data_i16(&self.data, StyleKeys::GRID_ROW_START_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::GRID_ROW_START_TYPE),
+                utils::get_style_data_i16(self.data(), StyleKeys::GRID_ROW_START_VALUE),
             ),
             end: utils::grid_placement(
-                get_style_data_i32(&self.data, StyleKeys::GRID_ROW_END_TYPE),
-                utils::get_style_data_i16(&self.data, StyleKeys::GRID_ROW_END_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::GRID_ROW_END_TYPE),
+                utils::get_style_data_i16(self.data(), StyleKeys::GRID_ROW_END_VALUE),
             ),
         }
     }
 
     pub fn set_grid_row(&mut self, value: Line<GridPlacement>) {
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         let grid_row_start = utils::grid_placement_to_value(value.start);
         set_style_data_i32(data, StyleKeys::GRID_ROW_START_TYPE, grid_row_start.0);
 
@@ -1376,18 +1547,18 @@ impl Style {
     pub fn get_grid_column(&self) -> Line<GridPlacement> {
         Line {
             start: utils::grid_placement(
-                get_style_data_i32(&self.data, StyleKeys::GRID_COLUMN_START_TYPE),
-                utils::get_style_data_i16(&self.data, StyleKeys::GRID_COLUMN_START_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::GRID_COLUMN_START_TYPE),
+                utils::get_style_data_i16(self.data(), StyleKeys::GRID_COLUMN_START_VALUE),
             ),
             end: utils::grid_placement(
-                get_style_data_i32(&self.data, StyleKeys::GRID_COLUMN_END_TYPE),
-                utils::get_style_data_i16(&self.data, StyleKeys::GRID_COLUMN_END_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::GRID_COLUMN_END_TYPE),
+                utils::get_style_data_i16(self.data(), StyleKeys::GRID_COLUMN_END_VALUE),
             ),
         }
     }
 
     pub fn set_grid_column(&mut self, value: Line<GridPlacement>) {
-        let data = self.data.as_mut_slice();
+        let data = self.data_mut();
         let grid_column_start = utils::grid_placement_to_value(value.start);
         set_style_data_i32(data, StyleKeys::GRID_COLUMN_START_TYPE, grid_column_start.0);
 
@@ -1463,20 +1634,12 @@ impl Style {
         self.buffer = buffer;
     }
 
-    pub fn data(&self) -> &[u8] {
-        self.data.as_slice()
-    }
-
-    pub fn data_mut(&mut self) -> &mut [u8] {
-        self.data.as_mut_slice()
-    }
-
     pub fn raw(&self) -> (*const u8, usize) {
-        (self.data.as_ptr(), self.data.len())
+        (self.raw_data, self.raw_data_len)
     }
 
     pub fn raw_mut(&mut self) -> (*mut u8, usize) {
-        (self.data.as_mut_ptr(), self.data.len())
+        (self.raw_data, self.raw_data_len)
     }
 }
 
@@ -1510,8 +1673,12 @@ impl CoreStyle for Style {
     }
 
     #[inline(always)]
-    fn overflow(&self) -> Point<Overflow> {
-        self.get_overflow()
+    fn overflow(&self) -> Point<taffy::Overflow> {
+        let flow = self.get_overflow();
+        Point {
+            x: flow.x.into(),
+            y: flow.y.into(),
+        }
     }
 
     #[inline(always)]

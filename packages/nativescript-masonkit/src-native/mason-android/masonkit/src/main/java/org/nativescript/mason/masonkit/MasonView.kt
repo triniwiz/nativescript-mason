@@ -1,8 +1,8 @@
 package org.nativescript.mason.masonkit
 
 interface MasonView {
-  fun onNodeAttached(){}
-  fun onNodeDetached(){}
+  fun onNodeAttached() {}
+  fun onNodeDetached() {}
 
   fun isLeaf(): Boolean
 
@@ -22,5 +22,20 @@ interface MasonView {
 
   fun configure(block: Node.() -> Unit) {
     node.configure(block)
+  }
+
+
+  val rootNode: Node
+    get() {
+      return node.root ?: node
+    }
+
+  fun invalidateLayout() {
+    val root = rootNode.data as? MasonView
+
+    root?.let {
+      it.markNodeDirty()
+      (root as? View)?.requestLayout()
+    }
   }
 }

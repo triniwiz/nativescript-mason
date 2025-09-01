@@ -382,25 +382,27 @@ enum class JustifyContent(val value: Int) {
 }
 
 enum class Overflow(val value: Int) {
-  Unset(-1), Visible(0), Hidden(1), Scroll(2);
+  Visible(0), Hidden(1), Scroll(2), Clip(3), Auto(4);
 
   val cssValue: String
     get() {
       return when (this) {
-        Unset -> "unset"
         Visible -> "visible"
         Hidden -> "hidden"
         Scroll -> "scroll"
+        Clip -> "clip"
+        Auto -> "auto"
       }
     }
 
   companion object {
     fun fromInt(value: Int): Overflow {
       return when (value) {
-        -1 -> Unset
         0 -> Visible
         1 -> Hidden
         2 -> Scroll
+        3 -> Clip
+        4 -> Auto
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -694,7 +696,7 @@ val Array<TrackSizingFunction>.jsonValue: String
 val Array<TrackSizingFunction>.cssValue: String
   get() {
     if (isEmpty()) {
-      return "[]"
+      return ""
     }
     val builder = StringBuilder()
     val last = this.lastIndex
@@ -705,7 +707,6 @@ val Array<TrackSizingFunction>.cssValue: String
         builder.append("${minMax.cssValue} ")
       }
     }
-    builder.append(")")
     return builder.toString()
   }
 
@@ -808,8 +809,10 @@ object StyleKeys {
   const val ITEM_IS_REPLACED = 320 //Byte
   const val DISPLAY_MODE = 324
   const val FORCE_INLINE = 328
-  const val MIN_CONTENT = 332
-  const val MAX_CONTENT = 336
+  const val MIN_CONTENT_WIDTH = 332
+  const val MIN_CONTENT_HEIGHT = 336
+  const val MAX_CONTENT_WIDTH = 340
+  const val MAX_CONTENT_HEIGHT = 344
 }
 
 @JvmInline
@@ -851,8 +854,10 @@ value class StateKeys internal constructor(val bits: Long) {
     val ITEM_IS_REPLACED = StateKeys(1L shl 33)
     val DISPLAY_MODE = StateKeys(1L shl 34)
     val FORCE_INLINE = StateKeys(1L shl 35)
-    val MIN_CONTENT = StateKeys(1L shl 36)
-    val MAX_CONTENT = StateKeys(1L shl 37)
+    val MIN_CONTENT_WIDTH = StateKeys(1L shl 36)
+    val MIN_CONTENT_HEIGHT = StateKeys(1L shl 37)
+    val MAX_CONTENT_WIDTH = StateKeys(1L shl 38)
+    val MAX_CONTENT_HEIGHT = StateKeys(1L shl 39)
   }
 
   infix fun or(other: StateKeys): StateKeys = StateKeys(bits or other.bits)
@@ -2002,12 +2007,14 @@ class Style internal constructor(private var node: Node) {
     }
 
     if (isDirty != -1L) {
+
       resetState()
       when (val data = node.owner?.data) {
         is TextView -> {
           data.invalidateView()
         }
-
+        is Scroll -> {
+        }
         is org.nativescript.mason.masonkit.View -> {
           data.invalidateLayout()
         }

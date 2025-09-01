@@ -50,7 +50,7 @@ pub extern "system" fn NodeNativeNewNodeNormal(
 
 #[no_mangle]
 pub extern "system" fn NodeNativeNewNodeWithContext(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     taffy: jlong,
     measure: JObject,
@@ -811,7 +811,7 @@ pub extern "system" fn nativeGetChildren(
 
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetContext(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JObject,
     taffy: jlong,
     node: jlong,

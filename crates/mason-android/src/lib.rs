@@ -3,7 +3,7 @@ extern crate mason_c;
 use android_logger::Config;
 use itertools::izip;
 use jni::objects::{GlobalRef, JClass, JMethodID, JObject};
-use jni::sys::{jfloat, jint, jlong, jobjectArray, jshort};
+use jni::sys::{jint, jlong};
 use jni::JavaVM;
 use jni::{JNIEnv, NativeMethod};
 use log::LevelFilter;
@@ -45,7 +45,7 @@ impl MinMaxCacheItem {
         }
     }
 
-    pub fn clazz(&self) -> JClass {
+    pub fn clazz(&self) -> JClass<'_> {
         let obj = unsafe { JObject::from_raw(self.clazz.as_raw()) };
         JClass::from(obj)
     }
@@ -88,17 +88,17 @@ impl TrackSizingFunctionCacheItem {
         }
     }
 
-    pub fn clazz(&self) -> JClass {
+    pub fn clazz(&self) -> JClass<'_> {
         let obj = unsafe { JObject::from_raw(self.clazz.as_raw()) };
         JClass::from(obj)
     }
 
-    pub fn single_clazz(&self) -> JClass {
+    pub fn single_clazz(&self) -> JClass<'_> {
         let obj = unsafe { JObject::from_raw(self.single_clazz.as_raw()) };
         JClass::from(obj)
     }
 
-    pub fn auto_repeat(&self) -> JClass {
+    pub fn auto_repeat(&self) -> JClass<'_> {
         let obj = unsafe { JObject::from_raw(self.auto_repeat_clazz.as_raw()) };
         JClass::from(obj)
     }
@@ -444,10 +444,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
             });
         }
 
-        unsafe {
-            let _ = vm.attach_current_thread_permanently();
-            JVM.get_or_init(|| vm);
-        }
+        let _ = vm.attach_current_thread_permanently();
+        JVM.get_or_init(|| vm);
 
         log::info!("Mason library loaded");
     }
@@ -557,7 +555,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePrintTre
         return;
     }
     unsafe {
-        let mut mason = &*(mason as *const Mason);
+        let mason = &*(mason as *const Mason);
         let node = &*(node as *const NodeRef);
         mason.print_tree(node.id());
     }

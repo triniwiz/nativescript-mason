@@ -92,5 +92,7 @@ public class TrackSizingFunction: NSObject {
        return ret
     }
     
+  public var cssValue: String {
     
+  }
 }

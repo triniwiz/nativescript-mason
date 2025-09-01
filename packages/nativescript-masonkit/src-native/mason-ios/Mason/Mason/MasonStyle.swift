@@ -132,7 +132,15 @@ struct StyleKeys {
   static let BOX_SIZING = 308
   static let OVERFLOW = 312
   static let ITEM_IS_TABLE = 316 // Byte
+  static let ITEM_IS_REPLACED = 320 //Byte
+  static let DISPLAY_MODE = 324
+  static let FORCE_INLINE = 328
+  static let MIN_CONTENT_WIDTH = 332
+  static let MIN_CONTENT_HEIGHT = 336
+  static let MAX_CONTENT_WIDTH = 340
+  static let MAX_CONTENT_HEIGHT = 344
 }
+
 
 internal struct StateKeys: OptionSet {
   let rawValue: UInt64
@@ -175,6 +183,13 @@ internal struct StateKeys: OptionSet {
   static let boxSizing       = StateKeys(rawValue: 1 << 30)
   static let overflow        = StateKeys(rawValue: 1 << 31)
   static let itemIsTable     = StateKeys(rawValue: 1 << 32)
+  static let itemIsReplaced  = StateKeys(rawValue: 1 << 33)
+  static let displayMode     = StateKeys(rawValue: 1 << 34)
+  static let forceInline     = StateKeys(rawValue: 1 << 35)
+  static let minContentWidth = StateKeys(rawValue: 1 << 36)
+  static let minContentHeight = StateKeys(rawValue: 1 << 37)
+  static let maxContentWidth  = StateKeys(rawValue: 1 << 38)
+  static let maxContentHeight = StateKeys(rawValue: 1 << 39)
 }
 
 
@@ -203,17 +218,13 @@ public class MasonStyle: NSObject {
 //  }()
   
   public lazy var valuesCompat: NSMutableData = {
-    let buffer = mason_style_get_style_buffer(node.mason.nativePtr, node.nativePtr)
+    let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
     guard let buffer else {
       // todo
       fatalError("Could not allocate style buffer")
     }
     
-    let data = NSMutableData(bytesNoCopy: buffer.pointee.data, length: Int(buffer.pointee.size), deallocator: nil)
-    
-    mason_style_release_style_buffer(buffer)
-
-    return data
+    return Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
   }()
   
   public lazy var values: Data = {
@@ -247,46 +258,27 @@ public class MasonStyle: NSObject {
   }
   
   private func getInt16(_ index: Int) -> Int16 {
-//    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Int16 in
-//      rawBufferPointer.load(fromByteOffset: index, as: Int16.self)
-//    }
     return valuesCompat.bytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee
   }
   
   private func setInt16(_ index: Int, _ value: Int16) {
-//    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
-//      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Int16.self)
-//    }
-    
     valuesCompat.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee = value
   }
   
   private func getInt32(_ index: Int) -> Int32 {
-//    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Int32 in
-//      rawBufferPointer.load(fromByteOffset: index, as: Int32.self)
-//    }
     return valuesCompat.bytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee
   }
   
   private func setInt32(_ index: Int, _ value: Int32) {
-//    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
-//      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Int32.self)
-//    }
     valuesCompat.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
   }
   
   
   private func getFloat(_ index: Int) -> Float {
-//    return values.withUnsafeBytes { (rawBufferPointer: UnsafeRawBufferPointer) -> Float in
-//      rawBufferPointer.load(fromByteOffset: index, as: Float.self)
-//    }
     return valuesCompat.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
   }
   
   private func setFloat(_ index: Int, _ value: Float) {
-//    values.withUnsafeMutableBytes { (rawBufferPointer: UnsafeMutableRawBufferPointer) in
-//      rawBufferPointer.storeBytes(of: value, toByteOffset: index, as: Float.self)
-//    }
     valuesCompat.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
   }
   
@@ -304,11 +296,52 @@ public class MasonStyle: NSObject {
   
   public var display: Display {
     get {
-      return Display(rawValue: getInt32(Int(StyleKeys.DISPLAY)))!
+      let mode = DisplayMode(rawValue: getInt32(Int(StyleKeys.DISPLAY_MODE)))!
+      switch mode {
+      case .None:
+        return Display(rawValue: getInt32(Int(StyleKeys.DISPLAY)))!
+      case .Inline:
+        return .Inline
+      case .Box:
+        switch Display(rawValue: getInt32(Int(StyleKeys.DISPLAY)))! {
+        case .Flex:
+          return .InlineFlex
+        case .Grid:
+          return .InlineGrid
+        case .Block:
+          return .InlineBlock
+        default:
+          fatalError("Display cannot be anything other than 0,1,2 when mode is set")
+        }
+      }
     }
     set {
-      setInt32(StyleKeys.DISPLAY, Int32(newValue.rawValue))
-      setOrAppendState(StateKeys.display)
+      if(newValue == .Inline && (node.data as? MasonText) == nil){
+        return
+      }
+      
+      var displayMode = DisplayMode.None
+      var value: Int32
+      switch (newValue){
+      case .None, .Flex, .Grid , .Block:
+        value = newValue.rawValue
+      case .Inline:
+        displayMode = .Inline
+        value = Display.Block.rawValue
+      case .InlineBlock:
+        displayMode = .Box
+        value = Display.Block.rawValue
+      case .InlineFlex:
+        displayMode = .Box
+        value = Display.Flex.rawValue
+      case .InlineGrid:
+        displayMode = .Box
+        value = Display.Grid.rawValue
+      }
+      
+      setInt32(StyleKeys.DISPLAY, value)
+      setInt32(StyleKeys.DISPLAY_MODE, displayMode.rawValue)
+      setOrAppendState(StateKeys(rawValue: StateKeys.display.rawValue | StateKeys.displayMode.rawValue))
     }
   }
   
@@ -360,17 +393,26 @@ public class MasonStyle: NSObject {
     }
   }
   
-//    public var overflow: Overflow{
-//          get {
-//            return Overflow.
-//          }
-//          set {
-//          // todo
-//            updateIntField(offset: Int(StyleKeys.OVERFLOW_X), value:  Int32(overflowX.rawValue), state: .overflowX)
-//            updateIntField(offset: Int(StyleKeys.OVERFLOW_Y), value:  Int32(overflowY.rawValue), state: .overflowY)
-//          }
-//      }
-//  
+  public var overflowCompat: MasonOverflowPointCompat {
+        get {
+          return MasonOverflowPointCompat(Overflow(rawValue: getInt32(StyleKeys.OVERFLOW_X))!, Overflow(rawValue: getInt32(StyleKeys.OVERFLOW_Y))!)
+        }
+        set {
+          updateIntField(offset: Int(StyleKeys.OVERFLOW_X), value:  Int32(newValue.x.rawValue), state: .overflowX)
+          updateIntField(offset: Int(StyleKeys.OVERFLOW_Y), value:  Int32(newValue.y.rawValue), state: .overflowY)
+        }
+    }
+  
+    public var overflow: MasonPoint<Overflow> {
+          get {
+            return MasonPoint(Overflow(rawValue: getInt32(StyleKeys.OVERFLOW_X))!, Overflow(rawValue: getInt32(StyleKeys.OVERFLOW_Y))!)
+          }
+          set {
+            updateIntField(offset: Int(StyleKeys.OVERFLOW_X), value:  Int32(newValue.x.rawValue), state: .overflowX)
+            updateIntField(offset: Int(StyleKeys.OVERFLOW_Y), value:  Int32(newValue.y.rawValue), state: .overflowY)
+          }
+      }
+  
   public var overflowX: Overflow{
     get {
       return Overflow(rawValue: getInt32(StyleKeys.OVERFLOW_X))!
@@ -645,6 +687,64 @@ public class MasonStyle: NSObject {
       setOrAppendState(.margin)
     }
   }
+  
+  
+  public var marginLeft: MasonLengthPercentageAuto {
+    get{
+      let type = getInt32(StyleKeys.MARGIN_LEFT_TYPE)
+      let value = getFloat(StyleKeys.MARGIN_LEFT_VALUE)
+      
+      return MasonLengthPercentageAuto.fromValueType(value, Int(type))!
+    }
+    set {
+      setInt32(Int(StyleKeys.MARGIN_LEFT_TYPE), newValue.type)
+      setFloat(Int(StyleKeys.MARGIN_LEFT_VALUE), newValue.value)
+      setOrAppendState(.margin)
+    }
+  }
+  
+  public var marginTop: MasonLengthPercentageAuto {
+    get{
+      let type = getInt32(StyleKeys.MARGIN_TOP_TYPE)
+      let value = getFloat(StyleKeys.MARGIN_TOP_VALUE)
+      
+      return MasonLengthPercentageAuto.fromValueType(value, Int(type))!
+    }
+    set {
+      setInt32(Int(StyleKeys.MARGIN_TOP_TYPE), newValue.type)
+      setFloat(Int(StyleKeys.MARGIN_TOP_VALUE), newValue.value)
+      setOrAppendState(.margin)
+    }
+  }
+  
+  public var marginRight: MasonLengthPercentageAuto {
+    get{
+      let type = getInt32(StyleKeys.MARGIN_RIGHT_TYPE)
+      let value = getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
+      
+      return MasonLengthPercentageAuto.fromValueType(value, Int(type))!
+    }
+    set {
+      setInt32(Int(StyleKeys.MARGIN_RIGHT_TYPE), newValue.type)
+      setFloat(Int(StyleKeys.MARGIN_RIGHT_VALUE), newValue.value)
+      setOrAppendState(.margin)
+    }
+  }
+  
+  public var marginBottom: MasonLengthPercentageAuto {
+    get{
+      let type = getInt32(StyleKeys.MARGIN_BOTTOM_TYPE)
+      let value = getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
+      
+      return MasonLengthPercentageAuto.fromValueType(value, Int(type))!
+    }
+    set {
+      setInt32(Int(StyleKeys.MARGIN_BOTTOM_TYPE), newValue.type)
+      setFloat(Int(StyleKeys.MARGIN_BOTTOM_VALUE), newValue.value)
+      setOrAppendState(.margin)
+    }
+  }
+  
   
   
   public var marginCompat: MasonLengthPercentageAutoRectCompat {
@@ -986,9 +1086,9 @@ public class MasonStyle: NSObject {
     scrollBarWidth = MasonDimension.Points(value);
   }
   
-  public var textAlign: MasonTextAlign {
+  public var textAlign: TextAlign {
     get {
-      return MasonTextAlign(rawValue: getInt32(StyleKeys.TEXT_ALIGN))!
+      return TextAlign(rawValue: getInt32(StyleKeys.TEXT_ALIGN))!
     }
     set {
       setInt32(StyleKeys.TEXT_ALIGN, Int32(newValue.rawValue))
@@ -996,9 +1096,9 @@ public class MasonStyle: NSObject {
     }
   }
   
-  public var boxSizing: MasonBoxSizing {
+  public var boxSizing: BoxSizing {
     get {
-      return MasonBoxSizing(rawValue: getInt32(StyleKeys.BOX_SIZING))!
+      return BoxSizing(rawValue: getInt32(StyleKeys.BOX_SIZING))!
     }
     set {
       setInt32(StyleKeys.BOX_SIZING, Int32(newValue.rawValue))
@@ -1090,6 +1190,7 @@ public class MasonStyle: NSObject {
       
       setInt32(StyleKeys.HEIGHT_TYPE, newValue.height.type)
       setFloat(StyleKeys.HEIGHT_VALUE, newValue.height.value)
+      
       
       setOrAppendState(.size)
     }
@@ -1328,6 +1429,24 @@ public class MasonStyle: NSObject {
     }
   }
   
+  
+  func gridAutoToCss(_ value: Array<MinMax>) -> String {
+    if(value.isEmpty){
+      return ""
+    }
+    var ret = ""
+    let last = value.count - 1
+    for (i, row) in value.enumerated() {
+      if(i == last){
+        ret += "\(row.cssValue)"
+      }else {
+        ret += "\(row.cssValue) "
+      }
+      
+    }
+    return ret
+  }
+  
   public var gridAutoRows: Array<MinMax> = []{
     didSet{
       isSlowDirty = true
@@ -1539,6 +1658,27 @@ public class MasonStyle: NSObject {
     }
   }
   
+  func gridTemplateToCss(_ value: Array<TrackSizingFunction>) -> String {
+    if(value.isEmpty){
+      return ""
+    }
+    var ret = ""
+    let last = value.count - 1
+    for (i, row) in value.enumerated() {
+      if(i == last){
+        ret += "\(row)"
+      }else {
+        ret += "\(row) "
+      }
+      
+    }
+    return ret
+  }
+  
+  public var gridTemplateRowsCSS: String {
+    return gridTemplateToCss(gridTemplateRows)
+  }
+  
   public var gridTemplateRows: Array<TrackSizingFunction> = []{
     didSet{
       isSlowDirty = true
@@ -1546,6 +1686,10 @@ public class MasonStyle: NSObject {
         updateNativeStyle()
       }
     }
+  }
+  
+  public var gridTemplateColumnsCSS: String {
+    return gridTemplateToCss(gridTemplateColumns)
   }
   
   public var gridTemplateColumns: Array<TrackSizingFunction> = []{

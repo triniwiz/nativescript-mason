@@ -1,10 +1,6 @@
-use crate::style::DisplayMode;
+use crate::style::{DisplayMode, Overflow};
 use crate::Style;
-use taffy::{
-    AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, Display, FlexDirection,
-    FlexWrap, GridAutoFlow, JustifyContent, LayoutInput, MaybeMath, MaybeResolve, Overflow,
-    Position, ResolveOrZero, Size, TextAlign,
-};
+use taffy::{AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow, JustifyContent, LayoutInput, MaybeMath, MaybeResolve, Position, ResolveOrZero, Size, TextAlign};
 
 pub const fn box_sizing_from_enum(value: i32) -> Option<BoxSizing> {
     match value {
@@ -86,7 +82,8 @@ pub const fn overflow_from_enum(value: i32) -> Option<Overflow> {
         0 => Some(Overflow::Visible),
         1 => Some(Overflow::Hidden),
         2 => Some(Overflow::Scroll),
-        3 => Some(Overflow::Visible),
+        3 => Some(Overflow::Clip),
+        4 => Some(Overflow::Auto),
         _ => None,
     }
 }
@@ -97,6 +94,7 @@ pub const fn overflow_to_enum(value: Overflow) -> i32 {
         Overflow::Hidden => 1,
         Overflow::Scroll => 2,
         Overflow::Clip => 3,
+        Overflow::Auto => 4,
     }
 }
 
@@ -312,18 +310,39 @@ pub(crate) fn resolve_fallback_size(
     content_max: f32,
     padding_border: f32,
 ) -> f32 {
-    known.unwrap_or_else(|| {
-        let size = size.or(known).unwrap_or_else(|| match available {
-            AvailableSpace::MinContent => style_min.unwrap_or(content_min),
-            AvailableSpace::MaxContent => style_max.unwrap_or(content_max.max(f32::INFINITY)),
-            AvailableSpace::Definite(w) => w,
-        });
+    // known.unwrap_or_else(|| {
+    //     let size = size.or(known).unwrap_or_else(|| match available {
+    //         AvailableSpace::MinContent => style_min.unwrap_or(content_min),
+    //         AvailableSpace::MaxContent => style_max.unwrap_or(content_max.max(f32::INFINITY)),
+    //         AvailableSpace::Definite(w) => w,
+    //     });
+    //
+    //     println!("content_min {} ... content_max {}", content_min, content_max);
+    //
+    //     let min = style_min.unwrap_or(content_min);
+    //     let max = style_max.unwrap_or(content_max).max(f32::INFINITY);
+    //
+    //     size.clamp(min, max) - padding_border
+    // })
 
-        let min = style_min.unwrap_or(content_min);
-        let max = style_max.unwrap_or(content_max).max(f32::INFINITY);
+    if let Some(known) = known {
+        return known;
+    }
 
-        size.clamp(min, max) - padding_border
-    })
+    let size = size.or_else(|| match available {
+        AvailableSpace::MinContent => style_min.or(Some(content_min)),
+        AvailableSpace::MaxContent => style_max.or(Some(content_max)),
+        AvailableSpace::Definite(w) => Some(w),
+    }).unwrap_or(0.);
+
+    if size == 0. {
+        return 0.;
+    }
+
+    let min = style_min.unwrap_or(content_min);
+    let max = style_max.unwrap_or(content_max);
+
+    (size.clamp(min, max) - padding_border).max(0.)
 }
 
 
@@ -357,7 +376,6 @@ pub(crate) fn compute_leaf(
     let container_pb = padding + border;
     let pbw = container_pb.horizontal_components().sum();
     let pbh = container_pb.vertical_components().sum();
-
     Size {
         width: resolve_fallback_size(
             inputs.known_dimensions.width,

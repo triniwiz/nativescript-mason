@@ -43,11 +43,47 @@ class TextActivity : AppCompatActivity() {
     }
 
     // basicNesting()
-    testText()
+    // testText()
     // textWithImage()
     // basicBlock()
     // testWrap()
+    testElements()
     setContentView(root)
+  }
+
+  fun testElements() {
+    val h1 = Mason.shared.createTextView(this, TextType.H1)
+    h1.updateText("This is heading 1")
+
+    val h2 = Mason.shared.createTextView(this, TextType.H2)
+    h2.updateText("This is heading 2")
+
+
+    val h3 = Mason.shared.createTextView(this, TextType.H3)
+    h3.updateText("This is heading 3")
+
+
+    val h4 = Mason.shared.createTextView(this, TextType.H4)
+    h4.updateText("This is heading 4")
+
+    val h5 = Mason.shared.createTextView(this, TextType.H5)
+    h5.updateText("This is heading 5")
+
+
+    val h6 = Mason.shared.createTextView(this, TextType.H6)
+    h6.updateText("This is heading 6")
+
+
+    val p = Mason.shared.createTextView(this, TextType.P)
+    p.updateText("Tip:")
+
+    val span = Mason.shared.createTextView(this, TextType.Span)
+    span.updateText(" Use h1 to h6 elements only for headings. Do not use them just to make text bold or big. Use other tags for that.")
+
+    p.addView(span)
+
+    root.addViews(arrayOf(h1, h2, h3, h4, h5, h6, p))
+
   }
 
   fun textWithImage() {

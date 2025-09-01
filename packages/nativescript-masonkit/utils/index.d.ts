@@ -102,6 +102,24 @@ export const enum PositionType {
   Absolute = 1,
 }
 
+export const enum JustifyItems {
+  Normal = -1,
+
+  Start = 0,
+
+  End = 1,
+
+  Center = 2,
+
+  Baseline = 3,
+
+  Stretch = 4,
+
+  FlexStart = 5,
+
+  FlexEnd = 6,
+}
+
 export const enum AlignContent {
   Normal = -1,
 
@@ -244,116 +262,7 @@ function syncStyle(instance: View) {
   // noop
 }
 
-function _parseGridLine(value): { value: number; type: any; native_value?: any } {
-  let parsedValue = undefined;
-  let parsedType = undefined;
-  let nativeValue = undefined;
-
-  if (value === 'auto' || value === undefined) {
-    parsedValue = 0;
-    parsedType = 0 /* GridPlacementCompatType.Auto */;
-  }
-
-  if (typeof value === 'string') {
-    if (value.startsWith('span')) {
-      parsedValue = Number(value.replace('span', '').trim());
-      parsedType = 2 /* GridPlacementCompatType.Span */;
-    } else {
-      parsedValue = Number(value.trim());
-      if (parsedValue < 1) {
-        parsedValue = 0;
-        parsedType = 0 /* GridPlacementCompatType.Auto */;
-      } else {
-        parsedType = 1 /* GridPlacementCompatType.Line */;
-      }
-    }
-  }
-
-  if (typeof value === 'number') {
-    parsedValue = value;
-    if (parsedValue < 1) {
-      parsedValue = 0;
-      parsedType = 0 /* GridPlacementCompatType.Auto */;
-    } else {
-      parsedType = 1 /* GridPlacementCompatType.Line */;
-    }
-  }
-
-  if (parsedType === 0) {
-    parsedType = org.nativescript.mason.masonkit.GridPlacement.Auto;
-    nativeValue = org.nativescript.mason.masonkit.GridPlacement.Auto.INSTANCE;
-  } else if (parsedType === 1) {
-    const isValid = !Number.isNaN(parsedValue);
-    parsedType = org.nativescript.mason.masonkit.GridPlacement.Line;
-    if (isValid) {
-      nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Line(parsedValue);
-    }
-  } else {
-    const isValid = !Number.isNaN(parsedValue);
-    parsedType = org.nativescript.mason.masonkit.GridPlacement.Span;
-    if (isValid) {
-      nativeValue = new org.nativescript.mason.masonkit.GridPlacement.Span(parsedValue);
-    }
-  }
-
-  return { value: Number.isNaN(parsedValue) ? undefined : parsedValue, type: parsedType, native_value: nativeValue };
-}
-
-export function _setGridColumnStart(value, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-
-  const val = _parseGridLine(value);
-
-  if (val.value === undefined || val.type === undefined) {
-    return;
-  }
-
-  org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnStart(instance.android, val.native_value);
-}
-
-export function _setGridColumnEnd(value, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-
-  const val = _parseGridLine(value);
-
-  if (val.value === undefined || val.type === undefined) {
-    return;
-  }
-
-  org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnEnd(instance.android, val.native_value);
-}
-
-export function _setGridRowStart(value, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-
-  const val = _parseGridLine(value);
-
-  if (val.value === undefined || val.type === undefined) {
-    return;
-  }
-
-  org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowStart(instance.android, val.native_value);
-}
-
-export function _setGridRowEnd(value, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
-    return;
-  }
-
-  const val = _parseGridLine(value);
-
-  if (val.value === undefined || val.type === undefined) {
-    return;
-  }
-
-  org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowEnd(instance.android, val.native_value);
-}
+export function _parseGridLine(value): { value: number; type: any; native_value?: any };
 
 const enum MinSizingType {
   Auto = 0,
@@ -402,6 +311,10 @@ export function _parseGridTemplates(value: string): Array<GridTemplates>;
 export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View, initial = false);
 
 export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: View, initial = false);
+
+export function _getGridTemplateRows(instance: View);
+
+export function _getGridTemplateColumns(instance: View);
 
 export function _parseGridAutoRowsColumns(value: string): Array<MinMaxType>;
 

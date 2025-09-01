@@ -1,5 +1,6 @@
 use crate::tree::{Id, Tree};
 use std::ffi::{c_float, c_longlong, c_void};
+use slotmap::Key;
 pub use taffy::geometry::{Line, Point, Rect, Size};
 pub use taffy::style::{
     AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, CompactLength, Dimension,
@@ -121,10 +122,14 @@ impl Mason {
     #[cfg(target_vendor = "apple")]
     #[track_caller]
     pub fn style_data(&mut self, node: Id) -> *mut c_void {
+        use objc2::Message;
         self.0
             .nodes
             .get_mut(node)
-            .map(|data| objc2::rc::Retained::into_raw(data.style.buffer.clone()) as _)
+            .map(|data| {
+                data.style.buffer.retain();
+                objc2::rc::Retained::as_ptr(&data.style.buffer) as *mut c_void
+            })
             .unwrap_or(0 as _)
     }
 

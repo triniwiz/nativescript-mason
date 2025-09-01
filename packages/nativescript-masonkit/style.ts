@@ -1,7 +1,7 @@
 import { layout } from '@nativescript/core/utils';
 import type { GridAutoFlow, Length, LengthAuto, View } from '.';
 import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
-import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine } from './utils';
+import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns } from './utils';
 
 enum StyleKeys {
   DISPLAY = 0,
@@ -335,7 +335,7 @@ export class Style {
         const view = this.view.ios as MasonUIView;
         view.syncStyle(this.isDirty.toString());
       } else {
-        const view = this.view.ios as MasonText;
+        const view = this.view.ios as never as MasonText;
         view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
       }
     }
@@ -495,6 +495,8 @@ export class Style {
       case 7:
         return 'inline-grid';
       default:
+        console.info('Unknown display value: ' + getInt32(this.style_view, StyleKeys.DISPLAY));
+        return 'none';
     }
   }
 
@@ -1909,6 +1911,7 @@ export class Style {
   get gridColumn() {
     return `${this.gridColumnStart} / ${this.gridColumnEnd}`;
   }
+
   get gridColumnStart(): string {
     switch (getInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE)) {
       case 0:
@@ -2101,8 +2104,29 @@ export class Style {
     }
   }
 
-  gridTemplateRows: string;
-  gridTemplateColumns: string;
+  set gridTemplateRows(value: string | Array<GridTemplates>) {
+    if (Array.isArray(value)) {
+      _setGridTemplateRows(value, this.view as never);
+    } else {
+      _setGridTemplateRows(_parseGridTemplates(value), this.view as never);
+    }
+  }
+
+  get gridTemplateRows() {
+    return _getGridTemplateRows(this.view as never);
+  }
+
+  get gridTemplateColumns() {
+    return _getGridTemplateColumns(this.view as never);
+  }
+
+  set gridTemplateColumns(value: string | Array<GridTemplates>) {
+    if (Array.isArray(value)) {
+      _setGridTemplateColumns(value, this.view as never);
+    } else {
+      _setGridTemplateColumns(_parseGridTemplates(value), this.view as never);
+    }
+  }
 
   get overflow() {
     const x = this.overflowX;
@@ -2140,6 +2164,12 @@ export class Style {
             case 'scroll':
               setInt32(this.style_view, StyleKeys.OVERFLOW_X, 2);
               break;
+            case 'clip':
+              setInt32(this.style_view, StyleKeys.OVERFLOW_X, 3);
+              break;
+            case 'auto':
+              setInt32(this.style_view, StyleKeys.OVERFLOW_X, 4);
+              break;
           }
           switch (values[1]) {
             case 'visible':
@@ -2150,6 +2180,12 @@ export class Style {
               break;
             case 'scroll':
               setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 2);
+              break;
+            case 'clip':
+              setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 3);
+              break;
+            case 'auto':
+              setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 4);
               break;
           }
         }
@@ -2167,7 +2203,7 @@ export class Style {
     }
   }
 
-  set overflowX(value: 'visible' | 'hidden' | 'scroll') {
+  set overflowX(value: 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto') {
     switch (value) {
       case 'visible':
         setInt32(this.style_view, StyleKeys.OVERFLOW_X, 0);
@@ -2192,7 +2228,7 @@ export class Style {
     }
   }
 
-  set overflowY(value: 'visible' | 'hidden' | 'scroll') {
+  set overflowY(value: 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto') {
     switch (value) {
       case 'visible':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 0);

@@ -111,7 +111,7 @@ public enum MasonLengthPercentageCompatType: Int, RawRepresentable, Codable {
 
 
 @objc(MasonBoxSizing)
-public enum MasonBoxSizing: Int, RawRepresentable {
+public enum BoxSizing: Int, RawRepresentable {
     case BorderBox
     case ContentBox
     
@@ -140,7 +140,7 @@ public enum MasonBoxSizing: Int, RawRepresentable {
 }
 
 @objc(MasonTextAlign)
-public enum MasonTextAlign: Int, RawRepresentable {
+public enum TextAlign: Int, RawRepresentable {
     case Auto
     case Left
     case Right
@@ -210,7 +210,7 @@ public let MasonDimensionAuto = MasonDimension.Auto
 
 
 
-public enum MasonDimension: Codable {
+public enum MasonDimension: Codable, Equatable {
     case Auto
     case Points(Float)
     case Percent(Float)
@@ -598,7 +598,7 @@ public enum MasonLengthPercentageAuto: Codable {
 }
 
 
-@objc(AlignItems)
+@objc(MasonAlignItems)
 public enum AlignItems: Int, RawRepresentable {
     case Normal = -1
     case Start
@@ -678,7 +678,7 @@ public enum AlignItems: Int, RawRepresentable {
     }
 }
 
-@objc(AlignSelf)
+@objc(MasonAlignSelf)
 public enum AlignSelf: Int, RawRepresentable {
     case Normal = -1
     case Start
@@ -758,7 +758,7 @@ public enum AlignSelf: Int, RawRepresentable {
     }
 }
 
-@objc(AlignContent)
+@objc(MasonAlignContent)
 public enum AlignContent: Int, RawRepresentable  {
     case Normal = -1
     case Start
@@ -852,7 +852,7 @@ public enum AlignContent: Int, RawRepresentable  {
     }
 }
 
-@objc(Direction)
+@objc(MasonDirection)
 public enum Direction: Int, RawRepresentable {
     case Inherit
     case LTR
@@ -897,12 +897,16 @@ public enum Direction: Int, RawRepresentable {
     }
 }
 
-@objc(Display)
+@objc(MasonDisplay)
 public enum Display: Int, RawRepresentable, CustomStringConvertible {
     case None
     case Flex
     case Grid
     case Block
+    case Inline
+    case InlineBlock
+    case InlineFlex
+    case InlineGrid
     
     public typealias RawValue = Int32
     
@@ -916,6 +920,14 @@ public enum Display: Int, RawRepresentable, CustomStringConvertible {
             return 2
         case .Block:
             return 3
+        case .Inline:
+          return 4
+        case .InlineBlock:
+          return 5
+        case .InlineFlex:
+          return 6
+        case .InlineGrid:
+          return 7
         }
     }
     
@@ -930,6 +942,14 @@ public enum Display: Int, RawRepresentable, CustomStringConvertible {
             self = .Grid
         case 3:
             self = .Block
+        case 4:
+          self = .Inline
+        case 5:
+          self = .InlineBlock
+        case 6:
+          self = .InlineFlex
+        case 7:
+          self = .InlineGrid
         default:
             return nil
         }
@@ -946,6 +966,14 @@ public enum Display: Int, RawRepresentable, CustomStringConvertible {
             return "grid"
         case .Block:
             return "block"
+        case .Inline:
+          return "inline"
+        case .InlineBlock:
+          return "inline-block"
+        case .InlineFlex:
+          return "inline-flex"
+        case .InlineGrid:
+          return "inline-grid"
         }
     }
   
@@ -954,7 +982,7 @@ public enum Display: Int, RawRepresentable, CustomStringConvertible {
   }
 }
 
-@objc(FlexDirection)
+@objc(MasonFlexDirection)
 public enum FlexDirection: Int, RawRepresentable, CustomStringConvertible {
     case Row
     case Column
@@ -1011,7 +1039,7 @@ public enum FlexDirection: Int, RawRepresentable, CustomStringConvertible {
 
 
 
-@objc(JustifyItems)
+@objc(MasonJustifyItems)
 public enum JustifyItems: Int, RawRepresentable {
     case Normal = -1
     case Start
@@ -1091,7 +1119,7 @@ public enum JustifyItems: Int, RawRepresentable {
     }
 }
 
-@objc(JustifySelf)
+@objc(MasonJustifySelf)
 public enum JustifySelf: Int, RawRepresentable {
     case Normal = -1
     case Start
@@ -1171,7 +1199,7 @@ public enum JustifySelf: Int, RawRepresentable {
     }
 }
 
-@objc(JustifyContent)
+@objc(MasonJustifyContent)
 public enum JustifyContent: Int, RawRepresentable {
     case Normal = -1
     case Start
@@ -1265,12 +1293,13 @@ public enum JustifyContent: Int, RawRepresentable {
     }
 }
 
-@objc(Overflow)
-public enum Overflow: Int, RawRepresentable {
-    case Unset
+@objc(MasonOverflow)
+public enum Overflow: Int, RawRepresentable, Codable {
     case Visible
     case Hidden
     case Scroll
+    case Clip
+    case Auto
     
     public typealias RawValue = Int32
     
@@ -1282,8 +1311,10 @@ public enum Overflow: Int, RawRepresentable {
             return 1
         case .Scroll:
             return 2
-        case .Unset:
-             return -1
+        case .Clip:
+          return 3
+        case .Auto:
+          return 4
         }
     }
     
@@ -1296,8 +1327,10 @@ public enum Overflow: Int, RawRepresentable {
             self = .Hidden
         case 2:
             self = .Scroll
-        case -1:
-            self = .Unset
+        case 3:
+            self = .Clip
+        case 4:
+            self = .Auto
         default:
             return nil
         }
@@ -1311,13 +1344,50 @@ public enum Overflow: Int, RawRepresentable {
             return "hidden"
         case .Scroll:
             return "scroll"
-        case .Unset:
-             return "unset"
+        case .Clip:
+             return "clip"
+        case .Auto:
+             return "auto"
         }
     }
 }
 
-@objc(Position)
+internal enum DisplayMode: Int, RawRepresentable {
+  case None
+  case Inline
+  case Box
+
+  public typealias RawValue = Int32
+  
+  public var rawValue: RawValue {
+      switch self {
+      case .None:
+          return 0
+      case .Inline:
+          return 1
+      case .Box:
+          return 2
+      }
+  }
+  
+  
+  public init?(rawValue: RawValue) {
+      switch rawValue {
+      case 0:
+          self = .None
+      case 1:
+        self = .Inline
+      case 2:
+        self = .Box
+      default:
+          return nil
+      }
+  }
+  
+}
+
+
+@objc(MasonPosition)
 public enum Position: Int, RawRepresentable {
     case Relative
     case Absolute
@@ -1357,7 +1427,7 @@ public enum Position: Int, RawRepresentable {
     
 }
 
-@objc(FlexWrap)
+@objc(MasonFlexWrap)
 public enum FlexWrap: Int, RawRepresentable {
     case NoWrap
     case Wrap
@@ -1403,7 +1473,7 @@ public enum FlexWrap: Int, RawRepresentable {
     }
 }
 
-@objc(FlexGridAutoFlowWrap)
+@objc(MasonGridAutoFlowWrap)
 public enum GridAutoFlow: Int, RawRepresentable {
     case Row
     case Column
@@ -1542,7 +1612,7 @@ public enum GridPlacement: Codable {
 }
 
 
-@objc(GridPlacementCompatType)
+@objc(MasonGridPlacementCompatType)
 public enum GridPlacementCompatType: Int, RawRepresentable {
     case Auto
     case Line
@@ -1583,7 +1653,7 @@ enum GridTrackRepetitionType {
 }
 
 @objcMembers
-@objc(GridTrackRepetition)
+@objc(MasonGridTrackRepetition)
 public class GridTrackRepetition: NSObject {
     let repetition: GridTrackRepetitionType
     
@@ -1623,7 +1693,7 @@ public class GridTrackRepetition: NSObject {
 
 
 
-@objc(DecorationLine)
+@objc(MasonDecorationLine)
 public enum DecorationLine: Int, RawRepresentable {
     case None
     case Underline
@@ -1676,7 +1746,7 @@ public enum DecorationLine: Int, RawRepresentable {
 }
 
 
-@objc(TextTransform)
+@objc(MasonTextTransform)
 public enum TextTransform: Int, RawRepresentable {
     case None
     case Capitalize
@@ -1750,7 +1820,7 @@ public enum TextTransform: Int, RawRepresentable {
 }
 
 
-@objc(FontStyle)
+@objc(MasonFontStyle)
 public enum FontStyle: Int, RawRepresentable, CustomStringConvertible {
     case Normal
     case Italic
@@ -1800,7 +1870,7 @@ public enum FontStyle: Int, RawRepresentable, CustomStringConvertible {
 }
 
 
-@objc(TextWrap)
+@objc(MasonTextWrap)
 public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
     case Wrap
     case NoWrap
@@ -1850,7 +1920,7 @@ public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
 }
 
 
-@objc(WhiteSpace)
+@objc(MasonWhiteSpace)
 public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
     case Normal
     case Pre
@@ -1970,27 +2040,65 @@ public enum LineHeight: Int, RawRepresentable, CustomStringConvertible {
   }
 }
 
+
 public enum TextOverflow: CustomStringConvertible {
   case Clip
   case Ellipse(String?)
   case Custom(String)
-  
+  public typealias RawValue = Int32
   var rawValue: Int32 {
-    switch(self){
-    case .Clip:
-      return 0
-    case .Ellipse(let value):
-      guard let value = value else {
-        return 1
+      switch(self){
+      case .Clip:
+        return 0
+      case .Ellipse(let value):
+        guard let value = value else {
+          return 1
+        }
+        return 2
+      case .Custom(_):
+        return 3
       }
-      return 2
-    case .Custom(_):
-      return 3
     }
+
+    var cssValue: String {
+      switch self {
+      case .Clip:
+        return "clip"
+      case .Ellipse(let value):
+        guard let value = value else {
+          return "ellipsis"
+        }
+        return "ellipsis \(value)"
+      case .Custom(let value):
+        return value
+      }
+    }
+    
+    public var description: String {
+      return cssValue
+    }
+}
+
+@objcMembers
+@objc(MasonTextOverflowCompat)
+public class TextOverflowCompat: NSObject {
+  internal var flow: TextOverflow
+  init(flow: TextOverflow) {
+    self.flow = flow
   }
+  public static let Clip = TextOverflowCompat(flow: .Clip)
+  
+  public static func Ellipse(_ value: String? = nil) -> TextOverflowCompat {
+    return TextOverflowCompat(flow: .Ellipse(value))
+  }
+  
+  public static func Custom(_ value: String) -> TextOverflowCompat {
+    return TextOverflowCompat(flow: .Custom(value))
+  }
+  
 
   var cssValue: String {
-    switch self {
+    switch self.flow {
     case .Clip:
       return "clip"
     case .Ellipse(let value):
@@ -2003,7 +2111,7 @@ public enum TextOverflow: CustomStringConvertible {
     }
   }
   
-  public var description: String {
+  public override var description: String {
     return cssValue
   }
 }

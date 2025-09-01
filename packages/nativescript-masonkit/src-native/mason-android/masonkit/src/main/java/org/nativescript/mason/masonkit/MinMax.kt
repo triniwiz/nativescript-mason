@@ -157,6 +157,5 @@ val Array<MinMax>.cssValue: String
         builder.append("${minMax.cssValue} ")
       }
     }
-    builder.append(")")
     return builder.toString()
   }

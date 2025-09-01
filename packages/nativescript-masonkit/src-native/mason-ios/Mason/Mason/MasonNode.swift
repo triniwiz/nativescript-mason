@@ -32,9 +32,7 @@ public class MasonNode: NSObject {
   internal var mason: NSCMason
   public internal(set) var nativePtr: OpaquePointer?
   
-  public internal(set) var layoutCache: MasonLayout? = nil
-  public internal(set) var lastMeasureKnownSize: CGSize?
-  public internal(set) var lastMeasureAvailableSize: CGSize?
+  public internal(set) var computedLayout = MasonLayout()
   
   public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
   
@@ -42,10 +40,10 @@ public class MasonNode: NSObject {
   
   internal var measureFunc: MeasureFunc? = nil
   
-
+  
   lazy public var style: MasonStyle = {
-      MasonStyle(node: self)
-    }()
+    MasonStyle(node: self)
+  }()
   
   public internal(set) var owner: MasonNode? = nil
   public internal(set) var children: [MasonNode] = []
@@ -123,18 +121,23 @@ public class MasonNode: NSObject {
     mason_node_mark_dirty(mason.nativePtr, nativePtr)
   }
   
-  
-  public func getRoot() -> MasonNode? {
+  var root: MasonNode? {
     guard let owner = self.owner else {return nil}
-    var current = owner
+    var current: MasonNode? = owner
     var next: MasonNode? = current
     while(next != nil){
-      next = current.owner
+      next = current?.owner
       if(next != nil){
-        current = next!
+        current = next
       }
     }
     return current
+  }
+  
+  
+  
+  public func getRoot() -> MasonNode? {
+    return root
   }
   
   internal var computeCache: CGSize?
@@ -309,20 +312,85 @@ public class MasonNode: NSObject {
   func setDefaultMeasureFunction(){
     guard let view = data as? UIView else {return}
     self.setMeasureFunction { knownDimensions, availableSpace in
-      self.lastMeasureKnownSize = knownDimensions
-      self.lastMeasureAvailableSize = availableSpace
       return MasonNode.measureFunction(view, knownDimensions, availableSpace)
     }
   }
   
+  private func handleOverflow(_ overflow: Overflow, _ scroll: UIScrollView, _ vertical: Bool = false) {
+    switch(overflow){
+    case .Visible:
+      scroll.clipsToBounds = false
+      if(vertical){
+        scroll.alwaysBounceVertical = false
+        scroll.showsVerticalScrollIndicator = false
+      }else {
+        scroll.alwaysBounceHorizontal = false
+        scroll.showsHorizontalScrollIndicator = false
+      }
+    case .Hidden:
+      scroll.clipsToBounds = true
+      scroll.alwaysBounceVertical = true
+      scroll.alwaysBounceHorizontal = true
+      if(vertical){
+        scroll.alwaysBounceVertical = true
+        scroll.showsVerticalScrollIndicator = false
+      }else {
+        scroll.alwaysBounceHorizontal = true
+        scroll.showsHorizontalScrollIndicator = false
+      }
+    case .Scroll:
+      scroll.clipsToBounds = true
+      if(vertical){
+        scroll.alwaysBounceVertical = true
+        scroll.showsVerticalScrollIndicator = true
+      }else {
+        scroll.alwaysBounceHorizontal = true
+        scroll.showsHorizontalScrollIndicator = true
+      }
+    case .Clip:
+      scroll.clipsToBounds = true
+      if(vertical){
+        scroll.alwaysBounceVertical = true
+        scroll.showsVerticalScrollIndicator = false
+      }else {
+        scroll.alwaysBounceHorizontal = true
+        scroll.showsHorizontalScrollIndicator = false
+      }
+    case .Auto:
+      scroll.clipsToBounds = true
+      if(vertical){
+        if(scroll.contentSize.height > scroll.bounds.size.height){
+          scroll.showsVerticalScrollIndicator = true
+        }else {
+          scroll.showsVerticalScrollIndicator = false
+        }
+        scroll.alwaysBounceVertical = true
+      }else {
+        if(scroll.contentSize.width > scroll.bounds.size.width){
+          scroll.showsHorizontalScrollIndicator = true
+        }else {
+          scroll.showsHorizontalScrollIndicator = false
+        }
+        scroll.showsHorizontalScrollIndicator = false
+      }
+    }
+  }
+  
   static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
-    node.layoutCache = layout
+    node.computedLayout = layout
+    
     if let view = node.data as? UIView {
       var realLayout = layout
-      if(view is MasonText){
-        let textView = view as! MasonText
-        realLayout = textView.node.layoutCache!
+      var isText = false
+      var hasWidthConstraint: Bool = false
+      var hasHeightConstraint: Bool = false
+      if let view = view as? MasonText {
+        realLayout = view.node.computedLayout
+        isText = true
+        hasWidthConstraint = view.node.style.size.width != .Auto
+        hasHeightConstraint = view.node.style.size.height != .Auto
       }
+      
       let widthIsNan = realLayout.width.isNaN
       
       let heightIsNan = realLayout.height.isNaN
@@ -331,15 +399,41 @@ public class MasonNode: NSObject {
       
       let y = CGFloat(realLayout.y.isNaN ? 0 : realLayout.y/NSCMason.scale)
       
-      let width = CGFloat(widthIsNan ? 0 : realLayout.width/NSCMason.scale)
+      var width = CGFloat(widthIsNan ? 0 : realLayout.width/NSCMason.scale)
       
-      let height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
-  
+      var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
+      
+      if(isText){
+        if(!hasWidthConstraint){
+          width = CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale)
+        }
+        
+        if(!hasHeightConstraint){
+          height = CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale)
+        }
+      }
+      
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)
       
       view.frame = CGRect(origin: point, size: size)
+      
+      if let view = view as? MasonText {
+        view.invalidate(layout: true)
+      }
+      
+      if let scroll = node.data as? Scroll {
+        let overflow = node.style.overflow
+        
+        
+        scroll.contentSize = CGSize(width: CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), height: CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale))
+        
+        
+        node.handleOverflow(overflow.x, scroll)
+        node.handleOverflow(overflow.y, scroll, true)
+        
+      }
       
     }
     
@@ -365,7 +459,7 @@ public class MasonNode: NSObject {
     
     var width = CGFloat.greatestFiniteMagnitude
     var height = CGFloat.greatestFiniteMagnitude
-  
+    
     
     if(knownDimensions?.width.isZero == true){
       width = 0

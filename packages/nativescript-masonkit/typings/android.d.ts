@@ -738,17 +738,19 @@ declare module org {
 					public onNodeDetached(): void;
 					public onMeasure(layout: number, width: number): void;
 					public markNodeDirty(): void;
+					public getRootNode(): org.nativescript.mason.masonkit.Node;
 					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet, context: boolean);
 					public getInBatch(): boolean;
 					public configure(block: any): void;
 					public setImageBitmap(bm: globalAndroid.graphics.Bitmap): void;
+					public invalidateLayout(): void;
 					public setCurrentBitmap$masonkit_release(value: globalAndroid.graphics.Bitmap): void;
 					public getCurrentBitmap$masonkit_release(): globalAndroid.graphics.Bitmap;
 					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public constructor($this$_init__u24lambda_u240: globalAndroid.content.Context, this_: org.nativescript.mason.masonkit.Mason);
 					public isLeaf(): boolean;
 					public syncStyle(this_: string): void;
-					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, value: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, size: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public setSrc(it: string): void;
 					public isNodeDirty(): boolean;
 					public getNode(): org.nativescript.mason.masonkit.Node;
@@ -1102,6 +1104,7 @@ declare module org {
 					public getNativePtr$masonkit_release(): number;
 					public clear(): void;
 					public getNativePtr(): number;
+					public createScrollView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.Scroll;
 					public createNode($this$createNode_u24lambda_u245: org.nativescript.mason.masonkit.MeasureFunc): org.nativescript.mason.masonkit.Node;
 					public createNode(it: androidNative.Array<org.nativescript.mason.masonkit.Node>): org.nativescript.mason.masonkit.Node;
 				}
@@ -1136,12 +1139,16 @@ declare module org {
 						markNodeDirty(): void;
 						isNodeDirty(): boolean;
 						configure(param0: any): void;
+						getRootNode(): org.nativescript.mason.masonkit.Node;
+						invalidateLayout(): void;
 					});
 					public constructor();
 					public configure(param0: any): void;
+					public invalidateLayout(): void;
 					public isNodeDirty(): boolean;
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public markNodeDirty(): void;
+					public getRootNode(): org.nativescript.mason.masonkit.Node;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
 					public onNodeAttached(): void;
 					public onNodeDetached(): void;
@@ -1153,7 +1160,9 @@ declare module org {
 						public static getStyle($this: org.nativescript.mason.masonkit.MasonView): org.nativescript.mason.masonkit.Style;
 						public static configure($this: org.nativescript.mason.masonkit.MasonView, block: any): void;
 						public static onNodeDetached($this: org.nativescript.mason.masonkit.MasonView): void;
+						public static invalidateLayout(view: org.nativescript.mason.masonkit.MasonView): void;
 						public static isNodeDirty($this: org.nativescript.mason.masonkit.MasonView): boolean;
+						public static getRootNode($this: org.nativescript.mason.masonkit.MasonView): org.nativescript.mason.masonkit.Node;
 						public static onNodeAttached($this: org.nativescript.mason.masonkit.MasonView): void;
 						public static markNodeDirty($this: org.nativescript.mason.masonkit.MasonView): void;
 					}
@@ -1574,6 +1583,7 @@ declare module org {
 		export module mason {
 			export module masonkit {
 				export class NodeHelper {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.NodeHelper>;
 					public batchCreateViews(this_: globalAndroid.content.Context): void;
 					public setMargin(this_: globalAndroid.view.View, view: number, left: number, left_type: number, top: number, top_type: number, right: number, right_type: number, bottom: number): void;
 					public setPaddingBottom(this_: globalAndroid.view.View, view: number, value: number): void;
@@ -1756,7 +1766,7 @@ declare module org {
 				export module NodeHelper {
 					export class Companion {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.NodeHelper.Companion>;
-						public static getShared(): org.nativescript.mason.masonkit.NodeHelper;
+						public getShared(): org.nativescript.mason.masonkit.NodeHelper;
 					}
 				}
 			}
@@ -1770,10 +1780,11 @@ declare module org {
 			export module masonkit {
 				export class Overflow {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Overflow>;
-					public static Unset: org.nativescript.mason.masonkit.Overflow;
 					public static Visible: org.nativescript.mason.masonkit.Overflow;
 					public static Hidden: org.nativescript.mason.masonkit.Overflow;
 					public static Scroll: org.nativescript.mason.masonkit.Overflow;
+					public static Clip: org.nativescript.mason.masonkit.Overflow;
+					public static Auto: org.nativescript.mason.masonkit.Overflow;
 					public getCssValue(): string;
 					public static getEntries(): any;
 					public static valueOf(value: string): org.nativescript.mason.masonkit.Overflow;
@@ -1851,6 +1862,48 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
+				export class Scroll extends org.nativescript.mason.masonkit.TwoDScrollView implements org.nativescript.mason.masonkit.MasonView {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.Scroll>;
+					public scrollRoot: org.nativescript.mason.masonkit.View;
+					public configure(param0: any): void;
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet, defStyle: number);
+					public getEnableScrollX(): boolean;
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
+					public addView(child: globalAndroid.view.View): void;
+					public getStyle(): org.nativescript.mason.masonkit.Style;
+					public addView(this_: globalAndroid.view.View, child: globalAndroid.view.ViewGroup.LayoutParams): void;
+					public onNodeAttached(): void;
+					public onNodeDetached(): void;
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet, defStyleAttr: number);
+					public markNodeDirty(): void;
+					public getRootNode(): org.nativescript.mason.masonkit.Node;
+					public setEnableScrollX(value: boolean): void;
+					public addView(child: globalAndroid.view.View, index: number, params: globalAndroid.view.ViewGroup.LayoutParams): void;
+					public configure(block: any): void;
+					public addView(this_: globalAndroid.view.View, child: number, index: globalAndroid.view.ViewGroup.LayoutParams): void;
+					public invalidateLayout(): void;
+					public getScrollRoot$masonkit_release(): org.nativescript.mason.masonkit.View;
+					public constructor($this$_init__u24lambda_u240: globalAndroid.content.Context, this_: org.nativescript.mason.masonkit.Mason);
+					public isLeaf(): boolean;
+					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet, context: number, attrs: boolean);
+					public addView(child: globalAndroid.view.View, width: number, height: number): void;
+					public isNodeDirty(): boolean;
+					public getNode(): org.nativescript.mason.masonkit.Node;
+					public constructor(context: globalAndroid.content.Context);
+					public getEnableScrollY(): boolean;
+					public addView(this_: globalAndroid.view.View, child: number): void;
+					public setScrollRoot$masonkit_release(value: org.nativescript.mason.masonkit.View): void;
+					public setEnableScrollY(value: boolean): void;
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
 				export class Size<T>  extends java.lang.Object {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Size<any>>;
 					public getWidth(): T;
@@ -1907,6 +1960,7 @@ declare module org {
 						public "getFLEX_SHRINK-U0xtSZA"(): number;
 						public "getDIRECTION-U0xtSZA"(): number;
 						public "getALIGN_CONTENT-U0xtSZA"(): number;
+						public "getMIN_CONTENT_HEIGHT-U0xtSZA"(): number;
 						public "getFLEX_DIRECTION-U0xtSZA"(): number;
 						public "getGRID_AUTO_FLOW-U0xtSZA"(): number;
 						public "getALIGN_ITEMS-U0xtSZA"(): number;
@@ -1915,21 +1969,22 @@ declare module org {
 						public "getGRID_COLUMN-U0xtSZA"(): number;
 						public "getBOX_SIZING-U0xtSZA"(): number;
 						public "getJUSTIFY_SELF-U0xtSZA"(): number;
+						public "getMAX_CONTENT_WIDTH-U0xtSZA"(): number;
 						public "getINSET-U0xtSZA"(): number;
 						public "getPADDING-U0xtSZA"(): number;
 						public "getOVERFLOW-U0xtSZA"(): number;
 						public "getPOSITION-U0xtSZA"(): number;
 						public "getFLEX_GROW-U0xtSZA"(): number;
 						public "getFORCE_INLINE-U0xtSZA"(): number;
-						public "getMIN_CONTENT-U0xtSZA"(): number;
 						public "getDISPLAY-U0xtSZA"(): number;
 						public "getOVERFLOW_X-U0xtSZA"(): number;
 						public "getDISPLAY_MODE-U0xtSZA"(): number;
 						public "getTEXT_ALIGN-U0xtSZA"(): number;
-						public "getMAX_CONTENT-U0xtSZA"(): number;
 						public "getGRID_ROW-U0xtSZA"(): number;
 						public "getMIN_SIZE-U0xtSZA"(): number;
 						public "getASPECT_RATIO-U0xtSZA"(): number;
+						public "getMAX_CONTENT_HEIGHT-U0xtSZA"(): number;
+						public "getMIN_CONTENT_WIDTH-U0xtSZA"(): number;
 					}
 				}
 			}
@@ -2096,6 +2151,32 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
+				export class StyleHelpers {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.StyleHelpers>;
+					public static gridAutoRowsCSS(mason: org.nativescript.mason.masonkit.Mason, view: globalAndroid.view.View): string;
+					public static gridTemplateColumnsCSS(mason: org.nativescript.mason.masonkit.Mason, view: globalAndroid.view.View): string;
+					public constructor();
+					public static gridTemplateRowsCSS(mason: org.nativescript.mason.masonkit.Mason, view: globalAndroid.view.View): string;
+					public static gridAutoColumnsCSS(mason: org.nativescript.mason.masonkit.Mason, view: globalAndroid.view.View): string;
+				}
+				export module StyleHelpers {
+					export class Companion {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.StyleHelpers.Companion>;
+						public gridAutoRowsCSS(mason: org.nativescript.mason.masonkit.Mason, view: globalAndroid.view.View): string;
+						public gridTemplateColumnsCSS(mason: org.nativescript.mason.masonkit.Mason, view: globalAndroid.view.View): string;
+						public gridTemplateRowsCSS(mason: org.nativescript.mason.masonkit.Mason, view: globalAndroid.view.View): string;
+						public gridAutoColumnsCSS(mason: org.nativescript.mason.masonkit.Mason, view: globalAndroid.view.View): string;
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
 				export class StyleKeys {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.StyleKeys>;
 					public static INSTANCE: org.nativescript.mason.masonkit.StyleKeys;
@@ -2182,25 +2263,10 @@ declare module org {
 					public static ITEM_IS_REPLACED: number = 320;
 					public static DISPLAY_MODE: number = 324;
 					public static FORCE_INLINE: number = 328;
-					public static MIN_CONTENT: number = 332;
-					public static MAX_CONTENT: number = 336;
-				}
-			}
-		}
-	}
-}
-
-declare module org {
-	export module nativescript {
-		export module mason {
-			export module masonkit {
-				export class Text extends org.nativescript.mason.masonkit.MeasureFunc {
-					public static class: java.lang.Class<org.nativescript.mason.masonkit.Text>;
-					public measure(knownDimensions: org.nativescript.mason.masonkit.Size<java.lang.Float>, availableSpace: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
-					public getNode(): org.nativescript.mason.masonkit.Node;
-					public constructor();
-					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
-					public constructor(mason: org.nativescript.mason.masonkit.Mason);
+					public static MIN_CONTENT_WIDTH: number = 332;
+					public static MIN_CONTENT_HEIGHT: number = 336;
+					public static MAX_CONTENT_WIDTH: number = 340;
+					public static MAX_CONTENT_HEIGHT: number = 344;
 				}
 			}
 		}
@@ -2365,6 +2431,7 @@ declare module org {
 					public getStyle(): org.nativescript.mason.masonkit.Style;
 					public setTextJustify(value: org.nativescript.mason.masonkit.text.Styles.TextJustify): void;
 					public getDecorationColor(): number;
+					public invalidateLayout(): void;
 					public getTextValues(): java.nio.ByteBuffer;
 					public getColor(): number;
 					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
@@ -2389,8 +2456,9 @@ declare module org {
 					public getType(): org.nativescript.mason.masonkit.TextType;
 					public constructor(context: globalAndroid.content.Context, mason: org.nativescript.mason.masonkit.Mason, type: org.nativescript.mason.masonkit.TextType);
 					public setDecorationColor(value: number): void;
+					public getRootNode(): org.nativescript.mason.masonkit.Node;
 					public markNodeDirty(): void;
-					public onLayout(it: boolean, value: number, index: number, layout: number, value: number): void;
+					public onLayout(it: boolean, index: number, index: number, layout: number, value: number): void;
 					public setTextWrap(this_: org.nativescript.mason.masonkit.text.Styles.TextWrap): void;
 					public setBackgroundColorValue(value: number): void;
 					public getFont(): org.nativescript.mason.masonkit.FontFace;
@@ -2407,7 +2475,7 @@ declare module org {
 					public isLeaf(): boolean;
 					public invalidateView$masonkit_release(): void;
 					public setTextTransform(this_: org.nativescript.mason.masonkit.text.Styles.TextTransform): void;
-					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, value: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, measure: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public updateText(text: string): void;
 					public getTextJustify(): org.nativescript.mason.masonkit.text.Styles.TextJustify;
@@ -2484,8 +2552,83 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
+				export class TwoDScrollView {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.TwoDScrollView>;
+					public static ANIMATED_SCROLL_GAP: number = 250;
+					public static MAX_SCROLL_FACTOR: number = 0.5;
+					public getMaxScrollAmountVertical(): number;
+					public executeKeyEvent(nextFocused: globalAndroid.view.KeyEvent): boolean;
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet, defStyle: number);
+					public getLeftFadingEdgeStrength(): number;
+					public getEnableScrollX(): boolean;
+					public requestChildRectangleOnScreen(child: globalAndroid.view.View, rectangle: globalAndroid.graphics.Rect, immediate: boolean): boolean;
+					public fullScroll(count: number, down: boolean): boolean;
+					public computeHorizontalScrollRange(): number;
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
+					public isFillViewport(): boolean;
+					public getRightFadingEdgeStrength(): number;
+					public addView(this_: globalAndroid.view.View, child: globalAndroid.view.ViewGroup.LayoutParams): void;
+					public measureChild(childWidthMeasureSpec: globalAndroid.view.View, childHeightMeasureSpec: number, this_: number): void;
+					public onSizeChanged(scrollDeltaX: number, scrollDeltaY: number, this_: number, w: number): void;
+					public setScrollChangeListner(listener: org.nativescript.mason.masonkit.TwoDScrollView.ScrollChangeListener): void;
+					public smoothScrollTo(x: number, y: number): void;
+					public onInterceptTouchEvent(xDiff: globalAndroid.view.MotionEvent): boolean;
+					public setEnableScrollY(value: boolean): void;
+					public computeScrollDeltaToGetChildRectOnScreen($this$isEmpty$iv: globalAndroid.graphics.Rect): number;
+					public onScrollChanged(x: number, y: number, oldx: number, oldy: number): void;
+					public requestLayout(): void;
+					public addView(this_: globalAndroid.view.View, child: number, index: globalAndroid.view.ViewGroup.LayoutParams): void;
+					public onTouchEvent(availableToScroll: globalAndroid.view.MotionEvent): boolean;
+					public computeVerticalScrollRange(): number;
+					public onLayout(changed: boolean, l: number, t: number, r: number, b: number): void;
+					public scrollTo($this$isNotEmpty$iv: number, child: number): void;
+					public dispatchKeyEvent(this_: globalAndroid.view.KeyEvent): boolean;
+					public addView(this_: globalAndroid.view.View): void;
+					public smoothScrollBy(this_: number, dx: number): void;
+					public measureChildWithMargins(childWidthMeasureSpec: globalAndroid.view.View, childHeightMeasureSpec: number, this_: number, child: number, parentWidthMeasureSpec: number): void;
+					public setEnableScrollX(value: boolean): void;
+					public fling($this$isNotEmpty$iv: number, height: number): void;
+					public getTopFadingEdgeStrength(): number;
+					public getMaxScrollAmountHorizontal(): number;
+					public requestChildFocus(child: globalAndroid.view.View, focused: globalAndroid.view.View): void;
+					public setFillViewport(fillViewport: boolean): void;
+					public computeScroll(): void;
+					public arrowScroll($i$f$isNotEmpty: number, $this$isNotEmpty$iv: boolean): boolean;
+					public onRequestFocusInDescendants(nextFocus: number, this_: globalAndroid.graphics.Rect): boolean;
+					public getEnableScrollY(): boolean;
+					public constructor(context: globalAndroid.content.Context);
+					public addView(this_: globalAndroid.view.View, child: number): void;
+					public onMeasure($this$isNotEmpty$iv: number, lp: number): void;
+					public getBottomFadingEdgeStrength(): number;
+				}
+				export module TwoDScrollView {
+					export class Companion {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.TwoDScrollView.Companion>;
+					}
+					export class ScrollChangeListener {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.TwoDScrollView.ScrollChangeListener>;
+						/**
+						 * Constructs a new instance of the org.nativescript.mason.masonkit.TwoDScrollView$ScrollChangeListener interface with the provided implementation. An empty constructor exists calling super() when extending the interface class.
+						 */
+						public constructor(implementation: {
+							onScrollChanged(param0: globalAndroid.view.View, param1: number, param2: number, param3: number, param4: number): void;
+						});
+						public constructor();
+						public onScrollChanged(param0: globalAndroid.view.View, param1: number, param2: number, param3: number, param4: number): void;
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
 				export class View implements org.nativescript.mason.masonkit.MasonView {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.View>;
+					public node: org.nativescript.mason.masonkit.Node;
 					public getGridTemplateRows(): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
 					public setMaxSize(width: number, height: number): void;
 					public setMarginWithValueType(value: number, type: number): void;
@@ -2523,8 +2666,8 @@ declare module org {
 					public getFlexWrap(): org.nativescript.mason.masonkit.FlexWrap;
 					public setOverflowY(value: org.nativescript.mason.masonkit.Overflow): void;
 					public static createGridView(mason: org.nativescript.mason.masonkit.Mason, context: globalAndroid.content.Context): org.nativescript.mason.masonkit.View;
-					public addView($this$addView_u24lambda_u2411: globalAndroid.view.View, childNode: number, this_: globalAndroid.view.ViewGroup.LayoutParams): void;
 					public setPaddingLeft(value: number, type: number): void;
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet, defStyleAttr: number);
 					public getStylePaddingLeft(): org.nativescript.mason.masonkit.LengthPercentage;
 					public generateDefaultLayoutParams(): globalAndroid.view.ViewGroup.LayoutParams;
 					public getMarginJsonValue(): string;
@@ -2536,6 +2679,8 @@ declare module org {
 					public getMarginRight(): org.nativescript.mason.masonkit.LengthPercentageAuto;
 					public setGridTemplateRows(value: androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>): void;
 					public setMinSizeHeight(value: number, type: number): void;
+					public setNode(value: org.nativescript.mason.masonkit.Node): void;
+					public addView($this$addView_u24lambda_u248: globalAndroid.view.View, childNode: number, this_: globalAndroid.view.ViewGroup.LayoutParams): void;
 					public getAlignContent(): org.nativescript.mason.masonkit.AlignContent;
 					public setPaddingBottom(value: number, type: number): void;
 					public setMinSizeWidth(value: number, type: number): void;
@@ -2560,7 +2705,6 @@ declare module org {
 					public getFlexDirection(): org.nativescript.mason.masonkit.FlexDirection;
 					public setMaxSizeHeight(value: number, type: number): void;
 					public setGap(width: number, widthType: number, height: number, heightType: number): void;
-					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet, context: number);
 					public setInsetLeft(value: number, type: number): void;
 					public getStylePaddingRight(): org.nativescript.mason.masonkit.LengthPercentage;
 					public setFlexGrow(value: number): void;
@@ -2580,6 +2724,7 @@ declare module org {
 					public getInsetTop(): org.nativescript.mason.masonkit.LengthPercentageAuto;
 					public getSizeCssValue(): string;
 					public getGridTemplateColumns(): androidNative.Array<org.nativescript.mason.masonkit.TrackSizingFunction>;
+					public getRootNode(): org.nativescript.mason.masonkit.Node;
 					public getGridAutoFlow(): org.nativescript.mason.masonkit.GridAutoFlow;
 					public getAspectRatio(): java.lang.Float;
 					public setFlexBasis(value: number, type: number): void;
@@ -2638,6 +2783,7 @@ declare module org {
 					public setJustifyItems(value: org.nativescript.mason.masonkit.JustifyItems): void;
 					public getPadding(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
 					public setPadding(left: number, top: number, right: number, bottom: number): void;
+					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet, context: number, attrs: boolean);
 					public getBorderTop(): org.nativescript.mason.masonkit.LengthPercentage;
 					public getBorder(): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
 					public setDisplay(value: org.nativescript.mason.masonkit.Display): void;
@@ -2647,6 +2793,7 @@ declare module org {
 					public removeView(view: globalAndroid.view.View): void;
 					public getSize(): org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.Dimension>;
 					public configure(param0: any): void;
+					public isScrollRoot$masonkit_release(): boolean;
 					public getAlignSelf(): org.nativescript.mason.masonkit.AlignSelf;
 					public setMarginBottom(value: number, type: number): void;
 					public getGridAutoRows(): androidNative.Array<org.nativescript.mason.masonkit.MinMax>;
@@ -2686,6 +2833,7 @@ declare module org {
 					public setAspectRatio(value: java.lang.Float): void;
 					public getGridColumnEnd(): org.nativescript.mason.masonkit.GridPlacement;
 					public getMaxSizeWidth(): org.nativescript.mason.masonkit.Dimension;
+					public setScrollRoot$masonkit_release(value: boolean): void;
 					public setMinSize(width: number, widthType: number, height: number, heightType: number): void;
 					public getSizeJsonValue(): string;
 					public getSizeHeight(): org.nativescript.mason.masonkit.Dimension;

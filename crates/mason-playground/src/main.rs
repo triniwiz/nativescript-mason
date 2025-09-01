@@ -1,7 +1,5 @@
 use mason_core::style::{DisplayMode, StyleKeys};
-use mason_core::{
-    Dimension, Display, LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, Rect, Size,
-};
+use mason_core::{AlignContent, AlignItems, Dimension, Display, FlexDirection, JustifyContent, LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, Overflow, Rect, Size};
 use std::ffi::{c_longlong, c_void};
 
 #[derive(Debug)]
@@ -20,7 +18,117 @@ fn main() {
     // p()
     // p_size();
     //single_child();
-    single_child_percentage();
+    //single_child_percentage();
+    // flex_bug();
+    //scroll();
+    scroll_horizontal();
+}
+
+fn scroll() {
+    let mut mason = Mason::new();
+    let container = mason.create_node();
+    mason.with_style_mut(container.id(), |style| {
+        style.set_size(
+            Size {
+                width: Dimension::length(1320.0),
+                height: Dimension::length(2868.0)
+            }
+        )
+    });
+    let root = mason.create_node();
+    let child = mason.create_node();
+    mason.with_style_mut(child.id(), |style| {
+        style.set_size(
+            Size {
+                width: Dimension::length(1320.),
+                height: Dimension::length(10203.)
+            }
+        )
+    });
+
+    mason.add_child(container.id(), root.id());
+    mason.add_child(root.id(), child.id());
+
+    mason.compute_wh(container.id(), 1320.0, 2868.0);
+
+    mason.print_tree(container.id());
+}
+
+fn scroll_horizontal() {
+    let mut mason = Mason::new();
+    let container = mason.create_node();
+    mason.with_style_mut(container.id(), |style| {
+        style.set_size(
+            Size {
+                width: Dimension::length(1320.0),
+                height: Dimension::length(2868.0)
+            }
+        )
+    });
+    let root = mason.create_node();
+
+    let child = mason.create_node();
+    mason.with_style_mut(child.id(), |style| {
+        style.set_max_size(
+            Size {
+                width: Dimension::length(1000.),
+                height: Dimension::auto()
+            }
+        );
+        style.set_size(
+            Size {
+                width: Dimension::length(8395.0),
+                height: Dimension::length(54.0)
+            }
+        )
+    });
+
+    mason.add_child(container.id(), root.id());
+    mason.add_child(root.id(), child.id());
+
+    mason.compute_wh(container.id(), 1320.0, 2868.0);
+
+    mason.print_tree(container.id());
+}
+
+fn flex_bug() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+    let child = mason.create_node();
+    let child2 = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::percent(1.),
+            height: Dimension::percent(1.),
+        });
+
+        style.set_align_content(Some(AlignContent::Stretch));
+        style.set_align_items(Some(AlignItems::Center));
+        style.set_flex_direction(FlexDirection::Column);
+        style.set_justify_content(Some(JustifyContent::Start));
+        style.set_display(Display::Flex);
+    });
+
+    mason.with_style_mut(child.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(1.),
+            height: Dimension::length(1.),
+        })
+    });
+
+    mason.with_style_mut(child2.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(100.),
+            height: Dimension::length(100.),
+        })
+    });
+
+    mason.add_child(root.id(), child.id());
+    mason.add_child(root.id(), child2.id());
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(root.id());
 }
 
 fn single_child_percentage() {

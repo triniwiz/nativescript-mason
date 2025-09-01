@@ -26,13 +26,14 @@ public class NSCMason: NSObject {
     }
   
   public func nodeForView(_ view: UIView, _ isLeaf: Bool = true) -> MasonNode{
-    if(view is MasonView){
-      return (view as! MasonView).node
+    if let view = view as? MasonView{
+      return view.node
     }
+    
     guard let node = viewNodes[view] else {
       let node = MasonNode(mason: self)
       node.data = view
-      if(isLeaf && (view.subviews.isEmpty || view is UILabel)){
+      if(isLeaf && (view is UILabel)){
         node.setDefaultMeasureFunction()
       }
 
@@ -63,8 +64,14 @@ public class NSCMason: NSObject {
   }
   
   
-  public func createImageView()-> MasonImg {
-    return MasonImg(mason: self)
+  public func createImageView()-> Img {
+    return Img(mason: self)
+  }
+  
+  public func createScrollView()-> Scroll {
+    let view = Scroll(mason: self)
+    
+    return view
   }
   
   public func createNode() -> MasonNode{

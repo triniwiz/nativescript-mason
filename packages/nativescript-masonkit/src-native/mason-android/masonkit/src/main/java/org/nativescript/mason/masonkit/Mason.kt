@@ -72,6 +72,10 @@ class Mason {
     return Img(context, this)
   }
 
+  fun createScrollView(context: Context): Scroll {
+    return Scroll(context, this)
+  }
+
   fun nodeForView(view: android.view.View): Node {
     return when (view) {
       is MasonView -> {

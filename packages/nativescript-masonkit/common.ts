@@ -47,7 +47,7 @@ function overflowConverter(value) {
     case 'scroll':
       return value;
     default:
-      return 'visible';
+      return undefined;
   }
 }
 
@@ -80,11 +80,10 @@ export const overflowProperty = new ShorthandProperty<Style, Overflow>({
   },
   converter(value) {
     const properties: [CssProperty<any, any>, any][] = [];
-
     if (typeof value === 'string') {
       const values = value.match(overFlow);
 
-      const length = values.length;
+      const length = values?.length ?? 0;
       if (length === 0) {
         return properties;
       }
@@ -116,20 +115,30 @@ export const overflowXProperty = new CssProperty<Style, Overflow>({
   valueChanged: (target, oldValue, newValue) => {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      view.overflowX = newValue;
+      if (newValue) {
+        view.overflowX = newValue;
+      } else {
+        // Revert to old value if newValue is invalid
+        view.view.style.overflowX = oldValue;
+      }
     }
   },
 });
 
 export const overflowYProperty = new CssProperty<Style, Overflow>({
-  name: 'overflow',
+  name: 'overflowY',
   cssName: 'overflow-y',
   defaultValue: 'visible',
   valueConverter: overflowConverter,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      view.overflowY = newValue;
+      if (newValue) {
+        view.overflowY = newValue;
+      } else {
+        // Revert to old value if newValue is invalid
+        view.view.style.overflowY = oldValue;
+      }
     }
   },
 });
@@ -312,8 +321,11 @@ export const displayProperty = new CssProperty<Style, Display>({
   defaultValue: 'block',
   valueChanged: (target, oldValue, newValue) => {
     const view = getViewStyle(target.viewRef);
-    if (view) {
+    if (view && newValue) {
       view.display = newValue;
+    } else {
+      // Revert to old value if newValue is invalid
+      view.view.style.display = oldValue;
     }
   },
   valueConverter: function (value) {
@@ -349,7 +361,8 @@ export const displayProperty = new CssProperty<Style, Display>({
       case 'inline-grid':
         return value;
       default:
-        throw new Error(`Invalid display value: ${value}`);
+        console.warn(`Invalid display value: ${value}`);
+        return undefined;
     }
   },
 });
@@ -409,11 +422,24 @@ export const positionProperty = new CssProperty<Style, Position>({
 //   defaultValue: 'no-wrap',
 // });
 
-const insetProperty = new ShorthandProperty<Style, string | CoreTypes.LengthType>({
+const insetProperty = new ShorthandProperty<Style, LengthAuto>({
   name: 'inset',
   cssName: 'inset',
   getter: function (this: Style) {
-    if (CorePercentLength.equals(this.top, this.right) && CorePercentLength.equals(this.top, this.bottom) && CorePercentLength.equals(this.top, this.left)) {
+    if (this.top === this.right && this.top === this.bottom && this.top === this.left) {
+      if (typeof this.top === 'string') {
+        if (this.top === 'auto') {
+          return this.top;
+        }
+        const value = CorePercentLength.parse(this.top);
+        if (Number.isNaN(value)) {
+          return this.top;
+        } else {
+          return CorePercentLength.convertToString(value);
+        }
+      }
+    }
+    if (CorePercentLength.equals(this.top as never, this.right as never) && CorePercentLength.equals(this.top as never, this.bottom as never) && CorePercentLength.equals(this.top as never, this.left as never)) {
       return this.top as never;
     }
 
@@ -422,7 +448,7 @@ const insetProperty = new ShorthandProperty<Style, string | CoreTypes.LengthType
   converter: convertToInsets,
 });
 
-function convertToInsets(value: string | CoreTypes.LengthType): [CssProperty<Style, CoreTypes.PercentLengthType>, CoreTypes.PercentLengthType][] {
+function convertToInsets(value: string | CoreTypes.LengthType): [CssProperty<Style, LengthAuto>, LengthAuto][] {
   if (typeof value === 'string' && value !== 'auto') {
     const thickness = parseShorthandPositioning(value);
 
@@ -451,6 +477,7 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   valueConverter: masonLengthParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
+    console.log('left changed', newValue);
     if (view) {
       view.left = newValue;
     }
@@ -908,28 +935,26 @@ export const gridRowProperty = new ShorthandProperty<Style, string>({
   },
 });
 
-export const gridTemplateRowsProperty = new CssProperty<Style, Array<GridTemplates>>({
+export const gridTemplateRowsProperty = new CssProperty<Style, Array<GridTemplates> | string>({
   name: 'gridTemplateRows',
   cssName: 'grid-template-rows',
   defaultValue: null,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      // view.gridTemplateRows = newValue;
-      console.log('gridTemplateRowsProperty valueChanged', newValue);
+      view.gridTemplateRows = newValue;
     }
   },
 });
 
-export const gridTemplateColumnsProperty = new CssProperty<Style, Array<GridTemplates>>({
+export const gridTemplateColumnsProperty = new CssProperty<Style, Array<GridTemplates> | string>({
   name: 'gridTemplateColumns',
   cssName: 'grid-template-columns',
   defaultValue: null,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      // view.gridTemplateColumns = newValue;
-      console.log('gridTemplateColumnsProperty valueChanged', newValue);
+      view.gridTemplateColumns = newValue;
     }
   },
 });
@@ -1047,14 +1072,29 @@ export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
-      view.boxSizing = newValue;
+      if (newValue) {
+        view.boxSizing = newValue;
+      } else {
+        // Revert to old value if newValue is invalid
+        view.view.style.boxSizing = oldValue;
+      }
+    }
+  },
+  valueConverter(value) {
+    switch (value) {
+      case 'content-box':
+      case 'border-box':
+        return value;
+      default:
+        console.warn(`Invalid boxSizing value: ${value}`);
+        return undefined;
     }
   },
 });
 
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
-  readonly ios: UIView;
+  readonly ios: MasonUIView;
 
   overflow: Overflow | `${Overflow} ${Overflow}`;
 
@@ -1275,49 +1315,37 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     // _setTop(value, this as any);
   }
 
-  //@ts-ignore
-  set minWidth(value: LengthAuto) {
-    //@ts-ignore
-    this.style.minWidth = value;
+  [minWidthProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.minWidth = value;
+    }
   }
 
-  //@ts-ignore
-  get minWidth(): LengthAuto {
-    return this.style.minWidth;
+  [minHeightProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.minHeight = value;
+    }
   }
 
-  //@ts-ignore
-  set minHeight(value: LengthAuto) {
-    //@ts-ignore
-    this.style.minHeight = value;
+  [heightProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.height = value;
+      console.log('height set native', this.id, style.toJSON());
+    }
   }
 
-  //@ts-ignore
-  get minHeight(): LengthAuto {
-    return this.style.minHeight;
-  }
-
-  //@ts-ignore
-  set width(value: LengthAuto) {
-    this.style.width = value;
-  }
-
-  get width(): LengthAuto {
-    return this.style.width;
-  }
-
-  //@ts-ignore
-  set height(value: LengthAuto) {
-    this.style.height = value;
-  }
-
-  get height(): LengthAuto {
-    return this.style.height;
-  }
-
-  //@ts-ignore
-  get minHeight(): LengthAuto {
-    return this.style.minHeight;
+  [widthProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.width = value;
+    }
   }
 
   set maxWidth(value: LengthAuto) {
