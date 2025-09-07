@@ -71,12 +71,14 @@ func measureBlock(text: NSAttributedString, maxWidth: CGFloat) -> CGSize {
                                                                    constraintSize,
                                                                    nil)
   
+  print("DEBUG measureBlock: text='\(text.string)', maxWidth=\(maxWidth), rawSuggestedSize=\(suggestedSize)")
   
   let scale = CGFloat(NSCMason.scale)
   
   suggestedSize.width = suggestedSize.width * scale
   suggestedSize.height = suggestedSize.height * scale
   
+  print("DEBUG measureBlock final: scaledSize=\(suggestedSize), scale=\(scale)")
   
   return suggestedSize
 }
@@ -148,7 +150,6 @@ class ViewHelper {
   func updateImage(_ afterScreenUpdates: Bool = true) {
     guard let view = view else { return }
     let layout =  node.computedLayout
-    
     
     let size = CGSize(width: CGFloat(layout.width / NSCMason.scale), height:CGFloat( layout.height / NSCMason.scale))
     
@@ -388,7 +389,7 @@ public class MasonText: UIView, MasonView {
   
   
   private static func createTextStyles() -> NSMutableData{
-    var data = NSMutableData(length: Int(TextStyleKeys.TEXT_OVERFLOW) + 4)
+    let data = NSMutableData(length: Int(TextStyleKeys.TEXT_OVERFLOW) + 4)
     data?.mutableBytes.advanced(by: TextStyleKeys.COLOR).assumingMemoryBound(to: UInt32.self).pointee = 0xFF000000
     data?.mutableBytes.advanced(by: TextStyleKeys.BACKGROUND_COLOR).assumingMemoryBound(to: UInt32.self).pointee = 0
     data?.mutableBytes.advanced(by: TextStyleKeys.DECORATION_COLOR).assumingMemoryBound(to: UInt32.self).pointee = UNSET_COLOR
@@ -404,14 +405,14 @@ public class MasonText: UIView, MasonView {
   
   private func initText(){
     isOpaque = false
-    
+    node.data = self
     textNode.data = self
+    textNode.isText = true
     textNode.measureFunc = { known, available in
       return MasonText.measure(self, known, available)
     }
     textNode.style.display = .Inline
     textNode.setMeasureFunction(textNode.measureFunc!)
-    node.addChild(textNode)
     let scale = NSCMason.scale
     node.inBatch = true
     switch(type){
@@ -645,6 +646,7 @@ public class MasonText: UIView, MasonView {
   }
   
   private func invalidateFont(){
+    print("invalidateFont", fontSize)
     if(!txt.string.isEmpty){
       let range = NSRange(location: 0, length: txt.string.count)
       txt.removeAttribute(.font, range: range)
@@ -1106,9 +1108,64 @@ public class MasonText: UIView, MasonView {
       getAscent: { refCon in
         let nodePtr = Unmanaged<MasonNode>.fromOpaque(refCon)
         let node =  nodePtr.takeUnretainedValue()
-        return CGFloat(node.computedLayout.width / NSCMason.scale)
+        let parent = node.owner?.getChildAt(0)?.data
+        guard let parentText = parent as? MasonText else { return 0}
+        let height = CGFloat(node.computedLayout.height / NSCMason.scale)
+        
+        // Web behavior: inline elements align to baseline
+        let ctFont = CTFontCreateWithGraphicsFont(parentText.font.font!, parentText.fontSize, nil, nil)
+        let fontAscent = CTFontGetAscent(ctFont)
+        let fontDescent = CTFontGetDescent(ctFont)
+        let lineHeight = fontAscent + fontDescent
+        
+        print("DEBUG getAscent: height=\(height), fontAscent=\(fontAscent), fontDescent=\(fontDescent), lineHeight=\(lineHeight)")
+        
+        // CSS behavior: Always account for the full height of the inline element
+        // Distribute the height based on baseline alignment
+        let result: CGFloat
+        if height <= lineHeight {
+          // Small element: distribute proportionally based on font metrics
+          let ascentRatio = fontAscent / lineHeight
+          result = height * ascentRatio
+        } else {
+          // Large element: use font ascent as baseline reference + proportional excess
+          let excess = height - lineHeight
+          let ascentRatio = fontAscent / lineHeight
+          result = fontAscent + (excess * ascentRatio)
+        }
+        
+        print("DEBUG getAscent result: \(result)")
+        return result
       },
-      getDescent: { _ in 0 },
+      getDescent: { refCon in
+        let nodePtr = Unmanaged<MasonNode>.fromOpaque(refCon)
+        let node =  nodePtr.takeUnretainedValue()
+        let parent = node.owner?.getChildAt(0)?.data
+        guard let parentText = parent as? MasonText else { return 0}
+        let height = CGFloat(node.computedLayout.height / NSCMason.scale)
+        
+        let ctFont = CTFontCreateWithGraphicsFont(parentText.font.font!, parentText.fontSize, nil, nil)
+        let fontAscent = CTFontGetAscent(ctFont)
+        let fontDescent = CTFontGetDescent(ctFont)
+        let lineHeight = fontAscent + fontDescent
+     
+        print("DEBUG getDescent: height=\(height), fontAscent=\(fontAscent), fontDescent=\(fontDescent), lineHeight=\(lineHeight)")
+        
+        let result: CGFloat
+        if height <= lineHeight {
+          // Small element: distribute proportionally based on font metrics
+          let descentRatio = fontDescent / lineHeight
+          result = height * descentRatio
+        } else {
+          // Large element: use font descent as baseline reference + remaining excess
+          let excess = height - lineHeight
+          let ascentRatio = fontAscent / lineHeight
+          result = fontDescent + (excess * (1.0 - ascentRatio))
+        }
+        
+        print("DEBUG getDescent result: \(result)")
+        return result
+      },
       getWidth: { refCon in
         let nodePtr = Unmanaged<MasonNode>.fromOpaque(refCon)
         let node =  nodePtr.takeUnretainedValue()
@@ -1156,7 +1213,7 @@ public class MasonText: UIView, MasonView {
            var ascent: CGFloat = 0
            var descent: CGFloat = 0
            var leading: CGFloat = 0
-           let lineWidth = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
+           let _ = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
            
   
            var drawLine: CTLine = line
@@ -1178,8 +1235,6 @@ public class MasonText: UIView, MasonView {
            }
       
            
-        
-          // context.textPosition = CGPoint(x: 0, y: ascent)
            CTLineDraw(drawLine, context)
            
            context.restoreGState()
@@ -1198,6 +1253,8 @@ public class MasonText: UIView, MasonView {
       bounds = bounds.inset(by: padding)
     }
     
+    print(bounds)
+    
     
     let path = CGPath(rect: bounds, transform: nil)
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
@@ -1208,7 +1265,8 @@ public class MasonText: UIView, MasonView {
       return
     }
     
-    
+  
+  
     if(textWrap != .NoWrap){
       CTFrameDraw(frame, context)
     }
@@ -1217,10 +1275,20 @@ public class MasonText: UIView, MasonView {
     var origins = [CGPoint](repeating: .zero, count: lines.count)
     CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
     
+    print("DEBUG draw: lines.count=\(lines.count), bounds=\(bounds)")
+
     for (lineIndex, line) in lines.enumerated() {
       var drawLine = line
       
+      // Debug line metrics
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      var leading: CGFloat = 0
+      let lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading)
+      let lineHeight = ascent + descent + leading
       
+      print("DEBUG line \(lineIndex): origin=\(origins[lineIndex]), width=\(lineWidth), ascent=\(ascent), descent=\(descent), leading=\(leading), total height=\(lineHeight)")
+            
       if textWrap == .NoWrap && lineIndex == 0 {
         let attributes = text.length > 0 ? text.attributes(at: 0, effectiveRange: nil) : [:]
         var token = ""
@@ -1244,6 +1312,7 @@ public class MasonText: UIView, MasonView {
           drawLine = truncated
         }
       }
+      
       
       if(textWrap == .NoWrap){
         let origin = origins[lineIndex]
@@ -1347,9 +1416,12 @@ public class MasonText: UIView, MasonView {
   
   
   private func createViewAttachment(view: UIView, mason: NSCMason) -> (ViewHelper, NSMutableAttributedString){
-    let attachment = ViewHelper(view: view, mason: node.mason)
+    let attachment = ViewHelper(view: view, mason: mason)
     
-    let delegate = createRunDelegate(node: node.mason.nodeForView(view))
+    // Configure the inline view's node to display as inline
+    attachment.node.style.display = .Inline
+    
+    let delegate = createRunDelegate(node: mason.nodeForView(view))
     
     let attrString = NSMutableAttributedString("\u{FFFC}")
     attrString.addAttributes([
@@ -1410,6 +1482,10 @@ public class MasonText: UIView, MasonView {
       return txt.string
     }
     set {
+      if(textNode.owner == nil){
+        node.addChild(textNode)
+      }
+      
       let string = newValue ?? ""
       
       

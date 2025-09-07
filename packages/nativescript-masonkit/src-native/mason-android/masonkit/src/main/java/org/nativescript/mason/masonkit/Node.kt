@@ -10,7 +10,7 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
   internal var computeCacheHeight: Float? = null
   var computedLayout: Layout = Layout.empty()
     internal set
-
+  internal var isText = false
   internal var knownWidth: Float? = null
   internal var knownHeight: Float? = null
   internal var availableWidth: Float? = null
@@ -39,11 +39,11 @@ class Node internal constructor(internal val mason: Mason, internal var nativePt
   }
 
 
-  internal var isText = false
+  internal var isTextView = false
   var data: Any? = null
     internal set(value) {
       field = value
-      isText = data is TextView
+      isTextView = data is TextView
     }
 
 

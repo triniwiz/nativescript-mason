@@ -91,6 +91,7 @@ export class Img extends ImageBase {
   }
 
   _setNativeViewFrame(nativeView: any, frame: CGRect): void {
+    console.log('Setting native view frame:', frame, this);
     nativeView.frame = frame;
   }
 }

@@ -114,11 +114,16 @@ class TextView @JvmOverloads constructor(
   private fun setup(mason: Mason) {
     TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
     node = mason.createNode(this)
-    textNode = mason.createNode(this).apply {
-      data = this@TextView
-      style.display = Display.Inline
-    }
+      .apply {
+        data = this@TextView
+        isTextView = true
+      }
 
+    textNode = mason.createNode(this)
+      .apply {
+        style.display = Display.Inline
+        isText = true
+      }
     val scale = context.resources.displayMetrics.density
     val margin = { top: Float, bottom: Float ->
       Rect<LengthPercentageAuto>(
@@ -924,7 +929,7 @@ class TextView @JvmOverloads constructor(
     if (text == null) {
       node.removeChild(textNode)
     } else {
-      node.addChildAt(textNode, 0)
+      node.addChild(textNode)
     }
 
     spannableText = text

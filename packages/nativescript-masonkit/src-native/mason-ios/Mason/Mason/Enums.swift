@@ -1660,6 +1660,18 @@ public class GridTrackRepetition: NSObject {
     init(repetition: GridTrackRepetitionType) {
         self.repetition = repetition
     }
+  
+  
+  public var cssValue: String {
+    switch (repetition) {
+    case .AutoFill  :
+      return "auto-fill"
+    case .AutoFit:
+      return "auto-fit"
+    case .Count(let count):
+      return "\(count)"
+    }
+  }
     
     public var type: Int32 {
         switch(repetition){

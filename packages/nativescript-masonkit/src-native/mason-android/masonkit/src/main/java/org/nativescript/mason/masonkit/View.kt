@@ -70,6 +70,10 @@ class View @JvmOverloads constructor(
     val view = node.data as? android.view.View
     node.computedLayout = layout
 
+    if (node.isText) {
+      return
+    }
+
     if (view != null && view != this) {
       var realLayout = layout
       var isText = false
@@ -86,8 +90,8 @@ class View @JvmOverloads constructor(
         hasHeightConstraint = node.style.size.height != Dimension.Auto
       }
 
-      var x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-      var y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+      val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
+      val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
       var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
       var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
 

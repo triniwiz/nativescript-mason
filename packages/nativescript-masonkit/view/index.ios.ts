@@ -13,7 +13,7 @@ export class View extends ViewBase {
     this._hasNativeView = true;
     this._view = view;
   }
-  get _styleHelper() {
+  get _styleHelper(): Style {
     if (this[style_] === undefined) {
       this[style_] = Style.fromView(this as never, this._view);
     }
@@ -107,13 +107,11 @@ export class View extends ViewBase {
   }
 
   _setNativeViewFrame(nativeView: any, frame: CGRect): void {
-    console.log('_setNativeViewFrame', frame);
     nativeView.frame = frame;
   }
 
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
-    console.log('_addViewToNativeVisualTree', child);
     const nativeView = this._view;
     // @ts-ignore
     child._masonParent = this;
@@ -133,7 +131,6 @@ export class View extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
-    console.log('_removeViewFromNativeVisualTree', view);
     view._masonParent = undefined;
     view._isMasonView = false;
     view._isMasonChild = false;

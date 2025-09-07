@@ -33,7 +33,8 @@ public class NSCMason: NSObject {
     guard let node = viewNodes[view] else {
       let node = MasonNode(mason: self)
       node.data = view
-      if(isLeaf && (view is UILabel)){
+      if(isLeaf){
+        // Set measure function for all leaf nodes (inline elements)
         node.setDefaultMeasureFunction()
       }
 

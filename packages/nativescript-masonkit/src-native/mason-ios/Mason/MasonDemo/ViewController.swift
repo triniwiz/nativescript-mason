@@ -144,6 +144,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
   
   func textSample(){
+    print("=== textSample() STARTING ===")
     let text = mason.createTextView()
     text.setColor(ui: .blue)
     text.decorationLine = .Underline
@@ -269,6 +270,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
   var data:Data!
   override func viewDidLoad() {
+    print("=== viewDidLoad() STARTING ===")
     //  super.viewDidLoad()
     //        var i = 0
     //        repeat {
@@ -337,12 +339,13 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
    // wrapper6()
     
     
-    // imageExample()
+     imageExample()
+     //textSample()
      // gridSample()
     
       //testLateUpdate()
     
-    scrollTest()
+   // scrollTest()
     
    // headers()
     
@@ -644,23 +647,58 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
   }
   
   func imageExample(){
+    print("=== imageExample() STARTING ===")
     let root = mason.createView()
     root.configure { node in
-      node.style.marginTop = .Points(100)
+      node.style.marginTop = .Points(300)
       node.style.marginLeft = .Points(100)
     }
     container.addView(root)
     
-    let image = UIImageView(frame: .zero)
+    let txt = mason.createTextView()
+    txt.backgroundColor = .orange
     
-    mason.nodeForView(image).style.sizeCompatWidth = MasonDimensionCompat(percent: 1)
+    txt.text = "Hello"
+    print("=== Setting text: Hello ===")
     
+    let image = mason.createImageView()
+    
+    image.style.sizeCompatWidth = MasonDimensionCompat(percent: 1)
+    
+    let view = container.mason.createView()
+    view.backgroundColor = .red
+    view.style.size = MasonSize(uniform: .Points(300))
+    
+    print("=== Adding inline red view (100x100) ===")
+    txt.addView(view)
+    
+    
+    let txt2 = mason.createTextView()
+    
+    txt2.text = "Is it working ?"
+    
+    
+    let txt3 = mason.createTextView()
+    txt3.backgroundColor = .purple
+    
+    txt3.text = "HMM"
+    print("=== Setting text: Hello ===")
+    
+    root.addView(txt)
+    
+    root.addView(txt2)
+    
+    root.addView(image)
+    
+    txt2.addView(txt3)
+    
+    root.backgroundColor = .yellow
     
     DispatchQueue.global().async { [self] in
       do {
         let data = try Data(contentsOf: URL(string: "https://picsum.photos/600/600")!)
         
-        let side = CGFloat(500 / scale)
+        let side = CGFloat(300 / scale)
         
         let img = resizeImage(UIImage(data: data)!, CGSize(width: side, height: side))
         
@@ -668,14 +706,14 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
           image.image = img
           self.mason.nodeForView(image).style.size = MasonSize(uniform: .Points(Float(side)))
           self.container.node.computeWithMaxContent()
+          print("\n","txt",txt.node.computedLayout)
+          print("\n","view",view.node.computedLayout)
         }
       }catch{
         print(error)
       }
     }
     
-    
-    root.addView(image)
     
     
     

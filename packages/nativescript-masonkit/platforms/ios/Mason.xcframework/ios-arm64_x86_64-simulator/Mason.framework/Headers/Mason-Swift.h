@@ -422,6 +422,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonGridPlacementCompatType, "GridPlacement
 
 SWIFT_CLASS_NAMED("GridTrackRepetition")
 @interface MasonGridTrackRepetition : NSObject
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 @property (nonatomic, readonly) int32_t type;
 @property (nonatomic, readonly) uint16_t value;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonGridTrackRepetition * _Nonnull AutoFill;)
@@ -792,7 +793,9 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, strong) LineGridPlacementCompat * _Nonnull gridRowCompat;
 @property (nonatomic, strong) GridPlacementCompat * _Nonnull gridRowStartCompat;
 @property (nonatomic, strong) GridPlacementCompat * _Nonnull gridRowEndCompat;
+@property (nonatomic, readonly, copy) NSString * _Nonnull gridTemplateRowsCSS;
 @property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateRows;
+@property (nonatomic, readonly, copy) NSString * _Nonnull gridTemplateColumnsCSS;
 @property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateColumns;
 - (void)updateNativeStyle;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
@@ -1230,6 +1233,7 @@ SWIFT_CLASS_NAMED("TrackSizingFunction")
 @property (nonatomic, readonly) id _Nullable value;
 + (TrackSizingFunction * _Nonnull)Single:(MinMax * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
 + (TrackSizingFunction * _Nonnull)AutoRepeat:(MasonGridTrackRepetition * _Nonnull)gridTrackRepetition :(NSArray<MinMax *> * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
@@ -1674,6 +1678,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonGridPlacementCompatType, "GridPlacement
 
 SWIFT_CLASS_NAMED("GridTrackRepetition")
 @interface MasonGridTrackRepetition : NSObject
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 @property (nonatomic, readonly) int32_t type;
 @property (nonatomic, readonly) uint16_t value;
 SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonGridTrackRepetition * _Nonnull AutoFill;)
@@ -2044,7 +2049,9 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, strong) LineGridPlacementCompat * _Nonnull gridRowCompat;
 @property (nonatomic, strong) GridPlacementCompat * _Nonnull gridRowStartCompat;
 @property (nonatomic, strong) GridPlacementCompat * _Nonnull gridRowEndCompat;
+@property (nonatomic, readonly, copy) NSString * _Nonnull gridTemplateRowsCSS;
 @property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateRows;
+@property (nonatomic, readonly, copy) NSString * _Nonnull gridTemplateColumnsCSS;
 @property (nonatomic, copy) NSArray<TrackSizingFunction *> * _Nonnull gridTemplateColumns;
 - (void)updateNativeStyle;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
@@ -2482,6 +2489,7 @@ SWIFT_CLASS_NAMED("TrackSizingFunction")
 @property (nonatomic, readonly) id _Nullable value;
 + (TrackSizingFunction * _Nonnull)Single:(MinMax * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
 + (TrackSizingFunction * _Nonnull)AutoRepeat:(MasonGridTrackRepetition * _Nonnull)gridTrackRepetition :(NSArray<MinMax *> * _Nonnull)value SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, copy) NSString * _Nonnull cssValue;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end

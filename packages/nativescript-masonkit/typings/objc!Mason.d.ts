@@ -312,6 +312,8 @@ declare class MasonGridTrackRepetition extends NSObject {
 
 	static new(): MasonGridTrackRepetition; // inherited from NSObject
 
+	readonly cssValue: string;
+
 	readonly type: number;
 
 	readonly value: number;
@@ -892,7 +894,11 @@ declare class MasonStyle extends NSObject {
 
 	gridTemplateColumns: NSArray<TrackSizingFunction>;
 
+	readonly gridTemplateColumnsCSS: string;
+
 	gridTemplateRows: NSArray<TrackSizingFunction>;
+
+	readonly gridTemplateRowsCSS: string;
 
 	insetCompat: MasonLengthPercentageAutoRectCompat;
 
@@ -1072,7 +1078,7 @@ declare class MasonText extends UIView {
 
 	textTransform: MasonTextTransform;
 
-	readonly textValues: NSData;
+	readonly textValues: NSMutableData;
 
 	textWrap: MasonTextWrap;
 
@@ -1783,6 +1789,8 @@ declare class TrackSizingFunction extends NSObject {
 	static alloc(): TrackSizingFunction; // inherited from NSObject
 
 	static new(): TrackSizingFunction; // inherited from NSObject
+
+	readonly cssValue: string;
 
 	readonly isRepeating: boolean;
 

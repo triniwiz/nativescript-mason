@@ -12,87 +12,110 @@ import Foundation
 @objc(TrackSizingFunction)
 @objcMembers
 public class TrackSizingFunction: NSObject {
-    internal(set) public var isRepeating: Bool
-   
-    var singleValue: MinMax?
-    var gridTrackRepetition: GridTrackRepetition?
-    var repeatValue: Array<MinMax>?
-    
-    var cValue: CMasonTrackSizingFunction
-
-    
-    public var value: Any? {
-        get {
-            if(isRepeating){
-                return repeatValue
-            }
-            return singleValue
-        }
+  internal(set) public var isRepeating: Bool
+  
+  var singleValue: MinMax?
+  var gridTrackRepetition: GridTrackRepetition?
+  var repeatValue: Array<MinMax>?
+  
+  var cValue: CMasonTrackSizingFunction
+  
+  
+  public var value: Any? {
+    get {
+      if(isRepeating){
+        return repeatValue
+      }
+      return singleValue
     }
+  }
+  
+  init(isRepeating: Bool, singleValue: MinMax? = nil, gridTrackRepetition: GridTrackRepetition? = nil, repeatValue: Array<MinMax>? = nil) {
+    self.isRepeating = isRepeating
+    self.singleValue = singleValue
+    self.gridTrackRepetition = gridTrackRepetition
+    self.repeatValue = repeatValue
+    self.cValue = CMasonTrackSizingFunction()
+  }
+  
+  
+  public static func Single(_ value: MinMax) -> TrackSizingFunction {
+    let ret = TrackSizingFunction(isRepeating: false, singleValue: value)
     
-    init(isRepeating: Bool, singleValue: MinMax? = nil, gridTrackRepetition: GridTrackRepetition? = nil, repeatValue: Array<MinMax>? = nil) {
-        self.isRepeating = isRepeating
-        self.singleValue = singleValue
-        self.gridTrackRepetition = gridTrackRepetition
-        self.repeatValue = repeatValue
-        self.cValue = CMasonTrackSizingFunction()
-    }
+    var tracking = CMasonTrackSizingFunction()
     
+    tracking.tag = CMasonTrackSizingFunction_Tag(0)
     
-    public static func Single(_ value: MinMax) -> TrackSizingFunction {
-        let ret = TrackSizingFunction(isRepeating: false, singleValue: value)
-        
-        var tracking = CMasonTrackSizingFunction()
-        
-        tracking.tag = CMasonTrackSizingFunction_Tag(0)
+    tracking.single = ret.singleValue!.cValue
     
-        tracking.single = ret.singleValue!.cValue
+    ret.cValue = tracking
     
-        ret.cValue = tracking
+    return ret
+  }
+  
+  var minMaxBuffer: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>? = nil
+  
+  var minMaxBufferValues: UnsafeMutableBufferPointer<CMasonMinMax>? = nil
+  
+  deinit {
+    minMaxBuffer?.deallocate()
+    minMaxBufferValues?.deallocate()
+  }
+  
+  
+  public static func AutoRepeat(_ gridTrackRepetition: GridTrackRepetition, _ value: Array<MinMax>) -> TrackSizingFunction {
+    let ret = TrackSizingFunction(isRepeating: true, singleValue: nil, gridTrackRepetition: gridTrackRepetition, repeatValue: value)
     
-        return ret
-    }
+    let minMaxValues = UnsafeMutableBufferPointer<CMasonMinMax>.allocate(capacity: value.count)
     
-    var minMaxBuffer: UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>? = nil
+    let _ = minMaxValues.initialize(from: value.map({ value in
+      value.cValue
+    }))
     
-    var minMaxBufferValues: UnsafeMutableBufferPointer<CMasonMinMax>? = nil
+    ret.minMaxBufferValues = minMaxValues
     
-    deinit {
-        minMaxBuffer?.deallocate()
-        minMaxBufferValues?.deallocate()
-    }
-
+    let minMaxBuffer = UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>.allocate(capacity: 1)
     
-    public static func AutoRepeat(_ gridTrackRepetition: GridTrackRepetition, _ value: Array<MinMax>) -> TrackSizingFunction {
-        let ret = TrackSizingFunction(isRepeating: true, singleValue: nil, gridTrackRepetition: gridTrackRepetition, repeatValue: value)
-        
-        let minMaxValues = UnsafeMutableBufferPointer<CMasonMinMax>.allocate(capacity: value.count)
-      
-        let _ = minMaxValues.initialize(from: value.map({ value in
-            value.cValue
-        }))
-                
-        ret.minMaxBufferValues = minMaxValues
-        
-        let minMaxBuffer = UnsafeMutablePointer<CMasonNonRepeatedTrackSizingFunctionArray>.allocate(capacity: 1)
-   
-        minMaxBuffer.pointee.array = minMaxValues.baseAddress
-        minMaxBuffer.pointee.length = UInt(value.count)
-
-        ret.minMaxBuffer = minMaxBuffer
-        
-        var tracking = CMasonTrackSizingFunction()
+    minMaxBuffer.pointee.array = minMaxValues.baseAddress
+    minMaxBuffer.pointee.length = UInt(value.count)
     
-        tracking.tag = Repeat
-                
-        tracking.repeat = Repeat_Body(_0: gridTrackRepetition.type, _1: gridTrackRepetition.value, _2: minMaxBuffer)
-        
-        ret.cValue = tracking
+    ret.minMaxBuffer = minMaxBuffer
     
-       return ret
-    }
+    var tracking = CMasonTrackSizingFunction()
     
+    tracking.tag = Repeat
+    
+    tracking.repeat = Repeat_Body(_0: gridTrackRepetition.type, _1: gridTrackRepetition.value, _2: minMaxBuffer)
+    
+    ret.cValue = tracking
+    
+    return ret
+  }
+  
   public var cssValue: String {
+    
+    if(!isRepeating){
+      return singleValue?.cssValue ?? ""
+    }
+    guard let gridTrackRepetition = gridTrackRepetition, let repeatValue = repeatValue  else {
+      return ""
+    }
+    if(repeatValue.isEmpty){
+      return ""
+    }
+    var builder = "repeat(\(gridTrackRepetition.cssValue), "
+    
+    
+    let last = repeatValue.count - 1
+    repeatValue.enumerated().forEach { value in
+      if(value.offset == last){
+        builder += value.element.cssValue
+      }else {
+        builder += "\(value.element.cssValue) "
+      }
+    }
+    builder += ")"
+    return builder
     
   }
 }

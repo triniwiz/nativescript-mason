@@ -18,8 +18,8 @@ module.exports = {
     // demos
     apps: {
       '...Vanilla...': {
-        script: `npx cowsay "Nothing wrong with vanilla 🍦"`,
-        description: ` 🔻 Vanilla`,
+        script: 'npx cowsay "Nothing wrong with vanilla 🍦"',
+        description: ' 🔻 Vanilla',
       },
       demo: {
         clean: {
@@ -36,24 +36,44 @@ module.exports = {
         },
       },
       '...Angular...': {
-        script: `npx cowsay "Test all the Angles!"`,
-        description: ` 🔻 Angular`,
+        script: 'npx cowsay "Test all the Angles!"',
+        description: ' 🔻 Angular',
       },
       'demo-angular': {
         clean: {
-          script: 'nx clean demo-angular',
+          script: 'nx run demo-angular:clean',
           description: '⚆  Clean  🧹',
         },
         ios: {
-          script: 'nx debug demo-angular ios',
+          script: 'nx run demo-angular:ios',
           description: '⚆  Run iOS  ',
         },
         android: {
-          script: 'nx debug demo-angular android',
+          script: 'nx run demo-angular:android',
+          description: '⚆  Run Android  🤖',
+        },
+      },
+
+      '...Vue...': {
+        script: 'npx cowsay "You like the vue here..."',
+        description: ' 🔻 Vue',
+      },
+      'demo-vue': {
+        clean: {
+          script: 'nx clean demo-vue',
+          description: '⚆  Clean  🧹',
+        },
+        ios: {
+          script: 'nx debug demo-vue ios',
+          description: '⚆  Run iOS  ',
+        },
+        android: {
+          script: 'nx debug demo-vue android',
           description: '⚆  Run Android  🤖',
         },
       },
     },
+
     '⚙️': {
       script: `npx cowsay "@triniwiz/* packages will keep your ⚙️ cranking"`,
       description: '_____________  @triniwiz/*  _____________',

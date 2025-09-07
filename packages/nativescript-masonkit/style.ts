@@ -1,6 +1,6 @@
 import { layout } from '@nativescript/core/utils';
 import type { GridAutoFlow, Length, LengthAuto, View } from '.';
-import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
+import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Length } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns } from './utils';
 
 enum StyleKeys {
@@ -118,7 +118,7 @@ enum TextStyleKeys {
   TEXT_WRAP = 40,
 }
 
-export type OverFlow = 'visible' | 'hidden' | 'scroll';
+export type OverFlow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
 
 function parseLengthPercentageAuto(type: number, value: number): LengthAuto {
   switch (type) {
@@ -1392,7 +1392,10 @@ export class Style {
   }
 
   get gap() {
-    return `${this.rowGap} ${this.columnGap}`;
+    if (CoreLength.equals(this.rowGap as never, this.columnGap as never)) {
+      return `${CoreLength.convertToString(this.rowGap as never)}`;
+    }
+    return `${CoreLength.convertToString(this.rowGap as never)} ${CoreLength.convertToString(this.columnGap as never)}`;
   }
 
   set gap(value: string) {
@@ -1426,6 +1429,7 @@ export class Style {
   }
 
   set rowGap(value: Length) {
+    console.log('Setting rowGap:', value);
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.GAP_ROW_TYPE, 0);
@@ -1455,10 +1459,12 @@ export class Style {
   get columnGap(): Length {
     const type = getInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE);
+    console.log('Getting columnGap:', parseLengthPercentage(type, value), type, value);
     return parseLengthPercentage(type, value);
   }
 
   set columnGap(value: Length) {
+    console.log('Setting columnGap:', value);
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 0);
@@ -1909,6 +1915,9 @@ export class Style {
 
   // gridArea: string;
   get gridColumn() {
+    if (this.gridColumnStart === this.gridColumnEnd) {
+      return `${this.gridColumnStart}`;
+    }
     return `${this.gridColumnStart} / ${this.gridColumnEnd}`;
   }
 
@@ -1918,17 +1927,17 @@ export class Style {
         return 'auto';
       case 1: {
         const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE);
+        // if (value === 1) {
+        //   return 'auto';
+        // }
+        return `${value}`;
+      }
+      case 2: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE);
         if (value === 0) {
           return 'span';
         }
         return `span ${value}`;
-      }
-      case 2: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE);
-        if (value === 1) {
-          return 'auto';
-        }
-        return `${value}`;
       }
     }
   }
@@ -1941,16 +1950,19 @@ export class Style {
 
     switch (line.type) {
       case 'auto':
+      case 0:
         setInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE, 0);
         setInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE, 1);
         break;
-      case 'span':
+      case 'line':
+      case 1:
         if (line.value !== undefined) {
           setInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE, 1);
           setInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE, line.value);
         }
         break;
-      case 'line':
+      case 'span':
+      case 2:
         if (line.value !== undefined) {
           setInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE, 2);
           setInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE, line.value);
@@ -1965,17 +1977,17 @@ export class Style {
         return 'auto';
       case 1: {
         const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE);
+        // if (value === 1) {
+        //   return 'auto';
+        // }
+        return `${value}`;
+      }
+      case 2: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE);
         if (value === 0) {
           return 'span';
         }
         return `span ${value}`;
-      }
-      case 2: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE);
-        if (value === 1) {
-          return 'auto';
-        }
-        return `${value}`;
       }
     }
   }
@@ -1988,16 +2000,19 @@ export class Style {
 
     switch (line.type) {
       case 'auto':
+      case 0:
         setInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE, 0);
         setInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE, 1);
         break;
-      case 'span':
+      case 'line':
+      case 1:
         if (line.value !== undefined) {
           setInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE, 1);
           setInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE, line.value);
         }
         break;
-      case 'line':
+      case 'span':
+      case 2:
         if (line.value !== undefined) {
           setInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE, 2);
           setInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE, line.value);
@@ -2007,6 +2022,9 @@ export class Style {
   }
 
   get gridRow(): string {
+    if (this.gridRowStart === this.gridRowEnd) {
+      return `${this.gridRowStart}`;
+    }
     return `${this.gridRowStart} / ${this.gridRowEnd}`;
   }
 
@@ -2016,17 +2034,17 @@ export class Style {
         return 'auto';
       case 1: {
         const value = getInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE);
+        // if (value === 1) {
+        //   return 'auto';
+        // }
+        return `${value}`;
+      }
+      case 2: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE);
         if (value === 0) {
           return 'span';
         }
         return `span ${value}`;
-      }
-      case 2: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE);
-        if (value === 1) {
-          return 'auto';
-        }
-        return `${value}`;
       }
     }
   }
@@ -2039,16 +2057,19 @@ export class Style {
 
     switch (line.type) {
       case 'auto':
+      case 0:
         setInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE, 0);
         setInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE, 1);
         break;
-      case 'span':
+      case 'line':
+      case 1:
         if (line.value !== undefined) {
           setInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE, 1);
           setInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE, line.value);
         }
         break;
-      case 'line':
+      case 'span':
+      case 2:
         if (line.value !== undefined) {
           setInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE, 2);
           setInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE, line.value);
@@ -2061,19 +2082,20 @@ export class Style {
     switch (getInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE)) {
       case 0:
         return 'auto';
+
       case 1: {
+        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE);
+        // if (value === 1) {
+        //   return 'auto';
+        // }
+        return `${value}`;
+      }
+      case 2: {
         const value = getInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE);
         if (value === 0) {
           return 'span';
         }
         return `span ${value}`;
-      }
-      case 2: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE);
-        if (value === 1) {
-          return 'auto';
-        }
-        return `${value}`;
       }
     }
   }
@@ -2086,16 +2108,19 @@ export class Style {
 
     switch (line.type) {
       case 'auto':
+      case 0:
         setInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE, 0);
         setInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE, 1);
         break;
-      case 'span':
+      case 'line':
+      case 1:
         if (line.value !== undefined) {
           setInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE, 1);
           setInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE, line.value);
         }
         break;
-      case 'line':
+      case 'span':
+      case 2:
         if (line.value !== undefined) {
           setInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE, 2);
           setInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE, line.value);
@@ -2203,7 +2228,7 @@ export class Style {
     }
   }
 
-  set overflowX(value: 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto') {
+  set overflowX(value: OverFlow) {
     switch (value) {
       case 'visible':
         setInt32(this.style_view, StyleKeys.OVERFLOW_X, 0);
@@ -2228,7 +2253,7 @@ export class Style {
     }
   }
 
-  set overflowY(value: 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto') {
+  set overflowY(value: OverFlow) {
     switch (value) {
       case 'visible':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 0);

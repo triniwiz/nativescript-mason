@@ -44,10 +44,10 @@ class TextActivity : AppCompatActivity() {
 
     // basicNesting()
     // testText()
-    // textWithImage()
+     textWithImage()
     // basicBlock()
     // testWrap()
-    testElements()
+   // testElements()
     setContentView(root)
   }
 
@@ -87,24 +87,31 @@ class TextActivity : AppCompatActivity() {
   }
 
   fun textWithImage() {
-    val txt = TextView(this)
+    val txt = Mason.shared.createTextView(this)
     txt.setBackgroundColor(Color.CYAN)
     txt.backgroundColorValue = Color.GREEN
     txt.color = Color.RED
     txt.updateText("Inline Image ")
 
-    val img = Img(this)
+    val img =  Mason.shared.createImageView(this)
     img.setBackgroundColor(Color.BLUE)
 
     img.node.style.size = Size(
       Dimension.Points(150f), Dimension.Points(150f)
     )
 
-    txt.addView(img)
     img.setImageResource(R.mipmap.ic_launcher_ns)
 
 
+    val txt2 = Mason.shared.createTextView(this)
+    txt2.backgroundColorValue = Color.YELLOW
+    txt2.color = Color.BLUE
+    txt2.updateText("Hello ???")
+
+
     root.addView(txt)
+    txt.addView(txt2)
+    root.addView(img)
 
 
   }

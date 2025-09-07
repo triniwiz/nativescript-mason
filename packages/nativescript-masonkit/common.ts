@@ -831,7 +831,7 @@ export const gridColumnProperty = new ShorthandProperty<Style, string>({
     if (this.gridColumnStart === this.gridColumnEnd) {
       return this.gridColumnStart;
     }
-    return `${this.gridColumnStart} / ${this.gridColumnStart}`;
+    return `${this.gridColumnStart} / ${this.gridColumnEnd}`;
   },
   converter(value) {
     if (typeof value === 'string') {
@@ -899,7 +899,7 @@ export const gridRowProperty = new ShorthandProperty<Style, string>({
     if (this.gridRowStart === this.gridRowEnd) {
       return this.gridRowStart;
     }
-    return `${this.gridRowStart} / ${this.gridRowStart}`;
+    return `${this.gridRowStart} / ${this.gridRowEnd}`;
   },
   converter(value) {
     if (typeof value === 'string') {
@@ -1506,6 +1506,74 @@ srcProperty.register(ImageBase);
 // flexWrapProperty.register(Style);
 // flexGrowProperty.register(Style);
 // flexShrinkProperty.register(Style);
+
+paddingLeftProperty.overrideHandlers({
+  name: 'paddingLeft',
+  cssName: 'padding-left',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.paddingLeft = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.paddingLeft = oldValue as never;
+      }
+    }
+  },
+});
+
+paddingTopProperty.overrideHandlers({
+  name: 'paddingTop',
+  cssName: 'padding-top',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.paddingTop = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.paddingTop = oldValue as never;
+      }
+    }
+  },
+});
+
+paddingRightProperty.overrideHandlers({
+  name: 'paddingRight',
+  cssName: 'padding-right',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.paddingRight = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.paddingRight = oldValue as never;
+      }
+    }
+  },
+});
+
+paddingBottomProperty.overrideHandlers({
+  name: 'paddingBottom',
+  cssName: 'padding-bottom',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.paddingBottom = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.paddingBottom = oldValue as never;
+      }
+    }
+  },
+});
 
 insetProperty.register(Style);
 

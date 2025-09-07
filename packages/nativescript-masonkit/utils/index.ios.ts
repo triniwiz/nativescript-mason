@@ -14,6 +14,7 @@ type View = ViewBase & {
 
 import { parseUnit } from '@nativescript/core/css/parser';
 import type { Style } from '../style';
+import { Tree } from '../tree';
 
 const enum Overflow {
   Visible = 0,
@@ -478,7 +479,7 @@ export function _getAspectRatio(instance: View) {
   return Number.isNaN(ratio) ? null : ratio;
 }
 
-function _parseGridLine(value): { value: number; type: number } {
+export function _parseGridLine(value): { value: number; type: number } {
   let parsedValue = undefined;
   let parsedType = undefined;
 
@@ -1029,4 +1030,20 @@ export function _setGridAutoColumns(value, instance: View, initial = false) {
   }
 
   instance.ios.gridAutoColumns = array;
+}
+
+export function _getGridTemplateRows(instance: View) {
+  if (!instance._hasNativeView) {
+    return '';
+  }
+
+  return instance.ios.style.gridTemplateRowsCSS;
+}
+
+export function _getGridTemplateColumns(instance: View) {
+  if (!instance._hasNativeView) {
+    return '';
+  }
+
+  return instance.ios.style.gridTemplateColumnsCSS;
 }

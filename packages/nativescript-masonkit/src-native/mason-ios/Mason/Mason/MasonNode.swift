@@ -30,6 +30,9 @@ private func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRawP
 @objcMembers
 public class MasonNode: NSObject {
   internal var mason: NSCMason
+  
+  internal var isText = false
+  
   public internal(set) var nativePtr: OpaquePointer?
   
   public internal(set) var computedLayout = MasonLayout()
@@ -195,6 +198,13 @@ public class MasonNode: NSObject {
     MasonNode.applyToView(self, layout)
   }
   func getChildAt(_ index: Int) -> MasonNode? {
+    if(children.isEmpty){
+      return nil
+    }
+    let lastIndex = children.count - 1
+    if(index > lastIndex){
+      return nil
+    }
     return children[index]
   }
   
@@ -378,18 +388,22 @@ public class MasonNode: NSObject {
   
   static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
     node.computedLayout = layout
-    
+    // text view text node // do nothing for now
+    if(node.isText){
+      return
+    }
     if let view = node.data as? UIView {
+      var isTextView = false
       var realLayout = layout
-      var isText = false
       var hasWidthConstraint: Bool = false
       var hasHeightConstraint: Bool = false
       if let view = view as? MasonText {
+        isTextView = true
         realLayout = view.node.computedLayout
-        isText = true
         hasWidthConstraint = view.node.style.size.width != .Auto
         hasHeightConstraint = view.node.style.size.height != .Auto
       }
+      
       
       let widthIsNan = realLayout.width.isNaN
       
@@ -402,13 +416,13 @@ public class MasonNode: NSObject {
       var width = CGFloat(widthIsNan ? 0 : realLayout.width/NSCMason.scale)
       
       var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
-      
-      if(isText){
-        if(!hasWidthConstraint){
+            
+      if(isTextView){
+        if(!hasWidthConstraint && realLayout.contentSize.width > realLayout.width){
           width = CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale)
         }
         
-        if(!hasHeightConstraint){
+        if(!hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
           height = CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale)
         }
       }
@@ -426,9 +440,7 @@ public class MasonNode: NSObject {
       if let scroll = node.data as? Scroll {
         let overflow = node.style.overflow
         
-        
         scroll.contentSize = CGSize(width: CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), height: CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale))
-        
         
         node.handleOverflow(overflow.x, scroll)
         node.handleOverflow(overflow.y, scroll, true)
@@ -441,6 +453,9 @@ public class MasonNode: NSObject {
     let count = node.children.count
     for i in 0..<count{
       if let child = node.getChildAt(i) {
+        if(child.isText){
+          continue
+        }
         let layout = layout.children[i]
         applyToView(child, layout)
       }
@@ -473,7 +488,12 @@ public class MasonNode: NSObject {
       height = availableSpace.height
     }
     
-    return view.sizeThatFits(CGSize(width: width, height: height))
+    let constraintSize = CGSize(width: width, height: height)
+    let result = view.sizeThatFits(constraintSize)
+    
+    print("DEBUG MasonNode.measureFunction: view=\(type(of: view)), knownDimensions=\(String(describing: knownDimensions)), availableSpace=\(availableSpace), constraintSize=\(constraintSize), result=\(result), intrinsicSize=\(view.intrinsicContentSize)")
+    
+    return result
   }
   
   

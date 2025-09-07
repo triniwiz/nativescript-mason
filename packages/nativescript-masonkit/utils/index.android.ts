@@ -16,6 +16,7 @@ type View = ViewBase & {
 
 import { parseUnit } from '@nativescript/core/css/parser';
 import type { Style } from '../style';
+import { Tree } from '../tree';
 
 const enum Overflow {
   Visible = 0,
@@ -891,4 +892,37 @@ export function _setGridAutoColumns(value, instance: View, initial = false) {
       node.getStyle().setGridAutoColumns(array);
     }
   }
+}
+
+export function _getGridTemplateRows(instance: View) {
+  if (!instance._hasNativeView) {
+    return '';
+  }
+  if (__ANDROID__) {
+    return org.nativescript.mason.masonkit.StyleHelpers.gridTemplateRowsCSS(Tree.instance.native as never, instance.android);
+  }
+
+  const node = org.nativescript.mason.masonkit.Mason.getShared().nodeForView(instance.android as never);
+
+  if (node) {
+    const styles = node.getStyle();
+    return styles.getGridTemplateRows();
+  }
+
+  return [];
+}
+
+export function _getGridTemplateColumns(instance: View) {
+  if (!instance._hasNativeView) {
+    return [];
+  }
+
+  const node = org.nativescript.mason.masonkit.Mason.getShared().nodeForView(instance.android as never);
+
+  if (node) {
+    const styles = node.getStyle();
+    return styles.getGridTemplateColumns();
+  }
+
+  return [];
 }

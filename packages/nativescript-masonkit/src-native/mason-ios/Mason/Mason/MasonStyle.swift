@@ -1666,9 +1666,9 @@ public class MasonStyle: NSObject {
     let last = value.count - 1
     for (i, row) in value.enumerated() {
       if(i == last){
-        ret += "\(row)"
+        ret += "\(row.cssValue)"
       }else {
-        ret += "\(row) "
+        ret += "\(row.cssValue) "
       }
       
     }

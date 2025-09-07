@@ -954,7 +954,7 @@ class Style internal constructor(private var node: Node) {
       }
     }
     set(value) {
-      if (value == Inline && !node.isText) {
+      if (value == Inline && !node.isTextView) {
         return
       }
       var displayMode = DisplayMode.None

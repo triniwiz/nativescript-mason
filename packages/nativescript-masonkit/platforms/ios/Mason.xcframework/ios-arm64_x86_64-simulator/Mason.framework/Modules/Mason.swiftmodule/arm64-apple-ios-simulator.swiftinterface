@@ -434,6 +434,9 @@ extension UIKit.UIColor {
   @objc public static func Single(_ value: Mason.MinMax) -> Mason.TrackSizingFunction
   @objc deinit
   @objc public static func AutoRepeat(_ gridTrackRepetition: Mason.GridTrackRepetition, _ value: Swift.Array<Mason.MinMax>) -> Mason.TrackSizingFunction
+  @objc public var cssValue: Swift.String {
+    @objc get
+  }
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionCompat) public class MasonDimensionCompat : ObjectiveC.NSObject, Swift.Codable {
   @objc public init(points: Swift.Float)
@@ -887,9 +890,15 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc get
     @objc set
   }
+  @objc public var gridTemplateRowsCSS: Swift.String {
+    @objc get
+  }
   @objc public var gridTemplateRows: [Mason.TrackSizingFunction] {
     @objc get
     @objc set
+  }
+  @objc public var gridTemplateColumnsCSS: Swift.String {
+    @objc get
   }
   @objc public var gridTemplateColumns: [Mason.TrackSizingFunction] {
     @objc get
@@ -1264,6 +1273,9 @@ public enum GridPlacement : Swift.Codable {
   public init?(rawValue: Mason.GridPlacementCompatType.RawValue)
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonGridTrackRepetition) public class GridTrackRepetition : ObjectiveC.NSObject {
+  @objc public var cssValue: Swift.String {
+    @objc get
+  }
   @objc public var type: Swift.Int32 {
     @objc get
   }
