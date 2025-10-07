@@ -57,7 +57,6 @@ impl Into<taffy::style::Overflow> for Overflow {
     }
 }
 
-
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DisplayMode {
     None,
@@ -459,7 +458,7 @@ impl Clone for Style {
     fn clone(&self) -> Self {
         let clone =
             unsafe { std::slice::from_raw_parts_mut(self.raw_data, self.raw_data_len).to_vec() };
-        let mut buffer = NSMutableData::from_vec(clone);
+        let buffer = NSMutableData::from_vec(clone);
         let (ptr, len) = {
             let slice = unsafe { buffer.as_mut_bytes_unchecked() };
             (slice.as_mut_ptr(), slice.len())
@@ -555,6 +554,22 @@ impl Style {
         int_slice[StyleKeys::MARGIN_RIGHT_TYPE as usize / 4] = 1;
 
         int_slice[StyleKeys::MARGIN_BOTTOM_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::PADDING_LEFT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::PADDING_TOP_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::PADDING_RIGHT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::PADDING_BOTTOM_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::BORDER_LEFT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::BORDER_TOP_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::BORDER_RIGHT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::BORDER_BOTTOM_TYPE as usize / 4] = 1;
 
         buffer
     }
@@ -658,7 +673,7 @@ impl Style {
             grid_auto_rows: Default::default(),
             grid_auto_columns: Default::default(),
             data_owned: true,
-            buffer: buffer_ref
+            buffer: buffer_ref,
         }
     }
 

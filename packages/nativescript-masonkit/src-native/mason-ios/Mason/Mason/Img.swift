@@ -8,44 +8,24 @@ import UIKit
 
 @objcMembers
 @objc(MasonImg)
-public class Img: UIImageView, MasonView {
-  public var style: MasonStyle {
-    return node.style
-  }
-  
-  public func markNodeDirty() {
-    node.markDirty()
-  }
-  
-  public func isNodeDirty() -> Bool {
-    return node.isDirty
-  }
-  
-  public func configure(_ block: (MasonNode) -> Void) {
-    node.configure(block)
-  }
+public class Img: UIImageView, MasonElement {
   
   public var uiView: UIView {
     return self
   }
   
+  
   public let node: MasonNode
   public let mason: NSCMason
-  
-  private var rootNode: MasonNode {
-    var current = self.node
-    while let parent = current.owner {
-      current = parent
-    }
-    return current
-  }
   
   public var didLayout: (() -> Void)?
   
   public func requestLayout(){
     node.markDirty()
-    if let root = node.root, let cache = root.computeCache {
-      root.computeWithSize(Float(cache.width), Float(cache.height))
+    let root = node.getRootNode()
+    if let view = root.view as? MasonElement {
+      let computed = view.computeCache()
+      view.computeWithSize(Float(computed.width), Float(computed.height))
       didLayout?()
     }
   }
@@ -89,7 +69,6 @@ public class Img: UIImageView, MasonView {
     node = doc.createNode()
     mason = doc
     super.init(frame: .zero)
-    node.data = self
     isOpaque = false
     node.measureFunc = { known, available in
       return Img.measure(self, known, available)

@@ -1,4 +1,4 @@
-use crate::node::{Node, NodeData, NodeRef};
+use crate::node::{InlineSegment, Node, NodeData, NodeRef, NodeType};
 use crate::style::{DisplayMode, Style};
 use crate::utils::compute_leaf;
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
@@ -6,7 +6,7 @@ use taffy::{
     compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
     compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
     CacheTree, ClearState, Display, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput,
-    LayoutPartialTree, MaybeMath, MaybeResolve, NodeId, PrintTree, ResolveOrZero, RoundTree, Size,
+    LayoutPartialTree, MaybeResolve, NodeId, PrintTree, ResolveOrZero, RoundTree, Size,
     TraversePartialTree, TraverseTree,
 };
 
@@ -133,6 +133,17 @@ impl Tree {
         NodeRef { id, guard }
     }
 
+    pub fn create_text_node(&mut self) -> NodeRef {
+        let mut node = Node::new();
+        node.type_ = NodeType::Text;
+        let guard = node.guard.clone();
+        let id = self.nodes.insert(node);
+        self.parents.insert(id, None);
+        self.children.insert(id, Vec::new());
+        self.node_data.insert(id, NodeData::default());
+        NodeRef { id, guard }
+    }
+
     fn set_parent(&mut self, child: Id, parent: Option<Id>) -> bool {
         match self.parents.insert(child, parent) {
             Some(old_parent) => old_parent != parent,
@@ -165,6 +176,30 @@ impl Tree {
         for child in children.iter() {
             self.detach(*child);
             self.append(parent, *child);
+        }
+    }
+
+    pub fn prepend(&mut self, parent: Id, child: Id) {
+        self.detach(child);
+        let same = self.set_parent(child, Some(parent));
+        if same {
+            let children = self.children.get_mut(parent).unwrap();
+            children.insert(0, child);
+            self.mark_dirty(parent);
+        }
+    }
+
+    pub fn prepend_children(&mut self, parent: Id, children: &[Id]) {
+        let has_parent = self.children.contains_key(parent);
+        if has_parent {
+            for child in children.iter() {
+                self.detach(*child);
+            }
+        }
+        if let Some(nodes) = self.children.get_mut(parent) {
+            let mut joined = children.to_vec();
+            joined.append(nodes);
+            let _ = std::mem::replace(nodes, joined);
         }
     }
 
@@ -451,188 +486,190 @@ impl Tree {
 
     pub fn compute_inline_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
         let id: Id = node_id.into();
+        
+        // Get inline children from the layout tree
+        let inline_children: Vec<Id> = self.children
+            .get(id)
+            .map(|children| children.clone())
+            .unwrap_or_default();
+        
+        // Pre-measure all inline children so they have layouts BEFORE the text measure is called
+        for child_id in inline_children.iter() {
+            let child_node_id = NodeId::from(*child_id);
+            
+            // Measure the inline child - this will compute its layout
+            let layout = self.compute_child_layout(
+                child_node_id,
+                LayoutInput {
+                    known_dimensions: Size::NONE,
+                    available_space: Size {
+                        width: AvailableSpace::MaxContent,
+                        height: AvailableSpace::MaxContent,
+                    },
+                    parent_size: inputs.parent_size,
+                    ..inputs
+                },
+            );
+            
+            // IMPORTANT: Store the layout so run delegates can read it
+            if let Some(child) = self.nodes.get_mut(*child_id) {
+                child.unrounded_layout.size = layout.size;
+            }
+        }
+        
+        // NOW call the text container's measure function
         let node = self.nodes.get(id).unwrap();
-        let has_children = self.has_children(id);
-        let has_measure = node.has_measure;
-        let measure = self.node_data.get(id).unwrap().copy_measure();
         let style = node.style.clone();
+        let measure = self.node_data.get(id).unwrap().copy_measure();
+        let is_text_container = node.is_text_container();
+        
+        if is_text_container {
+            // Text container: call measure which will build attributed string
+            // and collect segments (now inline children have their layouts)
+            return compute_leaf_layout(
+                inputs,
+                &style,
+                |_val, _basis| 0.0,
+                |known_dimensions, available_space| {
+                    measure.measure(known_dimensions, available_space)
+                },
+            );
+        }
 
-        let inputs = LayoutInput {
-            known_dimensions: Size::NONE,
-            ..inputs
-        };
+        let has_measure = node.has_measure;
 
+        // For non-text inline containers, do the full inline layout
         compute_leaf_layout(
             inputs,
             &style,
             |_val, _basis| 0.0,
             |known_dimensions, available_space| {
-                if !has_children {
-                    if !has_measure {
-                        compute_leaf(&style, &inputs)
-                    } else {
+                // Non-text inline container (e.g., <span> with children)
+                // Get the segments that were collected
+                let segments = {
+                    let node_data = self.node_data.get(id).unwrap();
+                    node_data.inline_segments().to_vec()
+                };
+
+                // If no segments, fallback to measure or zero
+                if segments.is_empty() {
+                    return if has_measure {
                         measure.measure(known_dimensions, available_space)
-                    }
-                } else {
-                    let available_width = available_space.width.unwrap_or(f32::INFINITY);
+                    } else {
+                        Size { width: 0.0, height: 0.0 }
+                    };
+                }
 
-                    let mut x = 0.0;
-                    let mut y = 0.0;
-                    let mut line_height: f32 = 0.0;
-                    let mut max_line_width: f32 = 0.0;
-                    let mut total_height: f32 = 0.0;
+                // Calculate padding and border
+                let padding = style
+                    .get_padding()
+                    .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
+                let border = style
+                    .get_border()
+                    .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
+                let pb = padding + border;
 
-                    let mut width: f32 = 0.;
-                    let mut height: f32 = 0.;
+                // Get available width for wrapping
+                let available_width = available_space
+                    .width
+                    .into_option()
+                    .map(|w| (w - pb.horizontal_components().sum()).max(0.0))
+                    .unwrap_or(f32::INFINITY);
 
-                    let padding = style
-                        .get_padding()
-                        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
+                // Perform line breaking and layout inline segments
+                let mut lines: Vec<Vec<(Option<Id>, f32, f32, f32)>> = vec![];
+                let mut current_line: Vec<(Option<Id>, f32, f32, f32)> = vec![];
+                let mut current_line_width: f32 = 0.0;
+                let mut max_line_width: f32 = 0.0;
+                let mut total_height: f32 = 0.0;
 
-                    let border = style
-                        .get_border()
-                        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
-
-                    let container_pb = padding + border;
-
-                    let pbw = container_pb.horizontal_components().sum();
-                    let pbh = container_pb.vertical_components().sum();
-
-                    let child_ids = self.child_ids(node_id.into()).collect::<Vec<_>>();
-
-                    let mut line: Vec<(Id, Size<f32>)> = Vec::new();
-
-                    for child in child_ids {
-                        let layout = self.compute_child_layout(
-                            child,
-                            LayoutInput {
-                                known_dimensions: Size::NONE,
-                                parent_size: Size {
-                                    width: match available_space.width {
-                                        AvailableSpace::Definite(val) => Some(val),
-                                        _ => None,
-                                    },
-                                    height: match available_space.height {
-                                        AvailableSpace::Definite(val) => Some(val),
-                                        _ => None,
-                                    },
-                                },
-                                ..inputs
-                            },
-                        );
-
-                        let size = layout.size;
-
-                        if x + size.width > available_width && !line.is_empty() {
-                            let mut lx = 0.0;
-                            for (id, sz) in line.drain(..) {
-                                let node = self.nodes.get_mut(id).unwrap();
-                                node.unrounded_layout.location.x = lx;
-                                node.unrounded_layout.location.y = y;
-                                node.unrounded_layout.size = sz;
-                                lx += sz.width;
+                for segment in segments.iter() {
+                    match segment {
+                        InlineSegment::Text { width, ascent, descent } => {
+                            if current_line_width + width > available_width && !current_line.is_empty() {
+                                // Line break
+                                lines.push(current_line);
+                                current_line = vec![];
+                                current_line_width = 0.0;
                             }
-
-                            y += line_height;
-                            total_height += line_height;
-                            max_line_width = max_line_width.max(x);
-                            x = 0.0;
-                            line_height = 0.0;
+                            current_line.push((None, *width, *ascent, *descent));
+                            current_line_width += width;
+                            max_line_width = max_line_width.max(current_line_width);
                         }
+                        InlineSegment::InlineChild { id, baseline: descent } => {
+                            if let Some(node) = id {
+                                let child_id: Id = (*node).into();
+                                if let Some(child) = self.nodes.get(child_id) {
+                                    let child_width = child.unrounded_layout.size.width;
+                                    let child_height = child.unrounded_layout.size.height;
 
-                        x += size.width;
-                        line_height = line_height.max(size.height);
-                        line.push((child.into(), size));
+                                    if current_line_width + child_width > available_width && !current_line.is_empty() {
+                                        // Line break
+                                        lines.push(current_line);
+                                        current_line = vec![];
+                                        current_line_width = 0.0;
+                                    }
+
+                                    current_line.push((Some(child_id), child_width, child_height - descent, *descent));
+                                    current_line_width += child_width;
+                                    max_line_width = max_line_width.max(current_line_width);
+                                }
+                            }
+                        }
                     }
+                }
 
-                    let mut lx = 0.0;
-                    for (id, sz) in line.drain(..) {
-                        let node = self.nodes.get_mut(id).unwrap();
-                        node.unrounded_layout.location.x = lx;
-                        node.unrounded_layout.location.y = y;
-                        node.unrounded_layout.size = sz;
-                        lx += sz.width;
-                    }
+                // Add last line
+                if !current_line.is_empty() {
+                    lines.push(current_line);
+                }
 
-                    max_line_width = max_line_width.max(x);
+                // Calculate total height and position items
+                let mut y_offset = pb.top;
+                for line in lines.iter() {
+                    let line_height = line.iter()
+                        .map(|(_, _, ascent, descent)| ascent + descent)
+                        .fold(0.0f32, |a, b| a.max(b));
+                    
+                    let baseline = line.iter()
+                        .map(|(_, _, ascent, _)| *ascent)
+                        .fold(0.0f32, |a, b| a.max(b));
+                    
+                    Self::place_line_items(&mut self.nodes, line, pb.left, y_offset, baseline);
+                    
+                    y_offset += line_height;
                     total_height += line_height;
+                }
 
-                    width = max_line_width;
-                    height = total_height;
-
-                    let content_sizes = self.nodes.get(id).unwrap().style.content_sizes();
-                    let computed_width = match available_space.width {
-                        AvailableSpace::MinContent => content_sizes.0.width,
-                        AvailableSpace::MaxContent => content_sizes.1.width,
-                        AvailableSpace::Definite(limit) => {
-                            limit.min(content_sizes.1.width).max(content_sizes.0.width)
-                        }
-                    }
-                    .ceil();
-
-                    let style_width = style
-                        .get_size()
-                        .width
-                        .maybe_resolve(inputs.parent_size.width, |_, _| 0.0);
-
-                    let min_width = style
-                        .get_min_size()
-                        .width
-                        .maybe_resolve(inputs.parent_size.width, |_, _| 0.0);
-
-                    let max_width = style
-                        .get_max_size()
-                        .width
-                        .maybe_resolve(inputs.parent_size.width, |_, _| 0.0);
-
-                    if style_width.or(min_width).or(max_width).is_some() {
-                        width = width.max(
-                            style_width
-                                .unwrap_or(computed_width + pbw)
-                                .max(computed_width)
-                                .maybe_clamp(min_width, max_width)
-                                - pbw,
-                        );
-                    }
-
-                    let computed_height = match available_space.height {
-                        AvailableSpace::MinContent => content_sizes.0.height,
-                        AvailableSpace::MaxContent => content_sizes.1.height,
-                        AvailableSpace::Definite(limit) => limit
-                            .min(content_sizes.1.height)
-                            .max(content_sizes.0.height),
-                    }
-                    .ceil();
-
-                    let style_height = style
-                        .get_size()
-                        .height
-                        .maybe_resolve(inputs.parent_size.height, |_, _| 0.0);
-
-                    let min_height = style
-                        .get_min_size()
-                        .height
-                        .maybe_resolve(inputs.parent_size.height, |_, _| 0.0);
-
-                    let max_height = style
-                        .get_max_size()
-                        .height
-                        .maybe_resolve(inputs.parent_size.height, |_, _| 0.0);
-
-                    if style_height.or(min_height).or(max_height).is_some() {
-                        height = height.max(
-                            style_height
-                                .unwrap_or(computed_height + pbh)
-                                .max(computed_height)
-                                .maybe_clamp(min_height, max_height)
-                                - pbh,
-                        );
-                    }
-
-                    Size { width, height }
+                Size {
+                    width: max_line_width + pb.horizontal_components().sum(),
+                    height: total_height + pb.vertical_components().sum(),
                 }
             },
         )
+    }
+
+    /// Helper to place items in a line at their correct positions
+    fn place_line_items(
+        nodes: &mut SlotMap<Id, Node>,
+        items: &[(Option<Id>, f32, f32, f32)], // (id, width, ascent, descent)
+        offset_x: f32,
+        offset_y: f32,
+        baseline: f32,
+    ) {
+        let mut x = 0.0;
+        for &(id_opt, width, ascent, descent) in items {
+            if let Some(id) = id_opt {
+                // Only position real nodes (inline elements), not text runs
+                if let Some(node) = nodes.get_mut(id) {
+                    node.unrounded_layout.location.x = offset_x + x;
+                    node.unrounded_layout.location.y = offset_y + (baseline - ascent);
+                    node.unrounded_layout.size.width = width;
+                    node.unrounded_layout.size.height = ascent + descent;
+                }
+            }
+            x += width;
+        }
     }
 }
 
@@ -690,9 +727,13 @@ impl LayoutPartialTree for Tree {
             let node_data = tree.node_data.get(id).unwrap();
             let force_inline = node.style.force_inline();
             let mode = node.style.display_mode();
-            if force_inline {
+            let has_segments = !node_data.inline_segments.is_empty();
+            let is_text_container = node.is_text_container();
+            
+            if force_inline || has_segments || is_text_container {
                 return tree.compute_inline_layout(node_id, inputs);
             }
+            
             match mode {
                 DisplayMode::None => match (node.style.get_display(), has_children) {
                     (Display::None, _) => compute_hidden_layout(tree, node_id),
@@ -700,34 +741,45 @@ impl LayoutPartialTree for Tree {
                     (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
                     (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
                     (_, false) => {
+                        // LEAF NODE LAYOUT
                         let has_measure = node.has_measure;
-
-                        let mut final_size: Size<f32> = if !has_measure {
-                            compute_leaf(&node.style, &inputs)
-                        } else {
-                            Size::default()
+                        let style = &node.style;
+                        
+                        // Compute known dimensions from style (width/height properties)
+                        let style_size = style.get_size();
+                        
+                        // Resolve style dimensions using parent size
+                        let known_dimensions = Size {
+                            width: style_size.width.maybe_resolve(inputs.parent_size.width, |_, _| 0.0),
+                            height: style_size.height.maybe_resolve(inputs.parent_size.height, |_, _| 0.0),
                         };
-
-                        let mut output = compute_leaf_layout(
-                            inputs,
-                            &node.style,
+                        
+                        // Merge with input known dimensions (input takes precedence)
+                        let final_known_dimensions = Size {
+                            width: inputs.known_dimensions.width.or(known_dimensions.width),
+                            height: inputs.known_dimensions.height.or(known_dimensions.height),
+                        };
+                        
+                        compute_leaf_layout(
+                            LayoutInput {
+                                known_dimensions: final_known_dimensions,
+                                ..inputs
+                            },
+                            style,
                             |_val, _basis| 0.0,
                             |known_dimensions, available_space| {
                                 if !has_measure {
-                                    return final_size;
+                                    // No measure function: return known dimensions or zero
+                                    Size {
+                                        width: known_dimensions.width.unwrap_or(0.0),
+                                        height: known_dimensions.height.unwrap_or(0.0),
+                                    }
+                                } else {
+                                    // Has measure function: call it
+                                    node_data.measure(known_dimensions, available_space)
                                 }
-                                node_data.measure(known_dimensions, available_space)
                             },
-                        );
-
-                        if !has_measure {
-                            // force final size
-                            let node = tree.nodes.get_mut(id).unwrap();
-                            node.unrounded_layout.size = final_size;
-                            output.size = final_size;
-                        }
-
-                        output
+                        )
                     }
                 },
                 DisplayMode::Inline | DisplayMode::Box => {

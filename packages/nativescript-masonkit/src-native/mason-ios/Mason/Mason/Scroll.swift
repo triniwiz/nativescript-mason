@@ -8,21 +8,9 @@ import UIKit
 
 @objc(MasonScroll)
 @objcMembers
-public class Scroll: UIScrollView, MasonView, UIScrollViewDelegate {
+public class Scroll: UIScrollView, MasonElement, UIScrollViewDelegate {
   public var style: MasonStyle {
     return node.style
-  }
-  
-  public func markNodeDirty() {
-    node.markDirty()
-  }
-  
-  public func isNodeDirty() -> Bool {
-    return node.isDirty
-  }
-  
-  public func configure(_ block: (MasonNode) -> Void) {
-    node.configure(block)
   }
   
   public var uiView: UIView {
@@ -60,7 +48,6 @@ public class Scroll: UIScrollView, MasonView, UIScrollViewDelegate {
     node = doc.createNode()
     mason = doc
     super.init(frame: .zero)
-    node.data = self
     self.delegate = self
     
     isOpaque = false
@@ -111,11 +98,11 @@ public class Scroll: UIScrollView, MasonView, UIScrollViewDelegate {
       return
     }
     addSubview(view)
-    if(view is MasonView){
-      node.addChild((view as! MasonView).node)
-    }else {
-      node.addChild(mason.nodeForView(view))
+    if let view = view as? MasonElement {
+      node.appendChild(view.node)
+      return
     }
+    node.appendChild(mason.nodeForView(view))
   }
   
   public func addView(_ view: UIView, at: Int){
@@ -127,19 +114,32 @@ public class Scroll: UIScrollView, MasonView, UIScrollViewDelegate {
     }else {
       insertSubview(view, at: at)
     }
+    
+    if let view = view as? MasonElement {
+      node.addChildAt(view.node, at)
+      return
+    }
 
-    if(view is MasonView){
-      node.addChildAt((view as! MasonView).node, at)
+    if(view is MasonElement){
+      node.addChildAt((view as! MasonElement).node, at)
     }else {
       node.addChildAt(mason.nodeForView(view), at)
     }
   }
   
-  public func requestLayout(){
-    node.markDirty()
-    if let root = node.root, let cache = root.computeCache {
-      root.computeWithSize(Float(cache.width), Float(cache.height))
-    }
+  
+  func checkAndUpdateStyle() {
+      if (!node.inBatch) {
+        node.style.updateNativeStyle()
+      }
+  }
+  
+  @objc public func setSize(_ width: Float,_  height: Float) {
+      node.style.size = MasonSize(
+          MasonDimension.Points(width),
+          MasonDimension.Points(height)
+      )
+      checkAndUpdateStyle()
   }
   
 }

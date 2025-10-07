@@ -25,8 +25,54 @@ fn main() {
     // flex_bug();
     //scroll();
     //scroll_horizontal();
-    inline_bug();
+    // inline_bug();
+    bug();
 }
+
+fn bug() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();;
+
+    let node = mason.create_text_node();
+
+
+
+    extern "C" fn bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        if unsafe { *(id) } == 1 {
+            return MeasureOutput::make(600., 400.);
+        }
+        MeasureOutput::make(200., 200.)
+    }
+
+    mason.set_measure(node.id(), Some(bug_measure_inline), &1 as *const i32 as _);
+
+
+    let child = mason.create_node();
+
+    mason.with_style_mut(child.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(300.),
+            height: Dimension::length(300.),
+        });
+    });
+
+
+    mason.add_child(node.id(), child.id());
+
+    mason.add_child(root.id(), node.id());
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(root.id());
+}
+
 
 fn inline_bug() {
     let mut mason = Mason::new();

@@ -45,7 +45,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     override func prepareForReuse() {
       super.prepareForReuse()
-      listTextView.text = nil
+      listTextView.text = ""
       listImageView.image = nil
     }
     
@@ -53,16 +53,18 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     func setupView(){
       let scale = Float(UIScreen.main.scale)
-      containerView.configure { node in
-        node.style.alignItems = .Center
-        node.style.flexDirection = .Column
-        node.style.setSizeWidth(MasonDimension.Percent(1))
-        //            node.style.size = MasonSize(MasonDimension.Points(Float(frame.size.width) * scale), MasonDimension.Points(Float(frame.size.height) * scale))
+      containerView.configure { style in
+        style.alignItems = .Center
+        style.flexDirection = .Column
+        style.setSizeWidth(MasonDimension.Percent(1))
+        //            style.size = MasonSize(MasonDimension.Points(Float(frame.size.width) * scale), MasonDimension.Points(Float(frame.size.height) * scale))
       }
       
-      NSCMason.shared.nodeForView(listImageView).configure { node in
-        node.style.setSizeHeight(MasonDimension.Points(50 * scale))
+      
+      NSCMason.shared.configureStyleForView(listImageView) { style in
+        style.setSizeHeight(MasonDimension.Points(50 * scale))
       }
+      
       
       let label1 = NSCMason.shared.createTextView()
       label1.text = "Laffy Taffy!!!!"
@@ -84,7 +86,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   
   override func viewDidAppear(_ animated: Bool) {
     //        view?.mason.computeWithMaxContent()
-    guard let view = view.subviews.first as? MasonUIView else {return}
+    guard view.subviews.first is MasonUIView else {return}
     //      view.uiView.frame.origin.x += view.safeAreaInsets.left
     //                view.uiView.frame.origin.y += view.safeAreaInsets.top
     
@@ -97,7 +99,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let top = Float(self.view.safeAreaInsets.top) * scale
     let bottom = Float(self.view.safeAreaInsets.bottom) * scale
     
-    guard let view = view.subviews.first as? MasonUIView else {return}
+    guard view.subviews.first is MasonUIView else {return}
     
     
     //      view.style.inset = MasonRect(
@@ -108,7 +110,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //              )
     //
     //
-    //      view.node.computeWithSize(scale * Float(self.view.bounds.width), scale * Float(self.view.bounds.height))
+    //      view.computeWithSize(scale * Float(self.view.bounds.width), scale * Float(self.view.bounds.height))
     //
     
     //         guard let rootView = rootView else {return}
@@ -152,33 +154,32 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     text.fontStyle = .Italic
     text.fontWeight = "bold"
     text.textWrap = .Wrap
-    text.updateText("Hello World!!!!! ")
+    text.appendText("Hello World!!!!! ")
     
     
     let child = UIView()
-    let node = mason.nodeForView(child)
-    node.configure { node in
-      node.style.size = MasonSize<MasonDimension>(
+    mason.configureStyleForView(child) { style in
+      style.size = MasonSize<MasonDimension>(
         MasonDimension.Points(100),
         MasonDimension.Points(100))
     }
     
-    
     child.backgroundColor = .blue
+    
     text.addView(child)
     
-    
+  
     let spacer = mason.createTextView()
-    spacer.updateText(" OMG ??? ")
+    spacer.tag = 12345
+    spacer.appendText(" OMG ??? ")
     spacer.textTransform = .FullWidth
     spacer.setColor(ui: .red)
     text.addView(spacer)
     
     
     let image = UIImageView()
-    let imageNode = mason.nodeForView(image)
-    imageNode.configure { node in
-      node.style.size = MasonSize<MasonDimension>(
+    mason.configureStyleForView(image) { style in
+      style.size = MasonSize<MasonDimension>(
         MasonDimension.Points(100),
         MasonDimension.Points(100))
     }
@@ -187,29 +188,30 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     text.addView(image)
     
+  
+    
     
     let first = mason.createTextView()
-    first.updateText(" this")
+    first.appendText(" this")
     first.setColor(ui: .magenta)
     text.addView(first)
     
     
     let first_first = mason.createTextView()
-    first_first.updateText(" is a nested text")
+    first_first.appendText(" is a nested text")
     first_first.fontSize = 30
     
     first.addView(first_first)
     
     
     let other = mason.createTextView()
-    other.updateText(" <- inserted here ->")
+    other.appendText(" <- inserted here ->")
     
     
     
     let image2 = UIImageView()
-    let imageNode2 = mason.nodeForView(image2)
-    imageNode2.configure { node in
-      node.style.size = MasonSize<MasonDimension>(
+    mason.configureStyleForView(image2){ style in
+      style.size = MasonSize<MasonDimension>(
         MasonDimension.Points(300),
         MasonDimension.Points(300))
     }
@@ -221,6 +223,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     text.addView(other)
     
+    
     let con = mason.createView()
     con.addView(text)
     container.addView(con)
@@ -228,8 +231,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //    con.style.size =  MasonSize(MasonDimension.Points(scale * Float(container.bounds.width)), MasonDimension.Points(scale * Float(container.bounds.height)))
     
     
-    con.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
-    
+    container.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+        
     
   }
   
@@ -278,7 +281,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //            i+=1
     //        } while i < 1000
     
-//    container.node.style.size = .init(.Points(Float(view.bounds.width * UIScreen.main.scale)), (.Points(Float(view.bounds.height * UIScreen.main.scale))))
+//    container.style.size = .init(.Points(Float(view.bounds.width * UIScreen.main.scale)), (.Points(Float(view.bounds.height * UIScreen.main.scale))))
     container.setSize(Float(view.bounds.width * UIScreen.main.scale), Float(view.bounds.height * UIScreen.main.scale))
    //  container.frame = view.bounds
     
@@ -316,7 +319,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     mason.printTree(root.node)
     
     
-    root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    root.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
     
     
     */
@@ -338,8 +341,24 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
    //wrapper5()
    // wrapper6()
     
+    /*
+    let con = mason.createView()
+    let text = mason.createTextView()
+    text.style.setSizeHeight(.Points(48))
+    text.text = "Hello, World!"
+    con.addView(text)
+    container.addView(con)
     
-     imageExample()
+    con.backgroundColor = .blue
+    text.backgroundColor = .red
+    
+    text.color = UIColor.green.toUInt32()
+    
+    container.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    
+    */
+    
+    imageExample()
      //textSample()
      // gridSample()
     
@@ -376,18 +395,18 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //      root.addView(fg)
     //
     //      f.backgroundColor = .blue
-    //      f.node.style.size = MasonSize(.Points(100), .Points(100))
+    //      f.style.size = MasonSize(.Points(100), .Points(100))
     //      g.backgroundColor = .yellow
-    //      g.node.style.size = MasonSize(.Points(100), .Points(100))
+    //      g.style.size = MasonSize(.Points(100), .Points(100))
     //
     //      root.node.computeWithMaxContent()
   }
   
   func scrollTest(){
     let root = mason.createScrollView()
-    root.configure { node in
-      node.style.size = MasonSize(.Percent(1), .Percent(1))
-      node.style.overflow = MasonPoint(Overflow.Scroll, Overflow.Scroll)
+    root.configure { style in
+      style.size = MasonSize(.Percent(1), .Percent(1))
+      style.overflow = MasonPoint(Overflow.Scroll, Overflow.Scroll)
     }
     container.addView(root)
     
@@ -448,7 +467,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     root.addView(txt)
     
-    container.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    container.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
     
   }
   
@@ -464,15 +483,15 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     txt.text = "Hello "
     
     let img = mason.createImageView()
-    img.node.style.size = MasonSize(.Points(300), .Points(300))
-    img.node.style.marginBottom = .Points(10)
+    img.style.size = MasonSize(.Points(300), .Points(300))
+    img.style.marginBottom = .Points(10)
     img.src = "https://picsum.photos/600/600"
     
     root.addView(img)
     
     
     let view = mason.createView()
-    view.node.style.size = MasonSize(.Points(400), .Points(400))
+    view.style.size = MasonSize(.Points(400), .Points(400))
     view.backgroundColor = .purple
     
    // root.addView(view)
@@ -498,12 +517,12 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
   
   
-    root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    root.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
     
     UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
-      img.configure { node in
-        node.style.setSizeHeight(0.3, 2)
-        node.style.setSizeWidth(0.3, 2)
+      img.configure { style in
+        style.setSizeHeight(0.3, 2)
+        style.setSizeWidth(0.3, 2)
       }
       
       
@@ -514,8 +533,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     
 //    UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
-//      img.configure { node in
-//        node.style.size = MasonSize(.Points(200), .Points(200))
+//      img.configure { style in
+//        style.size = MasonSize(.Points(200), .Points(200))
 //      }
 //    }
   }
@@ -568,9 +587,9 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     blockQ.text = "For 50 years, WWF has been protecting the future of nature. The world's leading conservation organization, WWF works in 100 countries and is supported by 1.2 million members in the United States and close to 5 million globally."
     
-    blockQ.configure { node in
-      node.style.overflowX = .Hidden
-      node.style.overflowY = .Hidden
+    blockQ.configure { style in
+      style.overflowX = .Hidden
+      style.overflowY = .Hidden
       blockQ.whiteSpace = .Nowrap
       blockQ.textWrap = .NoWrap
       blockQ.textOverflow  = .Custom(" (╯°□°)╯︵ ┻━┻")
@@ -582,16 +601,16 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     
     
-    root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    root.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
     
   }
   
   func testLateUpdate(){
     let root = mason.createView()
     
-    root.configure { node in
-      node.style.marginTop = .Points(200)
-      node.style.marginLeft = .Points(10)
+    root.configure { style in
+      style.marginTop = .Points(200)
+      style.marginLeft = .Points(10)
     }
     
     root.backgroundColor = .red
@@ -611,9 +630,9 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     text.addView(text2)
   
 
-    container.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    container.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
     
-    text.updateText("Hello World \n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris.")
+    text.appendText("Hello World \n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris.")
     
     
     /*
@@ -648,14 +667,18 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
   
   func imageExample(){
     print("=== imageExample() STARTING ===")
+    container.tag = 1234
+    print(container.tag)
     let root = mason.createView()
-    root.configure { node in
-      node.style.marginTop = .Points(300)
-      node.style.marginLeft = .Points(100)
+    root.tag = 5678
+    root.configure { style in
+      style.marginTop = .Points(300)
+      style.marginLeft = .Points(100)
     }
     container.addView(root)
     
     let txt = mason.createTextView()
+    txt.tag = 91011
     txt.backgroundColor = .orange
     
     txt.text = "Hello"
@@ -688,7 +711,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     root.addView(txt2)
     
-    root.addView(image)
+    txt.addView(image)
     
     txt2.addView(txt3)
     
@@ -704,10 +727,10 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
         
         DispatchQueue.main.async {
           image.image = img
-          self.mason.nodeForView(image).style.size = MasonSize(uniform: .Points(Float(side)))
-          self.container.node.computeWithMaxContent()
-          print("\n","txt",txt.node.computedLayout)
-          print("\n","view",view.node.computedLayout)
+          image.style.size = MasonSize(uniform: .Points(Float(side)))
+          self.container.computeWithMaxContent()
+          print("\n","txt",txt.node.computedLayout.x, txt.node.computedLayout.y, txt.node.computedLayout.width, txt.node.computedLayout.height)
+          print("\n","view",view.node.computedLayout.x, view.node.computedLayout.y, view.node.computedLayout.width, view.node.computedLayout.height)
         }
       }catch{
         print(error)
@@ -740,11 +763,11 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
   
   func wrapper5(){
     let wrapper5 = mason.createView()
-    wrapper5.configure { node in
-      node.style.display = .Grid
-      node.style.margin = MasonRect(uniform: .Points(40 * scale))
-      node.style.gap = MasonSize(uniform: .Points(10 * scale))
-      node.style.gridTemplateColumns = [.Single(.Points(points: 100 * scale)),.Single(.Points(points: 100 * scale)),.Single(.Points(points: 100 * scale))]
+    wrapper5.configure { style in
+      style.display = .Grid
+      style.margin = MasonRect(uniform: .Points(40 * scale))
+      style.gap = MasonSize(uniform: .Points(10 * scale))
+      style.gridTemplateColumns = [.Single(.Points(points: 100 * scale)),.Single(.Points(points: 100 * scale)),.Single(.Points(points: 100 * scale))]
     }
     container.addView(wrapper5)
     
@@ -757,10 +780,10 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     a_text.text = "A"
     a_text.setColor(ui: .white)
     a.addView(a_text)
-    a.configure { node in
-      node.style.padding = MasonRect(uniform: .Points(20  * scale))
-      node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-      node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+    a.configure { style in
+      style.padding = MasonRect(uniform: .Points(20  * scale))
+      style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+      style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
     }
     
     let b = mason.createView()
@@ -771,10 +794,10 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     b.addView(b_text)
     
     
-    b.configure { node in
-      node.style.padding = MasonRect(uniform: .Points(20  * scale))
-      node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
-      node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+    b.configure { style in
+      style.padding = MasonRect(uniform: .Points(20  * scale))
+      style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
+      style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
     }
     
     let c = mason.createView()
@@ -783,10 +806,10 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     c_text.text = "C"
     c_text.setColor(ui: .white)
     c.addView(c_text)
-    c.configure { node in
-      node.style.padding = MasonRect(uniform: .Points(20  * scale))
-      node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-      node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+    c.configure { style in
+      style.padding = MasonRect(uniform: .Points(20  * scale))
+      style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+      style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
     }
     
     
@@ -797,10 +820,10 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     d_text.setColor(ui: .white)
     d.addView(d_text)
     
-    d.configure { node in
-      node.style.padding = MasonRect(uniform: .Points(20 * scale))
-      node.style.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-      node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+    d.configure { style in
+      style.padding = MasonRect(uniform: .Points(20 * scale))
+      style.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+      style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
     }
     
     wrapper5.addView(a)
@@ -810,7 +833,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     //    container.node.computeWithMaxContent()
     
-    wrapper5.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    wrapper5.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
   }
   func wrapper6() {
     
@@ -846,62 +869,62 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let bg = UIColor(red: 0.27, green: 0.27, blue: 0.27, alpha: 1.00)
     
-    wrapper6.configure { node in
-      node.style.display = .Grid
-//      node.style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
-      node.style.gap = MasonSize(.Points(10 ), .Points(10))
-      node.style.gridTemplateColumns = [
+    wrapper6.configure { style in
+      style.display = .Grid
+//      style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
+      style.gap = MasonSize(.Points(10 ), .Points(10))
+      style.gridTemplateColumns = [
         TrackSizingFunction.AutoRepeat(.Count(6), [.Points(points: 150 )])
       ]
       
-      node.style.gridTemplateRows = [
+      style.gridTemplateRows = [
         TrackSizingFunction.AutoRepeat(.Count(4), [.Points(points: 150 )])
       ]
     }
     
-    boxA.configure { node in
+    boxA.configure { style in
       boxA.backgroundColor = bg
-      node.style.flexDirection = .Column
-      node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-      node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-      node.style.alignSelf = AlignSelf.Stretch
+      style.flexDirection = .Column
+      style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+      style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+      style.alignSelf = AlignSelf.Stretch
     }
     
-    boxB.configure { node in
+    boxB.configure { style in
       boxA.backgroundColor = bg
-      node.style.flexDirection = .Column
-      node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
-      node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-      node.style.alignSelf = AlignSelf.End
-    }
-    
-    
-    boxC.configure { node in
-      boxA.backgroundColor = bg
-      node.style.flexDirection = .Column
-      node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-      node.style.gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
-      node.style.alignSelf = AlignSelf.Start
-    }
-    
-    boxD.configure { node in
-      boxA.backgroundColor = bg
-      node.style.flexDirection = .Column
-      node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
-      node.style.gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
-      node.style.alignSelf = AlignSelf.Center
+      style.flexDirection = .Column
+      style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
+      style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+      style.alignSelf = AlignSelf.End
     }
     
     
-    boxE.configure { node in
+    boxC.configure { style in
       boxA.backgroundColor = bg
-      node.style.flexDirection = .Column
-      node.style.gridColumn = Line(GridPlacement.Line(5), GridPlacement.Line(7))
-      node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(6))
-      node.style.alignSelf = AlignSelf.Stretch
+      style.flexDirection = .Column
+      style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+      style.gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
+      style.alignSelf = AlignSelf.Start
+    }
+    
+    boxD.configure { style in
+      boxA.backgroundColor = bg
+      style.flexDirection = .Column
+      style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
+      style.gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
+      style.alignSelf = AlignSelf.Center
+    }
+    
+    
+    boxE.configure { style in
+      boxA.backgroundColor = bg
+      style.flexDirection = .Column
+      style.gridColumn = Line(GridPlacement.Line(5), GridPlacement.Line(7))
+      style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(6))
+      style.alignSelf = AlignSelf.Stretch
     }
     // MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
-    container.node.computeWithMaxContent()
+    container.computeWithMaxContent()
     // wrapper6.mason.computeWithSize(scale * Float(view.bounds.width), scale * Float(view.bounds.height))
     
   }
@@ -915,14 +938,14 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     root.backgroundColor = .blue
     let width = Float(container.frame.size.width)
     let height = Float(container.frame.size.height)
-    root.configure({ node in
-      node.style.size = MasonSize( .Points(width * scale), .Points(height * scale))
-      node.style.flexDirection = .Column
+    root.configure({ style in
+      style.size = MasonSize( .Points(width * scale), .Points(height * scale))
+      style.flexDirection = .Column
     })
     
     view!.addSubview(root)
     
-    root.node.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    root.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
     
     UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
       root.setSizeHeight(0.3, 2)
@@ -940,27 +963,27 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     container.addView(root)
     root.backgroundColor = .red
 
-    root.configure({ node in
-      node.style.flexGrow = 1
-      node.style.display = .Flex
+    root.configure({ style in
+      style.flexGrow = 1
+      style.display = .Flex
     })
     
     
     let child = mason.createView()
     child.backgroundColor = .blue
-    child.configure({ node in
-      node.style.display = .Flex
+    child.configure({ style in
+      style.display = .Flex
     })
     
     root.addView(child)
     
     let child1 = mason.createTextView()
     child1.backgroundColor = .green
-    child1.updateText("1")
+    child1.appendText("1")
     
     child.addView(child1)
     
-    root.node.computeWithSize(scale * Float(container.bounds.width), -1)
+    root.computeWithSize(scale * Float(container.bounds.width), -1)
     
     
   }
@@ -973,30 +996,30 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     let root = mason.createView()
     container.addSubview(root)
     root.backgroundColor = .black
-    root.configure({ node in
-      node.style.display = .Flex
-      node.style.flexDirection = .Column
+    root.configure({ style in
+      style.display = .Flex
+      style.flexDirection = .Column
     })
     
     let childA = mason.createView()
     
-    childA.configure { node in
-      node.style.size =  MasonSize(.Points( scale * 100), .Points( scale * 100))
+    childA.configure { style in
+      style.size =  MasonSize(.Points( scale * 100), .Points( scale * 100))
       childA.backgroundColor = .red
     }
     
     
     let childB = mason.createView()
     
-    childB.configure { node in
-      node.style.size =  MasonSize(.Points( scale * 100), .Points( scale * 100))
+    childB.configure { style in
+      style.size =  MasonSize(.Points( scale * 100), .Points( scale * 100))
       childB.backgroundColor = .blue
     }
     
     root.addSubview(childA)
     root.addSubview(childB)
     
-    root.node.computeWithMaxContent()
+    root.computeWithMaxContent()
   }
   
   func gridSample(){
@@ -1008,12 +1031,12 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     container.addView(root)
     
     
-    root.configure({ node in
-      node.style.display = .Grid
-      //      node.style.size = MasonSize(.Points(scale * Float(container.bounds.width)), .Points(scale * Float(container.bounds.height)))
+    root.configure({ style in
+      style.display = .Grid
+      //      style.size = MasonSize(.Points(scale * Float(container.bounds.width)), .Points(scale * Float(container.bounds.height)))
       
-      node.style.gap = MasonSize(.Points(scale * 10), .Points(scale * 10))
-      node.style.gridTemplateColumns = [
+      style.gap = MasonSize(.Points(scale * 10), .Points(scale * 10))
+      style.gridTemplateColumns = [
         TrackSizingFunction.AutoRepeat(.Count(3), [MinMax.Points(points: scale * 100)])
       ]
       
@@ -1026,8 +1049,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     a.backgroundColor = childBg
     // a.setBackgroundColor(ui: childBg!)
-    a.configure { node in
-      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    a.configure { style in
+      style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
     
     
@@ -1036,8 +1059,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     b.backgroundColor = childBg
     b.setColor(ui: .white)
     // b.setBackgroundColor(ui: childBg!)
-    b.configure { node in
-      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    b.configure { style in
+      style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
     
     
@@ -1047,8 +1070,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     c.backgroundColor = childBg
     c.setColor(ui: .white)
     // c.setBackgroundColor(ui: childBg!)
-    c.configure { node in
-      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    c.configure { style in
+      style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
     
     
@@ -1057,8 +1080,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     d.backgroundColor = childBg
     d.setColor(ui: .white)
     // d.setBackgroundColor(ui: childBg!)
-    d.configure { node in
-      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    d.configure { style in
+      style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
     
     
@@ -1067,8 +1090,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     e.backgroundColor = childBg
     e.setColor(ui: .white)
     // e.setBackgroundColor(ui: childBg!)
-    e.configure { node in
-      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    e.configure { style in
+      style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
     
     let f  = mason.createTextView()
@@ -1076,8 +1099,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     f.backgroundColor = childBg
     f.setColor(ui: .white)
     //f.setBackgroundColor(ui: childBg!)
-    f.configure { node in
-      node.style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
+    f.configure { style in
+      style.padding = MasonRect<MasonLengthPercentage>(uniform: MasonLengthPercentage.Points(20 * scale))
     }
     
     root.addView(a)
@@ -1088,8 +1111,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     root.addView(f)
     
     
-    root.node.computeWithMaxContent()
-    // root.node.computeWithSize(Float(container.bounds.size.width) * scale, Float(container.bounds.size.height) * scale)
+    root.computeWithMaxContent()
+    // root.computeWithSize(Float(container.bounds.size.width) * scale, Float(container.bounds.size.height) * scale)
   }
   
   
@@ -1102,21 +1125,21 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     let root = mason.createView()
     container.addSubview(root)
     root.backgroundColor = .white
-    root.configure({ node in
-      node.style.display = .Grid
-      node.style.size = MasonSize(.Points(scale * Float(container.bounds.width)), .Points(scale * Float(container.bounds.height)))
+    root.configure({ style in
+      style.display = .Grid
+      style.size = MasonSize(.Points(scale * Float(container.bounds.width)), .Points(scale * Float(container.bounds.height)))
       
-      node.style.gap = MasonSize(.Points(scale * 10), .Points(scale * 10))
-      node.style.gridTemplateColumns = [
+      style.gap = MasonSize(.Points(scale * 10), .Points(scale * 10))
+      style.gridTemplateColumns = [
         TrackSizingFunction.AutoRepeat(.Count(3), [MinMax.Points(points: scale * 100)])
       ]
       
     })
     
     let childA = mason.createView()
-    childA.configure { node in
-      node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-      node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+    childA.configure { style in
+      style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+      style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
       childA.backgroundColor = childBg
     }
     
@@ -1128,9 +1151,9 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     childA.addSubview(childAText)
     
     let childB =  mason.createView()
-    childB.configure { node in
-      node.style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
-      node.style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+    childB.configure { style in
+      style.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
+      style.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
       childB.backgroundColor = childBg
     }
     
@@ -1141,9 +1164,9 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     childB.addSubview(childBText)
     
     let childC = mason.createView()
-    childC.configure { node in
-      node.style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-      node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+    childC.configure { style in
+      style.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+      style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
       childC.backgroundColor = childBg
     }
     
@@ -1156,9 +1179,9 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     
     let childD =  mason.createView()
-    childD.configure { node in
-      node.style.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-      node.style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+    childD.configure { style in
+      style.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+      style.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
       childD.backgroundColor = childBg
     }
     
@@ -1175,7 +1198,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     root.addSubview(childD)
     
     
-    root.node.computeWithMaxContent()
+    root.computeWithMaxContent()
     
   }
   
@@ -1212,7 +1235,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
         
         DispatchQueue.main.async {
           cell.listImageView.image = image
-          cell.containerView.node.computeWithMaxContent()
+          cell.containerView.computeWithMaxContent()
         }
       }catch{}
     }
@@ -1220,19 +1243,19 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
   }
   
   func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-    (cell as! DefaultCellView).containerView.node.computeWithMaxContent()
+    (cell as! DefaultCellView).containerView.computeWithMaxContent()
   }
   
   
   func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
     guard let cell = collectionView.cellForItem(at: indexPath) as? DefaultCellView else {
-      let layout = mason.nodeForView(collectionView).layout()
+      let layout = mason.layoutForView(collectionView)
       
       return CGSizeMake(collectionView.frame.width, 50 * CGFloat(scale))
     }
     
     
-    let layout = cell.containerView.node.layout()
+    let layout = cell.containerView.layout()
     
     return CGSizeMake(CGFloat(layout.width / scale), CGFloat(layout.height / scale))
   }
@@ -1244,13 +1267,14 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     root.backgroundColor = .lightGray
     container.addView(root)
     
-    root.configure { mason in
-      mason.style.size = MasonSize(MasonDimension.Percent(1), MasonDimension.Auto)
-      mason.style.alignContent = .Stretch
-      mason.style.alignItems = .Center
-      mason.style.flexDirection = .Column
-      mason.style.justifyContent = .Start
-      mason.style.display = .Flex
+    
+    root.configure { style in
+      style.size = MasonSize(MasonDimension.Percent(1), MasonDimension.Auto)
+      style.alignContent = .Stretch
+      style.alignItems = .Center
+      style.flexDirection = .Column
+      style.justifyContent = .Start
+      style.display = .Flex
       
       //            mason.style.size = MasonSize(MasonDimension.Points(Float(view.bounds.size.width) * scale), MasonDimension.Points(Float(view.bounds.size.height) * scale))
       
@@ -1268,10 +1292,10 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let text1 = mason.createTextView()
     text1.text = "Top Left"
-    text1.configure { node in
-      node.style.position = .Absolute
-      node.style.leftInset = .Points(0)
-      node.style.topInset = .Points(0)
+    text1.configure { style in
+      style.position = .Absolute
+      style.leftInset = .Points(0)
+      style.topInset = .Points(0)
       text1.backgroundColor = .blue
       text1.setColor(ui: .white)
     }
@@ -1285,10 +1309,10 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let text2 = mason.createTextView()
     text2.text = "Top Right"
-    text2.configure { node in
-      node.style.position = .Absolute
-      node.style.rightInset = .Points(0)
-      node.style.topInset = .Points(0)
+    text2.configure { style in
+      style.position = .Absolute
+      style.rightInset = .Points(0)
+      style.topInset = .Points(0)
       text2.backgroundColor = .blue
     }
     
@@ -1301,10 +1325,10 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let text3 = mason.createTextView()
     text3.text = "Bottom Left"
-    text3.configure { node in
-      node.style.position = .Absolute
-      node.style.leftInset = .Points(0)
-      node.style.bottomInset = .Points(0)
+    text3.configure { style in
+      style.position = .Absolute
+      style.leftInset = .Points(0)
+      style.bottomInset = .Points(0)
       text3.backgroundColor = .blue
       text3.setColor(ui: .white)
     }
@@ -1317,10 +1341,10 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let text4 = text3
     text4.text = "Bottom Right"
-    text4.configure { node in
-      node.style.position = .Absolute
-      node.style.rightInset = .Points(0)
-      node.style.bottomInset = .Points(0)
+    text4.configure { style in
+      style.position = .Absolute
+      style.rightInset = .Points(0)
+      style.bottomInset = .Points(0)
       text4.backgroundColor = .blue
       text4.setColor(ui: .white)
     }
@@ -1332,8 +1356,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let view0 = mason.createView()
     
-    view0.configure { mason in
-      mason.style.size = MasonSize(MasonDimension.Percent(1), MasonDimension.Auto)
+    view0.configure { style in
+      style.size = MasonSize(MasonDimension.Percent(1), MasonDimension.Auto)
     }
     
     let layout = UICollectionViewFlowLayout()
@@ -1343,8 +1367,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     list.backgroundColor = .purple
     
     
-    mason.nodeForView(list).configure { mason in
-      mason.style.size =  MasonSize(MasonDimension.Percent(1), MasonDimension.Points(300 * scale))
+    mason.configureStyleForView(list) { style in
+      style.size =  MasonSize(MasonDimension.Percent(1), MasonDimension.Points(300 * scale))
     }
     
     list.register(DefaultCellView.self, forCellWithReuseIdentifier: "default")
@@ -1379,7 +1403,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let text6 = mason.createTextView()
     text6.text = "Hello this"
-    text6.configure { node in
+    text6.configure { style in
       text6.setColor(ui: .white)
       text6.backgroundColor = .red
     }
@@ -1388,7 +1412,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let text7 = mason.createTextView()
     text7.text = " is the new"
-    text7.configure { node in
+    text7.configure { style in
       text7.backgroundColor = .green
     }
     
@@ -1396,7 +1420,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let text8 = mason.createTextView()
     text8.text = " layout"
-    text8.configure { node in
+    text8.configure { style in
       text8.backgroundColor = .orange
     }
     
@@ -1405,7 +1429,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     let text9 = mason.createTextView()
     text9.text = " powered by taffy"
-    text9.configure { node in
+    text9.configure { style in
       text9.backgroundColor = .orange
       text9.setColor(ui: .white)
     }
@@ -1442,7 +1466,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     
     
-    container.node.computeWithSize(Float(self.container.bounds.size.width) * self.scale, Float(self.container.bounds.size.height) * self.scale)
+    container.computeWithSize(Float(self.container.bounds.size.width) * self.scale, Float(self.container.bounds.size.height) * self.scale)
     
     
     

@@ -217,12 +217,16 @@ public class MasonStyle: NSObject {
 //    return data.takeRetainedValue()
 //  }()
   
+  internal var isValueInitialized: Bool  = false
+  
   public lazy var valuesCompat: NSMutableData = {
     let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
     guard let buffer else {
       // todo
       fatalError("Could not allocate style buffer")
     }
+    
+    isValueInitialized = true
     
     return Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
   }()
@@ -316,7 +320,7 @@ public class MasonStyle: NSObject {
       }
     }
     set {
-      if(newValue == .Inline && (node.data as? MasonText) == nil){
+      if(newValue == .Inline && (node.view as? MasonText) == nil){
         return
       }
       

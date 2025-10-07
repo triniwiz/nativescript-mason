@@ -20,18 +20,17 @@ private func measure(_ node: UnsafeRawPointer?, _ knownDimensionsWidth: Float, _
 }
 
 
-private func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRawPointer? {
-  let layout = MasonLayout.fromFloatPoint(floats!).1
-  return Unmanaged.passRetained(layout).toOpaque()
+public enum MasonNodeType: Int32, RawRepresentable {
+  case element
+  case text
 }
-
 
 @objc(MasonNode)
 @objcMembers
 public class MasonNode: NSObject {
   internal var mason: NSCMason
   
-  internal var isText = false
+  internal var isAnonymous = false
   
   public internal(set) var nativePtr: OpaquePointer?
   
@@ -39,17 +38,51 @@ public class MasonNode: NSObject {
   
   public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
   
-  public var data: Any? = nil
+  internal var view: UIView? = nil
+  
+  internal var children: [MasonNode] = []
   
   internal var measureFunc: MeasureFunc? = nil
   
+  public func getRootNode() -> MasonNode {
+    var current = self
+    while current.parent != nil {
+      current = current.parent!
+    }
+    return current
+  }
   
-  lazy public var style: MasonStyle = {
+  lazy internal var style: MasonStyle = {
     MasonStyle(node: self)
   }()
   
-  public internal(set) var owner: MasonNode? = nil
-  public internal(set) var children: [MasonNode] = []
+  public internal(set) var parent: MasonNode? = nil
+  
+  public internal(set) var type: MasonNodeType = .element
+  
+  public func getChildren() -> [MasonNode] {
+    var out: [MasonNode] = []
+    collectAuthorChildren(into: &out, from: children)
+    return out
+  }
+  
+  
+  public func getLayoutChildren() -> [MasonNode] {
+    return children
+  }
+  
+  // MARK: - Helpers
+  
+  private func collectAuthorChildren(into out: inout [MasonNode], from nodes: [MasonNode]) {
+    for child in nodes {
+      if child.isAnonymous {
+        collectAuthorChildren(into: &out, from: child.children)
+      } else {
+        out.append(child)
+      }
+    }
+  }
+  
   
   var inBatch = false {
     didSet {
@@ -57,9 +90,25 @@ public class MasonNode: NSObject {
     }
   }
   
+  
+  internal init(dataNode doc: NSCMason) {
+    mason = doc
+    nativePtr = nil
+    type = .text
+    super.init()
+  }
   internal init(mason doc: NSCMason) {
     mason = doc
     nativePtr = mason_node_new_node(mason.nativePtr)
+    type = .element
+    super.init()
+  }
+  
+  
+  internal init(textNode doc: NSCMason) {
+    mason = doc
+    nativePtr = mason_node_new_text_node(mason.nativePtr)
+    type = .element
     super.init()
   }
   
@@ -72,11 +121,11 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_node_with_children(mason.nativePtr, &childrenMap, UInt(childrenMap.count))
     
     children = nodes
-    
+    type = .element
     super.init()
     
     children.forEach { node in
-      node.owner = self
+      node.parent = self
     }
   }
   
@@ -90,9 +139,9 @@ public class MasonNode: NSObject {
   }
   
   deinit {
+    guard let nativePtr else { return }
     mason_node_destroy(nativePtr)
   }
-  
   
   
   static func to_vec_non_repeated_track_sizing_function(_ array: Array<MinMax>) -> CMasonNonRepeatedTrackSizingFunctionArray {
@@ -105,17 +154,6 @@ public class MasonNode: NSObject {
     }), length: UInt(length))
   }
   
-  
-  
-  @discardableResult public func layout() -> MasonLayout {
-    
-    let points = mason_node_layout(mason.nativePtr,
-                                   nativePtr, create_layout)
-    
-    let layout: MasonLayout = Unmanaged.fromOpaque(points!).takeRetainedValue()
-    return layout
-  }
-  
   public var isDirty: Bool {
     return mason_node_dirty(mason.nativePtr, nativePtr)
   }
@@ -124,180 +162,283 @@ public class MasonNode: NSObject {
     mason_node_mark_dirty(mason.nativePtr, nativePtr)
   }
   
-  var root: MasonNode? {
-    guard let owner = self.owner else {return nil}
-    var current: MasonNode? = owner
-    var next: MasonNode? = current
-    while(next != nil){
-      next = current?.owner
-      if(next != nil){
-        current = next
-      }
-    }
-    return current
+  public func getRoot() -> UIView? {
+    return getRootNode().view
   }
+}
+
+
+// MARK: - Child Management
+extension MasonNode {
   
-  
-  
-  public func getRoot() -> MasonNode? {
-    return root
-  }
-  
-  internal var computeCache: CGSize?
-  public func compute() {
-    mason_node_compute(mason.nativePtr, nativePtr)
-  }
-  
-  public func compute(_ width: Float, _ height: Float) {
-    mason_node_compute_wh(mason.nativePtr, nativePtr, width, height)
-    computeCache = CGSize(width: CGFloat(width), height: CGFloat(height))
-  }
-  
-  public func computeMaxContent() {
-    mason_node_compute_max_content(mason.nativePtr, nativePtr)
-    computeCache = CGSize(width: CGFloat(-2), height: CGFloat(-2))
-  }
-  
-  public func computeMinContent() {
-    mason_node_compute_min_content(mason.nativePtr, nativePtr)
-    computeCache = CGSize(width: CGFloat(-1), height: CGFloat(-1))
-  }
-  
-  public func computeWithSize(_ width: Float, _ height: Float){
-    compute(width, height)
-    let layout = self.layout()
-    MasonNode.applyToView(self, layout)
-  }
-  
-  public func computeWithViewSize(){
-    computeWithViewSize(layout: false)
-  }
-  
-  public func computeWithViewSize(layout: Bool){
-    guard let view = data as? MasonUIView else{return}
-    compute(Float(view.frame.size.width) * NSCMason.scale, Float(view.frame.size.height) * NSCMason.scale)
-    if(layout){
-      MasonNode.applyToView(view.node, view.node.layout())
-    }
-  }
-  
-  public func computeWithMaxContent(){
-    computeMaxContent()
-    let layout = self.layout()
-    MasonNode.applyToView(self, layout)
-  }
-  
-  public func computeWithMinContent(){
-    computeMinContent()
-    let layout = self.layout()
-    MasonNode.applyToView(self, layout)
-  }
-  
-  public func attachAndApply(){
-    let layout = self.layout()
-    MasonNode.applyToView(self, layout)
-  }
   func getChildAt(_ index: Int) -> MasonNode? {
-    if(children.isEmpty){
-      return nil
-    }
-    let lastIndex = children.count - 1
-    if(index > lastIndex){
-      return nil
-    }
+    guard !children.isEmpty else { return nil }
+    guard index >= 0 && index < children.count else { return nil }
     return children[index]
   }
   
-  
-  
-  public func setChildren(value: [MasonNode]){
-    let children = value.map { node in
-      node.nativePtr
+  public func setChildren(value: [MasonNode]) {
+    // Remove old children
+    for child in children {
+      child.parent = nil
+      child.view?.removeFromSuperview()
     }
     
-    mason_node_set_children(mason.nativePtr, nativePtr, children, UInt(children.count))
-    self.children.removeAll()
-    self.children.append(contentsOf: value)
-  }
-  
-  func addChildren(_ children: [OpaquePointer?]){
-    mason_node_add_children(mason.nativePtr, nativePtr, children, UInt(children.count))
-  }
-  
-  public func addChildren(_ children: [MasonNode]){
-    let map = children.map { node in
-      node.owner = self
-      return node.nativePtr
+    // Set new children
+    children = value
+    
+    // Update parent references and add views
+    for child in value {
+      child.parent = self
+      if let childView = child.view {
+        view?.addSubview(childView)
+      }
     }
     
-    mason_node_add_children(mason.nativePtr, nativePtr, map, UInt(map.count))
+    // Sync to native layer (only real nodes with nativePtr)
+    let nativeChildren = value.compactMap { Optional($0.nativePtr) }
+    mason_node_set_children(mason.nativePtr, nativePtr, nativeChildren, UInt(nativeChildren.count))
+    
+    markDirty()
   }
   
-  func addChild(_ child: MasonNode) {
-    if(child.owner != nil){
-      if(child.owner == self){return}
-      child.owner?.removeChild(child: child)
-      // remove parent
+  
+  public func appendChild(_ child: MasonNode) {
+    // For MasonText containers, delegate to the MasonText view
+    if let textView = view as? MasonText {
+      textView.addChild(child)
+      return
     }
     
-    mason_node_add_child(mason.nativePtr, nativePtr, child.nativePtr)
+    // Check if this is a text node
+    if child is MasonTextNode {
+      appendTextChild(child)
+      return
+    }
+    
+    // Check if child has a view (inline element or regular element)
+    if child.view != nil && child.nativePtr != nil {
+      appendElementChild(child)
+      return
+    }
+    
+    // Fallback
     children.append(child)
-    child.owner = self
-  }
-  
-  func addChildAt(_ child: MasonNode, _ index: Int) {
+    child.parent = self
     
-    mason_node_add_child_at(mason.nativePtr, nativePtr, child.nativePtr, UInt(index))
-    
-    child.owner = self
-    if(index == -1 || index == children.count){
-      children.append(child)
-    }else {
-      children.insert(child, at: index)
-      let removed = children.remove(at: index + 1)
-      
-      removed.owner = nil
+    if let ptr = nativePtr, let childPtr = child.nativePtr {
+      mason_node_add_child(mason.nativePtr, ptr, childPtr)
     }
     
   }
   
-  
-  
-  @discardableResult func removeChild(child: MasonNode) -> MasonNode? {
-    let removedNode = mason_node_remove_child(mason.nativePtr, nativePtr, child.nativePtr)
-    
-    if (removedNode == nil) {
-      return nil
+  @discardableResult
+  private func appendElementChild(_ child: MasonNode) -> MasonNode {
+    // Remove from old parent
+    if let oldParent = child.parent {
+      oldParent.removeChild(child)
     }
-    child.owner = nil
     
-    guard let index = children.firstIndex(of: child) else {
-      return nil
+    // Add to author tree
+    children.append(child)
+    child.parent = self
+    
+    // Add view to hierarchy
+    if let childView = child.view {
+      view?.addSubview(childView)
     }
-    children.remove(at: index)
     
+    // Add to native layout tree
+    if let childPtr = child.nativePtr {
+      mason_node_add_child(mason.nativePtr, nativePtr, childPtr)
+    }
+    
+    markDirty()
     return child
   }
   
-  
-  func removeAllChildren() {
-    mason_node_remove_children(mason.nativePtr, nativePtr)
-    children.forEach { child in
-      child.owner = nil
-    }
-    children.removeAll()
+  @discardableResult
+  private func appendTextChild(_ child: MasonNode) -> MasonNode {
+    // If this node already has a MasonText view, add directly to it
+        if let textView = view as? MasonText {
+            textView.addChild(child)
+            return child
+        }
+        
+        // Otherwise, check if we can append to an existing anonymous text container
+        if let lastChild = children.last,
+           lastChild.isAnonymous,
+           let lastTextView = lastChild.view as? MasonText {
+            // Append to existing anonymous container
+            lastTextView.addChild(child)
+            return child
+        }
+        
+        // Create new anonymous container only if necessary
+        let container = getOrCreateAnonymousTextContainer()
+        if let masonText = container.view as? MasonText {
+            masonText.addChild(child)
+        }
+        
+        return child
   }
   
+  internal func getOrCreateAnonymousTextContainer() -> MasonNode {
+    // Check if last child is an anonymous text container
+    let lastChild = children.last
+    if(lastChild?.isAnonymous ?? false && lastChild?.view is MasonText){
+     return lastChild!
+    }
+    
+    // Create new anonymous container
+    let textView = MasonText(mason: mason, isAnonymous: true)
+    
+    // Add container to this node
+    children.append(textView.node)
+    textView.node.parent = self
+    view?.addSubview(textView)
+    
+    // Add to native layout tree
+    if let containerPtr = textView.node.nativePtr {
+      mason_node_add_child(mason.nativePtr, nativePtr, containerPtr)
+    }
+    
+    return textView.node
+  }
   
-  func removeChildAt(index: Int) -> MasonNode? {
-    // TODO handle negative index
-    if(index < 0){
+  @discardableResult
+  func removeChild(_ child: MasonNode) -> MasonNode? {
+    guard child.parent === self else { return nil }
+    
+    switch child.type {
+    case .element:
+      return removeElementChild(child)
+    case .text:
+      return removeTextChild(child)
+    }
+  }
+  
+  @discardableResult private func removeElementChild(_ child: MasonNode) -> MasonNode? {
+    guard let index = children.firstIndex(where: { $0 === child }) else {
       return nil
     }
-    guard mason_node_remove_child_at(mason.nativePtr, nativePtr, UInt(index)) != nil else {return nil}
-    let removed = children.remove(at: index)
-    removed.owner = nil
-    return removed
+    
+    // Remove from view hierarchy
+    child.view?.removeFromSuperview()
+    
+    // Remove from author tree
+    children.remove(at: index)
+    child.parent = nil
+    
+    // Remove from native layout tree
+    if let childPtr = child.nativePtr {
+      mason_node_remove_child(mason.nativePtr, nativePtr, childPtr)
+    }
+    
+    markDirty()
+    return child
+  }
+  
+  private func removeTextChild(_ child: MasonNode) -> MasonNode? {
+    // Find the text container holding this text node
+    for containerNode in children {
+      guard containerNode.isAnonymous,
+            let textContainer = containerNode.view as? MasonText else {
+        continue
+      }
+      
+      // Try to remove from this container
+      if let removed = textContainer.removeChild(child) {
+        // If container is now empty, remove it
+        if textContainer.node.children.isEmpty {
+          removeElementChild(containerNode)
+        }
+        return removed
+      }
+    }
+    
+    return nil
+  }
+  
+  internal func addChildAt(_ child: MasonNode, _ index: Int) {
+    guard child.parent !== self else { return }
+    
+    let idx: Int
+    if index == -1 {
+      idx = children.count
+    } else {
+      idx = max(0, min(index, children.count))
+    }
+    
+    switch child.type {
+    case .element:
+      addElementChildAt(child, idx)
+    case .text:
+      addTextChildAt(child, idx)
+    }
+  }
+  
+  private func addElementChildAt(_ child: MasonNode, _ index: Int) {
+    // Remove from old parent
+    if let oldParent = child.parent {
+      oldParent.removeChild(child)
+    }
+    
+    // Insert into author tree
+    children.insert(child, at: index)
+    child.parent = self
+    
+    // Add view to hierarchy
+    if let childView = child.view {
+      if(index <= -1){
+        view?.addSubview(childView)
+      }else {
+        view?.insertSubview(childView, at: index)
+      }
+    }
+    
+    // Sync native layout tree (full rebuild for insert to maintain order)
+    let nativeChildren = children.compactMap { $0.nativePtr }
+    
+    // Convert [OpaquePointer] to [OpaquePointer?] for the C API
+    var optionalChildren = nativeChildren.map { Optional($0) }
+    mason_node_set_children(mason.nativePtr, nativePtr, &optionalChildren, UInt(optionalChildren.count))
+    
+    markDirty()
+  }
+  
+  private func addTextChildAt(_ child: MasonNode, _ index: Int) {
+    // For text nodes, find nearest text container or create one
+    // If inserting at end (-1 or children.count), use appendChild behavior
+    if index >= children.count {
+      appendChild(child)
+    } else {
+      // TODO: Implement proper insertion into text containers at specific positions
+      // For now, delegate to appendChild which handles containers
+      appendChild(child)
+    }
+  }
+  
+  internal func removeChildAt(index: Int) -> MasonNode? {
+    guard index >= 0 && index < children.count else { return nil }
+    
+    let child = children[index]
+    return removeChild(child)
+  }
+  
+  func removeAllChildren() {
+    // Remove all children
+    for child in children {
+      child.parent = nil
+      child.view?.removeFromSuperview()
+    }
+    
+    children.removeAll()
+    
+    // Clear native layout tree
+    mason_node_remove_children(mason.nativePtr, nativePtr)
+    
+    markDirty()
   }
   
   
@@ -308,161 +449,19 @@ public class MasonNode: NSObject {
   
   func setMeasureFunction(_ measureFunc: @escaping MeasureFunc) {
     self.measureFunc = measureFunc
-    
     mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
   }
   
-  public func configure(_ block :(MasonNode) -> Void) {
-    inBatch = true
-    block(self)
-    inBatch = false
-    style.updateNativeStyle()
-  }
   
   func setDefaultMeasureFunction(){
-    guard let view = data as? UIView else {return}
+    guard let view = self.view else {return}
     self.setMeasureFunction { knownDimensions, availableSpace in
       return MasonNode.measureFunction(view, knownDimensions, availableSpace)
     }
   }
   
-  private func handleOverflow(_ overflow: Overflow, _ scroll: UIScrollView, _ vertical: Bool = false) {
-    switch(overflow){
-    case .Visible:
-      scroll.clipsToBounds = false
-      if(vertical){
-        scroll.alwaysBounceVertical = false
-        scroll.showsVerticalScrollIndicator = false
-      }else {
-        scroll.alwaysBounceHorizontal = false
-        scroll.showsHorizontalScrollIndicator = false
-      }
-    case .Hidden:
-      scroll.clipsToBounds = true
-      scroll.alwaysBounceVertical = true
-      scroll.alwaysBounceHorizontal = true
-      if(vertical){
-        scroll.alwaysBounceVertical = true
-        scroll.showsVerticalScrollIndicator = false
-      }else {
-        scroll.alwaysBounceHorizontal = true
-        scroll.showsHorizontalScrollIndicator = false
-      }
-    case .Scroll:
-      scroll.clipsToBounds = true
-      if(vertical){
-        scroll.alwaysBounceVertical = true
-        scroll.showsVerticalScrollIndicator = true
-      }else {
-        scroll.alwaysBounceHorizontal = true
-        scroll.showsHorizontalScrollIndicator = true
-      }
-    case .Clip:
-      scroll.clipsToBounds = true
-      if(vertical){
-        scroll.alwaysBounceVertical = true
-        scroll.showsVerticalScrollIndicator = false
-      }else {
-        scroll.alwaysBounceHorizontal = true
-        scroll.showsHorizontalScrollIndicator = false
-      }
-    case .Auto:
-      scroll.clipsToBounds = true
-      if(vertical){
-        if(scroll.contentSize.height > scroll.bounds.size.height){
-          scroll.showsVerticalScrollIndicator = true
-        }else {
-          scroll.showsVerticalScrollIndicator = false
-        }
-        scroll.alwaysBounceVertical = true
-      }else {
-        if(scroll.contentSize.width > scroll.bounds.size.width){
-          scroll.showsHorizontalScrollIndicator = true
-        }else {
-          scroll.showsHorizontalScrollIndicator = false
-        }
-        scroll.showsHorizontalScrollIndicator = false
-      }
-    }
-  }
   
-  static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
-    node.computedLayout = layout
-    // text view text node // do nothing for now
-    if(node.isText){
-      return
-    }
-    if let view = node.data as? UIView {
-      var isTextView = false
-      var realLayout = layout
-      var hasWidthConstraint: Bool = false
-      var hasHeightConstraint: Bool = false
-      if let view = view as? MasonText {
-        isTextView = true
-        realLayout = view.node.computedLayout
-        hasWidthConstraint = view.node.style.size.width != .Auto
-        hasHeightConstraint = view.node.style.size.height != .Auto
-      }
-      
-      
-      let widthIsNan = realLayout.width.isNaN
-      
-      let heightIsNan = realLayout.height.isNaN
-      
-      let x = CGFloat(realLayout.x.isNaN ? 0 : realLayout.x/NSCMason.scale)
-      
-      let y = CGFloat(realLayout.y.isNaN ? 0 : realLayout.y/NSCMason.scale)
-      
-      var width = CGFloat(widthIsNan ? 0 : realLayout.width/NSCMason.scale)
-      
-      var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
-            
-      if(isTextView){
-        if(!hasWidthConstraint && realLayout.contentSize.width > realLayout.width){
-          width = CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale)
-        }
-        
-        if(!hasHeightConstraint && realLayout.contentSize.height > realLayout.height){
-          height = CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale)
-        }
-      }
-      
-      let point = CGPoint(x: x, y: y)
-      
-      let size = CGSizeMake(width, height)
-      
-      view.frame = CGRect(origin: point, size: size)
-      
-      if let view = view as? MasonText {
-        view.invalidate(layout: true)
-      }
-      
-      if let scroll = node.data as? Scroll {
-        let overflow = node.style.overflow
-        
-        scroll.contentSize = CGSize(width: CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), height: CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale))
-        
-        node.handleOverflow(overflow.x, scroll)
-        node.handleOverflow(overflow.y, scroll, true)
-        
-      }
-      
-    }
-    
-    
-    let count = node.children.count
-    for i in 0..<count{
-      if let child = node.getChildAt(i) {
-        if(child.isText){
-          continue
-        }
-        let layout = layout.children[i]
-        applyToView(child, layout)
-      }
-    }
-    
-    
-  }
+  
   
   enum MeasureMode {
     case Min
@@ -490,8 +489,6 @@ public class MasonNode: NSObject {
     
     let constraintSize = CGSize(width: width, height: height)
     let result = view.sizeThatFits(constraintSize)
-    
-    print("DEBUG MasonNode.measureFunction: view=\(type(of: view)), knownDimensions=\(String(describing: knownDimensions)), availableSpace=\(availableSpace), constraintSize=\(constraintSize), result=\(result), intrinsicSize=\(view.intrinsicContentSize)")
     
     return result
   }

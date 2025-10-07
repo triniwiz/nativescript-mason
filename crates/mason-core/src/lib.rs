@@ -1,6 +1,6 @@
 use crate::tree::{Id, Tree};
-use std::ffi::{c_float, c_longlong, c_void};
 use slotmap::Key;
+use std::ffi::{c_float, c_longlong, c_void};
 pub use taffy::geometry::{Line, Point, Rect, Size};
 pub use taffy::style::{
     AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, CompactLength, Dimension,
@@ -16,9 +16,11 @@ use taffy::PrintTree;
 
 mod node;
 
+pub use crate::node::InlineSegment;
 pub use crate::style::Style;
 pub use node::NodeRef;
 
+mod inline;
 pub mod style;
 mod tree;
 pub mod utils;
@@ -111,6 +113,11 @@ impl Mason {
     #[track_caller]
     pub fn create_node(&mut self) -> NodeRef {
         self.0.create_node()
+    }
+
+    #[track_caller]
+    pub fn create_text_node(&mut self) -> NodeRef {
+        self.0.create_text_node()
     }
 
     #[cfg(target_os = "android")]
@@ -252,6 +259,32 @@ impl Mason {
         self.0.remove(parent, node)
     }
 
+    pub fn append_segment(&mut self, node: Id, segment: InlineSegment) {
+        if let Some(data) = self.0.node_data.get_mut(node) {
+            data.inline_segments.push(segment);
+        }
+    }
+
+    pub fn clear_segments(&mut self, node: Id) {
+        if let Some(data) = self.0.node_data.get_mut(node) {
+            data.inline_segments.clear();
+        }
+    }
+
+    pub fn set_segments(&mut self, node: Id, segments: Vec<InlineSegment>) {
+        if let Some(data) = self.0.node_data.get_mut(node) {
+            data.inline_segments = segments
+        }
+    }
+
+    pub fn get_segments(&mut self, node: Id) -> &[InlineSegment] {
+        self.0
+            .node_data
+            .get(node)
+            .map(|data| data.inline_segments.as_slice())
+            .unwrap_or(&[])
+    }
+
     pub fn set_children(&mut self, parent: Id, children: &[Id]) {
         if let Some(current_children) = self.0.children.get_mut(parent) {
             if children.is_empty() && current_children.is_empty() {
@@ -280,7 +313,15 @@ impl Mason {
     }
 
     pub fn add_children(&mut self, node: Id, children: &[Id]) {
+        self.append_children(node, children);
+    }
+
+    pub fn append_children(&mut self, node: Id, children: &[Id]) {
         self.0.append_children(node, children)
+    }
+
+    pub fn prepend_children(&mut self, node: Id, children: &[Id]) {
+        self.0.prepend_children(node, children)
     }
 
     pub fn print_tree(&self, node: Id) {
@@ -288,7 +329,11 @@ impl Mason {
     }
 
     pub fn add_child(&mut self, node: Id, child: Id) {
-        self.0.append(node, child)
+        self.append(node, child)
+    }
+
+    pub fn prepend(&mut self, node: Id, child: Id) {
+        self.0.prepend(node, child)
     }
 
     pub fn add_child_at_index(&mut self, node: Id, child: Id, index: usize) {

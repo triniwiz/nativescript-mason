@@ -1,5 +1,4 @@
-
-use crate::style::{Style, StyleKeys};
+use crate::style::Style;
 use crate::tree::Id;
 use crate::MeasureOutput;
 use std::rc::Rc;
@@ -118,8 +117,22 @@ impl NodeMeasure {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum InlineSegment {
+    Text {
+        width: f32,
+        ascent: f32,
+        descent: f32,
+    },
+    InlineChild {
+        id: Option<Id>,
+        baseline: f32,
+    },
+}
+
 #[derive(Debug)]
 pub struct NodeData {
+    pub(crate) inline_segments: Vec<InlineSegment>,
     #[cfg(not(target_os = "android"))]
     pub(crate) data: *mut std::os::raw::c_void,
     #[cfg(target_os = "android")]
@@ -133,15 +146,24 @@ pub struct NodeData {
             std::os::raw::c_float,
             std::os::raw::c_float,
         ) -> std::os::raw::c_longlong,
-    >
+    >,
 }
 
 impl NodeData {
+    pub fn inline_segments(&self) -> &[InlineSegment] {
+        self.inline_segments.as_slice()
+    }
+
+    pub fn set_inline_segments(&mut self, segments: Vec<InlineSegment>) {
+        self.inline_segments = segments;
+    }
+
     #[cfg(target_os = "android")]
     pub(crate) fn new() -> Self {
         unsafe {
             Self {
                 measure: None,
+                inline_segments: vec![],
             }
         }
     }
@@ -152,10 +174,10 @@ impl NodeData {
             Self {
                 data: 0 as _,
                 measure: None,
+                inline_segments: vec![],
             }
         }
     }
-
 
     #[cfg(target_os = "android")]
     pub fn measure(
@@ -263,6 +285,11 @@ impl Default for NodeData {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NodeType {
+    Normal,
+    Text,
+}
 #[derive(Debug, Clone)]
 pub struct Node {
     pub(crate) style: Style,
@@ -271,6 +298,7 @@ pub struct Node {
     pub(crate) final_layout: Layout,
     pub(crate) guard: Rc<()>,
     pub(crate) has_measure: bool,
+    pub(crate) type_: NodeType,
 }
 
 impl Node {
@@ -282,11 +310,17 @@ impl Node {
             final_layout: Default::default(),
             guard: Default::default(),
             has_measure: false,
+            type_: NodeType::Normal,
         }
     }
 
     pub fn mark_dirty(&mut self) -> ClearState {
         self.cache.clear()
+    }
+
+    #[inline]
+    pub fn is_text_container(&self) -> bool {
+        self.type_ == NodeType::Text
     }
 }
 
