@@ -358,7 +358,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     */
     
-    imageExample()
+    textDemo()
+    
+    //imageExample()
      //textSample()
      // gridSample()
     
@@ -663,6 +665,69 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     */
     
     
+  }
+  
+  func textDemo(){
+    let div = mason.createView()
+    div.tag = 67890
+    
+    div.configure { style in
+      style.marginTop = .Points(300)
+      style.marginLeft = .Points(100)
+    }
+    
+    div.backgroundColor = .white
+    let p1 = mason.createTextView()
+    p1.text = "Test nativescript-masonkit"
+    p1.color = UIColor.red.toUInt32()
+    
+    let sspan1 = mason.createTextView()
+    sspan1.text = " inline text"
+    sspan1.color = UIColor.blue.toUInt32()
+    
+    p1.addView(sspan1)
+    div.addView(p1)
+    
+    
+    let p2 = mason.createTextView(type: .P)
+    //p2.backgroundColor = UIColor.systemPink
+    p2.appendText("Paragraph with image ")
+    
+    
+    let img1 = mason.createImageView()
+    
+    img1.configure { style in
+      style.size = MasonSize(.Points(100 * scale), .Points(100 * scale))
+    }
+    
+    img1.src = "https://picsum.photos/200/300"
+    
+    p2.addView(img1)
+    
+    
+    let img2 = mason.createImageView()
+    
+    img2.configure { style in
+      style.size = MasonSize(.Points(300 * scale), .Points(300 * scale))
+    }
+    
+    img2.src = "https://picsum.photos/200/300"
+    
+    div.addView(p2)
+    div.addView(img2)
+    
+    container.addView(div)
+    
+    container.computeWithSize(scale * Float(container.bounds.width), scale * Float(container.bounds.height))
+    
+//    
+//    <div backgroundColor="red">
+//        <p style="color: red;">Test nativescript-masonkit
+//          <sspan style="color: blue;"> inline text</sspan>
+//        </p>
+//        <p style="color: black;background-color: pink;">Paragraph with image <img width="100" height="100" src="https://picsum.photos/200/300" /></p>
+//        <img width="300" height="300" src="https://picsum.photos/200/300" />
+//      </div>
   }
   
   func imageExample(){

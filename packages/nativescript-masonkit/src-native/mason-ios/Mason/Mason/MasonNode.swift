@@ -204,6 +204,13 @@ extension MasonNode {
   
   
   public func appendChild(_ child: MasonNode) {
+    
+    // Remove from old parent
+    if let oldParent = child.parent {
+      oldParent.removeChild(child)
+    }
+    
+    
     // For MasonText containers, delegate to the MasonText view
     if let textView = view as? MasonText {
       textView.addChild(child)

@@ -747,36 +747,42 @@ impl LayoutPartialTree for Tree {
                         
                         // Compute known dimensions from style (width/height properties)
                         let style_size = style.get_size();
-                        
-                        // Resolve style dimensions using parent size
-                        let known_dimensions = Size {
-                            width: style_size.width.maybe_resolve(inputs.parent_size.width, |_, _| 0.0),
-                            height: style_size.height.maybe_resolve(inputs.parent_size.height, |_, _| 0.0),
-                        };
-                        
-                        // Merge with input known dimensions (input takes precedence)
-                        let final_known_dimensions = Size {
-                            width: inputs.known_dimensions.width.or(known_dimensions.width),
-                            height: inputs.known_dimensions.height.or(known_dimensions.height),
-                        };
-                        
+
                         compute_leaf_layout(
-                            LayoutInput {
-                                known_dimensions: final_known_dimensions,
-                                ..inputs
-                            },
+                            inputs,
                             style,
                             |_val, _basis| 0.0,
                             |known_dimensions, available_space| {
+                                // Resolve style dimensions and merge with input known dimensions
+
+                                let resolved_width = known_dimensions.width.or_else(|| {
+                                    style_size.width.maybe_resolve(
+                                        available_space.width.into_option().or(inputs.parent_size.width),
+                                        |_, _| 0.0
+                                    )
+                                });
+
+                                let resolved_height = known_dimensions.height.or_else(|| {
+                                    style_size.height.maybe_resolve(
+                                        available_space.height.into_option().or(inputs.parent_size.height),
+                                        |_, _| 0.0
+                                    )
+                                });
+
+                                let final_known = Size {
+                                    width: resolved_width,
+                                    height: resolved_height,
+                                };
+
                                 if !has_measure {
                                     // No measure function: return known dimensions or zero
                                     Size {
-                                        width: known_dimensions.width.unwrap_or(0.0),
-                                        height: known_dimensions.height.unwrap_or(0.0),
+                                        width: final_known.width.unwrap_or(0.0),
+                                        height: final_known.height.unwrap_or(0.0),
                                     }
                                 } else {
-                                    // Has measure function: call it
-                                    node_data.measure(known_dimensions, available_space)
+                                    // Has measure function: call it with resolved dimensions
+                                    node_data.measure(final_known, available_space)
                                 }
                             },
                         )

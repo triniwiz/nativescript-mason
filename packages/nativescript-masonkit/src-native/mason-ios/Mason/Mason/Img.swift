@@ -70,6 +70,7 @@ public class Img: UIImageView, MasonElement {
     mason = doc
     super.init(frame: .zero)
     isOpaque = false
+    node.view = self
     node.measureFunc = { known, available in
       return Img.measure(self, known, available)
     }

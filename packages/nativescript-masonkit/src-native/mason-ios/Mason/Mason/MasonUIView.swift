@@ -71,10 +71,9 @@ public class MasonUIView: UIView, MasonElement {
   
 
   public func addView(_ view: UIView){
-//    if(view.superview == self){
-//      return
-//    }
-//    addSubview(view)
+    if(view.superview == self){
+      return
+    }
     if(view is MasonElement){
       append((view as! MasonElement))
     }else {
@@ -83,9 +82,9 @@ public class MasonUIView: UIView, MasonElement {
   }
   
   public func addView(_ view: UIView, at: Int){
-//    if(view.superview == self){
-//      return
-//    }
+    if(view.superview == self){
+      return
+    }
 //    if(at <= -1){
 //      addSubview(view)
 //    }else {

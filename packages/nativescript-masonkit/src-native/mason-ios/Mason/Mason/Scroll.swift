@@ -48,6 +48,7 @@ public class Scroll: UIScrollView, MasonElement, UIScrollViewDelegate {
     node = doc.createNode()
     mason = doc
     super.init(frame: .zero)
+    node.view = self
     self.delegate = self
     
     isOpaque = false
@@ -97,26 +98,15 @@ public class Scroll: UIScrollView, MasonElement, UIScrollViewDelegate {
     if(view.superview == self){
       return
     }
-    addSubview(view)
-    if let view = view as? MasonElement {
-      node.appendChild(view.node)
-      return
+    if(view is MasonElement){
+      append((view as! MasonElement))
+    }else {
+      append(node: mason.nodeForView(view))
     }
-    node.appendChild(mason.nodeForView(view))
   }
   
   public func addView(_ view: UIView, at: Int){
     if(view.superview == self){
-      return
-    }
-    if(at <= -1){
-      addSubview(view)
-    }else {
-      insertSubview(view, at: at)
-    }
-    
-    if let view = view as? MasonElement {
-      node.addChildAt(view.node, at)
       return
     }
 
