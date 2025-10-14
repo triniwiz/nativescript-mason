@@ -20,16 +20,6 @@ public class Img: UIImageView, MasonElement {
   
   public var didLayout: (() -> Void)?
   
-  public func requestLayout(){
-    node.markDirty()
-    let root = node.getRootNode()
-    if let view = root.view as? MasonElement {
-      let computed = view.computeCache()
-      view.computeWithSize(Float(computed.width), Float(computed.height))
-      didLayout?()
-    }
-  }
-  
   private var currentTask: URLSessionDataTask?
   public var src: String? {
     didSet {
@@ -47,9 +37,9 @@ public class Img: UIImageView, MasonElement {
 
         DispatchQueue.main.async {
           self.image = image
-          self.requestLayout()
           self.setNeedsDisplay()
-          
+          self.node.parent?.markDirty()
+          self.requestLayout()
         }
       })
       
@@ -61,8 +51,8 @@ public class Img: UIImageView, MasonElement {
   
   public func updateImage(_ image: UIImage?) {
     self.image = image
-    requestLayout()
     setNeedsDisplay()
+    requestLayout()
   }
   
   init(mason doc: NSCMason) {
@@ -94,6 +84,8 @@ public class Img: UIImageView, MasonElement {
     var ret = CGSize.zero
     if let known = known {
       if(!known.width.isNaN && !known.height.isNaN){
+        view.node.cachedWidth = known.width
+        view.node.cachedHeight = known.height
         return known
       }
       
@@ -118,6 +110,10 @@ public class Img: UIImageView, MasonElement {
         ret.height = CGFloat(ciImage.extent.height)
       }
     }
+    
+    view.node.cachedWidth = ret.width
+    view.node.cachedHeight = ret.height
+    
     return ret
   }
 }

@@ -119,8 +119,7 @@ extension MasonTextNode {
     /// Get attributed string representation of this text node
     public func attributed() -> NSAttributedString {
         // Apply text transforms and whitespace processing
-        let processedText = processText(data)
-        
+        let processedText = processText(data)        
         return NSAttributedString(string: processedText, attributes: attributes)
     }
     
@@ -161,9 +160,12 @@ extension MasonTextNode {
             processed = normalizeNewlines(processed)
         case .PreLine:
             processed = processPreLine(processed, treatNBSPAsSpace: false)
-        case .Nowrap:
+        case .NoWrap:
             processed = normalizeNewlines(processed)
                 .replacingOccurrences(of: collapsiblePlusLF, with: " ", options: .regularExpression)
+        case .BreakSpaces:
+          // todo
+          break
         }
         
         return processed

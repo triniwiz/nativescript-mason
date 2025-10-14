@@ -32,15 +32,15 @@ class Mason {
   @JvmOverloads
   fun createNode(children: Array<Node>? = null): Node {
     val nodePtr = children?.let {
-      Node.nativeNewNodeWithChildren(
+      NativeHelpers.nativeNodeNewWithChildren(
         nativePtr,
         children.map { it.nativePtr }.toLongArray(),
       )
-    } ?: Node.nativeNewNode(nativePtr)
+    } ?: NativeHelpers.nativeNodeNew(nativePtr)
     return Node(this, nodePtr).apply {
       children?.let {
         children.forEach {
-          it.owner = this
+          it.parent = this
         }
         this.children.addAll(children)
       }
@@ -51,7 +51,43 @@ class Mason {
   fun createNode(measure: MeasureFunc): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
     val nodePtr =
-      Node.nativeNewNodeWithContext(nativePtr, func)
+      NativeHelpers.nativeNodeNewWithContext(nativePtr, func)
+    return Node(this, nodePtr).apply {
+      nodes[nodePtr] = this
+      measureFunc = measure
+    }
+  }
+
+
+  @JvmOverloads
+  fun createTextNode(children: Array<Node>? = null): Node {
+    val nodePtr = children?.let {
+      NativeHelpers.nativeNodeNewWithChildren(
+        nativePtr,
+        children.map { map ->
+          if (map.nativePtr == 0L) {
+            null
+          } else {
+            map.nativePtr
+          }
+        }.mapNotNull { it }.toLongArray()
+      )
+    } ?: NativeHelpers.nativeNodeNewText(nativePtr)
+    return Node(this, nodePtr).apply {
+      children?.let {
+        children.forEach {
+          it.parent = this
+        }
+        this.children.addAll(children)
+      }
+      nodes[nodePtr] = this
+    }
+  }
+
+  fun createTextNode(measure: MeasureFunc): Node {
+    val func = MeasureFuncImpl(WeakReference(measure))
+    val nodePtr =
+      NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func)
     return Node(this, nodePtr).apply {
       nodes[nodePtr] = this
       measureFunc = measure
@@ -76,12 +112,21 @@ class Mason {
     return Scroll(context, this)
   }
 
+
+  fun configureStyleForView(view: android.view.View, block: (Style) -> Unit) {
+    val node = nodeForView(view)
+    node.style.inBatch = true
+    block(node.style)
+    node.style.inBatch = false
+    node.style.updateNativeStyle()
+  }
+
   fun nodeForView(view: android.view.View): Node {
     return when (view) {
-      is MasonView -> {
+      is Element -> {
         nodes[view.node.nativePtr] ?: run {
           val node = createNode().apply {
-            data = view
+            this.view = view
           }
           nodes[view.node.nativePtr] = node
           node
@@ -92,7 +137,8 @@ class Mason {
         viewNodes[view] ?: run {
           // is leaf to ensure it triggers android's view measure
           val node = createNode().apply {
-            data = view
+            this.view = view
+            setDefaultMeasureFunction()
           }
           viewNodes[view] = node
           node
@@ -101,12 +147,17 @@ class Mason {
     }
   }
 
+  fun styleForView(view: android.view.View): Style {
+    val node = nodeForView(view)
+    return node.style
+  }
+
   fun requestLayout(node: Long) {
     nodes[node]?.style?.updateNativeStyle()
   }
 
   fun requestLayout(view: android.view.View) {
-    if (view is MasonView) {
+    if (view is Element) {
       view.style.updateNativeStyle()
     } else {
       viewNodes[view]?.style?.updateNativeStyle()
@@ -124,14 +175,9 @@ class Mason {
   }
 
   companion object {
-    private var didInit = false
 
     internal fun initLib() {
-      if (didInit) {
-        return
-      }
-      didInit = true
-      System.loadLibrary("masonnative")
+      NativeHelpers.initLib()
     }
 
     init {

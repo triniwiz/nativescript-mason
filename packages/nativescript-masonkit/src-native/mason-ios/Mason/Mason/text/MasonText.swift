@@ -87,28 +87,29 @@ class ViewHelper {
     self.view = view
     mason = doc
     node = doc.nodeForView(view)
-    updateImage()
+   // updateImage()
   }
   
   
   func updateImage(_ afterScreenUpdates: Bool = true) {
     guard let view = view else { return }
-    let layout =  node.computedLayout
+    let layout = node.computedLayout
     
     let size = CGSize(width: CGFloat(layout.width / NSCMason.scale), height:CGFloat( layout.height / NSCMason.scale))
     
     view.frame = CGRect(origin: view.frame.origin, size: size)
     
     if(afterScreenUpdates){
-      let renderer = UIGraphicsImageRenderer(size: size)
-      self.image = renderer.image { _ in
-        view.drawHierarchy(in: view.bounds, afterScreenUpdates: afterScreenUpdates)
+      CATransaction.setCompletionBlock {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        self.image = renderer.image { _ in
+          view.drawHierarchy(in: view.bounds, afterScreenUpdates: afterScreenUpdates)
+        }
       }
       
     }else{
       let rendererFormat = UIGraphicsImageRendererFormat.default()
       rendererFormat.opaque = view.isOpaque
-      
       
       self.image = UIGraphicsImageRenderer(size: view.bounds.size, format: rendererFormat).image { ctx in
         view.layer.render(in: ctx.cgContext)
@@ -159,7 +160,7 @@ struct TextStateKeys: OptionSet {
   static let textOverflow    = TextStateKeys(rawValue: 1 << 12)
 }
 
-let VIEW_PLACEHOLDER = "[[__view__]]"
+let VIEW_PLACEHOLDER = "[[view_placeholder]]"
 let UNSET_COLOR = UInt32(0xDEADBEEF)
 
 @objc(MasonTextType)
@@ -780,6 +781,14 @@ public class MasonText: UIView, MasonElement {
   }
   
   private func updateFontOnTextNodes() {
+    if(font.font == nil){
+      font.loadSync {error in }
+    }
+    
+    if(font.font == nil){
+      return
+    }
+    
     let ctFont = CTFontCreateWithGraphicsFont(font.font!, fontSize, nil, nil)
     
     for child in node.children {
@@ -875,9 +884,12 @@ public class MasonText: UIView, MasonElement {
       return normalizeNewlines(text)
     case .PreLine:
       return processPreLine(text, treatNBSPAsSpace: false)
-    case .Nowrap:
+    case .NoWrap:
       return normalizeNewlines(text)
         .replacingOccurrences(of: collapsiblePlusLF, with: " ", options: .regularExpression)
+    case .BreakSpaces:
+      // todo
+      return text
     }
   }
   
@@ -894,8 +906,11 @@ public class MasonText: UIView, MasonElement {
       paragraphStyle.headIndent = 0
       paragraphStyle.firstLineHeadIndent = 0
       paragraphStyle.tailIndent = 0
-    case .Nowrap:
+    case .NoWrap:
       paragraphStyle.lineBreakMode = .byClipping
+    case .BreakSpaces:
+      // todo
+      break
     }
   }
   
@@ -1038,14 +1053,64 @@ public class MasonText: UIView, MasonElement {
     
     return String(String.UnicodeScalarView(mapped))
   }
+  
+  private var isBuilding = false
+  private var cachedAttributedString: NSAttributedString?
+  private var attributedStringVersion: Int = 0
+
+  internal func buildAttributedString(forMeasurement: Bool = false) -> NSAttributedString {
+    // Return cached version if valid
+    if let cached = cachedAttributedString, !segmentsNeedRebuild {
+      return cached
+    }
+    
+    if isBuilding {
+      return NSMutableAttributedString()
+    }
+    
+    isBuilding = true
+    defer { isBuilding = false }
+    
+    let composed = NSMutableAttributedString()
+    
+    for child in node.children {
+      if let textNode = child as? MasonTextNode {
+        composed.append(NSAttributedString(string: textNode.data, attributes: textNode.attributes))
+      } else if let textView = child.view as? MasonText {
+        if shouldFlattenTextContainer(textView) {
+          let childAttributed = textView.buildAttributedString(forMeasurement: forMeasurement)
+          composed.append(childAttributed)
+        } else {
+          // During measurement, force layout of inline children
+          if forMeasurement {
+           // child.computeLayout()
+          }
+          
+          let placeholder = createPlaceholder(for: child)
+          composed.append(placeholder)
+        }
+      }else if(child.view != nil && child.nativePtr != nil){
+        let placeholder = createPlaceholder(for: child)
+        composed.append(placeholder)
+      }
+    }
+    
+    // Cache the result
+    cachedAttributedString = composed
+    attributedStringVersion += 1
+    
+    return composed
+  }
+
+
 }
 
 // MARK: - Layout & Measurement
 extension MasonText {
   private static func measure(_ view: MasonText, _ known: CGSize?, _ available: CGSize) -> CGSize {
+    // Build attributed string with measurement flag
+    let text = view.buildAttributedString(forMeasurement: true)
     
-    // Build attributed string on-demand from text nodes
-    let text = view.buildAttributedString()
     
     if let known = known {
       if (!known.width.isNaN && known.width >= 0) && (!known.height.isNaN && known.height >= 0) {
@@ -1061,16 +1126,14 @@ extension MasonText {
       }
     }
     
-    
     // Create framesetter and frame to collect segments
     let framesetter = CTFramesetterCreateWithAttributedString(text)
+
     let constraintSize = CGSize(width: maxWidth, height: .greatestFiniteMagnitude)
     let path = CGPath(rect: CGRect(origin: .zero, size: constraintSize), transform: nil)
+
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
-    
-    // IMPORTANT: Collect and push segments to Rust BEFORE returning size
-    view.collectAndCacheSegments(from: frame)
-    
+
     // Now calculate the size
     var size = CTFramesetterSuggestFrameSizeWithConstraints(
       framesetter,
@@ -1079,6 +1142,9 @@ extension MasonText {
       constraintSize,
       nil
     )
+    
+    // IMPORTANT: Collect and push segments to Rust BEFORE returning size
+    view.collectAndCacheSegments(from: frame)
     
     let scale = CGFloat(NSCMason.scale)
     size.width = size.width * scale
@@ -1094,6 +1160,9 @@ extension MasonText {
       }
     }
     
+    
+    view.node.cachedWidth = size.width
+    view.node.cachedHeight = size.height
     
     return size
   }
@@ -1111,15 +1180,15 @@ extension MasonText {
 // MARK: - Drawing
 extension MasonText {
   public override func draw(_ rect: CGRect) {
+    // Build attributed string for drawing (uses cache if valid)
+    let text = buildAttributedString(forMeasurement: false)
+    
     guard let context = UIGraphicsGetCurrentContext() else { return }
     
     context.textMatrix = .identity
     context.saveGState()
     context.translateBy(x: 0, y: bounds.height)
     context.scaleBy(x: 1.0, y: -1.0)
-    
-    // Build attributed string from text nodes and inline children
-    let text = buildAttributedString()
     
     // Handle nowrap case
     if textWrap == .NoWrap {
@@ -1133,11 +1202,24 @@ extension MasonText {
   }
   
   private func drawSingleLine(text: NSAttributedString, in context: CGContext) {
-    let mutable = NSMutableAttributedString(attributedString: text)
-    let fullRange = NSRange(location: 0, length: mutable.length)
-    mutable.mutableString.replaceOccurrences(of: "\n", with: " ", options: [], range: fullRange)
-    
-    let line = CTLineCreateWithAttributedString(mutable)
+    var drawBounds = bounds
+    let computedPadding = node.computedLayout.padding
+    if !computedPadding.isEmpty() {
+      let scale = NSCMason.scale
+      let padding = UIEdgeInsets(
+        top: CGFloat(computedPadding.top / scale),
+        left: CGFloat(computedPadding.left / scale),
+        bottom: CGFloat(computedPadding.bottom / scale),
+        right: CGFloat(computedPadding.right / scale)
+      )
+      drawBounds = drawBounds.inset(by: padding)
+      context.saveGState()
+      context.clip(to: drawBounds)
+    }
+
+    let baselineOrigin = CGPoint(x: drawBounds.origin.x, y: drawBounds.origin.y)
+
+    let line = CTLineCreateWithAttributedString(text)
     
     var ascent: CGFloat = 0
     var descent: CGFloat = 0
@@ -1175,7 +1257,17 @@ extension MasonText {
     CTLineDraw(drawLine, context)
     
     // Draw inline attachments
-    drawInlineAttachments(for: drawLine, origin: .zero, in: context)
+    drawInlineAttachments(
+      for: drawLine,
+      origin: baselineOrigin,
+      frameBounds: drawBounds,
+      clipRect: drawBounds,
+      in: context
+    )
+
+    if !node.computedLayout.padding.isEmpty() {
+      context.restoreGState()
+    }
   }
   
   private func drawMultiLine(text: NSAttributedString, in context: CGContext) {
@@ -1243,44 +1335,80 @@ extension MasonText {
     // Only draw inline attachments that are within the visible bounds
     for (lineIndex, line) in lines.enumerated() {
       let origin = origins[lineIndex]
-      
-      // Check if this line is within visible bounds
       if origin.y >= drawBounds.minY && origin.y <= drawBounds.maxY {
-        drawInlineAttachments(for: line, origin: origin, in: context)
+        drawInlineAttachments(
+          for: line,
+          origin: origin,
+          frameBounds: layoutBounds,
+          clipRect: drawBounds,
+          in: context
+        )
       }
     }
   }
   
-  private func drawInlineAttachments(for line: CTLine, origin: CGPoint, in context: CGContext) {
+  private func drawInlineAttachments(
+    for line: CTLine,
+    origin: CGPoint,
+    frameBounds: CGRect,
+    clipRect: CGRect,
+    in context: CGContext
+  ) {
     let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
-    
+
     for run in runs {
       let attrs = CTRunGetAttributes(run) as NSDictionary
       
       guard let helper = attrs[NSAttributedString.Key(VIEW_PLACEHOLDER)] as? ViewHelper else {
         continue
       }
-      
+
       var ascent: CGFloat = 0
       var descent: CGFloat = 0
-      var leading: CGFloat = 0
-      let _ = CGFloat(CTRunGetTypographicBounds(run, CFRangeMake(0, 0), &ascent, &descent, &leading))
+      let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &ascent, &descent, nil))
+
+      let glyphRange = CTRunGetStringRange(run)
+      var runPosition = CGPoint.zero
+      CTRunGetPositions(run, CFRange(location: 0, length: 1), &runPosition)
+
+      let scale = CGFloat(NSCMason.scale)
+      let childWidth = CGFloat(helper.node.cachedWidth / scale)
+      let childHeight = CGFloat(helper.node.cachedHeight / scale)
       
-      let xOffset = CTLineGetOffsetForStringIndex(line, CTRunGetStringRange(run).location, nil)
-      let x = origin.x + xOffset
+      // Core Text position: origin is the baseline, x is the glyph offset
+      let ctX = origin.x + runPosition.x
+      let ctBaseline = origin.y
       
-      let runBounds = CGRect(
-        x: x,
-        y: origin.y,
-        width: CGFloat(helper.node.computedLayout.width / NSCMason.scale),
-        height: CGFloat(helper.node.computedLayout.height / NSCMason.scale)
-      )
+      // The child should sit on the baseline
+      // In Core Text coords (bottom-left origin), child bottom = baseline - descent
+      let ctY = ctBaseline - descent
       
-      helper.updateImage(false)
+      // Convert to UIKit coordinates (top-left origin)
+      // Core Text Y increases upward, UIKit Y increases downward
+      let uiX = ctX
+      let uiY = bounds.height - ctY - childHeight
       
-      if let image = helper.image?.cgImage {
-        context.draw(image, in: runBounds)
+      let drawRect = CGRect(x: uiX, y: uiY, width: childWidth, height: childHeight)
+      
+      guard clipRect.intersects(drawRect) else { continue }
+      guard let childView = helper.view else { continue }
+
+      context.saveGState()
+      context.clip(to: clipRect)
+      
+      // Translate to child origin, flip Y for UIKit rendering
+      context.translateBy(x: drawRect.origin.x, y: drawRect.origin.y + drawRect.height)
+      context.scaleBy(x: 1, y: -1)
+      
+      // Ensure child has correct size (only if changed)
+      if childView.bounds.size != drawRect.size {
+        childView.frame = CGRect(origin: .zero, size: drawRect.size)
+        childView.layoutIfNeeded()
       }
+      
+      childView.layer.render(in: context)
+
+      context.restoreGState()
     }
   }
   
@@ -1315,17 +1443,13 @@ extension MasonText {
         
         // Check if this is an inline child placeholder
         if let helper = attrs[NSAttributedString.Key(VIEW_PLACEHOLDER)] as? ViewHelper {
-          
           if let childPtr = helper.node.nativePtr {
-            // Inline child segment
             var segment = CMasonSegment()
             segment.tag = InlineChild
             segment.inline_child.node = childPtr
-            segment.inline_child.descent = Float(ascent * scale) // baseline
+            segment.inline_child.descent = Float(ascent * scale)
+
             segments.append(segment)
-          } else {
-            // todo warning
-           //  print("collectAndCacheSegments - WARNING: helper.node has no nativePtr!")
           }
         } else {
           // Text segment
@@ -1366,6 +1490,7 @@ extension MasonText {
   /// Mark segments as needing rebuild
   func invalidateInlineSegments() {
     segmentsNeedRebuild = true
+    cachedAttributedString = nil
     node.markDirty()
   }
   
@@ -1437,8 +1562,8 @@ private func runDelegateDealloc(_ refCon: UnsafeMutableRawPointer) {
 
 private func runDelegateGetAscent(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
   let node = Unmanaged<MasonNode>.fromOpaque(refCon).takeUnretainedValue()
-  let scale = NSCMason.scale
-  let height = CGFloat(node.computedLayout.height / scale)
+  let scale = CGFloat(NSCMason.scale)
+  let height = node.cachedHeight / scale
   return height
 }
 
@@ -1448,8 +1573,8 @@ private func runDelegateGetDescent(_ refCon: UnsafeMutableRawPointer) -> CGFloat
 
 private func runDelegateGetWidth(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
   let node = Unmanaged<MasonNode>.fromOpaque(refCon).takeUnretainedValue()
-  let scale = NSCMason.scale
-  let width = CGFloat(node.computedLayout.width / scale)
+  let scale = CGFloat(NSCMason.scale)
+  let width = node.cachedWidth / scale
   return width
 }
 
@@ -1458,38 +1583,45 @@ extension MasonText {
  
   /// Build attributed string from text nodes and inline children
    internal func buildAttributedString() -> NSAttributedString {
-     let composed = NSMutableAttributedString()
-     
-     // Process all children in order
-     for (index, child) in node.children.enumerated() {
-       
-       if let textNode = child as? MasonTextNode {
-         // Pure text node: add its attributed string
-         textNode.container = self
-         let run = textNode.attributed()
-         composed.append(run)
-       } else if let childTextView = child.view as? MasonText {
-         // ⚠️ Nested MasonText: check if it should be flattened
-         if shouldFlattenTextContainer(childTextView) {
-           // Recursively build the nested text's attributed string
-           let nestedString = childTextView.buildAttributedString()
-           composed.append(nestedString)
-         } else {
-           // Has view properties: treat as inline-block
-           let placeholder = createPlaceholder(for: child)
-           composed.append(placeholder)
-         }
-       } else if child.nativePtr != nil && (!child.style.isValueInitialized || child.style.display != .None) {
-         // Regular inline element: create placeholder
-         let placeholder = createPlaceholder(for: child)
-         composed.append(placeholder)
-       }
+     // Return cached version if valid
+     if let cached = cachedAttributedString, !segmentsNeedRebuild {
+       return cached
      }
-     return composed
+     
+     if isBuilding {
+           return NSMutableAttributedString()
+         }
+         
+         isBuilding = true
+         defer { isBuilding = false }
+         
+         let composed = NSMutableAttributedString()
+         
+      
+
+         for child in node.children {
+           if let textNode = child as? MasonTextNode {
+             composed.append(NSAttributedString(string: textNode.data, attributes: textNode.attributes))
+           } else if let textView = child.view as? MasonText {
+             if shouldFlattenTextContainer(textView) {
+               let childAttributed = textView.buildAttributedString()
+               composed.append(childAttributed)
+             } else {
+               let placeholder = createPlaceholder(for: child)
+               composed.append(placeholder)
+             }
+           }
+         }
+         
+         // Cache the result
+         cachedAttributedString = composed
+         attributedStringVersion += 1
+         
+         return composed
    }
    
    /// Decide whether to flatten a nested text container or treat it as inline-block
-   private func shouldFlattenTextContainer(_ textView: MasonText) -> Bool {
+   internal func shouldFlattenTextContainer(_ textView: MasonText) -> Bool {
      let style = textView.node.style
      
      // If style is not initialized, flatten by default
@@ -1498,7 +1630,7 @@ extension MasonText {
      }
      
      // Check for view-like properties that require inline-block behavior
-     let hasBackground =  textView.backgroundColor?.cgColor.alpha ?? 0 > 0 //style.backgroundColor.alpha > 0.0
+     let hasBackground =  backgroundColorValue != 0 || textView.backgroundColor?.cgColor.alpha ?? 0 > 0 //style.backgroundColor.alpha > 0.0
      
      let border = style.border
      let hasBorder = border.top.value > 0.0 || border.right.value > 0.0 ||
@@ -1508,6 +1640,7 @@ extension MasonText {
      let hasPadding = padding.top.value > 0.0 || padding.right.value > 0.0 ||
                       padding.bottom.value > 0.0 || padding.left.value > 0.0
      
+
      let size = style.size
      let hasExplicitSize = size.width != .Auto || size.height != .Auto
      
@@ -1536,6 +1669,12 @@ extension MasonText {
     placeholder.addAttribute(NSAttributedString.Key(VIEW_PLACEHOLDER),
                              value: helper,
                              range: NSRange(location: 0, length: 1))
+    
+    // IMPORTANT: Add a unique attribute to force separate runs
+        // Without this, CoreText may merge adjacent placeholders into one run
+        placeholder.addAttribute(NSAttributedString.Key("ViewID"),
+                                 value: ObjectIdentifier(child).hashValue,
+                                 range: NSRange(location: 0, length: 1))
   
     return placeholder
   }
@@ -1562,26 +1701,35 @@ extension MasonText {
 // MARK: - Child Management
 extension MasonText {
     public func addChild(_ child: MasonNode) {
-        if let oldParent = child.parent, oldParent !== node {
-            if let textParent = oldParent.view as? MasonText {
-                textParent.removeChild(child)
-            }
-        }
-        
-        // Set container reference for text nodes FIRST
-        if let textNode = child as? MasonTextNode {
-            textNode.container = self
-        }
-        
-        node.children.append(child)
-        child.parent = node
-        
-        // For inline elements (non-text children), ensure they're in the layout tree
-      if child.type != .text && child.nativePtr != nil && !(child.view is MasonText) {
-            syncLayoutChildren()
-        }
-        
-        invalidate()
+      if let oldParent = child.parent, oldParent !== node {
+              if let textParent = oldParent.view as? MasonText {
+                  textParent.removeChild(child)
+              }
+          }
+          
+          // Set container reference for text nodes FIRST
+          if let textNode = child as? MasonTextNode {
+              textNode.container = self
+          }
+          
+          node.children.append(child)
+          child.parent = node
+          
+          // Add ALL non-text nodes to layout tree (including TextViews that won't be flattened)
+          if child.type != .text && child.nativePtr != nil {
+              // Check if this TextView should be inline-block
+              if let textView = child.view as? MasonText {
+                  // Only add to layout tree if it won't be flattened
+                  if !shouldFlattenTextContainer(textView) {
+                      syncLayoutChildren()
+                  }
+              } else {
+                  // Non-TextView elements always go in layout tree
+                  syncLayoutChildren()
+              }
+          }
+          
+          invalidate()
     }
     
     private func syncLayoutChildren() {
@@ -1669,9 +1817,10 @@ extension MasonText {
             setNeedsLayout()
         }
     }
+  
     
     /// Append text to the container
-    public func appendText(_ text: String) {
+    internal func appendText(_ text: String) {
         
         // Check if last child is a text node - append to it
         if let lastTextNode = node.children.last as? MasonTextNode {
@@ -1685,8 +1834,6 @@ extension MasonText {
         }
         
         invalidateInlineSegments()
-        node.markDirty()
-        setNeedsDisplay()
-        setNeedsLayout()
+        requestLayout()
     }
 }

@@ -28,6 +28,7 @@ public class MasonUIView: UIView, MasonElement {
     super.init(frame: .zero)
     setComputeCache(.init(width: -2, height: -2))
     node.view = self
+   // node.setDefaultMeasureFunction()
   }
   
   required init?(coder: NSCoder) {

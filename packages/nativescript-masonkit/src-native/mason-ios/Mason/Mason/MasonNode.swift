@@ -23,6 +23,7 @@ private func measure(_ node: UnsafeRawPointer?, _ knownDimensionsWidth: Float, _
 public enum MasonNodeType: Int32, RawRepresentable {
   case element
   case text
+  case document
 }
 
 @objc(MasonNode)
@@ -32,9 +33,32 @@ public class MasonNode: NSObject {
   
   internal var isAnonymous = false
   
+  internal var cachedWidth: CGFloat = 0
+  internal var cachedHeight: CGFloat = 0
+  
+  
+  @objc private dynamic func setComputedSize(_ width: CGFloat, height: CGFloat){
+    cachedWidth = width
+    cachedHeight = height
+  }
+  
+  
+  @objc private dynamic var computedWidth: CGFloat {
+    return cachedWidth
+  }
+  
+  @objc private dynamic var computedHeight: CGFloat {
+    return cachedHeight
+  }
+  
+  
   public internal(set) var nativePtr: OpaquePointer?
   
   public internal(set) var computedLayout = MasonLayout()
+  
+  internal var isLayoutValid: Bool = false
+  
+  internal var document: MasonDocument? = nil
   
   public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
   
@@ -51,12 +75,21 @@ public class MasonNode: NSObject {
     }
     return current
   }
-  
+
   lazy internal var style: MasonStyle = {
     MasonStyle(node: self)
   }()
   
   public internal(set) var parent: MasonNode? = nil
+  
+  public var parentNode: MasonNode? {
+    return parent
+  }
+  
+  public var parentElement: MasonElement? {
+    guard let parent = parent else {return nil}
+    return parent.type == .element ? parent.view as? MasonElement : nil
+  }
   
   public internal(set) var type: MasonNodeType = .element
   
@@ -102,6 +135,7 @@ public class MasonNode: NSObject {
     nativePtr = mason_node_new_node(mason.nativePtr)
     type = .element
     super.init()
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
   }
   
   
@@ -160,6 +194,7 @@ public class MasonNode: NSObject {
   
   public func markDirty(){
     mason_node_mark_dirty(mason.nativePtr, nativePtr)
+    isLayoutValid = false
   }
   
   public func getRoot() -> UIView? {
@@ -204,6 +239,24 @@ extension MasonNode {
   
   
   public func appendChild(_ child: MasonNode) {
+    if(type == .document){
+      if(!children.isEmpty){
+        // todo error
+        return
+      }
+      
+      if(child.type == .text){
+        // todo error
+        return
+      }
+      
+      if(child.type == .document){
+        // todo error
+        return
+      }
+      
+      document?.documentElement = child.view as? MasonElement
+    }
     
     // Remove from old parent
     if let oldParent = child.parent {
@@ -212,7 +265,7 @@ extension MasonNode {
     
     
     // For MasonText containers, delegate to the MasonText view
-    if let textView = view as? MasonText {
+    if let textView = view as? MasonText, child is MasonTextNode {
       textView.addChild(child)
       return
     }
@@ -225,6 +278,9 @@ extension MasonNode {
     
     // Check if child has a view (inline element or regular element)
     if child.view != nil && child.nativePtr != nil {
+      if (view is MasonText && child.view is MasonText && !child.style.isValueInitialized){
+        child.style.display = Display.Inline
+      }
       appendElementChild(child)
       return
     }
@@ -252,7 +308,9 @@ extension MasonNode {
     
     // Add view to hierarchy
     if let childView = child.view {
-      view?.addSubview(childView)
+      if(!(view is MasonText)){
+        view?.addSubview(childView)
+      }
     }
     
     // Add to native layout tree
@@ -322,6 +380,8 @@ extension MasonNode {
       return removeElementChild(child)
     case .text:
       return removeTextChild(child)
+    case .document:
+      return nil
     }
   }
   
@@ -382,6 +442,9 @@ extension MasonNode {
       addElementChildAt(child, idx)
     case .text:
       addTextChildAt(child, idx)
+    case .document:
+      // noop
+      break
     }
   }
   
@@ -461,14 +524,10 @@ extension MasonNode {
   
   
   func setDefaultMeasureFunction(){
-    guard let view = self.view else {return}
     self.setMeasureFunction { knownDimensions, availableSpace in
-      return MasonNode.measureFunction(view, knownDimensions, availableSpace)
+      return MasonNode.measureFunction(self, knownDimensions, availableSpace)
     }
   }
-  
-  
-  
   
   enum MeasureMode {
     case Min
@@ -476,7 +535,7 @@ extension MasonNode {
     case Definite
   }
   
-  static func measureFunction(_ view: UIView, _ knownDimensions: CGSize?,_ availableSpace: CGSize) -> CGSize {
+  static func measureFunction(_ node: MasonNode, _ knownDimensions: CGSize?,_ availableSpace: CGSize) -> CGSize {
     
     var width = CGFloat.greatestFiniteMagnitude
     var height = CGFloat.greatestFiniteMagnitude
@@ -494,10 +553,21 @@ extension MasonNode {
       height = availableSpace.height
     }
     
-    let constraintSize = CGSize(width: width, height: height)
-    let result = view.sizeThatFits(constraintSize)
+    if let known = knownDimensions {
+      if(!known.width.isNaN && !known.height.isNaN){
+        node.cachedWidth = known.width
+        node.cachedHeight = known.height
+        return known
+      }
+    }
     
-    return result
+    let constraintSize = CGSize(width: width, height: height)
+    let result = node.view?.sizeThatFits(constraintSize)
+    
+    node.cachedWidth = result?.width ?? 0
+    node.cachedHeight = result?.height ?? 0
+    
+    return result ?? .zero
   }
   
   

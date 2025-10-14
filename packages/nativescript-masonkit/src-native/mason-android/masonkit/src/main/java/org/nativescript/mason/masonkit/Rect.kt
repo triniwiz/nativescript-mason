@@ -6,5 +6,3 @@ data class Rect<T>(
   val top: T,
   val bottom: T
 )
-
-

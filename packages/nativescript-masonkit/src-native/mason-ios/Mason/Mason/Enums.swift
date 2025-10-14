@@ -1887,6 +1887,7 @@ public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
     case Wrap
     case NoWrap
     case Balance
+    case Pretty
     
     public typealias RawValue = Int32
     
@@ -1898,6 +1899,8 @@ public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
             return 1
         case .Balance:
             return 2
+        case .Pretty:
+          return 3
         }
     }
     
@@ -1910,6 +1913,8 @@ public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
           self = .NoWrap
         case 2:
           self = .Balance
+        case 3:
+          self = .Pretty
         default:
             return nil
         }
@@ -1923,6 +1928,8 @@ public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
             return "wrap"
         case .Balance:
             return "balance"
+        case .Pretty:
+          return "pretty"
         }
     }
   
@@ -1938,7 +1945,8 @@ public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
     case Pre
     case PreWrap
     case PreLine
-    case Nowrap
+    case NoWrap
+    case BreakSpaces
     
     public typealias RawValue = Int32
     
@@ -1952,8 +1960,10 @@ public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
             return 2
         case .PreLine:
             return 3
-        case .Nowrap:
+        case .NoWrap:
           return 4
+        case .BreakSpaces:
+          return 5
         }
     }
     
@@ -1969,7 +1979,9 @@ public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
         case 3:
           self = .PreLine
         case  4:
-          self = .Nowrap
+          self = .NoWrap
+        case 5:
+          self = .BreakSpaces
         default:
             return nil
         }
@@ -1985,8 +1997,10 @@ public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
             return "pre-wrap"
         case .PreLine:
           return "pre-line"
-        case .Nowrap:
+        case .NoWrap:
           return "nowrap"
+        case .BreakSpaces:
+          return "break-spaces"
         }
     }
   

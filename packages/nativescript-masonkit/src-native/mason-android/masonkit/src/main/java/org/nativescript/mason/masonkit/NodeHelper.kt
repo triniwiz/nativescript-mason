@@ -11,8 +11,8 @@ class NodeHelper(val mason: Mason) {
 
   val views: ArrayList<View> = ArrayList()
 
-  fun configure(view: android.view.View, block: (Node) -> Unit) {
-    mason.nodeForView(view).configure(block)
+  fun configure(view: android.view.View, block: (Style) -> Unit) {
+    mason.configureStyleForView(view, block)
   }
 
   private inline fun <T> measurePerformanceInMS(
@@ -48,7 +48,7 @@ class NodeHelper(val mason: Mason) {
   }
 
   private fun checkAndUpdateStyle(node: Node) {
-    if (!node.inBatch) {
+    if (!node.style.inBatch) {
       node.style.updateNativeStyle()
     }
   }

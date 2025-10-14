@@ -1,4 +1,4 @@
-use crate::tree::{Id, Tree};
+pub use crate::tree::{Id, Tree};
 use slotmap::Key;
 use std::ffi::{c_float, c_longlong, c_void};
 pub use taffy::geometry::{Line, Point, Rect, Size};
@@ -16,6 +16,9 @@ use taffy::PrintTree;
 
 mod node;
 
+#[cfg(target_vendor = "apple")]
+use crate::node::AppleNode;
+
 pub use crate::node::InlineSegment;
 pub use crate::style::Style;
 pub use node::NodeRef;
@@ -25,7 +28,7 @@ pub mod style;
 mod tree;
 pub mod utils;
 
-// #[cfg(target_os = "android")]
+#[cfg(target_os = "android")]
 pub static JVM: std::sync::OnceLock<jni::JavaVM> = std::sync::OnceLock::new();
 pub struct MeasureOutput;
 
@@ -198,10 +201,34 @@ impl Mason {
         if let Some(node) = self.0.node_data.get_mut(node) {
             node.measure = measure;
             node.data = data;
+
+            #[cfg(target_vendor = "apple")]
+            if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
+                node.apple_data = Some(apple_node);
+            }
         }
 
         if let Some(node) = self.0.nodes.get_mut(node) {
             node.has_measure = has_measure;
+        }
+    }
+
+
+    #[cfg(target_vendor = "apple")]
+    #[track_caller]
+    pub fn set_apple_data(
+        &mut self,
+        node: Id,
+        data: *mut c_void,
+    ) {
+        if data.is_null() {
+            return;
+        }
+        if let Some(node) = self.0.node_data.get_mut(node) {
+            #[cfg(target_vendor = "apple")]
+            if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
+                node.apple_data = Some(apple_node);
+            }
         }
     }
 

@@ -258,9 +258,6 @@ pub extern "C" fn mason_node_new_node_with_children(
     }
 }
 
-
-
-
 #[no_mangle]
 pub extern "C" fn mason_node_new_text_node(mason: *mut CMason) -> *mut CMasonNode {
     if mason.is_null() {
@@ -820,5 +817,23 @@ pub extern "C" fn mason_node_remove_context(mason: *mut CMason, node: *mut CMaso
         let mason = &mut (*mason).0;
         let node_id = &(*node);
         mason.set_measure(node_id.0.id(), None, 0 as _);
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[no_mangle]
+pub extern "C" fn mason_node_set_apple_node(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    apple_node: *mut c_void,
+) {
+    if mason.is_null() || node.is_null() || apple_node.is_null() {
+        return;
+    }
+
+    unsafe {
+        let mason = &mut (*mason).0;
+        let node_id = &(*node).0;
+        mason.set_apple_data(node_id.id(), apple_node);
     }
 }

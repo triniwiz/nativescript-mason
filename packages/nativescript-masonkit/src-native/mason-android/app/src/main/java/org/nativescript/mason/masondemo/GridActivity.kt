@@ -2,11 +2,19 @@ package org.nativescript.mason.masondemo
 
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.widget.TextView
-import org.nativescript.mason.masonkit.*
+import androidx.appcompat.app.AppCompatActivity
+import org.nativescript.mason.masonkit.AlignSelf
+import org.nativescript.mason.masonkit.Display
+import org.nativescript.mason.masonkit.GridPlacement
+import org.nativescript.mason.masonkit.GridTrackRepetition
+import org.nativescript.mason.masonkit.Line
+import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.MinMax
+import org.nativescript.mason.masonkit.TrackSizingFunction
+import org.nativescript.mason.masonkit.View
 
 class GridActivity : AppCompatActivity() {
   lateinit var metrics: DisplayMetrics
@@ -21,11 +29,11 @@ class GridActivity : AppCompatActivity() {
 
     val rootLayout = mason.createView(this)
     rootLayout.configure {
-      style.display = Display.Grid
+      it.display = Display.Grid
     }
 
-    wrapper5(rootLayout)
-    //wrapper6(rootLayout)
+    // wrapper5(rootLayout)
+    wrapper6(rootLayout)
 
     setContentView(rootLayout)
   }
@@ -45,9 +53,11 @@ class GridActivity : AppCompatActivity() {
 
     val bg = ColorDrawable(Color.parseColor("#444444"))
 
-    val boxA = TextView(this)
-    boxA.text = "A"
-    boxA.setTextColor(Color.WHITE)
+    val boxA = mason.createView(this)
+    val boxAText = mason.createTextView(this)
+    boxAText.text = "A"
+    boxAText.setTextColor(Color.WHITE)
+    boxA.append(boxAText)
 
 
     val boxB = TextView(this)
@@ -80,65 +90,60 @@ class GridActivity : AppCompatActivity() {
 
     boxA.apply {
       background = bg
-      val node = mason.nodeForView(this)
-
-      node.configure {
-        style.apply {
-          gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-        }
+      mason.configureStyleForView(this) {
+        it.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+        it.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
       }
+
     }
 
     boxB.apply {
       background = bg
-      val node = mason.nodeForView(this)
-      node.configure {
-        style.apply {
-          gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-        }
+      mason.configureStyleForView(this) {
+        it.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
+        it.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
       }
     }
 
     boxC.apply {
       background = bg
-      val node = mason.nodeForView(this)
-      node.configure {
-        style.apply {
-          gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-          gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-        }
+      mason.configureStyleForView(this) {
+        it.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+        it.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
       }
     }
 
     boxD.apply {
       background = bg
-      val node = mason.nodeForView(this)
-      node.configure {
-        style.apply {
-          gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-          gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-        }
+      mason.configureStyleForView(this) {
+        it.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+        it.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
       }
     }
 
   }
 
   fun createParentWith2Kids(kidAText: String, kidBText: String): View {
+//    val parent = mason.createView(this)
+//
+//    val kida = mason.createTextView(this)
+//
+//    kida.append(kidAText)
+//
+//    val kidb = mason.createTextView(this)
+//
+//    kidb.append(kidBText)
+//
+//    parent.append(kida)
+//
+//    parent.append(kidb)
+
+
     val parent = mason.createView(this)
 
-    val kida = TextView(this)
+    parent.append(kidAText)
 
-    kida.text = kidAText
-
-    val kidb = TextView(this)
-
-    kidb.text = kidBText
-
-    parent.addView(kida)
-
-    parent.addView(kidb)
+    parent.append(kidBText)
 
     return parent
   }
@@ -168,11 +173,11 @@ class GridActivity : AppCompatActivity() {
     )
 
 
-    wrapper6.addView(boxA)
-    wrapper6.addView(boxB)
-    wrapper6.addView(boxC)
-    wrapper6.addView(boxD)
-    wrapper6.addView(boxE)
+    wrapper6.append(boxA)
+    wrapper6.append(boxB)
+    wrapper6.append(boxC)
+    wrapper6.append(boxD)
+    wrapper6.append(boxE)
 
 
     wrapper6.apply {
@@ -198,81 +203,55 @@ class GridActivity : AppCompatActivity() {
 
     boxA.apply {
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = mason.nodeForView(this)
-      this.clipChildren = false
-      node.configure {
-        style.apply {
-          style.display = Display.Grid
-          style.display = Display.Flex
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          alignSelf = AlignSelf.Stretch
-        }
+      configure {
+        style.display = Display.Grid
+        gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+        gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+        alignSelf = AlignSelf.Stretch
       }
     }
 
     boxB.apply {
       //background = bg
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = mason.nodeForView(this)
-      node.configure {
-        style.apply {
-          style.display = Display.Grid
-          style.display = Display.Flex
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          alignSelf = AlignSelf.End
-        }
+      configure {
+        it.display = Display.Grid
+        it.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
+        it.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+        it.alignSelf = AlignSelf.End
       }
     }
 
     boxC.apply {
       // background = bg
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = mason.nodeForView(this)
-      node.configure {
-        style.apply {
-          style.display = Display.Grid
-          style.display = Display.Flex
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
-          alignSelf = AlignSelf.Start
-        }
+      configure {
+        display = Display.Grid
+        gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+        gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
+        alignSelf = AlignSelf.Start
       }
     }
 
     boxD.apply {
       // background = bg
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = mason.nodeForView(this)
-      node.configure {
-        style.apply {
-          style.display = Display.Grid
-          style.display = Display.Flex
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
-          gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
-          alignSelf = AlignSelf.Center
-        }
+      configure {
+        display = Display.Grid
+        gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
+        gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
+        alignSelf = AlignSelf.Center
       }
     }
 
     boxE.apply {
       //background = bg
       background = resources.getDrawable(R.drawable.border_drawable)
-      val node = mason.nodeForView(this)
-      node.configure {
-        style.apply {
-          style.display = Display.Grid
-          style.display = Display.Flex
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(5), GridPlacement.Line(7))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(6))
-          alignSelf = AlignSelf.Stretch
-        }
+      configure {
+        display = Display.Grid
+        gridColumn = Line(GridPlacement.Line(5), GridPlacement.Line(7))
+        gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(6))
+        alignSelf = AlignSelf.Stretch
       }
     }
   }

@@ -1,6 +1,5 @@
 use crate::node::{InlineSegment, Node, NodeData, NodeRef, NodeType};
 use crate::style::{DisplayMode, Style};
-use crate::utils::compute_leaf;
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use taffy::{
     compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
@@ -486,43 +485,51 @@ impl Tree {
 
     pub fn compute_inline_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
         let id: Id = node_id.into();
-        
+
         // Get inline children from the layout tree
-        let inline_children: Vec<Id> = self.children
+        let inline_children: Vec<Id> = self
+            .children
             .get(id)
             .map(|children| children.clone())
             .unwrap_or_default();
-        
+
         // Pre-measure all inline children so they have layouts BEFORE the text measure is called
         for child_id in inline_children.iter() {
             let child_node_id = NodeId::from(*child_id);
-            
+
             // Measure the inline child - this will compute its layout
             let layout = self.compute_child_layout(
                 child_node_id,
                 LayoutInput {
                     known_dimensions: Size::NONE,
                     available_space: Size {
-                        width: AvailableSpace::MaxContent,
+                        width: inputs.available_space.width,
                         height: AvailableSpace::MaxContent,
                     },
                     parent_size: inputs.parent_size,
                     ..inputs
                 },
             );
-            
+
             // IMPORTANT: Store the layout so run delegates can read it
             if let Some(child) = self.nodes.get_mut(*child_id) {
                 child.unrounded_layout.size = layout.size;
             }
+
+            #[cfg(target_vendor = "apple")]
+            if let Some(data) = self.node_data.get_mut(*child_id) {
+                if let Some(node) = data.apple_data.as_mut() {
+                    node.set_computed_size(layout.size.width as f64, layout.size.height as f64)
+                }
+            }
         }
-        
+
         // NOW call the text container's measure function
         let node = self.nodes.get(id).unwrap();
         let style = node.style.clone();
         let measure = self.node_data.get(id).unwrap().copy_measure();
         let is_text_container = node.is_text_container();
-        
+
         if is_text_container {
             // Text container: call measure which will build attributed string
             // and collect segments (now inline children have their layouts)
@@ -556,7 +563,10 @@ impl Tree {
                     return if has_measure {
                         measure.measure(known_dimensions, available_space)
                     } else {
-                        Size { width: 0.0, height: 0.0 }
+                        Size {
+                            width: 0.0,
+                            height: 0.0,
+                        }
                     };
                 }
 
@@ -585,8 +595,14 @@ impl Tree {
 
                 for segment in segments.iter() {
                     match segment {
-                        InlineSegment::Text { width, ascent, descent } => {
-                            if current_line_width + width > available_width && !current_line.is_empty() {
+                        InlineSegment::Text {
+                            width,
+                            ascent,
+                            descent,
+                        } => {
+                            if current_line_width + width > available_width
+                                && !current_line.is_empty()
+                            {
                                 // Line break
                                 lines.push(current_line);
                                 current_line = vec![];
@@ -596,21 +612,31 @@ impl Tree {
                             current_line_width += width;
                             max_line_width = max_line_width.max(current_line_width);
                         }
-                        InlineSegment::InlineChild { id, baseline: descent } => {
+                        InlineSegment::InlineChild {
+                            id,
+                            baseline: descent,
+                        } => {
                             if let Some(node) = id {
                                 let child_id: Id = (*node).into();
                                 if let Some(child) = self.nodes.get(child_id) {
                                     let child_width = child.unrounded_layout.size.width;
                                     let child_height = child.unrounded_layout.size.height;
 
-                                    if current_line_width + child_width > available_width && !current_line.is_empty() {
+                                    if current_line_width + child_width > available_width
+                                        && !current_line.is_empty()
+                                    {
                                         // Line break
                                         lines.push(current_line);
                                         current_line = vec![];
                                         current_line_width = 0.0;
                                     }
 
-                                    current_line.push((Some(child_id), child_width, child_height - descent, *descent));
+                                    current_line.push((
+                                        Some(child_id),
+                                        child_width,
+                                        child_height - descent,
+                                        *descent,
+                                    ));
                                     current_line_width += child_width;
                                     max_line_width = max_line_width.max(current_line_width);
                                 }
@@ -627,16 +653,18 @@ impl Tree {
                 // Calculate total height and position items
                 let mut y_offset = pb.top;
                 for line in lines.iter() {
-                    let line_height = line.iter()
+                    let line_height = line
+                        .iter()
                         .map(|(_, _, ascent, descent)| ascent + descent)
                         .fold(0.0f32, |a, b| a.max(b));
-                    
-                    let baseline = line.iter()
+
+                    let baseline = line
+                        .iter()
                         .map(|(_, _, ascent, _)| *ascent)
                         .fold(0.0f32, |a, b| a.max(b));
-                    
+
                     Self::place_line_items(&mut self.nodes, line, pb.left, y_offset, baseline);
-                    
+
                     y_offset += line_height;
                     total_height += line_height;
                 }
@@ -729,11 +757,11 @@ impl LayoutPartialTree for Tree {
             let mode = node.style.display_mode();
             let has_segments = !node_data.inline_segments.is_empty();
             let is_text_container = node.is_text_container();
-            
+
             if force_inline || has_segments || is_text_container {
                 return tree.compute_inline_layout(node_id, inputs);
             }
-            
+
             match mode {
                 DisplayMode::None => match (node.style.get_display(), has_children) {
                     (Display::None, _) => compute_hidden_layout(tree, node_id),
@@ -744,7 +772,7 @@ impl LayoutPartialTree for Tree {
                         // LEAF NODE LAYOUT
                         let has_measure = node.has_measure;
                         let style = &node.style;
-                        
+
                         // Compute known dimensions from style (width/height properties)
                         let style_size = style.get_size();
 
@@ -757,15 +785,21 @@ impl LayoutPartialTree for Tree {
 
                                 let resolved_width = known_dimensions.width.or_else(|| {
                                     style_size.width.maybe_resolve(
-                                        available_space.width.into_option().or(inputs.parent_size.width),
-                                        |_, _| 0.0
+                                        available_space
+                                            .width
+                                            .into_option()
+                                            .or(inputs.parent_size.width),
+                                        |_, _| 0.0,
                                     )
                                 });
 
                                 let resolved_height = known_dimensions.height.or_else(|| {
                                     style_size.height.maybe_resolve(
-                                        available_space.height.into_option().or(inputs.parent_size.height),
-                                        |_, _| 0.0
+                                        available_space
+                                            .height
+                                            .into_option()
+                                            .or(inputs.parent_size.height),
+                                        |_, _| 0.0,
                                     )
                                 });
 

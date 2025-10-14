@@ -1,12 +1,4 @@
-package org.nativescript.mason.masonkit.text
-
-import org.nativescript.mason.masonkit.text.Styles.TextTransform.Capitalize
-import org.nativescript.mason.masonkit.text.Styles.TextTransform.FullSizeKana
-import org.nativescript.mason.masonkit.text.Styles.TextTransform.FullWidth
-import org.nativescript.mason.masonkit.text.Styles.TextTransform.Lowercase
-import org.nativescript.mason.masonkit.text.Styles.TextTransform.MathAuto
-import org.nativescript.mason.masonkit.text.Styles.TextTransform.None
-import org.nativescript.mason.masonkit.text.Styles.TextTransform.Uppercase
+package org.nativescript.mason.masonkit
 
 class Styles {
   enum class TextJustify(val value: Int) {
@@ -42,7 +34,7 @@ class Styles {
   }
 
   enum class DecorationLine(val value: Int) {
-    None(0), Underline(1), Overline(2), LineThrough(3);
+    None(0), Underline(1), Overline(2), LineThrough(3), UnderlineLineThrough(4);
 
     companion object {
       fun fromInt(value: Int): DecorationLine {
@@ -51,6 +43,28 @@ class Styles {
           1 -> Underline
           2 -> Overline
           3 -> LineThrough
+          4 -> UnderlineLineThrough
+          else -> throw IllegalArgumentException("Unknown enum value: $value")
+        }
+      }
+    }
+  }
+
+  enum class DecorationStyle(val value: Int) {
+    Solid(0),
+    Double(1),
+    Dotted(2),
+    Dashed(3),
+    Wavy(4);
+
+    companion object {
+      fun fromInt(value: Int): DecorationStyle {
+        return when (value) {
+          0 -> Solid
+          1 -> Double
+          2 -> Dotted
+          3 -> Dashed
+          4 -> Wavy
           else -> throw IllegalArgumentException("Unknown enum value: $value")
         }
       }
@@ -85,7 +99,8 @@ class Styles {
   enum class TextWrap(val value: Int) {
     Wrap(0),
     NoWrap(1),
-    Balance(2);
+    Balance(2),
+    Pretty(3);
 
     companion object {
       fun fromInt(value: Int): TextWrap {
@@ -93,6 +108,7 @@ class Styles {
           0 -> Wrap
           1 -> NoWrap
           2 -> Balance
+          3 -> Pretty
           else -> throw IllegalArgumentException("Unknown enum value: $value")
         }
       }
@@ -120,7 +136,9 @@ class Styles {
     Normal(0),
     Pre(1),
     PreWrap(2),
-    PreLine(3);
+    PreLine(3),
+    NoWrap(4),
+    BreakSpaces(5);
 
     companion object {
       fun fromInt(value: Int): WhiteSpace {
@@ -129,6 +147,8 @@ class Styles {
           1 -> Pre
           2 -> PreWrap
           3 -> PreLine
+          4 -> NoWrap
+          5 -> BreakSpaces
           else -> throw IllegalArgumentException("Unknown enum value: $value")
         }
       }

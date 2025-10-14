@@ -12,6 +12,7 @@
 		F13B6C7B2DC81AC800624D17 /* NSCFontFaceSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */; };
 		F13B6C7D2DC81AE100624D17 /* NSCFontFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */; };
 		F13D4E8D2E8EEA0100456A68 /* MasonElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */; };
+		F13D4E932E96EDF300456A68 /* MasonDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13D4E922E96EDEF00456A68 /* MasonDocument.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		F184839C293534D800EC35F4 /* MasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F184839B293534D800EC35F4 /* MasonTests.swift */; };
@@ -103,6 +104,7 @@
 		F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFaceSet.swift; sourceTree = "<group>"; };
 		F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFace.swift; sourceTree = "<group>"; };
 		F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonElement.swift; sourceTree = "<group>"; };
+		F13D4E922E96EDEF00456A68 /* MasonDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonDocument.swift; sourceTree = "<group>"; };
 		F184838C293534D800EC35F4 /* Mason.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mason.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184838F293534D800EC35F4 /* Mason.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mason.h; sourceTree = "<group>"; };
 		F1848390293534D800EC35F4 /* Mason.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Mason.docc; sourceTree = "<group>"; };
@@ -234,6 +236,7 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F13D4E922E96EDEF00456A68 /* MasonDocument.swift */,
 				F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */,
 				F1EE93512E84BA3E00DA90BB /* Extensions.swift */,
 				F1EE934D2E849EE700DA90BB /* text */,
@@ -533,6 +536,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F13B6C7D2DC81AE100624D17 /* NSCFontFace.swift in Sources */,
+				F13D4E932E96EDF300456A68 /* MasonDocument.swift in Sources */,
 				F1E4F95E296266A60091913B /* MasonLine.swift in Sources */,
 				F1E4F958296241FD0091913B /* MinMax.swift in Sources */,
 				F18483E329357AC900EC35F4 /* NSCMason.swift in Sources */,

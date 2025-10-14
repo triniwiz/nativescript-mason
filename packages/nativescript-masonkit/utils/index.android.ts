@@ -858,10 +858,10 @@ export function _setGridAutoRows(value, instance: View, initial = false) {
   if (instance.android?.setGridAutoRows) {
     instance.android.setGridAutoRows(array);
   } else {
-    const node = org.nativescript.mason.masonkit.Mason.getShared().nodeForView(instance.android as never);
+    const style = org.nativescript.mason.masonkit.Mason.getShared().styleForView(instance.android as never);
 
-    if (node) {
-      node.getStyle().setGridAutoRows(array);
+    if (style) {
+      style.setGridAutoRows(array);
     }
   }
 }
@@ -902,11 +902,10 @@ export function _getGridTemplateRows(instance: View) {
     return org.nativescript.mason.masonkit.StyleHelpers.gridTemplateRowsCSS(Tree.instance.native as never, instance.android);
   }
 
-  const node = org.nativescript.mason.masonkit.Mason.getShared().nodeForView(instance.android as never);
+  const style = org.nativescript.mason.masonkit.Mason.getShared().styleForView(instance.android as never);
 
-  if (node) {
-    const styles = node.getStyle();
-    return styles.getGridTemplateRows();
+  if (style) {
+    return style.getGridTemplateRows();
   }
 
   return [];
@@ -917,11 +916,10 @@ export function _getGridTemplateColumns(instance: View) {
     return [];
   }
 
-  const node = org.nativescript.mason.masonkit.Mason.getShared().nodeForView(instance.android as never);
+  const style = org.nativescript.mason.masonkit.Mason.getShared().styleForView(instance.android as never);
 
-  if (node) {
-    const styles = node.getStyle();
-    return styles.getGridTemplateColumns();
+  if (style) {
+    return style.getGridTemplateColumns();
   }
 
   return [];

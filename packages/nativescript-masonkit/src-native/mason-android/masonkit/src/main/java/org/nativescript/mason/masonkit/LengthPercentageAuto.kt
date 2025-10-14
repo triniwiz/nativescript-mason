@@ -59,24 +59,23 @@ sealed class LengthPercentageAuto {
     get() {
       return when (this) {
         is Points -> {
-          "$points$PxUnit"
+          "$points${Constants.PX_UNIT}"
         }
 
         is Percent -> {
-          "${percentage * 100}$PercentUnit"
+          "${percentage * 100}${Constants.PERCENT_UNIT}"
         }
 
         is Auto -> {
-          AutoValue
+          Constants.AUTO_VALUE
         }
 
         is Zero -> {
-          "0$PxUnit"
+          "0${Constants.PX_UNIT}"
         }
       }
     }
 }
-
 
 val Rect<LengthPercentageAuto>.jsonValue: String
   get() {
@@ -87,6 +86,7 @@ val Rect<LengthPercentageAuto>.cssValue: String
   get() {
     return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
   }
+
 
 val Size<LengthPercentageAuto>.jsonValue: String
   get() {

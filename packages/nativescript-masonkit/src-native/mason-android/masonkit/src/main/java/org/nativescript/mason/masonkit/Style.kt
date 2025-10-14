@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.view.View
 import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.Display.Block
 import org.nativescript.mason.masonkit.Display.Flex
@@ -18,7 +17,7 @@ enum class TextType(val value: Int) {
   None(0), P(1), Span(2), Code(3), H1(4), H2(5), H3(6), H4(7), H5(8), H6(9), Li(10), Blockquote(11), B(
     12
   ),
-  Pre(13);
+  Pre(13), Strong(14), Em(15), I(16);
 
   val cssValue: String
     get() {
@@ -37,6 +36,9 @@ enum class TextType(val value: Int) {
         Blockquote -> "blockquote"
         B -> "b"
         Pre -> "pre"
+        Strong -> "strong"
+        Em -> "em"
+        I -> "i"
       }
     }
 
@@ -57,6 +59,9 @@ enum class TextType(val value: Int) {
         11 -> Blockquote
         12 -> B
         13 -> Pre
+        14 -> Strong
+        15 -> Em
+        16 -> I
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
@@ -896,7 +901,7 @@ class Style internal constructor(private var node: Node) {
     isSlowDirty = false
   }
 
-  var inBatch = false
+  var inBatch: Boolean = false
     set(value) {
       val changed = field && !value
       field = value
@@ -954,9 +959,6 @@ class Style internal constructor(private var node: Node) {
       }
     }
     set(value) {
-      if (value == Inline && !node.isTextView) {
-        return
-      }
       var displayMode = DisplayMode.None
       val display = when (value) {
         None, Flex, Grid, Block -> value.value
@@ -1323,6 +1325,7 @@ class Style internal constructor(private var node: Node) {
       )
     }
     set(value) {
+
       values.putInt(StyleKeys.PADDING_LEFT_TYPE, value.left.type)
       values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value.left.value)
 
@@ -1990,39 +1993,13 @@ class Style internal constructor(private var node: Node) {
         boxSizing.value
       )
       resetState()
-      when (val data = node.owner?.data) {
-        is TextView -> {
-          data.invalidateView()
-        }
-
-        is org.nativescript.mason.masonkit.View -> {
-          data.invalidateLayout()
-        }
-
-        is View -> {
-          data.requestLayout()
-        }
-      }
+      (node.view as? Element)?.invalidateLayout()
       return
     }
 
     if (isDirty != -1L) {
-
       resetState()
-      when (val data = node.owner?.data) {
-        is TextView -> {
-          data.invalidateView()
-        }
-        is Scroll -> {
-        }
-        is org.nativescript.mason.masonkit.View -> {
-          data.invalidateLayout()
-        }
-
-        is View -> {
-          data.requestLayout()
-        }
-      }
+      (node.view as? Element)?.invalidateLayout()
       return
     }
   }

@@ -1,11 +1,37 @@
 use crate::style::Style;
 use crate::tree::Id;
 use crate::MeasureOutput;
+
+#[cfg(target_vendor = "apple")]
+use objc2::runtime::NSObject;
+
 use std::rc::Rc;
 use taffy::{AvailableSpace, Cache, ClearState, Layout, Size};
 
 #[cfg(target_os = "android")]
 use crate::JVM;
+
+#[cfg(target_vendor = "apple")]
+#[derive(Debug, Clone)]
+pub struct AppleNode(objc2::rc::Retained<NSObject>);
+
+
+#[cfg(target_vendor = "apple")]
+impl AppleNode {
+    pub fn from_ptr(ptr: *mut NSObject) -> Option<Self> {
+        unsafe { objc2::rc::Retained::from_raw(ptr).map(|n| AppleNode(n)) }
+    }
+    pub fn set_computed_size(&mut self, width: f64, height: f64) {
+        let _: () = unsafe { objc2::msg_send![&self.0, setComputedSize: width height: height] };
+    }
+    pub fn computed_width(&self) -> f64 {
+        unsafe { objc2::msg_send![&self.0, computedWidth] }
+    }
+
+    pub fn computed_height(&self) -> f64 {
+        unsafe { objc2::msg_send![&self.0, computedHeight] }
+    }
+}
 
 #[derive(Debug)]
 pub struct NodeMeasure {
@@ -135,6 +161,8 @@ pub struct NodeData {
     pub(crate) inline_segments: Vec<InlineSegment>,
     #[cfg(not(target_os = "android"))]
     pub(crate) data: *mut std::os::raw::c_void,
+    #[cfg(target_vendor = "apple")]
+    pub apple_data: Option<AppleNode>,
     #[cfg(target_os = "android")]
     pub(crate) measure: Option<jni::objects::GlobalRef>,
     #[cfg(not(target_os = "android"))]
@@ -173,6 +201,8 @@ impl NodeData {
         unsafe {
             Self {
                 data: 0 as _,
+                #[cfg(target_vendor = "apple")]
+                apple_data: None,
                 measure: None,
                 inline_segments: vec![],
             }

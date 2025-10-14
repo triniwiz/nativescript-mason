@@ -1185,6 +1185,7 @@ public class MasonStyle: NSObject {
       value = getFloat(StyleKeys.HEIGHT_VALUE)
       
       let height = MasonDimension.fromValueType(value, Int(type))!
+  
       
       return MasonSize(width, height)
     }

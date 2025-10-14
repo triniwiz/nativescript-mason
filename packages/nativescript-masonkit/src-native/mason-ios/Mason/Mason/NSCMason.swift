@@ -53,6 +53,11 @@ public class NSCMason: NSObject {
     node.style.updateNativeStyle()
   }
   
+  public func styleForView(_ view: UIView) -> MasonStyle {
+    let node = nodeForView(view)
+    return node.style
+  }
+  
   
   @discardableResult public func layoutForView(_ view: UIView) -> MasonLayout {
     let node = nodeForView(view, view.subviews.isEmpty)
@@ -71,6 +76,11 @@ public class NSCMason: NSObject {
     mason_clear(nativePtr)
     nodes.removeAll()
     viewNodes.removeAll()
+  }
+  
+  
+  public func createDocument()-> MasonDocument {
+    return MasonDocument(mason: self)
   }
   
   public func createView()-> MasonUIView {
@@ -101,7 +111,7 @@ public class NSCMason: NSObject {
     return view
   }
   
-  public func createNode() -> MasonNode{
+  public func createNode() -> MasonNode {
     return MasonNode(mason: self)
   }
   

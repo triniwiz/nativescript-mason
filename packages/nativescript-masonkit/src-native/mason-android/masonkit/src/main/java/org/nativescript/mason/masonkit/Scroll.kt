@@ -7,14 +7,16 @@ import android.widget.FrameLayout
 
 class Scroll @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
-) : TwoDScrollView(context, attrs), MasonView {
+) : TwoDScrollView(context, attrs), Element {
 
 
   internal lateinit var scrollRoot: View
 
-  override fun isLeaf(): Boolean {
-    return false
-  }
+  override val view: android.view.View
+    get() = this
+
+  override val style: Style
+    get() = node.style
 
   override var enableScrollX: Boolean
     get() {
@@ -64,9 +66,9 @@ class Scroll @JvmOverloads constructor(
         }
 
         super.addView(
-          scrollRoot, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT
+          scrollRoot, LayoutParams(
+            LayoutParams.WRAP_CONTENT,
+            LayoutParams.WRAP_CONTENT
           )
         )
 

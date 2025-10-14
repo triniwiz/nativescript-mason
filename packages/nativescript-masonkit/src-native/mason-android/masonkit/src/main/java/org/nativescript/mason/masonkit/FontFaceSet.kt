@@ -52,7 +52,7 @@ class FontFaceSet {
   ): Boolean {
     val matchResult = familyNamePattern.find(font)
     return matchResult?.let { match ->
-      return fontCache.find { font ->
+      fontCache.find { font ->
         font.fontFamily == match.groups[2]?.value
       }?.let {
         it.font != null

@@ -115,7 +115,7 @@ export class Text extends TextBase {
   [textProperty.setNative](value) {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
     if (nativeView) {
-      nativeView.updateText(value);
+      nativeView.setTextContent(value);
     }
   }
 
@@ -152,11 +152,21 @@ export class Text extends TextBase {
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
+    //console.dir(nativeView);
 
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
       child._isMasonChild = true;
-      nativeView.addView(child.nativeViewProtected, atIndex ?? -1);
+
+      if ((atIndex ?? -1) <= -1) {
+        nativeView.appendView(child.nativeViewProtected);
+      } else {
+        const node = nativeView.getNode();
+        node.appendChild(child.nativeViewProtected);
+      }
+
+      // @ts-ignore
+      //nativeView.addView(child.nativeViewProtected, atIndex ?? -1);
       return true;
     }
 

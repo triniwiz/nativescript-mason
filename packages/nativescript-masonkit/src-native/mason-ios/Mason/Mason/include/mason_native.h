@@ -251,6 +251,10 @@ void mason_node_set_context(struct CMason *mason,
 void mason_node_remove_context(struct CMason *mason, struct CMasonNode *node);
 #endif
 
+#if !defined(TARGET_OS_ANDROID)
+void mason_node_set_apple_node(struct CMason *mason, struct CMasonNode *node, void *apple_node);
+#endif
+
 void mason_destroy_non_repeated_track_sizing_function_array(struct CMasonNonRepeatedTrackSizingFunctionArray *array);
 
 void mason_destroy_track_sizing_function_array(struct CMasonTrackSizingFunctionArray *array);

@@ -547,6 +547,14 @@ impl Style {
 
         int_slice[StyleKeys::JUSTIFY_CONTENT as usize / 4] = -1;
 
+        int_slice[StyleKeys::INSET_LEFT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::INSET_TOP_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::INSET_RIGHT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::INSET_BOTTOM_TYPE as usize / 4] = 1;
+
         int_slice[StyleKeys::MARGIN_LEFT_TYPE as usize / 4] = 1;
 
         int_slice[StyleKeys::MARGIN_TOP_TYPE as usize / 4] = 1;
@@ -555,21 +563,21 @@ impl Style {
 
         int_slice[StyleKeys::MARGIN_BOTTOM_TYPE as usize / 4] = 1;
 
-        int_slice[StyleKeys::PADDING_LEFT_TYPE as usize / 4] = 1;
+        int_slice[StyleKeys::PADDING_LEFT_TYPE as usize / 4] = 0;
 
-        int_slice[StyleKeys::PADDING_TOP_TYPE as usize / 4] = 1;
+        int_slice[StyleKeys::PADDING_TOP_TYPE as usize / 4] = 0;
 
-        int_slice[StyleKeys::PADDING_RIGHT_TYPE as usize / 4] = 1;
+        int_slice[StyleKeys::PADDING_RIGHT_TYPE as usize / 4] = 0;
 
-        int_slice[StyleKeys::PADDING_BOTTOM_TYPE as usize / 4] = 1;
+        int_slice[StyleKeys::PADDING_BOTTOM_TYPE as usize / 4] = 0;
 
-        int_slice[StyleKeys::BORDER_LEFT_TYPE as usize / 4] = 1;
+        int_slice[StyleKeys::BORDER_LEFT_TYPE as usize / 4] = 0;
 
-        int_slice[StyleKeys::BORDER_TOP_TYPE as usize / 4] = 1;
+        int_slice[StyleKeys::BORDER_TOP_TYPE as usize / 4] = 0;
 
-        int_slice[StyleKeys::BORDER_RIGHT_TYPE as usize / 4] = 1;
+        int_slice[StyleKeys::BORDER_RIGHT_TYPE as usize / 4] = 0;
 
-        int_slice[StyleKeys::BORDER_BOTTOM_TYPE as usize / 4] = 1;
+        int_slice[StyleKeys::BORDER_BOTTOM_TYPE as usize / 4] = 0;
 
         buffer
     }
@@ -1175,20 +1183,20 @@ impl Style {
     pub fn get_border(&self) -> Rect<LengthPercentage> {
         Rect {
             left: length_percentage_from_type_value(
-                get_style_data_i32(self.data(), StyleKeys::PADDING_LEFT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_LEFT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::BORDER_LEFT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::BORDER_LEFT_VALUE),
             ),
             right: length_percentage_from_type_value(
-                get_style_data_i32(self.data(), StyleKeys::PADDING_RIGHT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_RIGHT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::BORDER_RIGHT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::BORDER_RIGHT_VALUE),
             ),
             top: length_percentage_from_type_value(
-                get_style_data_i32(self.data(), StyleKeys::PADDING_TOP_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_TOP_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::BORDER_TOP_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::BORDER_TOP_VALUE),
             ),
             bottom: length_percentage_from_type_value(
-                get_style_data_i32(self.data(), StyleKeys::PADDING_BOTTOM_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_BOTTOM_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::BORDER_BOTTOM_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::BORDER_BOTTOM_VALUE),
             ),
         }
     }

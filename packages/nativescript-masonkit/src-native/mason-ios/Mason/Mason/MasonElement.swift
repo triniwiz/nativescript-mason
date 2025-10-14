@@ -39,6 +39,7 @@ public protocol MasonElement {
   func computeWithMaxContent()
   func computeWithMinContent()
   func attachAndApply()
+  func requestLayout()
   
   
   func append(_ element: MasonElement)
@@ -79,6 +80,22 @@ extension MasonElement {
     block(node.style)
     node.inBatch = false
     style.updateNativeStyle()
+  }
+  
+  
+  public func requestLayout() {
+    node.markDirty()
+    let root = node.getRootNode()
+    let view = if(root.type == .document){
+      root.document?.documentElement as? MasonElement
+    }else {
+      root.view as? MasonElement
+    }
+    
+    if let view = view {
+      let computed = view.computeCache()
+      view.computeWithSize(Float(computed.width), Float(computed.height))
+    }
   }
   
   
@@ -129,12 +146,6 @@ extension MasonElement {
   }
   
   
-  public func requestLayout(){
-    node.markDirty()
-    let cache = computeCache()
-    computeWithSize(Float(cache.width), Float(cache.height))
-  }
-  
   public var style: MasonStyle {
     return node.style
   }
@@ -148,15 +159,15 @@ extension MasonElement {
   }
   
   public func append(_ element: MasonElement){
-    if let view = self as? MasonText {
-      view.addChild(view.node)
-      return
-    }
     node.appendChild(element.node)
   }
   
   public func append(text: String){
-    node.appendChild(MasonTextNode(mason: node.mason, data: text))
+    if(uiView is MasonText){
+      node.appendChild(MasonTextNode(mason: node.mason, data: text, attributes: (uiView as! MasonText).getDefaultAttributes()))
+    }else {
+      node.appendChild(MasonTextNode(mason: node.mason, data: text))
+    }
   }
   
   public func append(node childNode: MasonNode){
@@ -222,7 +233,9 @@ extension MasonElement {
     for childNode in nodes {
       childNode.parent = node
       if let childView = childNode.view {
-        node.view?.addSubview(childView)
+        if(!(self.uiView is MasonText)){
+          node.view?.addSubview(childView)
+        }
       }
     }
     
@@ -401,7 +414,9 @@ extension MasonElement {
     for childNode in nodes {
       childNode.parent = node
       if let childView = childNode.view {
-        node.view?.addSubview(childView)
+        if(!(self.uiView is MasonText)){
+          node.view?.addSubview(childView)
+        }
       }
     }
     
@@ -466,18 +481,14 @@ internal class MasonElementHelpers {
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)
-      
+    
       view.frame = CGRect(origin: point, size: size)
-
       
-      
-      if let view = view as? MasonText {
-        view.invalidate()
-      }
-      
+      node.isLayoutValid = true
       
       if let scroll = node.view as? Scroll {
         let overflow = node.style.overflow
+      
         
         scroll.contentSize = CGSize(width: CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), height: CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale))
         
@@ -485,6 +496,7 @@ internal class MasonElementHelpers {
         MasonElementHelpers.handleOverflow(overflow.y, scroll, true)
         
       }
+      
       
     }
     
@@ -494,10 +506,13 @@ internal class MasonElementHelpers {
         if(node.nativePtr == nil){
           return false
         }else if(node.parent?.view is MasonText && node.view is MasonText){
-          return false
+          let flatten = (node.parent!.view as! MasonText).shouldFlattenTextContainer(node.view as! MasonText)
+          return !flatten
+        }else {
+          return true
         }
-        return true
       }
+      
       let count = children.count
       for i in 0..<count{
         let child = children[i]
