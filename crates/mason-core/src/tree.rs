@@ -261,57 +261,77 @@ impl Tree {
         }
     }
 
-    pub fn insert_after(&mut self, parent: Id, node: Id, child: Id) {
-        if let Some(pos) = self
-            .children
-            .get(parent)
-            .and_then(|children| children.iter().position(|&id| id == node))
-        {
-            self.detach(child);
+    pub fn insert_after(&mut self, parent: Id, node: Id, reference: Id) {
+        // Find the position of the reference node
+        let Some(children) = self.children.get(parent) else {
+            return;
+        };
 
+        if let Some(node_pos) = children.iter().position(|&id| id == reference) {
+            // If child is already in the correct position, do nothing
+            if node_pos + 1 < children.len() && children[node_pos + 1] == reference {
+                return;
+            }
+
+            // Detach child from its current parent
+            self.detach(node);
+
+            // Re-get children after detach (it may have modified the vec)
             let children = self.children.get_mut(parent).unwrap();
-            let mut insert_pos = pos + 1;
 
-            if let Some(existing_pos) = children.iter().position(|&id| id == child) {
-                children.remove(existing_pos);
-                if existing_pos < insert_pos {
-                    insert_pos -= 1;
-                }
-            }
+            // Find node position again (may have shifted if child was before it)
+            let Some(node_pos) = children.iter().position(|&id| id == reference) else {
+                return;
+            };
 
-            children.insert(insert_pos, child);
-            self.parents.insert(child, Some(parent));
+            // Insert after the reference node
+            children.insert(node_pos + 1, node);
+            self.parents.insert(node, Some(parent));
+        } else {
+            // Detach child from its current parent
+            self.detach(node);
 
-            if let Some(node) = self.nodes.get_mut(parent) {
-                node.mark_dirty();
-            }
+            // Re-get children after detach (it may have modified the vec)
+            let children = self.children.get_mut(parent).unwrap();
+            children.push(node);
+            self.parents.insert(node, Some(parent));
+            return;
+        }
+        if let Some(node) = self.nodes.get_mut(parent) {
+            node.mark_dirty();
         }
     }
 
-    pub fn insert_before(&mut self, parent: Id, node: Id, child: Id) {
-        if let Some(pos) = self
-            .children
-            .get(parent)
-            .and_then(|children| children.iter().position(|&id| id == node))
-        {
-            self.detach(child);
+    pub fn insert_before(&mut self, parent: Id, node: Id, reference: Id) {
+        // Find the position of the reference node
+        let Some(children) = self.children.get(parent) else {
+            return;
+        };
 
-            let children = self.children.get_mut(parent).unwrap();
-            let mut insert_pos = pos;
+        let Some(node_pos) = children.iter().position(|&id| id == reference) else {
+            return;
+        };
 
-            if let Some(existing_pos) = children.iter().position(|&id| id == child) {
-                children.remove(existing_pos);
-                if existing_pos < insert_pos {
-                    insert_pos -= 1;
-                }
-            }
+        // If child is already in the correct position, do nothing
+        if node_pos > 0 && children[node_pos - 1] == reference {
+            return;
+        }
 
-            children.insert(insert_pos, child);
-            self.parents.insert(child, Some(parent));
+        // Detach child from its current parent
+        self.detach(node);
 
-            if let Some(node) = self.nodes.get_mut(parent) {
-                node.mark_dirty();
-            }
+        // Re-get children after detach (it may have modified the vec)
+        let children = self.children.get_mut(parent).unwrap();
+
+        // Find node position again (may have shifted if child was before it)
+        let node_pos = children.iter().position(|&id| id == reference).unwrap();
+
+        // Insert before the reference node
+        children.insert(node_pos, node);
+        self.parents.insert(node, Some(parent));
+
+        if let Some(node) = self.nodes.get_mut(parent) {
+            node.mark_dirty();
         }
     }
 
