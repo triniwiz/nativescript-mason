@@ -41,6 +41,7 @@ class Img @JvmOverloads constructor(
   constructor(context: Context, mason: Mason) : this(context, null, true) {
     node = mason.createNode(this).apply {
       view = this@Img
+      style.display = Display.Inline
     }
   }
 
@@ -49,6 +50,7 @@ class Img @JvmOverloads constructor(
       if (!::node.isInitialized) {
         node = Mason.shared.createNode(this).apply {
           view = this@Img
+          style.display = Display.Inline
         }
       }
     }

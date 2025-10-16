@@ -549,6 +549,7 @@ impl Tree {
         let style = node.style.clone();
         let measure = self.node_data.get(id).unwrap().copy_measure();
         let is_text_container = node.is_text_container();
+        let has_measure = node.has_measure;
 
         if is_text_container {
             // Text container: call measure which will build attributed string
@@ -563,33 +564,55 @@ impl Tree {
             );
         }
 
-        let has_measure = node.has_measure;
+        // Get the segments that were collected
+        let segments = {
+            let node_data = self.node_data.get(id).unwrap();
+            node_data.inline_segments().to_vec()
+        };
 
-        // For non-text inline containers, do the full inline layout
+        // If no segments but has inline children, create segments from children
+        let segments = if segments.is_empty() && !inline_children.is_empty() {
+            inline_children
+                .iter()
+                .map(|child_id| InlineSegment::InlineChild {
+                    id: Some((*child_id).into()),
+                    baseline: 0.0,
+                })
+                .collect::<Vec<_>>()
+        } else {
+            segments
+        };
+
+        // If still no segments, fallback to measure or zero
+        if segments.is_empty() {
+            return if has_measure {
+                compute_leaf_layout(
+                    inputs,
+                    &style,
+                    |_val, _basis| 0.0,
+                    |known_dimensions, available_space| {
+                        measure.measure(known_dimensions, available_space)
+                    },
+                )
+            } else {
+                compute_leaf_layout(
+                    inputs,
+                    &style,
+                    |_val, _basis| 0.0,
+                    |_known_dimensions, _available_space| Size {
+                        width: 0.0,
+                        height: 0.0,
+                    },
+                )
+            };
+        }
+
+        // For non-text inline container (e.g., <span> with children)
         compute_leaf_layout(
             inputs,
             &style,
             |_val, _basis| 0.0,
             |known_dimensions, available_space| {
-                // Non-text inline container (e.g., <span> with children)
-                // Get the segments that were collected
-                let segments = {
-                    let node_data = self.node_data.get(id).unwrap();
-                    node_data.inline_segments().to_vec()
-                };
-
-                // If no segments, fallback to measure or zero
-                if segments.is_empty() {
-                    return if has_measure {
-                        measure.measure(known_dimensions, available_space)
-                    } else {
-                        Size {
-                            width: 0.0,
-                            height: 0.0,
-                        }
-                    };
-                }
-
                 // Calculate padding and border
                 let padding = style
                     .get_padding()
@@ -777,8 +800,17 @@ impl LayoutPartialTree for Tree {
             let mode = node.style.display_mode();
             let has_segments = !node_data.inline_segments.is_empty();
             let is_text_container = node.is_text_container();
+            
+            // Check if any children are inline
+            let has_inline_children = tree.children.get(id).map_or(false, |children| {
+                children.iter().any(|child_id| {
+                    tree.nodes.get(*child_id).map_or(false, |child| {
+                        child.style.display_mode() != DisplayMode::None
+                    })
+                })
+            });
 
-            if force_inline || has_segments || is_text_container {
+            if force_inline || has_segments || is_text_container || has_inline_children {
                 return tree.compute_inline_layout(node_id, inputs);
             }
 
