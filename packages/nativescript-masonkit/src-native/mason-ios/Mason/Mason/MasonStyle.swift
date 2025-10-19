@@ -320,9 +320,6 @@ public class MasonStyle: NSObject {
       }
     }
     set {
-      if(newValue == .Inline && (node.view as? MasonText) == nil){
-        return
-      }
       
       var displayMode = DisplayMode.None
       var value: Int32

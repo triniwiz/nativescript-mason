@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import androidx.annotation.Keep
 import java.lang.ref.WeakReference
 
+
 interface MeasureFunc {
   fun measure(knownDimensions: Size<Float?>, availableSpace: Size<Float?>): Size<Float>
 }

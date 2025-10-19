@@ -75,7 +75,7 @@ public class MasonNode: NSObject {
     }
     return current
   }
-
+  
   lazy internal var style: MasonStyle = {
     MasonStyle(node: self)
   }()
@@ -130,20 +130,22 @@ public class MasonNode: NSObject {
     type = .text
     super.init()
   }
-  internal init(mason doc: NSCMason) {
+  internal init(mason doc: NSCMason, _ isAnonymous: Bool = false) {
     mason = doc
-    nativePtr = mason_node_new_node(mason.nativePtr)
+    nativePtr = mason_node_new_node(mason.nativePtr, isAnonymous)
     type = .element
     super.init()
+    self.isAnonymous = isAnonymous
     mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
   }
   
   
-  internal init(textNode doc: NSCMason) {
+  internal init(textNode doc: NSCMason, _ isAnonymous: Bool = false) {
     mason = doc
-    nativePtr = mason_node_new_text_node(mason.nativePtr)
+    nativePtr = mason_node_new_text_node(mason.nativePtr, isAnonymous)
     type = .element
     super.init()
+    self.isAnonymous = isAnonymous
   }
   
   
@@ -167,7 +169,7 @@ public class MasonNode: NSObject {
   internal init(mason doc : NSCMason, measureFunc function: @escaping MeasureFunc) {
     measureFunc = function
     mason = doc
-    nativePtr = mason_node_new_node(mason.nativePtr)
+    nativePtr = mason_node_new_node(mason.nativePtr, false)
     super.init()
     mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
   }
@@ -278,9 +280,6 @@ extension MasonNode {
     
     // Check if child has a view (inline element or regular element)
     if child.view != nil && child.nativePtr != nil {
-      if (view is MasonText && child.view is MasonText && !child.style.isValueInitialized){
-        child.style.display = Display.Inline
-      }
       appendElementChild(child)
       return
     }
@@ -325,43 +324,45 @@ extension MasonNode {
   @discardableResult
   private func appendTextChild(_ child: MasonNode) -> MasonNode {
     // If this node already has a MasonText view, add directly to it
-        if let textView = view as? MasonText {
-            textView.addChild(child)
-            return child
-        }
-        
-        // Otherwise, check if we can append to an existing anonymous text container
-        if let lastChild = children.last,
-           lastChild.isAnonymous,
-           let lastTextView = lastChild.view as? MasonText {
-            // Append to existing anonymous container
-            lastTextView.addChild(child)
-            return child
-        }
-        
-        // Create new anonymous container only if necessary
-        let container = getOrCreateAnonymousTextContainer()
-        if let masonText = container.view as? MasonText {
-            masonText.addChild(child)
-        }
-        
-        return child
-  }
-  
-  internal func getOrCreateAnonymousTextContainer() -> MasonNode {
-    // Check if last child is an anonymous text container
-    let lastChild = children.last
-    if(lastChild?.isAnonymous ?? false && lastChild?.view is MasonText){
-     return lastChild!
+    if let textView = view as? MasonText {
+      textView.addChild(child)
+      return child
     }
     
+    
+    // Otherwise, check if we can append to an existing anonymous text container
+    
+    // Create new anonymous container only if necessary
+    let container = getOrCreateAnonymousTextContainer()
+    if let masonText = container.view as? MasonText {
+      masonText.addChild(child)
+    }
+    return child
+  }
+  
+  internal func getOrCreateAnonymousTextContainer(_ append: Bool = true, checkLast: Bool = true) -> MasonNode {
+    // Check if last child is an anonymous text container
+    if checkLast,
+       let lastChild = children.last,
+       lastChild.isAnonymous,
+       lastChild.view is MasonText {
+      return lastChild
+    }
+
     // Create new anonymous container
     let textView = MasonText(mason: mason, isAnonymous: true)
     
-    // Add container to this node
-    children.append(textView.node)
+    if(append){
+      // Add container to this node
+      children.append(textView.node)
+    }
+    
     textView.node.parent = self
-    view?.addSubview(textView)
+    
+    
+    if(append && !(view is MasonText)){
+      view?.addSubview(textView)
+    }
     
     // Add to native layout tree
     if let containerPtr = textView.node.nativePtr {
@@ -428,65 +429,369 @@ extension MasonNode {
   }
   
   internal func addChildAt(_ child: MasonNode, _ index: Int) {
-    guard child.parent !== self else { return }
-    
-    let idx: Int
-    if index == -1 {
-      idx = children.count
-    } else {
-      idx = max(0, min(index, children.count))
+    if(index <= -1){
+      appendChild(child)
+      return
+    }
+    let nodes = getChildren()
+    let idx = nodes.firstIndex(of: child)
+    if(idx == index){
+      return
     }
     
     switch child.type {
     case .element:
-      addElementChildAt(child, idx)
+      addElementChildAt(child, index, nil)
+      break
     case .text:
-      addTextChildAt(child, idx)
+      addTextChildAt(child, index, nil)
+      break
     case .document:
       // noop
       break
     }
   }
   
-  private func addElementChildAt(_ child: MasonNode, _ index: Int) {
+  private func addElementChildAt(_ child: MasonNode, _ index: Int, _ nodes: [MasonNode]? = nil) {
+    // Remove from old parent
+    if let oldParent = child.parent {
+      oldParent.removeChild(child)
+    }
+    let authorNodes = nodes ?? getChildren()
+    
+    if(authorNodes.isEmpty || index >= authorNodes.count){
+      appendElementChild(child)
+      return
+    }
+    
+    let element = authorNodes[index]
+    
+    if let textNode = element as? MasonTextNode {
+      assert(textNode.container != nil, "text node must have a container")
+      if let container = textNode.container {
+        if(container.node.isAnonymous){
+          // IMPORTANT: element is the text node at the AUTHOR index
+          // Find where this text node is in the container's children
+          if let idx = container.node.children.firstIndex(where: {$0 === textNode}) {
+            
+            // if the index to insert at is the first get the container parent position
+            // then insert the element there
+            if(idx == 0){
+              if let newIdx = children.firstIndex(of: container.node) {
+                children.insert(child, at: newIdx)
+                // Add view to hierarchy
+                if let childView = child.view {
+                  if(!(view is MasonText)){
+                    view?.addSubview(childView)
+                  }
+                }
+                mason_node_insert_child_before(mason.nativePtr, nativePtr, child.nativePtr, container.node.nativePtr)
+                child.parent = self
+                markDirty()
+              }
+            } else if idx == container.node.children.count {
+              // Inserting after the last item in the container
+              if let newIdx = children.firstIndex(of: container.node) {
+                children.insert(child, at: newIdx + 1)
+                child.parent = self
+                
+                if let childView = child.view, !(view is MasonText) {
+                  view?.addSubview(childView)
+                }
+                
+                // Insert after the container in native tree
+                if newIdx + 1 < children.count {
+                  if let nextNode = children[newIdx + 1].nativePtr {
+                    mason_node_insert_child_before(mason.nativePtr, nativePtr, child.nativePtr, nextNode)
+                  }
+                } else {
+                  mason_node_add_child(mason.nativePtr, nativePtr, child.nativePtr)
+                }
+                
+                markDirty()
+              }
+            } else {
+              // Split the container in the middle
+              let newContainer = getOrCreateAnonymousTextContainer(false, checkLast: false)
+              newContainer.parent = self
+              
+              let range = idx...
+              
+              
+              // IMPORTANT: Create a copy of the slice for safe iteration
+              let nodesToMove = Array(container.node.children[range])
+              
+              // FIRST: Remove from original container
+              container.node.children.removeSubrange(range)
+              
+          
+              // THEN: Move nodes to new container
+              for node in nodesToMove {
+                // Update references
+                node.parent = newContainer
+                if let textNode = node as? MasonTextNode,
+                   let newContainerView = newContainer.view as? MasonText {
+                  textNode.container = newContainerView
+                }
+                
+                // Add to new container
+                newContainer.children.append(node)
+              }
+              
+  
+              
+              // Force rebuild of both containers
+              container.invalidateInlineSegments()
+              
+              if let newContainerView = newContainer.view as? MasonText {
+                newContainerView.invalidateInlineSegments()
+              }
+              
+              // Find container's position in parent
+              if let containerIdx = children.firstIndex(of: container.node) {
+                // Insert: [original container, new element, new container]
+                children.insert(child, at: containerIdx + 1)
+                child.parent = self
+                
+                if let childView = child.view, !(view is MasonText) {
+                  if let view = view {
+                    if let idx = view.subviews.firstIndex(of: container) {
+                      if idx < view.subviews.count - 1 {
+                        view.insertSubview(childView, at: idx + 1)
+                      }else {
+                        view.addSubview(childView)
+                      }
+                    }else {
+                      view.addSubview(childView)
+                    }
+                  }
+                }
+                
+                children.insert(newContainer, at: containerIdx + 2)
+                
+                // CRITICAL: Add new container's view to hierarchy
+                if let newContainerView = newContainer.view as? MasonText {
+                  if !(view is MasonText) {
+                    if let view = view {
+                      if let idx = view.subviews.firstIndex(of: container) {
+                        if idx < view.subviews.count - 1 {
+                          view.insertSubview(newContainerView, at: idx + 1)
+                        }else {
+                          view.addSubview(newContainerView)
+                        }
+                      }else {
+                        view.addSubview(newContainerView)
+                      }
+                    }
+                  }
+                }
+                
+                
+                // IMPORTANT: Sync native layout tree with proper pointers
+                let nativeChildren = children.compactMap { $0.nativePtr }
+                var optionalChildren = nativeChildren.map { Optional($0) }
+                mason_node_set_children(mason.nativePtr, nativePtr, &optionalChildren, UInt(optionalChildren.count))
+                
+                markDirty()
+              } else {
+                // Fallback: append everything
+                appendChild(child)
+                appendChild(newContainer)
+              }
+            }
+          } else {
+            // always append if node can't be found
+            appendChild(child)
+          }
+        } else {
+          // real text container .. don't split just insert
+          
+          if let newIdx = container.node.children.firstIndex(where: {$0 === textNode}) {
+            container.node.children.insert(child, at: newIdx)
+            
+            // Add ALL non-text nodes to layout tree (including TextViews that won't be flattened)
+            if child.type != .text && child.nativePtr != nil {
+              // Check if this TextView should be inline-block
+              if let textView = child.view as? MasonText {
+                // Only add to layout tree if it won't be flattened
+                if !container.shouldFlattenTextContainer(textView) {
+                  container.syncLayoutChildren()
+                }
+              } else {
+                // Non-TextView elements always go in layout tree
+               // syncLayoutChildren()
+                
+                
+                // Add view to hierarchy
+                if let childView = child.view {
+                  if(!(view is MasonText)){
+                    view?.addSubview(childView)
+                  }
+                }
+                mason_node_insert_child_before(mason.nativePtr, container.node.nativePtr, child.nativePtr, textNode.nativePtr)
+                child.parent = container.node
+              }
+            }
+            markDirty()
+            
+          }else {
+            appendChild(child)
+          }
+        }
+      }
+    } else if element.view is MasonElement {
+      if let idx = children.firstIndex(of: element)  {
+        // Insert into author tree
+        children.insert(child, at: idx)
+        child.parent = self
+        
+        if(!(child.view is MasonText)){
+          // Add view to hierarchy
+          if let childView = child.view {
+            if(index <= -1){
+              view?.addSubview(childView)
+            }else {
+              print("childView", childView.superview == view)
+              view?.insertSubview(childView, at: index)
+            }
+          }
+        }
+        
+        // Sync native layout tree (full rebuild for insert to maintain order)
+        let nativeChildren = children.compactMap { $0.nativePtr }
+        
+        // Convert [OpaquePointer] to [OpaquePointer?] for the C API
+        var optionalChildren = nativeChildren.map { Optional($0) }
+        mason_node_set_children(mason.nativePtr, nativePtr, &optionalChildren, UInt(optionalChildren.count))
+        
+        markDirty()
+      } else {
+        appendElementChild(child)
+      }
+    }
+    
+  }
+  
+  private func addTextChildAt(_ child: MasonNode, _ index: Int, _ nodes: [MasonNode]? = nil) {
+    // For text nodes, find nearest text container or create one
+    // If inserting at end (-1 or children.count), use appendChild behavior
+    
+    switch(type) {
+    case .document:
+      if (!children.isEmpty) {
+        return
+      }
+      
+      if (child.type == .text || child.type == .document) {
+        return
+      }
+      break
+      
+    case .text : return
+    default:
+      // noop
+      break
+    }
+    
     // Remove from old parent
     if let oldParent = child.parent {
       oldParent.removeChild(child)
     }
     
-    // Insert into author tree
-    children.insert(child, at: index)
-    child.parent = self
+    let authorNodes = nodes ?? getChildren()
     
-    // Add view to hierarchy
-    if let childView = child.view {
-      if(index <= -1){
-        view?.addSubview(childView)
-      }else {
-        view?.insertSubview(childView, at: index)
+    if (index >= authorNodes.count || index <= -1) {
+      appendChild(child)
+      return
+    }
+    
+    let element = authorNodes[index]
+    
+    if let textNode = element as? MasonTextNode {
+      // Find the position of this text node within its container
+      guard let container = textNode.container else {
+        appendChild(child)
+        return
+      }
+      
+      guard let layoutIndex = container.node.children.firstIndex(of: textNode) else {
+        // Text node not found in container, append instead
+        container.node.children.append(child)
+        if let child = child as? MasonTextNode {
+          child.container = container
+          child.attributes = container.getDefaultAttributes()
+        }
+        child.parent = container.node
+        container.invalidateInlineSegments()
+        markDirty()
+        return
+      }
+      
+      // Insert BEFORE the target text node in the container
+      container.node.children.insert(child, at: layoutIndex)
+      
+      if let child = child as? MasonTextNode {
+        child.container = container
+        child.attributes = container.getDefaultAttributes()
+      }
+      child.parent = container.node
+      
+      container.invalidateInlineSegments()
+      
+      markDirty()
+
+    } else if element.view is MasonElement {
+      let layoutIndex = children.firstIndex(of: element)
+      
+      // For TextView containers, delegate to the TextView
+      if (view is MasonText && child is MasonTextNode) {
+        if let layoutIndex = layoutIndex {
+          children.insert(child, at: layoutIndex)
+        }else {
+          children.append(child)
+        }
+        child.parent = self
+        if let container = (view as? MasonText) {
+          (child as! MasonTextNode).container = container
+          (child as! MasonTextNode).attributes = container.getDefaultAttributes()
+        }
+        return
+      }
+      
+      // Check if this is a text node get or create anonymous textContainer
+      if (child.type == .text) {
+        let container = getOrCreateAnonymousTextContainer(false)
+        container.appendChild(child)
+        if let child = child as? MasonTextNode, let containerView = container.view as? MasonText {
+          child.attributes = containerView.getDefaultAttributes()
+          child.parent = container
+          child.container = containerView
+        }
+        
+        if let layoutIndex = layoutIndex {
+          children.insert(container, at: layoutIndex)
+        }else {
+          children.append(container)
+        }
+        
+        // Add container to native layout tree
+        if let containerPtr = container.nativePtr {
+          mason_node_insert_child_before(mason.nativePtr, nativePtr, containerPtr, element.nativePtr)
+        }
+        
+        markDirty()
+        
+        return
+      }
+      
+      // Check if child has a view (element)
+      if (child.view != nil && child.nativePtr != nil) {
+        addElementChildAt(child, index)
+        return
       }
     }
     
-    // Sync native layout tree (full rebuild for insert to maintain order)
-    let nativeChildren = children.compactMap { $0.nativePtr }
     
-    // Convert [OpaquePointer] to [OpaquePointer?] for the C API
-    var optionalChildren = nativeChildren.map { Optional($0) }
-    mason_node_set_children(mason.nativePtr, nativePtr, &optionalChildren, UInt(optionalChildren.count))
-    
-    markDirty()
-  }
-  
-  private func addTextChildAt(_ child: MasonNode, _ index: Int) {
-    // For text nodes, find nearest text container or create one
-    // If inserting at end (-1 or children.count), use appendChild behavior
-    if index >= children.count {
-      appendChild(child)
-    } else {
-      // TODO: Implement proper insertion into text containers at specific positions
-      // For now, delegate to appendChild which handles containers
-      appendChild(child)
-    }
   }
   
   internal func removeChildAt(index: Int) -> MasonNode? {

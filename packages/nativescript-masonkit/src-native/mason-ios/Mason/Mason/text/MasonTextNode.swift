@@ -34,9 +34,14 @@ public class MasonTextNode: MasonNode, MasonCharacterData {
   
   internal var attributes: [NSAttributedString.Key: Any] = [:]
   
-  public init(mason doc: NSCMason, data text: String, attributes attrs: [NSAttributedString.Key: Any] = [:]) {
+  internal var attributesInitialized: Bool = false
+  
+  public init(mason doc: NSCMason, data text: String, attributes attrs: [NSAttributedString.Key: Any]? = nil) {
     data = text
-    attributes = attrs
+    if let attrs = attrs {
+      attributes = attrs
+      attributesInitialized = true
+    }
     super.init(dataNode: doc)
   }
   

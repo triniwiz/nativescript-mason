@@ -13,7 +13,6 @@ internal func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRaw
   return Unmanaged.passRetained(layout).toOpaque()
 }
 
-
 public protocol MasonElement {
   var style: MasonStyle { get }
   
@@ -30,17 +29,25 @@ public protocol MasonElement {
   @discardableResult func layout() -> MasonLayout
   
   func compute()
+  
   func compute(_ width: Float, _ height: Float)
+  
   func computeMaxContent()
+  
   func computeMinContent()
+  
   func computeWithSize(_ width: Float, _ height: Float)
   func computeWithViewSize()
-  func computeWithViewSize(layout: Bool)
-  func computeWithMaxContent()
-  func computeWithMinContent()
-  func attachAndApply()
-  func requestLayout()
   
+  func computeWithViewSize(layout: Bool)
+  
+  func computeWithMaxContent()
+  
+  func computeWithMinContent()
+  
+  func attachAndApply()
+  
+  func requestLayout()
   
   func append(_ element: MasonElement)
   
@@ -66,6 +73,11 @@ public protocol MasonElement {
   
   func prepend(nodes: [MasonNode])
   
+  func addChildAt(text: String, _ index: Int)
+
+  func addChildAt(element: MasonElement, _ index: Int)
+
+  func addChildAt(node: MasonNode, _ index: Int)
 }
 
 private struct MasonElementProperties {
@@ -74,6 +86,33 @@ private struct MasonElementProperties {
 }
 
 extension MasonElement {
+  
+  public func addChildAt(text: String, _ index: Int) {
+    node.addChildAt(MasonTextNode(mason: node.mason, data: text), index)
+  }
+
+  public func addChildAt(element: MasonElement, _ index: Int) {
+    node.addChildAt(element.node, index)
+  }
+
+  public func addChildAt(node: MasonNode, _ index: Int) {
+    node.addChildAt(node, index)
+  }
+  
+  public var style: MasonStyle {
+    get {
+      return node.style
+    }
+  }
+  
+  public func syncStyle(_ state: String) {
+    guard let stateValue = Int64(state, radix: 10) else {return}
+    //  let keys = StateKeys(rawValue: UInt64(stateValue))
+    if (stateValue != -1) {
+      style.isDirty = stateValue
+      style.updateNativeStyle()
+    }
+  }
   
   public func configure(_ block :(MasonStyle) -> Void) {
     node.inBatch = true
@@ -143,11 +182,6 @@ extension MasonElement {
     }else {
       node.addChildAt(node.mason.nodeForView(view), at)
     }
-  }
-  
-  
-  public var style: MasonStyle {
-    return node.style
   }
   
   internal func computeCache() -> CGSize {
@@ -478,6 +512,7 @@ internal class MasonElementHelpers {
         }
       }
       
+ 
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)

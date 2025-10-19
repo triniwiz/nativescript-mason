@@ -45,8 +45,10 @@ export class Text extends TextBase {
   _hasNativeView = false;
   _inBatch = false;
   private _view: org.nativescript.mason.masonkit.TextView;
+  private _type: TextType;
   constructor(type: TextType = 0) {
     super();
+    this._type = type;
     const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
     switch (type) {
       case TextType.None:
@@ -115,7 +117,20 @@ export class Text extends TextBase {
   [textProperty.setNative](value) {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
     if (nativeView) {
-      nativeView.setTextContent(value);
+      // hacking vue3 to handle text nodes
+      if (global.VUE3_ELEMENT_REF) {
+        const view_ref = this[global.VUE3_ELEMENT_REF];
+        if (Array.isArray(view_ref.childNodes)) {
+          (view_ref.childNodes as any[]).forEach((node, index) => {
+            if (node.nodeType === 'text') {
+              nativeView.addChildAt(node.text || '', index);
+            }
+          });
+        }
+      } else {
+        // will replace all nodes with a new text node
+        nativeView.setTextContent(value);
+      }
     }
   }
 
@@ -159,10 +174,10 @@ export class Text extends TextBase {
       child._isMasonChild = true;
 
       if ((atIndex ?? -1) <= -1) {
-        nativeView.appendView(child.nativeViewProtected);
+        nativeView.append(child.nativeViewProtected);
       } else {
         const node = nativeView.getNode();
-        node.appendChild(child.nativeViewProtected);
+        node.addChildAt(child.nativeViewProtected, atIndex);
       }
 
       // @ts-ignore

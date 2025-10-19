@@ -3,14 +3,12 @@ package org.nativescript.mason.masondemo
 import android.animation.ValueAnimator
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.Img
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
@@ -24,14 +22,14 @@ import kotlin.concurrent.schedule
 
 
 class TextActivity : AppCompatActivity() {
-  lateinit var root: View
+  lateinit var body: View
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    root = Mason.shared.createView(this)
-    ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+    body = Mason.shared.createView(this)
+    ViewCompat.setOnApplyWindowInsetsListener(body) { view, insets ->
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
 
-      root.style.padding = Rect(
+      body.style.padding = Rect(
         LengthPercentage.Points(systemBars.left.toFloat()),
         LengthPercentage.Points(systemBars.right.toFloat()),
         LengthPercentage.Points(systemBars.top.toFloat()),
@@ -45,11 +43,123 @@ class TextActivity : AppCompatActivity() {
 
     //basicNesting()
     // testText()
-    textWithImage()
+    //textWithImage()
     // basicBlock()
     //  testWrap()
     //testElements()
-    setContentView(root)
+    //testTextInsert()
+    inlineTest()
+    setContentView(body)
+  }
+
+  fun testInsert() {
+    val root = Mason.shared.createView(this)
+    root.setBackgroundColor(Color.GREEN)
+    val view = Mason.shared.createView(this)
+
+    val checkmark = Mason.shared.createImageView(this)
+    checkmark.style.size = Size(
+      Dimension.Points(100f), Dimension.Points(100f)
+    )
+    checkmark.setImageResource(R.drawable.ic_launcher_foreground)
+
+    view.append(checkmark)
+
+
+    val div = Mason.shared.createView(this)
+    div.setBackgroundColor(Color.RED)
+    div.style.size = Size(
+      Dimension.Points(100f), Dimension.Points(100f)
+    )
+
+    view.append(div)
+
+
+//    let remove = NSCMason.shared.createImageView()
+//    remove.style.size = MasonSize(
+//      .Points(100), .Points(100)
+//    )
+//    remove.image = UIImage.remove
+//
+//
+//    view.addChildAt(element: remove, 1)
+//
+//
+//
+//
+//    root.append(view)
+//    body.append(root)
+//
+//
+//    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+  }
+
+  fun testTextInsert() {
+    val root = Mason.shared.createView(this)
+    root.setBackgroundColor(Color.GREEN)
+
+    val view = Mason.shared.createView(this)
+    view.append("1")
+    view.append("3")
+    view.addChildAt("2", 1)
+    view.append("4")
+
+    val img = Mason.shared.createImageView(this)
+
+    img.style.size = Size(
+      Dimension.Points(100f), Dimension.Points(100f)
+    )
+
+    img.setImageResource(R.drawable.ttigraas)
+
+    view.addChildAt(img, 3)
+
+    view.append("5")
+
+    root.append(view)
+    body.append(root)
+  }
+
+
+  fun inlineTest() {
+    val root = Mason.shared.createView(this)
+    root.setBackgroundColor(Color.GRAY)
+    val txt = Mason.shared.createTextView(this)
+    txt.append("First")
+    txt.id = android.view.View.generateViewId()
+
+    val second = Mason.shared.createTextView(this)
+    second.backgroundColorValue = Color.YELLOW
+    second.color = Color.BLUE
+    second.append("Second")
+    second.id = android.view.View.generateViewId()
+
+    txt.append(second)
+
+    val img = Mason.shared.createImageView(this)
+    img.setBackgroundColor(Color.BLUE)
+
+    img.style.size = Size(
+      Dimension.Points(100f), Dimension.Points(100f)
+    )
+    img.setImageResource(R.drawable.ttigraas)
+
+    txt.append(img)
+
+    val view = Mason.shared.createView(this)
+    view.style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
+    view.setBackgroundColor(Color.MAGENTA)
+
+    txt.append(view)
+
+    root.append(arrayOf(txt))
+
+    body.append(root)
+
+    body.addOnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+      Mason.shared.printTree(root.node)
+    }
+
   }
 
   fun testElements() {
@@ -85,7 +195,7 @@ class TextActivity : AppCompatActivity() {
     span.color = Color.BLUE
     span.fontSize = 24
 
-    root.appendView(arrayOf(h1, h2, h3, h4, h5, h6, p))
+    body.appendView(arrayOf(h1, h2, h3, h4, h5, h6, p))
 
 
   }
@@ -123,7 +233,7 @@ class TextActivity : AppCompatActivity() {
 
     txt.append(txt3)
 
-    root.append(arrayOf(txt, img))
+    body.append(arrayOf(txt, img))
 
   }
 
@@ -143,7 +253,7 @@ class TextActivity : AppCompatActivity() {
     // a.addView(b)
     a.append(b)
     a.append(c)
-    root.addView(a)
+    body.addView(a)
     //setContentView(root)
   }
 
@@ -161,9 +271,9 @@ class TextActivity : AppCompatActivity() {
 
 
     // a.addView(b)
-    root.addView(a)
-    root.addView(b)
-    root.addView(c)
+    body.addView(a)
+    body.addView(b)
+    body.addView(c)
     //setContentView(root)
   }
 
@@ -183,9 +293,9 @@ class TextActivity : AppCompatActivity() {
 
 
     // a.addView(b)
-    root.addView(a)
-    root.addView(b)
-    root.addView(c)
+    body.addView(a)
+    body.addView(b)
+    body.addView(c)
     //setContentView(root)
   }
 
@@ -203,9 +313,9 @@ class TextActivity : AppCompatActivity() {
 
     a.append(b)
 
-    root.addView(a)
+    body.addView(a)
 
-    setContentView(root)
+    setContentView(body)
 
     Timer().schedule(2000L) {
       runOnUiThread {
@@ -219,7 +329,7 @@ class TextActivity : AppCompatActivity() {
     textOther.color = Color.RED
     textOther.append("Other")
 
-    root.addView(textOther)
+    body.addView(textOther)
 
     val text = Mason.shared.createTextView(this)
 
@@ -379,7 +489,7 @@ class TextActivity : AppCompatActivity() {
 
     text.append(nest1)
 
-    root.addView(text)
+    body.addView(text)
 
 
     val size = view.style.size

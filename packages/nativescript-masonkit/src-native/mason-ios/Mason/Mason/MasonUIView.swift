@@ -22,6 +22,8 @@ public class MasonUIView: UIView, MasonElement {
   
   public let node: MasonNode
   public let mason: NSCMason
+
+  
   init(mason doc: NSCMason) {
     node = doc.createNode()
     mason = doc
@@ -60,16 +62,6 @@ public class MasonUIView: UIView, MasonElement {
     return view
   }
   
-  @objc public var style: MasonStyle {
-    get {
-      return node.style
-    }
-    
-    set {
-      node.style = newValue
-    }
-  }
-  
 
   public func addView(_ view: UIView){
     if(view.superview == self){
@@ -100,14 +92,6 @@ public class MasonUIView: UIView, MasonElement {
     }
   }
   
-  public func syncStyle(_ state: String) {
-    guard let stateValue = Int64(state, radix: 10) else {return}
-    //  let keys = StateKeys(rawValue: UInt64(stateValue))
-    if (stateValue != -1) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
-  }
   
   @objc public func addSubviews(_ views: [UIView]){
     addSubviews(views, at: -1)

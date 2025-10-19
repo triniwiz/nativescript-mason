@@ -14,11 +14,17 @@ public class Img: UIImageView, MasonElement {
     return self
   }
   
-  
   public let node: MasonNode
   public let mason: NSCMason
   
   public var didLayout: (() -> Void)?
+  
+  public override var image: UIImage? {
+    didSet {
+      self.setNeedsDisplay()
+      requestLayout()
+    }
+  }
   
   private var currentTask: URLSessionDataTask?
   public var src: String? {
@@ -57,6 +63,7 @@ public class Img: UIImageView, MasonElement {
   
   init(mason doc: NSCMason) {
     node = doc.createNode()
+    node.style.display = Display.Inline
     mason = doc
     super.init(frame: .zero)
     isOpaque = false
@@ -69,15 +76,6 @@ public class Img: UIImageView, MasonElement {
   
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
-  }
-  
-  public func syncStyle(_ state: String) {
-    guard let stateValue = Int64(state, radix: 10) else {return}
-  //  let keys = StateKeys(rawValue: UInt64(stateValue))
-    if (stateValue != -1) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
   }
   
   private static func measure(_ view: Img, _ known: CGSize?, _ available: CGSize) -> CGSize {

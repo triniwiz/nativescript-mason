@@ -1055,7 +1055,7 @@ pub extern "C" fn mason_style_get_style_buffer(
         let mason = &mut *mason;
         let node = &mut *node;
 
-        let mut data = mason.0.style_data_raw_mut(node.0.id());
+        let data = mason.0.style_data_raw_mut(node.0.id());
 
         Box::into_raw(Box::new(CMasonBuffer {
             data: data.0,

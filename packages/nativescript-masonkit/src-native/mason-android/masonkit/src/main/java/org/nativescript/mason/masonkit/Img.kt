@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
+import android.util.Log
 import androidx.appcompat.widget.AppCompatImageView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
@@ -41,8 +42,8 @@ class Img @JvmOverloads constructor(
   constructor(context: Context, mason: Mason) : this(context, null, true) {
     node = mason.createNode(this).apply {
       view = this@Img
-      style.display = Display.Inline
     }
+    style.display = Display.Inline
   }
 
   init {
@@ -50,8 +51,8 @@ class Img @JvmOverloads constructor(
       if (!::node.isInitialized) {
         node = Mason.shared.createNode(this).apply {
           view = this@Img
-          style.display = Display.Inline
         }
+        style.display = Display.Inline
       }
     }
   }
@@ -59,7 +60,6 @@ class Img @JvmOverloads constructor(
   override fun onNodeAttached() {
     markDirtyAndRecompute()
   }
-
 
   private fun markDirtyAndRecompute() {
     node.dirty()
@@ -112,7 +112,6 @@ class Img @JvmOverloads constructor(
         .into(target)
 
     }
-
 
   fun syncStyle(state: String) {
     try {

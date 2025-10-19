@@ -9,12 +9,11 @@ use std::rc::Rc;
 use taffy::{AvailableSpace, Cache, ClearState, Layout, Size};
 
 #[cfg(target_os = "android")]
-use crate::JVM;
+use crate::{JVM, JVM_CACHE};
 
 #[cfg(target_vendor = "apple")]
 #[derive(Debug, Clone)]
 pub struct AppleNode(objc2::rc::Retained<NSObject>);
-
 
 #[cfg(target_vendor = "apple")]
 impl AppleNode {
@@ -30,6 +29,51 @@ impl AppleNode {
 
     pub fn computed_height(&self) -> f64 {
         unsafe { objc2::msg_send![&self.0, computedHeight] }
+    }
+}
+
+#[cfg(target_os = "android")]
+#[derive(Debug, Clone)]
+pub struct AndroidNode(pub(crate) jni::objects::GlobalRef);
+
+#[cfg(target_os = "android")]
+impl AndroidNode {
+    pub fn set_computed_size(&mut self, width: f32, height: f32) {
+        if let Some(jvm) = crate::JVM.get() {
+            let vm = jvm.attach_current_thread();
+            let mut env = vm.unwrap();
+            match crate::JVM_CACHE.get() {
+                Some(cache) => unsafe {
+                    _ = env.call_method_unchecked(
+                        self.0.as_obj(),
+                        cache.node_set_computed_size_id,
+                        jni::signature::ReturnType::Primitive(jni::signature::Primitive::Void),
+                        &[
+                            jni::sys::jvalue { f: width },
+                            jni::sys::jvalue { f: height },
+                        ],
+                    );
+                },
+                _ => {
+                    _ = env.call_method(
+                        self.0.as_obj(),
+                        "setComputedSize",
+                        "(FF)V",
+                        &[
+                            jni::objects::JValue::from(width),
+                            jni::objects::JValue::from(height),
+                        ],
+                    );
+                }
+            }
+        }
+    }
+    pub fn computed_width(&self) -> f32 {
+        0f32
+    }
+
+    pub fn computed_height(&self) -> f32 {
+        0f32
     }
 }
 
@@ -62,29 +106,61 @@ impl NodeMeasure {
             (Some(measure), Some(jvm)) => {
                 let vm = jvm.attach_current_thread();
                 let mut env = vm.unwrap();
-                let result = env.call_method(
-                    measure.as_obj(),
-                    "measure",
-                    "(JJ)J",
-                    &[
-                        jni::objects::JValue::from(MeasureOutput::make(
-                            known_dimensions.width.unwrap_or(f32::NAN),
-                            known_dimensions.height.unwrap_or(f32::NAN),
-                        )),
-                        jni::objects::JValue::from(MeasureOutput::make(
-                            match available_space.width {
-                                AvailableSpace::MinContent => -1.,
-                                AvailableSpace::MaxContent => -2.,
-                                AvailableSpace::Definite(value) => value,
-                            },
-                            match available_space.height {
-                                AvailableSpace::MinContent => -1.,
-                                AvailableSpace::MaxContent => -2.,
-                                AvailableSpace::Definite(value) => value,
-                            },
-                        )),
-                    ],
-                );
+
+                let result = match crate::JVM_CACHE.get() {
+                    Some(cache) => unsafe {
+                        env.call_method_unchecked(
+                            measure.as_obj(),
+                            cache.measure_measure_id,
+                            jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
+                            &[
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make(
+                                        known_dimensions.width.unwrap_or(f32::NAN),
+                                        known_dimensions.height.unwrap_or(f32::NAN),
+                                    ),
+                                },
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make(
+                                        match available_space.width {
+                                            AvailableSpace::MinContent => -1.,
+                                            AvailableSpace::MaxContent => -2.,
+                                            AvailableSpace::Definite(value) => value,
+                                        },
+                                        match available_space.height {
+                                            AvailableSpace::MinContent => -1.,
+                                            AvailableSpace::MaxContent => -2.,
+                                            AvailableSpace::Definite(value) => value,
+                                        },
+                                    ),
+                                },
+                            ],
+                        )
+                    },
+                    _ => env.call_method(
+                        measure.as_obj(),
+                        "measure",
+                        "(JJ)J",
+                        &[
+                            jni::objects::JValue::from(MeasureOutput::make(
+                                known_dimensions.width.unwrap_or(f32::NAN),
+                                known_dimensions.height.unwrap_or(f32::NAN),
+                            )),
+                            jni::objects::JValue::from(MeasureOutput::make(
+                                match available_space.width {
+                                    AvailableSpace::MinContent => -1.,
+                                    AvailableSpace::MaxContent => -2.,
+                                    AvailableSpace::Definite(value) => value,
+                                },
+                                match available_space.height {
+                                    AvailableSpace::MinContent => -1.,
+                                    AvailableSpace::MaxContent => -2.,
+                                    AvailableSpace::Definite(value) => value,
+                                },
+                            )),
+                        ],
+                    ),
+                };
 
                 match result {
                     Ok(result) => {
@@ -164,6 +240,8 @@ pub struct NodeData {
     #[cfg(target_vendor = "apple")]
     pub apple_data: Option<AppleNode>,
     #[cfg(target_os = "android")]
+    pub android_data: Option<AndroidNode>,
+    #[cfg(target_os = "android")]
     pub(crate) measure: Option<jni::objects::GlobalRef>,
     #[cfg(not(target_os = "android"))]
     pub(crate) measure: Option<
@@ -191,6 +269,7 @@ impl NodeData {
         unsafe {
             Self {
                 measure: None,
+                android_data: None,
                 inline_segments: vec![],
             }
         }
@@ -219,30 +298,60 @@ impl NodeData {
             (Some(measure), Some(jvm)) => {
                 let vm = jvm.attach_current_thread();
                 let mut env = vm.unwrap();
-                let result = env.call_method(
-                    measure.as_obj(),
-                    "measure",
-                    "(JJ)J",
-                    &[
-                        jni::objects::JValue::from(MeasureOutput::make(
-                            known_dimensions.width.unwrap_or(f32::NAN),
-                            known_dimensions.height.unwrap_or(f32::NAN),
-                        )),
-                        jni::objects::JValue::from(MeasureOutput::make(
-                            match available_space.width {
-                                AvailableSpace::MinContent => -1.,
-                                AvailableSpace::MaxContent => -2.,
-                                AvailableSpace::Definite(value) => value,
-                            },
-                            match available_space.height {
-                                AvailableSpace::MinContent => -1.,
-                                AvailableSpace::MaxContent => -2.,
-                                AvailableSpace::Definite(value) => value,
-                            },
-                        )),
-                    ],
-                );
-
+                let result = match crate::JVM_CACHE.get() {
+                    Some(cache) => unsafe {
+                        env.call_method_unchecked(
+                            measure.as_obj(),
+                            cache.measure_measure_id,
+                            jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
+                            &[
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make(
+                                        known_dimensions.width.unwrap_or(f32::NAN),
+                                        known_dimensions.height.unwrap_or(f32::NAN),
+                                    ),
+                                },
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make(
+                                        match available_space.width {
+                                            AvailableSpace::MinContent => -1.,
+                                            AvailableSpace::MaxContent => -2.,
+                                            AvailableSpace::Definite(value) => value,
+                                        },
+                                        match available_space.height {
+                                            AvailableSpace::MinContent => -1.,
+                                            AvailableSpace::MaxContent => -2.,
+                                            AvailableSpace::Definite(value) => value,
+                                        },
+                                    ),
+                                },
+                            ],
+                        )
+                    },
+                    _ => env.call_method(
+                        measure.as_obj(),
+                        "measure",
+                        "(JJ)J",
+                        &[
+                            jni::objects::JValue::from(MeasureOutput::make(
+                                known_dimensions.width.unwrap_or(f32::NAN),
+                                known_dimensions.height.unwrap_or(f32::NAN),
+                            )),
+                            jni::objects::JValue::from(MeasureOutput::make(
+                                match available_space.width {
+                                    AvailableSpace::MinContent => -1.,
+                                    AvailableSpace::MaxContent => -2.,
+                                    AvailableSpace::Definite(value) => value,
+                                },
+                                match available_space.height {
+                                    AvailableSpace::MinContent => -1.,
+                                    AvailableSpace::MaxContent => -2.,
+                                    AvailableSpace::Definite(value) => value,
+                                },
+                            )),
+                        ],
+                    ),
+                };
                 match result {
                     Ok(result) => {
                         let size = result.j().unwrap_or_default();
@@ -329,6 +438,7 @@ pub struct Node {
     pub(crate) guard: Rc<()>,
     pub(crate) has_measure: bool,
     pub(crate) type_: NodeType,
+    pub(crate) is_anonymous: bool,
 }
 
 impl Node {
@@ -341,6 +451,7 @@ impl Node {
             guard: Default::default(),
             has_measure: false,
             type_: NodeType::Normal,
+            is_anonymous: false,
         }
     }
 

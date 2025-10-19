@@ -127,5 +127,10 @@ public class NSCMason: NSObject {
     return MasonNode(textNode: self)
   }
   
+  internal func createTextNode(isAnonymous: Bool = false) -> MasonNode{
+    let node =  MasonNode(textNode: self, isAnonymous)
+    return node
+  }
+  
   static let scale = Float(UIScreen.main.scale)
 }

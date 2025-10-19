@@ -8,9 +8,7 @@ import java.lang.ref.WeakReference
 
 
 open class Node internal constructor(
-  internal val mason: Mason,
-  internal var nativePtr: Long,
-  nodeType: NodeType = NodeType.Element
+  internal val mason: Mason, internal var nativePtr: Long, nodeType: NodeType = NodeType.Element
 ) {
   internal var isFlattened: Boolean = false
   internal var computeCacheDirty = false
@@ -28,6 +26,8 @@ open class Node internal constructor(
   internal var availableWidth: Float? = null
   internal var availableHeight: Float? = null
   internal var document: Document? = null
+  internal var cachedWidth: Float = 0f
+  internal var cachedHeight: Float = 0f
   open var parent: Node? = null
     internal set
 
@@ -51,6 +51,10 @@ open class Node internal constructor(
       }
     }
 
+  fun setComputedSize(width: Float, height: Float) {
+    cachedWidth = width
+    cachedHeight = height
+  }
 
   internal fun setDefaultMeasureFunction() {
     setMeasureFunction(measureFunc)
@@ -58,8 +62,7 @@ open class Node internal constructor(
 
   internal var measureFunc: MeasureFunc = object : MeasureFunc {
     override fun measure(
-      knownDimensions: Size<Float?>,
-      availableSpace: Size<Float?>
+      knownDimensions: Size<Float?>, availableSpace: Size<Float?>
     ): Size<Float> {
       knownWidth = knownDimensions.width
       knownHeight = knownDimensions.height
@@ -156,12 +159,9 @@ open class Node internal constructor(
 
         view?.measure(
           MeasureSpec.makeMeasureSpec(
-            width,
-            widthSpec
-          ),
-          MeasureSpec.makeMeasureSpec(
-            height,
-            heightSpec
+            width, widthSpec
+          ), MeasureSpec.makeMeasureSpec(
+            height, heightSpec
           )
         )
 
@@ -181,7 +181,6 @@ open class Node internal constructor(
   var view: Any? = null
 
   internal var children = arrayListOf<Node>()
-
   internal var isStyleInitialized = false
   internal val style: Style by lazy {
     isStyleInitialized = true
@@ -217,9 +216,6 @@ open class Node internal constructor(
 
     // Check if child has a view (element)
     if (child.view != null && child.nativePtr != 0L) {
-      if (view is TextView && child.view is TextView && !child.isStyleInitialized) {
-        child.style.display = Display.Inline
-      }
       appendElementChild(child)
       return
     }
@@ -252,6 +248,9 @@ open class Node internal constructor(
               (view as org.nativescript.mason.masonkit.View).addView(masonView.parent as View?)
             }
           } else {
+            if (childView is TextView && !child.isStyleInitialized) {
+              child.style.display = Display.Inline
+            }
             (view as org.nativescript.mason.masonkit.View).addView(childView)
           }
         }
@@ -260,8 +259,8 @@ open class Node internal constructor(
           (view as Scroll).addView(childView)
         }
 
-        is android.view.ViewGroup -> {
-          (view as android.view.ViewGroup).addView(childView)
+        is ViewGroup -> {
+          (view as ViewGroup).addView(childView)
         }
       }
     }
@@ -294,42 +293,44 @@ open class Node internal constructor(
       return child
     }
 
-    // Check if we can append to an existing anonymous text container
-    val lastChild = children.lastOrNull()
-    if (lastChild?.isAnonymous == true && lastChild.view is TextView) {
-      lastChild.children.add(child)
-      child.parent = lastChild
-      (lastChild.view as TextView).attachTextNode(child)
-      return child
-    }
-
     // Create new anonymous container
     val container = getOrCreateAnonymousTextContainer()
     container.children.add(child)
     child.parent = container
+    child.apply {
+      // clear attributes when adding to another container
+      attributes.clear()
+      attributes.putAll((container.view as TextView).getDefaultAttributes())
+    }
     (container.view as? TextView)?.attachTextNode(child)
 
     return child
   }
 
-  internal fun getOrCreateAnonymousTextContainer(): Node {
+  internal fun getOrCreateAnonymousTextContainer(
+    append: Boolean = true,
+    checkLast: Boolean = true
+  ): Node {
     // Check if last child is an anonymous text container
     val lastChild = children.lastOrNull()
-    if (lastChild?.isAnonymous == true && lastChild.view is TextView) {
+    if (checkLast && lastChild?.isAnonymous == true && lastChild.view is TextView) {
       return lastChild
     }
 
     // Create new anonymous container
     val textView = mason.createTextView(
       (view as? View)?.context ?: throw IllegalStateException("View context required"),
-    ).apply {
-      isAnonymous = true
+      TextType.None,
+      true
+    )
+
+    if (append) {
+      // Add container to this node
+      children.add(textView.node)
     }
 
-    // Add container to this node
-    children.add(textView.node)
     textView.node.parent = this
-    (view as? android.view.ViewGroup)?.addView(textView)
+    (view as? ViewGroup)?.addView(textView)
 
     // Add to native layout tree
     if (textView.node.nativePtr != 0L) {
@@ -352,7 +353,6 @@ open class Node internal constructor(
       return current
     }
   }
-
 
   fun getChildAt(index: Int): Node? {
     return children.getOrNull(index)
@@ -385,34 +385,33 @@ open class Node internal constructor(
 
   fun addChildAt(child: Node, index: Int) {
     // Handle -1 as append
-    if (index == -1) {
+    if (index <= -1) {
       appendChild(child)
       return
     }
 
-    // Validate index
-    if (index < 0 || index > children.size) {
-      throw IndexOutOfBoundsException("Index: $index, Size: ${children.size}")
-    }
+    val authorNodes = getChildren()
 
     if (child.parent === this) {
-      val currentIndex = children.indexOf(child)
+      val currentIndex = authorNodes.indexOf(child)
       if (currentIndex == index) {
         return
       }
     }
 
     when (child.type) {
-      NodeType.Element -> addElementChildAt(child, index)
-      NodeType.Text -> addTextChildAt(child, index)
+      NodeType.Element -> addElementChildAt(child, index, authorNodes)
+      NodeType.Text -> addTextChildAt(child, index, authorNodes)
       NodeType.Document -> {} // noop
     }
   }
 
-  private fun addElementChildAt(child: Node, index: Int) {
+  private fun addElementChildAt(child: Node, index: Int, nodes: List<Node>? = null) {
+    val authorNodes = nodes ?: getChildren()
+
     // Remove from old parent first
     val wasInSameParent = child.parent === this
-    val oldIndex = if (wasInSameParent) children.indexOf(child) else -1
+    val oldIndex = if (wasInSameParent) authorNodes.indexOf(child) else -1
 
     child.parent?.removeChild(child)
 
@@ -423,37 +422,64 @@ open class Node internal constructor(
       index
     }
 
-    // Insert into author tree
+    // Check if we're inserting into an anonymous text container
+    val element = authorNodes.getOrNull(adjustedIndex)
+    if (element != null && element.isAnonymous && element.view is TextView) {
+      // Split the anonymous container
+      val containerNode = element
+      val textChildren = containerNode.children
+      // Find the split index in the container
+      val splitIdx = adjustedIndex - authorNodes.indexOf(containerNode)
+      if (splitIdx >= 0 && splitIdx <= textChildren.size) {
+        // Create new anonymous container for the split
+        val newContainer = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+        newContainer.children.clear()
+        // Move text nodes after splitIdx to new container
+        val nodesToMove = textChildren.subList(splitIdx, textChildren.size).toList()
+        nodesToMove.forEach { node ->
+          node.parent = newContainer
+          newContainer.children.add(node)
+        }
+        // Remove moved nodes from original container
+        textChildren.subList(splitIdx, textChildren.size).clear()
+
+        // Insert child and new container into children array
+        val containerIdx = children.indexOf(containerNode)
+        if (containerIdx != -1) {
+          children.add(containerIdx + 1, child)
+          child.parent = this
+          children.add(containerIdx + 2, newContainer)
+          newContainer.parent = this
+
+          // Add views to hierarchy
+          (child.view as? View)?.let { childView ->
+            (view as? ViewGroup)?.addView(childView, containerIdx + 1)
+          }
+          (newContainer.view as? View)?.let { newContainerView ->
+            (view as? ViewGroup)?.addView(newContainerView, containerIdx + 2)
+          }
+
+          // Sync native layout tree (full rebuild to maintain order)
+          val nativeChildren =
+            children.mapNotNull { if (it.nativePtr != 0L) it.nativePtr else null }
+          NativeHelpers.nativeNodeSetChildren(
+            mason.nativePtr,
+            nativePtr,
+            nativeChildren.toLongArray()
+          )
+          dirty()
+          return
+        }
+      }
+    }
+
+    // Default: Insert into author tree
     children.add(adjustedIndex, child)
     child.parent = this
 
     // Add view to hierarchy
-    (child.view as? android.view.View)?.let { childView ->
-      when (view) {
-        is org.nativescript.mason.masonkit.View -> {
-          val masonView = childView as? org.nativescript.mason.masonkit.View
-          // this is a scroll
-          if (masonView != null && masonView.isScrollRoot) {
-            if (masonView.parent != null) {
-              (view as org.nativescript.mason.masonkit.View).addView(
-                masonView.parent as View?,
-                adjustedIndex
-              )
-            }
-          } else {
-            (view as org.nativescript.mason.masonkit.View).addView(childView, adjustedIndex)
-          }
-        }
-
-        is Scroll -> {
-          // Scroll typically only has one child, so just add
-          (view as Scroll).addView(childView)
-        }
-
-        is android.view.ViewGroup -> {
-          (view as android.view.ViewGroup).addView(childView, adjustedIndex)
-        }
-      }
+    (child.view as? View)?.let { childView ->
+      (view as? ViewGroup)?.addView(childView, adjustedIndex)
     }
 
     // Sync native layout tree (full rebuild to maintain order)
@@ -478,7 +504,7 @@ open class Node internal constructor(
         is org.nativescript.mason.masonkit.View -> {
           val masonView = childView as? org.nativescript.mason.masonkit.View
           // this is a scroll
-          if (masonView != null  && masonView.isScrollRoot) {
+          if (masonView != null && masonView.isScrollRoot) {
             if (masonView.parent != null) {
               (view as org.nativescript.mason.masonkit.View).removeView(masonView.parent as View?)
             }
@@ -550,9 +576,7 @@ open class Node internal constructor(
 
   fun setMeasureFunction(measure: MeasureFunc) {
     NativeHelpers.nativeNodeSetContext(
-      mason.nativePtr,
-      nativePtr,
-      MeasureFuncImpl(WeakReference(measure))
+      mason.nativePtr, nativePtr, MeasureFuncImpl(WeakReference(measure))
     )
     measureFunc = measure
   }
@@ -561,8 +585,7 @@ open class Node internal constructor(
     NativeHelpers.nativeNodeRemoveContext(mason.nativePtr, nativePtr)
     measureFunc = object : MeasureFunc {
       override fun measure(
-        knownDimensions: Size<Float?>,
-        availableSpace: Size<Float?>
+        knownDimensions: Size<Float?>, availableSpace: Size<Float?>
       ): Size<Float> {
         val view = this@Node.view as? android.view.View
         val width = knownDimensions.width ?: view?.measuredWidth?.toFloat() ?: 0f
@@ -582,7 +605,6 @@ open class Node internal constructor(
     }
   }
 
-
   fun removeChild(child: Node): Node? {
     if (child.parent !== this) return null
 
@@ -593,15 +615,102 @@ open class Node internal constructor(
     }
   }
 
-  private fun addTextChildAt(child: Node, index: Int) {
-    // For text nodes, if inserting at end, use appendChild behavior
-    if (index >= children.size) {
-      appendChild(child)
-    } else {
-      // TODO: Implement proper insertion into text containers at specific positions
-      // For now, just append
-      appendChild(child)
+  private fun addTextChildAt(child: Node, index: Int, nodes: List<Node>? = null) {
+    when (type) {
+      NodeType.Document -> {
+        if (children.isNotEmpty()) {
+          return
+        }
+
+        if (child.type == NodeType.Text || child.type == NodeType.Document) {
+          return
+        }
+      }
+
+      NodeType.Text -> {
+        return
+      }
+
+      else -> {}
     }
+
+    // Remove from old parent
+    child.parent?.removeChild(child)
+    val authorNodes = nodes ?: getChildren()
+
+    // For text nodes, if inserting at end, use appendChild behavior
+    if (index >= authorNodes.size || index <= -1) {
+      appendChild(child)
+      return
+    }
+
+    val element = authorNodes[index]
+    // Anonymous nodes are always hidden
+    if (element is TextNode) {
+      val layoutIndex = element.container?.node?.children?.indexOf(element)
+      if (layoutIndex != null && layoutIndex > -1) {
+        element.container?.node?.children?.add(layoutIndex, child)
+      } else {
+        element.container?.node?.children?.add(child)
+      }
+
+      (child as TextNode).apply {
+        // clear attributes when adding to another container
+        attributes.clear()
+        element.container?.let { textView ->
+          attributes.putAll(textView.getDefaultAttributes())
+        }
+      }
+
+      child.parent = this
+      element.container?.attachTextNode(child)
+    } else if (element.view is Element) {
+      val layoutIndex = children.indexOf(element)
+
+// For TextView containers, delegate to the TextView
+      if (view is TextView && child is TextNode) {
+        if (layoutIndex > -1) {
+          children.add(index, child)
+        } else {
+          children.add(child)
+        }
+        child.parent = this
+        (view as TextView).attachTextNode(child)
+        return
+      }
+
+      // Check if this is a text node get or create anonymous textContainer
+      if (child is TextNode) {
+        val container = getOrCreateAnonymousTextContainer(false)
+        container.appendChild(child)
+        child.apply {
+          // clear attributes when adding to another container
+          attributes.clear()
+          attributes.putAll((container.view as TextView).getDefaultAttributes())
+        }
+        child.parent = container
+
+
+        if (layoutIndex > -1) {
+          children.add(index, container)
+        } else {
+          children.add(container)
+        }
+
+        (container.view as TextView).attachTextNode(child)
+        return
+      }
+
+      // Check if child has a view (element)
+      if (child.view != null && child.nativePtr != 0L) {
+        if (view is TextView && child.view is TextView && !child.isStyleInitialized) {
+          child.style.display = Display.Inline
+        }
+        addElementChildAt(child, index)
+        return
+      }
+    }
+
   }
 
   fun removeChildren() {
@@ -626,8 +735,8 @@ open class Node internal constructor(
             (this.view as Scroll).removeView(view)
           }
 
-          is android.view.ViewGroup -> {
-            (this.view as android.view.ViewGroup).removeView(view)
+          is ViewGroup -> {
+            (this.view as ViewGroup).removeView(view)
           }
         }
       }
@@ -641,4 +750,16 @@ open class Node internal constructor(
     dirty()
   }
 
+  internal fun shouldFlattenTextContainer(textView: TextView): Boolean {
+    if (!textView.node.isStyleInitialized) return true
+    val style = textView.node.style
+    val hasBackground = textView.backgroundColorValue != 0
+    val hasBorder = style.border.top.value > 0f || style.border.right.value > 0f ||
+      style.border.bottom.value > 0f || style.border.left.value > 0f
+    val hasDisplayBlock = style.display == Display.Block || style.display == Display.Flex ||
+      style.display == Display.Grid
+
+    // Only prevent flattening for background, border, or block/flex/grid
+    return !(hasBackground || hasBorder || hasDisplayBlock)
+  }
 }

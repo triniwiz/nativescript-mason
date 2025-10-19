@@ -1417,7 +1417,6 @@ impl Style {
             Some(value) => align_content_to_enum(value),
             None => -1,
         };
-        println!("set_align_content {:?} {:?}", align, value);
         set_style_data_i32(self.data_mut(), StyleKeys::ALIGN_CONTENT, align);
     }
 

@@ -42,7 +42,6 @@ class View @JvmOverloads constructor(
     }
   }
 
-
   internal var isScrollRoot = false
 
   fun updateNodeAndStyle() {

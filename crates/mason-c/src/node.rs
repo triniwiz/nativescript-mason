@@ -37,7 +37,7 @@ impl Default for NodeArray {
 }
 
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CMasonInlineTextSegment {
     width: f32,
     ascent: f32,
@@ -45,13 +45,14 @@ pub struct CMasonInlineTextSegment {
 }
 
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CMasonInlineChildSegment {
     node: *const CMasonNode,
     descent: f32,
 }
 
 #[repr(C)]
+#[derive(Clone, Debug)]
 pub enum CMasonSegment {
     Text(CMasonInlineTextSegment),
     InlineChild(CMasonInlineChildSegment),
@@ -197,13 +198,17 @@ pub extern "C" fn mason_node_destroy(node: *mut CMasonNode) {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_node_new_node(mason: *mut CMason) -> *mut CMasonNode {
+pub extern "C" fn mason_node_new_node(mason: *mut CMason, anonymous: bool) -> *mut CMasonNode {
     if mason.is_null() {
         return std::ptr::null_mut();
     }
     unsafe {
         let mason = &mut (*mason).0;
-        Box::into_raw(Box::new(CMasonNode(mason.create_node())))
+        Box::into_raw(Box::new(CMasonNode(if anonymous {
+            mason.create_anonymous_node()
+        } else {
+            mason.create_node()
+        })))
     }
 }
 
@@ -259,13 +264,17 @@ pub extern "C" fn mason_node_new_node_with_children(
 }
 
 #[no_mangle]
-pub extern "C" fn mason_node_new_text_node(mason: *mut CMason) -> *mut CMasonNode {
+pub extern "C" fn mason_node_new_text_node(mason: *mut CMason, anonymous: bool) -> *mut CMasonNode {
     if mason.is_null() {
         return std::ptr::null_mut();
     }
     unsafe {
         let mason = &mut (*mason).0;
-        Box::into_raw(Box::new(CMasonNode(mason.create_text_node())))
+        Box::into_raw(Box::new(CMasonNode(if anonymous {
+            mason.create_anonymous_text_node()
+        } else {
+            mason.create_text_node()
+        })))
     }
 }
 

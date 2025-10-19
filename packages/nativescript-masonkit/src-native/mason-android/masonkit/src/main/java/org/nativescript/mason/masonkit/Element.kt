@@ -122,6 +122,7 @@ interface Element {
       data = text
       if (this@Element is TextView) {
         container = this@Element
+        attributes.clear()
         // Copy current TextView attributes to the new text node
         attributes.putAll(getDefaultAttributes())
       }
@@ -155,6 +156,7 @@ interface Element {
       if (this@Element is TextView) {
         container = this@Element
         // Copy current TextView attributes to the new text node
+        attributes.clear()
         attributes.putAll(getDefaultAttributes())
       }
     }
@@ -194,7 +196,20 @@ interface Element {
 
     // Otherwise use the topmost element (root)
     if (root.view is Element) {
-      (root.view as Element).compute(root.computeCache.width, root.computeCache.height)
+      val width = if (root.computeCache.width == Float.MIN_VALUE) {
+        -1f
+      } else {
+        root.computeCache.width
+      }
+
+      val height = if (root.computeCache.height == Float.MIN_VALUE) {
+        -1f
+      } else {
+        root.computeCache.height
+      }
+
+
+      (root.view as Element).compute(width, height)
     }
 
     (root.view as? View)?.let {
@@ -225,6 +240,22 @@ interface Element {
   fun prependView(views: Array<View>) {
     // todo use a single jni call
     views.reversed().forEach { prependView(it) }
+  }
+
+  fun addChildAt(text: String, index: Int) {
+    node.addChildAt(TextNode(node.mason, text), index)
+  }
+
+  fun addChildAt(element: Element, index: Int) {
+    node.addChildAt(element.node, index)
+  }
+
+  fun addChildAt(node: Node, index: Int) {
+    node.addChildAt(node, index)
+  }
+
+  fun removeChildAt(index: Int) {
+    node.removeChildAt(index)
   }
 
 }
@@ -259,11 +290,11 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
     var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
 
     if (isText) {
-      if (!hasWidthConstraint) {
+      if (!hasWidthConstraint && realLayout.contentSize.width > realLayout.width) {
         width = realLayout.contentSize.width.toInt()
       }
 
-      if (!hasHeightConstraint) {
+      if (!hasHeightConstraint && realLayout.contentSize.height > realLayout.height) {
         height = realLayout.contentSize.height.toInt()
       }
     }
@@ -305,7 +336,9 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       if (it.nativePtr == 0L) {
         false
       } else if (node.parent?.view is TextView && node.view is TextView) {
-        false
+        val flatten =
+          (node.parent?.view as TextView).shouldFlattenTextContainer(node.view as TextView)
+        !flatten
       } else {
         true
       }

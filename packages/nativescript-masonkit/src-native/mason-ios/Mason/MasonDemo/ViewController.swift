@@ -366,7 +366,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
   //  textDemo()
     
-    imageExample()
+   // imageExample()
     // textSample()
      // gridSample()
     
@@ -410,6 +410,91 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //      root.node.computeWithMaxContent()
     
     //inlineTest()
+  //  testTextInsert()
+    testInsert()
+  }
+  
+  func testInsert(){
+    let root = NSCMason.shared.createView()
+    root.backgroundColor = .green
+    root.style.marginLeft = .Points(50)
+    root.style.marginTop = .Points(140)
+    
+    let view = NSCMason.shared.createTextView()
+    view.append(text: "First")
+    
+    
+    let second = NSCMason.shared.createTextView()
+    second.append(text: "Second")
+    
+    view.append(second)
+    
+    let checkmark = NSCMason.shared.createImageView()
+    checkmark.style.size = MasonSize(
+      .Points(100), .Points(100)
+    )
+    checkmark.image = UIImage.checkmark
+    
+    view.append(checkmark)
+    
+    
+    let div = NSCMason.shared.createView()
+    div.backgroundColor = .red
+    div.style.size = MasonSize(
+      .Points(100), .Points(100)
+    )
+    
+    view.append(div)
+    
+    
+    let remove = NSCMason.shared.createImageView()
+    remove.style.size = MasonSize(
+      .Points(100), .Points(100)
+    )
+    remove.image = UIImage.remove
+    
+    
+    view.addChildAt(element: remove, 1)
+        
+
+    root.append(view)
+    body.append(root)
+    
+
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+  }
+  
+  func testTextInsert() {
+    let root = NSCMason.shared.createView()
+    root.backgroundColor = .green
+    root.style.marginLeft = .Points(50)
+    root.style.marginTop = .Points(140)
+    
+    let view = NSCMason.shared.createView()
+    view.append(text: "1")
+    view.append(text: "3")
+    view.addChildAt(text: "2", 1)
+    view.append(text: "4")
+
+    let img = NSCMason.shared.createImageView()
+
+    img.style.size = MasonSize(
+      .Points(100), .Points(100)
+    )
+    
+    img.image = UIImage.checkmark
+    
+    view.addChildAt(element: img, 3)
+    
+    view.append(text: "5")
+    
+    mason.printTree(view.node)
+  
+
+    root.append(view)
+    body.append(root)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
   

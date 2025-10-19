@@ -448,6 +448,10 @@ declare module org {
 						appendView(param0: androidNative.Array<globalAndroid.view.View>): void;
 						prependView(param0: globalAndroid.view.View): void;
 						prependView(param0: androidNative.Array<globalAndroid.view.View>): void;
+						addChildAt(text: string, index: number);
+						addChildAt(element: org.nativescript.mason.masonkit.Element, index: number);
+						addChildAt(element: org.nativescript.mason.masonkit.Node, index: number);
+  						removeChildAt(index: number);
 					});
 					public constructor();
 					public configure(param0: any): void;
@@ -488,6 +492,10 @@ declare module org {
 					public prependView(param0: androidNative.Array<globalAndroid.view.View>): void;
 					public computeAndLayout(param0: number, param1: number): org.nativescript.mason.masonkit.Layout;
 					public appendView(param0: androidNative.Array<globalAndroid.view.View>): void;
+					public addChildAt(text: string, index: number);
+					public addChildAt(element: org.nativescript.mason.masonkit.Element, index: number);
+					public addChildAt(element: org.nativescript.mason.masonkit.Node, index: number);
+  					public removeChildAt(index: number);
 				}
 				export module Element {
 					export class DefaultImpls {
@@ -527,6 +535,10 @@ declare module org {
 						public static prependView(child: org.nativescript.mason.masonkit.Element, $this: globalAndroid.view.View): void;
 						public static append(element: org.nativescript.mason.masonkit.Element, it: androidNative.Array<string>): void;
 						public static invalidateLayout(element: org.nativescript.mason.masonkit.Element): void;
+						public static addChildAt(text: string, index: number);
+						public static addChildAt(element: org.nativescript.mason.masonkit.Element, index: number);
+						public static addChildAt(element: org.nativescript.mason.masonkit.Node, index: number);
+  						public static removeChildAt(index: number);
 					}
 				}
 			}
@@ -3173,6 +3185,10 @@ declare module org {
 					public append(param0: string): void;
 					public appendView(param0: androidNative.Array<globalAndroid.view.View>): void;
 					public getFontSize(): number;
+					public addChildAt(text: string, index: number);
+					public addChildAt(element: org.nativescript.mason.masonkit.Element, index: number);
+					public addChildAt(element: org.nativescript.mason.masonkit.Node, index: number);
+  					public removeChildAt(index: number);
 				}
 				export module TextView {
 					export class ViewHelper {

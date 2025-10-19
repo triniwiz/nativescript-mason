@@ -309,15 +309,22 @@ public protocol MasonElement {
   func prepend(strings: [Swift.String])
   func prepend(elements: [any Mason.MasonElement])
   func prepend(nodes: [Mason.MasonNode])
+  func addChildAt(text: Swift.String, _ index: Swift.Int)
+  func addChildAt(element: any Mason.MasonElement, _ index: Swift.Int)
+  func addChildAt(node: Mason.MasonNode, _ index: Swift.Int)
 }
 extension Mason.MasonElement {
+  public func addChildAt(text: Swift.String, _ index: Swift.Int)
+  public func addChildAt(element: any Mason.MasonElement, _ index: Swift.Int)
+  public func addChildAt(node: Mason.MasonNode, _ index: Swift.Int)
+  public var style: Mason.MasonStyle {
+    get
+  }
+  public func syncStyle(_ state: Swift.String)
   public func configure(_ block: (Mason.MasonStyle) -> Swift.Void)
   public func requestLayout()
   public func addView(_ view: UIKit.UIView)
   public func addView(_ view: UIKit.UIView, at: Swift.Int)
-  public var style: Mason.MasonStyle {
-    get
-  }
   public func append(_ element: any Mason.MasonElement)
   public func append(text: Swift.String)
   public func append(node childNode: Mason.MasonNode)
@@ -416,6 +423,7 @@ public enum InlineSegmentPayload {
   }
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason, type textType: Mason.MasonTextType)
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason)
+  @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String, textState: Swift.String)
   @objc @_Concurrency.MainActor @preconcurrency public var color: Swift.UInt32 {
     @objc get
     @objc set
@@ -500,7 +508,7 @@ extension Mason.MasonText {
 }
 @_hasMissingDesignatedInitializers @objc(MasonTextNode) @objcMembers public class MasonTextNode : Mason.MasonNode, Mason.MasonCharacterData {
   @objc public var data: Swift.String
-  @objc public init(mason doc: Mason.NSCMason, data text: Swift.String, attributes attrs: [Foundation.NSAttributedString.Key : Any] = [:])
+  @objc public init(mason doc: Mason.NSCMason, data text: Swift.String, attributes attrs: [Foundation.NSAttributedString.Key : Any]? = nil)
   @objc override dynamic public func appendChild(_ child: Mason.MasonNode)
   @objc public var length: Swift.Int {
     @objc get
@@ -1095,12 +1103,15 @@ extension UIKit.UIColor {
   @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @objc @_Concurrency.MainActor @preconcurrency public var didLayout: (() -> Swift.Void)?
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public var image: UIKit.UIImage? {
+    @objc get
+    @objc set
+  }
   @objc @_Concurrency.MainActor @preconcurrency public var src: Swift.String? {
     @objc get
     @objc set
   }
   @objc @_Concurrency.MainActor @preconcurrency public func updateImage(_ image: UIKit.UIImage?)
-  @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String)
   @objc deinit
 }
 @objc(MasonDimensionCompatType) public enum MasonDimensionCompatType : Swift.Int, Swift.RawRepresentable, Swift.Codable {
@@ -1528,13 +1539,8 @@ public enum TextOverflow : Swift.CustomStringConvertible {
   @objc @_Concurrency.MainActor @preconcurrency public static func createGridView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
   @objc @_Concurrency.MainActor @preconcurrency public static func createFlexView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
   @objc @_Concurrency.MainActor @preconcurrency public static func createBlockView(_ mason: Mason.NSCMason) -> Mason.MasonUIView
-  @objc @_Concurrency.MainActor @preconcurrency public var style: Mason.MasonStyle {
-    @objc get
-    @objc set
-  }
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, at: Swift.Int)
-  @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String)
   @objc @_Concurrency.MainActor @preconcurrency public func addSubviews(_ views: [UIKit.UIView])
   @objc @_Concurrency.MainActor @preconcurrency public func addSubviews(_ views: [UIKit.UIView], at index: Swift.Int)
   @objc @_Concurrency.MainActor @preconcurrency public var inBatch: Swift.Bool {
@@ -1757,9 +1763,6 @@ public enum TextOverflow : Swift.CustomStringConvertible {
   @objc deinit
 }
 @_hasMissingDesignatedInitializers @objc(MasonScroll) @objcMembers @_Concurrency.MainActor @preconcurrency public class Scroll : UIKit.UIScrollView, Mason.MasonElement, UIKit.UIScrollViewDelegate {
-  @objc @_Concurrency.MainActor @preconcurrency public var style: Mason.MasonStyle {
-    @objc get
-  }
   @objc @_Concurrency.MainActor @preconcurrency public var uiView: UIKit.UIView {
     @objc get
   }
@@ -1767,7 +1770,6 @@ public enum TextOverflow : Swift.CustomStringConvertible {
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @_Concurrency.MainActor @preconcurrency @objc public func scrollViewWillBeginDragging(_ scrollView: UIKit.UIScrollView)
   @_Concurrency.MainActor @preconcurrency @objc public func scrollViewDidScroll(_ scrollView: UIKit.UIScrollView)
-  @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String)
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, at: Swift.Int)
   @objc @_Concurrency.MainActor @preconcurrency public func setSize(_ width: Swift.Float, _ height: Swift.Float)

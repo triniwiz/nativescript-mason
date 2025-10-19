@@ -124,7 +124,7 @@ void mason_node_array_destroy(struct NodeArray *array);
 
 void mason_node_destroy(struct CMasonNode *node);
 
-struct CMasonNode *mason_node_new_node(struct CMason *mason);
+struct CMasonNode *mason_node_new_node(struct CMason *mason, bool anonymous);
 
 #if !defined(TARGET_OS_ANDROID)
 struct CMasonNode *mason_node_new_node_with_context(struct CMason *mason,
@@ -140,7 +140,7 @@ struct CMasonNode *mason_node_new_node_with_children(struct CMason *mason,
                                                      struct CMasonNode **children,
                                                      uintptr_t children_size);
 
-struct CMasonNode *mason_node_new_text_node(struct CMason *mason);
+struct CMasonNode *mason_node_new_text_node(struct CMason *mason, bool anonymous);
 
 #if !defined(TARGET_OS_ANDROID)
 struct CMasonNode *mason_node_new_text_node_with_context(struct CMason *mason,

@@ -336,7 +336,7 @@ export class Style {
         view.syncStyle(this.isDirty.toString());
       } else {
         const view = this.view.ios as never as MasonText;
-        view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
+        view.syncStyleTextState(this.isDirty.toString(), this.isTextDirty.toString());
       }
     }
     this.resetState();
@@ -495,7 +495,6 @@ export class Style {
       case 7:
         return 'inline-grid';
       default:
-        console.info('Unknown display value: ' + getInt32(this.style_view, StyleKeys.DISPLAY));
         return 'none';
     }
   }
@@ -1429,7 +1428,6 @@ export class Style {
   }
 
   set rowGap(value: Length) {
-    console.log('Setting rowGap:', value);
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.GAP_ROW_TYPE, 0);
@@ -1459,12 +1457,10 @@ export class Style {
   get columnGap(): Length {
     const type = getInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE);
-    console.log('Getting columnGap:', parseLengthPercentage(type, value), type, value);
     return parseLengthPercentage(type, value);
   }
 
   set columnGap(value: Length) {
-    console.log('Setting columnGap:', value);
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 0);

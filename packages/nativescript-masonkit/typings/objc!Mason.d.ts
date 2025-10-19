@@ -428,8 +428,6 @@ declare class MasonImg extends UIImageView {
 
 	readonly uiView: UIView;
 
-	syncStyle(state: string): void;
-
 	updateImage(image: UIImage): void;
 }
 
@@ -783,8 +781,6 @@ declare class MasonScroll extends UIScrollView implements UIScrollViewDelegate {
 
 	readonly node: MasonNode;
 
-	readonly style: MasonStyle;
-
 	readonly uiView: UIView;
 
 	readonly debugDescription: string; // inherited from NSObjectProtocol
@@ -864,8 +860,6 @@ declare class MasonScroll extends UIScrollView implements UIScrollViewDelegate {
 	self(): this;
 
 	setSize(width: number, height: number): void;
-
-	syncStyle(state: string): void;
 
 	viewForZoomingInScrollView(scrollView: UIScrollView): UIView;
 }
@@ -1133,6 +1127,10 @@ declare class MasonText extends UIView {
 	setDecorationColorWithUi(color: UIColor): void;
 
 	setFontStyleSlant(style: MasonFontStyle, slant: number): void;
+
+	syncStyle(state: string): void;
+
+	syncStyleTextState(state: string, textState: string): void;
 }
 
 declare const enum MasonTextAlign {
@@ -1360,8 +1358,6 @@ declare class MasonUIView extends UIView {
 
 	scrollBarWidthCompat: MasonDimensionCompat;
 
-	style: MasonStyle;
-
 	readonly uiView: UIView;
 
 	addSubviews(views: NSArray<UIView> | UIView[]): void;
@@ -1505,8 +1501,6 @@ declare class MasonUIView extends UIView {
 	setSizeHeight(height: number, type: number): void;
 
 	setSizeWidth(width: number, type: number): void;
-
-	syncStyle(state: string): void;
 }
 
 declare var MasonVersionNumber: number;
@@ -1809,9 +1803,9 @@ declare class NSCMason extends NSObject {
 
 	nodeForView(view: UIView, isLeaf: boolean): MasonNode;
 
-	styleForView(view: UIView): MasonStyle;
-
 	printTree(node: MasonNode): void;
+
+	styleForView(view: UIView): MasonStyle;
 }
 
 interface NodeArray {

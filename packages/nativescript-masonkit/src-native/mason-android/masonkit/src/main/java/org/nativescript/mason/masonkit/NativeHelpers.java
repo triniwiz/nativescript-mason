@@ -24,12 +24,12 @@ public class NativeHelpers {
 
   @CriticalNative
   static native long nativeNodeNew(
-    long mason
+    long mason, boolean isAnonymous
   );
 
   @CriticalNative
   static native long nativeNodeNewText(
-    long mason
+    long mason, boolean isAnonymous
   );
 
   static native long nativeNodeNewWithChildren(
@@ -39,12 +39,14 @@ public class NativeHelpers {
 
   static native long nativeNodeNewWithContext(
     long mason,
-    Object context
+    Object context,
+    boolean isAnonymous
   );
 
   static native long nativeNodeNewTextWithContext(
     long mason,
-    Object context
+    Object context,
+    boolean isAnonymous
   );
 
   @CriticalNative
@@ -130,6 +132,8 @@ public class NativeHelpers {
   );
 
   static native void nativeNodeSetSegments(long masonPtr, long nodePtr, InlineSegment[] segments);
+
+  static native void nativeSetAndroidNode(long masonPtr, long nodePtr, Node node);
 
   /* Node */
 

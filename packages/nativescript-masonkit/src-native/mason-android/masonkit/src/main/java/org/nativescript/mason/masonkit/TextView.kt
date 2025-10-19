@@ -19,6 +19,7 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withTranslation
 import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
@@ -48,9 +49,13 @@ class TextView @JvmOverloads constructor(
     setup(mason)
   }
 
-  constructor(context: Context, mason: Mason, type: TextType) : this(context, null, true) {
+  constructor(context: Context, mason: Mason, type: TextType, isAnonymous: Boolean = false) : this(
+    context,
+    null,
+    true
+  ) {
     this.type = type
-    setup(mason)
+    setup(mason, isAnonymous)
   }
 
   init {
@@ -92,9 +97,9 @@ class TextView @JvmOverloads constructor(
       requestLayout()
     }
 
-  private fun setup(mason: Mason) {
+  private fun setup(mason: Mason, isAnonymous: Boolean = false) {
     TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
-    node = mason.createTextNode(this)
+    node = mason.createTextNode(this, isAnonymous)
       .apply {
         view = this@TextView
       }
@@ -104,8 +109,8 @@ class TextView @JvmOverloads constructor(
       Rect<LengthPercentageAuto>(
         LengthPercentageAuto.Points(0f),
         LengthPercentageAuto.Points(0f),
-        LengthPercentageAuto.Points(top * scale),
-        LengthPercentageAuto.Points(bottom * scale)
+        LengthPercentageAuto.Points(top),
+        LengthPercentageAuto.Points(bottom)
       )
     }
 
@@ -203,6 +208,13 @@ class TextView @JvmOverloads constructor(
           font.style = FontFace.NSCFontStyle.Italic
         }
 
+        TextType.P -> {
+          font = FontFace("sans-serif")
+          fontSize = Constants.DEFAULT_FONT_SIZE
+          paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
+          node.style.margin = margin(16f, 16f)
+        }
+
         else -> {
           font = FontFace("sans-serif")
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
@@ -251,17 +263,23 @@ class TextView @JvmOverloads constructor(
     var invalidate = false
     if (textStateValue != -1L) {
       val value = TextStateKeys(textStateValue)
+      val colorDirty = value.hasFlag(TextStateKeys.COLOR)
       if (value.hasFlag(TextStateKeys.TRANSFORM) || value.hasFlag(TextStateKeys.TEXT_WRAP) || value.hasFlag(
           TextStateKeys.WHITE_SPACE
         ) || value.hasFlag(
           TextStateKeys.TEXT_OVERFLOW
-        ) || value.hasFlag(TextStateKeys.COLOR) || value.hasFlag(TextStateKeys.BACKGROUND_COLOR) || value.hasFlag(
+        ) || colorDirty || value.hasFlag(TextStateKeys.BACKGROUND_COLOR) || value.hasFlag(
           TextStateKeys.DECORATION_COLOR
         ) || value.hasFlag(TextStateKeys.DECORATION_LINE)
       ) {
         invalidate = true
       }
+
+      if (colorDirty) {
+        paint.color = color
+      }
     }
+
 
     if (stateValue != -1L) {
       style.isDirty = stateValue
@@ -269,6 +287,7 @@ class TextView @JvmOverloads constructor(
     }
 
     if (invalidate) {
+      updateStyleOnTextNodes()
       invalidateInlineSegments()
       invalidateLayout()
     }
@@ -504,7 +523,7 @@ class TextView @JvmOverloads constructor(
     }
     text = spannable
 
-    if (spannable.isEmpty()) {
+    if (spannable.isEmpty() && node.children.isEmpty()) {
       return null
     }
 
@@ -516,23 +535,19 @@ class TextView @JvmOverloads constructor(
       node.parent?.view is TextView
     }
 
-    val widthConstraint = when {
-      knownWidth.isFinite() && knownWidth > 0 -> {
-        knownWidth.toInt()
-      }
+    var widthConstraint = Int.MAX_VALUE
+    var heightConstraint = Int.MAX_VALUE
 
-      isInline || availableWidth.isInfinite() -> {
-        // For inline or unconstrained, use a very large value to get natural width
-        Int.MAX_VALUE
-      }
+    if (knownWidth > 0 && knownHeight != Float.MIN_VALUE) {
+      widthConstraint = knownWidth.toInt()
+    }
 
-      availableWidth.isFinite() && availableWidth > 0 -> {
-        availableWidth.toInt()
-      }
+    if (knownHeight > 0 && knownHeight != Float.MIN_VALUE) {
+      heightConstraint = knownHeight.toInt()
+    }
 
-      else -> {
-        Int.MAX_VALUE
-      }
+    if (textWrap != TextWrap.NoWrap && availableWidth > 0 && availableWidth != Float.MIN_VALUE) {
+      widthConstraint = availableWidth.toInt()
     }
 
     val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
@@ -573,6 +588,9 @@ class TextView @JvmOverloads constructor(
     // Store the actual measured dimensions (not the constraints)
     this.measuredTextWidth = measuredWidth.toFloat()
     this.measuredTextHeight = layout.height.toFloat()
+
+    // CRITICAL: Collect and send segments to Rust
+    collectAndCacheSegments(layout, spannable)
 
     return layout
   }
@@ -642,12 +660,13 @@ class TextView @JvmOverloads constructor(
       if (viewSpans.isNotEmpty()) {
         // Inline child placeholder
         val viewSpan = viewSpans[0]
-        val childLayout = viewSpan.childNode.computedLayout
+        val height = viewSpan.childNode.cachedHeight.takeIf { it > 0 }
+          ?: viewSpan.childNode.computedLayout.height
 
         segments.add(
           InlineSegment.InlineChild(
             viewSpan.childNode.nativePtr,
-            childLayout.height  // Already in px
+            height  // Already in px
           )
         )
 
@@ -759,14 +778,11 @@ class TextView @JvmOverloads constructor(
 
         child.view is TextView -> {
           val childTextView = child.view as TextView
-
-          if (shouldFlattenTextContainer(childTextView)) {
+          if (node.shouldFlattenTextContainer(childTextView)) {
             val nested = childTextView.buildAttributedString()
-
             val start = composed.length
             composed.append(nested)
             val end = composed.length
-
             applyTextViewStylesToSpan(composed, start, end, childTextView)
           } else {
             val placeholder = createPlaceholder(child)
@@ -850,33 +866,6 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-  internal fun shouldFlattenTextContainer(textView: TextView): Boolean {
-
-    // Always flatten if style is not initialized (pure text container)
-    if (!node.isStyleInitialized) {
-      return true
-    }
-
-    val style = textView.node.style
-
-    // Check for view-like properties that prevent flattening
-    val hasBackground = textView.backgroundColorValue != 0
-    val hasBorder = style.border.top.value > 0f || style.border.right.value > 0f ||
-      style.border.bottom.value > 0f || style.border.left.value > 0f
-    val hasPadding = style.padding.top.value > 0f || style.padding.right.value > 0f ||
-      style.padding.bottom.value > 0f || style.padding.left.value > 0f
-    val hasMargin = style.margin.top.value > 0f || style.margin.right.value > 0f ||
-      style.margin.bottom.value > 0f || style.margin.left.value > 0f
-    val hasExplicitSize = style.size.width != Dimension.Auto || style.size.height != Dimension.Auto
-    val hasDisplayBlock = style.display == Display.Block || style.display == Display.Flex ||
-      style.display == Display.Grid
-
-    val shouldFlatten =
-      !(hasBackground || hasBorder || hasPadding || hasMargin || hasExplicitSize || hasDisplayBlock)
-
-    return shouldFlatten
-  }
-
   // Append multiple items (strings or nodes)
   fun append(vararg items: Any) {
     for (item in items) {
@@ -913,6 +902,14 @@ class TextView @JvmOverloads constructor(
     }
   }
 
+  override fun addChildAt(text: String, index: Int) {
+    node.addChildAt(TextNode(node.mason, text).apply {
+      container = this@TextView
+      attributes.clear()
+      attributes.putAll(getDefaultAttributes())
+    }, index)
+  }
+
   /*
 
   override fun onDraw(canvas: Canvas) {
@@ -938,9 +935,9 @@ class TextView @JvmOverloads constructor(
     val childNode: Node,
     private val viewHelper: ViewHelper
   ) : ReplacementSpan() {
-    private var cachedWidth: Int = 0
-    private var cachedHeight: Int = 0
+
     private var cachedFontMetrics: Paint.FontMetricsInt? = null
+    private var cachedBaseline: Int = 0
 
     override fun getSize(
       paint: Paint,
@@ -949,55 +946,54 @@ class TextView @JvmOverloads constructor(
       end: Int,
       fm: Paint.FontMetricsInt?
     ): Int {
-      // Special handling for inline TextView (non-flattened)
-      if (childNode.view is TextView) {
-        val childTextView = childNode.view as TextView
+      val width = if (childNode.cachedWidth > 0) {
+        childNode.cachedWidth.toInt()
+      } else {
+        childNode.computedLayout.width.toInt()
+      }
 
-        // Use Taffy's computed layout instead of measuring
-        // This avoids triggering Android's layout system
-        val layout = childNode.computedLayout
+      val height = if (childNode.cachedHeight > 0) {
+        childNode.cachedHeight.toInt()
+      } else {
+        childNode.computedLayout.height.toInt()
+      }
 
-        if (layout.width > 0 && layout.height > 0) {
-          cachedWidth = layout.width.toInt()
-          cachedHeight = layout.height.toInt()
+      val childView = childNode.view as? View
 
-          // Get font metrics from the child's paint
-          val childPaint = childTextView.paint
-          val childFontMetrics = childPaint.fontMetricsInt
-
-          cachedFontMetrics = Paint.FontMetricsInt().apply {
-            ascent = childFontMetrics.ascent
-            descent = childFontMetrics.descent
-            top = childFontMetrics.top
-            bottom = childFontMetrics.bottom
+      // Prefer the view baseline (most accurate). Fallback to paint metrics + padding.
+      val childBaselineFromTop: Int = when (childView) {
+        is android.widget.TextView -> {
+          val b = childView.baseline
+          if (b >= 0) {
+            b
+          } else {
+            val childPaintFm = childView.paint.fontMetricsInt
+            childView.paddingTop + (-childPaintFm.ascent)
           }
+        }
 
-          fm?.let {
-            val baseline = -childFontMetrics.ascent + childTextView.paddingTop
-            it.ascent = -baseline
-            it.descent = cachedHeight - baseline
-            it.top = it.ascent
-            it.bottom = it.descent
-          }
-
-          return cachedWidth
+        else -> {
+          val b = childView?.baseline ?: -1
+          if (b >= 0) b else height
         }
       }
 
-      // For other view types, use layout dimensions
-      val layout = childNode.computedLayout
-      val width = layout.width.toInt()
-      val height = layout.height.toInt()
+      // Parent font metrics (paint represents parent)
+      val parentFm = paint.fontMetricsInt
 
-      cachedWidth = width
-      cachedHeight = height
+      // Expand ascent/descent to include child but keep the parent's baseline location (y) unchanged
+      val ascent = kotlin.math.min(parentFm.ascent, -childBaselineFromTop) // ascent negative
+      val descent = kotlin.math.max(parentFm.descent, height - childBaselineFromTop)
 
       fm?.let {
-        it.ascent = -height
-        it.descent = 0
-        it.top = it.ascent
-        it.bottom = 0
+        it.ascent = ascent
+        it.descent = descent
+        it.top = kotlin.math.min(parentFm.top, ascent)
+        it.bottom = kotlin.math.max(parentFm.bottom, descent)
       }
+
+      // Cache baseline and child height for draw
+      cachedBaseline = childBaselineFromTop
 
       return width
     }
@@ -1013,51 +1009,36 @@ class TextView @JvmOverloads constructor(
       bottom: Int,
       paint: Paint
     ) {
-
-      if (childNode.view is TextView) {
-        val childTextView = childNode.view as TextView
-        // Ensure child is measured and laid out at the correct size
-        if (cachedWidth > 0 && cachedHeight > 0) {
-          childTextView.measure(
-            MeasureSpec.makeMeasureSpec(cachedWidth, MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec(cachedHeight, MeasureSpec.EXACTLY)
-          )
-          childTextView.layout(0, 0, cachedWidth, cachedHeight)
-        }
-
-        // Draw background if present
-        if (childTextView.backgroundColorValue != 0) {
-          val bgPaint = Paint().apply {
-            color = childTextView.backgroundColorValue
-          }
-          canvas.drawRect(
-            x,
-            top.toFloat(),
-            x + cachedWidth,
-            bottom.toFloat(),
-            bgPaint
-          )
-        }
-
-        // Calculate proper y position for baseline alignment
-        val drawY = if (cachedFontMetrics != null) {
-          y + cachedFontMetrics!!.ascent - childTextView.paddingTop
-        } else {
-          top
-        }
-
-        canvas.save()
-        canvas.translate(x, drawY.toFloat())
-        childTextView.draw(canvas)
-        canvas.restore()
+      val cachedWidth = if (childNode.cachedWidth > 0) {
+        childNode.cachedWidth.toInt()
       } else {
-        // For other views, use bitmap approach
-        if (cachedWidth > 0 && cachedHeight > 0) {
-          viewHelper.updateBitmap(false)
-          viewHelper.bitmap?.let {
-            canvas.drawBitmap(it, x, top.toFloat(), paint)
-          }
-        }
+        childNode.computedLayout.width.toInt()
+      }
+
+      val cachedHeight = if (childNode.cachedHeight > 0) {
+        childNode.cachedHeight.toInt()
+      } else {
+        childNode.computedLayout.height.toInt()
+      }
+
+      val childView = childNode.view as? View ?: return
+
+      if (cachedWidth > 0 && cachedHeight > 0) {
+        childView.measure(
+          MeasureSpec.makeMeasureSpec(cachedWidth, MeasureSpec.EXACTLY),
+          MeasureSpec.makeMeasureSpec(cachedHeight, MeasureSpec.EXACTLY)
+        )
+        childView.layout(0, 0, cachedWidth, cachedHeight)
+      }
+
+      val parentPaddingLeft = childNode.computedLayout.padding.left
+      val drawX = x + parentPaddingLeft
+
+      // position top so child baseline (top + cachedBaseline) == y
+      val drawTop = y - cachedBaseline
+
+      canvas.withTranslation(drawX, drawTop.toFloat()) {
+        childView.draw(this)
       }
     }
   }
@@ -1091,5 +1072,24 @@ class TextView @JvmOverloads constructor(
     placeholder.setSpan(viewSpan, 0, placeholder.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
 
     return placeholder
+  }
+
+  internal fun shouldFlattenTextContainer(textView: TextView): Boolean {
+    if (!textView.node.isStyleInitialized) return true
+    val style = textView.node.style
+    val hasBackground = textView.backgroundColorValue != 0 || textView.background != null
+    val border = style.border
+    val hasBorder = border.top.value > 0f || border.right.value > 0f ||
+      border.bottom.value > 0f || border.left.value > 0f
+
+    val padding = style.padding
+    val hasPadding = padding.top.value > 0f || padding.right.value > 0f ||
+      padding.bottom.value > 0f || padding.left.value > 0f
+
+    val size = style.size
+    val hasExplicitSize = size.width != Dimension.Auto || size.height != Dimension.Auto
+
+    // If it has any view properties, treat as inline-block
+    return !(hasBackground || hasBorder || hasPadding || hasExplicitSize)
   }
 }

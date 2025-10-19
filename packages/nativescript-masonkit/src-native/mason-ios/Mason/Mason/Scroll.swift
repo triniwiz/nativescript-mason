@@ -9,10 +9,6 @@ import UIKit
 @objc(MasonScroll)
 @objcMembers
 public class Scroll: UIScrollView, MasonElement, UIScrollViewDelegate {
-  public var style: MasonStyle {
-    return node.style
-  }
-  
   public var uiView: UIView {
     return self
   }
@@ -84,15 +80,6 @@ public class Scroll: UIScrollView, MasonElement, UIScrollViewDelegate {
     lastContentOffset = targetOffset
   }
   
-
-  public func syncStyle(_ state: String) {
-    guard let stateValue = Int64(state, radix: 10) else {return}
-  //  let keys = StateKeys(rawValue: UInt64(stateValue))
-    if (stateValue != -1) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
-  }
   
   public func addView(_ view: UIView){
     if(view.superview == self){
