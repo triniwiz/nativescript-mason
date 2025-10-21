@@ -13,72 +13,75 @@ internal func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRaw
   return Unmanaged.passRetained(layout).toOpaque()
 }
 
-public protocol MasonElement {
-  var style: MasonStyle { get }
+@objc public protocol MasonElement: NSObjectProtocol {
+  @objc dynamic var style: MasonStyle { get }
   
-  var node: MasonNode { get }
+  @objc dynamic var node: MasonNode { get }
   
-  func markNodeDirty()
+  @objc dynamic var uiView: UIView { get }
   
-  func isNodeDirty() -> Bool
+  @objc optional func markNodeDirty()
   
-  func configure(_ block: (MasonStyle) -> Void)
+  @objc optional func isNodeDirty() -> Bool
   
-  var uiView: UIView { get }
+  @objc optional func configure(_ block: (MasonStyle) -> Void)
   
-  @discardableResult func layout() -> MasonLayout
+  @discardableResult @objc optional func layout() -> MasonLayout
   
-  func compute()
+  @objc optional func compute()
   
-  func compute(_ width: Float, _ height: Float)
+  @objc optional func compute(_ width: Float, _ height: Float)
   
-  func computeMaxContent()
+  @objc optional func computeMaxContent()
   
-  func computeMinContent()
+  @objc optional func computeMinContent()
   
-  func computeWithSize(_ width: Float, _ height: Float)
-  func computeWithViewSize()
+  @objc optional func computeWithSize(_ width: Float, _ height: Float)
   
-  func computeWithViewSize(layout: Bool)
+  @objc optional func computeWithViewSize()
   
-  func computeWithMaxContent()
+  @objc optional func computeWithViewSize(layout: Bool)
   
-  func computeWithMinContent()
+  @objc optional func computeWithMaxContent()
   
-  func attachAndApply()
+  @objc optional func computeWithMinContent()
   
-  func requestLayout()
+  @objc optional func attachAndApply()
   
-  func append(_ element: MasonElement)
+  @objc optional func requestLayout()
   
-  func append(text: String)
+  @objc optional func append(_ element: MasonElement)
   
-  func append(node: MasonNode)
+  @objc optional func append(text: String)
   
-  func append(texts: [String])
+  @objc optional func append(node: MasonNode)
   
-  func append(elements: [MasonElement])
+  @objc optional func append(texts: [String])
   
-  func append(nodes: [MasonNode])
+  @objc optional func append(elements: [MasonElement])
   
-  func prepend(_ element: MasonElement)
+  @objc optional func append(nodes: [MasonNode])
   
-  func prepend(string: String)
+  @objc optional func prepend(_ element: MasonElement)
   
-  func prepend(node: MasonNode)
+  @objc optional func prepend(string: String)
   
-  func prepend(strings: [String])
+  @objc optional func prepend(node: MasonNode)
   
-  func prepend(elements: [MasonElement])
+  @objc optional func prepend(strings: [String])
   
-  func prepend(nodes: [MasonNode])
+  @objc optional func prepend(elements: [MasonElement])
   
-  func addChildAt(text: String, _ index: Int)
+  @objc optional func prepend(nodes: [MasonNode])
+  
+  @objc optional func addChildAt(text: String, _ index: Int)
 
-  func addChildAt(element: MasonElement, _ index: Int)
+  @objc optional func addChildAt(element: MasonElement, _ index: Int)
 
-  func addChildAt(node: MasonNode, _ index: Int)
+  @objc optional func addChildAt(node: MasonNode, _ index: Int)
 }
+
+
 
 private struct MasonElementProperties {
   static var computeCache: UInt8 = 0
@@ -230,11 +233,12 @@ extension MasonElement {
     // Text nodes don't have nativePtr, so handle via anonymous container
     // Delegate to node's appendChild which handles text node containerization
     for textNode in textNodes {
-      if let view = node.view {
-        // Find or create anonymous text container
-        let container = node.getOrCreateAnonymousTextContainer()
-        if let masonText = container.view as? MasonText {
-          masonText.addChild(textNode)
+      // Find or create anonymous text container
+      let container = node.getOrCreateAnonymousTextContainer()
+      if let masonText = container.view as? MasonText {
+        masonText.addChild(textNode)
+        if(container.parent == nil){
+          append(masonText)
         }
       }
     }
@@ -285,6 +289,9 @@ extension MasonElement {
         let container = node.getOrCreateAnonymousTextContainer()
         if let masonText = container.view as? MasonText {
           masonText.addChild(textNode)
+          if(container.parent == nil){
+            append?(masonText)
+          }
         }
       }
     }
@@ -474,9 +481,9 @@ extension MasonElement {
   }
 }
 
-internal class MasonElementHelpers {
+class MasonElementHelpers: NSObject {
   
-  static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
+  public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
     node.computedLayout = layout
     if let view = node.view {
       var isTextView = false

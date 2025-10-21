@@ -8,13 +8,26 @@ import UIKit
 
 @objc(MasonScroll)
 @objcMembers
-public class Scroll: UIScrollView, MasonElement, UIScrollViewDelegate {
+public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement {
+  
+  public let node: MasonNode
+  public let mason: NSCMason
+  
   public var uiView: UIView {
     return self
   }
   
-  public let node: MasonNode
-  public let mason: NSCMason
+  public var style: MasonStyle {
+    return node.style
+  }
+  
+  public func syncStyle(_ state: String) {
+    guard let stateValue = Int64(state, radix: 10) else {return}
+    if (stateValue != -1) {
+      style.isDirty = stateValue
+      style.updateNativeStyle()
+    }
+  }
   
   internal var canScroll: (Bool, Bool) {
     let flow = node.style.overflow

@@ -202,21 +202,6 @@ public class MasonStyle: NSObject {
   let node: MasonNode
   var inBatch = false
   
- 
-//  private lazy var values: NSMutableData = {
-//    let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
-//    guard let buffer else {
-//      // todo
-//      fatalError("Could not allocate style buffer")
-//    }
-//    
-//
-//    let data = Unmanaged<NSMutableData>.fromOpaque(buffer)
-//    
-//
-//    return data.takeRetainedValue()
-//  }()
-  
   internal var isValueInitialized: Bool  = false
   
   public lazy var valuesCompat: NSMutableData = {
@@ -277,7 +262,6 @@ public class MasonStyle: NSObject {
     valuesCompat.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
   }
   
-  
   private func getFloat(_ index: Int) -> Float {
     return valuesCompat.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
   }
@@ -295,7 +279,6 @@ public class MasonStyle: NSObject {
     setFloat(offset, value)
     setOrAppendState(state)
   }
-  
   
   
   public var display: Display {
@@ -1478,7 +1461,7 @@ public class MasonStyle: NSObject {
     }
   }
   
-  public var gridColumn:  Line<GridPlacement> {
+  public var gridColumn: Line<GridPlacement> {
     get{
       var type = getInt32(StyleKeys.GRID_COLUMN_START_TYPE)
       
@@ -1878,21 +1861,13 @@ public class MasonStyle: NSObject {
       
       isSlowDirty = false
       isDirty = -1
+      (node.view as? MasonElement)?.requestLayout()
     }
     
     if (isDirty != -1) {
-    //  mason_style_sync_style(node.mason.nativePtr, node.nativePtr, isDirty)
-//
-//      values.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) in
-//        guard let ptr = ptr.baseAddress else {return}
-//        mason_style_sync_style_with_buffer(node.mason.nativePtr, node.nativePtr, isDirty, ptr.assumingMemoryBound(to: UInt8.self), UInt(values.count))
-//      }
-//
-      
       isDirty = -1
+      (node.view as? MasonElement)?.requestLayout()
     }
-    
-    // todo invalidate view
     
   }
   

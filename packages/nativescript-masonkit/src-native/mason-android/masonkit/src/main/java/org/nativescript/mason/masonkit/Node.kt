@@ -749,17 +749,4 @@ open class Node internal constructor(
 
     dirty()
   }
-
-  internal fun shouldFlattenTextContainer(textView: TextView): Boolean {
-    if (!textView.node.isStyleInitialized) return true
-    val style = textView.node.style
-    val hasBackground = textView.backgroundColorValue != 0
-    val hasBorder = style.border.top.value > 0f || style.border.right.value > 0f ||
-      style.border.bottom.value > 0f || style.border.left.value > 0f
-    val hasDisplayBlock = style.display == Display.Block || style.display == Display.Flex ||
-      style.display == Display.Grid
-
-    // Only prevent flattening for background, border, or block/flex/grid
-    return !(hasBackground || hasBorder || hasDisplayBlock)
-  }
 }

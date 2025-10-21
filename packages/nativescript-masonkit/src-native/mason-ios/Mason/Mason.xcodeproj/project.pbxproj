@@ -46,6 +46,7 @@
 		F1E4F95E296266A60091913B /* MasonLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95D296266A60091913B /* MasonLine.swift */; };
 		F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */; };
 		F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE93512E84BA3E00DA90BB /* Extensions.swift */; };
+		F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -144,6 +145,7 @@
 		F1E4F95D296266A60091913B /* MasonLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonLine.swift; sourceTree = "<group>"; };
 		F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSizingFunction.swift; sourceTree = "<group>"; };
 		F1EE93512E84BA3E00DA90BB /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftHelpers.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -236,6 +238,7 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */,
 				F13D4E922E96EDEF00456A68 /* MasonDocument.swift */,
 				F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */,
 				F1EE93512E84BA3E00DA90BB /* Extensions.swift */,
@@ -428,7 +431,7 @@
 				TargetAttributes = {
 					F184838B293534D800EC35F4 = {
 						CreatedOnToolsVersion = 14.0;
-						LastSwiftMigration = 1400;
+						LastSwiftMigration = 1640;
 					};
 					F1848395293534D800EC35F4 = {
 						CreatedOnToolsVersion = 14.0;
@@ -554,6 +557,7 @@
 				F1E4F95229622AD60091913B /* MasonRect.swift in Sources */,
 				F18483DD29356C7800EC35F4 /* MasonStyle.swift in Sources */,
 				F18C9B882E5199CA006E5561 /* MasonPoint.swift in Sources */,
+				F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */,
 				F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */,
 				F18E99132DCB73FC0062B4F7 /* Img.swift in Sources */,
 				F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */,
@@ -791,6 +795,7 @@
 				);
 				MACH_O_TYPE = mh_dylib;
 				MARKETING_VERSION = 1.0;
+				MODULEMAP_FILE = "";
 				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = (
 					"$(inherited)",
 					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios/debug\"",
@@ -848,6 +853,7 @@
 				);
 				MACH_O_TYPE = mh_dylib;
 				MARKETING_VERSION = 1.0;
+				MODULEMAP_FILE = "";
 				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = (
 					"$(inherited)",
 					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios/release\"",

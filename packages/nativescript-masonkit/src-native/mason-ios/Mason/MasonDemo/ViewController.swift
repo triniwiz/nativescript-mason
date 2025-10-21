@@ -102,6 +102,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let bottom = Float(self.view.safeAreaInsets.bottom) * scale
     
     body.style.padding = MasonRect(.Points(left), .Points(right), .Points(top), .Points(bottom))
+  
     guard view.subviews.first is MasonUIView else {return}
     
     
@@ -287,9 +288,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
 //    body.style.size = .init(.Points(Float(view.bounds.width * UIScreen.main.scale)), (.Points(Float(view.bounds.height * UIScreen.main.scale))))
    // document.node.appendChild(body.node)
-    body.frame = view.bounds
-    
+
     view.addSubview(body)
+    
+    body.style.size = .init(.Points(Float(view.frame.width * UIScreen.main.scale)), .Points(Float(view.frame.height * UIScreen.main.scale)))
     
     
     
@@ -328,7 +330,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     
     */
-   // textWithImage()
+    textWithImage()
     
   //imageTest()
     
@@ -411,7 +413,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     //inlineTest()
   //  testTextInsert()
-    testInsert()
+   // testInsert()
   }
   
   func testInsert(){
@@ -577,10 +579,12 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       txt3.tag = 3
 
       txt.append(txt3)
+    
 
       body.append(elements: [txt, img])
+      body.computeWithMaxContent()
   
-      body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+      //  body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
 
     }
   

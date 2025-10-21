@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
-import android.util.Log
 import androidx.appcompat.widget.AppCompatImageView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
@@ -15,6 +14,8 @@ class Img @JvmOverloads constructor(
 ) : AppCompatImageView(context, attrs), Element, MeasureFunc {
   override lateinit var node: Node
     private set
+
+  var onStateChange: ((LoadingState) -> Unit)? = null
 
   override val style: Style
     get() = node.style
@@ -28,14 +29,14 @@ class Img @JvmOverloads constructor(
     super.setImageBitmap(bm)
     currentBitmap = bm
     if (src.isEmpty()) {
-      invalidateLayout()
+      markDirtyAndRecompute()
     }
   }
 
   override fun setImageResource(resId: Int) {
     super.setImageResource(resId)
     if (src.isEmpty()) {
-      invalidateLayout()
+      markDirtyAndRecompute()
     }
   }
 
@@ -97,6 +98,17 @@ class Img @JvmOverloads constructor(
         override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
           setImageBitmap(resource)
           markDirtyAndRecompute()
+          onStateChange?.let {
+            it(LoadingState.Loaded)
+          }
+        }
+
+        override fun onLoadFailed(errorDrawable: Drawable?) {
+          super.onLoadFailed(errorDrawable)
+          markDirtyAndRecompute()
+          onStateChange?.let {
+            it(LoadingState.Error)
+          }
         }
 
         override fun onLoadCleared(placeholder: Drawable?) {
@@ -106,6 +118,9 @@ class Img @JvmOverloads constructor(
 
       }
       currentTarget = target
+      onStateChange?.let {
+        it(LoadingState.Loading)
+      }
       Glide.with(this)
         .asBitmap()
         .load(value)

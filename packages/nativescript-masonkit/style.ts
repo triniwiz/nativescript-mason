@@ -1,6 +1,6 @@
 import { layout } from '@nativescript/core/utils';
 import type { GridAutoFlow, Length, LengthAuto, View } from '.';
-import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Length } from '@nativescript/core';
+import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns } from './utils';
 
 enum StyleKeys {
@@ -291,16 +291,16 @@ export class Style {
         ret.text_style_view = new DataView(textBuffer);
       }
     } else if (__APPLE__) {
+      // todo
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       const style = (nativeView as MasonText).style;
       if (!isText) {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         const styleBuffer = style.valuesCompat;
         const buffer = interop.bufferFromData(styleBuffer);
         ret.style_view = new DataView(buffer);
       } else {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         const styleBuffer = style.valuesCompat;
         const buffer = interop.bufferFromData(styleBuffer);
         ret.style_view = new DataView(buffer);
@@ -333,6 +333,9 @@ export class Style {
     } else if (__APPLE__) {
       if (!isText) {
         const view = this.view.ios as MasonUIView;
+        // todo
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         view.syncStyle(this.isDirty.toString());
       } else {
         const view = this.view.ios as never as MasonText;

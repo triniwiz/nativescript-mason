@@ -11,7 +11,15 @@ import Foundation
 @objcMembers
 @objc(MasonUIView)
 public class MasonUIView: UIView, MasonElement {
+  public let node: MasonNode
+  public let mason: NSCMason
+  
   public var uiView: UIView { self }
+  
+  public var style: MasonStyle {
+    return node.style
+  }
+  
   public func markNodeDirty() {
     node.markDirty()
   }
@@ -19,10 +27,6 @@ public class MasonUIView: UIView, MasonElement {
   public func isNodeDirty() -> Bool {
     return node.isDirty
   }
-  
-  public let node: MasonNode
-  public let mason: NSCMason
-
   
   init(mason doc: NSCMason) {
     node = doc.createNode()
@@ -35,6 +39,15 @@ public class MasonUIView: UIView, MasonElement {
   
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
+  }
+  
+  
+  public func syncStyle(_ state: String) {
+    guard let stateValue = Int64(state, radix: 10) else {return}
+    if (stateValue != -1) {
+      style.isDirty = stateValue
+      style.updateNativeStyle()
+    }
   }
   
   

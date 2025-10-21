@@ -2,6 +2,7 @@ import { Color, colorProperty, Utils, View } from '@nativescript/core';
 import { style_, TextBase, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
+import { parseLength } from '../utils';
 
 const enum TextType {
   None = 0,
@@ -111,7 +112,22 @@ export class Text extends TextBase {
   set text(value: string) {
     const nativeView = this._view;
     if (nativeView) {
-      nativeView.updateText(value);
+      // hacking vue3 to handle text nodes
+      if (global.VUE3_ELEMENT_REF) {
+        const view_ref = this[global.VUE3_ELEMENT_REF];
+        if (Array.isArray(view_ref.childNodes)) {
+          (view_ref.childNodes as any[]).forEach((node, index) => {
+            if (node.nodeType === 'text') {
+              // @ts-ignore
+              nativeView.mason_addChildAtText(node.text || '', index);
+              // nativeView.addChildAtText(node.text || '', index);
+            }
+          });
+        }
+      } else {
+        // will replace all nodes with a new text node
+        nativeView.text = value;
+      }
     }
   }
 
@@ -205,7 +221,10 @@ export class Text extends TextBase {
 
   public onLayout(left: number, top: number, right: number, bottom: number): void {
     super.onLayout(left, top, right, bottom);
-    let layout = this._view.node.computedLayout ?? this._view.node.layout();
+
+    // todo
+    // @ts-ignore
+    let layout = this._view.node.computedLayout ?? this._view.layout();
     const children = layout.children;
     let i = 1;
 
@@ -231,9 +250,13 @@ export class Text extends TextBase {
       if (!this._isMasonChild) {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
-          this.ios.node.computeWithMaxContent();
+          // todo
+          // @ts-ignore
+          this.ios.computeWithMaxContent();
 
-          const layout = this.ios.node.layout();
+          // todo
+          // @ts-ignore
+          const layout = this.ios.layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -273,9 +296,14 @@ export class Text extends TextBase {
               height = Utils.layout.toDevicePixels(this.height);
               break;
           }
-          this.ios.node.computeWithSize(width, height);
 
-          const layout = this.ios.node.layout();
+          // todo
+          // @ts-ignore
+          this.ios.computeWithSize(width, height);
+
+          // todo
+          // @ts-ignore
+          const layout = this.ios.layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -283,7 +311,9 @@ export class Text extends TextBase {
           this.setMeasuredDimension(w, h);
         }
       } else {
-        const layout = nativeView.node.computedLayout ?? nativeView.node.layout();
+        // todo
+        // @ts-ignore
+        const layout = nativeView.node.computedLayout ?? nativeView.layout();
         const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
@@ -300,7 +330,17 @@ export class Text extends TextBase {
       child._hasNativeView = true;
       child._isMasonChild = true;
 
-      nativeView.addView(child.nativeViewProtected, atIndex ?? -1);
+      // todo
+      // @ts-ignore
+      const index = atIndex ?? -1;
+
+      console.log('view, Adding child at index:', index);
+
+      if (index >= 0) {
+        nativeView.addViewAt(child.nativeViewProtected, index);
+      } else {
+        nativeView.addView(child.nativeViewProtected);
+      }
       return true;
     }
 

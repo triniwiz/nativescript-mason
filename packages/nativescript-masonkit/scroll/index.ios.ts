@@ -39,7 +39,8 @@ export class Scroll extends ViewBase {
 
   public onLayout(left: number, top: number, right: number, bottom: number): void {
     super.onLayout(left, top, right, bottom);
-    let layout = this._view.node.computedLayout ?? this._view.node.layout();
+    // @ts-ignore
+    let layout = this._view.node.computedLayout ?? this._view.layout();
     const children = layout.children;
     let i = 0;
 
@@ -65,9 +66,13 @@ export class Scroll extends ViewBase {
       if (!this._isMasonChild) {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
-          this.ios.node.computeWithSize(specWidth, specHeight);
+          // @ts-ignore
+          this.ios.mason_computeWithSize(specWidth, specHeight);
+          // this.ios.computeWithSize(specWidth, specHeight);
 
-          const layout = this.ios.node.layout();
+          // @ts-ignore
+          const layout = this.ios.mason_layout();
+          //const layout = this.ios.layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -79,8 +84,10 @@ export class Scroll extends ViewBase {
           this.setMeasuredDimension(w, h);
           return;
         } else {
-          this.ios.node.computeWithMaxContent();
-          const layout = this.ios.node.computedLayout ?? this.ios.node.layout();
+          // @ts-ignore
+          this.ios.computeWithMaxContent();
+          // @ts-ignore
+          const layout = this.ios.node.computedLayout ?? this.ios.layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -92,7 +99,8 @@ export class Scroll extends ViewBase {
           });
         }
       } else {
-        const layout = this.ios.node.computedLayout ?? this.ios.node.layout();
+        // @ts-ignore
+        const layout = this.ios.node.computedLayout ?? this.ios.layout();
         const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
@@ -117,6 +125,7 @@ export class Scroll extends ViewBase {
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
       child._isMasonChild = true;
+      console.log('scroll, Adding child at index:', atIndex);
       if (atIndex <= -1) {
         nativeView.addView(child.nativeViewProtected);
       } else {

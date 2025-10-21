@@ -62,9 +62,11 @@ export class Img extends ImageBase {
       if (!this._isMasonChild) {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
-          this.ios.node.computeWithSize(specWidth, specHeight);
+          // @ts-ignore
+          this.ios.computeWithSize(specWidth, specHeight);
 
-          const layout = this.ios.node.layout();
+          // @ts-ignore
+          const layout = this.ios.layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -72,8 +74,10 @@ export class Img extends ImageBase {
           this.setMeasuredDimension(w, h);
           return;
         } else {
-          this.ios.node.computeWithMaxContent();
-          const layout = this.ios.node.computedLayout ?? this.ios.node.layout();
+          // @ts-ignore
+          this.ios.computeWithMaxContent();
+          // @ts-ignore
+          const layout = this.ios.node.computedLayout ?? this.ios.layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -81,7 +85,8 @@ export class Img extends ImageBase {
           this.setMeasuredDimension(w, h);
         }
       } else {
-        const layout = this.ios.node.computedLayout ?? this.ios.node.layout();
+        // @ts-ignore
+        const layout = this.ios.node.computedLayout ?? this.ios.layout();
         const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 

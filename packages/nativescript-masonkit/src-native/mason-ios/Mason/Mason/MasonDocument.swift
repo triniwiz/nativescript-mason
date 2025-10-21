@@ -12,7 +12,7 @@ public class MasonDocument: NSObject {
   public let node: MasonNode
   public let mason: NSCMason
   
-  public internal(set) var documentElement: MasonElement?
+  public internal(set) var documentElement: MasonElement? = nil
   
   public init(mason instance: NSCMason) {
     mason = instance

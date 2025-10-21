@@ -294,6 +294,7 @@ public enum InlineSegmentPayload {
   case inline(id: OpaquePointer, width: Float, height: Float, baseline: Float)
 }
 
+
 // MARK: - MasonText Main Class
 @objc(MasonText)
 @objcMembers
@@ -309,6 +310,10 @@ public class MasonText: UIView, MasonElement {
   
   public var uiView: UIView {
     return self
+  }
+  
+  public var style: MasonStyle {
+    return node.style
   }
   
   // Weight tracking
@@ -401,6 +406,29 @@ public class MasonText: UIView, MasonElement {
     if (stateValue != -1) {
       style.isDirty = stateValue
       style.updateNativeStyle()
+    }
+  }
+  
+  public func addView(_ view: UIView){
+    if(view.superview == self){
+      return
+    }
+    if(view is MasonElement){
+      append((view as! MasonElement))
+    }else {
+      append(node: node.mason.nodeForView(view))
+    }
+  }
+  
+  public func addView(_ view: UIView, at: Int){
+    if(view.superview == self){
+      return
+    }
+
+    if(view is MasonElement){
+      node.addChildAt((view as! MasonElement).node, at)
+    }else {
+      node.addChildAt(node.mason.nodeForView(view), at)
     }
   }
   

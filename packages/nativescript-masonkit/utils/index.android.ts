@@ -9,7 +9,7 @@ type View = ViewBase & {
   _masonNodePtr: bigint;
   _inBatch: boolean;
   ios: MasonUIView;
-  android: org.nativescript.mason.masonkit.View & android.view.View & org.nativescript.mason.masonkit.MasonView;
+  android: org.nativescript.mason.masonkit.View & android.view.View & org.nativescript.mason.masonkit.Element;
   [style_]: Style;
   readonly _styleHelper: Style;
 };
@@ -886,10 +886,10 @@ export function _setGridAutoColumns(value, instance: View, initial = false) {
   if (instance.android?.setGridAutoColumns) {
     instance.android.setGridAutoColumns(array);
   } else {
-    const node = org.nativescript.mason.masonkit.Mason.getShared().nodeForView(instance.android as never);
+    const style = org.nativescript.mason.masonkit.Mason.getShared().styleForView(instance.android as never);
 
-    if (node) {
-      node.getStyle().setGridAutoColumns(array);
+    if (style) {
+      style.setGridAutoColumns(array);
     }
   }
 }

@@ -778,7 +778,7 @@ class TextView @JvmOverloads constructor(
 
         child.view is TextView -> {
           val childTextView = child.view as TextView
-          if (node.shouldFlattenTextContainer(childTextView)) {
+          if (shouldFlattenTextContainer(childTextView)) {
             val nested = childTextView.buildAttributedString()
             val start = composed.length
             composed.append(nested)

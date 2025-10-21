@@ -6,18 +6,59 @@
 //
 import UIKit
 
+
+@objc(MasonLoadingState)
+public enum LoadingState: Int, RawRepresentable {
+    case Loading
+    case Loaded
+    case Error
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Loading:
+            return 0
+        case .Loaded:
+            return 1
+        case .Error:
+            return 2
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+          self = .Loaded
+        case 1:
+          self = .Loaded
+        case 2:
+          self = .Error
+        default:
+            return nil
+        }
+    }
+}
+
 @objcMembers
 @objc(MasonImg)
 public class Img: UIImageView, MasonElement {
+  
+  public let node: MasonNode
+  public let mason: NSCMason
   
   public var uiView: UIView {
     return self
   }
   
-  public let node: MasonNode
-  public let mason: NSCMason
+  public var style: MasonStyle {
+    return node.style
+  }
   
   public var didLayout: (() -> Void)?
+  
+  public var onStateChange: ((LoadingState, Error?) -> Void)?
   
   public override var image: UIImage? {
     didSet {
@@ -38,17 +79,19 @@ public class Img: UIImageView, MasonElement {
           self.image = nil
           self.requestLayout()
           self.setNeedsDisplay()
+          self.onStateChange?(.Loaded, error)
           return
         }
 
         DispatchQueue.main.async {
           self.image = image
           self.setNeedsDisplay()
-          self.node.parent?.markDirty()
+          self.node.markDirty()
           self.requestLayout()
+          self.onStateChange?(.Loaded, nil)
         }
       })
-      
+      onStateChange?(.Loading, nil)
       currentTask?.resume()
     }
   }
@@ -56,9 +99,14 @@ public class Img: UIImageView, MasonElement {
   
   
   public func updateImage(_ image: UIImage?) {
+    if(image != nil){
+      onStateChange?(.Loading, nil)
+    }
     self.image = image
     setNeedsDisplay()
+    node.markDirty()
     requestLayout()
+    onStateChange?(.Loaded, nil)
   }
   
   init(mason doc: NSCMason) {
@@ -76,6 +124,14 @@ public class Img: UIImageView, MasonElement {
   
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
+  }
+  
+  public func syncStyle(_ state: String) {
+    guard let stateValue = Int64(state, radix: 10) else {return}
+    if (stateValue != -1) {
+      style.isDirty = stateValue
+      style.updateNativeStyle()
+    }
   }
   
   private static func measure(_ view: Img, _ known: CGSize?, _ available: CGSize) -> CGSize {

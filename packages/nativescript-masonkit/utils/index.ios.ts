@@ -1,4 +1,4 @@
-import { Length, Utils } from '@nativescript/core';
+import { CoreTypes, Length, Utils } from '@nativescript/core';
 import { style_, ViewBase } from '../common';
 
 type View = ViewBase & {
@@ -260,6 +260,7 @@ function getStyle(instance: View): MasonStyle {
   const nativeView = instance?.ios;
 
   if (instance._isMasonView) {
+    // @ts-ignore
     return nativeView.node.style as MasonStyle;
   }
 
@@ -322,6 +323,17 @@ export function _parseDimension(dim: org.nativescript.mason.masonkit.Dimension |
       return { value: value, unit: 'px' };
     case MasonDimensionCompatType.Percent:
       return { value: value, unit: '%' };
+  }
+}
+
+export function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit, parent = 0) {
+  switch (length.unit) {
+    case '%':
+      return length.value * parent;
+    case 'dip':
+      return Utils.layout.toDevicePixels(length.value);
+    case 'px':
+      return length.value;
   }
 }
 
@@ -939,7 +951,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
           gridTrackRepetition = TSCGridTrackRepetition.AutoFit;
           break;
         case TSCGridTrackRepetition.Count:
-          gridTrackRepetition = GridTrackRepetition.Count(item.repeating_count);
+          gridTrackRepetition = MasonGridTrackRepetition.Count(item.repeating_count);
           break;
       }
       if (gridTrackRepetition === null) {
@@ -1037,7 +1049,7 @@ export function _getGridTemplateRows(instance: View) {
     return '';
   }
 
-  return instance.ios.style.gridTemplateRowsCSS;
+  return ''; //instance.ios.style.gridTemplateRowsCSS;
 }
 
 export function _getGridTemplateColumns(instance: View) {
@@ -1045,5 +1057,5 @@ export function _getGridTemplateColumns(instance: View) {
     return '';
   }
 
-  return instance.ios.style.gridTemplateColumnsCSS;
+  return ''; //instance.ios.style.gridTemplateColumnsCSS;
 }

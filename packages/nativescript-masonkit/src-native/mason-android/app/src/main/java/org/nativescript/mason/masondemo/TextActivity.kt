@@ -43,12 +43,12 @@ class TextActivity : AppCompatActivity() {
 
     //basicNesting()
     // testText()
-    //textWithImage()
+    textWithImage()
     // basicBlock()
     //  testWrap()
     //testElements()
     //testTextInsert()
-    inlineTest()
+   // inlineTest()
     setContentView(body)
   }
 
@@ -129,15 +129,13 @@ class TextActivity : AppCompatActivity() {
     txt.id = android.view.View.generateViewId()
 
     val second = Mason.shared.createTextView(this)
-    second.backgroundColorValue = Color.YELLOW
     second.color = Color.BLUE
-    second.append("Second")
+    second.append(" Second")
     second.id = android.view.View.generateViewId()
 
     txt.append(second)
 
     val img = Mason.shared.createImageView(this)
-    img.setBackgroundColor(Color.BLUE)
 
     img.style.size = Size(
       Dimension.Points(100f), Dimension.Points(100f)

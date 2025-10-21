@@ -19,17 +19,50 @@ private func measure(_ node: UnsafeRawPointer?, _ knownDimensionsWidth: Float, _
   return MeasureOutput.make(width: size.width, height: size.height)
 }
 
-
+@objc(MasonNodeType)
 public enum MasonNodeType: Int32, RawRepresentable {
   case element
   case text
   case document
+  
+  public typealias RawValue = Int32
+  public var rawValue: Int32 {
+    switch self {
+    case .element:
+      return 0
+    case .text:
+      return 1
+    case .document:
+      return 2
+    }
+  }
+  
+  public init?(rawValue: Int32) {
+    switch rawValue {
+    case 0:
+      self = .element
+    case 1:
+      self = .text
+    case 2:
+      self = .document
+    default:
+      return nil
+    }
+  }
+}
+
+
+@objc
+extension MasonNode {
+  @objc func a() {
+    
+  }
 }
 
 @objc(MasonNode)
 @objcMembers
 public class MasonNode: NSObject {
-  internal var mason: NSCMason
+  public internal(set) var mason: NSCMason
   
   internal var isAnonymous = false
   
@@ -58,7 +91,7 @@ public class MasonNode: NSObject {
   
   internal var isLayoutValid: Bool = false
   
-  internal var document: MasonDocument? = nil
+  public internal(set) var document: MasonDocument? = nil
   
   public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
   
@@ -117,7 +150,7 @@ public class MasonNode: NSObject {
   }
   
   
-  var inBatch = false {
+  public var inBatch = false {
     didSet {
       style.inBatch = inBatch
     }
@@ -428,7 +461,7 @@ extension MasonNode {
     return nil
   }
   
-  internal func addChildAt(_ child: MasonNode, _ index: Int) {
+    internal func addChildAt(_ child: MasonNode, _ index: Int) {
     if(index <= -1){
       appendChild(child)
       return
@@ -651,7 +684,6 @@ extension MasonNode {
             if(index <= -1){
               view?.addSubview(childView)
             }else {
-              print("childView", childView.superview == view)
               view?.insertSubview(childView, at: index)
             }
           }

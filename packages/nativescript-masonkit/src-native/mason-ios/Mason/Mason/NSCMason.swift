@@ -132,5 +132,5 @@ public class NSCMason: NSObject {
     return node
   }
   
-  static let scale = Float(UIScreen.main.scale)
+  @objc static let scale = Float(UIScreen.main.scale)
 }

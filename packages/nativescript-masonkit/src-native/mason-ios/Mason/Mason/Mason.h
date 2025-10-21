@@ -6,7 +6,6 @@
 //
 
 #import <Foundation/Foundation.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -15,10 +14,6 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-
-
-
 //! Project version number for Mason.
 FOUNDATION_EXPORT double MasonVersionNumber;
 
