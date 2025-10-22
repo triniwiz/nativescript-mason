@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { style_, ViewBase } from '../common';
+import { isMasonView_, style_, ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 
@@ -10,8 +10,8 @@ export class View extends ViewBase {
   constructor() {
     super();
     const view = Tree.instance.createView();
-    this._hasNativeView = true;
     this._view = view;
+    this[isMasonView_] = true;
   }
   get _styleHelper(): Style {
     if (this[style_] === undefined) {
@@ -20,22 +20,45 @@ export class View extends ViewBase {
     return this[style_];
   }
 
-  _hasNativeView = false;
   _inBatch = false;
 
   createNativeView() {
     return this._view;
   }
 
-  disposeNativeView(): void {
-    this._hasNativeView = false;
-    super.disposeNativeView();
-  }
-
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   get ios() {
     return this._view;
+  }
+
+  set text(value: string) {
+    const nativeView = this._view;
+    if (nativeView) {
+      // hacking vue3 to handle text nodes
+
+      if (global.VUE3_ELEMENT_REF) {
+        const view_ref = this[global.VUE3_ELEMENT_REF] as any;
+        if (Array.isArray(view_ref.childNodes)) {
+          if (view_ref.childNodes.length === 0) {
+            // @ts-ignore
+            nativeView.mason_addChildAtText(value || '', -1);
+            return;
+          }
+          (view_ref.childNodes as any[]).forEach((node, index) => {
+            if (node.nodeType === 'text') {
+              // using replace to avoid accumulating text nodes
+              // @ts-ignore
+              //  nativeView.mason_replaceChildAtText(node.text || '', index);
+              nativeView.mason_replaceChildAtText(node.text || '', index);
+            }
+          });
+        }
+      } else {
+        // will replace all nodes with a new text node
+        // nativeView.text = value;
+      }
+    }
   }
 
   public onLayout(left: number, top: number, right: number, bottom: number): void {
@@ -68,7 +91,7 @@ export class View extends ViewBase {
       const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
 
-      if (!this._isMasonChild) {
+      if (!this[isMasonView_]) {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
           // @ts-ignore
@@ -125,8 +148,6 @@ export class View extends ViewBase {
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view;
-    // @ts-ignore
-    child._masonParent = this;
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
       child._isMasonChild = true;
@@ -143,9 +164,7 @@ export class View extends ViewBase {
 
   // @ts-ignore
   public _removeViewFromNativeVisualTree(view: MasonChild): void {
-    view._masonParent = undefined;
-    view._isMasonView = false;
-    view._isMasonChild = false;
+    view[isMasonView_] = false;
     // @ts-ignore
     super._removeViewFromNativeVisualTree(view);
   }

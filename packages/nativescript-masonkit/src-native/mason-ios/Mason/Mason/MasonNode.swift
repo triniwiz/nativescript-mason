@@ -386,7 +386,7 @@ extension MasonNode {
        lastChild.view is MasonText {
       return lastChild
     }
-
+    
     // Create new anonymous container
     let textView = MasonText(mason: mason, isAnonymous: true)
     
@@ -450,6 +450,11 @@ extension MasonNode {
     for containerNode in children {
       guard containerNode.isAnonymous,
             let textContainer = containerNode.view as? MasonText else {
+        if(child == containerNode){
+          children.removeAll {$0 == child}
+          (child as? MasonTextNode)?.container = nil
+          return child
+        }
         continue
       }
       
@@ -466,7 +471,79 @@ extension MasonNode {
     return nil
   }
   
-    internal func addChildAt(_ child: MasonNode, _ index: Int) {
+  internal func replaceChildAt(_ child: MasonNode, _ index: Int) {
+    if(index <= -1){
+      return
+    }
+    let nodes = getChildren()
+    let idx = nodes.firstIndex(of: child)
+    if(idx == index){
+      return
+    }
+    
+    switch child.type {
+    case .element:
+      replaceElementChildAt(child, index, nil)
+      break
+    case .text:
+      replaceTextChildAt(child, index, nil)
+      break
+    case .document:
+      // noop
+      break
+    }
+    
+    if(!inBatch){
+      (view as? MasonElement)?.requestLayout()
+    }
+  }
+  
+  
+  // Replace helpers: remove the author-level node at index and insert the new child there.
+  private func replaceElementChildAt(_ child: MasonNode, _ index: Int, _ nodes: [MasonNode]? = nil) {
+    guard index >= 0 else { return }
+    let authorNodes = nodes ?? getChildren()
+    // If index out of range, append
+    if index >= authorNodes.count {
+      appendChild(child)
+      return
+    }
+    
+    let target = authorNodes[index]
+    // No-op if same
+    if target === child { return }
+    
+    // Remove the existing author-level node. This handles anonymous containers/text nodes.
+    _ = target.parent?.removeChild(target)
+    
+    // Insert the new child at the same author index
+    addChildAt(child, index)
+  }
+  
+  private func replaceTextChildAt(_ child: MasonNode, _ index: Int, _ nodes: [MasonNode]? = nil) {
+    guard index >= 0 else { return }
+    let authorNodes = nodes ?? getChildren()
+    
+    
+    if index >= authorNodes.count {
+      appendChild(child)
+      return
+    }
+    
+    let target = authorNodes[index]
+    if target === child { return }
+    
+    
+    // Removing the author-level node will remove from anonymous containers or real text containers.
+    _ = target.parent?.removeChild(target)
+    
+    // Delegate insertion to existing addTextChildAt logic to ensure proper containering
+    addChildAt(child, index)
+  }
+  
+  
+  
+  internal func addChildAt(_ child: MasonNode, _ index: Int) {
     if(index <= -1){
       appendChild(child)
       return
@@ -562,7 +639,7 @@ extension MasonNode {
               // FIRST: Remove from original container
               container.node.children.removeSubrange(range)
               
-          
+              
               // THEN: Move nodes to new container
               for node in nodesToMove {
                 // Update references
@@ -576,7 +653,7 @@ extension MasonNode {
                 newContainer.children.append(node)
               }
               
-  
+              
               
               // Force rebuild of both containers
               container.invalidateInlineSegments()
@@ -657,7 +734,7 @@ extension MasonNode {
                 }
               } else {
                 // Non-TextView elements always go in layout tree
-               // syncLayoutChildren()
+                // syncLayoutChildren()
                 
                 
                 // Add view to hierarchy
@@ -737,12 +814,14 @@ extension MasonNode {
     
     let authorNodes = nodes ?? getChildren()
     
+    
     if (index >= authorNodes.count || index <= -1) {
       appendChild(child)
       return
     }
     
     let element = authorNodes[index]
+    
     
     if let textNode = element as? MasonTextNode {
       // Find the position of this text node within its container
@@ -760,7 +839,6 @@ extension MasonNode {
         }
         child.parent = container.node
         container.invalidateInlineSegments()
-        markDirty()
         return
       }
       
@@ -771,14 +849,12 @@ extension MasonNode {
         child.container = container
         child.attributes = container.getDefaultAttributes()
       }
-      child.parent = container.node
-      
+  
       container.invalidateInlineSegments()
       
-      markDirty()
-
     } else if element.view is MasonElement {
       let layoutIndex = children.firstIndex(of: element)
+      
       
       // For TextView containers, delegate to the TextView
       if (view is MasonText && child is MasonTextNode) {
@@ -787,11 +863,12 @@ extension MasonNode {
         }else {
           children.append(child)
         }
-        child.parent = self
         if let container = (view as? MasonText) {
           (child as! MasonTextNode).container = container
           (child as! MasonTextNode).attributes = container.getDefaultAttributes()
+          container.invalidateInlineSegments()
         }
+        
         return
       }
       
@@ -801,7 +878,6 @@ extension MasonNode {
         container.appendChild(child)
         if let child = child as? MasonTextNode, let containerView = container.view as? MasonText {
           child.attributes = containerView.getDefaultAttributes()
-          child.parent = container
           child.container = containerView
         }
         
@@ -815,8 +891,9 @@ extension MasonNode {
         if let containerPtr = container.nativePtr {
           mason_node_insert_child_before(mason.nativePtr, nativePtr, containerPtr, element.nativePtr)
         }
-        
-        markDirty()
+        if let containerView = container.view as? MasonText {
+          containerView.invalidateInlineSegments()
+        }
         
         return
       }

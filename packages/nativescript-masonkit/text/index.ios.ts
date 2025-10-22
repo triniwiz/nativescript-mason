@@ -1,5 +1,5 @@
-import { Color, colorProperty, Utils, View } from '@nativescript/core';
-import { style_, TextBase, textWrapProperty } from '../common';
+import { Color, colorProperty, Utils, View, ViewBase } from '@nativescript/core';
+import { isMasonView_, isText_, isTextChild_, style_, TextBase, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { parseLength } from '../utils';
@@ -34,12 +34,11 @@ const enum TextType {
 
 export class Text extends TextBase {
   [style_];
-  _hasNativeView = false;
   _inBatch = false;
-  _isText = true;
   private _view: MasonText;
   constructor(type: TextType = 0) {
     super();
+    this[isText_] = true;
     switch (type) {
       case TextType.None:
         this._view = Tree.instance.createTextView(null, MasonTextType.None as number) as never;
@@ -81,8 +80,7 @@ export class Text extends TextBase {
         this._view = Tree.instance.createTextView(null, MasonTextType.B as number) as never;
         break;
     }
-
-    this._hasNativeView = true;
+    this[isMasonView_] = true;
     this[style_] = Style.fromView(this as never, this._view, true);
   }
 
@@ -92,7 +90,7 @@ export class Text extends TextBase {
     return this._view;
   }
 
-  get _styleHelper() {
+  get _styleHelper(): Style {
     if (this[style_] === undefined) {
       this[style_] = Style.fromView(this as never, this._view);
     }
@@ -113,16 +111,15 @@ export class Text extends TextBase {
     const nativeView = this._view;
     if (nativeView) {
       // hacking vue3 to handle text nodes
-      nativeView.text = value;
-      /*
+
       if (global.VUE3_ELEMENT_REF) {
         const view_ref = this[global.VUE3_ELEMENT_REF];
         if (Array.isArray(view_ref.childNodes)) {
           (view_ref.childNodes as any[]).forEach((node, index) => {
             if (node.nodeType === 'text') {
-              console.log('Adding text node at index:', index, node.text);
+              // using replace to avoid accumulating text nodes
               // @ts-ignore
-              nativeView.mason_appendWithText(node.text || '', index);
+              nativeView.mason_replaceChildAtText(node.text || '', index);
               // nativeView.addChildAtText(node.text || '', index);
             }
           });
@@ -131,7 +128,6 @@ export class Text extends TextBase {
         // will replace all nodes with a new text node
         nativeView.text = value;
       }
-      */
     }
   }
 
@@ -146,22 +142,16 @@ export class Text extends TextBase {
   [colorProperty.setNative](value) {
     switch (typeof value) {
       case 'number':
-        this[style_].color = value;
-        console.log('Setting text color from number:', value, this[style_].color);
-        this[style_].syncStyle(true);
+        this._styleHelper.color = value;
         break;
       case 'string':
         {
-          this[style_].color = new Color(value).argb;
-          console.log('Setting text color from string:', value, this[style_].color);
-          this[style_].syncStyle(true);
+          this._styleHelper.color = new Color(value).argb;
         }
         break;
       case 'object':
         {
-          this[style_].color = value.argb;
-          console.log('Setting text color from object:', value, this[style_].color);
-          this[style_].syncStyle(true);
+          this._styleHelper.color = value.argb;
         }
         break;
     }
@@ -172,18 +162,13 @@ export class Text extends TextBase {
   set backgroundColor(value: Color | number) {
     switch (typeof value) {
       case 'number':
-        this[style_].backgroundColor = value;
-        this[style_].syncStyle(true);
+        this._styleHelper.backgroundColor = value;
         break;
       case 'string':
-        {
-          this[style_].backgroundColor = new Color(value).argb;
-          this[style_].syncStyle(true);
-        }
+        this._styleHelper.backgroundColor = new Color(value).argb;
         break;
       case 'object':
-        this[style_].backgroundColor = value.argb;
-        this[style_].syncStyle(true);
+        this._styleHelper.backgroundColor = value.argb;
         break;
     }
   }
@@ -210,18 +195,15 @@ export class Text extends TextBase {
       case 'false':
       case false:
       case 'nowrap':
-        this[style_].textWrap = MasonTextWrap.NoWrap;
-        this[style_].syncStyle(true);
+        this._styleHelper.textWrap = MasonTextWrap.NoWrap;
         break;
       case true:
       case 'true':
       case 'wrap':
-        this[style_].textWrap = MasonTextWrap.Wrap;
-        this[style_].syncStyle(true);
+        this._styleHelper.textWrap = MasonTextWrap.Wrap;
         break;
       case 'balance':
-        this[style_].textWrap = MasonTextWrap.Balance;
-        this[style_].syncStyle(true);
+        this._styleHelper.textWrap = MasonTextWrap.Balance;
         break;
     }
   }
@@ -243,7 +225,6 @@ export class Text extends TextBase {
       const y = layout.y;
       const width = layout.width;
       const height = layout.height;
-      console.log('Laying out child:', child, i, x, y, width, height);
       View.layoutChild(this as never, child, x, y, width, height);
       i++;
     }
@@ -258,7 +239,7 @@ export class Text extends TextBase {
       const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
 
-      if (!this._isMasonChild) {
+      if (!this[isMasonView_]) {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
           // todo
@@ -327,6 +308,10 @@ export class Text extends TextBase {
         const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
+        this.eachLayoutChild((child) => {
+          View.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
+        });
+
         this.setMeasuredDimension(w, h);
       }
     }
@@ -350,6 +335,11 @@ export class Text extends TextBase {
     }
 
     return false;
+  }
+
+  _removeViewFromNativeVisualTree(view: ViewBase): void {
+    view[isTextChild_] = false;
+    super._removeViewFromNativeVisualTree(view);
   }
 
   _setNativeViewFrame(nativeView: any, frame: CGRect): void {

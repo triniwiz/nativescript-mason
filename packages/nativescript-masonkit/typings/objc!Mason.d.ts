@@ -306,8 +306,6 @@ declare class MasonDocument extends NSObject {
 
 	static new(): MasonDocument; // inherited from NSObject
 
-	readonly documentElement: MasonElement;
-
 	readonly mason: NSCMason;
 
 	readonly node: MasonNode;
@@ -317,77 +315,17 @@ declare class MasonDocument extends NSObject {
 	initWithMason(instance: NSCMason): this;
 }
 
-interface MasonElement extends NSObjectProtocol {
+interface MasonElementObjc extends NSObjectProtocol {
 
 	node: MasonNode;
 
 	style: MasonStyle;
 
 	uiView: UIView;
-
-	addChildAtElement?(element: MasonElement, index: number): void;
-
-	addChildAtNode?(node: MasonNode, index: number): void;
-
-	addChildAtText?(text: string, index: number): void;
-
-	append?(element: MasonElement): void;
-
-	appendWithElements?(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	appendWithNode?(node: MasonNode): void;
-
-	appendWithNodes?(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	appendWithText?(text: string): void;
-
-	appendWithTexts?(texts: NSArray<string> | string[]): void;
-
-	attachAndApply?(): void;
-
-	compute?(): void;
-
-	compute?(width: number, height: number): void;
-
-	computeMaxContent?(): void;
-
-	computeMinContent?(): void;
-
-	computeWithMaxContent?(): void;
-
-	computeWithMinContent?(): void;
-
-	computeWithSize?(width: number, height: number): void;
-
-	computeWithViewSize?(): void;
-
-	computeWithViewSizeWithLayout?(layout: boolean): void;
-
-	configure?(block: (p1: MasonStyle) => void): void;
-
-	isNodeDirty?(): boolean;
-
-	layout?(): MasonLayout;
-
-	markNodeDirty?(): void;
-
-	prepend?(element: MasonElement): void;
-
-	prependWithElements?(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	prependWithNode?(node: MasonNode): void;
-
-	prependWithNodes?(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	prependWithString?(string: string): void;
-
-	prependWithStrings?(strings: NSArray<string> | string[]): void;
-
-	requestLayout?(): void;
 }
-declare var MasonElement: {
+declare var MasonElementObjc: {
 
-	prototype: MasonElement;
+	prototype: MasonElementObjc;
 };
 
 declare const enum MasonFlexDirection {
@@ -458,7 +396,7 @@ declare class MasonGridTrackRepetition extends NSObject {
 	static readonly AutoFit: MasonGridTrackRepetition;
 }
 
-declare class MasonImg extends UIImageView implements MasonElement {
+declare class MasonImg extends UIImageView implements MasonElementObjc {
 
 	static alloc(): MasonImg; // inherited from NSObject
 
@@ -509,55 +447,17 @@ declare class MasonImg extends UIImageView implements MasonElement {
 
 	readonly isProxy: boolean; // inherited from NSObjectProtocol
 
-	readonly node: MasonNode; // inherited from MasonElement
+	readonly node: MasonNode; // inherited from MasonElementObjc
 
-	readonly style: MasonStyle; // inherited from MasonElement
+	readonly style: MasonStyle; // inherited from MasonElementObjc
 
 	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
 
-	readonly uiView: UIView; // inherited from MasonElement
+	readonly uiView: UIView; // inherited from MasonElementObjc
 
 	readonly  // inherited from NSObjectProtocol
 
-	addChildAtElement(element: MasonElement, index: number): void;
-
-	addChildAtNode(node: MasonNode, index: number): void;
-
-	addChildAtText(text: string, index: number): void;
-
-	append(element: MasonElement): void;
-
-	appendWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	appendWithNode(node: MasonNode): void;
-
-	appendWithNodes(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	appendWithText(text: string): void;
-
-	appendWithTexts(texts: NSArray<string> | string[]): void;
-
-	attachAndApply(): void;
-
 	class(): typeof NSObject;
-
-	compute(): void;
-
-	computeMaxContent(): void;
-
-	computeMinContent(): void;
-
-	computeWithMaxContent(): void;
-
-	computeWithMinContent(): void;
-
-	computeWithSize(width: number, height: number): void;
-
-	computeWithViewSize(): void;
-
-	computeWithViewSizeWithLayout(layout: boolean): void;
-
-	configure(block: (p1: MasonStyle) => void): void;
 
 	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
 
@@ -567,31 +467,11 @@ declare class MasonImg extends UIImageView implements MasonElement {
 
 	isMemberOfClass(aClass: typeof NSObject): boolean;
 
-	isNodeDirty(): boolean;
-
-	layout(): MasonLayout;
-
-	markNodeDirty(): void;
-
 	performSelector(aSelector: string): any;
 
 	performSelectorWithObject(aSelector: string, object: any): any;
 
 	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
-
-	prepend(element: MasonElement): void;
-
-	prependWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	prependWithNode(node: MasonNode): void;
-
-	prependWithNodes(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	prependWithString(string: string): void;
-
-	prependWithStrings(strings: NSArray<string> | string[]): void;
-
-	requestLayout(): void;
 
 	respondsToSelector(aSelector: string): boolean;
 
@@ -672,6 +552,8 @@ declare class MasonLayout extends NSObject {
 	static new(): MasonLayout; // inherited from NSObject
 
 	readonly children: NSArray<MasonLayout>;
+
+	readonly hasChildren: boolean;
 
 	readonly height: number;
 
@@ -876,8 +758,6 @@ declare class MasonNode extends NSObject {
 
 	readonly parent: MasonNode;
 
-	readonly parentElement: MasonElement;
-
 	readonly parentNode: MasonNode;
 
 	readonly type: MasonNodeType;
@@ -943,7 +823,7 @@ declare const enum MasonPosition {
 	Absolute = 1
 }
 
-declare class MasonScroll extends UIScrollView implements MasonElement, UIScrollViewDelegate {
+declare class MasonScroll extends UIScrollView implements MasonElementObjc, UIScrollViewDelegate {
 
 	static alloc(): MasonScroll; // inherited from NSObject
 
@@ -988,59 +868,21 @@ declare class MasonScroll extends UIScrollView implements MasonElement, UIScroll
 
 	readonly isProxy: boolean; // inherited from NSObjectProtocol
 
-	readonly node: MasonNode; // inherited from MasonElement
+	readonly node: MasonNode; // inherited from MasonElementObjc
 
-	readonly style: MasonStyle; // inherited from MasonElement
+	readonly style: MasonStyle; // inherited from MasonElementObjc
 
 	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
 
-	readonly uiView: UIView; // inherited from MasonElement
+	readonly uiView: UIView; // inherited from MasonElementObjc
 
 	readonly  // inherited from NSObjectProtocol
-
-	addChildAtElement(element: MasonElement, index: number): void;
-
-	addChildAtNode(node: MasonNode, index: number): void;
-
-	addChildAtText(text: string, index: number): void;
 
 	addView(view: UIView): void;
 
 	addViewAt(view: UIView, at: number): void;
 
-	append(element: MasonElement): void;
-
-	appendWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	appendWithNode(node: MasonNode): void;
-
-	appendWithNodes(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	appendWithText(text: string): void;
-
-	appendWithTexts(texts: NSArray<string> | string[]): void;
-
-	attachAndApply(): void;
-
 	class(): typeof NSObject;
-
-	compute(): void;
-
-	computeMaxContent(): void;
-
-	computeMinContent(): void;
-
-	computeWithMaxContent(): void;
-
-	computeWithMinContent(): void;
-
-	computeWithSize(width: number, height: number): void;
-
-	computeWithViewSize(): void;
-
-	computeWithViewSizeWithLayout(layout: boolean): void;
-
-	configure(block: (p1: MasonStyle) => void): void;
 
 	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
 
@@ -1050,31 +892,11 @@ declare class MasonScroll extends UIScrollView implements MasonElement, UIScroll
 
 	isMemberOfClass(aClass: typeof NSObject): boolean;
 
-	isNodeDirty(): boolean;
-
-	layout(): MasonLayout;
-
-	markNodeDirty(): void;
-
 	performSelector(aSelector: string): any;
 
 	performSelectorWithObject(aSelector: string, object: any): any;
 
 	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
-
-	prepend(element: MasonElement): void;
-
-	prependWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	prependWithNode(node: MasonNode): void;
-
-	prependWithNodes(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	prependWithString(string: string): void;
-
-	prependWithStrings(strings: NSArray<string> | string[]): void;
-
-	requestLayout(): void;
 
 	respondsToSelector(aSelector: string): boolean;
 
@@ -1298,70 +1120,70 @@ declare class MasonStyle extends NSObject {
 
 declare class MasonSwiftHelpers extends NSObject {
 
-	static addChildAtElement(parent: MasonElement, element: MasonElement, index: number): void;
+	static addChildAtElement(parent: MasonElementObjc, element: MasonElementObjc, index: number): void;
 
-	static addChildAtNode(parent: MasonElement, node: MasonNode, index: number): void;
+	static addChildAtNode(parent: MasonElementObjc, node: MasonNode, index: number): void;
 
-	static addChildAtText(parent: MasonElement, text: string, index: number): void;
+	static addChildAtText(parent: MasonElementObjc, text: string, index: number): void;
 
 	static alloc(): MasonSwiftHelpers; // inherited from NSObject
 
-	static append(parent: MasonElement, element: MasonElement): void;
+	static append(parent: MasonElementObjc, element: MasonElementObjc): void;
 
-	static appendElements(parent: MasonElement, elements: NSArray<MasonElement> | MasonElement[]): void;
+	static appendElements(parent: MasonElementObjc, elements: NSArray<MasonElementObjc> | MasonElementObjc[]): void;
 
-	static appendNode(parent: MasonElement, node: MasonNode): void;
+	static appendNode(parent: MasonElementObjc, node: MasonNode): void;
 
-	static appendNodes(parent: MasonElement, nodes: NSArray<MasonNode> | MasonNode[]): void;
+	static appendNodes(parent: MasonElementObjc, nodes: NSArray<MasonNode> | MasonNode[]): void;
 
-	static appendText(parent: MasonElement, text: string): void;
+	static appendText(parent: MasonElementObjc, text: string): void;
 
-	static appendTexts(parent: MasonElement, texts: NSArray<string> | string[]): void;
+	static appendTexts(parent: MasonElementObjc, texts: NSArray<string> | string[]): void;
 
-	static attachAndApply(element: MasonElement): void;
+	static attachAndApply(element: MasonElementObjc): void;
 
-	static compute(element: MasonElement): void;
+	static compute(element: MasonElementObjc): void;
 
-	static computeMaxContent(element: MasonElement): void;
+	static computeMaxContent(element: MasonElementObjc): void;
 
-	static computeMinContent(element: MasonElement): void;
+	static computeMinContent(element: MasonElementObjc): void;
 
-	static computeWithMaxContent(element: MasonElement): void;
+	static computeWithMaxContent(element: MasonElementObjc): void;
 
-	static computeWithMinContent(element: MasonElement): void;
+	static computeWithMinContent(element: MasonElementObjc): void;
 
-	static computeWithSize(element: MasonElement, width: number, height: number): void;
+	static computeWithSize(element: MasonElementObjc, width: number, height: number): void;
 
-	static computeWithViewSize(element: MasonElement): void;
+	static computeWithViewSize(element: MasonElementObjc): void;
 
-	static computeWithViewSizeLayout(element: MasonElement, layout: boolean): void;
+	static computeWithViewSizeLayout(element: MasonElementObjc, layout: boolean): void;
 
-	static configure(element: MasonElement, block: (p1: MasonStyle) => void): void;
+	static configure(element: MasonElementObjc, block: (p1: MasonStyle) => void): void;
 
-	static isNodeDirty(element: MasonElement): boolean;
+	static isNodeDirty(element: MasonElementObjc): boolean;
 
-	static layout(element: MasonElement): MasonLayout;
+	static layout(element: MasonElementObjc): MasonLayout;
 
-	static markNodeDirty(element: MasonElement): void;
+	static markNodeDirty(element: MasonElementObjc): void;
 
 	static new(): MasonSwiftHelpers; // inherited from NSObject
 
-	static prepend(parent: MasonElement, element: MasonElement): void;
+	static prepend(parent: MasonElementObjc, element: MasonElementObjc): void;
 
-	static prependElements(parent: MasonElement, elements: NSArray<MasonElement> | MasonElement[]): void;
+	static prependElements(parent: MasonElementObjc, elements: NSArray<MasonElementObjc> | MasonElementObjc[]): void;
 
-	static prependNode(parent: MasonElement, node: MasonNode): void;
+	static prependNode(parent: MasonElementObjc, node: MasonNode): void;
 
-	static prependNodes(parent: MasonElement, nodes: NSArray<MasonNode> | MasonNode[]): void;
+	static prependNodes(parent: MasonElementObjc, nodes: NSArray<MasonNode> | MasonNode[]): void;
 
-	static prependString(parent: MasonElement, string: string): void;
+	static prependString(parent: MasonElementObjc, string: string): void;
 
-	static prependStrings(parent: MasonElement, strings: NSArray<string> | string[]): void;
+	static prependStrings(parent: MasonElementObjc, strings: NSArray<string> | string[]): void;
 
-	static requestLayout(element: MasonElement): void;
+	static requestLayout(element: MasonElementObjc): void;
 }
 
-declare class MasonText extends UIView implements MasonElement {
+declare class MasonText extends UIView implements MasonElementObjc {
 
 	static alloc(): MasonText; // inherited from NSObject
 
@@ -1434,13 +1256,13 @@ declare class MasonText extends UIView implements MasonElement {
 
 	readonly isProxy: boolean; // inherited from NSObjectProtocol
 
-	readonly node: MasonNode; // inherited from MasonElement
+	readonly node: MasonNode; // inherited from MasonElementObjc
 
-	readonly style: MasonStyle; // inherited from MasonElement
+	readonly style: MasonStyle; // inherited from MasonElementObjc
 
 	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
 
-	readonly uiView: UIView; // inherited from MasonElement
+	readonly uiView: UIView; // inherited from MasonElementObjc
 
 	readonly  // inherited from NSObjectProtocol
 
@@ -1450,49 +1272,11 @@ declare class MasonText extends UIView implements MasonElement {
 
 	addChild(child: MasonNode): void;
 
-	addChildAtElement(element: MasonElement, index: number): void;
-
-	addChildAtNode(node: MasonNode, index: number): void;
-
-	addChildAtText(text: string, index: number): void;
-
 	addView(view: UIView): void;
 
 	addViewAt(view: UIView, at: number): void;
 
-	append(element: MasonElement): void;
-
-	appendWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	appendWithNode(node: MasonNode): void;
-
-	appendWithNodes(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	appendWithText(text: string): void;
-
-	appendWithTexts(texts: NSArray<string> | string[]): void;
-
-	attachAndApply(): void;
-
 	class(): typeof NSObject;
-
-	compute(): void;
-
-	computeMaxContent(): void;
-
-	computeMinContent(): void;
-
-	computeWithMaxContent(): void;
-
-	computeWithMinContent(): void;
-
-	computeWithSize(width: number, height: number): void;
-
-	computeWithViewSize(): void;
-
-	computeWithViewSizeWithLayout(layout: boolean): void;
-
-	configure(block: (p1: MasonStyle) => void): void;
 
 	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
 
@@ -1502,8 +1286,6 @@ declare class MasonText extends UIView implements MasonElement {
 
 	initWithMasonType(mason: NSCMason, textType: MasonTextType): this;
 
-	insertChildAt(child: MasonNode, index: number): void;
-
 	invalidateStyle(state: number): void;
 
 	isEqual(object: any): boolean;
@@ -1512,29 +1294,11 @@ declare class MasonText extends UIView implements MasonElement {
 
 	isMemberOfClass(aClass: typeof NSObject): boolean;
 
-	isNodeDirty(): boolean;
-
-	layout(): MasonLayout;
-
-	markNodeDirty(): void;
-
 	performSelector(aSelector: string): any;
 
 	performSelectorWithObject(aSelector: string, object: any): any;
 
 	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
-
-	prepend(element: MasonElement): void;
-
-	prependWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	prependWithNode(node: MasonNode): void;
-
-	prependWithNodes(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	prependWithString(string: string): void;
-
-	prependWithStrings(strings: NSArray<string> | string[]): void;
 
 	removeChild(child: MasonNode): MasonNode;
 
@@ -1677,7 +1441,7 @@ declare const enum MasonTextWrap {
 	Pretty = 3
 }
 
-declare class MasonUIView extends UIView implements MasonElement {
+declare class MasonUIView extends UIView implements MasonElementObjc {
 
 	static alloc(): MasonUIView; // inherited from NSObject
 
@@ -1788,21 +1552,15 @@ declare class MasonUIView extends UIView implements MasonElement {
 
 	readonly isProxy: boolean; // inherited from NSObjectProtocol
 
-	readonly node: MasonNode; // inherited from MasonElement
+	readonly node: MasonNode; // inherited from MasonElementObjc
 
-	readonly style: MasonStyle; // inherited from MasonElement
+	readonly style: MasonStyle; // inherited from MasonElementObjc
 
 	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
 
-	readonly uiView: UIView; // inherited from MasonElement
+	readonly uiView: UIView; // inherited from MasonElementObjc
 
 	readonly  // inherited from NSObjectProtocol
-
-	addChildAtElement(element: MasonElement, index: number): void;
-
-	addChildAtNode(node: MasonNode, index: number): void;
-
-	addChildAtText(text: string, index: number): void;
 
 	addSubviews(views: NSArray<UIView> | UIView[]): void;
 
@@ -1812,39 +1570,7 @@ declare class MasonUIView extends UIView implements MasonElement {
 
 	addViewAt(view: UIView, at: number): void;
 
-	append(element: MasonElement): void;
-
-	appendWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	appendWithNode(node: MasonNode): void;
-
-	appendWithNodes(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	appendWithText(text: string): void;
-
-	appendWithTexts(texts: NSArray<string> | string[]): void;
-
-	attachAndApply(): void;
-
 	class(): typeof NSObject;
-
-	compute(): void;
-
-	computeMaxContent(): void;
-
-	computeMinContent(): void;
-
-	computeWithMaxContent(): void;
-
-	computeWithMinContent(): void;
-
-	computeWithSize(width: number, height: number): void;
-
-	computeWithViewSize(): void;
-
-	computeWithViewSizeWithLayout(layout: boolean): void;
-
-	configure(block: (p1: MasonStyle) => void): void;
 
 	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
 
@@ -1920,8 +1646,6 @@ declare class MasonUIView extends UIView implements MasonElement {
 
 	isNodeDirty(): boolean;
 
-	layout(): MasonLayout;
-
 	markNodeDirty(): void;
 
 	performSelector(aSelector: string): any;
@@ -1929,20 +1653,6 @@ declare class MasonUIView extends UIView implements MasonElement {
 	performSelectorWithObject(aSelector: string, object: any): any;
 
 	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
-
-	prepend(element: MasonElement): void;
-
-	prependWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
-
-	prependWithNode(node: MasonNode): void;
-
-	prependWithNodes(nodes: NSArray<MasonNode> | MasonNode[]): void;
-
-	prependWithString(string: string): void;
-
-	prependWithStrings(strings: NSArray<string> | string[]): void;
-
-	requestLayout(): void;
 
 	respondsToSelector(aSelector: string): boolean;
 

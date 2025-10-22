@@ -16,6 +16,7 @@ import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.createBitmap
@@ -50,9 +51,7 @@ class TextView @JvmOverloads constructor(
   }
 
   constructor(context: Context, mason: Mason, type: TextType, isAnonymous: Boolean = false) : this(
-    context,
-    null,
-    true
+    context, null, true
   ) {
     this.type = type
     setup(mason, isAnonymous)
@@ -99,10 +98,9 @@ class TextView @JvmOverloads constructor(
 
   private fun setup(mason: Mason, isAnonymous: Boolean = false) {
     TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
-    node = mason.createTextNode(this, isAnonymous)
-      .apply {
-        view = this@TextView
-      }
+    node = mason.createTextNode(this, isAnonymous).apply {
+      view = this@TextView
+    }
 
     val scale = context.resources.displayMetrics.density
     val margin = { top: Float, bottom: Float ->
@@ -242,13 +240,14 @@ class TextView @JvmOverloads constructor(
   }
 
   val textValues: ByteBuffer by lazy {
-    ByteBuffer.allocateDirect(52).apply {
+    ByteBuffer.allocateDirect(60).apply {
       order(ByteOrder.nativeOrder())
       putInt(TextStyleKeys.COLOR, Color.BLACK)
       putInt(TextStyleKeys.DECORATION_COLOR, Constants.UNSET_COLOR.toInt())
       putInt(TextStyleKeys.TEXT_ALIGN, AlignContent.Start.value)
       putInt(TextStyleKeys.TEXT_JUSTIFY, TextJustify.None.value)
       putInt(TextStyleKeys.SIZE, Constants.DEFAULT_FONT_SIZE)
+      putInt(TextStyleKeys.FONT_WEIGHT, FontFace.NSCFontWeight.Normal.weight)
     }
   }
 
@@ -264,17 +263,36 @@ class TextView @JvmOverloads constructor(
     if (textStateValue != -1L) {
       val value = TextStateKeys(textStateValue)
       val colorDirty = value.hasFlag(TextStateKeys.COLOR)
+      val sizeDirty = value.hasFlag(TextStateKeys.SIZE)
+      val weightDirty = value.hasFlag(TextStateKeys.FONT_WEIGHT)
+      val styleDirty = value.hasFlag(TextStateKeys.FONT_STYLE)
       if (value.hasFlag(TextStateKeys.TRANSFORM) || value.hasFlag(TextStateKeys.TEXT_WRAP) || value.hasFlag(
           TextStateKeys.WHITE_SPACE
         ) || value.hasFlag(
           TextStateKeys.TEXT_OVERFLOW
         ) || colorDirty || value.hasFlag(TextStateKeys.BACKGROUND_COLOR) || value.hasFlag(
           TextStateKeys.DECORATION_COLOR
-        ) || value.hasFlag(TextStateKeys.DECORATION_LINE)
+        ) || value.hasFlag(TextStateKeys.DECORATION_LINE) || sizeDirty || weightDirty || styleDirty
       ) {
         invalidate = true
       }
 
+      if (styleDirty) {
+        font.style = fontStyle
+      }
+
+      if (weightDirty) {
+        font.weight = fontWeight
+      }
+
+      if (sizeDirty) {
+        val size = fontSize
+        if (size == 0) {
+          paint.textSize = 0f
+        } else {
+          paint.textSize = size * resources.displayMetrics.density
+        }
+      }
       if (colorDirty) {
         paint.color = color
       }
@@ -336,6 +354,19 @@ class TextView @JvmOverloads constructor(
       invalidateLayout()
     }
 
+  var fontWeight: FontFace.NSCFontWeight
+    get() {
+      val weight = textValues.getInt(TextStyleKeys.FONT_WEIGHT)
+      return FontFace.NSCFontWeight.from(weight)
+    }
+    set(value) {
+      val old = fontWeight
+      if (value != old) {
+        font.weight = value
+      }
+    }
+
+
   // Update attributes on all direct TextNode children when styles change
   private fun updateStyleOnTextNodes() {
     val defaultAttrs = getDefaultAttributes()
@@ -385,10 +416,32 @@ class TextView @JvmOverloads constructor(
 
   var fontStyle: FontFace.NSCFontStyle
     set(value) {
-      font.style = value
+      val previous = fontStyle
+      if (previous != value) {
+        textValues.putInt(TextStyleKeys.FONT_STYLE_TYPE, value.style.value)
+        font.style = value
+      }
     }
     get() {
-      return font.style
+      val style = textValues.getInt(TextStyleKeys.FONT_STYLE_TYPE)
+      when (style) {
+        0 -> {
+          return FontFace.NSCFontStyle.Normal
+        }
+
+        1 -> {
+          return FontFace.NSCFontStyle.Italic
+        }
+
+        2 -> {
+          return FontFace.NSCFontStyle.Oblique()
+        }
+
+        else -> {
+          Log.w("JS", "Invalid fontStyle value: $style")
+          return FontFace.NSCFontStyle.Normal
+        }
+      }
     }
 
   var textWrap: TextWrap = TextWrap.Wrap
@@ -509,16 +562,12 @@ class TextView @JvmOverloads constructor(
   }
 
   private fun measureLayout(
-    knownWidth: Float,
-    knownHeight: Float,
-    availableWidth: Float,
-    availableHeight: Float
+    knownWidth: Float, knownHeight: Float, availableWidth: Float, availableHeight: Float
   ): Layout? {
     val spannable = buildAttributedString()
     if (layoutParams == null) {
       layoutParams = ViewGroup.LayoutParams(
-        ViewGroup.LayoutParams.WRAP_CONTENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT
+        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
       )
     }
     text = spannable
@@ -554,23 +603,11 @@ class TextView @JvmOverloads constructor(
 
     val layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       StaticLayout.Builder.obtain(
-        spannable,
-        0,
-        spannable.length,
-        paint,
-        widthConstraint
-      )
-        .setAlignment(alignment)
-        .setLineSpacing(0f, 1f)
-        .setIncludePad(true)
-        .build()
+        spannable, 0, spannable.length, paint, widthConstraint
+      ).setAlignment(alignment).setLineSpacing(0f, 1f).setIncludePad(true).build()
     } else {
       StaticLayout(
-        spannable,
-        paint,
-        widthConstraint,
-        alignment,
-        1f, // lineSpacingMultiplier
+        spannable, paint, widthConstraint, alignment, 1f, // lineSpacingMultiplier
         0f, // lineSpacingExtra
         true // includePad
       )
@@ -665,8 +702,7 @@ class TextView @JvmOverloads constructor(
 
         segments.add(
           InlineSegment.InlineChild(
-            viewSpan.childNode.nativePtr,
-            height  // Already in px
+            viewSpan.childNode.nativePtr, height  // Already in px
           )
         )
 
@@ -712,9 +748,7 @@ class TextView @JvmOverloads constructor(
     // Push segments to native
     if (node.nativePtr != 0L) {
       NativeHelpers.nativeNodeSetSegments(
-        node.mason.nativePtr,
-        node.nativePtr,
-        segments.toTypedArray()
+        node.mason.nativePtr, node.nativePtr, segments.toTypedArray()
       )
     }
 
@@ -801,10 +835,7 @@ class TextView @JvmOverloads constructor(
   }
 
   private fun applyTextViewStylesToSpan(
-    spannable: SpannableStringBuilder,
-    start: Int,
-    end: Int,
-    textView: TextView
+    spannable: SpannableStringBuilder, start: Int, end: Int, textView: TextView
   ) {
     if (start >= end) return
 
@@ -813,30 +844,21 @@ class TextView @JvmOverloads constructor(
     // Apply color
     if (textView.color != 0) {
       spannable.setSpan(
-        ForegroundColorSpan(textView.color),
-        start,
-        end,
-        flags
+        ForegroundColorSpan(textView.color), start, end, flags
       )
     }
 
     // Apply font size
     if (textView.paint.textSize > 0) {
       spannable.setSpan(
-        AbsoluteSizeSpan(textView.fontSize, true),
-        start,
-        end,
-        flags
+        AbsoluteSizeSpan(textView.fontSize, true), start, end, flags
       )
     }
 
     // Apply typeface
     textView.font.font?.let { typeface ->
       spannable.setSpan(
-        Spans.TypefaceSpan(typeface),
-        start,
-        end,
-        flags
+        Spans.TypefaceSpan(typeface), start, end, flags
       )
     }
 
@@ -858,10 +880,7 @@ class TextView @JvmOverloads constructor(
     // Apply letter spacing
     if (textView.letterSpacing != 0f) {
       spannable.setSpan(
-        android.text.style.ScaleXSpan(1f + textView.letterSpacing),
-        start,
-        end,
-        flags
+        android.text.style.ScaleXSpan(1f + textView.letterSpacing), start, end, flags
       )
     }
   }
@@ -932,19 +951,14 @@ class TextView @JvmOverloads constructor(
 
   // Custom span for inline child views
   private inner class ViewSpan(
-    val childNode: Node,
-    private val viewHelper: ViewHelper
+    val childNode: Node, private val viewHelper: ViewHelper
   ) : ReplacementSpan() {
 
     private var cachedFontMetrics: Paint.FontMetricsInt? = null
     private var cachedBaseline: Int = 0
 
     override fun getSize(
-      paint: Paint,
-      text: CharSequence?,
-      start: Int,
-      end: Int,
-      fm: Paint.FontMetricsInt?
+      paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?
     ): Int {
       val width = if (childNode.cachedWidth > 0) {
         childNode.cachedWidth.toInt()
@@ -1079,12 +1093,12 @@ class TextView @JvmOverloads constructor(
     val style = textView.node.style
     val hasBackground = textView.backgroundColorValue != 0 || textView.background != null
     val border = style.border
-    val hasBorder = border.top.value > 0f || border.right.value > 0f ||
-      border.bottom.value > 0f || border.left.value > 0f
+    val hasBorder =
+      border.top.value > 0f || border.right.value > 0f || border.bottom.value > 0f || border.left.value > 0f
 
     val padding = style.padding
-    val hasPadding = padding.top.value > 0f || padding.right.value > 0f ||
-      padding.bottom.value > 0f || padding.left.value > 0f
+    val hasPadding =
+      padding.top.value > 0f || padding.right.value > 0f || padding.bottom.value > 0f || padding.left.value > 0f
 
     val size = style.size
     val hasExplicitSize = size.width != Dimension.Auto || size.height != Dimension.Auto

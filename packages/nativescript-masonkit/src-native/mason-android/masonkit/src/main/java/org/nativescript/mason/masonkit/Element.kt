@@ -243,7 +243,15 @@ interface Element {
   }
 
   fun addChildAt(text: String, index: Int) {
-    node.addChildAt(TextNode(node.mason, text), index)
+    node.addChildAt(TextNode(node.mason).apply {
+      data = text
+      if (this@Element is TextView) {
+        container = this@Element
+        attributes.clear()
+        // Copy current TextView attributes to the new text node
+        attributes.putAll(getDefaultAttributes())
+      }
+    }, index)
   }
 
   fun addChildAt(element: Element, index: Int) {
@@ -252,6 +260,27 @@ interface Element {
 
   fun addChildAt(node: Node, index: Int) {
     node.addChildAt(node, index)
+  }
+
+
+  fun replaceChildAt(text: String, index: Int) {
+    node.replaceChildAt(TextNode(node.mason).apply {
+      data = text
+      if (this@Element is TextView) {
+        container = this@Element
+        attributes.clear()
+        // Copy current TextView attributes to the new text node
+        attributes.putAll(getDefaultAttributes())
+      }
+    }, index)
+  }
+
+  fun replaceChildAt(element: Element, index: Int) {
+    node.replaceChildAt(element.node, index)
+  }
+
+  fun replaceChildAt(node: Node, index: Int) {
+    node.replaceChildAt(node, index)
   }
 
   fun removeChildAt(index: Int) {

@@ -1,7 +1,7 @@
 // declare const __non_webpack_require__;
 
 import { CoreTypes, Length, returnKeyTypeProperty, Utils } from '@nativescript/core';
-import { style_, ViewBase } from '../common';
+import { isMasonView_, style_, ViewBase } from '../common';
 
 type View = ViewBase & {
   _hasNativeView: boolean;
@@ -239,7 +239,7 @@ export function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPx
 let sharedMason = null;
 function getMasonInstance(instance: View): org.nativescript.mason.masonkit.Node {
   const nativeView = instance?.android;
-  if (instance._isMasonView) {
+  if (instance[isMasonView_]) {
     return nativeView.getNode();
   }
   if (!sharedMason) {
@@ -250,7 +250,7 @@ function getMasonInstance(instance: View): org.nativescript.mason.masonkit.Node 
 
 function getStyleInstance(instance: View): org.nativescript.mason.masonkit.Style {
   const nativeView = instance?.android;
-  if (instance._isMasonView) {
+  if (instance[isMasonView_]) {
     return nativeView.getStyle();
   }
   if (!sharedMason) {
@@ -265,7 +265,7 @@ export function _forceStyleUpdate(instance: View) {
     return;
   }
 
-  if (instance._isMasonView) {
+  if (instance[isMasonView_]) {
   }
 
   //   const nodeOrView = getMasonInstance(instance) as org.nativescript.mason.masonkit.TextView;

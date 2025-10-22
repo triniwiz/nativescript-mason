@@ -22,71 +22,78 @@ internal func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRaw
 }
 
 public protocol MasonElement: NSObjectProtocol {
-   var style: MasonStyle { get }
+  var style: MasonStyle { get }
   
-   var node: MasonNode { get }
+  var node: MasonNode { get }
   
-   var uiView: UIView { get }
+  var uiView: UIView { get }
   
-     func markNodeDirty()
+  func markNodeDirty()
   
-     func isNodeDirty() -> Bool
+  func isNodeDirty() -> Bool
   
-     func configure(_ block: (MasonStyle) -> Void)
+  func configure(_ block: (MasonStyle) -> Void)
   
   @discardableResult    func layout() -> MasonLayout
   
-     func compute()
+  func compute()
   
-     func compute(_ width: Float, _ height: Float)
+  func compute(_ width: Float, _ height: Float)
   
-     func computeMaxContent()
+  func computeMaxContent()
   
-     func computeMinContent()
+  func computeMinContent()
   
-     func computeWithSize(_ width: Float, _ height: Float)
+  func computeWithSize(_ width: Float, _ height: Float)
   
-     func computeWithViewSize()
+  func computeWithViewSize()
   
-     func computeWithViewSize(layout: Bool)
+  func computeWithViewSize(layout: Bool)
   
-     func computeWithMaxContent()
+  func computeWithMaxContent()
   
-     func computeWithMinContent()
+  func computeWithMinContent()
   
-     func attachAndApply()
+  func attachAndApply()
   
-     func requestLayout()
+  func requestLayout()
   
-     func append(_ element: MasonElement)
+  func append(_ element: MasonElement)
   
-     func append(text: String)
+  func append(text: String)
   
-     func append(node: MasonNode)
+  func append(node: MasonNode)
   
-     func append(texts: [String])
+  func append(texts: [String])
   
-     func append(elements: [MasonElement])
+  func append(elements: [MasonElement])
   
-     func append(nodes: [MasonNode])
+  func append(nodes: [MasonNode])
   
-     func prepend(_ element: MasonElement)
+  func prepend(_ element: MasonElement)
   
-     func prepend(string: String)
+  func prepend(string: String)
   
-     func prepend(node: MasonNode)
+  func prepend(node: MasonNode)
   
-     func prepend(strings: [String])
+  func prepend(strings: [String])
   
-     func prepend(elements: [MasonElement])
+  func prepend(elements: [MasonElement])
   
-     func prepend(nodes: [MasonNode])
+  func prepend(nodes: [MasonNode])
   
-     func addChildAt(text: String, _ index: Int)
+  func addChildAt(text: String, _ index: Int)
+  
+  func addChildAt(element: MasonElement, _ index: Int)
+  
+  func addChildAt(node: MasonNode, _ index: Int)
+  
 
-     func addChildAt(element: MasonElement, _ index: Int)
-
-     func addChildAt(node: MasonNode, _ index: Int)
+  func replaceChildAt(text: String, _ index: Int)
+  
+  func replaceChildAt(element: MasonElement, _ index: Int)
+  
+  func replaceChildAt(node: MasonNode, _ index: Int)
 }
 
 
@@ -101,13 +108,25 @@ extension MasonElement {
   public func addChildAt(text: String, _ index: Int) {
     node.addChildAt(MasonTextNode(mason: node.mason, data: text), index)
   }
-
+  
   public func addChildAt(element: MasonElement, _ index: Int) {
     node.addChildAt(element.node, index)
   }
-
+  
   public func addChildAt(node: MasonNode, _ index: Int) {
     node.addChildAt(node, index)
+  }
+  
+  public func replaceChildAt(text: String, _ index: Int) {
+    node.replaceChildAt(MasonTextNode(mason: node.mason, data: text), index)
+  }
+  
+  public func replaceChildAt(element: MasonElement, _ index: Int) {
+    node.replaceChildAt(element.node, index)
+  }
+  
+  public func replaceChildAt(node: MasonNode, _ index: Int) {
+    node.replaceChildAt(node, index)
   }
   
   public var style: MasonStyle {
@@ -527,18 +546,18 @@ class MasonElementHelpers: NSObject {
         }
       }
       
- 
+      
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)
-    
+      
       view.frame = CGRect(origin: point, size: size)
       
       node.isLayoutValid = true
       
       if let scroll = node.view as? Scroll {
         let overflow = node.style.overflow
-      
+        
         
         scroll.contentSize = CGSize(width: CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), height: CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale))
         

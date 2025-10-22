@@ -1,5 +1,5 @@
-import { backgroundColorProperty, Color, colorProperty, CSSType, Utils } from '@nativescript/core';
-import { style_, TextBase, textProperty, textWrapProperty } from '../common';
+import { backgroundColorProperty, Color, colorProperty, CSSType, Utils, ViewBase } from '@nativescript/core';
+import { isMasonView_, isTextChild_, style_, TextBase, textProperty, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 
@@ -42,7 +42,6 @@ const enum TextWrap {
 @CSSType('Text')
 export class Text extends TextBase {
   [style_];
-  _hasNativeView = false;
   _inBatch = false;
   private _view: org.nativescript.mason.masonkit.TextView;
   private _type: TextType;
@@ -92,8 +91,7 @@ export class Text extends TextBase {
         break;
     }
 
-    this._hasNativeView = true;
-    this._isMasonView = true;
+    this[isMasonView_] = true;
     this[style_] = Style.fromView(this as never, this._view, true);
   }
 
@@ -170,14 +168,15 @@ export class Text extends TextBase {
     //console.dir(nativeView);
 
     if (nativeView && child.nativeViewProtected) {
-      child._hasNativeView = true;
-      child._isMasonChild = true;
+      child[isTextChild_] = true;
 
       if ((atIndex ?? -1) <= -1) {
         nativeView.append(child.nativeViewProtected);
       } else {
-        const node = nativeView.getNode();
-        node.addChildAt(child.nativeViewProtected, atIndex);
+        // @ts-ignore
+        nativeView.addView(child.nativeViewProtected, atIndex);
+        // const node = nativeView.getNode();
+        // node.addChildAt(child.nativeViewProtected, atIndex);
       }
 
       // @ts-ignore
@@ -186,5 +185,11 @@ export class Text extends TextBase {
     }
 
     return false;
+  }
+
+  _removeViewFromNativeVisualTree(view: ViewBase): void {
+    view[isTextChild_] = false;
+    // @ts-ignore
+    super._removeViewFromNativeVisualTree(view);
   }
 }

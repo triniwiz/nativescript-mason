@@ -116,6 +116,10 @@ enum TextStyleKeys {
   FONT_STYLE_TYPE = 32,
   FONT_STYLE_SLANT = 36,
   TEXT_WRAP = 40,
+  TEXT_OVERFLOW = 44,
+  DECORATION_STYLE = 48,
+  WHITE_SPACE = 52,
+  FONT_WEIGHT = 56,
 }
 
 export type OverFlow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
@@ -204,12 +208,15 @@ class TextStateKeys {
   static readonly TEXT_ALIGN = new TextStateKeys(1n << 3n);
   static readonly TEXT_JUSTIFY = new TextStateKeys(1n << 4n);
   static readonly BACKGROUND_COLOR = new TextStateKeys(1n << 5n);
-
   static readonly SIZE = new TextStateKeys(1n << 6n);
   static readonly TRANSFORM = new TextStateKeys(1n << 7n);
   static readonly FONT_STYLE = new TextStateKeys(1n << 8n);
   static readonly FONT_STYLE_SLANT = new TextStateKeys(1n << 9n);
   static readonly TEXT_WRAP = new TextStateKeys(1n << 10n);
+  static readonly TEXT_OVERFLOW = new TextStateKeys(1n << 11n);
+  static readonly DECORATION_STYLE = new TextStateKeys(1n << 12n);
+  static readonly WHITE_SPACE = new TextStateKeys(1n << 13n);
+  static readonly FONT_WEIGHT = new TextStateKeys(1n << 14n);
 
   or(other: TextStateKeys): TextStateKeys {
     return new TextStateKeys(this.bits | other.bits);
@@ -321,7 +328,6 @@ export class Style {
   }
 
   private syncStyle(isText = false) {
-    //  console.time('syncStyle');
     if (__ANDROID__) {
       if (!isText) {
         const view = this.view.android as org.nativescript.mason.masonkit.View;
@@ -333,18 +339,15 @@ export class Style {
     } else if (__APPLE__) {
       if (!isText) {
         const view = this.view.ios as MasonUIView;
-        // todo
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         view.syncStyle(this.isDirty.toString());
       } else {
         const view = this.view.ios as never as MasonText;
-        console.log('Syncing text style:', this.isDirty.toString(), this.isTextDirty.toString());
         view.syncStyleTextState(this.isDirty.toString(), this.isTextDirty.toString());
       }
     }
     this.resetState();
-    //   console.timeEnd('syncStyle');
   }
 
   private setOrAppendState(value: StateKeys) {
@@ -364,7 +367,7 @@ export class Style {
     } else {
       this.isTextDirty = this.isTextDirty | value.bits;
     }
-    console.log('Text style marked dirty:', value === TextStateKeys.COLOR, this.isTextDirty.toString(), !this.inBatch);
+
     if (!this.inBatch) {
       this.syncStyle(this.text_style_view != null);
     }
@@ -404,6 +407,124 @@ export class Style {
     if (boxSizing !== -1) {
       setUint32(this.style_view, StyleKeys.BOX_SIZING, boxSizing);
       this.setOrAppendState(StateKeys.BOX_SIZING);
+    }
+  }
+
+  get fontSize() {
+    if (!this.text_style_view) {
+      // BLACK ?
+      return 16;
+    }
+
+    return getFloat32(this.text_style_view, TextStyleKeys.SIZE);
+  }
+
+  set fontSize(value: number) {
+    if (!this.text_style_view) {
+      return;
+    }
+    setFloat32(this.text_style_view, TextStyleKeys.SIZE, value);
+    this.setOrAppendTextState(TextStateKeys.SIZE);
+  }
+
+  get fontStyle() {
+    if (!this.text_style_view) {
+      // normal ?
+      return 'normal';
+    }
+    switch (getInt32(this.text_style_view, TextStyleKeys.FONT_STYLE_TYPE)) {
+      case 0:
+        return 'normal';
+      case 1:
+        return 'italic';
+      case 2:
+        return 'oblique';
+      default:
+        return 'normal';
+    }
+  }
+
+  set fontStyle(value: 'normal' | 'italic' | 'oblique' | `oblique ${number}deg`) {
+    if (!this.text_style_view) {
+      return;
+    }
+    let style = -1;
+
+    switch (value) {
+      case 'normal':
+        style = 0;
+        break;
+      case 'italic':
+        style = 1;
+        break;
+      case 'oblique':
+        style = 2;
+        break;
+    }
+    if (style !== -1) {
+      setInt32(this.text_style_view, TextStyleKeys.FONT_STYLE_TYPE, style);
+      this.setOrAppendTextState(TextStateKeys.FONT_STYLE);
+    }
+  }
+
+  get fontWeight() {
+    if (!this.text_style_view) {
+      // BLACK ?
+      return 400;
+    }
+
+    return getInt32(this.text_style_view, TextStyleKeys.FONT_WEIGHT);
+  }
+
+  set fontWeight(value: '100' | '200' | '300' | 'normal' | '400' | '500' | '600' | 'bold' | '700' | '800' | '900' | number) {
+    if (!this.text_style_view) {
+      return;
+    }
+    let weight = -1;
+    switch (value) {
+      case '100':
+        weight = 100;
+        break;
+      case '200':
+        weight = 200;
+        break;
+      case '300':
+        weight = 300;
+        break;
+      case 'normal':
+        weight = 400;
+        break;
+      case '400':
+        weight = 400;
+        break;
+      case '500':
+        weight = 500;
+        break;
+      case '600':
+        weight = 600;
+        break;
+      case 'bold':
+        weight = 700;
+        break;
+      case '700':
+        weight = 700;
+        break;
+      case '800':
+        weight = 800;
+        break;
+      case '900':
+        weight = 900;
+        break;
+      default:
+        if (typeof value === 'number' && value >= 100 && value <= 1000) {
+          weight = value;
+        }
+        break;
+    }
+    if (weight !== -1) {
+      console.log('Setting font weight to', TextStyleKeys.FONT_WEIGHT, this.text_style_view.byteLength, weight);
+      setInt32(this.text_style_view, TextStyleKeys.FONT_WEIGHT, weight);
+      this.setOrAppendTextState(TextStateKeys.FONT_WEIGHT);
     }
   }
 

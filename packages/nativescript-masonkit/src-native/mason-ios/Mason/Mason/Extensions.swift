@@ -205,6 +205,19 @@ func addChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
 }
 
 
+func replaceChildAt<T: MasonElement>(_ element: T, text: String, index: Int) {
+    element.replaceChildAt(text: text, index)
+}
+
+func replaceChildAt<T: MasonElement>(_ element: T, child: MasonElement, index: Int) {
+    element.replaceChildAt(element: child, index)
+}
+
+func replaceChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
+    element.replaceChildAt(node: node, index)
+}
+
+
 @objc extension NSObject {
   
   @objc public func mason_addView(_ view: UIView){
@@ -392,4 +405,22 @@ func addChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
     guard let parent = self as? MasonElement else { return }
     addChildAt(parent, node: node, index: index)
   }
+  
+  
+  
+  @objc public func mason_replaceChildAt(text: String, _ index: Int){
+     guard let parent = self as? MasonElement else { return }
+     replaceChildAt(parent, text: text, index: index)
+   }
+
+  @objc public func mason_replaceChildAt(element: MasonElementObjc, _ index: Int){
+     guard let parent = self as? MasonElement else { return }
+     guard let element = element as? MasonElement else { return }
+     parent.replaceChildAt(element: element, index)
+   }
+
+  @objc public func mason_replaceChildAt(node: MasonNode, _ index: Int){
+     guard let parent = self as? MasonElement else { return }
+     replaceChildAt(parent, node: node, index: index)
+   }
 }

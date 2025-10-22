@@ -41,9 +41,10 @@ class TextActivity : AppCompatActivity() {
 
     enableEdgeToEdge()
 
+    basicInline()
     //basicNesting()
     // testText()
-    textWithImage()
+    //textWithImage()
     // basicBlock()
     //  testWrap()
     //testElements()
@@ -294,6 +295,9 @@ class TextActivity : AppCompatActivity() {
     body.addView(a)
     body.addView(b)
     body.addView(c)
+
+
+    a.replaceChildAt("This should be a replaced text", 0)
     //setContentView(root)
   }
 

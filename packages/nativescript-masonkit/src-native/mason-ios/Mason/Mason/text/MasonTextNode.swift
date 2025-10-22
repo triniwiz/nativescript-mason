@@ -58,7 +58,12 @@ public class MasonTextNode: MasonNode, MasonCharacterData {
   // is always the attached container parent
   public internal(set) override var parent: MasonNode? {
     get {
-      return container?.node.parent
+      if let container = container {
+        if(container.node.isAnonymous){
+          return container.node.parent
+        }
+      }
+      return container?.node
     }
     set {}
   }

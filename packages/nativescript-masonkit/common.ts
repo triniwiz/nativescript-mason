@@ -1,23 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing } from '.';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows, GridTemplates } from './utils';
 import { Style as MasonStyle } from './style';
 export const native_ = Symbol('[[native]]');
 export const style_ = Symbol('[[style]]');
+export const isTextChild_ = Symbol('[[isTextChild]]');
+export const isText_ = Symbol('[[isText]]');
+export const isMasonView_ = Symbol('[[isMasonView]]');
 
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
   const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
   return ret._styleHelper as MasonStyle;
 }
 
-export interface MasonChild extends ViewBase {
-  _isMasonChild: boolean;
-  _masonParent: ViewBase;
-  _hasNativeView: boolean;
-}
+export interface MasonChild extends ViewBase {}
 
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',
@@ -1107,8 +1106,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   border: Length;
 
   _children: any[] = [];
-  _isMasonView = false;
-  _isMasonChild = false;
+  [isMasonView_] = false;
+
+  [isTextChild_] = false;
+  [isText_] = false;
 
   constructor() {
     super();
@@ -1176,13 +1177,23 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   addChild(child: any) {
-    this._children.push(child);
-    this._addView(child);
+    if (child instanceof NSView) {
+      this._children.push(child);
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+      this._addView(child);
+    }
   }
 
   insertChild(child: any, atIndex: number) {
-    this._children.splice(atIndex, 0, child);
-    this._addView(child, atIndex);
+    if (child instanceof NSView) {
+      this._children.splice(atIndex, 0, child);
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+      this._addView(child, atIndex);
+    }
   }
 
   removeChild(child: any) {
@@ -1476,6 +1487,30 @@ export class TextBase extends ViewBase {
 
   constructor() {
     super();
+  }
+
+  [fontSizeProperty.setNative](value: Length) {
+    // @ts-ignore
+    if (this._styleHelper) {
+      //@ts-ignore
+      this._styleHelper.fontSize = value;
+    }
+  }
+
+  [fontWeightProperty.setNative](value: string) {
+    // @ts-ignore
+    if (this._styleHelper) {
+      //@ts-ignore
+      this._styleHelper.fontWeight = value;
+    }
+  }
+
+  [fontStyleProperty.setNative](value: string) {
+    // @ts-ignore
+    if (this._styleHelper) {
+      //@ts-ignore
+      this._styleHelper.fontStyle = value;
+    }
   }
 }
 

@@ -9261,6 +9261,105 @@
           },
           {
             "kind": "Function",
+            "name": "replaceChildAt",
+            "printedName": "replaceChildAt(text:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:5Mason0A7ElementP14replaceChildAt4text_ySS_SitF",
+            "mangledName": "$s5Mason0A7ElementP14replaceChildAt4text_ySS_SitF",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0 where τ_0_0 : Mason.MasonElement>",
+            "sugared_genericSig": "<Self where Self : Mason.MasonElement>",
+            "protocolReq": true,
+            "reqNewWitnessTableEntry": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "replaceChildAt",
+            "printedName": "replaceChildAt(element:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "MasonElement",
+                "printedName": "any Mason.MasonElement",
+                "usr": "s:5Mason0A7ElementP"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:5Mason0A7ElementP14replaceChildAt7element_yAaB_p_SitF",
+            "mangledName": "$s5Mason0A7ElementP14replaceChildAt7element_yAaB_p_SitF",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0 where τ_0_0 : Mason.MasonElement>",
+            "sugared_genericSig": "<Self where Self : Mason.MasonElement>",
+            "protocolReq": true,
+            "reqNewWitnessTableEntry": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "replaceChildAt",
+            "printedName": "replaceChildAt(node:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "MasonNode",
+                "printedName": "Mason.MasonNode",
+                "usr": "c:@M@Mason@objc(cs)MasonNode"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:5Mason0A7ElementP14replaceChildAt4node_yAA0A4NodeC_SitF",
+            "mangledName": "$s5Mason0A7ElementP14replaceChildAt4node_yAA0A4NodeC_SitF",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0 where τ_0_0 : Mason.MasonElement>",
+            "sugared_genericSig": "<Self where Self : Mason.MasonElement>",
+            "protocolReq": true,
+            "reqNewWitnessTableEntry": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "addChildAt",
             "printedName": "addChildAt(text:_:)",
             "children": [
@@ -9351,6 +9450,105 @@
             "declKind": "Func",
             "usr": "s:5Mason0A7ElementPAAE10addChildAt4node_yAA0A4NodeC_SitF",
             "mangledName": "$s5Mason0A7ElementPAAE10addChildAt4node_yAA0A4NodeC_SitF",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0 where τ_0_0 : Mason.MasonElement>",
+            "sugared_genericSig": "<Self where Self : Mason.MasonElement>",
+            "declAttributes": ["AccessControl"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "replaceChildAt",
+            "printedName": "replaceChildAt(text:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:5Mason0A7ElementPAAE14replaceChildAt4text_ySS_SitF",
+            "mangledName": "$s5Mason0A7ElementPAAE14replaceChildAt4text_ySS_SitF",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0 where τ_0_0 : Mason.MasonElement>",
+            "sugared_genericSig": "<Self where Self : Mason.MasonElement>",
+            "declAttributes": ["AccessControl"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "replaceChildAt",
+            "printedName": "replaceChildAt(element:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "MasonElement",
+                "printedName": "any Mason.MasonElement",
+                "usr": "s:5Mason0A7ElementP"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:5Mason0A7ElementPAAE14replaceChildAt7element_yAaB_p_SitF",
+            "mangledName": "$s5Mason0A7ElementPAAE14replaceChildAt7element_yAaB_p_SitF",
+            "moduleName": "Mason",
+            "genericSig": "<τ_0_0 where τ_0_0 : Mason.MasonElement>",
+            "sugared_genericSig": "<Self where Self : Mason.MasonElement>",
+            "declAttributes": ["AccessControl"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "replaceChildAt",
+            "printedName": "replaceChildAt(node:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "MasonNode",
+                "printedName": "Mason.MasonNode",
+                "usr": "c:@M@Mason@objc(cs)MasonNode"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:5Mason0A7ElementPAAE14replaceChildAt4node_yAA0A4NodeC_SitF",
+            "mangledName": "$s5Mason0A7ElementPAAE14replaceChildAt4node_yAA0A4NodeC_SitF",
             "moduleName": "Mason",
             "genericSig": "<τ_0_0 where τ_0_0 : Mason.MasonElement>",
             "sugared_genericSig": "<Self where Self : Mason.MasonElement>",
@@ -30517,6 +30715,26 @@
           },
           {
             "kind": "Function",
+            "name": "setNeedsDisplay",
+            "printedName": "setNeedsDisplay()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@M@Mason@objc(cs)MasonText(im)setNeedsDisplay",
+            "mangledName": "$s5Mason0A4TextC15setNeedsDisplayyyF",
+            "moduleName": "Mason",
+            "overriding": true,
+            "objc_name": "setNeedsDisplay",
+            "declAttributes": ["Dynamic", "ObjC", "Preconcurrency", "Custom", "Override", "AccessControl"],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
             "name": "requestLayout",
             "printedName": "requestLayout()",
             "children": [
@@ -31671,37 +31889,6 @@
             "mangledName": "$s5Mason0A4TextC11removeChildyAA0A4NodeCSgAFF",
             "moduleName": "Mason",
             "declAttributes": ["Dynamic", "Preconcurrency", "Custom", "AccessControl", "DiscardableResult", "RawDocComment", "ObjC"],
-            "isFromExtension": true,
-            "funcSelfKind": "NonMutating"
-          },
-          {
-            "kind": "Function",
-            "name": "insertChild",
-            "printedName": "insertChild(_:at:)",
-            "children": [
-              {
-                "kind": "TypeNominal",
-                "name": "Void",
-                "printedName": "()"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "MasonNode",
-                "printedName": "Mason.MasonNode",
-                "usr": "c:@M@Mason@objc(cs)MasonNode"
-              },
-              {
-                "kind": "TypeNominal",
-                "name": "Int",
-                "printedName": "Swift.Int",
-                "usr": "s:Si"
-              }
-            ],
-            "declKind": "Func",
-            "usr": "c:@CM@Mason@objc(cs)MasonText(im)insertChild:at:",
-            "mangledName": "$s5Mason0A4TextC11insertChild_2atyAA0A4NodeC_SitF",
-            "moduleName": "Mason",
-            "declAttributes": ["Dynamic", "Preconcurrency", "Custom", "AccessControl", "RawDocComment", "ObjC"],
             "isFromExtension": true,
             "funcSelfKind": "NonMutating"
           },
@@ -50026,6 +50213,102 @@
             "declAttributes": ["Dynamic", "AccessControl", "ObjC"],
             "isFromExtension": true,
             "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "mason_replaceChildAt",
+            "printedName": "mason_replaceChildAt(text:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@Mason@@objc(cs)NSObject(im)mason_replaceChildAtText::",
+            "mangledName": "$sSo8NSObjectC5MasonE20mason_replaceChildAt4text_ySS_SitF",
+            "moduleName": "Mason",
+            "objc_name": "mason_replaceChildAtText::",
+            "declAttributes": ["Dynamic", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "mason_replaceChildAt",
+            "printedName": "mason_replaceChildAt(element:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "MasonElementObjc",
+                "printedName": "any Mason.MasonElementObjc",
+                "usr": "c:@M@Mason@objc(pl)MasonElementObjc"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@Mason@@objc(cs)NSObject(im)mason_replaceChildAtElement::",
+            "mangledName": "$sSo8NSObjectC5MasonE20mason_replaceChildAt7element_yAC0B11ElementObjc_p_SitF",
+            "moduleName": "Mason",
+            "objc_name": "mason_replaceChildAtElement::",
+            "declAttributes": ["Dynamic", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "mason_replaceChildAt",
+            "printedName": "mason_replaceChildAt(node:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "MasonNode",
+                "printedName": "Mason.MasonNode",
+                "usr": "c:@M@Mason@objc(cs)MasonNode"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "c:@CM@Mason@@objc(cs)NSObject(im)mason_replaceChildAtNode::",
+            "mangledName": "$sSo8NSObjectC5MasonE20mason_replaceChildAt4node_yAC0B4NodeC_SitF",
+            "moduleName": "Mason",
+            "objc_name": "mason_replaceChildAtNode::",
+            "declAttributes": ["Dynamic", "AccessControl", "ObjC"],
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
           }
         ],
         "declKind": "Class",
@@ -50466,21 +50749,21 @@
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "IntegerLiteral",
-      "offset": 1995,
+      "offset": 2081,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "IntegerLiteral",
-      "offset": 2030,
+      "offset": 2116,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "BooleanLiteral",
-      "offset": 15633,
+      "offset": 16101,
       "length": 5,
       "value": "false"
     },
@@ -52713,142 +52996,142 @@
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 2885,
+      "offset": 2887,
       "length": 2,
       "value": "44"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 2917,
+      "offset": 2922,
       "length": 2,
       "value": "48"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3099,
+      "offset": 2952,
+      "length": 2,
+      "value": "52"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "IntegerLiteral",
+      "offset": 2982,
+      "length": 2,
+      "value": "56"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "IntegerLiteral",
+      "offset": 3164,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3104,
+      "offset": 3169,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3168,
+      "offset": 3233,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3173,
+      "offset": 3238,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3237,
+      "offset": 3302,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3242,
+      "offset": 3307,
       "length": 1,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3296,
+      "offset": 3361,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3301,
+      "offset": 3366,
       "length": 1,
       "value": "3"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3362,
+      "offset": 3427,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3367,
+      "offset": 3432,
       "length": 1,
       "value": "4"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3431,
+      "offset": 3496,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3436,
+      "offset": 3501,
       "length": 1,
       "value": "5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3489,
+      "offset": 3554,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3494,
+      "offset": 3559,
       "length": 1,
       "value": "6"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3551,
+      "offset": 3616,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3556,
+      "offset": 3621,
       "length": 1,
       "value": "7"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
-      "kind": "IntegerLiteral",
-      "offset": 3614,
-      "length": 1,
-      "value": "1"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
-      "kind": "IntegerLiteral",
-      "offset": 3619,
-      "length": 1,
-      "value": "8"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
@@ -52862,208 +53145,243 @@
       "kind": "IntegerLiteral",
       "offset": 3684,
       "length": 1,
-      "value": "9"
+      "value": "8"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3738,
+      "offset": 3744,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3743,
+      "offset": 3749,
+      "length": 1,
+      "value": "9"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "IntegerLiteral",
+      "offset": 3803,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "IntegerLiteral",
+      "offset": 3808,
       "length": 2,
       "value": "10"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3800,
+      "offset": 3867,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3805,
+      "offset": 3872,
       "length": 2,
       "value": "11"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3864,
+      "offset": 3936,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3869,
+      "offset": 3941,
       "length": 2,
       "value": "12"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "IntegerLiteral",
+      "offset": 3998,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "IntegerLiteral",
+      "offset": 4003,
+      "length": 2,
+      "value": "13"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "IntegerLiteral",
+      "offset": 4062,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "IntegerLiteral",
+      "offset": 4067,
+      "length": 2,
+      "value": "14"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "StringLiteral",
-      "offset": 3899,
+      "offset": 4098,
       "length": 22,
       "value": "\"[[view_placeholder]]\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 3947,
+      "offset": 4146,
       "length": 10,
       "value": "0xDEADBEEF"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4076,
+      "offset": 4275,
       "length": 1,
       "value": "1"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4085,
+      "offset": 4284,
       "length": 4,
       "value": "2"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4097,
+      "offset": 4296,
       "length": 4,
       "value": "3"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4109,
+      "offset": 4308,
       "length": 2,
       "value": "4"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4119,
+      "offset": 4318,
       "length": 2,
       "value": "5"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4129,
+      "offset": 4328,
       "length": 2,
       "value": "6"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4139,
+      "offset": 4338,
       "length": 2,
       "value": "7"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4149,
+      "offset": 4348,
       "length": 2,
       "value": "8"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4159,
+      "offset": 4358,
       "length": 2,
       "value": "9"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4169,
+      "offset": 4368,
       "length": 2,
       "value": "10"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4179,
+      "offset": 4378,
       "length": 10,
       "value": "11"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4197,
+      "offset": 4396,
       "length": 1,
       "value": "12"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 4206,
+      "offset": 4405,
       "length": 3,
       "value": "13"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
-      "kind": "BooleanLiteral",
-      "offset": 6277,
-      "length": 5,
-      "value": "false"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "StringLiteral",
-      "offset": 6437,
+      "offset": 6722,
       "length": 7,
       "value": "\"serif\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "StringLiteral",
-      "offset": 6718,
+      "offset": 7003,
       "length": 8,
       "value": "\"normal\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "BooleanLiteral",
-      "offset": 30201,
+      "offset": 33107,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "IntegerLiteral",
-      "offset": 30311,
+      "offset": 33371,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
+      "kind": "IntegerLiteral",
+      "offset": 33420,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "BooleanLiteral",
-      "offset": 30377,
+      "offset": 33486,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
-      "kind": "IntegerLiteral",
-      "offset": 43449,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/text\/MasonText.swift",
       "kind": "BooleanLiteral",
-      "offset": 43907,
+      "offset": 46978,
       "length": 4,
       "value": "true"
     },

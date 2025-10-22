@@ -12,7 +12,8 @@ object TextStyleKeys {
   const val FONT_STYLE_TYPE = 32
   const val FONT_STYLE_SLANT = 36
   const val TEXT_WRAP = 40
-  const val WHITE_SPACE = 40
   const val TEXT_OVERFLOW = 44
   const val DECORATION_STYLE = 48
+  const val WHITE_SPACE = 52
+  const val FONT_WEIGHT = 56
 }

@@ -418,24 +418,21 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
   
   func testInlineStyleChange() {
-    let txt = NSCMason.shared.createTextView(type: .B)
-      txt.fontSize = 24
+    let txt = NSCMason.shared.createTextView()
       //txt.backgroundColorValue = UIColor.green.toUInt32()
       txt.color = UIColor.red.toUInt32()
-      txt.fontWeight = "bold"
-      txt.fontStyle = .Italic
       txt.append(text: "First")
 
-//      let txt2 = NSCMason.shared.createTextView()
-//      txt2.backgroundColorValue = UIColor.yellow.toUInt32()
-//      txt2.append(text: " Second")
+      let txt2 = NSCMason.shared.createTextView()
+      txt2.backgroundColorValue = UIColor.yellow.toUInt32()
+      txt2.append(text: " Second")
 
-     // txt.append(txt2)
+      txt.append(txt2)
 
-//      let txt3 = NSCMason.shared.createTextView()
-//      txt3.append(text: " Third")
+      let txt3 = NSCMason.shared.createTextView()
+      txt3.append(text: " Third")
 
-     // txt.append(txt3)
+      txt.append(txt3)
     
 //    let checkmark = NSCMason.shared.createImageView()
 //    checkmark.image = UIImage.checkmark
@@ -450,12 +447,12 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
       DispatchQueue.main.async {
-//        txt2.color = UIColor.blue.toUInt32()
-//        txt2.fontSize = 40
-  //      txt2.fontWeight = "bold"
-        txt.fontWeight = "bold"
-        //txt3.decorationLine = .Underline
-       // txt3.color = UIColor.purple.toUInt32()
+        //txt.fontSize = 24
+       // txt2.fontSize = 40
+        txt2.fontWeight = "semibold"
+        txt3.decorationLine = .Underline
+        txt3.color = UIColor.purple.toUInt32()
+        txt.replaceChildAt(text: "??????", 1)
       }
     }
     

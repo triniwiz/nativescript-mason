@@ -861,6 +861,7 @@ SWIFT_CLASS_NAMED("MasonText")
 @property (nonatomic, strong) MasonTextOverflowCompat * _Nonnull textOverflowCompat;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
+- (void)setNeedsDisplay;
 - (void)requestLayout;
 - (void)syncStyle:(NSString * _Nonnull)state textState:(NSString * _Nonnull)textState;
 - (void)addView:(UIView * _Nonnull)view;
@@ -902,8 +903,6 @@ SWIFT_CLASS_NAMED("MasonText")
 @interface MasonText (SWIFT_EXTENSION(Mason))
 /// Remove child from text container
 - (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
-/// Insert child at specific index
-- (void)insertChild:(MasonNode * _Nonnull)child at:(NSInteger)index;
 @end
 
 SWIFT_CLASS_NAMED("MasonTextNode")
@@ -1270,6 +1269,9 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (void)mason_addChildAtText:(NSString * _Nonnull)text :(NSInteger)index;
 - (void)mason_addChildAtElement:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
 - (void)mason_addChildAtNode:(MasonNode * _Nonnull)node :(NSInteger)index;
+- (void)mason_replaceChildAtText:(NSString * _Nonnull)text :(NSInteger)index;
+- (void)mason_replaceChildAtElement:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
+- (void)mason_replaceChildAtNode:(MasonNode * _Nonnull)node :(NSInteger)index;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonOverflow, "Overflow", open) {
@@ -2265,6 +2267,7 @@ SWIFT_CLASS_NAMED("MasonText")
 @property (nonatomic, strong) MasonTextOverflowCompat * _Nonnull textOverflowCompat;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
+- (void)setNeedsDisplay;
 - (void)requestLayout;
 - (void)syncStyle:(NSString * _Nonnull)state textState:(NSString * _Nonnull)textState;
 - (void)addView:(UIView * _Nonnull)view;
@@ -2306,8 +2309,6 @@ SWIFT_CLASS_NAMED("MasonText")
 @interface MasonText (SWIFT_EXTENSION(Mason))
 /// Remove child from text container
 - (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
-/// Insert child at specific index
-- (void)insertChild:(MasonNode * _Nonnull)child at:(NSInteger)index;
 @end
 
 SWIFT_CLASS_NAMED("MasonTextNode")
@@ -2674,6 +2675,9 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (void)mason_addChildAtText:(NSString * _Nonnull)text :(NSInteger)index;
 - (void)mason_addChildAtElement:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
 - (void)mason_addChildAtNode:(MasonNode * _Nonnull)node :(NSInteger)index;
+- (void)mason_replaceChildAtText:(NSString * _Nonnull)text :(NSInteger)index;
+- (void)mason_replaceChildAtElement:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
+- (void)mason_replaceChildAtNode:(MasonNode * _Nonnull)node :(NSInteger)index;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonOverflow, "Overflow", open) {

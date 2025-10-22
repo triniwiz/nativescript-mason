@@ -331,11 +331,17 @@ public protocol MasonElement : ObjectiveC.NSObjectProtocol {
   func addChildAt(text: Swift.String, _ index: Swift.Int)
   func addChildAt(element: any Mason.MasonElement, _ index: Swift.Int)
   func addChildAt(node: Mason.MasonNode, _ index: Swift.Int)
+  func replaceChildAt(text: Swift.String, _ index: Swift.Int)
+  func replaceChildAt(element: any Mason.MasonElement, _ index: Swift.Int)
+  func replaceChildAt(node: Mason.MasonNode, _ index: Swift.Int)
 }
 extension Mason.MasonElement {
   public func addChildAt(text: Swift.String, _ index: Swift.Int)
   public func addChildAt(element: any Mason.MasonElement, _ index: Swift.Int)
   public func addChildAt(node: Mason.MasonNode, _ index: Swift.Int)
+  public func replaceChildAt(text: Swift.String, _ index: Swift.Int)
+  public func replaceChildAt(element: any Mason.MasonElement, _ index: Swift.Int)
+  public func replaceChildAt(node: Mason.MasonNode, _ index: Swift.Int)
   public var style: Mason.MasonStyle {
     get
   }
@@ -1027,6 +1033,9 @@ extension UIKit.UIColor {
   @objc dynamic public func mason_addChildAt(text: Swift.String, _ index: Swift.Int)
   @objc dynamic public func mason_addChildAt(element: any Mason.MasonElementObjc, _ index: Swift.Int)
   @objc dynamic public func mason_addChildAt(node: Mason.MasonNode, _ index: Swift.Int)
+  @objc dynamic public func mason_replaceChildAt(text: Swift.String, _ index: Swift.Int)
+  @objc dynamic public func mason_replaceChildAt(element: any Mason.MasonElementObjc, _ index: Swift.Int)
+  @objc dynamic public func mason_replaceChildAt(node: Mason.MasonNode, _ index: Swift.Int)
 }
 @objc(MasonLoadingState) public enum LoadingState : Swift.Int, Swift.RawRepresentable {
   case Loading
@@ -1159,6 +1168,7 @@ public enum InlineSegmentPayload {
   }
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason, type textType: Mason.MasonTextType)
   @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func setNeedsDisplay()
   @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
   @objc @_Concurrency.MainActor @preconcurrency public func syncStyle(_ state: Swift.String, textState: Swift.String)
   @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
@@ -1217,7 +1227,6 @@ extension Mason.MasonText {
 extension Mason.MasonText {
   @objc @discardableResult
   @_Concurrency.MainActor @preconcurrency dynamic public func removeChild(_ child: Mason.MasonNode) -> Mason.MasonNode?
-  @objc @_Concurrency.MainActor @preconcurrency dynamic public func insertChild(_ child: Mason.MasonNode, at index: Swift.Int)
 }
 extension Mason.MasonText {
   @objc @_Concurrency.MainActor @preconcurrency dynamic public func addChild(_ child: Mason.MasonNode)

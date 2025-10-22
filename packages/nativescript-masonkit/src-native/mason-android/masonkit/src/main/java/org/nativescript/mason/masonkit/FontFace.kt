@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Typeface
 import android.os.Build
 import android.util.Log
+import androidx.core.net.toUri
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -13,7 +14,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.regex.Matcher
 import java.util.regex.Pattern
-import androidx.core.net.toUri
 
 val FONT_FAMILY_PATTERN = Regex("font-family:\\s*'([^']+)';")
 val FONT_STYLE_PATTERN =
@@ -145,8 +145,8 @@ class FontFace {
 
   private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
-  class NSCFontStyle private constructor(private val style: Style) {
-    internal enum class Style(val value: Int) {
+  class NSCFontStyle private constructor(internal val style: Style) {
+    internal enum class Style(internal val value: Int) {
       Normal(0),
       Italic(1),
       Oblique(2)
@@ -220,11 +220,31 @@ class FontFace {
     Black(900);
 
     val isBold: Boolean
-      get() = weight >= 700
+      get() = weight >= 600
     val raw: Int
       get() {
         return weight
       }
+
+    internal fun getStyle(isItalic: Boolean = false): Int {
+      return when (weight) {
+        in 100..599 -> {
+          if (isItalic) {
+            Typeface.ITALIC
+          } else {
+            Typeface.NORMAL
+          }
+        }
+
+        else -> {
+          if (isItalic) {
+            Typeface.BOLD_ITALIC
+          } else {
+            Typeface.BOLD
+          }
+        }
+      }
+    }
 
 
     companion object {
@@ -429,12 +449,53 @@ class FontFace {
       return fontDescriptors.weight
     }
     set(value) {
-      fontDescriptors.weight = value
+      val old = weight
+      if (value != old) {
+        fontDescriptors.weight = value
+        updateFontWeight(old)
+      }
+
     }
 
+  internal fun updateFontWeight(previous: NSCFontWeight) {
+    if (fontDescriptors.weight != previous) {
+      font?.let {
+        font = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+          Typeface.create(it, fontDescriptors.weight.weight, fontDescriptors.weight.isBold)
+        } else {
+          Typeface.create(
+            it,
+            fontDescriptors.weight.getStyle(fontDescriptors.style == NSCFontStyle.Italic)
+          )
+        }
+      }
+    }
+  }
+
   fun setFontWeight(value: String): FontFace {
+    val old = weight
     fontDescriptors.setFontWeight(value)
+    updateFontWeight(old)
     return this
+  }
+
+  internal fun updateFontStyle(previous: NSCFontStyle) {
+    if (fontDescriptors.style != previous) {
+      font?.let {
+        font = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+          Typeface.create(
+            it,
+            fontDescriptors.weight.weight,
+            fontDescriptors.style == NSCFontStyle.Italic,
+          )
+        } else {
+          Typeface.create(
+            it,
+            fontDescriptors.weight.getStyle(fontDescriptors.style == NSCFontStyle.Italic)
+          )
+        }
+      }
+    }
   }
 
   var style: NSCFontStyle
@@ -442,11 +503,15 @@ class FontFace {
       return fontDescriptors.style
     }
     set(value) {
+      val old = style
       fontDescriptors.style = value
+      updateFontStyle(old)
     }
 
   fun setFontStyle(value: String): FontFace {
+    val old = style
     fontDescriptors.setFontStyle(value)
+    updateFontStyle(old)
     return this
   }
 
@@ -557,7 +622,7 @@ class FontFace {
       "math" -> {
         val font = try {
           getMathFont(fontDescriptors.weight.weight)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
           Log.w("JS", "Failed to get $fontFamily font falling back to the system default")
           Typeface.DEFAULT
         }
@@ -571,7 +636,7 @@ class FontFace {
         if (fontData == null && localOrRemoteSource == null) {
           val family = genericFontFamilies[fontFamily]
           if (family != null) {
-            val style = if (fontDescriptors.weight.weight >= 600) {
+            val style = if (fontDescriptors.weight.isBold) {
               if (fontDescriptors.style == NSCFontStyle.Italic) {
                 Typeface.BOLD_ITALIC
               } else {

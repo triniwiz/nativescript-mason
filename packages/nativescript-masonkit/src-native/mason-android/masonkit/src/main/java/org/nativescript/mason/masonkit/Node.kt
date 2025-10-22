@@ -383,6 +383,59 @@ open class Node internal constructor(
     appendChild(child)
   }
 
+  fun replaceChildAt(child: Node, index: Int) {
+    if (index <= -1) {
+      return
+    }
+
+    val authorNodes = getChildren()
+
+    if (child.parent === this) {
+      val currentIndex = authorNodes.indexOf(child)
+      // todo handle replacement in parent
+      if (currentIndex > -1) {
+        return
+      }
+    }
+
+    when (child.type) {
+      NodeType.Element -> replaceNodeAt(child, index, authorNodes)
+      NodeType.Text -> replaceNodeAt(child, index, authorNodes)
+      NodeType.Document -> {} // noop
+    }
+
+    if (!style.inBatch) {
+      (view as? Element)?.invalidateLayout()
+    }
+  }
+
+  private fun replaceNodeAt(child: Node, index: Int, nodes: List<Node>? = null) {
+    if (index < 0) {
+      return
+    }
+    val authorNodes = nodes ?: getChildren()
+
+    // If index out of range, append
+    if (index >= authorNodes.size) {
+      appendChild(child)
+      return
+    }
+
+    val element = authorNodes.getOrNull(index)
+
+    // No-op if same
+    if (element == child) {
+      return
+    }
+
+    if (element != null) {
+      // Remove the existing author-level node. This handles anonymous containers/text nodes.
+      element.parent?.removeChild(element)
+      addChildAt(child, index)
+
+    }
+  }
+
   fun addChildAt(child: Node, index: Int) {
     // Handle -1 as append
     if (index <= -1) {
@@ -537,6 +590,11 @@ open class Node internal constructor(
     // Find the text container holding this text node
     for (containerNode in children) {
       if (!containerNode.isAnonymous || containerNode.view !is TextView) {
+        if (child == containerNode) {
+          children.remove(child)
+          (child as? TextNode)?.container = null
+          return child
+        }
         continue
       }
 

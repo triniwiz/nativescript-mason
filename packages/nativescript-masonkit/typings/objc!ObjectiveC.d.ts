@@ -637,7 +637,7 @@ declare class NSObject implements NSObjectProtocol {
 
 	isMemberOfClass(aClass: typeof NSObject): boolean;
 
-	mason_addChildAtElement(element: MasonElement, index: number): void;
+	mason_addChildAtElement(element: MasonElementObjc, index: number): void;
 
 	mason_addChildAtNode(node: MasonNode, index: number): void;
 
@@ -647,9 +647,9 @@ declare class NSObject implements NSObjectProtocol {
 
 	mason_addViewAt(view: UIView, at: number): void;
 
-	mason_append(element: MasonElement): void;
+	mason_append(element: MasonElementObjc): void;
 
-	mason_appendWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
+	mason_appendWithElements(elements: NSArray<MasonElementObjc> | MasonElementObjc[]): void;
 
 	mason_appendWithNode(node: MasonNode): void;
 
@@ -689,9 +689,9 @@ declare class NSObject implements NSObjectProtocol {
 
 	mason_markNodeDirty(): void;
 
-	mason_prepend(element: MasonElement): void;
+	mason_prepend(element: MasonElementObjc): void;
 
-	mason_prependWithElements(elements: NSArray<MasonElement> | MasonElement[]): void;
+	mason_prependWithElements(elements: NSArray<MasonElementObjc> | MasonElementObjc[]): void;
 
 	mason_prependWithNode(node: MasonNode): void;
 
@@ -700,6 +700,12 @@ declare class NSObject implements NSObjectProtocol {
 	mason_prependWithText(text: string): void;
 
 	mason_prependWithTexts(texts: NSArray<string> | string[]): void;
+
+	mason_replaceChildAtElement(element: MasonElementObjc, index: number): void;
+
+	mason_replaceChildAtNode(node: MasonNode, index: number): void;
+
+	mason_replaceChildAtText(text: string, index: number): void;
 
 	mason_requestLayout(): void;
 

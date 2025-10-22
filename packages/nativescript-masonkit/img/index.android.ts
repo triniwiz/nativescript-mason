@@ -1,19 +1,18 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { ImageBase, srcProperty, style_ } from '../common';
+import { ImageBase, isMasonView_, srcProperty, style_ } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
 
 @CSSType('img')
 export class Img extends ImageBase {
   [style_];
-  _hasNativeView = false;
   _inBatch = false;
   private _view;
   constructor() {
     super();
     const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
     this._view = Tree.instance.createImageView(context);
-    this._hasNativeView = true;
+    this[isMasonView_] = true;
     this[style_] = Style.fromView(this as never, this._view);
   }
 

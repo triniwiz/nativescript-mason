@@ -708,6 +708,30 @@ public class NSCFontFace: NSObject {
     
     set {
       fontDescriptors.setFontStyle(newValue)
+      
+      if let font = uiFont {
+        var descriptor = font.fontDescriptor
+      
+        
+        switch(fontDescriptors.styleValue){
+        case .normal:
+          break
+        case .italic:
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
+              descriptor = newDescriptor
+          }
+        case .oblique(_):
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
+              descriptor = newDescriptor
+          }
+          break
+        }
+        
+        let fontValue = UIFont(descriptor: descriptor, size: 16)
+        self.font = CTFontCopyGraphicsFont(fontValue, nil)
+        self.uiFont = fontValue
+      }
+  
     }
   }
   
@@ -722,6 +746,28 @@ public class NSCFontFace: NSObject {
     
     set {
       fontDescriptors.weight = newValue
+      
+      if let font = uiFont {
+        var descriptor = font.fontDescriptor
+        let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: fontDescriptors.weight.uiFontWeight]
+        
+        
+        descriptor.addingAttributes([.traits: traits])
+        
+        switch(fontDescriptors.weight){
+        case .semiBold, .bold, .extraBold, .black:
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitBold) {
+              descriptor = newDescriptor
+          }
+        default:
+          break
+        }
+        
+        let fontValue = UIFont(descriptor: descriptor, size: 16)
+        self.font = CTFontCopyGraphicsFont(fontValue, nil)
+        self.uiFont = fontValue
+      }
+      
     }
     
   }
@@ -786,7 +832,7 @@ public class NSCFontFace: NSObject {
         
         switch(fontDescriptors.weight){
         case .semiBold, .bold, .extraBold, .black:
-          if let newDescriptor = newFont.fontDescriptor.withSymbolicTraits(.traitBold) {
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitBold) {
               descriptor = newDescriptor
           }
         default:
@@ -797,11 +843,11 @@ public class NSCFontFace: NSObject {
         case .normal:
           break
         case .italic:
-          if let newDescriptor = newFont.fontDescriptor.withSymbolicTraits(.traitItalic) {
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
               descriptor = newDescriptor
           }
         case .oblique(_):
-          if let newDescriptor = newFont.fontDescriptor.withSymbolicTraits(.traitItalic) {
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
               descriptor = newDescriptor
           }
           break

@@ -23,6 +23,15 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
       container?.invalidateInlineSegments()
     }
 
+  override var parent: Node?
+    get() {
+      if (container?.node?.isAnonymous ?: false) {
+        return container?.node?.parent
+      }
+      return container?.node
+    }
+    set(value) {}
+
   override val length: Int
     get() = data.length
 
