@@ -4,7 +4,7 @@
       <ActionBar>
         <Label text="Home?" />
       </ActionBar>
-      <div style="background-color: red;">
+         <div style="background-color: red; margin-padding: 100;">
         <p style="color: yellow;">Test nativescript-masonkit
           <sspan style="color: blue;"> inline text</sspan>
           Hello World!

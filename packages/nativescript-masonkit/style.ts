@@ -339,6 +339,7 @@ export class Style {
         view.syncStyle(this.isDirty.toString());
       } else {
         const view = this.view.ios as never as MasonText;
+        console.log('Syncing text style:', this.isDirty.toString(), this.isTextDirty.toString());
         view.syncStyleTextState(this.isDirty.toString(), this.isTextDirty.toString());
       }
     }
@@ -363,6 +364,7 @@ export class Style {
     } else {
       this.isTextDirty = this.isTextDirty | value.bits;
     }
+    console.log('Text style marked dirty:', value === TextStateKeys.COLOR, this.isTextDirty.toString(), !this.inBatch);
     if (!this.inBatch) {
       this.syncStyle(this.text_style_view != null);
     }

@@ -350,7 +350,12 @@ extension MasonNode {
       mason_node_add_child(mason.nativePtr, nativePtr, childPtr)
     }
     
-    markDirty()
+    if let view = child.view as? MasonElement {
+      view.requestLayout()
+    }else {
+      markDirty()
+    }
+    
     return child
   }
   

@@ -330,7 +330,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     
     */
-    textWithImage()
+   // textWithImage()
     
   //imageTest()
     
@@ -414,7 +414,56 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //inlineTest()
   //  testTextInsert()
    // testInsert()
+    testInlineStyleChange()
   }
+  
+  func testInlineStyleChange() {
+    let txt = NSCMason.shared.createTextView(type: .B)
+      txt.fontSize = 24
+      //txt.backgroundColorValue = UIColor.green.toUInt32()
+      txt.color = UIColor.red.toUInt32()
+      txt.fontWeight = "bold"
+      txt.fontStyle = .Italic
+      txt.append(text: "First")
+
+//      let txt2 = NSCMason.shared.createTextView()
+//      txt2.backgroundColorValue = UIColor.yellow.toUInt32()
+//      txt2.append(text: " Second")
+
+     // txt.append(txt2)
+
+//      let txt3 = NSCMason.shared.createTextView()
+//      txt3.append(text: " Third")
+
+     // txt.append(txt3)
+    
+//    let checkmark = NSCMason.shared.createImageView()
+//    checkmark.image = UIImage.checkmark
+//    
+//    txt.append(checkmark)
+    
+    
+
+      body.mason_append(elements: [txt])
+      body.mason_computeWithMaxContent()
+ 
+    
+    DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+      DispatchQueue.main.async {
+//        txt2.color = UIColor.blue.toUInt32()
+//        txt2.fontSize = 40
+  //      txt2.fontWeight = "bold"
+        txt.fontWeight = "bold"
+        //txt3.decorationLine = .Underline
+       // txt3.color = UIColor.purple.toUInt32()
+      }
+    }
+    
+    
+  
+      //  body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+
+    }
   
   func testInsert(){
     let root = NSCMason.shared.createView()
@@ -582,7 +631,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
 
       body.append(elements: [txt, img])
-      body.computeWithMaxContent()
+      body.mason_computeWithMaxContent()
   
       //  body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
 

@@ -2077,7 +2077,7 @@ public enum TextOverflow: CustomStringConvertible {
       case .Clip:
         return 0
       case .Ellipse(let value):
-        guard let value = value else {
+        if(value == nil){
           return 1
         }
         return 2

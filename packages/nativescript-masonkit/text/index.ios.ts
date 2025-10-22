@@ -113,13 +113,16 @@ export class Text extends TextBase {
     const nativeView = this._view;
     if (nativeView) {
       // hacking vue3 to handle text nodes
+      nativeView.text = value;
+      /*
       if (global.VUE3_ELEMENT_REF) {
         const view_ref = this[global.VUE3_ELEMENT_REF];
         if (Array.isArray(view_ref.childNodes)) {
           (view_ref.childNodes as any[]).forEach((node, index) => {
             if (node.nodeType === 'text') {
+              console.log('Adding text node at index:', index, node.text);
               // @ts-ignore
-              nativeView.mason_addChildAtText(node.text || '', index);
+              nativeView.mason_appendWithText(node.text || '', index);
               // nativeView.addChildAtText(node.text || '', index);
             }
           });
@@ -128,6 +131,7 @@ export class Text extends TextBase {
         // will replace all nodes with a new text node
         nativeView.text = value;
       }
+      */
     }
   }
 
@@ -143,17 +147,20 @@ export class Text extends TextBase {
     switch (typeof value) {
       case 'number':
         this[style_].color = value;
+        console.log('Setting text color from number:', value, this[style_].color);
         this[style_].syncStyle(true);
         break;
       case 'string':
         {
           this[style_].color = new Color(value).argb;
+          console.log('Setting text color from string:', value, this[style_].color);
           this[style_].syncStyle(true);
         }
         break;
       case 'object':
         {
           this[style_].color = value.argb;
+          console.log('Setting text color from object:', value, this[style_].color);
           this[style_].syncStyle(true);
         }
         break;
@@ -224,16 +231,19 @@ export class Text extends TextBase {
 
     // todo
     // @ts-ignore
-    let layout = this._view.node.computedLayout ?? this._view.layout();
+    let layout = this._view.node.computedLayout;
     const children = layout.children;
-    let i = 1;
-
+    let i = 0;
+    if (children.count === 0) {
+      return;
+    }
     for (const child of this._children) {
       layout = children.objectAtIndex(i);
       const x = layout.x;
       const y = layout.y;
       const width = layout.width;
       const height = layout.height;
+      console.log('Laying out child:', child, i, x, y, width, height);
       View.layoutChild(this as never, child, x, y, width, height);
       i++;
     }
@@ -241,6 +251,7 @@ export class Text extends TextBase {
 
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this._view;
+
     if (nativeView) {
       const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
       const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
@@ -252,11 +263,12 @@ export class Text extends TextBase {
         if (this.width === 'auto' && this.height === 'auto') {
           // todo
           // @ts-ignore
-          this.ios.computeWithMaxContent();
+          this.ios.mason_computeWithSize(specWidth, specHeight);
+          //this.ios.computeWithMaxContent();
 
           // todo
           // @ts-ignore
-          const layout = this.ios.layout();
+          const layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -299,11 +311,9 @@ export class Text extends TextBase {
 
           // todo
           // @ts-ignore
-          this.ios.computeWithSize(width, height);
+          this.ios.mason_computeWithSize(width, height);
 
-          // todo
-          // @ts-ignore
-          const layout = this.ios.layout();
+          const layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -313,7 +323,7 @@ export class Text extends TextBase {
       } else {
         // todo
         // @ts-ignore
-        const layout = nativeView.node.computedLayout ?? nativeView.layout();
+        const layout = nativeView.node.computedLayout;
         const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
@@ -330,12 +340,7 @@ export class Text extends TextBase {
       child._hasNativeView = true;
       child._isMasonChild = true;
 
-      // todo
-      // @ts-ignore
       const index = atIndex ?? -1;
-
-      console.log('view, Adding child at index:', index);
-
       if (index >= 0) {
         nativeView.addViewAt(child.nativeViewProtected, index);
       } else {

@@ -41,9 +41,13 @@ export class View extends ViewBase {
   public onLayout(left: number, top: number, right: number, bottom: number): void {
     super.onLayout(left, top, right, bottom);
     // @ts-ignore
-    let layout = this._view.node.computedLayout ?? this._view.layout();
+    let layout = this._view.node.computedLayout;
     const children = layout.children;
     let i = 0;
+
+    if (children.count === 0) {
+      return;
+    }
 
     for (const child of this._children) {
       layout = children.objectAtIndex(i);
@@ -68,10 +72,12 @@ export class View extends ViewBase {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
           // @ts-ignore
-          this.ios.computeWithSize(specWidth, specHeight);
+          this.ios.mason_computeWithSize(specWidth, specHeight);
+          // this.ios.computeWithSize(specWidth, specHeight);
 
           // @ts-ignore
-          const layout = this.ios.layout();
+          const layout = this.ios.mason_layout();
+          //const layout = this.ios.layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -84,9 +90,9 @@ export class View extends ViewBase {
           return;
         } else {
           // @ts-ignore
-          this.ios.computeWithMaxContent();
+          this.ios.mason_computeWithMaxContent();
           // @ts-ignore
-          const layout = this.ios.node.computedLayout ?? this.ios.layout();
+          const layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -99,7 +105,7 @@ export class View extends ViewBase {
         }
       } else {
         // @ts-ignore
-        const layout = this.ios.node.computedLayout ?? this.ios.layout();
+        const layout = this.ios.node.computedLayout;
         const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 

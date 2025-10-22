@@ -13,72 +13,80 @@ internal func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRaw
   return Unmanaged.passRetained(layout).toOpaque()
 }
 
-@objc public protocol MasonElement: NSObjectProtocol {
-  @objc dynamic var style: MasonStyle { get }
+@objc public protocol MasonElementObjc: NSObjectProtocol {
+  @objc var style: MasonStyle { get }
   
-  @objc dynamic var node: MasonNode { get }
+  @objc var node: MasonNode { get }
   
-  @objc dynamic var uiView: UIView { get }
-  
-  @objc optional func markNodeDirty()
-  
-  @objc optional func isNodeDirty() -> Bool
-  
-  @objc optional func configure(_ block: (MasonStyle) -> Void)
-  
-  @discardableResult @objc optional func layout() -> MasonLayout
-  
-  @objc optional func compute()
-  
-  @objc optional func compute(_ width: Float, _ height: Float)
-  
-  @objc optional func computeMaxContent()
-  
-  @objc optional func computeMinContent()
-  
-  @objc optional func computeWithSize(_ width: Float, _ height: Float)
-  
-  @objc optional func computeWithViewSize()
-  
-  @objc optional func computeWithViewSize(layout: Bool)
-  
-  @objc optional func computeWithMaxContent()
-  
-  @objc optional func computeWithMinContent()
-  
-  @objc optional func attachAndApply()
-  
-  @objc optional func requestLayout()
-  
-  @objc optional func append(_ element: MasonElement)
-  
-  @objc optional func append(text: String)
-  
-  @objc optional func append(node: MasonNode)
-  
-  @objc optional func append(texts: [String])
-  
-  @objc optional func append(elements: [MasonElement])
-  
-  @objc optional func append(nodes: [MasonNode])
-  
-  @objc optional func prepend(_ element: MasonElement)
-  
-  @objc optional func prepend(string: String)
-  
-  @objc optional func prepend(node: MasonNode)
-  
-  @objc optional func prepend(strings: [String])
-  
-  @objc optional func prepend(elements: [MasonElement])
-  
-  @objc optional func prepend(nodes: [MasonNode])
-  
-  @objc optional func addChildAt(text: String, _ index: Int)
+  @objc var uiView: UIView { get }
+}
 
-  @objc optional func addChildAt(element: MasonElement, _ index: Int)
+public protocol MasonElement: NSObjectProtocol {
+   var style: MasonStyle { get }
+  
+   var node: MasonNode { get }
+  
+   var uiView: UIView { get }
+  
+     func markNodeDirty()
+  
+     func isNodeDirty() -> Bool
+  
+     func configure(_ block: (MasonStyle) -> Void)
+  
+  @discardableResult    func layout() -> MasonLayout
+  
+     func compute()
+  
+     func compute(_ width: Float, _ height: Float)
+  
+     func computeMaxContent()
+  
+     func computeMinContent()
+  
+     func computeWithSize(_ width: Float, _ height: Float)
+  
+     func computeWithViewSize()
+  
+     func computeWithViewSize(layout: Bool)
+  
+     func computeWithMaxContent()
+  
+     func computeWithMinContent()
+  
+     func attachAndApply()
+  
+     func requestLayout()
+  
+     func append(_ element: MasonElement)
+  
+     func append(text: String)
+  
+     func append(node: MasonNode)
+  
+     func append(texts: [String])
+  
+     func append(elements: [MasonElement])
+  
+     func append(nodes: [MasonNode])
+  
+     func prepend(_ element: MasonElement)
+  
+     func prepend(string: String)
+  
+     func prepend(node: MasonNode)
+  
+     func prepend(strings: [String])
+  
+     func prepend(elements: [MasonElement])
+  
+     func prepend(nodes: [MasonNode])
+  
+     func addChildAt(text: String, _ index: Int)
 
-  @objc optional func addChildAt(node: MasonNode, _ index: Int)
+     func addChildAt(element: MasonElement, _ index: Int)
+
+     func addChildAt(node: MasonNode, _ index: Int)
 }
 
 
@@ -290,7 +298,7 @@ extension MasonElement {
         if let masonText = container.view as? MasonText {
           masonText.addChild(textNode)
           if(container.parent == nil){
-            append?(masonText)
+            append(masonText)
           }
         }
       }

@@ -8,7 +8,7 @@ import UIKit
 
 @objc(MasonScroll)
 @objcMembers
-public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement {
+public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement, MasonElementObjc {
   
   public let node: MasonNode
   public let mason: NSCMason

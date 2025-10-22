@@ -22,6 +22,7 @@ public class MasonLayout: NSObject, Codable {
   public internal(set) var scrollbarSize: MasonSize<Float> = .init(0, 0)
   public let children: [MasonLayout]
   public static let zero = MasonLayout()
+  public var hasChildren: Bool { !children.isEmpty }
   
   public override var description: String {
     do {

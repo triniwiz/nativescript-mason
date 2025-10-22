@@ -10,7 +10,7 @@ import Foundation
 
 @objcMembers
 @objc(MasonUIView)
-public class MasonUIView: UIView, MasonElement {
+public class MasonUIView: UIView, MasonElement, MasonElementObjc {
   public let node: MasonNode
   public let mason: NSCMason
   

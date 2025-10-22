@@ -361,7 +361,6 @@ export const displayProperty = new CssProperty<Style, Display>({
       case 'inline-grid':
         return value;
       default:
-        console.warn(`Invalid display value: ${value}`);
         return undefined;
     }
   },
@@ -477,7 +476,6 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   valueConverter: masonLengthParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    console.log('left changed', newValue);
     if (view) {
       view.left = newValue;
     }
@@ -1086,7 +1084,6 @@ export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
       case 'border-box':
         return value;
       default:
-        console.warn(`Invalid boxSizing value: ${value}`);
         return undefined;
     }
   },
@@ -1336,7 +1333,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       style.height = value;
-      console.log('height set native', this.id, style.toJSON());
     }
   }
 

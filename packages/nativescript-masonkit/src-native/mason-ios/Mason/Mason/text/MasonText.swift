@@ -10,47 +10,6 @@ import UIKit
 import CoreText
 
 // MARK: - Helper Functions (top-level)
-func measureBlock(text: NSAttributedString, maxWidth: CGFloat) -> CGSize {
-  let framesetter = CTFramesetterCreateWithAttributedString(text)
-  
-  let constraintSize = CGSize(width: maxWidth, height: .greatestFiniteMagnitude)
-  var suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(framesetter,
-                                                                   CFRangeMake(0, text.length),
-                                                                   nil,
-                                                                   constraintSize,
-                                                                   nil)
-  
-  let scale = CGFloat(NSCMason.scale)
-  
-  suggestedSize.width = suggestedSize.width * scale
-  suggestedSize.height = suggestedSize.height * scale
-  
-  return suggestedSize
-}
-
-func measureInline(text: NSAttributedString) -> CGSize {
-  let line = CTLineCreateWithAttributedString(text)
-  
-  var ascent: CGFloat = 0
-  var descent: CGFloat = 0
-  var leading: CGFloat = 0
-  
-  let scale = CGFloat(NSCMason.scale)
-  
-  
-  let width = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading)) * scale
-  
-  
-  
-  if let font = text.attribute(.font, at: 0, effectiveRange: nil) as? UIFont {
-    return CGSize(width: width, height: font.lineHeight * scale)
-  }
-  
-  let height = ceil(ascent + descent + leading) * scale
-  
-  return CGSize(width: width, height: height)
-}
-
 func normalizeNewlines(_ s: String) -> String {
   s.replacingOccurrences(of: #"\r?\n|\r"#, with: "\n", options: .regularExpression)
 }
@@ -298,13 +257,14 @@ public enum InlineSegmentPayload {
 // MARK: - MasonText Main Class
 @objc(MasonText)
 @objcMembers
-public class MasonText: UIView, MasonElement {
+public class MasonText: UIView, MasonElement, MasonElementObjc {
   // MARK: Properties
   public let node: MasonNode
   public let type: MasonTextType
+  internal var isPendingDraw = false
   
   public internal(set) var textValues: NSMutableData = MasonText.createTextStyles()
-  public internal(set) var font: NSCFontFace = NSCFontFace(family: "sans-serif")
+  public internal(set) var font: NSCFontFace = NSCFontFace(family: "serif")
   internal var paragraphStyle = NSMutableParagraphStyle()
   
   
@@ -325,7 +285,7 @@ public class MasonText: UIView, MasonElement {
     didSet {
       setInt32(TextStyleKeys.TEXT_OVERFLOW, textOverflow.rawValue)
       // Text overflow only affects rendering, not measurement
-      setNeedsDisplay()
+      requestLayout()
     }
   }
   
@@ -396,6 +356,33 @@ public class MasonText: UIView, MasonElement {
     super.init(frame: .zero)
     node.isAnonymous = isAnonymous
     initText()
+  }
+  
+  
+  public func requestLayout() {
+    invalidateInlineSegments()
+    // handle text nesting
+    if(node.parent?.view is MasonText){
+      if let parent = node.parent?.view as? MasonText{
+        parent.requestLayout()
+      }
+      return
+    }
+    let root = node.getRootNode()
+    let view = if(root.type == .document){
+      root.document?.documentElement as? MasonElement
+    }else {
+      root.view as? MasonElement
+    }
+    
+    if let view = view {
+      let computed = view.computeCache()
+      if(!isPendingDraw){
+        setNeedsDisplay()
+        isPendingDraw = true
+      }
+      view.computeWithSize(Float(computed.width), Float(computed.height))
+    }
   }
   
   
@@ -514,65 +501,6 @@ public class MasonText: UIView, MasonElement {
     node.inBatch = false
   }
   
-  /*
-   
-   // MARK: Storage Helpers
-   private static func measure(_ view: MasonText, _ known: CGSize?, _ available: CGSize) -> CGSize {
-   // Build attributed string on-demand from text nodes
-   let text = view.buildAttributedString()
-   
-   if let known = known {
-   if (!known.width.isNaN && known.width >= 0) && (!known.height.isNaN && known.height >= 0) {
-   return known
-   }
-   }
-   
-   var maxWidth = CGFloat.greatestFiniteMagnitude
-   
-   if view.textWrap != .NoWrap && available.width.isFinite && available.width > 0 {
-   if !available.width.isNaN && available.width > 0 {
-   maxWidth = available.width / CGFloat(NSCMason.scale)
-   }
-   }
-   
-   // Create framesetter and frame to collect segments
-   let framesetter = CTFramesetterCreateWithAttributedString(text)
-   let constraintSize = CGSize(width: maxWidth, height: .greatestFiniteMagnitude)
-   let path = CGPath(rect: CGRect(origin: .zero, size: constraintSize), transform: nil)
-   let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
-   
-   // IMPORTANT: Collect and push segments to Rust BEFORE returning size
-   // This ensures Rust's inline layout has the segments it needs
-   view.collectAndCacheSegments(from: frame)
-   
-   // Now calculate the size
-   var size = CTFramesetterSuggestFrameSizeWithConstraints(
-   framesetter,
-   CFRangeMake(0, text.length),
-   nil,
-   constraintSize,
-   nil
-   )
-   
-   let scale = CGFloat(NSCMason.scale)
-   size.width = size.width * scale
-   size.height = size.height * scale
-   
-   if let known = known {
-   if !known.width.isNaN && known.width >= 0 {
-   size.width = known.width
-   }
-   
-   if !known.height.isNaN && known.height >= 0 {
-   size.height = known.height
-   }
-   }
-   
-   return size
-   }
-   
-   */
-  
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
@@ -595,9 +523,10 @@ public class MasonText: UIView, MasonElement {
         }
       }
       
-      invalidateInlineSegments()
       if !node.inBatch {
-        node.markDirty()
+        requestLayout()
+      }else {
+        invalidateInlineSegments()
       }
     }
   }
@@ -608,6 +537,7 @@ public class MasonText: UIView, MasonElement {
     }
     set {
       setUInt32(TextStyleKeys.BACKGROUND_COLOR, newValue)
+      backgroundColor = UIColor.colorFromARGB(newValue)
       
       // Update all text nodes with new background color
       for child in node.children {
@@ -622,9 +552,10 @@ public class MasonText: UIView, MasonElement {
         }
       }
       
-      invalidateInlineSegments()
       if !node.inBatch {
-        node.markDirty()
+        requestLayout()
+      }else {
+        invalidateInlineSegments()
       }
     }
   }
@@ -645,9 +576,10 @@ public class MasonText: UIView, MasonElement {
       setUInt32(TextStyleKeys.DECORATION_COLOR, newValue)
       updateDecorationOnTextNodes()
       
-      invalidateInlineSegments()
       if !node.inBatch {
-        node.markDirty()
+        requestLayout()
+      }else {
+        invalidateInlineSegments()
       }
     }
   }
@@ -664,9 +596,10 @@ public class MasonText: UIView, MasonElement {
       setInt32(TextStyleKeys.DECORATION_LINE, newValue.rawValue)
       updateDecorationOnTextNodes()
       
-      invalidateInlineSegments()
       if !node.inBatch {
-        node.markDirty()
+        requestLayout()
+      }else {
+        invalidateInlineSegments()
       }
     }
   }
@@ -712,9 +645,10 @@ public class MasonText: UIView, MasonElement {
       setFloat(TextStyleKeys.SIZE, Float(newValue))
       updateFontOnTextNodes()
       
-      invalidateInlineSegments()
       if !node.inBatch {
-        node.markDirty()
+        requestLayout()
+      }else {
+        invalidateInlineSegments()
       }
     }
   }
@@ -724,13 +658,29 @@ public class MasonText: UIView, MasonElement {
       return FontStyle(rawValue: getInt32(TextStyleKeys.FONT_STYLE_TYPE))!
     }
     set {
+      let previous = fontStyle
       setInt32(TextStyleKeys.FONT_STYLE_TYPE, newValue.rawValue)
       setInt32(TextStyleKeys.FONT_STYLE_SLANT, 0)
-      updateFontOnTextNodes()
-      
-      invalidateInlineSegments()
-      if !node.inBatch {
-        node.markDirty()
+      if(previous != newValue){
+        switch newValue {
+        case .Normal:
+          font.style = "normal"
+          break
+        case .Italic:
+          font.style = "italic"
+          break
+        case .Oblique:
+          font.style = "oblique"
+          break
+        }
+        
+        updateFontOnTextNodes()
+     
+        if !node.inBatch {
+          requestLayout()
+        }else {
+          invalidateInlineSegments()
+        }
       }
     }
   }
@@ -756,30 +706,39 @@ public class MasonText: UIView, MasonElement {
       case "thin":
         weight = .thin
         weightName = "thin"
+        font.weight = .thin
       case "ultralight":
         weight = .ultraLight
         weightName = "ultralight"
+        font.weight = .extraLight
       case "light":
         weight = .light
         weightName = "light"
+        font.weight = .light
       case "normal":
         weight = .regular
         weightName = "normal"
+        font.weight = .normal
       case "medium":
         weight = .medium
         weightName = "medium"
+        font.weight = .medium
       case "semibold":
         weight = .semibold
         weightName = "semibold"
+        font.weight = .semiBold
       case "bold":
         weight = .bold
         weightName = "bold"
+        font.weight = .bold
       case "heavy":
         weight = .heavy
         weightName = "heavy"
+        font.weight = .extraBold
       case "black":
         weight = .black
         weightName = "black"
+        font.weight = .black
       default:
         if let weight = Int(newValue, radix: 10) {
           if weight >= 100 && weight <= 1000 {
@@ -787,22 +746,31 @@ public class MasonText: UIView, MasonElement {
             switch weight {
             case 100..<200:
               self.weight = .thin
+              font.weight = .thin
             case 200..<300:
               self.weight = .ultraLight
+              font.weight = .extraLight
             case 300..<400:
               self.weight = .light
+              font.weight = .light
             case 400..<500:
               self.weight = .regular
+              font.weight = .normal
             case 500..<600:
               self.weight = .medium
+              font.weight = .medium
             case 600..<700:
               self.weight = .semibold
+              font.weight = .semiBold
             case 700..<800:
               self.weight = .bold
+              font.weight = .bold
             case 800..<900:
               self.weight = .heavy
+              font.weight = .extraBold
             case 900..<1000:
               self.weight = .black
+              font.weight = .black
             default:
               break
             }
@@ -812,12 +780,67 @@ public class MasonText: UIView, MasonElement {
       
       if previous != weightName {
         updateFontOnTextNodes()
-        invalidateInlineSegments()
         if !node.inBatch {
-          node.markDirty()
+          requestLayout()
+        }else {
+          invalidateInlineSegments()
         }
       }
     }
+  }
+  
+  
+  func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: FontStyle) -> CTFont {
+      
+      let weightValue: CGFloat
+      
+      switch weight {
+      case .thin:       weightValue = -0.8
+      case .ultraLight: weightValue = -1.0
+      case .light:      weightValue = -0.5
+      case .regular:    weightValue = 0
+      case .medium:     weightValue = 0.4
+      case .semibold:   weightValue = 0.6
+      case .bold:       weightValue = 0.8
+      case .heavy, .black: weightValue = 1.0
+      default:          weightValue = 0
+      }
+    
+      var traits: [CFString: Any] = [
+          kCTFontWeightTrait: weightValue
+      ]
+      
+    
+    var symbolicTrait: UInt32? = nil
+  
+    if style == .Italic || style == .Oblique {
+      symbolicTrait = CTFontSymbolicTraits.traitItalic.rawValue
+    }
+  
+    if(weightValue >= 0.6){
+      symbolicTrait = (symbolicTrait ?? 0) | CTFontSymbolicTraits.traitBold.rawValue
+    }
+    
+    if let symbolicTrait = symbolicTrait {
+      traits[kCTFontSymbolicTrait] = symbolicTrait
+    }
+    
+    
+      let attributes: [CFString: Any] = [
+          kCTFontTraitsAttribute: traits
+      ]
+    
+      
+      let baseDescriptor = CTFontDescriptorCreateWithAttributes(attributes as CFDictionary)
+      
+      let ctFont = CTFontCreateCopyWithAttributes(
+          CTFontCreateWithGraphicsFont(cgFont, fontSize, nil, nil),
+          0,
+          nil,
+          baseDescriptor
+      )
+      
+      return ctFont
   }
   
   private func updateFontOnTextNodes() {
@@ -829,8 +852,9 @@ public class MasonText: UIView, MasonElement {
       return
     }
     
-    let ctFont = CTFontCreateWithGraphicsFont(font.font!, fontSize, nil, nil)
-    
+    let ctFont = ctFont(from: font.font!, fontSize: fontSize, weight: weight, style: fontStyle)
+  
+  
     for child in node.children {
       if let textNode = child as? MasonTextNode {
         var attrs = textNode.attributes
@@ -996,7 +1020,7 @@ public class MasonText: UIView, MasonElement {
     }
     
     let textState = TextStateKeys(rawValue: UInt64(state))
-    
+        
     if textState.contains(.textAlign) {
       switch style.textAlign {
       case .Auto:
@@ -1042,19 +1066,24 @@ public class MasonText: UIView, MasonElement {
     }
     
     // Any style change invalidates segments
-    invalidateInlineSegments()
+    invalidateInlineSegments(!node.inBatch)
     
     if !node.inBatch {
-      node.markDirty()
+      requestLayout()
     }
+  
   }
   
   /// Helper to get default text attributes for new text nodes
   public func getDefaultAttributes() -> [NSAttributedString.Key: Any] {
     var attrs: [NSAttributedString.Key: Any] = [:]
     
+    if(font.font == nil){
+      font.loadSync { _ in }
+    }
+    
     // Font
-    let ctFont = CTFontCreateWithGraphicsFont(font.font!, fontSize, nil, nil)
+    let ctFont = ctFont(from: font.font!, fontSize: fontSize, weight: weight, style: fontStyle)
     attrs[.font] = ctFont
     
     // Color
@@ -1121,11 +1150,6 @@ public class MasonText: UIView, MasonElement {
           let childAttributed = textView.buildAttributedString(forMeasurement: forMeasurement)
           composed.append(childAttributed)
         } else {
-          // During measurement, force layout of inline children
-          if forMeasurement {
-            // child.computeLayout()
-          }
-          
           let placeholder = createPlaceholder(for: child)
           composed.append(placeholder)
         }
@@ -1150,7 +1174,6 @@ extension MasonText {
   private static func measure(_ view: MasonText, _ known: CGSize?, _ available: CGSize) -> CGSize {
     // Build attributed string with measurement flag
     let text = view.buildAttributedString(forMeasurement: true)
-    
     
     if let known = known {
       if (!known.width.isNaN && known.width >= 0) && (!known.height.isNaN && known.height >= 0) {
@@ -1210,15 +1233,6 @@ extension MasonText {
   }
 }
 
-// MARK: - Layout Override
-//extension MasonText {
-//    public override func layoutSubviews() {
-//        super.layoutSubviews()
-//
-//       // setNeedsDisplay()
-//    }
-//}
-
 // MARK: - Drawing
 extension MasonText {
   public override func draw(_ rect: CGRect) {
@@ -1236,11 +1250,13 @@ extension MasonText {
     if textWrap == .NoWrap {
       drawSingleLine(text: text, in: context)
       context.restoreGState()
+      isPendingDraw = false
       return
     }
     // Multi-line text
     drawMultiLine(text: text, in: context)
     context.restoreGState()
+    isPendingDraw = false
   }
   
   private func drawSingleLine(text: NSAttributedString, in context: CGContext) {
@@ -1535,16 +1551,17 @@ extension MasonText {
   }
   
   /// Mark segments as needing rebuild
-  func invalidateInlineSegments() {
+  func invalidateInlineSegments(_ markDirty: Bool = true) {
     segmentsNeedRebuild = true
     cachedAttributedString = nil
-    node.markDirty()
+    if(markDirty){
+      node.markDirty()
+    }
   }
   
   func invalidate() {
     invalidateInlineSegments()
-    setNeedsLayout()
-    setNeedsDisplay()
+    requestLayout()
   }
   
   /// Remove child from text container
@@ -1678,7 +1695,7 @@ extension MasonText {
     }
     
     // Check for view-like properties that require inline-block behavior
-    let hasBackground =  backgroundColorValue != 0 || textView.backgroundColor?.cgColor.alpha ?? 0 > 0 //style.backgroundColor.alpha > 0.0
+    let hasBackground =  textView.backgroundColorValue != 0 || textView.backgroundColor?.cgColor.alpha ?? 0 > 0 //style.backgroundColor.alpha > 0.0
     
     let border = style.border
     let hasBorder = border.top.value > 0.0 || border.right.value > 0.0 ||
@@ -1768,20 +1785,20 @@ extension MasonText {
     node.children.append(child)
     child.parent = node
     
-  
-    // Add ALL non-text nodes to layout tree (including TextViews that won't be flattened)
-    if child.type != .text && child.nativePtr != nil {
-      // Check if this TextView should be inline-block
-      if let textView = child.view as? MasonText {
-        // Only add to layout tree if it won't be flattened
-        if !shouldFlattenTextContainer(textView) {
-          syncLayoutChildren()
-        }
-      } else {
-        // Non-TextView elements always go in layout tree
-        syncLayoutChildren()
-      }
-    }
+//  
+//    // Add ALL non-text nodes to layout tree (including TextViews that won't be flattened)
+//    if child.type != .text && child.nativePtr != nil {
+//      // Check if this TextView should be inline-block
+//      if let textView = child.view as? MasonText {
+//        // Only add to layout tree if it won't be flattened
+//        if !shouldFlattenTextContainer(textView) {
+//          syncLayoutChildren()
+//        }
+//      } else {
+//        // Non-TextView elements always go in layout tree
+//        syncLayoutChildren()
+//      }
+//    }
         
     invalidate()
   }
@@ -1836,9 +1853,7 @@ extension MasonText {
       }
       
       invalidateInlineSegments()
-      node.markDirty()
-      setNeedsDisplay()
-      setNeedsLayout()
+      requestLayout()
     }
   }
   

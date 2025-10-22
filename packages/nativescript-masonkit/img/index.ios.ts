@@ -12,6 +12,9 @@ export class Img extends ImageBase {
   constructor() {
     super();
     this._view = Tree.instance.createImageView() as never;
+    this._view.onStateChange = (state) => {
+      this.requestLayout();
+    };
     this._view.didLayout = () => {
       this.requestLayout();
     };
@@ -63,10 +66,10 @@ export class Img extends ImageBase {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
           // @ts-ignore
-          this.ios.computeWithSize(specWidth, specHeight);
+          this.ios.mason_computeWithSize(specWidth, specHeight);
 
           // @ts-ignore
-          const layout = this.ios.layout();
+          const layout = this.ios.mason_layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -75,7 +78,7 @@ export class Img extends ImageBase {
           return;
         } else {
           // @ts-ignore
-          this.ios.computeWithMaxContent();
+          this.ios.mason_computeWithMaxContent();
           // @ts-ignore
           const layout = this.ios.node.computedLayout ?? this.ios.layout();
 
@@ -86,7 +89,7 @@ export class Img extends ImageBase {
         }
       } else {
         // @ts-ignore
-        const layout = this.ios.node.computedLayout ?? this.ios.layout();
+        const layout = this.ios.node.computedLayout;
         const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
 
@@ -96,7 +99,6 @@ export class Img extends ImageBase {
   }
 
   _setNativeViewFrame(nativeView: any, frame: CGRect): void {
-    console.log('Setting native view frame:', frame, this);
     nativeView.frame = frame;
   }
 }

@@ -62,125 +62,146 @@ extension UIColor {
 }
 
 
+extension UIFont {
+    /// Returns true if the font is italic or oblique
+    var isItalicOrOblique: Bool {
+        // Check symbolic traits
+        if fontDescriptor.symbolicTraits.contains(.traitItalic) {
+            return true
+        }
+
+        // As a fallback, check Core Text traits
+        let ctFont = CTFontCreateWithName(self.fontName as CFString, self.pointSize, nil)
+        let traitsDict = CTFontCopyTraits(ctFont) as? [CFString: Any]
+        if let symbolicTraitsValue = traitsDict?[kCTFontSymbolicTrait] as? UInt32 {
+          let symbolicTraits = CTFontSymbolicTraits(rawValue: symbolicTraitsValue)
+            return symbolicTraits.contains(.traitItalic)
+        }
+
+        return false
+    }
+}
+
+
 func markNodeDirty<T: MasonElement>(_ element: T) {
     element.markNodeDirty()
 }
 
 func isNodeDirty<T: MasonElement>(_ element: T) -> Bool {
-    element.isNodeDirty?() ?? false
+    element.isNodeDirty()
 }
 
 func configure<T: MasonElement>(_ element: T, _ block: (MasonStyle) -> Void) {
-    element.configure?(block)
+    element.configure(block)
 }
 
 func layout<T: MasonElement>(_ element: T) -> MasonLayout {
-   element.layout?() ?? MasonLayout.zero
+   element.layout()
 }
 
 func compute<T: MasonElement>(_ element: T) {
-    element.compute?()
+    element.compute()
 }
 
 func compute<T: MasonElement>(_ element: T, width: Float, height: Float) {
-  element.compute?(width, height)
+  element.compute(width, height)
 }
 
 func computeMinContent<T: MasonElement>(_ element: T) {
-    element.computeMinContent?()
+    element.computeMinContent()
 }
 
 func computeMaxContent<T: MasonElement>(_ element: T) {
-    element.computeMaxContent?()
+    element.computeMaxContent()
 }
 
 func computeWidthSize<T: MasonElement>(_ element: T, width: Float, height: Float) {
-  element.computeWithSize?(width, height)
+  element.computeWithSize(width, height)
 }
 
 func computeWithViewSize<T: MasonElement>(_ element: T) {
-    element.computeWithViewSize?()
+    element.computeWithViewSize()
 }
 
 func computeWithViewSize<T: MasonElement>(_ element: T, layout: Bool) {
-    element.computeWithViewSize?(layout: layout)
+    element.computeWithViewSize(layout: layout)
 }
 
 func computeWithMinContent<T: MasonElement>(_ element: T) {
-    element.computeWithMinContent?()
+    element.computeWithMinContent()
 }
 
 func computeWithMaxContent<T: MasonElement>(_ element: T) {
-    element.computeWithMaxContent?()
+    element.computeWithMaxContent()
 }
 
 func attachAndApply<T: MasonElement>(_ element: T) {
-    element.attachAndApply?()
+    element.attachAndApply()
 }
 
 func requestLayout<T: MasonElement>(_ element: T) {
-    element.requestLayout?()
+    element.requestLayout()
 }
 
 func append<T: MasonElement>(_ element: T, _ child: T) {
-    element.append?(child)
+    element.append(child)
 }
 
 func append<T: MasonElement>(_ element: T, text: String) {
-    element.append?(text: text)
+    element.append(text: text)
 }
 
 func append<T: MasonElement>(_ element: T, node: MasonNode) {
-    element.append?(node: node)
+    element.append(node: node)
 }
 
 func append<T: MasonElement>(_ element: T, _ elements: [T]) {
-    element.append?(elements: elements)
+    element.append(elements: elements)
 }
 
 func append<T: MasonElement>(_ element: T, texts: [String]) {
-    element.append?(texts: texts)
+    element.append(texts: texts)
 }
 
 func append<T: MasonElement>(_ element: T, nodes: [MasonNode]) {
-    element.append?(nodes: nodes)
+    element.append(nodes: nodes)
 }
 
 func prepend<T: MasonElement>(_ element: T, _ child: T) {
-    element.prepend?(child)
+    element.prepend(child)
 }
 
 func prepend<T: MasonElement>(_ element: T, text: String) {
-    element.prepend?(string: text)
+    element.prepend(string: text)
 }
 
 func prepend<T: MasonElement>(_ element: T, node: MasonNode) {
-    element.prepend?(node: node)
+    element.prepend(node: node)
 }
 
 func prepend<T: MasonElement>(_ element: T, _ elements: [T]) {
-    element.prepend?(elements: elements)
+    element.prepend(elements: elements)
 }
 
 func prepend<T: MasonElement>(_ element: T, texts: [String]) {
-    element.prepend?(strings: texts)
+    element.prepend(strings: texts)
 }
 
 func prepend<T: MasonElement>(_ element: T, nodes: [MasonNode]) {
-    element.prepend?(nodes: nodes)
+    element.prepend(nodes: nodes)
 }
 
 
 func addChildAt<T: MasonElement>(_ element: T, text: String, index: Int) {
-    element.addChildAt?(text: text, index)
+    element.addChildAt(text: text, index)
 }
 
 func addChildAt<T: MasonElement>(_ element: T, child: MasonElement, index: Int) {
-    element.addChildAt?(element: child, index)
+    element.addChildAt(element: child, index)
 }
 
 func addChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
-    element.addChildAt?(node: node, index)
+    element.addChildAt(node: node, index)
 }
 
 
@@ -292,9 +313,10 @@ func addChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
     requestLayout(element)
   }
   
- @objc public func mason_append(_ element: MasonElement){
+ @objc public func mason_append(_ element: MasonElementObjc){
     guard let parent = self as? MasonElement else { return }
-    append(parent, element)
+    guard let element = element as? MasonElement else { return }
+    parent.append(element)
   }
   
  @objc public func mason_append(text: String){
@@ -312,9 +334,10 @@ func addChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
     append(parent, texts: texts)
   }
   
- @objc public func mason_append(elements: [MasonElement]){
+ @objc public func mason_append(elements: [MasonElementObjc]){
     guard let parent = self as? MasonElement else { return }
-    append(parent, elements)
+   guard let elements = elements as? [MasonElement] else { return }
+    parent.append(elements: elements)
   }
   
  @objc public func mason_append(nodes: [MasonNode]){
@@ -322,9 +345,10 @@ func addChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
     append(parent, nodes: nodes)
   }
   
- @objc public func mason_prepend(_ element: MasonElement){
+ @objc public func mason_prepend(_ element: MasonElementObjc){
     guard let parent = self as? MasonElement else { return }
-    prepend(parent, element)
+    guard let element = element as? MasonElement else { return }
+    parent.prepend(element)
   }
   
  @objc public func mason_prepend(text: String){
@@ -342,9 +366,10 @@ func addChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
     prepend(parent, texts: texts)
   }
   
- @objc public func mason_prepend(elements: [MasonElement]){
+ @objc public func mason_prepend(elements: [MasonElementObjc]){
     guard let parent = self as? MasonElement else { return }
-    prepend(parent, elements)
+   guard let elements = elements as? [MasonElement] else { return }
+   parent.prepend(elements: elements)
   }
   
  @objc public func mason_prepend(nodes: [MasonNode]){
@@ -357,9 +382,10 @@ func addChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
     addChildAt(parent, text: text, index: index)
   }
 
- @objc public func mason_addChildAt(element: MasonElement, _ index: Int){
+ @objc public func mason_addChildAt(element: MasonElementObjc, _ index: Int){
     guard let parent = self as? MasonElement else { return }
-    addChildAt(parent, child: element, index: index)
+    guard let element = element as? MasonElement else { return }
+    parent.addChildAt(element: element, index)
   }
 
  @objc public func mason_addChildAt(node: MasonNode, _ index: Int){

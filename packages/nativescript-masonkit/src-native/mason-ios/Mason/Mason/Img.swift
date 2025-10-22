@@ -43,7 +43,7 @@ public enum LoadingState: Int, RawRepresentable {
 
 @objcMembers
 @objc(MasonImg)
-public class Img: UIImageView, MasonElement {
+public class Img: UIImageView, MasonElement, MasonElementObjc {
   
   public let node: MasonNode
   public let mason: NSCMason
