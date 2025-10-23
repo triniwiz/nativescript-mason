@@ -270,8 +270,14 @@ export const gapProperty = new ShorthandProperty<Style, Gap>({
     }
     return `${this.rowGap} ${this.columnGap}`;
   },
-  converter(value) {
+  converter(gap) {
     const properties: [CssProperty<any, any>, any][] = [];
+
+    let value = gap;
+
+    if (typeof value === 'number') {
+      value = `${value}`;
+    }
 
     if (typeof value === 'string') {
       const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);

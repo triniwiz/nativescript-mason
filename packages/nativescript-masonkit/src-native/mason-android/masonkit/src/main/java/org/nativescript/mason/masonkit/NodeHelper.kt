@@ -109,12 +109,12 @@ class NodeHelper(val mason: Mason) {
     checkAndUpdateStyle(node)
   }
 
-  fun getOverflow(view: android.view.View): Overflow {
+  fun getOverflow(view: android.view.View): Point<Overflow> {
     val node = mason.nodeForView(view)
     return node.style.overflow
   }
 
-  fun setOverflow(view: android.view.View, overflow: Overflow) {
+  fun setOverflow(view: android.view.View, overflow: Point<Overflow>) {
     val node = mason.nodeForView(view)
     node.style.overflow = overflow
     checkAndUpdateStyle(node)

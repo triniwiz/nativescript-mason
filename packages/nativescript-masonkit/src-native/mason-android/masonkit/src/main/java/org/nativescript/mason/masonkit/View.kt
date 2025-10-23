@@ -423,7 +423,8 @@ class View @JvmOverloads constructor(
         }
 
         R.styleable.mason_mason_overflow -> {
-          node.style.overflow = Overflow.fromInt(value.roundToInt())
+          val overflow = Overflow.fromInt(value.roundToInt())
+          node.style.overflow = Point(overflow, overflow)
         }
 
         R.styleable.mason_mason_paddingLeft -> {
@@ -903,7 +904,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var overflow: Overflow
+  var overflow: Point<Overflow>
     get() {
       return style.overflow
     }

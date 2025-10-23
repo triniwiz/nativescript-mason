@@ -4,22 +4,12 @@
       <ActionBar>
         <Label text="Home?" />
       </ActionBar>
-      <!-- <div style="background-color: red;">
-        <p style="color: yellow;font-weight: bold;">Test nativescript-masonkit
-          <sspan style="color: blue;"> inline text</sspan>
-          Hello World!
-        </p>
-        <p style="color: white; font-style: italic;">Paragraph with image <img width="200" height="200" src="https://picsum.photos/200/300" /></p>
-        <img width="300" height="300" src="https://picsum.photos/200/300" />
-      </div> -->
-
       <div class="wrapper">
         <div class="box a">A</div>
         <div class="box b">B</div>
         <div class="box c">C</div>
         <div class="box d">D</div>
       </div>
-
     </Page>
   </Frame>
 </template>
@@ -36,12 +26,6 @@ const viewDemo = (args) => {
 </script>
 
 <style scoped lang="css">
-.info {
-  font-size: 20;
-  horizontal-align: center;
-  vertical-align: center;
-}
-
 .wrapper {
   display: grid;
   grid-gap: 10px;

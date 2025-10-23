@@ -31,8 +31,5 @@ if (__ANDROID__) {
   // run();
 }
 
-const a = NSCMason.shared.createImageView();
-
 //@ts-ignore
-console.log(a.compute);
 Application.run({ moduleName: 'app-root' });

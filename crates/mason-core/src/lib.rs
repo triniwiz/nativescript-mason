@@ -315,7 +315,6 @@ impl Mason {
                 _ => AvailableSpace::Definite(height),
             },
         };
-
         self.compute_layout(node_id, size);
     }
 

@@ -261,7 +261,7 @@ function getStyleInstance(instance: View): org.nativescript.mason.masonkit.Style
 }
 
 export function _forceStyleUpdate(instance: View) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -273,7 +273,7 @@ export function _forceStyleUpdate(instance: View) {
 }
 
 export function _markDirty(instance: View) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -282,7 +282,7 @@ export function _markDirty(instance: View) {
 }
 
 export function _isDirty(instance: View) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
   const nodeOrView = getMasonInstance(instance);
@@ -723,7 +723,7 @@ export function _parseGridTemplates(value: string): Array<GridTemplates> {
 }
 
 export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -772,7 +772,8 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View
 }
 
 export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
+  console.log('setGridTemplateColumns', value, instance[isMasonView_]);
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -839,7 +840,7 @@ export function _parseGridAutoRowsColumns(value: string): Array<MinMaxType> {
 }
 
 export function _setGridAutoRows(value, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -867,7 +868,7 @@ export function _setGridAutoRows(value, instance: View, initial = false) {
 }
 
 export function _setGridAutoColumns(value, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -895,7 +896,7 @@ export function _setGridAutoColumns(value, instance: View, initial = false) {
 }
 
 export function _getGridTemplateRows(instance: View) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return '';
   }
   if (__ANDROID__) {
@@ -912,7 +913,7 @@ export function _getGridTemplateRows(instance: View) {
 }
 
 export function _getGridTemplateColumns(instance: View) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return [];
   }
 

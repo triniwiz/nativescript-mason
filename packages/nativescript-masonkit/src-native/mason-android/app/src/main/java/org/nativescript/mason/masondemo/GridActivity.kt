@@ -4,15 +4,17 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.DisplayMetrics
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import org.nativescript.mason.masonkit.AlignSelf
 import org.nativescript.mason.masonkit.Display
 import org.nativescript.mason.masonkit.GridPlacement
 import org.nativescript.mason.masonkit.GridTrackRepetition
+import org.nativescript.mason.masonkit.LengthPercentage
+import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Line
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.MinMax
+import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.TrackSizingFunction
 import org.nativescript.mason.masonkit.View
 
@@ -27,23 +29,29 @@ class GridActivity : AppCompatActivity() {
     super.onCreate(savedInstanceState)
     metrics = resources.displayMetrics
 
+    val body = mason.createView(this)
     val rootLayout = mason.createView(this)
-    rootLayout.configure {
-      it.display = Display.Grid
-    }
 
-    // wrapper5(rootLayout)
-    wrapper6(rootLayout)
+    body.addView(rootLayout)
 
-    setContentView(rootLayout)
+    wrapper5(rootLayout)
+    // wrapper6(rootLayout)
+
+    setContentView(body)
   }
 
   fun wrapper5(rootLayout: View) {
-    rootLayout.apply {
-      background = ColorDrawable(Color.WHITE)
-      display = Display.Grid
-      setGap(toPx(10F), toPx(10F))
-      gridTemplateColumns = arrayOf(
+    rootLayout.configure {
+      rootLayout.background = ColorDrawable(Color.WHITE)
+      it.display = Display.Grid
+      rootLayout.setGap(toPx(10F), toPx(10F))
+      it.margin = Rect(
+        LengthPercentageAuto.Points(toPx(40f)),
+        LengthPercentageAuto.Points(toPx(40f)),
+        LengthPercentageAuto.Points(toPx(40f)),
+        LengthPercentageAuto.Points(toPx(40f))
+      )
+      it.gridTemplateColumns = arrayOf(
         TrackSizingFunction.AutoRepeat(
           GridTrackRepetition.Count(3),
           arrayOf(MinMax.Points(toPx(100F)))
@@ -54,73 +62,57 @@ class GridActivity : AppCompatActivity() {
     val bg = ColorDrawable(Color.parseColor("#444444"))
 
     val boxA = mason.createView(this)
-    val boxAText = mason.createTextView(this)
-    boxAText.text = "A"
-    boxAText.setTextColor(Color.WHITE)
-    boxA.append(boxAText)
+    boxA.append("A")
+//    val boxAText = mason.createTextView(this)
+//    boxAText.text = "A"
+//    boxAText.setTextColor(Color.WHITE)
+//    boxA.append(boxAText)
 
 
-    val boxB = TextView(this)
-    boxB.text = "B"
-    boxB.setTextColor(Color.WHITE)
+    val boxB = mason.createView(this)
+    boxB.append("B")
+    //boxB.setTextColor(Color.WHITE)
 
-    val boxC = TextView(this)
-    boxC.text = "C"
-    boxC.setTextColor(Color.WHITE)
+    val boxC = mason.createView(this)
+    boxC.append("C")
+    // boxC.setTextColor(Color.WHITE)
 
-    val boxD = TextView(this)
-    boxD.text = "D"
-    boxD.setTextColor(Color.WHITE)
+    val boxD = mason.createView(this)
+    boxD.append("D")
+    // boxD.setTextColor(Color.WHITE)
 
-    rootLayout.addView(
-      boxA
-    )
+    rootLayout.append(arrayOf(boxA, boxB, boxC, boxD))
 
-    rootLayout.addView(
-      boxB
-    )
-
-    rootLayout.addView(
-      boxC
-    )
-
-    rootLayout.addView(
-      boxD
-    )
-
-    boxA.apply {
-      background = bg
-      mason.configureStyleForView(this) {
-        it.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-        it.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-      }
+    boxA.configure {
+      boxA.background = bg
+      it.padding = Rect(
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f))
+      )
+      it.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+      it.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
 
     }
 
-    boxB.apply {
-      background = bg
-      mason.configureStyleForView(this) {
-        it.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
-        it.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-      }
+    boxB.configure {
+      boxB.background = bg
+      it.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
+      it.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
     }
 
-    boxC.apply {
-      background = bg
-      mason.configureStyleForView(this) {
-        it.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-        it.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-      }
+    boxC.configure {
+      boxC.background = bg
+      it.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+      it.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
     }
 
-    boxD.apply {
-      background = bg
-      mason.configureStyleForView(this) {
-        it.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-        it.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-      }
+    boxD.configure {
+      boxD.background = bg
+      it.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+      it.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
     }
-
   }
 
   fun createParentWith2Kids(kidAText: String, kidBText: String): View {

@@ -278,8 +278,8 @@ class TextActivity : AppCompatActivity() {
 
   fun basicInline() {
 
-    val a = TextView(this, Mason.shared, TextType.Span)
-    a.append("This should")
+    // val a = TextView(this, Mason.shared, TextType.Span)
+    body.append("This should")
 
 
     val b = TextView(this, Mason.shared, TextType.Span)
@@ -292,12 +292,12 @@ class TextActivity : AppCompatActivity() {
 
 
     // a.addView(b)
-    body.addView(a)
+    //body.addView(a)
     body.addView(b)
     body.addView(c)
 
 
-    a.replaceChildAt("This should be a replaced text", 0)
+   // a.replaceChildAt("This should be a replaced text", 0)
     //setContentView(root)
   }
 

@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
 import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.Display.Block
 import org.nativescript.mason.masonkit.Display.Flex
@@ -987,6 +988,8 @@ class Style internal constructor(private var node: Node) {
       setOrAppendState(StateKeys.DISPLAY_MODE)
 
       values.putInt(StyleKeys.DISPLAY, display)
+
+      Log.d("com.test", "display ${value} ${display} ${displayMode}")
       setOrAppendState(StateKeys.DISPLAY)
     }
 
@@ -1027,13 +1030,16 @@ class Style internal constructor(private var node: Node) {
       setOrAppendState(StateKeys.FLEX_WRAP)
     }
 
-  var overflow: Overflow
+  var overflow: Point<Overflow>
     get() {
-      return Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW))
+      return Point(
+        Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW_X)),
+        Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW_Y))
+      )
     }
     set(value) {
-      values.putInt(StyleKeys.OVERFLOW, value.value)
-      setOrAppendState(StateKeys.OVERFLOW)
+      values.putInt(StyleKeys.OVERFLOW_X, value.x.value)
+      setOrAppendState(StateKeys.OVERFLOW_X)
     }
 
   var overflowX: Overflow
@@ -1900,7 +1906,7 @@ class Style internal constructor(private var node: Node) {
         direction.value,
         flexDirection.value,
         flexWrap.value,
-        overflow.value,
+        0,
         alignItems.value,
         alignSelf.value,
         alignContent.value,
