@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
@@ -106,6 +107,9 @@ class View @JvmOverloads constructor(
     if (childNode.parent == node) {
       super<ViewGroup>.addView(child)
       return
+    } else if (childNode.parent?.isAnonymous ?: false) {
+
+      return
     }
 
     node.appendChild(childNode)
@@ -122,6 +126,8 @@ class View @JvmOverloads constructor(
 
     if (childNode.parent == node) {
       super<ViewGroup>.addView(child, index)
+      return
+    } else if (childNode.parent?.isAnonymous ?: false) {
       return
     }
 
@@ -140,6 +146,8 @@ class View @JvmOverloads constructor(
     if (childNode.parent == node) {
       super<ViewGroup>.addView(child, params)
       return
+    } else if (childNode.parent?.isAnonymous ?: false) {
+      return
     }
 
     node.appendChild(childNode)
@@ -157,6 +165,9 @@ class View @JvmOverloads constructor(
 
     if (childNode.parent == node) {
       super<ViewGroup>.addView(child, index, params)
+      return
+    } else if (childNode.parent?.isAnonymous ?: false) {
+      Log.d("com.test", "addView index params ${childNode.parent?.isAnonymous} ${childNode.parent} $index $params")
       return
     }
 

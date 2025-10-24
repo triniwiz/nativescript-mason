@@ -6,6 +6,7 @@ import android.text.style.AbsoluteSizeSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
+import android.util.Log
 
 class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
   constructor(mason: Mason, data: String) : this(mason) {

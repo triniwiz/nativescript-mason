@@ -111,6 +111,7 @@ interface Element {
 
   fun attachAndApply() {
     applyLayoutRecursive(node, layout())
+    Mason.shared.printTree(node)
   }
 
   fun append(element: Element) {
@@ -182,7 +183,8 @@ interface Element {
   fun invalidateLayout() {
     node.dirty()
 
-    val root = node.getRootNode() ?: return
+
+    val root = node.getRootNode() ?: node
 
     if (root.type == NodeType.Document) {
       // If root is document, use documentElement to compute
@@ -289,74 +291,83 @@ interface Element {
 
 }
 
-internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
+internal fun Element.applyLayoutRecursive(node: Node, layout: Layout, parent: Layout? = null) {
   node.computedLayout = layout
-  val view = node.view as? View ?: return
 
   if (node.type != NodeType.Element) {
     return
   }
 
-  if (view != this) {
-    var realLayout = layout
-    var isText = false
-    var hasWidthConstraint = false
-    var hasHeightConstraint = false
-    if (view.isGone) {
-      return
-    }
-
-    if (node.type == NodeType.Text) {
-      realLayout = node.computedLayout
-      isText = true
-      hasWidthConstraint = node.style.size.width != Dimension.Auto
-      hasHeightConstraint = node.style.size.height != Dimension.Auto
-    }
-
-    val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-    val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
-    var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
-    var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
-
-    if (isText) {
-      if (!hasWidthConstraint && realLayout.contentSize.width > realLayout.width) {
-        width = realLayout.contentSize.width.toInt()
+  (node.view as? View)?.let { view ->
+    if (view != this) {
+      var realLayout = layout
+      var isText = false
+      var hasWidthConstraint = false
+      var hasHeightConstraint = false
+      if (view.isGone) {
+        return
       }
 
-      if (!hasHeightConstraint && realLayout.contentSize.height > realLayout.height) {
-        height = realLayout.contentSize.height.toInt()
+      if (node.type == NodeType.Text) {
+        realLayout = node.computedLayout
+        isText = true
+        hasWidthConstraint = node.style.size.width != Dimension.Auto
+        hasHeightConstraint = node.style.size.height != Dimension.Auto
       }
-    }
 
-    if (view !is Element) {
-      // measured already grab dim
-      width = view.measuredWidth
-      height = view.measuredHeight
-    }
-
-    val right: Int = x + width
-    val bottom: Int = y + height
+      var x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
+      var y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
 
 
-    if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
-      (view.parent as? View)?.layout(x, y, right, bottom)
-      view.layout(
-        0,
-        0,
-        realLayout.contentSize.width.toInt(),
-        realLayout.contentSize.height.toInt()
-      )
-    } else {
-      view.layout(x, y, right, bottom)
-    }
+      parent?.let {
+        x = (parent.x.takeIf { !it.isNaN() }?.toInt() ?: 0) + x
+        y = (parent.y.takeIf { !it.isNaN() }?.toInt() ?: 0) + y
+      }
 
-    if (view is Scroll) {
-      view.scrollRoot.layout(
-        0,
-        0,
-        realLayout.contentSize.width.toInt(),
-        realLayout.contentSize.height.toInt()
-      )
+
+      var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
+      var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+
+      if (isText) {
+        if (!hasWidthConstraint && realLayout.contentSize.width > realLayout.width) {
+          width = realLayout.contentSize.width.toInt()
+        }
+
+        if (!hasHeightConstraint && realLayout.contentSize.height > realLayout.height) {
+          height = realLayout.contentSize.height.toInt()
+        }
+      }
+
+      if (view !is Element) {
+        // measured already grab dim
+        width = view.measuredWidth
+        height = view.measuredHeight
+      }
+
+      val right: Int = x + width
+      val bottom: Int = y + height
+
+
+      if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
+        (view.parent as? View)?.layout(x, y, right, bottom)
+        view.layout(
+          0,
+          0,
+          realLayout.contentSize.width.toInt(),
+          realLayout.contentSize.height.toInt()
+        )
+      } else {
+        view.layout(x, y, right, bottom)
+      }
+
+      if (view is Scroll) {
+        view.scrollRoot.layout(
+          0,
+          0,
+          realLayout.contentSize.width.toInt(),
+          realLayout.contentSize.height.toInt()
+        )
+      }
     }
   }
 
@@ -378,7 +389,7 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       if (child.type == NodeType.Text) {
         continue
       }
-      applyLayoutRecursive(child, layout.children[i])
+      applyLayoutRecursive(child, layout.children[i], if (node.view == null) layout else null)
     }
   }
 }

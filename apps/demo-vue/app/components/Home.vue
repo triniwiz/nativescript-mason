@@ -4,12 +4,22 @@
       <ActionBar>
         <Label text="Home?" />
       </ActionBar>
-      <div class="wrapper">
-        <div class="box a">A</div>
-        <div class="box b">B</div>
-        <div class="box c">C</div>
-        <div class="box d">D</div>
-      </div>
+      <!-- <View class="wrapper">
+        <View class="box a">
+          <Text>A</Text>
+          <Text>AA</Text>
+        </View>
+        <View class="box b">B</View>
+        <View class="box c">C</View>
+        <View class="box d">D</View>
+      </View> -->
+
+      <View>
+          <Text>A</Text>
+          <Text>AA</Text>
+          <Text>AAA</Text>
+      </View>
+      
     </Page>
   </Frame>
 </template>
@@ -28,8 +38,8 @@ const viewDemo = (args) => {
 <style scoped lang="css">
 .wrapper {
   display: grid;
-  grid-gap: 10px;
-  grid-template-columns: 100px 100px 100px;
+  grid-gap: 10;
+  grid-template-columns: 100 100 100;
   background-color: #fff;
   color: #444;
 }
@@ -37,8 +47,8 @@ const viewDemo = (args) => {
 .box {
   background-color: #444;
   color: #fff;
-  border-radius: 5px;
-  padding: 20px;
+  border-radius: 5;
+  padding: 20;
   font-size: 15px;
 
 }

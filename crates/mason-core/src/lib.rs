@@ -1,5 +1,4 @@
 pub use crate::tree::{Id, Tree};
-use slotmap::Key;
 use std::ffi::{c_float, c_longlong, c_void};
 pub use taffy::geometry::{Line, Point, Rect, Size};
 pub use taffy::style::{
@@ -17,7 +16,6 @@ mod node;
 
 #[cfg(target_vendor = "apple")]
 use crate::node::AppleNode;
-
 
 pub use crate::node::InlineSegment;
 pub use crate::style::Style;
@@ -370,20 +368,30 @@ impl Mason {
                 return;
             }
 
-            for child in current_children.iter() {
-                self.0.parents.remove(*child);
-            }
-
             current_children.clear();
             current_children.extend_from_slice(children);
 
             for child in children.iter() {
-                self.0.parents.insert(*child, Some(parent));
+                if let Some(Some(removed)) = self.0.parents.insert(*child, Some(parent)) {
+                    if let Some(node) = self.0.nodes.get_mut(removed) {
+                        if let Some(previous_children) = self.0.children.get_mut(removed) {
+                            previous_children.retain(|&id| id != *child);
+                        }
+                        node.mark_dirty();
+                    }
+                }
             }
         } else {
             self.0.children.insert(parent, children.to_vec());
             for child in children.iter() {
-                self.0.parents.insert(*child, Some(parent));
+                if let Some(Some(removed)) = self.0.parents.insert(*child, Some(parent)) {
+                    if let Some(node) = self.0.nodes.get_mut(removed) {
+                        if let Some(previous_children) = self.0.children.get_mut(removed) {
+                            previous_children.retain(|&id| id != *child);
+                        }
+                        node.mark_dirty();
+                    }
+                }
             }
         }
     }

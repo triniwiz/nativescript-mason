@@ -49,7 +49,7 @@ class TextActivity : AppCompatActivity() {
     //  testWrap()
     //testElements()
     //testTextInsert()
-   // inlineTest()
+    // inlineTest()
     setContentView(body)
   }
 
@@ -278,9 +278,9 @@ class TextActivity : AppCompatActivity() {
 
   fun basicInline() {
 
-    // val a = TextView(this, Mason.shared, TextType.Span)
-    body.append("This should")
+    //val a = TextView(this, Mason.shared, TextType.Span)
 
+    body.append("This should")
 
     val b = TextView(this, Mason.shared, TextType.Span)
     b.append(" be Inlined")
@@ -291,14 +291,18 @@ class TextActivity : AppCompatActivity() {
     c.color = Color.BLUE
 
 
-    // a.addView(b)
+    //body.addView(a)
     //body.addView(a)
     body.addView(b)
     body.addView(c)
 
+    Mason.shared.printTree(body.node)
 
-   // a.replaceChildAt("This should be a replaced text", 0)
-    //setContentView(root)
+
+    body.replaceChildAt("This should be a replaced text", 0)
+    // setContentView(root)
+
+    Mason.shared.printTree(body.node)
   }
 
   fun testWrap() {

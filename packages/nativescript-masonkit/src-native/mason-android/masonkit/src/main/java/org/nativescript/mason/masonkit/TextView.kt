@@ -100,8 +100,8 @@ class TextView @JvmOverloads constructor(
     TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
     node = mason.createTextNode(this, isAnonymous).apply {
       view = this@TextView
+      this.isAnonymous = isAnonymous
     }
-
     val scale = context.resources.displayMetrics.density
     val margin = { top: Float, bottom: Float ->
       Rect<LengthPercentageAuto>(
@@ -438,7 +438,6 @@ class TextView @JvmOverloads constructor(
         }
 
         else -> {
-          Log.w("JS", "Invalid fontStyle value: $style")
           return FontFace.NSCFontStyle.Normal
         }
       }
@@ -653,7 +652,6 @@ class TextView @JvmOverloads constructor(
   private var measuredTextHeight: Float = 0f
 
   override fun measure(knownDimensions: Size<Float?>, availableSpace: Size<Float?>): Size<Float> {
-
     val layout = measureLayout(
       knownDimensions.width ?: Float.NaN,
       knownDimensions.height ?: Float.NaN,

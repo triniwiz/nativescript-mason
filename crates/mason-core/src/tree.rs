@@ -1,6 +1,7 @@
 use crate::node::{InlineSegment, Node, NodeData, NodeRef, NodeType};
 use crate::style::{DisplayMode, Style};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
+use std::fmt::Debug;
 use taffy::{
     compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
     compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
@@ -32,6 +33,12 @@ pub struct Tree {
     pub(crate) children: SecondaryMap<Id, Vec<Id>>,
     pub(crate) node_data: SecondaryMap<Id, NodeData>,
     pub(crate) use_rounding: bool,
+}
+
+impl Default for Tree {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Tree {
@@ -155,9 +162,11 @@ impl Tree {
     }
 
     pub fn create_anonymous_text_node(&mut self) -> NodeRef {
+        // should always be inline by default
         let mut node = Node::new();
         node.type_ = NodeType::Text;
         node.is_anonymous = true;
+        node.style.set_display_mode(DisplayMode::Inline);
         let guard = node.guard.clone();
         let id = self.nodes.insert(node);
         self.parents.insert(id, None);
@@ -271,6 +280,24 @@ impl Tree {
             .get(node)
             .map(|node| node.cache.is_empty())
             .unwrap_or(false)
+    }
+
+    fn reparent_then_append(&mut self, parent: Id, child: Id) {
+        if let Some(Some(parent)) = self.parents.remove(child) {
+            if let Some(children) = self.children.get_mut(parent) {
+                children.retain(|&id| id != child);
+            }
+            if let Some(node) = self.nodes.get_mut(parent) {
+                node.mark_dirty();
+            }
+        } else {
+            let same = self.set_parent(child, Some(parent));
+            if same {
+                let children = self.children.get_mut(parent).unwrap();
+                children.push(child);
+                self.mark_dirty(parent);
+            }
+        }
     }
 
     fn remove_from_parent(&mut self, parent: Id, node: Id) {
@@ -526,7 +553,6 @@ impl Tree {
         }
     }
 
-
     fn subtree_has_inline_descendants(&self, id: Id) -> bool {
         let mut stack: Vec<Id> = self
             .children
@@ -555,15 +581,23 @@ impl Tree {
         false
     }
 
+    /// Return true when node should be treated as inline-level or text for run detection.
+    fn is_inline_or_text(&self, node_id: Id) -> bool {
+        let node = &self.nodes[node_id];
+        let data = &self.node_data[node_id];
+        let mode = node.style.display_mode();
+
+        node.style.force_inline()
+            || node.is_text_container()
+            || !data.inline_segments.is_empty()
+            || matches!(mode, DisplayMode::Inline | DisplayMode::Box)
+            || node.type_ == NodeType::Text
+    }
     pub fn compute_inline_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
         let id: Id = node_id.into();
 
         // Get inline children from the layout tree
-        let inline_children: Vec<Id> = self
-            .children
-            .get(id)
-            .map(|children| children.clone())
-            .unwrap_or_default();
+        let inline_children: Vec<Id> = self.children.get(id).cloned().unwrap_or_default();
 
         // Pre-measure all inline children so they have layouts BEFORE the text measure is called
         for child_id in inline_children.iter() {
@@ -588,14 +622,12 @@ impl Tree {
                 child.unrounded_layout.size = layout.size;
             }
 
-
             #[cfg(target_vendor = "apple")]
             if let Some(data) = self.node_data.get_mut(*child_id) {
                 if let Some(node) = data.apple_data.as_mut() {
                     node.set_computed_size(layout.size.width as f64, layout.size.height as f64)
                 }
             }
-
 
             #[cfg(target_os = "android")]
             if let Some(data) = self.node_data.get_mut(*child_id) {
@@ -637,7 +669,7 @@ impl Tree {
             inline_children
                 .iter()
                 .map(|child_id| InlineSegment::InlineChild {
-                    id: Some((*child_id).into()),
+                    id: Some(*child_id),
                     baseline: 0.0,
                 })
                 .collect::<Vec<_>>()
@@ -651,14 +683,12 @@ impl Tree {
             // If this is a leaf node (no children), resolve style size as known_dimensions
             let style_size = style.get_size();
             let known_dimensions = Size {
-                width: style_size.width.maybe_resolve(
-                    inputs.parent_size.width,
-                    |_v, _b| 0.0,
-                ),
-                height: style_size.height.maybe_resolve(
-                    inputs.parent_size.height,
-                    |_v, _b| 0.0,
-                ),
+                width: style_size
+                    .width
+                    .maybe_resolve(inputs.parent_size.width, |_v, _b| 0.0),
+                height: style_size
+                    .height
+                    .maybe_resolve(inputs.parent_size.height, |_v, _b| 0.0),
             };
             // --- PATCH END ---
 
@@ -718,8 +748,14 @@ impl Tree {
 
                 for segment in segments.iter() {
                     match segment {
-                        InlineSegment::Text { width, ascent, descent } => {
-                            if current_line_width + width > available_width && !current_line.is_empty() {
+                        InlineSegment::Text {
+                            width,
+                            ascent,
+                            descent,
+                        } => {
+                            if current_line_width + width > available_width
+                                && !current_line.is_empty()
+                            {
                                 lines.push(current_line);
                                 current_line = vec![];
                                 current_line_width = 0.0;
@@ -728,7 +764,10 @@ impl Tree {
                             current_line_width += width;
                             max_line_width = max_line_width.max(current_line_width);
                         }
-                        InlineSegment::InlineChild { id, baseline: descent } => {
+                        InlineSegment::InlineChild {
+                            id,
+                            baseline: descent,
+                        } => {
                             if let Some(child_id) = id {
                                 let child_id = *child_id;
                                 if let Some(child) = self.nodes.get(child_id) {
@@ -739,8 +778,7 @@ impl Tree {
                                         .style
                                         .get_margin()
                                         .resolve_or_zero(Size::NONE, |_v, _b| 0.0);
-                                    let segment_width =
-                                        margin.left + child_width + margin.right;
+                                    let segment_width = margin.left + child_width + margin.right;
 
                                     if current_line_width + segment_width > available_width
                                         && !current_line.is_empty()
@@ -791,7 +829,7 @@ impl Tree {
                 let is_block = matches!(style.get_display(), Display::Block);
                 let is_inline_or_inline_block = style.display_mode() != DisplayMode::None;
 
-                let resolved_width = if !is_inline_or_inline_block && is_block  {
+                let resolved_width = if !is_inline_or_inline_block && is_block {
                     // Block: fill available width if present, else content width
                     inline_available
                         .or(inputs.parent_size.width)
@@ -904,9 +942,9 @@ impl LayoutPartialTree for Tree {
             let mode = node.style.display_mode();
             let has_segments = !node_data.inline_segments.is_empty();
             let is_text_container = node.is_text_container();
-            let has_inline_descendants = tree.subtree_has_inline_descendants(id);
+            // let has_inline_descendants = tree.subtree_has_inline_descendants(id);
 
-            if force_inline || has_segments || is_text_container || has_inline_descendants {
+            if force_inline || has_segments || is_text_container {
                 return tree.compute_inline_layout(node_id, inputs);
             }
 
@@ -923,16 +961,14 @@ impl LayoutPartialTree for Tree {
 
                         // Compute known dimensions from style (width/height properties)
                         let style_size = style.get_size();
-                        let known_dimensions = Size {
-                            width: style_size.width.maybe_resolve(
-                                inputs.parent_size.width,
-                                |_v, _b| 0.0,
-                            ),
-                            height: style_size.height.maybe_resolve(
-                                inputs.parent_size.height,
-                                |_v, _b| 0.0,
-                            ),
-                        };
+                        // let known_dimensions = Size {
+                        //     width: style_size
+                        //         .width
+                        //         .maybe_resolve(inputs.parent_size.width, |_v, _b| 0.0),
+                        //     height: style_size
+                        //         .height
+                        //         .maybe_resolve(inputs.parent_size.height, |_v, _b| 0.0),
+                        // };
 
                         compute_leaf_layout(
                             inputs,
@@ -1097,6 +1133,29 @@ impl RoundTree for Tree {
 impl PrintTree for Tree {
     fn get_debug_label(&self, node_id: NodeId) -> &'static str {
         let node = self.node_from_id(node_id);
+
+        if node.is_anonymous {
+            if node.style.force_inline() {
+                return "ANONYMOUS-INLINE";
+            }
+
+            let mode = node.style.display_mode();
+            return match mode {
+                DisplayMode::None => match node.style.get_display() {
+                    Display::Block => "ANONYMOUS-BLOCK",
+                    Display::Flex => "ANONYMOUS-FLEX",
+                    Display::Grid => "ANONYMOUS-GRID",
+                    Display::None => "ANONYMOUS-NONE",
+                },
+                DisplayMode::Inline => "ANONYMOUS-INLINE",
+                DisplayMode::Box => match node.style.get_display() {
+                    Display::Block => "ANONYMOUS-INLINE-BLOCK",
+                    Display::Flex => "ANONYMOUS-INLINE-FLEX",
+                    Display::Grid => "ANONYMOUS-INLINE-GRID",
+                    Display::None => "NONE",
+                },
+            };
+        }
 
         if node.style.force_inline() {
             return "INLINE";

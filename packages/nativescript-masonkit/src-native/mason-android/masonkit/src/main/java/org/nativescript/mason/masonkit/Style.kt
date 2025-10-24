@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
 import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.Display.Block
 import org.nativescript.mason.masonkit.Display.Flex
@@ -897,6 +896,19 @@ class Style internal constructor(private var node: Node) {
     }
   }
 
+  private fun setOrAppendState(keys: Array<StateKeys>) {
+    for (value in keys) {
+      isDirty = if (isDirty == -1L) {
+        value.bits
+      } else {
+        isDirty or value.bits
+      }
+    }
+    if (!inBatch) {
+      updateNativeStyle()
+    }
+  }
+
   private fun resetState() {
     isDirty = -1
     isSlowDirty = false
@@ -985,12 +997,8 @@ class Style internal constructor(private var node: Node) {
       }
 
       values.putInt(StyleKeys.DISPLAY_MODE, displayMode.value)
-      setOrAppendState(StateKeys.DISPLAY_MODE)
-
       values.putInt(StyleKeys.DISPLAY, display)
-
-      Log.d("com.test", "display ${value} ${display} ${displayMode}")
-      setOrAppendState(StateKeys.DISPLAY)
+      setOrAppendState(arrayOf(StateKeys.DISPLAY_MODE, StateKeys.DISPLAY))
     }
 
   var position: Position
@@ -1039,7 +1047,8 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       values.putInt(StyleKeys.OVERFLOW_X, value.x.value)
-      setOrAppendState(StateKeys.OVERFLOW_X)
+      values.putInt(StyleKeys.OVERFLOW_Y, value.x.value)
+      setOrAppendState(arrayOf(StateKeys.OVERFLOW_X, StateKeys.OVERFLOW_Y))
     }
 
   var overflowX: Overflow

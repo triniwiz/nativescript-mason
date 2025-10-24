@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
 import java.lang.ref.WeakReference
@@ -46,6 +47,7 @@ class Mason {
         this.children.addAll(children)
       }
       nodes[nodePtr] = this
+      this.isAnonymous = isAnonymous
     }
 
     NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
@@ -60,6 +62,7 @@ class Mason {
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = this
       measureFunc = measure
+      this.isAnonymous = isAnonymous
     }
     NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
 
@@ -88,6 +91,7 @@ class Mason {
           NativeHelpers.nativeSetAndroidNode(nativePtr, it.nativePtr, it)
         }
         this.children.addAll(children)
+        this.isAnonymous = isAnonymous
       }
       nodes[nodePtr] = this
     }
@@ -104,6 +108,7 @@ class Mason {
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = this
       measureFunc = measure
+      this.isAnonymous = isAnonymous
     }
 
     NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)

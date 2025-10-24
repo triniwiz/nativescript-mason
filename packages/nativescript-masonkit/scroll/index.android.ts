@@ -32,13 +32,13 @@ export class Scroll extends ViewBase {
         const view_ref = this[global.VUE3_ELEMENT_REF] as any;
         if (Array.isArray(view_ref.childNodes)) {
           if (view_ref.childNodes.length === 0) {
-            nativeView.addChildAt(value || '', -1);
+            nativeView.replaceChildAt(value || '', -1);
             return;
           }
 
           (view_ref.childNodes as any[]).forEach((node, index) => {
             if (node.nodeType === 'text') {
-              nativeView.addChildAt(node.text || '', index);
+              nativeView.replaceChildAt(node.text || '', index);
             }
           });
         }
