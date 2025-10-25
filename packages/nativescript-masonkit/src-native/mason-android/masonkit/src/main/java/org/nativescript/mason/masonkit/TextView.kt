@@ -16,7 +16,6 @@ import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.createBitmap
@@ -26,6 +25,7 @@ import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.round
 
 class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
@@ -577,11 +577,7 @@ class TextView @JvmOverloads constructor(
 
     // Determine the width constraint for StaticLayout
     // For inline elements, we want to measure to content, not fill available width
-    val isInline = if (node.isStyleInitialized) {
-      node.style.display == Display.Inline
-    } else {
-      node.parent?.view is TextView
-    }
+    val isInline = node.isInlineLike(node)
 
     var widthConstraint = Int.MAX_VALUE
     var heightConstraint = Int.MAX_VALUE
@@ -596,6 +592,10 @@ class TextView @JvmOverloads constructor(
 
     if (textWrap != TextWrap.NoWrap && availableWidth > 0 && availableWidth != Float.MIN_VALUE) {
       widthConstraint = availableWidth.toInt()
+    }
+
+    if (isInline) {
+      widthConstraint = Int.MAX_VALUE
     }
 
     val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
@@ -615,7 +615,7 @@ class TextView @JvmOverloads constructor(
     // Get the ACTUAL measured width from the layout, not the constraint
     var measuredWidth = 0
     for (i in 0 until layout.lineCount) {
-      val lineWidth = layout.getLineWidth(i).toInt()
+      val lineWidth = round(layout.getLineWidth(i)).toInt()
       if (lineWidth > measuredWidth) {
         measuredWidth = lineWidth
       }
@@ -661,22 +661,21 @@ class TextView @JvmOverloads constructor(
 
     // Use the actual measured dimensions from the layout
     val width = if (layout != null) {
-      measuredTextWidth + paddingLeft + paddingRight
+      measuredTextWidth
     } else {
-      (paddingLeft + paddingRight).toFloat()
+      0f
     }
 
     val height = if (layout != null) {
-      measuredTextHeight + paddingTop + paddingBottom
+      measuredTextHeight
     } else {
-      (paddingTop + paddingBottom).toFloat()
+      0f
     }
 
     return Size(width, height)
   }
 
   private fun collectAndCacheSegments(layout: Layout, attributed: SpannableStringBuilder) {
-    if (!segmentsNeedRebuild) return
 
     val segments = mutableListOf<InlineSegment>()
 
@@ -714,7 +713,17 @@ class TextView @JvmOverloads constructor(
           val textRun = attributed.subSequence(currentPos, end)
 
           // Measure with the attributed text's spans applied
-          val width = Layout.getDesiredWidth(textRun, 0, textRun.length, textPaint)
+          // val width = Layout.getDesiredWidth(textRun, 0, textRun.length, textPaint)
+
+
+          val width = try {
+            val startX = layout.getPrimaryHorizontal(currentPos)
+            val endX = layout.getPrimaryHorizontal(end) // runEnd is the index after the last char
+            kotlin.math.abs(endX - startX)
+          } catch (_: Throwable) {
+            // fallback to desired width if layout doesn't support primaryHorizontal for some reason
+            Layout.getDesiredWidth(textRun, 0, textRun.length, textPaint)
+          }
 
           // Get font metrics for this specific run by applying spans to a temporary paint
           val runPaint = TextPaint(textPaint)
@@ -730,7 +739,7 @@ class TextView @JvmOverloads constructor(
 
           segments.add(
             InlineSegment.Text(
-              width,  // Already in px
+              round(width),  // Already in px
               -fontMetrics.ascent,  // Negative because ascent is negative
               fontMetrics.descent  // Already in px
             )
@@ -750,7 +759,8 @@ class TextView @JvmOverloads constructor(
       )
     }
 
-    segmentsNeedRebuild = false
+    // segments are up-to-date now — align attributedStringVersion so cache checks succeed
+    attributedStringVersion = segmentsInvalidateVersion
   }
 
   private fun findNextViewSpan(text: SpannableStringBuilder, start: Int): Int {
@@ -762,18 +772,33 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-  private var segmentsNeedRebuild = true
+  // monotonically increasing version for invalidation; cachedAttributedString is valid when
+  // attributedStringVersion == segmentsInvalidateVersion
+  private var attributedStringVersion: Int = 0
+  private var segmentsInvalidateVersion: Int = 0
+  internal var cachedAttributedString: SpannableStringBuilder? = null
+  private var isBuilding = false
 
-  internal fun invalidateInlineSegments() {
-    segmentsNeedRebuild = true
-    node.dirty()
-
+  internal fun invalidateInlineSegments(markDirty: Boolean = true) {
+    segmentsInvalidateVersion += 1
+    cachedAttributedString = null
+    measuredTextWidth = 0f
+    measuredTextHeight = 0f
+    node.cachedWidth = 0f
+    node.cachedHeight = 0f
+    if (markDirty) {
+      node.dirty()
+    }
     // If this TextView is a child of another TextView, invalidate parent too
     // This handles the case where a flattened child's styles change
     val parent = node.parent
+
     if (parent?.view is TextView) {
       (parent.view as TextView).invalidateInlineSegments()
     }
+
+    invalidate()
+
   }
 
   internal fun attachTextNode(node: TextNode, index: Int = -1) {
@@ -800,6 +825,18 @@ class TextView @JvmOverloads constructor(
 
   // When building attributed string, walk tree and apply current styles
   private fun buildAttributedString(): SpannableStringBuilder {
+
+    // Return cached version if valid
+    if (cachedAttributedString != null && attributedStringVersion == segmentsInvalidateVersion) {
+      return cachedAttributedString!!
+    }
+
+    if (isBuilding) {
+      return SpannableStringBuilder()
+    }
+
+    isBuilding = true
+
     val composed = SpannableStringBuilder()
 
     for (child in node.children) {
@@ -828,6 +865,13 @@ class TextView @JvmOverloads constructor(
         }
       }
     }
+
+    isBuilding = false
+
+    // Cache the result
+    cachedAttributedString = composed
+    // mark cached string as up-to-date with the current invalidate version
+    attributedStringVersion = segmentsInvalidateVersion
 
     return composed
   }
@@ -926,26 +970,6 @@ class TextView @JvmOverloads constructor(
       attributes.putAll(getDefaultAttributes())
     }, index)
   }
-
-  /*
-
-  override fun onDraw(canvas: Canvas) {
-//    val textSpannable = text as? Spannable
-//    if (textSpannable != null) {
-//      val viewSpans = textSpannable.getSpans(0, textSpannable.length, ViewSpan::class.java)
-//      for ((index, span) in viewSpans.withIndex()) {
-//        val start = textSpannable.getSpanStart(span)
-//        val end = textSpannable.getSpanEnd(span)
-//      }
-//    }
-
-    // Let TextView handle the spannable drawing (which calls ViewSpan.draw())
-    super.onDraw(canvas)
-
-//    Log.d("TextView", "onDraw complete")
-  }
-
-  */
 
   // Custom span for inline child views
   private inner class ViewSpan(

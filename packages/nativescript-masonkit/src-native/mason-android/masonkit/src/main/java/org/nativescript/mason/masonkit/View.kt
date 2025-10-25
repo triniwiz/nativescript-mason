@@ -167,7 +167,6 @@ class View @JvmOverloads constructor(
       super<ViewGroup>.addView(child, index, params)
       return
     } else if (childNode.parent?.isAnonymous ?: false) {
-      Log.d("com.test", "addView index params ${childNode.parent?.isAnonymous} ${childNode.parent} $index $params")
       return
     }
 

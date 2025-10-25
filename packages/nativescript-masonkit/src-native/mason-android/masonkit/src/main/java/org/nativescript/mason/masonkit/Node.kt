@@ -236,7 +236,7 @@ open class Node internal constructor(
     }
   }
 
-  private fun isInlineLike(node: Node): Boolean {
+  internal fun isInlineLike(node: Node): Boolean {
     // prefer to use style.display when initialized, otherwise fall back to display mode
     if (node.isStyleInitialized) {
       return node.style.display == Display.Inline
@@ -277,9 +277,6 @@ open class Node internal constructor(
                     (view as org.nativescript.mason.masonkit.View).addView(masonView.parent as View?)
                   }
                 } else {
-                  if (childView is TextView && !child.isStyleInitialized) {
-                    child.style.display = Display.Inline
-                  }
                   (view as org.nativescript.mason.masonkit.View).addView(childView)
                 }
               }
@@ -311,8 +308,8 @@ open class Node internal constructor(
           val lastIndex = children.indexOf(lastChild)
           if (lastIndex > -1) {
             children[lastIndex] = container
-           // children.removeAt(lastIndex)
-           // children.add(lastIndex, container)
+            // children.removeAt(lastIndex)
+            // children.add(lastIndex, container)
           } else {
             // fallback append
             children.add(container)
@@ -355,9 +352,6 @@ open class Node internal constructor(
                     (view as org.nativescript.mason.masonkit.View).addView(masonView.parent as View?)
                   }
                 } else {
-                  if (childView is TextView && !child.isStyleInitialized) {
-                    child.style.display = Display.Inline
-                  }
                   (view as org.nativescript.mason.masonkit.View).addView(childView)
                 }
               }
@@ -397,9 +391,6 @@ open class Node internal constructor(
               (view as org.nativescript.mason.masonkit.View).addView(masonView.parent as View?)
             }
           } else {
-            if (childView is TextView && !child.isStyleInitialized) {
-              child.style.display = Display.Inline
-            }
             (view as org.nativescript.mason.masonkit.View).addView(childView)
           }
         }
@@ -534,7 +525,7 @@ open class Node internal constructor(
   }
 
   fun getChildAt(index: Int): Node? {
-    return children.getOrNull(index)
+    return getChildren().getOrNull(index)
   }
 
   fun getChildren(): List<Node> {
@@ -679,15 +670,15 @@ open class Node internal constructor(
 
       (child as TextNode).apply {
         // clear attributes when adding to another container
-        attributes.clear()
+        this.attributes.clear()
         element.container?.let { textView ->
-          attributes.putAll(textView.getDefaultAttributes())
+          this.attributes.putAll(textView.getDefaultAttributes())
         }
       }
 
       element.container?.let {
-        it.attachTextNode(child)
-        it.detachTextNode(element)
+        child.container = it
+        element.container = null
         it.invalidateInlineSegments()
       }
 
@@ -742,9 +733,6 @@ open class Node internal constructor(
 
       // Check if child has a view (element)
       if (child.view != null && child.nativePtr != 0L) {
-        if (view is TextView && child.view is TextView && !child.isStyleInitialized) {
-          child.style.display = Display.Inline
-        }
         replaceElementChildAt(child, index)
         return
       }
@@ -771,9 +759,9 @@ open class Node internal constructor(
 
     // Check if we're inserting into an anonymous text container
     val element = authorNodes.getOrNull(adjustedIndex)
-    if (element != null && element.isAnonymous && element.view is TextView) {
+    if (element is TextNode && element.container?.node?.isAnonymous == true && element.view is TextView) {
       // Split the anonymous container
-      val containerNode = element
+      val containerNode = element.container!!.node
       val textChildren = containerNode.children
       // Find the split index in the container
       val splitIdx = adjustedIndex - authorNodes.indexOf(containerNode)
@@ -818,6 +806,22 @@ open class Node internal constructor(
           return
         }
       }
+    } else if (element?.view is Element) {
+
+     /* todo
+      val parent = element.parent
+      element.parent?.children?.remove(element)
+      if (parent?.isAnonymous == true && parent.children.isEmpty()){
+
+      }
+      if (element.parent?.view is ViewGroup){
+        (element.parent?.view as ViewGroup).removeView(element.view as View)
+      }
+      parent?.dirty()
+
+      */
+
+      return
     }
 
     // Default: Insert into author tree
@@ -925,9 +929,6 @@ open class Node internal constructor(
 
       // Check if child has a view (element)
       if (child.view != null && child.nativePtr != 0L) {
-        if (view is TextView && child.view is TextView && !child.isStyleInitialized) {
-          child.style.display = Display.Inline
-        }
         addElementChildAt(child, index)
         return
       }

@@ -3,6 +3,7 @@ package org.nativescript.mason.masondemo
 import android.animation.ValueAnimator
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
@@ -14,6 +15,7 @@ import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles
+import org.nativescript.mason.masonkit.TextNode
 import org.nativescript.mason.masonkit.TextType
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
@@ -278,12 +280,17 @@ class TextActivity : AppCompatActivity() {
 
   fun basicInline() {
 
-    //val a = TextView(this, Mason.shared, TextType.Span)
+    val a = TextView(this, Mason.shared, TextType.Span)
 
-    body.append("This should")
+    a.append("This should")
+
+    body.addView(a)
+
+    Mason.shared.printTree(body.node)
 
     val b = TextView(this, Mason.shared, TextType.Span)
     b.append(" be Inlined")
+    b.backgroundColorValue = Color.BLUE
     b.color = Color.RED
 
     val c = TextView(this, Mason.shared, TextType.Span)
@@ -291,15 +298,16 @@ class TextActivity : AppCompatActivity() {
     c.color = Color.BLUE
 
 
-    //body.addView(a)
-    //body.addView(a)
     body.addView(b)
     body.addView(c)
 
     Mason.shared.printTree(body.node)
 
 
-    body.replaceChildAt("This should be a replaced text", 0)
+    val replace = TextView(this)
+    replace.append("This should be a replaced text")
+
+    body.replaceChildAt(replace, 0)
     // setContentView(root)
 
     Mason.shared.printTree(body.node)
