@@ -182,7 +182,7 @@ class View @JvmOverloads constructor(
       node.mason.nodeForView(view)
     }
 
-    if (childNode.parent != node) {
+    if (childNode.parent == node) {
       super.removeView(view)
       return
     }

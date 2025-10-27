@@ -10,6 +10,7 @@ import androidx.core.graphics.toColorInt
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.Display
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
@@ -73,7 +74,11 @@ class TextActivity : AppCompatActivity() {
 
     Mason.shared.printTree(root.node)
 
-    root.replaceChildAt("2", 1)
+    val img = Mason.shared.createImageView(this)
+    img.style.display = Display.Block
+    img.style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
+    img.setImageResource(R.drawable.ic_launcher_background)
+    root.replaceChildAt(img, 0)
 
     Mason.shared.printTree(root.node)
 

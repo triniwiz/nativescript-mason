@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
@@ -389,7 +390,11 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout, parent: La
       if (child.type == NodeType.Text) {
         continue
       }
-      applyLayoutRecursive(child, layout.children[i], if (node.view == null) layout else null)
+      val layoutChild = layout.children.getOrNull(i)
+      layoutChild?.let {
+        applyLayoutRecursive(child, layoutChild, if (node.view == null) layout else null)
+      }
+
     }
   }
 }

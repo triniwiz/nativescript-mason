@@ -561,11 +561,11 @@ open class Node internal constructor(
       }
     }
 
-    if (reference.view is TextView) {
+    if (reference.view is View) {
       if (NodeUtils.isInlineLike(reference) && reference.layoutParent != null && reference.layoutParent!!.view == null) {
         // an anonymous inline container
         val idx = reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: return
-
+        val size = reference.layoutParent?.children?.size ?: 0
         var element = child
 
         if (child is TextNode) {
@@ -575,15 +575,17 @@ open class Node internal constructor(
             true
           )
           container.append(child)
+          child.attributes.clear()
+          child.attributes.putAll(container.getDefaultAttributes())
 
-          ((reference.view as TextView).parent as? ViewGroup)?.let { parent ->
-            val viewIdx = parent.indexOfChild(reference.view as TextView)
+          ((reference.view as View).parent as? ViewGroup)?.let { parent ->
+            val viewIdx = parent.indexOfChild(reference.view as View)
             parent.addView(container, viewIdx)
+            parent.removeView(reference.view as View)
           }
 
           element = container.node
         }
-
 
         if (NodeUtils.isInlineLike(element)) {
           reference.layoutParent?.let { layoutParent ->
@@ -595,9 +597,6 @@ open class Node internal constructor(
 
             reference.parent = null
             element.parent = layoutParent
-            
-
-            ((reference.view as View).parent as? ViewGroup)?.removeView(reference.view as View)
 
             val nativeChildren =
               layoutParent.children.mapNotNull { if (it.nativePtr != 0L) it.nativePtr else null }
@@ -608,11 +607,49 @@ open class Node internal constructor(
               nativeChildren.toLongArray()
             )
           }
+        } else {
+          if (idx == 0) {
+            // <div>
+            //  <anonymous inline container>
+            //    <span></span>
+            //    <span></span>
+            //    <span></span>
+            //  </anonymous inline container>
+            // </div>
+            //    handling inserting or replacing index with non-inline node
+            val authorIdx =
+              reference.layoutParent?.layoutParent?.children?.indexOf(reference.layoutParent)
+                ?: return
+
+            val referenceParent = reference.layoutParent ?: return
+
+            val removedNode = reference.layoutParent?.children?.removeAt(0)
+            removedNode?.parent = null
+
+            ((removedNode?.view as View).parent as? ViewGroup)?.let { viewParent ->
+              val previousIndex = viewParent.indexOfChild(removedNode.view as View)
+              if (previousIndex > -1) {
+                (element.view as? View)?.let { childView ->
+                  viewParent.addView(childView, previousIndex)
+                }
+              }
+              viewParent.removeView(removedNode.view as View)
+              NativeHelpers.nativeNodeRemoveChild(
+                mason.nativePtr,
+                referenceParent.nativePtr, removedNode.nativePtr
+              )
+            }
+
+          } else {
+            if (idx >= size) {
+              // append
+            } else {
+              // split
+            }
+          }
+
         }
       }
-    }
-
-    if (child.isAnonymous) {
     }
   }
 
