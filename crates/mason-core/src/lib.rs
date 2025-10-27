@@ -373,6 +373,9 @@ impl Mason {
 
             for child in children.iter() {
                 if let Some(Some(removed)) = self.0.parents.insert(*child, Some(parent)) {
+                    if removed == parent {
+                        continue;
+                    }
                     if let Some(node) = self.0.nodes.get_mut(removed) {
                         if let Some(previous_children) = self.0.children.get_mut(removed) {
                             previous_children.retain(|&id| id != *child);

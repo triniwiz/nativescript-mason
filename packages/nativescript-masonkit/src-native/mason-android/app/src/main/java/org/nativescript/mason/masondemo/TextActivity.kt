@@ -15,7 +15,6 @@ import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles
-import org.nativescript.mason.masonkit.TextNode
 import org.nativescript.mason.masonkit.TextType
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
@@ -43,7 +42,7 @@ class TextActivity : AppCompatActivity() {
 
     enableEdgeToEdge()
 
-    basicInline()
+    // basicInline()
     //basicNesting()
     // testText()
     //textWithImage()
@@ -52,7 +51,33 @@ class TextActivity : AppCompatActivity() {
     //testElements()
     //testTextInsert()
     // inlineTest()
+    testTextReplace()
     setContentView(body)
+  }
+
+  fun testTextReplace() {
+    val root = Mason.shared.createView(this)
+//    root.append("1")
+//    root.append("3")
+//    root.append("3")
+    val a = Mason.shared.createTextView(this)
+    a.append("A")
+    val b = Mason.shared.createTextView(this)
+    b.append("A")
+    val c = Mason.shared.createTextView(this)
+    c.append("C")
+
+    root.append(a)
+    root.append(b)
+    root.append(c)
+
+    Mason.shared.printTree(root.node)
+
+    root.replaceChildAt("2", 1)
+
+    Mason.shared.printTree(root.node)
+
+    body.append(root)
   }
 
   fun testInsert() {
@@ -281,7 +306,6 @@ class TextActivity : AppCompatActivity() {
   fun basicInline() {
 
     val a = TextView(this, Mason.shared, TextType.Span)
-
     a.append("This should")
 
     body.addView(a)

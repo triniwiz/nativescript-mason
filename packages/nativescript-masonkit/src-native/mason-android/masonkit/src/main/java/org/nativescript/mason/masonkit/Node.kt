@@ -28,10 +28,13 @@ open class Node internal constructor(
   internal var document: Document? = null
   internal var cachedWidth: Float = 0f
   internal var cachedHeight: Float = 0f
-  open var parent: Node? = null
-    internal set
+  internal open var layoutParent: Node? = null
+  open var parent: Node?
+    internal set(value) {
+      layoutParent = value
+    }
     get() {
-      var p = field
+      var p = layoutParent
       while (p?.isAnonymous == true) {
         p = p.parent
       }
@@ -236,28 +239,13 @@ open class Node internal constructor(
     }
   }
 
-  internal fun isInlineLike(node: Node): Boolean {
-    // prefer to use style.display when initialized, otherwise fall back to display mode
-    if (node.isStyleInitialized) {
-      return node.style.display == Display.Inline
-        || node.style.display == Display.InlineBlock
-        || node.style.display == Display.InlineFlex
-        || node.style.display == Display.InlineGrid
-
-    }
-    if (node.isAnonymous && node.view is TextView) {
-      return true
-    }
-    return false
-  }
-
   private fun appendElementChild(child: Node): Node {
     // Remove from old parent
     child.parent?.removeChild(child)
 
     // check
 
-    if (child.isStyleInitialized && child.style.display == Display.Inline) {
+    if (NodeUtils.isInlineLike(child)) {
       val lastChild = children.lastOrNull()
       if (lastChild != null) {
         // 1) reuse an existing anonymous inline wrapper (created earlier)
@@ -301,7 +289,7 @@ open class Node internal constructor(
         }
 
         // 2) previous sibling is inline-level element -> create a wrapper and move previous + new child inside it
-        if (isInlineLike(lastChild)) {
+        if (NodeUtils.isInlineLike(lastChild)) {
           val container = mason.createNode(null, true)
           container.style.display = Display.Inline
           // replace lastChild in this.children with container
@@ -530,7 +518,7 @@ open class Node internal constructor(
 
   fun getChildren(): List<Node> {
     val out = mutableListOf<Node>()
-    collectAuthorChildren(out, children)
+    NodeUtils.collectAuthorChildren(out, children)
     return out
   }
 
@@ -538,95 +526,123 @@ open class Node internal constructor(
     return children
   }
 
-  private fun collectAuthorChildren(out: MutableList<Node>, nodes: List<Node>) {
-    for (child in nodes) {
-      if (child.isAnonymous) {
-        collectAuthorChildren(out, child.children)
-      } else {
-        out.add(child)
-      }
-    }
-  }
-
   fun appendChild(view: View) {
     val child = mason.nodeForView(view)
     appendChild(child)
   }
 
-  fun replaceChildAt(child: Node, index: Int) {
-    if (index <= -1) {
+  internal fun replaceOrInsertChildAt(child: Node, index: Int, replace: Boolean) {
+    if (replace && index <= -1) {
       return
     }
-
     val authorNodes = getChildren()
-
-    if (child.parent === this) {
-      val currentIndex = authorNodes.indexOf(child)
-      // todo handle replacement in parent
-      if (currentIndex > -1) {
+    val reference = authorNodes.getOrNull(index) ?: return
+    if (child == reference) {
+      return
+    }
+    if (child is TextNode) {
+      if (reference is TextNode && reference.container?.view is TextView) {
+        val idx = reference.layoutParent?.children?.indexOf(reference) ?: return
+        reference.layoutParent?.children?.let { children ->
+          if (replace) {
+            children.set(idx, child)
+          } else {
+            children.add(idx, child)
+          }
+        }
+        reference.container?.let { container ->
+          container.invalidateInlineSegments(false)
+          container.attachTextNode(child)
+          child.attributes.clear()
+          child.attributes.putAll(container.getDefaultAttributes())
+          reference.container = null
+        }
         return
       }
     }
 
-    when (child.type) {
-      NodeType.Element -> replaceElementChildAt(child, index, authorNodes)
-      NodeType.Text -> replaceTextChildAt(child, index, authorNodes)
-      NodeType.Document -> {} // noop
+    if (reference.view is TextView) {
+      if (NodeUtils.isInlineLike(reference) && reference.layoutParent != null && reference.layoutParent!!.view == null) {
+        // an anonymous inline container
+        val idx = reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: return
+
+        var element = child
+
+        if (child is TextNode) {
+          val container = mason.createTextView(
+            (view as? View)?.context ?: throw IllegalStateException("View context required"),
+            TextType.None,
+            true
+          )
+          container.append(child)
+
+          ((reference.view as TextView).parent as? ViewGroup)?.let { parent ->
+            val viewIdx = parent.indexOfChild(reference.view as TextView)
+            parent.addView(container, viewIdx)
+          }
+
+          element = container.node
+        }
+
+
+        if (NodeUtils.isInlineLike(element)) {
+          reference.layoutParent?.let { layoutParent ->
+            if (replace) {
+              layoutParent.children[idx] = element
+            } else {
+              layoutParent.children.add(idx, element)
+            }
+
+            reference.parent = null
+            element.parent = layoutParent
+            
+
+            ((reference.view as View).parent as? ViewGroup)?.removeView(reference.view as View)
+
+            val nativeChildren =
+              layoutParent.children.mapNotNull { if (it.nativePtr != 0L) it.nativePtr else null }
+
+            NativeHelpers.nativeNodeSetChildren(
+              mason.nativePtr,
+              layoutParent.nativePtr,
+              nativeChildren.toLongArray()
+            )
+          }
+        }
+      }
     }
+
+    if (child.isAnonymous) {
+    }
+  }
+
+  fun replaceChildAt(child: Node, index: Int) {
+    replaceOrInsertChildAt(child, index, true)
+    /* if (index <= -1) {
+       return
+     }
+
+     val authorNodes = getChildren()
+
+     if (child.parent === this) {
+       val currentIndex = authorNodes.indexOf(child)
+       // todo handle replacement in parent
+       if (currentIndex > -1) {
+         return
+       }
+     }
+
+     when (child.type) {
+       NodeType.Element -> replaceElementChildAt(child, index, authorNodes)
+       NodeType.Text -> replaceTextChildAt(child, index, authorNodes)
+       NodeType.Document -> {} // noop
+     }
+     */
 
     if (isStyleInitialized && !style.inBatch) {
       (view as? Element)?.invalidateLayout()
     }
 
-  }
-
-  private fun replaceNodeAt(child: Node, index: Int, nodes: List<Node>? = null) {
-    if (index < 0) {
-      return
-    }
-    val authorNodes = nodes ?: getChildren()
-
-    // If index out of range, append
-    if (index >= authorNodes.size) {
-      appendChild(child)
-      return
-    }
-
-    val element = authorNodes.getOrNull(index)
-    // No-op if same
-    if (element == child) {
-      return
-    }
-
-    if (element != null) {
-      // Remove the existing author-level node. This handles anonymous containers/text nodes.
-      element.parent?.removeChild(element)
-      addChildAt(child, index)
-
-    }
-  }
-
-  fun addChildAt(child: Node, index: Int) {
-    // Handle -1 as append
-    if (index <= -1) {
-      appendChild(child)
-      return
-    }
-
-    val authorNodes = getChildren()
-
-    if (child.parent === this) {
-      val currentIndex = authorNodes.indexOf(child)
-      if (currentIndex == index) {
-        return
-      }
-    }
-
-    when (child.type) {
-      NodeType.Element -> addElementChildAt(child, index, authorNodes)
-      NodeType.Text -> addTextChildAt(child, index, authorNodes)
-      NodeType.Document -> {} // noop
-    }
   }
 
   private fun replaceTextChildAt(child: Node, index: Int, nodes: List<Node>? = null) {
@@ -740,7 +756,6 @@ open class Node internal constructor(
 
   }
 
-  // todo
   private fun replaceElementChildAt(child: Node, index: Int, nodes: List<Node>? = null) {
     val authorNodes = nodes ?: getChildren()
 
@@ -808,18 +823,18 @@ open class Node internal constructor(
       }
     } else if (element?.view is Element) {
 
-     /* todo
-      val parent = element.parent
-      element.parent?.children?.remove(element)
-      if (parent?.isAnonymous == true && parent.children.isEmpty()){
+      /* todo
+       val parent = element.parent
+       element.parent?.children?.remove(element)
+       if (parent?.isAnonymous == true && parent.children.isEmpty()){
 
-      }
-      if (element.parent?.view is ViewGroup){
-        (element.parent?.view as ViewGroup).removeView(element.view as View)
-      }
-      parent?.dirty()
+       }
+       if (element.parent?.view is ViewGroup){
+         (element.parent?.view as ViewGroup).removeView(element.view as View)
+       }
+       parent?.dirty()
 
-      */
+       */
 
       return
     }
@@ -839,6 +854,29 @@ open class Node internal constructor(
 
     (child.view as? Element)?.onNodeAttached()
     dirty()
+  }
+
+  fun addChildAt(child: Node, index: Int) {
+    // Handle -1 as append
+    if (index <= -1) {
+      appendChild(child)
+      return
+    }
+
+    val authorNodes = getChildren()
+
+    if (child.parent === this) {
+      val currentIndex = authorNodes.indexOf(child)
+      if (currentIndex == index) {
+        return
+      }
+    }
+
+    when (child.type) {
+      NodeType.Element -> addElementChildAt(child, index, authorNodes)
+      NodeType.Text -> addTextChildAt(child, index, authorNodes)
+      NodeType.Document -> {} // noop
+    }
   }
 
   private fun addTextChildAt(child: Node, index: Int, nodes: List<Node>? = null) {

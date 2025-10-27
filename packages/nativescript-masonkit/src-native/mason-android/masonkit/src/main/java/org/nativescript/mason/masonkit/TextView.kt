@@ -577,7 +577,7 @@ class TextView @JvmOverloads constructor(
 
     // Determine the width constraint for StaticLayout
     // For inline elements, we want to measure to content, not fill available width
-    val isInline = node.isInlineLike(node)
+    val isInline = NodeUtils.isInlineLike(node)
 
     var widthConstraint = Int.MAX_VALUE
     var heightConstraint = Int.MAX_VALUE

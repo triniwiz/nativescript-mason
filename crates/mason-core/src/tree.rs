@@ -153,6 +153,8 @@ impl Tree {
     pub fn create_text_node(&mut self) -> NodeRef {
         let mut node = Node::new();
         node.type_ = NodeType::Text;
+        // we are defaulting our text element nodes to inline
+        node.style.set_display_mode(DisplayMode::Inline);
         let guard = node.guard.clone();
         let id = self.nodes.insert(node);
         self.parents.insert(id, None);
