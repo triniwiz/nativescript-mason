@@ -28,7 +28,103 @@ fn main() {
     // inline_bug();
     //bug();
     //insert_test()
-    inline_node()
+    //inline_node()
+    inline_mix_bug()
+}
+
+fn inline_mix_bug() {
+    let mut mason = Mason::new();
+
+    extern "C" fn inline_mix_bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        if unsafe { *(id) } == 1 {
+            return MeasureOutput::make(10., 20.);
+        } else if unsafe { *(id) } == 2 {
+            return MeasureOutput::make(20., 20.);
+        } else if unsafe { *(id) } == 3 {
+            return MeasureOutput::make(0., 0.);
+        }
+
+        MeasureOutput::make(200., 200.)
+    }
+
+    let root = mason.create_node();
+    let one = mason.create_text_node();
+    let two = mason.create_text_node();
+    let three = mason.create_text_node();
+
+    let div = mason.create_node();
+    let second = mason.create_text_node();
+
+    let a = mason.create_text_node();
+    let b = mason.create_text_node();
+    let c = mason.create_text_node();
+
+    let d = mason.create_text_node();
+
+    mason.add_child(root.id(), one.id());
+    mason.add_child(root.id(), two.id());
+    mason.add_child(root.id(), three.id());
+
+    mason.add_child(div.id(), second.id());
+    mason.add_child(div.id(), a.id());
+    mason.add_child(div.id(), b.id());
+    mason.add_child(div.id(), c.id());
+    mason.add_child(div.id(), d.id());
+
+    mason.add_child(root.id(), div.id());
+
+    mason.set_measure(
+        one.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+    mason.set_measure(
+        two.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+    mason.set_measure(
+        three.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    mason.set_measure(
+        second.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+    mason.set_measure(
+        a.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+    mason.set_measure(
+        b.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+    mason.set_measure(
+        c.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+    mason.set_measure(
+        d.id(),
+        Some(inline_mix_bug_measure_inline),
+        &3 as *const i32 as _,
+    );
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(root.id());
 }
 
 fn inline_node() {

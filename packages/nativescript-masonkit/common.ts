@@ -10,6 +10,7 @@ export const style_ = Symbol('[[style]]');
 export const isTextChild_ = Symbol('[[isTextChild]]');
 export const isText_ = Symbol('[[isText]]');
 export const isMasonView_ = Symbol('[[isMasonView]]');
+export const text_ = Symbol('[[text]]');
 
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
   const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
@@ -1111,7 +1112,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   margin: LengthAuto;
   border: Length;
 
-  _children: any[] = [];
+  _children: (NSView | { text?: string })[] = [];
   [isMasonView_] = false;
 
   [isTextChild_] = false;
@@ -1123,6 +1124,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   forceStyleUpdate() {
     _forceStyleUpdate(this as any);
+  }
+
+  private get _viewChildren() {
+    return this._children.filter((child) => child instanceof NSView) as NSView[];
   }
 
   public eachLayoutChild(callback: (child: NSView, isLast: boolean) => void): void {
@@ -1146,37 +1151,35 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   public eachChild(callback: (child: NSViewBase) => boolean) {
-    for (const child of this._children) {
+    for (const child of this._viewChildren) {
       callback(child);
     }
   }
 
   public eachChildView(callback: (child: NSView) => boolean): void {
-    for (const view of this._children) {
+    for (const view of this._viewChildren) {
       callback(view);
     }
   }
 
   _addChildFromBuilder(name: string, value: any): void {
-    if (value instanceof NSView) {
-      this.addChild(value);
-    }
+    this.addChild(value);
   }
 
   getChildrenCount() {
-    return this._children.length;
+    return this._viewChildren.length;
   }
 
   get _childrenCount() {
-    return this._children.length;
+    return this._viewChildren.length;
   }
 
   getChildAt(index: number) {
-    return this._children[index];
+    return this._viewChildren[index];
   }
 
   getChildIndex(child: NSView) {
-    return this._children.indexOf(child);
+    return this._viewChildren.indexOf(child);
   }
   getChildById(id: string) {
     return getViewById(this as never, id);
@@ -1189,6 +1192,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
         child[isTextChild_] = true;
       }
       this._addView(child);
+    } else {
+      if (text_ in child) {
+        //@ts-ignore
+        if (this._view) {
+          //@ts-ignore
+          this._view.addChildAt(child[text_] || '', this._children.length);
+        }
+        this._children.push(child);
+      }
     }
   }
 
@@ -1202,8 +1214,27 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  replaceChild(child: any, atIndex: number) {
+    if (child instanceof NSView) {
+      this._children[atIndex] = child;
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+      this._addView(child, atIndex);
+    } else {
+      if (text_ in child) {
+        //@ts-ignore
+        if (this._view) {
+          //@ts-ignore
+          this._view.replaceChildAt(child[text_] || '', atIndex);
+        }
+        this._children[atIndex] = { text: child[text_] || '' };
+      }
+    }
+  }
+
   removeChild(child: any) {
-    const index = this._children.indexOf(child);
+    const index = this._viewChildren.indexOf(child);
     if (index > -1) {
       this._children.splice(index, 1);
       this._removeView(child);
@@ -1211,12 +1242,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   removeChildren() {
-    if (this._children.length === 0) {
+    if (this._viewChildren.length === 0) {
       return;
     }
-    for (const child of this._children) {
+    for (const child of this._viewChildren) {
+      // @ts-ignore
       child._isMasonChild = false;
-      this._removeView(child);
+      if (child instanceof NSView) {
+        this._removeView(child);
+      }
     }
     this._children.splice(0);
   }

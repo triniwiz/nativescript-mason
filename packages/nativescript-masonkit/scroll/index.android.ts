@@ -1,5 +1,5 @@
 import { Utils } from '@nativescript/core';
-import { isMasonView_, style_, textProperty, ViewBase } from '../common';
+import { isMasonView_, style_, text_, textProperty, ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 
@@ -27,18 +27,25 @@ export class Scroll extends ViewBase {
   set text(value) {
     const nativeView = this._view;
     if (nativeView) {
-      // hacking vue3 to handle text nodes
       if (global.VUE3_ELEMENT_REF) {
         const view_ref = this[global.VUE3_ELEMENT_REF] as any;
         if (Array.isArray(view_ref.childNodes)) {
           if (view_ref.childNodes.length === 0) {
-            nativeView.replaceChildAt(value || '', -1);
+            this.addChild({ [text_]: value });
+            return;
+          }
+          if (view_ref.childNodes.length === 1) {
+            const node = view_ref.childNodes[0];
+            if (node && node.nodeType === 'text') {
+              this.addChild({ [text_]: node.text });
+            }
             return;
           }
 
           (view_ref.childNodes as any[]).forEach((node, index) => {
             if (node.nodeType === 'text') {
-              nativeView.replaceChildAt(node.text || '', index);
+              //  nativeView.replaceChildAt(node.text, index);
+              this.replaceChild({ [text_]: node.text }, index);
             }
           });
         }

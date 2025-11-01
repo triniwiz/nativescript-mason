@@ -44,9 +44,9 @@ cargo {
     "x86"   : 21,
     "x86_64": 21
   ]
-//  targets = ["arm", "arm64", "x86", "x86_64"]
-  targets = ["arm64"]
-  profile = "debug"
+  targets = ["arm", "arm64", "x86", "x86_64"]
+  //targets = ["arm64"]
+  profile = "release"
   targetDirectory = "../../../../../target"
   verbose = true
   extraCargoBuildArguments = ['-p', 'mason-android']

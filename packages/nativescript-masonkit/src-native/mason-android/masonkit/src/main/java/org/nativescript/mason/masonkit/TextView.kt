@@ -211,6 +211,7 @@ class TextView @JvmOverloads constructor(
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
           node.style.margin = margin(16f, 16f)
+          node.style.display = Display.Block
         }
 
         else -> {

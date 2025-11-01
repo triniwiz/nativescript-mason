@@ -265,7 +265,6 @@ interface Element {
     node.addChildAt(node, index)
   }
 
-
   fun replaceChildAt(text: String, index: Int) {
     node.replaceChildAt(TextNode(node.mason).apply {
       data = text
@@ -292,7 +291,7 @@ interface Element {
 
 }
 
-internal fun Element.applyLayoutRecursive(node: Node, layout: Layout, parent: Layout? = null) {
+internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
   node.computedLayout = layout
 
   if (node.type != NodeType.Element) {
@@ -316,14 +315,8 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout, parent: La
         hasHeightConstraint = node.style.size.height != Dimension.Auto
       }
 
-      var x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-      var y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
-
-
-      parent?.let {
-        x = (parent.x.takeIf { !it.isNaN() }?.toInt() ?: 0) + x
-        y = (parent.y.takeIf { !it.isNaN() }?.toInt() ?: 0) + y
-      }
+      val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
+      val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
 
 
       var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
@@ -390,10 +383,8 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout, parent: La
       if (child.type == NodeType.Text) {
         continue
       }
-      val layoutChild = layout.children.getOrNull(i)
-      layoutChild?.let {
-        applyLayoutRecursive(child, layoutChild, if (node.view == null) layout else null)
-      }
+      val layoutChild = layout.children[i]
+      applyLayoutRecursive(child, layoutChild)
 
     }
   }

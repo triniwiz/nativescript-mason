@@ -14,18 +14,25 @@
         <View class="box d">D</View>
       </View> -->
 
-      <View>
-          <Text>A</Text>
-          <Text>AA</Text>
-          <Text>AAA</Text>
-      </View>
-      
+      <view style="background-color: green;">
+        <text id="1" style="color: red;background-color: blue;">A</text>
+        <text id="2" style="color: orange;background-color: pink;">B</text>
+        <text id="3" style="color: yellow;background-color: purple;display: block;">C</text>
+        <view style="background-color: olive;">
+          First
+          <text id="4" style="color: white;">D</text>
+          <img style="height: 100;width: 100;" src="https://picsum.photos/600/600" />
+          <text id="5" style="color: white;background-color: lightblue;">E</text>
+          Osei ??
+        </view>
+      </view>
+
     </Page>
   </Frame>
 </template>
 
 <script lang="ts" setup>
-import { $navigateTo } from 'nativescript-vue';
+import { $navigateTo, Text } from 'nativescript-vue';
 import NativescriptMasonkit from '../plugin-demos/nativescript-masonkit.vue'
 
 const viewDemo = (args) => {

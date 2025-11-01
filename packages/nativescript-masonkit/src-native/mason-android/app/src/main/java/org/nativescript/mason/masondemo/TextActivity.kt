@@ -10,7 +10,6 @@ import androidx.core.graphics.toColorInt
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.Display
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
@@ -52,19 +51,281 @@ class TextActivity : AppCompatActivity() {
     //testElements()
     //testTextInsert()
     // inlineTest()
-    testTextReplace()
+    // testTextReplace()
+    // testTextNodeReplace
+//    testTextAppend()
+    // testTextContainerAppend()
+    // testTextContainerReplace()
+    // testTextContainerReplaceInContainer()
+//    testTextNodeReplaceWithImage()
+    //testTextNodeInsertWithImage()
+    testTextNodeInsertingInline()
     setContentView(body)
+  }
+
+  fun testTextNodeInsertingInline() {
+    val root = Mason.shared.createView(this)
+    val a = Mason.shared.createTextView(this)
+    a.append("A")
+    val b = Mason.shared.createTextView(this)
+    b.append("B")
+
+    val c = Mason.shared.createTextView(this)
+    c.append("C")
+
+    val other = Mason.shared.createView(this)
+    other.setBackgroundColor(Color.BLUE)
+
+    val d = Mason.shared.createTextView(this)
+    d.append("D")
+
+    other.append(d)
+    //other.addChildAt(d, 0)
+
+
+    val img = Mason.shared.createImageView(this)
+    // img.style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
+
+    Log.d("com.test", "image ${img.style.display}")
+
+    //other.append(img)
+
+    val e = Mason.shared.createTextView(this)
+    e.append("E")
+
+
+    val f = Mason.shared.createTextView(this)
+    f.append("F")
+
+
+    other.append(e)
+    other.append(f)
+
+    root.append(a)
+    root.append(b)
+    root.append(c)
+
+    root.append(other)
+
+    Timer().schedule(2000L) {
+      runOnUiThread {
+        img.src = "https://picsum.photos/600/600"
+      }
+    }
+
+    body.append(root)
+
+  }
+
+  fun testTextNodeInserting() {
+    val root = Mason.shared.createView(this)
+    root.addChildAt("A", 0)
+    root.addChildAt("B", 1)
+    root.addChildAt("C", 2)
+    root.addChildAt("D", -1)
+
+    val other = Mason.shared.createView(this)
+    other.addChildAt("?", 0)
+
+    root.append(other)
+
+    body.append(root)
+
+  }
+
+  fun testTextNodeInsertWithImage() {
+    val root = Mason.shared.createView(this)
+    root.append("A")
+    root.append("C")
+    root.append("C")
+
+    body.append(root)
+
+
+    Timer().schedule(2000L) {
+      runOnUiThread {
+
+        val checkmark = Mason.shared.createImageView(this@TextActivity)
+        checkmark.style.size = Size(
+          Dimension.Points(100f), Dimension.Points(100f)
+        )
+        checkmark.setImageResource(R.drawable.ic_launcher_background)
+
+        root.addChildAt(checkmark, 1)
+
+        Mason.shared.printTree(root.node)
+
+      }
+    }
+  }
+
+  fun testTextNodeReplaceWithImage() {
+    val root = Mason.shared.createView(this)
+    root.append("A")
+    root.append("C")
+    root.append("C")
+
+    body.append(root)
+
+
+    Timer().schedule(2000L) {
+      runOnUiThread {
+
+        val checkmark = Mason.shared.createImageView(this@TextActivity)
+        checkmark.style.size = Size(
+          Dimension.Points(100f), Dimension.Points(100f)
+        )
+        checkmark.setImageResource(R.drawable.ic_launcher_background)
+
+        root.replaceChildAt(checkmark, 1)
+
+        Mason.shared.printTree(root.node)
+
+      }
+    }
+
+
+  }
+
+  fun testTextContainerReplaceInContainer() {
+    val root = Mason.shared.createView(this)
+
+    val a = Mason.shared.createTextView(this)
+    a.append("A")
+    a.setBackgroundColor(Color.RED)
+
+    val b = Mason.shared.createTextView(this)
+    b.append("D")
+    b.setBackgroundColor(Color.BLUE)
+
+    val c = Mason.shared.createTextView(this)
+    c.append("C")
+    c.setBackgroundColor(Color.GREEN)
+
+    root.append(a)
+    root.append(b)
+    root.append(c)
+
+    body.append(root)
+
+    Mason.shared.printTree(root.node)
+
+    Timer().schedule(2000L) {
+      runOnUiThread {
+        b.replaceChildAt("B", 0)
+        Mason.shared.printTree(root.node)
+      }
+    }
+
+
+  }
+
+  fun testTextContainerReplace() {
+    val root = Mason.shared.createView(this)
+
+    val a = Mason.shared.createTextView(this)
+    a.append("A")
+    a.setBackgroundColor(Color.RED)
+
+    val b = Mason.shared.createTextView(this)
+    b.append("D")
+    b.setBackgroundColor(Color.BLUE)
+
+    val c = Mason.shared.createTextView(this)
+    c.append("C")
+    c.setBackgroundColor(Color.GREEN)
+
+    root.append(a)
+    root.append(b)
+    root.append(c)
+
+    body.append(root)
+
+    Mason.shared.printTree(root.node)
+
+    Timer().schedule(2000L) {
+      runOnUiThread {
+        val replace = Mason.shared.createTextView(this@TextActivity)
+        replace.append("B")
+        root.replaceChildAt(replace, 1)
+        Mason.shared.printTree(root.node)
+      }
+    }
+
+
+  }
+
+  fun testTextNodeReplace() {
+    val root = Mason.shared.createView(this)
+    root.append("A")
+    root.append("C")
+    root.append("C")
+
+    body.append(root)
+
+
+    Timer().schedule(2000L) {
+      runOnUiThread {
+        root.replaceChildAt("B", 1)
+      }
+    }
+
+
+  }
+
+  fun testTextAppend() {
+    val root = Mason.shared.createView(this)
+    root.append("A")
+    root.append("B")
+    root.append("C")
+    Mason.shared.printTree(root.node)
+
+    body.append(root)
+
+    Mason.shared.printTree(body.node)
+  }
+
+  fun testTextContainerAppend() {
+    val root = Mason.shared.createView(this)
+
+    val a = Mason.shared.createTextView(this)
+    a.append("A")
+
+    val b = Mason.shared.createTextView(this)
+    b.append("B")
+
+    val c = Mason.shared.createTextView(this)
+    c.append("C")
+
+    val d = Mason.shared.createTextView(this, TextType.P)
+    d.setBackgroundColor(Color.BLUE)
+    d.append("D")
+
+
+
+
+    root.append(a)
+    root.append(b)
+    root.append(c)
+    root.append(d)
+
+    //root.append(div)
+
+    // Mason.shared.printTree(root.node)
+
+    body.append(root)
+
+    Mason.shared.printTree(root.node)
   }
 
   fun testTextReplace() {
     val root = Mason.shared.createView(this)
-//    root.append("1")
-//    root.append("3")
-//    root.append("3")
     val a = Mason.shared.createTextView(this)
     a.append("A")
+
     val b = Mason.shared.createTextView(this)
-    b.append("A")
+    b.append("B")
+
     val c = Mason.shared.createTextView(this)
     c.append("C")
 
@@ -72,17 +333,25 @@ class TextActivity : AppCompatActivity() {
     root.append(b)
     root.append(c)
 
-    Mason.shared.printTree(root.node)
-
-    val img = Mason.shared.createImageView(this)
-    img.style.display = Display.Block
-    img.style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
-    img.setImageResource(R.drawable.ic_launcher_background)
-    root.replaceChildAt(img, 0)
+    val d = Mason.shared.createTextView(this, TextType.P)
+    d.append("Wednesday")
+    root.addChildAt(d, 1)
 
     Mason.shared.printTree(root.node)
 
     body.append(root)
+
+
+    Timer().schedule(2000L) {
+      runOnUiThread {
+        val f = Mason.shared.createTextView(this@TextActivity)
+        f.append("???")
+        root.addChildAt(f, 1)
+        Mason.shared.printTree(root.node)
+      }
+    }
+
+
   }
 
   fun testInsert() {

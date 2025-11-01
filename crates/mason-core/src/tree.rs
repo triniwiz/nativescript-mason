@@ -5,9 +5,9 @@ use std::fmt::Debug;
 use taffy::{
     compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
     compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
-    CacheTree, ClearState, Display, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput,
-    LayoutPartialTree, MaybeResolve, NodeId, PrintTree, ResolveOrZero, RoundTree, Size,
-    TraversePartialTree, TraverseTree,
+    CacheTree, ClearState, CoreStyle, Dimension, Display, Layout, LayoutBlockContainer,
+    LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId, PrintTree, ResolveOrZero,
+    RoundTree, Size, TraversePartialTree, TraverseTree,
 };
 
 new_key_type! {
@@ -33,6 +33,10 @@ pub struct Tree {
     pub(crate) children: SecondaryMap<Id, Vec<Id>>,
     pub(crate) node_data: SecondaryMap<Id, NodeData>,
     pub(crate) use_rounding: bool,
+    // small nesting counter to avoid re-entrant inline-run aggregation
+    pub(crate) inline_run_nesting: usize,
+    // pending child ids for the inline run - set_unrounded_layout will consume these
+    pub(crate) inline_run_pending: Vec<Id>,
 }
 
 impl Default for Tree {
@@ -49,6 +53,8 @@ impl Tree {
             children: Default::default(),
             node_data: Default::default(),
             use_rounding: true,
+            inline_run_nesting: 0,
+            inline_run_pending: Vec::new(),
         }
     }
 
@@ -59,6 +65,8 @@ impl Tree {
             children: SecondaryMap::with_capacity(value),
             node_data: SecondaryMap::with_capacity(value),
             use_rounding: true,
+            inline_run_nesting: 0,
+            inline_run_pending: Vec::new(),
         }
     }
 
@@ -115,9 +123,24 @@ impl Tree {
         available_space: Size<AvailableSpace>,
         use_rounding: bool,
     ) {
+        // update tree rounding mode so other helpers (Tree::layout etc.) are consistent
+        self.use_rounding = use_rounding;
+
+        // reset any inline-run state before doing a full layout pass to avoid
+        // stale pending entries / nesting interfering with cached layouts
+        self.inline_run_pending.clear();
+        self.inline_run_nesting = 0;
+
         compute_root_layout(self, root, available_space);
+
         if use_rounding {
-            round_layout(self, root)
+            round_layout(self, root);
+        } else {
+            // Ensure final_layout mirrors unrounded_layout so prints / consumers that read
+            // final_layout get the correct positions even when rounding is disabled.
+            for (_id, node) in self.nodes.iter_mut() {
+                node.final_layout = node.unrounded_layout;
+            }
         }
     }
 
@@ -583,6 +606,75 @@ impl Tree {
         false
     }
 
+
+    fn subtree_all_inline_descendants(&self, id: Id) -> bool {
+        // Stack for depth-first traversal
+        let mut stack: Vec<Id> = self
+            .children
+            .get(id)
+            .map(|children| children.iter().copied().collect())
+            .unwrap_or_default();
+
+        // Traverse the subtree
+        while let Some(current) = stack.pop() {
+            if let Some(node) = self.nodes.get(current) {
+                let mode = node.style.display_mode();
+
+                // Check if the current node is inline
+                let is_inline = node.style.force_inline()
+                    || node.is_text_container()
+                    || matches!(mode, DisplayMode::Inline | DisplayMode::Box);
+
+                // If the current node is not inline, return false
+                if !is_inline {
+                    return false;
+                }
+
+                // Add children of the current node to the stack
+                if let Some(children) = self.children.get(current) {
+                    stack.extend(children.iter().copied());
+                }
+            }
+        }
+
+        // If all nodes are inline, return true
+        true
+    }
+
+    fn subtree_has_mixed_content(&self, id: Id) -> bool {
+        let mut has_inline = false;
+        let mut has_block = false;
+
+        let mut stack: Vec<Id> = self
+            .children
+            .get(id)
+            .map(|children| children.iter().copied().collect())
+            .unwrap_or_default();
+
+        while let Some(current) = stack.pop() {
+            if let Some(node) = self.nodes.get(current) {
+                let mode = node.style.display_mode();
+                if mode == DisplayMode::Inline || node.style.force_inline() {
+                    has_inline = true;
+                } else {
+                    has_block = true;
+                }
+
+                // If both inline and block content are found, return early
+                if has_inline && has_block {
+                    return true;
+                }
+
+                // Add children to the stack for further processing
+                if let Some(children) = self.children.get(current) {
+                    stack.extend(children.iter().copied());
+                }
+            }
+        }
+
+        false
+    }
+
     /// Return true when node should be treated as inline-level or text for run detection.
     fn is_inline_or_text(&self, node_id: Id) -> bool {
         let node = &self.nodes[node_id];
@@ -595,6 +687,426 @@ impl Tree {
             || matches!(mode, DisplayMode::Inline | DisplayMode::Box)
             || node.type_ == NodeType::Text
     }
+
+    fn compute_mixed_layout(
+        &mut self,
+        parent: Id,
+        child_ids: &[Id],
+        inputs: LayoutInput,
+    ) -> LayoutOutput {
+        let parent_node = self.nodes.get(parent).unwrap();
+        let style = parent_node.style.clone();
+        let pb = style
+            .get_padding()
+            .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0)
+            + style
+                .get_border()
+                .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
+
+        let inline_available = inputs
+            .available_space
+            .width
+            .into_option()
+            .map(|w| (w - pb.horizontal_components().sum()).max(0.0));
+        let available_width = inline_available.unwrap_or(f32::INFINITY);
+
+        let mut y_offset = pb.top;
+        let mut max_line_width = 0.0f32;
+
+        let mut current_line: Vec<(Id, f32, f32, f32)> = vec![];
+        let mut current_line_width = 0.0f32;
+
+        let mut total_height = 0.0; // Track total height of all lines
+
+        // Pre-measure all children
+        for &child_id in child_ids {
+            let child_node_id = NodeId::from(child_id);
+
+            let measure_inputs = LayoutInput {
+                known_dimensions: Size::NONE,
+                available_space: Size {
+                    width: AvailableSpace::MaxContent,
+                    height: AvailableSpace::MaxContent,
+                },
+                parent_size: inputs.parent_size,
+                ..inputs
+            };
+
+
+            let layout = self.compute_child_layout(child_node_id, measure_inputs);
+
+            if let Some(child) = self.nodes.get_mut(child_id) {
+                child.unrounded_layout.size = layout.size;
+            }
+        }
+
+        // Process each child
+        for &child_id in child_ids {
+            if let Some((unrounded_layout, size, margin, is_inline)) =
+                self.nodes.get(child_id).map(|node| {
+                    let resolved_mode = node.style.display_mode();
+                    let is_inline =
+                        resolved_mode == DisplayMode::Inline || node.style.force_inline();
+                    (
+                        node.unrounded_layout,
+                        node.style.size(),
+                        node.style.margin(),
+                        is_inline,
+                    )
+                })
+            {
+                let child_w = unrounded_layout.size.width;
+                let child_h = unrounded_layout.size.height;
+
+                let margin = margin.resolve_or_zero(Size::NONE, |_v, _b| 0.0);
+
+                let segment_width = margin.left + child_w + margin.right;
+                let ascent = child_h + margin.top;
+                let descent = margin.bottom;
+
+                if is_inline {
+                    // Add inline node to the current line
+                    if current_line_width + segment_width > available_width && !current_line.is_empty() {
+                        // Finalize the current line
+                        let line_height = current_line
+                            .iter()
+                            .map(|(_, _, ascent, descent)| ascent + descent)
+                            .fold(0.0f32, |a, b| a.max(b));
+                        let baseline = current_line
+                            .iter()
+                            .map(|(_, _, ascent, _)| *ascent)
+                            .fold(0.0f32, |a, b| a.max(b));
+
+                        // Convert current_line to the expected format
+                        let line_items: Vec<(Option<Id>, f32, f32, f32)> = current_line
+                            .iter()
+                            .map(|(id, width, ascent, descent)| {
+                                (Some(*id), *width, *ascent, *descent)
+                            })
+                            .collect();
+
+                        // Place the current line items
+                        Self::place_line_items(
+                            &mut self.nodes,
+                            &line_items,
+                            pb.left,
+                            y_offset,
+                            baseline,
+                        );
+
+                        y_offset += line_height;
+                        total_height += line_height; // Add line height to total height
+                        max_line_width = max_line_width.max(current_line_width);
+
+                        current_line = vec![];
+                        current_line_width = 0.0;
+                    }
+
+                    current_line.push((child_id, segment_width, ascent, descent));
+                    current_line_width += segment_width;
+                } else {
+                    // Handle block node
+                    if !current_line.is_empty() {
+                        // Finalize the current line
+                        let line_height = current_line
+                            .iter()
+                            .map(|(_, _, ascent, descent)| ascent + descent)
+                            .fold(0.0f32, |a, b| a.max(b));
+                        let baseline = current_line
+                            .iter()
+                            .map(|(_, _, ascent, _)| *ascent)
+                            .fold(0.0f32, |a, b| a.max(b));
+
+                        // Convert current_line to the expected format
+                        let line_items: Vec<(Option<Id>, f32, f32, f32)> = current_line
+                            .iter()
+                            .map(|(id, width, ascent, descent)| {
+                                (Some(*id), *width, *ascent, *descent)
+                            })
+                            .collect();
+
+                        // Place the current line items
+                        Self::place_line_items(
+                            &mut self.nodes,
+                            &line_items,
+                            pb.left,
+                            y_offset,
+                            baseline,
+                        );
+
+                        y_offset += line_height;
+                        total_height += line_height; // Add line height to total height
+                        max_line_width = max_line_width.max(current_line_width);
+
+                        current_line = vec![];
+                        current_line_width = 0.0;
+                    }
+
+                    // Position the block node
+                    let child_x = pb.left + margin.left;
+                    let child_y = y_offset + margin.top;
+
+                    if let Some(node) = self.nodes.get_mut(child_id) {
+                        node.unrounded_layout.location.x = child_x;
+                        node.unrounded_layout.location.y = child_y;
+                    }
+
+                    y_offset += ascent + descent;
+                    total_height += ascent + descent; // Add block height to total height
+                    max_line_width = max_line_width.max(segment_width);
+                }
+            }
+        }
+
+        // Finalize the last line
+        if !current_line.is_empty() {
+            let line_height = current_line
+                .iter()
+                .map(|(_, _, ascent, descent)| ascent + descent)
+                .fold(0.0f32, |a, b| a.max(b));
+            let baseline = current_line
+                .iter()
+                .map(|(_, _, ascent, _)| *ascent)
+                .fold(0.0f32, |a, b| a.max(b));
+
+            // Convert current_line to the expected format
+            let line_items: Vec<(Option<Id>, f32, f32, f32)> = current_line
+                .iter()
+                .map(|(id, width, ascent, descent)| (Some(*id), *width, *ascent, *descent))
+                .collect();
+
+            // Pass the converted line_items to place_line_items
+            Self::place_line_items(&mut self.nodes, &line_items, pb.left, y_offset, baseline);
+
+            y_offset += line_height;
+            total_height += line_height; // Add line height to total height
+            max_line_width = max_line_width.max(current_line_width);
+        }
+
+        let final_size = Size {
+            width: max_line_width + pb.horizontal_components().sum(),
+            height: total_height + pb.vertical_components().sum(),
+        };
+
+        compute_leaf_layout(
+            inputs,
+            &style,
+            |_val, _basis| 0.0,
+            |_known_dimensions, _available_space| final_size,
+        )
+    }
+
+    fn compute_inline_run_for_children(
+        &mut self,
+        parent: Id,
+        child_ids: &[Id],
+        inputs: LayoutInput,
+    ) -> LayoutOutput {
+        // Pre-measure each child so they have sizes before line-breaking.
+        for &child_id in child_ids.iter() {
+            let child_node_id = NodeId::from(child_id);
+
+            let is_inline_level = self
+                .nodes
+                .get(child_id)
+                .map(|node| {
+                    let resolved_mode = node.style.display_mode();
+                    resolved_mode == DisplayMode::Inline
+                        || node.style.force_inline()
+                        || matches!(node.type_, NodeType::Text)
+                })
+                .unwrap_or(false);
+
+            let measure_width = if is_inline_level {
+                AvailableSpace::MaxContent
+            } else {
+                inputs.available_space.width
+            };
+
+            let measure_inputs = LayoutInput {
+                known_dimensions: Size::NONE,
+                available_space: Size {
+                    width: measure_width,
+                    height: AvailableSpace::MaxContent,
+                },
+                parent_size: inputs.parent_size,
+                ..inputs
+            };
+
+            let layout = self.compute_child_layout(child_node_id, measure_inputs);
+
+            if let Some(child) = self.nodes.get_mut(child_id) {
+                child.unrounded_layout.size = layout.size;
+            }
+        }
+
+        let parent_node = self.nodes.get(parent).unwrap();
+        let style = parent_node.style.clone();
+        let pb = style
+            .get_padding()
+            .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0)
+            + style
+                .get_border()
+                .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
+
+        let inline_available = inputs
+            .available_space
+            .width
+            .into_option()
+            .map(|w| (w - pb.horizontal_components().sum()).max(0.0));
+        let available_width = inline_available.unwrap_or(f32::INFINITY);
+
+        let mut y_offset = pb.top;
+        let mut max_line_width = 0.0f32;
+
+        let mut current_line: Vec<(Id, f32, f32, f32)> = vec![];
+        let mut current_line_width = 0.0f32;
+
+        for &child_id in child_ids {
+            if let Some(child) = self.nodes.get(child_id) {
+                let resolved_mode = child.style.display_mode();
+                let is_inline = resolved_mode == DisplayMode::Inline || child.style.force_inline();
+
+                let child_w = child.unrounded_layout.size.width;
+                let child_h = child.unrounded_layout.size.height;
+
+                let margin = child
+                    .style
+                    .get_margin()
+                    .resolve_or_zero(Size::NONE, |_v, _b| 0.0);
+
+                let segment_width = margin.left + child_w + margin.right;
+                let ascent = child_h + margin.top;
+                let descent = margin.bottom;
+
+                if is_inline {
+                    // Add inline node to the current line
+                    if current_line_width + segment_width > available_width
+                        && !current_line.is_empty()
+                    {
+                        // Finalize the current line
+                        let line_height = current_line
+                            .iter()
+                            .map(|(_, _, ascent, descent)| ascent + descent)
+                            .fold(0.0f32, |a, b| a.max(b));
+                        let baseline = current_line
+                            .iter()
+                            .map(|(_, _, ascent, _)| *ascent)
+                            .fold(0.0f32, |a, b| a.max(b));
+
+                        // Convert current_line to the expected format
+                        let line_items: Vec<(Option<Id>, f32, f32, f32)> = current_line
+                            .iter()
+                            .map(|(id, width, ascent, descent)| {
+                                (Some(*id), *width, *ascent, *descent)
+                            })
+                            .collect();
+
+                        Self::place_line_items(
+                            &mut self.nodes,
+                            &line_items,
+                            pb.left,
+                            y_offset,
+                            baseline,
+                        );
+
+                        y_offset += line_height;
+                        max_line_width = max_line_width.max(current_line_width);
+
+                        current_line = vec![];
+                        current_line_width = 0.0;
+                    }
+
+                    current_line.push((child_id, segment_width, ascent, descent));
+                    current_line_width += segment_width;
+                } else {
+                    // Handle block node
+                    if !current_line.is_empty() {
+                        // Finalize the current line
+                        let line_height = current_line
+                            .iter()
+                            .map(|(_, _, ascent, descent)| ascent + descent)
+                            .fold(0.0f32, |a, b| a.max(b));
+                        let baseline = current_line
+                            .iter()
+                            .map(|(_, _, ascent, _)| *ascent)
+                            .fold(0.0f32, |a, b| a.max(b));
+
+                        // Convert current_line to the expected format
+                        let line_items: Vec<(Option<Id>, f32, f32, f32)> = current_line
+                            .iter()
+                            .map(|(id, width, ascent, descent)| {
+                                (Some(*id), *width, *ascent, *descent)
+                            })
+                            .collect();
+
+                        Self::place_line_items(
+                            &mut self.nodes,
+                            &line_items,
+                            pb.left,
+                            y_offset,
+                            baseline,
+                        );
+
+                        y_offset += line_height;
+                        max_line_width = max_line_width.max(current_line_width);
+
+                        current_line = vec![];
+                        current_line_width = 0.0;
+                    }
+
+                    // Position the block node
+                    let child_x = pb.left + margin.left;
+                    let child_y = y_offset + margin.top;
+
+                    if let Some(node) = self.nodes.get_mut(child_id) {
+                        node.unrounded_layout.location.x = child_x;
+                        node.unrounded_layout.location.y = child_y;
+                    }
+
+                    y_offset += ascent + descent;
+                    max_line_width = max_line_width.max(segment_width);
+                }
+            }
+        }
+
+        // Finalize the last line
+        if !current_line.is_empty() {
+            let line_height = current_line
+                .iter()
+                .map(|(_, _, ascent, descent)| ascent + descent)
+                .fold(0.0f32, |a, b| a.max(b));
+            let baseline = current_line
+                .iter()
+                .map(|(_, _, ascent, _)| *ascent)
+                .fold(0.0f32, |a, b| a.max(b));
+
+            // Convert current_line to the expected format
+            let line_items: Vec<(Option<Id>, f32, f32, f32)> = current_line
+                .iter()
+                .map(|(id, width, ascent, descent)| (Some(*id), *width, *ascent, *descent))
+                .collect();
+
+            // Pass the converted line_items to place_line_items
+            Self::place_line_items(&mut self.nodes, &line_items, pb.left, y_offset, baseline);
+
+            y_offset += line_height;
+            max_line_width = max_line_width.max(current_line_width);
+        }
+
+        let final_size = Size {
+            width: max_line_width + pb.horizontal_components().sum(),
+            height: y_offset + pb.bottom,
+        };
+
+        compute_leaf_layout(
+            inputs,
+            &style,
+            |_val, _basis| 0.0,
+            |_known_dimensions, _available_space| final_size,
+        )
+    }
+
     pub fn compute_inline_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
         let id: Id = node_id.into();
 
@@ -611,7 +1123,7 @@ impl Tree {
                 LayoutInput {
                     known_dimensions: Size::NONE, // Let child determine its own size
                     available_space: Size {
-                        width: inputs.available_space.width,
+                        width: AvailableSpace::MaxContent,
                         height: AvailableSpace::MaxContent,
                     },
                     parent_size: inputs.parent_size,
@@ -681,7 +1193,6 @@ impl Tree {
 
         // If still no segments, fallback to measure or zero
         if segments.is_empty() {
-            // --- PATCH START ---
             // If this is a leaf node (no children), resolve style size as known_dimensions
             let style_size = style.get_size();
             let known_dimensions = Size {
@@ -692,7 +1203,6 @@ impl Tree {
                     .height
                     .maybe_resolve(inputs.parent_size.height, |_v, _b| 0.0),
             };
-            // --- PATCH END ---
 
             return if has_measure {
                 compute_leaf_layout(
@@ -782,10 +1292,29 @@ impl Tree {
                                         .resolve_or_zero(Size::NONE, |_v, _b| 0.0);
                                     let segment_width = margin.left + child_width + margin.right;
 
-                                    if current_line_width + segment_width > available_width
-                                        && !current_line.is_empty()
-                                    {
-                                        lines.push(current_line);
+                                    if segment_width > 0.0 && current_line_width + segment_width > available_width && !current_line.is_empty() {
+                                        // Finalize the current line
+                                        let line_height = current_line
+                                            .iter()
+                                            .map(|(_, _, ascent, descent)| ascent + descent)
+                                            .fold(0.0f32, |a, b| a.max(b));
+                                        let baseline = current_line
+                                            .iter()
+                                            .map(|(_, _, ascent, _)| *ascent)
+                                            .fold(0.0f32, |a, b| a.max(b));
+
+                                        // Place the current line items
+                                        Self::place_line_items(
+                                            &mut self.nodes,
+                                            &current_line,
+                                            pb.left,
+                                            total_height + pb.top,
+                                            baseline,
+                                        );
+
+                                        total_height += line_height;
+                                        max_line_width = max_line_width.max(current_line_width);
+
                                         current_line = vec![];
                                         current_line_width = 0.0;
                                     }
@@ -806,7 +1335,26 @@ impl Tree {
 
                 // Add last line
                 if !current_line.is_empty() {
-                    lines.push(current_line);
+                    let line_height = current_line
+                        .iter()
+                        .map(|(_, _, ascent, descent)| ascent + descent)
+                        .fold(0.0f32, |a, b| a.max(b));
+                    let baseline = current_line
+                        .iter()
+                        .map(|(_, _, ascent, _)| *ascent)
+                        .fold(0.0f32, |a, b| a.max(b));
+
+                    // Place the current line items
+                    Self::place_line_items(
+                        &mut self.nodes,
+                        &current_line,
+                        pb.left,
+                        total_height + pb.top,
+                        baseline,
+                    );
+
+                    total_height += line_height;
+                    max_line_width = max_line_width.max(current_line_width);
                 }
 
                 // Calculate total height and position items
@@ -841,6 +1389,7 @@ impl Tree {
                     max_line_width
                 };
 
+
                 Size {
                     width: resolved_width + pb.horizontal_components().sum(),
                     height: total_height + pb.vertical_components().sum(),
@@ -861,6 +1410,11 @@ impl Tree {
         for &(id_opt, width, ascent, descent) in items {
             if let Some(id) = id_opt {
                 if let Some(node) = nodes.get_mut(id) {
+                    // Skip zero-sized nodes
+                    if width == 0.0 && ascent == 0.0 && descent == 0.0 {
+                        continue;
+                    }
+
                     let margin = node
                         .style
                         .get_margin()
@@ -878,12 +1432,11 @@ impl Tree {
                     node.unrounded_layout.size.width = content_width.max(0.0);
                     node.unrounded_layout.size.height = content_height.max(0.0);
 
-                    cursor_x = cursor_x + width;
-                    continue;
+                    cursor_x += width;
                 }
+            } else {
+                cursor_x += width;
             }
-
-            cursor_x += width;
         }
     }
 }
@@ -931,7 +1484,27 @@ impl LayoutPartialTree for Tree {
     }
 
     fn set_unrounded_layout(&mut self, node_id: NodeId, layout: &Layout) {
-        self.node_from_id_mut(node_id).unrounded_layout = *layout;
+        // If this node is part of an inline-run we placed, preserve the manual location
+        // and only merge the other layout fields. Consume pending entries as they are applied.
+        let id: Id = node_id.into();
+        if let Some(pos) = self.inline_run_pending.iter().position(|&x| x == id) {
+            let node = self.node_from_id_mut(node_id);
+            // preserve location, update size/metrics from the computed layout
+            node.unrounded_layout.size = layout.size;
+            node.unrounded_layout.content_size = layout.content_size;
+            node.unrounded_layout.border = layout.border;
+            node.unrounded_layout.padding = layout.padding;
+            node.unrounded_layout.margin = layout.margin;
+            // consume this pending entry
+            self.inline_run_pending.remove(pos);
+            // if that was the last pending entry, we can clear the nesting guard
+            if self.inline_run_pending.is_empty() {
+                self.inline_run_nesting = self.inline_run_nesting.saturating_sub(1);
+            }
+        } else {
+            let node = self.node_from_id_mut(node_id);
+            node.unrounded_layout = *layout;
+        }
     }
 
     fn compute_child_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
@@ -946,7 +1519,17 @@ impl LayoutPartialTree for Tree {
             let is_text_container = node.is_text_container();
             // let has_inline_descendants = tree.subtree_has_inline_descendants(id);
 
-            if force_inline || has_segments || is_text_container {
+            // Detect mixed content
+            let has_mixed_content = tree.subtree_has_mixed_content(id);
+
+            if has_mixed_content {
+                let children = tree.children.get(id).cloned().unwrap_or_default();
+                return tree.compute_mixed_layout(id, children.as_slice(), inputs);
+            }
+
+            let all_inline = tree.subtree_all_inline_descendants(id);
+
+            if force_inline || has_segments || is_text_container || all_inline {
                 return tree.compute_inline_layout(node_id, inputs);
             }
 

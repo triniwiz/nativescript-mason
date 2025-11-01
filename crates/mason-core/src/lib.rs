@@ -239,10 +239,10 @@ impl Mason {
             node.measure = measure;
             node.data = data;
 
-            #[cfg(target_vendor = "apple")]
-            if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
-                node.apple_data = Some(apple_node);
-            }
+            // #[cfg(target_vendor = "apple")]
+            // if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
+            //     node.apple_data = Some(apple_node);
+            // }
         }
 
         if let Some(node) = self.0.nodes.get_mut(node) {

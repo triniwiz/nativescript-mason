@@ -13,12 +13,16 @@ open class Node internal constructor(
   internal var isFlattened: Boolean = false
   internal var computeCacheDirty = false
 
-  internal var computeCache = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+  internal var isImage = false
+  var computeCache = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
     set(value) {
-      field = value
+      field = if (isImage && value.width == -1f && value.height == -1f) {
+        SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+      } else {
+        value
+      }
       computeCacheDirty = true
     }
-
   var computedLayout: Layout = Layout.empty
     internal set
   internal var knownWidth: Float? = null
@@ -78,7 +82,7 @@ open class Node internal constructor(
       knownHeight = knownDimensions.height
       availableWidth = availableSpace.width
       availableHeight = availableSpace.height
-      val view = this@Node.view as? android.view.View
+      val view = this@Node.view as? View
 
       if (knownDimensions.width != null && knownDimensions.height != null) {
         return Size(knownDimensions.width!!, knownDimensions.height!!)
@@ -197,247 +201,18 @@ open class Node internal constructor(
     Style(this)
   }
 
-  open fun appendChild(child: Node) {
-    if (type == NodeType.Document) {
-      if (children.isNotEmpty()) {
-        return
-      }
-      if (child.type == NodeType.Text || child.type == NodeType.Document) {
-        return
-      }
+  internal var suppressChildOps = 0
+  internal inline fun <T> suppressChildOperations(block: () -> T): T {
+    suppressChildOps++
+    try {
+      return block()
+    } finally {
+      suppressChildOps--
     }
-
-    // Remove from old parent
-    child.parent?.removeChild(child)
-
-    // For TextView containers, delegate to the TextView
-    if (view is TextView && child is TextNode) {
-      children.add(child)
-      child.parent = this
-      (view as TextView).attachTextNode(child)
-      return
-    }
-
-    // Check if this is a text node
-    if (child is TextNode) {
-      appendTextChild(child)
-      return
-    }
-
-    // Check if child has a view (element)
-    if (child.view != null && child.nativePtr != 0L) {
-      appendElementChild(child)
-      return
-    }
-
-    // Fallback
-    children.add(child)
-    child.parent = this
-
-    if (nativePtr != 0L && child.nativePtr != 0L) {
-      NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
-    }
-  }
-
-  private fun appendElementChild(child: Node): Node {
-    // Remove from old parent
-    child.parent?.removeChild(child)
-
-    // check
-
-    if (NodeUtils.isInlineLike(child)) {
-      val lastChild = children.lastOrNull()
-      if (lastChild != null) {
-        // 1) reuse an existing anonymous inline wrapper (created earlier)
-        if (lastChild.isAnonymous && lastChild.view == null) {
-          // append into existing wrapper
-          // remove child from old parent already done above
-          child.parent = lastChild
-          lastChild.children.add(child)
-
-          // add child's native/view nodes under this Node's view hierarchy (container is anonymous, so add to this view)
-          (child.view as? View)?.let { childView ->
-            when (view) {
-              is org.nativescript.mason.masonkit.View -> {
-                val masonView = childView as? org.nativescript.mason.masonkit.View
-                if (masonView != null && masonView.isScrollRoot) {
-                  if (masonView.parent != null) {
-                    (view as org.nativescript.mason.masonkit.View).addView(masonView.parent as View?)
-                  }
-                } else {
-                  (view as org.nativescript.mason.masonkit.View).addView(childView)
-                }
-              }
-
-              is Scroll -> {
-                (view as Scroll).addView(childView)
-              }
-
-              is ViewGroup -> {
-                (view as ViewGroup).addView(childView)
-              }
-            }
-          }
-
-          // Add native child to the anonymous container's native node
-          if (child.nativePtr != 0L) {
-            NativeHelpers.nativeNodeAddChild(mason.nativePtr, lastChild.nativePtr, child.nativePtr)
-          }
-
-          (child.view as? Element)?.onNodeAttached()
-          return child
-        }
-
-        // 2) previous sibling is inline-level element -> create a wrapper and move previous + new child inside it
-        if (NodeUtils.isInlineLike(lastChild)) {
-          val container = mason.createNode(null, true)
-          container.style.display = Display.Inline
-          // replace lastChild in this.children with container
-          val lastIndex = children.indexOf(lastChild)
-          if (lastIndex > -1) {
-            children[lastIndex] = container
-            // children.removeAt(lastIndex)
-            // children.add(lastIndex, container)
-          } else {
-            // fallback append
-            children.add(container)
-          }
-
-          // reparent lastChild -> container
-          container.children.add(lastChild)
-          lastChild.parent = container
-
-          // parent the new child under container
-          container.children.add(child)
-          child.parent = container
-          container.parent = this
-
-          // update native children for the new container (order: moved lastChild then new child)
-          NativeHelpers.nativeNodeSetChildren(
-            mason.nativePtr, container.nativePtr, longArrayOf(lastChild.nativePtr, child.nativePtr)
-          )
-
-          // Add to native layout tree
-          if (child.nativePtr != 0L) {
-            NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, container.nativePtr)
-          }
-
-
-          // Add views for children
-          (child.view as? View)?.let { childView ->
-            if (childView.parent == view) {
-              (child.view as? Element)?.let {
-                it.onNodeAttached()
-                it.invalidateLayout()
-              }
-              return@let
-            }
-            when (view) {
-              is org.nativescript.mason.masonkit.View -> {
-                val masonView = childView as? org.nativescript.mason.masonkit.View
-                if (masonView != null && masonView.isScrollRoot) {
-                  if (masonView.parent != null) {
-                    (view as org.nativescript.mason.masonkit.View).addView(masonView.parent as View?)
-                  }
-                } else {
-                  (view as org.nativescript.mason.masonkit.View).addView(childView)
-                }
-              }
-
-              is Scroll -> {
-                (view as Scroll).addView(childView)
-              }
-
-              is ViewGroup -> {
-                (view as ViewGroup).addView(childView)
-              }
-            }
-          }
-
-          (child.view as? Element)?.let {
-            it.onNodeAttached()
-            it.invalidateLayout()
-          }
-
-          return child
-        }
-      }
-    }
-
-    // Add to author tree
-    children.add(child)
-    child.parent = this
-
-    // Add view to hierarchy
-    (child.view as? View)?.let { childView ->
-      when (view) {
-        is org.nativescript.mason.masonkit.View -> {
-          val masonView = childView as? org.nativescript.mason.masonkit.View
-          // this is a scroll
-          if (masonView != null && masonView.isScrollRoot) {
-            if (masonView.parent != null) {
-              (view as org.nativescript.mason.masonkit.View).addView(masonView.parent as View?)
-            }
-          } else {
-            (view as org.nativescript.mason.masonkit.View).addView(childView)
-          }
-        }
-
-        is Scroll -> {
-          (view as Scroll).addView(childView)
-        }
-
-        is ViewGroup -> {
-          (view as ViewGroup).addView(childView)
-        }
-      }
-    }
-
-    // Add to native layout tree
-    if (child.nativePtr != 0L) {
-      NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
-    }
-
-    (child.view as? Element)?.onNodeAttached()
-    dirty()
-    return child
-  }
-
-  private fun appendTextChild(child: Node): Node {
-    // Check that child is actually a TextNode
-    if (child !is TextNode) {
-      // Fallback to element child
-      return appendElementChild(child)
-    }
-
-    // Remove from old parent
-    child.parent?.removeChild(child)
-
-    // If this node already has a TextView, add directly to it
-    if (view is TextView) {
-      children.add(child)
-      child.parent = this
-      (view as TextView).attachTextNode(child)
-      return child
-    }
-
-    // Create new anonymous container
-    val container = getOrCreateAnonymousTextContainer()
-    container.children.add(child)
-    child.parent = container
-    child.apply {
-      // clear attributes when adding to another container
-      attributes.clear()
-      attributes.putAll((container.view as TextView).getDefaultAttributes())
-    }
-    (container.view as? TextView)?.attachTextNode(child)
-
-    return child
   }
 
   internal fun getOrCreateAnonymousTextContainer(
-    append: Boolean = true,
-    checkLast: Boolean = true
+    append: Boolean = true, checkLast: Boolean = true
   ): Node {
     // Check if last child is an anonymous text container
     val lastChild = children.lastOrNull()
@@ -455,22 +230,25 @@ open class Node internal constructor(
     if (append) {
       // Add container to this node
       children.add(textView.node)
-    }
 
-    textView.node.parent = this
-    (view as? ViewGroup)?.addView(textView)
+      textView.node.parent = this
 
-    // Add to native layout tree
-    if (textView.node.nativePtr != 0L) {
-      NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, textView.node.nativePtr)
+      suppressChildOperations {
+        (view as? ViewGroup)?.addView(textView)
+      }
+
+      // Add to native layout tree
+      if (textView.node.nativePtr != 0L) {
+        NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, textView.node.nativePtr)
+      }
+
     }
 
     return textView.node
   }
 
   internal fun getOrCreateAnonymousInlineContainer(
-    append: Boolean = true,
-    checkLast: Boolean = true
+    append: Boolean = true, checkLast: Boolean = true
   ): Node {
     // Check if last child is an anonymous inline container
     val lastChild = children.lastOrNull()
@@ -480,19 +258,18 @@ open class Node internal constructor(
 
     // Create new anonymous container
     val container = mason.createNode(
-      null,
-      true
+      null, true
     )
 
     if (append) {
       // Add container to this node
       children.add(container)
+
+      container.parent = this
+
+      // Add to native layout tree
+      NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, container.nativePtr)
     }
-
-    container.parent = this
-
-    // Add to native layout tree
-    NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, container.nativePtr)
 
     return container
   }
@@ -526,650 +303,482 @@ open class Node internal constructor(
     return children
   }
 
+  open fun appendChild(child: Node) {
+    // TODO handle parent
+    if (child is TextNode) {
+      val container = if (view is TextView) {
+        this
+      } else {
+        getOrCreateAnonymousTextContainer()
+      }
+
+      container.children.add(child)
+      (container.view as? TextView)?.let {
+        child.attributes.clear()
+        child.attributes.putAll(it.getDefaultAttributes())
+        child.container = it
+        it.invalidateInlineSegments()
+      }
+      NodeUtils.invalidateLayout(this)
+    } else {
+      children.add(child)
+      child.parent = this
+      if (child.nativePtr != 0L) {
+        NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
+      }
+      NodeUtils.addView(this, child.view as? View)
+      onNodeAttached?.let { it() }
+    }
+  }
+
   fun appendChild(view: View) {
     val child = mason.nodeForView(view)
     appendChild(child)
   }
 
-  internal fun replaceOrInsertChildAt(child: Node, index: Int, replace: Boolean) {
-    if (replace && index <= -1) {
-      return
-    }
-    val authorNodes = getChildren()
-    val reference = authorNodes.getOrNull(index) ?: return
-    if (child == reference) {
-      return
-    }
-    if (child is TextNode) {
-      if (reference is TextNode && reference.container?.view is TextView) {
-        val idx = reference.layoutParent?.children?.indexOf(reference) ?: return
-        reference.layoutParent?.children?.let { children ->
-          if (replace) {
-            children.set(idx, child)
-          } else {
-            children.add(idx, child)
-          }
-        }
-        reference.container?.let { container ->
-          container.invalidateInlineSegments(false)
-          container.attachTextNode(child)
-          child.attributes.clear()
-          child.attributes.putAll(container.getDefaultAttributes())
-          reference.container = null
-        }
-        return
-      }
-    }
-
-    if (reference.view is View) {
-      if (NodeUtils.isInlineLike(reference) && reference.layoutParent != null && reference.layoutParent!!.view == null) {
-        // an anonymous inline container
-        val idx = reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: return
-        val size = reference.layoutParent?.children?.size ?: 0
-        var element = child
-
-        if (child is TextNode) {
-          val container = mason.createTextView(
-            (view as? View)?.context ?: throw IllegalStateException("View context required"),
-            TextType.None,
-            true
-          )
-          container.append(child)
-          child.attributes.clear()
-          child.attributes.putAll(container.getDefaultAttributes())
-
-          ((reference.view as View).parent as? ViewGroup)?.let { parent ->
-            val viewIdx = parent.indexOfChild(reference.view as View)
-            parent.addView(container, viewIdx)
-            parent.removeView(reference.view as View)
-          }
-
-          element = container.node
-        }
-
-        if (NodeUtils.isInlineLike(element)) {
-          reference.layoutParent?.let { layoutParent ->
-            if (replace) {
-              layoutParent.children[idx] = element
-            } else {
-              layoutParent.children.add(idx, element)
-            }
-
-            reference.parent = null
-            element.parent = layoutParent
-
-            val nativeChildren =
-              layoutParent.children.mapNotNull { if (it.nativePtr != 0L) it.nativePtr else null }
-
-            NativeHelpers.nativeNodeSetChildren(
-              mason.nativePtr,
-              layoutParent.nativePtr,
-              nativeChildren.toLongArray()
-            )
-          }
-        } else {
-          if (idx == 0) {
-            // <div>
-            //  <anonymous inline container>
-            //    <span></span>
-            //    <span></span>
-            //    <span></span>
-            //  </anonymous inline container>
-            // </div>
-            //    handling inserting or replacing index with non-inline node
-            val authorIdx =
-              reference.layoutParent?.layoutParent?.children?.indexOf(reference.layoutParent)
-                ?: return
-
-            val referenceParent = reference.layoutParent ?: return
-
-            val removedNode = reference.layoutParent?.children?.removeAt(0)
-            removedNode?.parent = null
-
-            ((removedNode?.view as View).parent as? ViewGroup)?.let { viewParent ->
-              val previousIndex = viewParent.indexOfChild(removedNode.view as View)
-              if (previousIndex > -1) {
-                (element.view as? View)?.let { childView ->
-                  viewParent.addView(childView, previousIndex)
-                }
-              }
-              viewParent.removeView(removedNode.view as View)
-              NativeHelpers.nativeNodeRemoveChild(
-                mason.nativePtr,
-                referenceParent.nativePtr, removedNode.nativePtr
-              )
-            }
-
-          } else {
-            if (idx >= size) {
-              // append
-            } else {
-              // split
-            }
-          }
-
-        }
-      }
-    }
-  }
-
   fun replaceChildAt(child: Node, index: Int) {
-    replaceOrInsertChildAt(child, index, true)
-    /* if (index <= -1) {
-       return
-     }
-
-     val authorNodes = getChildren()
-
-     if (child.parent === this) {
-       val currentIndex = authorNodes.indexOf(child)
-       // todo handle replacement in parent
-       if (currentIndex > -1) {
-         return
-       }
-     }
-
-     when (child.type) {
-       NodeType.Element -> replaceElementChildAt(child, index, authorNodes)
-       NodeType.Text -> replaceTextChildAt(child, index, authorNodes)
-       NodeType.Document -> {} // noop
-     }
-     */
-
-    if (isStyleInitialized && !style.inBatch) {
-      (view as? Element)?.invalidateLayout()
-    }
-
-  }
-
-  private fun replaceTextChildAt(child: Node, index: Int, nodes: List<Node>? = null) {
-    when (type) {
-      NodeType.Document -> {
-        if (children.isNotEmpty()) {
-          return
-        }
-
-        if (child.type == NodeType.Text || child.type == NodeType.Document) {
-          return
-        }
-      }
-
-      NodeType.Text -> {
-        return
-      }
-
-      else -> {}
-    }
-
-    // Remove from old parent
-    child.parent?.removeChild(child)
-    val authorNodes = nodes ?: getChildren()
-
-    // For text nodes, if inserting at end, use appendChild behavior
-    if (index >= authorNodes.size || index <= -1) {
-      appendChild(child)
-      return
-    }
-
-    val element = authorNodes[index]
-    // Anonymous nodes are always hidden
-    if (element is TextNode) {
-      val layoutIndex = element.container?.node?.children?.indexOf(element)
-      if (layoutIndex != null && layoutIndex > -1) {
-        element.container?.node?.children?.set(layoutIndex, child)
-      } else {
-        element.container?.node?.children?.add(child)
-      }
-
-      (child as TextNode).apply {
-        // clear attributes when adding to another container
-        this.attributes.clear()
-        element.container?.let { textView ->
-          this.attributes.putAll(textView.getDefaultAttributes())
-        }
-      }
-
-      element.container?.let {
-        child.container = it
-        element.container = null
-        it.invalidateInlineSegments()
-      }
-
-    } else if (element.view is Element) {
-      val layoutIndex = children.indexOf(element)
-
-// For TextView containers, delegate to the TextView
-      if (view is TextView && child is TextNode) {
-        if (layoutIndex > -1) {
-          children[index] = child
-        } else {
-          children.add(child)
-        }
-        child.parent = this
-
-        (view as TextView).attachTextNode(child)
-
-        if (layoutIndex > -1 && element.nativePtr != 0L) {
-          NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, element.nativePtr)
-        }
-        element.parent = null
-
-        return
-      }
-
-      // Check if this is a text node get or create anonymous textContainer
-      if (child is TextNode) {
-        val container = getOrCreateAnonymousTextContainer(false)
-        container.appendChild(child)
-        child.apply {
-          // clear attributes when adding to another container
-          attributes.clear()
-          attributes.putAll((container.view as TextView).getDefaultAttributes())
-        }
-        child.parent = container
-
-        if (layoutIndex > -1) {
-          children[index] = container
-        } else {
-          children.add(container)
-        }
-
-        (container.view as TextView).attachTextNode(child)
-
-        if (layoutIndex > -1 && element.nativePtr != 0L) {
-          NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, element.nativePtr)
-        }
-        element.parent = null
-
-        return
-      }
-
-      // Check if child has a view (element)
-      if (child.view != null && child.nativePtr != 0L) {
-        replaceElementChildAt(child, index)
-        return
-      }
-    }
-
-  }
-
-  private fun replaceElementChildAt(child: Node, index: Int, nodes: List<Node>? = null) {
-    val authorNodes = nodes ?: getChildren()
-
-    // Remove from old parent first
-    val wasInSameParent = child.parent === this
-    val oldIndex = if (wasInSameParent) authorNodes.indexOf(child) else -1
-
-    child.parent?.removeChild(child)
-
-    // Adjust index if we removed from same parent and it was before insertion point
-    val adjustedIndex = if (wasInSameParent && oldIndex != -1 && oldIndex < index) {
-      index - 1
-    } else {
-      index
-    }
-
-    // Check if we're inserting into an anonymous text container
-    val element = authorNodes.getOrNull(adjustedIndex)
-    if (element is TextNode && element.container?.node?.isAnonymous == true && element.view is TextView) {
-      // Split the anonymous container
-      val containerNode = element.container!!.node
-      val textChildren = containerNode.children
-      // Find the split index in the container
-      val splitIdx = adjustedIndex - authorNodes.indexOf(containerNode)
-      if (splitIdx >= 0 && splitIdx <= textChildren.size) {
-        // Create new anonymous container for the split
-        val newContainer = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
-        newContainer.children.clear()
-        // Move text nodes after splitIdx to new container
-        val nodesToMove = textChildren.subList(splitIdx, textChildren.size).toList()
-        nodesToMove.forEach { node ->
-          node.parent = newContainer
-          newContainer.children.add(node)
-        }
-        // Remove moved nodes from original container
-        textChildren.subList(splitIdx, textChildren.size).clear()
-
-        // Insert child and new container into children array
-        val containerIdx = children.indexOf(containerNode)
-        if (containerIdx != -1) {
-          children.add(containerIdx + 1, child)
-          child.parent = this
-          children.add(containerIdx + 2, newContainer)
-          newContainer.parent = this
-
-          // Add views to hierarchy
-          (child.view as? View)?.let { childView ->
-            (view as? ViewGroup)?.addView(childView, containerIdx + 1)
-          }
-          (newContainer.view as? View)?.let { newContainerView ->
-            (view as? ViewGroup)?.addView(newContainerView, containerIdx + 2)
-          }
-
-          // Sync native layout tree (full rebuild to maintain order)
-          val nativeChildren =
-            children.mapNotNull { if (it.nativePtr != 0L) it.nativePtr else null }
-          NativeHelpers.nativeNodeSetChildren(
-            mason.nativePtr,
-            nativePtr,
-            nativeChildren.toLongArray()
-          )
-          dirty()
-          return
-        }
-      }
-    } else if (element?.view is Element) {
-
-      /* todo
-       val parent = element.parent
-       element.parent?.children?.remove(element)
-       if (parent?.isAnonymous == true && parent.children.isEmpty()){
-
-       }
-       if (element.parent?.view is ViewGroup){
-         (element.parent?.view as ViewGroup).removeView(element.view as View)
-       }
-       parent?.dirty()
-
-       */
-
-      return
-    }
-
-    // Default: Insert into author tree
-    children.add(adjustedIndex, child)
-    child.parent = this
-
-    // Add view to hierarchy
-    (child.view as? View)?.let { childView ->
-      (view as? ViewGroup)?.addView(childView, adjustedIndex)
-    }
-
-    // Sync native layout tree (full rebuild to maintain order)
-    val nativeChildren = children.mapNotNull { if (it.nativePtr != 0L) it.nativePtr else null }
-    NativeHelpers.nativeNodeSetChildren(mason.nativePtr, nativePtr, nativeChildren.toLongArray())
-
-    (child.view as? Element)?.onNodeAttached()
-    dirty()
-  }
-
-  fun addChildAt(child: Node, index: Int) {
-    // Handle -1 as append
     if (index <= -1) {
       appendChild(child)
       return
     }
-
-    val authorNodes = getChildren()
-
-    if (child.parent === this) {
-      val currentIndex = authorNodes.indexOf(child)
-      if (currentIndex == index) {
-        return
-      }
+    val nodes = getChildren()
+    if (index >= nodes.size) {
+      appendChild(child)
+      return
+    }
+    val reference = nodes[index]
+    if (reference == child) {
+      return
     }
 
-    when (child.type) {
-      NodeType.Element -> addElementChildAt(child, index, authorNodes)
-      NodeType.Text -> addTextChildAt(child, index, authorNodes)
-      NodeType.Document -> {} // noop
+    if (child is TextNode) {
+      if (reference is TextNode) {
+        reference.container?.let { container ->
+          val idx = container.node.children.indexOf(reference).takeIf { it > -1 } ?: return
+          container.node.children[idx] = child
+          child.attributes.clear()
+          child.attributes.putAll(container.getDefaultAttributes())
+          child.container = container
+          reference.container = null
+          container.invalidateInlineSegments()
+          if (!style.inBatch) {
+            container.invalidateLayout()
+          }
+        }
+      } else {
+        val container = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+        container.children.add(child)
+        (container.view as? TextView)?.let {
+          child.attributes.clear()
+          child.attributes.putAll(it.getDefaultAttributes())
+          child.container = it
+          it.invalidateInlineSegments()
+        }
+        val idx = children.indexOf(reference).takeIf { it > -1 } ?: return
+        children[idx] = container
+        reference.parent = null
+        NodeUtils.syncNode(this, children)
+      }
+    } else {
+
+      val idx = children.indexOf(reference).takeIf { it > -1 }
+        ?: if (reference is TextNode && reference.container?.node?.isAnonymous == true) {
+          reference.container?.node?.children?.indexOf(reference)?.takeIf { it > -1 }
+        } else {
+          null
+        } ?: return
+
+      // If we're replacing a TextNode that's inside an anonymous text container,
+      // we need to split that container: keep left text nodes (if any) in original container,
+      // move right text nodes (if any) into a new anonymous text container, then
+      // insert the element node between them (or replace the container if there are no siblings).
+      if (reference is TextNode) {
+        val containerNode = reference.layoutParent ?: reference.container?.node
+        if (containerNode != null && containerNode.parent == this) {
+          val idxInContainer = containerNode.children.indexOf(reference).takeIf { it > -1 } ?: -1
+          if (idxInContainer >= 0) {
+            val hasLeft = idxInContainer > 0
+            val hasRight = idxInContainer < containerNode.children.size - 1
+            val containerIndexInParent = children.indexOf(containerNode).takeIf { it > -1 } ?: -1
+            // prepare a new after-container if needed
+            var afterContainer: Node? = null
+            if (hasRight) {
+              afterContainer = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+              // move right-side text nodes into afterContainer
+              val moved =
+                containerNode.children.subList(idxInContainer + 1, containerNode.children.size)
+                  .toList()
+              for (m in moved) {
+                containerNode.children.remove(m)
+                m.parent = afterContainer
+                afterContainer.children.add(m)
+                (afterContainer.view as? TextView)?.let { tv ->
+                  (m as? TextNode)?.let {
+                    m.attributes.clear()
+                    m.attributes.putAll(tv.getDefaultAttributes())
+                    m.container = tv
+                  }
+                }
+              }
+              // insert afterContainer into parent's layout children immediately after original container
+              if (containerIndexInParent >= 0) {
+                children.add(containerIndexInParent + 1, afterContainer)
+                afterContainer.parent = this
+                (view as? ViewGroup)?.let { view ->
+                  view.indexOfChild(reference.container as? View).takeIf { it > -1 }?.let {
+                    view.addView(afterContainer.view as? View, it + 1)
+                  }
+                }
+                if (afterContainer.nativePtr != 0L) {
+                  NativeHelpers.nativeNodeAddChild(
+                    mason.nativePtr,
+                    nativePtr,
+                    afterContainer.nativePtr
+                  )
+                }
+              } else {
+                // fallback: append
+                children.add(afterContainer)
+                afterContainer.parent = this
+
+
+                (view as? ViewGroup)?.let { view ->
+                  view.indexOfChild(reference.container as? View).takeIf { it > -1 }?.let {
+                    view.addView(afterContainer.view as? View, it + 1)
+                  }
+                }
+
+                if (afterContainer.nativePtr != 0L) {
+                  NativeHelpers.nativeNodeAddChild(
+                    mason.nativePtr,
+                    nativePtr,
+                    afterContainer.nativePtr
+                  )
+                }
+              }
+            }
+
+            // remove the reference text node from the original container
+            containerNode.children.removeAt(idxInContainer)
+            reference.container?.invalidateInlineSegments()
+            reference.parent = null
+            reference.container = null
+
+            // if original container is now empty, remove it from this node
+            if (containerNode.children.isEmpty()) {
+              val pIdx = children.indexOf(containerNode)
+              if (pIdx >= 0) {
+                children.removeAt(pIdx)
+                NodeUtils.removeView(this, containerNode.view as? View)
+              }
+            }
+
+            // Determine insertion index in this.children for the element `child`.
+            // Cases:
+            // - left & right: replace original container position with [leftContainer (already there), child, afterContainer]
+            // - left only: insert child after containerNode
+            // - right only: replace containerNode with [child, afterContainer]
+            // - neither: replace containerNode with child
+            when {
+              hasLeft && hasRight -> {
+                // original container remains (left). Insert child after it.
+                val pos = children.indexOf(containerNode)
+                val insertPos = if (pos >= 0) pos + 1 else children.size
+                children.add(insertPos, child)
+                child.parent = this
+                NodeUtils.addView(this, child.view as? View)
+              }
+
+              hasLeft && !hasRight -> {
+                // original container remains as left, insert child after it
+                val pos = children.indexOf(containerNode)
+                val insertPos = if (pos >= 0) pos + 1 else children.size
+                children.add(insertPos, child)
+                child.parent = this
+                NodeUtils.addView(this, child.view as? View)
+              }
+
+              !hasLeft && hasRight -> {
+                // replace original container with child, afterContainer is already inserted after
+                val pos =
+                  containerIndexInParent.takeIf { it >= 0 } ?: children.indexOf(containerNode)
+                if (pos >= 0) {
+                  children[pos] = child
+                } else {
+                  children.add(child)
+                }
+                child.parent = this
+                NodeUtils.addView(this, child.view as? View)
+              }
+
+              else -> {
+                // neither left nor right -> containerNode was sole child, replace it with child
+                val pos =
+                  containerIndexInParent.takeIf { it >= 0 } ?: children.indexOf(containerNode)
+                if (pos >= 0) {
+                  children[pos] = child
+                } else {
+                  children.add(child)
+                }
+                child.parent = this
+                NodeUtils.addView(this, child.view as? View)
+              }
+            }
+
+            // sync native/layout trees
+            NodeUtils.syncNode(this, children)
+            if (!style.inBatch) {
+              (view as? Element)?.invalidateLayout()
+            }
+            return
+          }
+        }
+      }
+
+      // default non-text replacement (when reference is not a text node in an anonymous container)
+      children[idx] = child
+      child.parent = this
+      reference.parent = null
+      NodeUtils.removeView(this, reference.view as? View)
+      NodeUtils.addView(this, child.view as? View)
+      NodeUtils.syncNode(this, children)
+      if (!style.inBatch) {
+        if (child.view is TextView) {
+          (child.view as TextView).invalidate()
+        }
+        (view as? Element)?.invalidateLayout()
+      }
     }
   }
 
-  private fun addTextChildAt(child: Node, index: Int, nodes: List<Node>? = null) {
-    when (type) {
-      NodeType.Document -> {
-        if (children.isNotEmpty()) {
-          return
-        }
-
-        if (child.type == NodeType.Text || child.type == NodeType.Document) {
-          return
-        }
-      }
-
-      NodeType.Text -> {
-        return
-      }
-
-      else -> {}
+  fun addChildAt(child: Node, index: Int) {
+    if (index <= -1) {
+      appendChild(child)
+      return
     }
-
-    // Remove from old parent
-    child.parent?.removeChild(child)
-    val authorNodes = nodes ?: getChildren()
-
-    // For text nodes, if inserting at end, use appendChild behavior
-    if (index >= authorNodes.size || index <= -1) {
+    val authorChildren = getChildren()
+    // if index is past end, fall back to append behavior
+    if (index >= authorChildren.size) {
       appendChild(child)
       return
     }
 
-    val element = authorNodes[index]
-    // Anonymous nodes are always hidden
-    if (element is TextNode) {
-      val layoutIndex = element.container?.node?.children?.indexOf(element)
-      if (layoutIndex != null && layoutIndex > -1) {
-        element.container?.node?.children?.add(layoutIndex, child)
-      } else {
-        element.container?.node?.children?.add(child)
-      }
+    val reference = authorChildren[index]
 
-      (child as TextNode).apply {
-        // clear attributes when adding to another container
-        attributes.clear()
-        element.container?.let { textView ->
-          attributes.putAll(textView.getDefaultAttributes())
+    // Inserting a TextNode
+    if (child is TextNode) {
+      // If we're inserting next to/in a text container, try to insert into that container
+      if (reference is TextNode) {
+        val containerNode = reference.layoutParent ?: reference.container?.node
+        if (containerNode != null && containerNode.parent == this) {
+          val idxInContainer =
+            containerNode.children.indexOf(reference).takeIf { it > -1 } ?: return
+          // Insert the new text node before 'reference' inside the same anonymous container
+          containerNode.children.add(idxInContainer, child)
+          child.parent = containerNode
+          (containerNode.view as? TextView)?.let { tv ->
+            child.attributes.clear()
+            child.attributes.putAll(tv.getDefaultAttributes())
+            child.container = tv
+            tv.invalidateInlineSegments()
+          }
+          if (!style.inBatch) {
+            (containerNode as? Element)?.invalidateLayout()
+          }
+          return
         }
       }
 
-      child.parent = this
-      element.container?.attachTextNode(child)
-    } else if (element.view is Element) {
-      val layoutIndex = children.indexOf(element)
-
-// For TextView containers, delegate to the TextView
-      if (view is TextView && child is TextNode) {
-        if (layoutIndex > -1) {
-          children.add(index, child)
-        } else {
-          children.add(child)
-        }
-        child.parent = this
-        (view as TextView).attachTextNode(child)
-        return
+      // Reference is not a text node (or not in an anonymous text container).
+      // Create an anonymous text container and insert it at the index.
+      val container = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+      container.children.clear()
+      container.children.add(child)
+      child.parent = container
+      (container.view as? TextView)?.let {
+        child.attributes.clear()
+        child.attributes.putAll(it.getDefaultAttributes())
+        child.container = it
+        it.invalidateInlineSegments()
       }
 
-      // Check if this is a text node get or create anonymous textContainer
-      if (child is TextNode) {
-        val container = getOrCreateAnonymousTextContainer(false)
-        container.appendChild(child)
-        child.apply {
-          // clear attributes when adding to another container
-          attributes.clear()
-          attributes.putAll((container.view as TextView).getDefaultAttributes())
-        }
-        child.parent = container
+      val refPos = children.indexOf(reference).takeIf { it >= 0 } ?: 0
+      children.add(refPos, container)
+      container.parent = this
+      // ensure the view/native tree gets updated via NodeUtils
+      NodeUtils.addView(this, container.view as? View)
 
-
-        if (layoutIndex > -1) {
-          children.add(index, container)
-        } else {
-          children.add(container)
-        }
-
-        (container.view as TextView).attachTextNode(child)
-        return
+      NodeUtils.syncNode(this, children)
+      if (!style.inBatch) {
+        (view as? Element)?.invalidateLayout()
       }
-
-      // Check if child has a view (element)
-      if (child.view != null && child.nativePtr != 0L) {
-        addElementChildAt(child, index)
-        return
-      }
+      return
     }
 
-  }
-
-  private fun addElementChildAt(child: Node, index: Int, nodes: List<Node>? = null) {
-    val authorNodes = nodes ?: getChildren()
-
-    // Remove from old parent first
-    val wasInSameParent = child.parent === this
-    val oldIndex = if (wasInSameParent) authorNodes.indexOf(child) else -1
-
-    child.parent?.removeChild(child)
-
-    // Adjust index if we removed from same parent and it was before insertion point
-    val adjustedIndex = if (wasInSameParent && oldIndex != -1 && oldIndex < index) {
-      index - 1
-    } else {
-      index
-    }
-
-    // Check if we're inserting into an anonymous text container
-    val element = authorNodes.getOrNull(adjustedIndex)
-    if (element != null && element.isAnonymous && element.view is TextView) {
-      // Split the anonymous container
-      val containerNode = element
-      val textChildren = containerNode.children
-      // Find the split index in the container
-      val splitIdx = adjustedIndex - authorNodes.indexOf(containerNode)
-      if (splitIdx >= 0 && splitIdx <= textChildren.size) {
-        // Create new anonymous container for the split
-        val newContainer = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
-        newContainer.children.clear()
-        // Move text nodes after splitIdx to new container
-        val nodesToMove = textChildren.subList(splitIdx, textChildren.size).toList()
-        nodesToMove.forEach { node ->
-          node.parent = newContainer
-          newContainer.children.add(node)
-        }
-        // Remove moved nodes from original container
-        textChildren.subList(splitIdx, textChildren.size).clear()
-
-        // Insert child and new container into children array
-        val containerIdx = children.indexOf(containerNode)
-        if (containerIdx != -1) {
-          children.add(containerIdx + 1, child)
-          child.parent = this
-          children.add(containerIdx + 2, newContainer)
-          newContainer.parent = this
-
-          // Add views to hierarchy
-          (child.view as? View)?.let { childView ->
-            (view as? ViewGroup)?.addView(childView, containerIdx + 1)
-          }
-          (newContainer.view as? View)?.let { newContainerView ->
-            (view as? ViewGroup)?.addView(newContainerView, containerIdx + 2)
+    // Inserting a non-TextNode (element). If the reference is a TextNode inside an anonymous
+    // text container we must split that container so the element can be inserted between text runs.
+    if (reference is TextNode) {
+      val containerNode = reference.layoutParent ?: reference.container?.node
+      if (containerNode != null && containerNode.parent == this) {
+        val idxInContainer = containerNode.children.indexOf(reference).takeIf { it > -1 } ?: -1
+        if (idxInContainer >= 0) {
+          val containerIndexInParent = children.indexOf(containerNode).takeIf { it > -1 } ?: -1
+          if (containerIndexInParent < 0) {
+            // fallback to naive insert (shouldn't happen for anonymous text containers)
+            val insertIndex = children.indexOf(reference).takeIf { it >= 0 } ?: index
+            val pos = insertIndex.coerceAtLeast(0).coerceAtMost(children.size)
+            children.add(pos, child)
+            child.parent = this
+            NodeUtils.addView(this, child.view as? View)
+            NodeUtils.syncNode(this, children)
+            if (!style.inBatch) {
+              (view as? Element)?.invalidateLayout()
+            }
+            return
           }
 
-          // Sync native layout tree (full rebuild to maintain order)
-          val nativeChildren =
-            children.mapNotNull { if (it.nativePtr != 0L) it.nativePtr else null }
-          NativeHelpers.nativeNodeSetChildren(
-            mason.nativePtr,
-            nativePtr,
-            nativeChildren.toLongArray()
-          )
-          dirty()
+          // left = nodes before idxInContainer
+          val leftSlice = containerNode.children.subList(0, idxInContainer).toList()
+          // right = nodes starting at idxInContainer (the reference and any after) -> these become afterContainer
+          val rightSlice =
+            containerNode.children.subList(idxInContainer, containerNode.children.size).toList()
+
+          // rebuild original container as the left part (or it will be removed if leftSlice empty)
+          containerNode.children.clear()
+          if (leftSlice.isNotEmpty()) {
+            for (n in leftSlice) {
+              containerNode.children.add(n)
+              n.parent = containerNode
+            }
+            (containerNode.view as? TextView)?.let { tv ->
+              containerNode.children.forEach { tn ->
+                (tn as? TextNode)?.let {
+                  tn.attributes.clear()
+                  tn.attributes.putAll(tv.getDefaultAttributes())
+                  tn.container = tv
+                }
+              }
+              tv.invalidateInlineSegments()
+            }
+            (containerNode.view as? Element)?.invalidateLayout()
+          }
+
+          // create afterContainer for the right slice (reference + following text nodes)
+          var afterContainer: Node? = null
+          if (rightSlice.isNotEmpty()) {
+            afterContainer = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+            afterContainer.children.clear()
+            for (n in rightSlice) {
+              afterContainer.children.add(n)
+              n.parent = afterContainer
+              (afterContainer.view as? TextView)?.let { tv ->
+                (n as? TextNode)?.let {
+                  n.attributes.clear()
+                  n.attributes.putAll(tv.getDefaultAttributes())
+                  n.container = tv
+                }
+              }
+            }
+            (afterContainer.view as? TextView)?.invalidateInlineSegments()
+            (afterContainer.view as? TextView)?.invalidateLayout()
+          }
+
+          // Replace in this.children so that final order = [ ... leftContainer? , child, afterContainer? ]
+          if (leftSlice.isNotEmpty()) {
+            // containerNode already at containerIndexInParent represents left
+            val insertPos = containerIndexInParent + 1
+            children.add(insertPos, child)
+            child.parent = this
+            if (afterContainer != null) {
+              children.add(insertPos + 1, afterContainer)
+              afterContainer.parent = this
+              // add view for after-container
+              NodeUtils.addView(this, afterContainer.view as? View)
+            }
+          } else {
+            // no left — replace original containerNode with child (and maybe afterContainer)
+            val replacePos = containerIndexInParent
+            children.removeAt(replacePos)
+            children.add(replacePos, child)
+            child.parent = this
+            if (afterContainer != null) {
+              children.add(replacePos + 1, afterContainer)
+              afterContainer.parent = this
+              if (afterContainer.nativePtr != 0L) {
+                NativeHelpers.nativeNodeAddChild(
+                  mason.nativePtr,
+                  nativePtr,
+                  afterContainer.nativePtr
+                )
+              }
+              NodeUtils.addView(this, afterContainer.view as? View)
+            } else {
+              // nothing left and nothing right -> container removed
+              NodeUtils.removeView(this, containerNode.view as? View)
+            }
+          }
+
+          // ensure all affected nodes are invalidated so layout recomputes correctly
+          (containerNode.view as? Element)?.invalidateLayout()
+          (afterContainer?.view as? Element)?.invalidateLayout()
+          (child.view as? Element)?.invalidateLayout()
+
+          // sync views/native tree once using the updated children vector
+          NodeUtils.syncNode(this, children)
+          // ensure child view is added, then sync
+          NodeUtils.addView(this, child.view as? View)
+          NodeUtils.syncNode(this, children)
+          if (!style.inBatch) {
+            (view as? Element)?.invalidateLayout()
+          }
           return
         }
       }
     }
 
-    // Default: Insert into author tree
-    children.add(adjustedIndex, child)
+    // Default: simple insert at index among author children (non-text splitting cases)
+    val insertIndex = children.indexOf(reference).takeIf { it >= 0 } ?: index
+    val pos = insertIndex.coerceAtLeast(0).coerceAtMost(children.size)
+    children.add(pos, child)
     child.parent = this
-
-    // Add view to hierarchy
-    (child.view as? View)?.let { childView ->
-      (view as? ViewGroup)?.addView(childView, adjustedIndex)
-    }
-
-    // Sync native layout tree (full rebuild to maintain order)
-    val nativeChildren = children.mapNotNull { if (it.nativePtr != 0L) it.nativePtr else null }
-    NativeHelpers.nativeNodeSetChildren(mason.nativePtr, nativePtr, nativeChildren.toLongArray())
-
-    (child.view as? Element)?.onNodeAttached()
-    dirty()
-  }
-
-  private fun removeElementChild(child: Node): Node? {
-    val index = children.indexOfFirst { it === child }
-    if (index == -1) return null
-
-    // Remove from author tree
-    children.removeAt(index)
-    child.parent = null
-
-    // Remove from view hierarchy
-    (child.view as? android.view.View)?.let { childView ->
-      when (view) {
-        is org.nativescript.mason.masonkit.View -> {
-          val masonView = childView as? org.nativescript.mason.masonkit.View
-          // this is a scroll
-          if (masonView != null && masonView.isScrollRoot) {
-            if (masonView.parent != null) {
-              (view as org.nativescript.mason.masonkit.View).removeView(masonView.parent as View?)
-            }
-          } else {
-            (view as org.nativescript.mason.masonkit.View).removeView(childView)
-          }
-        }
-
-        is Scroll -> {
-          (view as Scroll).removeView(childView)
-        }
-
-        is android.view.ViewGroup -> {
-          (view as android.view.ViewGroup).removeView(childView)
-        }
-      }
-    }
-
-    // Remove from native layout tree
     if (child.nativePtr != 0L) {
-      NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, child.nativePtr)
+      NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
+    } else {
+      NodeUtils.addView(this, child.view as? View)
     }
-
-    (child.view as? Element)?.onNodeDetached()
-    dirty()
-    return child
-  }
-
-  private fun removeTextChild(child: Node): Node? {
-    // Find the text container holding this text node
-    for (containerNode in children) {
-      if (!containerNode.isAnonymous || containerNode.view !is TextView) {
-        if (child == containerNode) {
-          children.remove(child)
-          (child as? TextNode)?.container = null
-          return child
-        }
-        continue
-      }
-
-      val textContainer = containerNode.view as TextView
-      // Try to remove from this container
-      textContainer.detachTextNode(child as TextNode)
-
-      // If container is now empty, remove it
-      if (containerNode.children.isEmpty()) {
-        removeElementChild(containerNode)
-      }
-
-      return child
+    NodeUtils.syncNode(this, children)
+    if (!style.inBatch) {
+      (view as? Element)?.invalidateLayout()
     }
-
-    return null
   }
 
   fun removeChildAt(index: Int): Node? {
-    if (index < 0 || index >= children.size) return null
-
-    val child = children[index]
-    return removeChild(child)
+    if (index < 0) {
+      return null
+    }
+    val children = getChildren()
+    if (index >= children.size) {
+      return null
+    }
+    val reference = children[index]
+    val idx =
+      reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: return null
+    val removed = reference.layoutParent?.children?.removeAt(idx) ?: return null
+    if (removed is TextNode) {
+      removed.container?.invalidateInlineSegments()
+      removed.container = null
+      if (reference.layoutParent?.children?.isEmpty() == true) {
+        reference.layoutParent?.layoutParent?.let {
+          NodeUtils.removeView(it, reference.layoutParent?.view as? View)
+        }
+        reference.layoutParent?.parent = null
+        NodeUtils.syncNode(this, children)
+      }
+    } else {
+      NodeUtils.removeView(reference.parent!!, removed.view as View)
+      removed.parent = null
+    }
+    return removed
   }
 
   fun dirty() {
@@ -1197,7 +806,7 @@ open class Node internal constructor(
       override fun measure(
         knownDimensions: Size<Float?>, availableSpace: Size<Float?>
       ): Size<Float> {
-        val view = this@Node.view as? android.view.View
+        val view = this@Node.view as? View
         val width = knownDimensions.width ?: view?.measuredWidth?.toFloat() ?: 0f
         val height = knownDimensions.height ?: view?.measuredHeight?.toFloat() ?: 0f
         return Size(width, height)
@@ -1216,13 +825,12 @@ open class Node internal constructor(
   }
 
   fun removeChild(child: Node): Node? {
-    if (child.parent !== this) return null
-
-    return when (child.type) {
-      NodeType.Element -> removeElementChild(child)
-      NodeType.Text -> removeTextChild(child)
-      NodeType.Document -> null
+    if (children.isEmpty()) {
+      return null
     }
+    val nodes = getChildren()
+    val idx = nodes.indexOf(child).takeIf { it > -1 } ?: return null
+    return removeChildAt(idx)
   }
 
   fun removeChildren() {

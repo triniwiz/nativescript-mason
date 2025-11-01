@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { isMasonView_, style_, ViewBase } from '../common';
+import { isMasonView_, style_, text_, ViewBase } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
 
@@ -39,13 +39,21 @@ export class View extends ViewBase {
         const view_ref = this[global.VUE3_ELEMENT_REF] as any;
         if (Array.isArray(view_ref.childNodes)) {
           if (view_ref.childNodes.length === 0) {
-            nativeView.addChildAt(value || '', -1);
+            this.addChild({ [text_]: value });
+            return;
+          }
+          if (view_ref.childNodes.length === 1) {
+            const node = view_ref.childNodes[0];
+            if (node && node.nodeType === 'text') {
+              this.addChild({ [text_]: node.text });
+            }
             return;
           }
 
           (view_ref.childNodes as any[]).forEach((node, index) => {
             if (node.nodeType === 'text') {
-              nativeView.addChildAt(node.text || '', index);
+              //  nativeView.replaceChildAt(node.text, index);
+              this.replaceChild({ [text_]: node.text }, index);
             }
           });
         }
@@ -63,7 +71,8 @@ export class View extends ViewBase {
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
       child._isMasonChild = true;
-      nativeView.addView(child.nativeViewProtected, (atIndex ?? -1) as never);
+      const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      nativeView.addView(child.nativeViewProtected, index as never);
       return true;
     }
 

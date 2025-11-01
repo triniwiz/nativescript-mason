@@ -2,7 +2,6 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
@@ -71,6 +70,9 @@ class View @JvmOverloads constructor(
     // todo cache layout
     val layout = layout()
     applyLayoutRecursive(node, layout)
+    if (node.parent == null) {
+      node.mason.printTree(node)
+    }
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -104,11 +106,16 @@ class View @JvmOverloads constructor(
       node.mason.nodeForView(child)
     }
 
-    if (childNode.parent == node) {
+
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
       super<ViewGroup>.addView(child)
       return
-    } else if (childNode.parent?.isAnonymous ?: false) {
+    }
 
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child)
       return
     }
 
@@ -124,10 +131,16 @@ class View @JvmOverloads constructor(
       node.mason.nodeForView(child)
     }
 
-    if (childNode.parent == node) {
+
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
       super<ViewGroup>.addView(child, index)
       return
-    } else if (childNode.parent?.isAnonymous ?: false) {
+    }
+
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child, index)
       return
     }
 
@@ -143,10 +156,14 @@ class View @JvmOverloads constructor(
       node.mason.nodeForView(child)
     }
 
-    if (childNode.parent == node) {
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
       super<ViewGroup>.addView(child, params)
       return
-    } else if (childNode.parent?.isAnonymous ?: false) {
+    }
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child, params)
       return
     }
 
@@ -162,11 +179,15 @@ class View @JvmOverloads constructor(
       node.mason.nodeForView(child)
     }
 
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super<ViewGroup>.addView(child, index, params)
+      return
+    }
+
 
     if (childNode.parent == node) {
       super<ViewGroup>.addView(child, index, params)
-      return
-    } else if (childNode.parent?.isAnonymous ?: false) {
       return
     }
 
@@ -182,6 +203,12 @@ class View @JvmOverloads constructor(
       node.mason.nodeForView(view)
     }
 
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super.removeView(view)
+      return
+    }
+
     if (childNode.parent == node) {
       super.removeView(view)
       return
@@ -191,36 +218,54 @@ class View @JvmOverloads constructor(
   }
 
   override fun removeViewAt(index: Int) {
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super.removeViewAt(index)
+      return
+    }
     node.removeChildAt(index)
   }
 
   override fun removeAllViews() {
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super.removeAllViews()
+      return
+    }
     node.removeChildren()
   }
 
   override fun removeViewInLayout(view: android.view.View) {
-    removeViewFromMasonTree(view, true)
+    if (node.suppressChildOps > 0) {
+      removeViewFromMasonTree(view, true)
+    }
     super.removeViewInLayout(view)
   }
 
   override fun removeViews(start: Int, count: Int) {
-    for (i in start until start + count) {
-      removeViewFromMasonTree(getChildAt(i), false)
+    if (node.suppressChildOps > 0) {
+      for (i in start until start + count) {
+        removeViewFromMasonTree(getChildAt(i), false)
+      }
     }
     super.removeViews(start, count)
   }
 
   override fun removeViewsInLayout(start: Int, count: Int) {
-    for (i in start until start + count) {
-      removeViewFromMasonTree(getChildAt(i), true)
+    if (node.suppressChildOps > 0) {
+      for (i in start until start + count) {
+        removeViewFromMasonTree(getChildAt(i), true)
+      }
     }
     super.removeViewsInLayout(start, count)
   }
 
   override fun removeAllViewsInLayout() {
-    val childCount = nodes.count()
-    for (i in 0 until childCount) {
-      removeViewFromMasonTree(getChildAt(i), true)
+    if (node.suppressChildOps > 0) {
+      val childCount = nodes.count()
+      for (i in 0 until childCount) {
+        removeViewFromMasonTree(getChildAt(i), true)
+      }
     }
     super.removeAllViewsInLayout()
   }
@@ -851,7 +896,6 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-
   fun syncStyle(state: String) {
     try {
       val value = state.toLong()
@@ -1078,16 +1122,10 @@ class View @JvmOverloads constructor(
   }
 
   fun setPadding(
-    left: LengthPercentage,
-    top: LengthPercentage,
-    right: LengthPercentage,
-    bottom: LengthPercentage
+    left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
     style.padding = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
@@ -1176,16 +1214,10 @@ class View @JvmOverloads constructor(
   }
 
   fun setBorder(
-    left: LengthPercentage,
-    top: LengthPercentage,
-    right: LengthPercentage,
-    bottom: LengthPercentage
+    left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
     style.border = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
@@ -1279,10 +1311,7 @@ class View @JvmOverloads constructor(
     bottom: LengthPercentageAuto
   ) {
     style.margin = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
@@ -1377,10 +1406,7 @@ class View @JvmOverloads constructor(
     bottom: LengthPercentageAuto
   ) {
     style.inset = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }

@@ -413,6 +413,9 @@ impl NodeData {
         NodeMeasure {
             #[cfg(not(target_os = "android"))]
             data: self.data,
+            #[cfg(not(target_os = "android"))]
+            measure: self.measure,
+            #[cfg(target_os = "android")]
             measure: self.measure.clone(),
         }
     }

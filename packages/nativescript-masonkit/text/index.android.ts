@@ -119,6 +119,11 @@ export class Text extends TextBase {
       if (global.VUE3_ELEMENT_REF) {
         const view_ref = this[global.VUE3_ELEMENT_REF];
         if (Array.isArray(view_ref.childNodes)) {
+          if (view_ref.childNodes.length === 0 || view_ref.childNodes.length === 1) {
+            nativeView.addChildAt(value || '', 0);
+            return;
+          }
+
           (view_ref.childNodes as any[]).forEach((node, index) => {
             if (node.nodeType === 'text') {
               nativeView.addChildAt(node.text || '', index);
@@ -165,23 +170,10 @@ export class Text extends TextBase {
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
-    //console.dir(nativeView);
-
     if (nativeView && child.nativeViewProtected) {
       child[isTextChild_] = true;
-
-      if ((atIndex ?? -1) <= -1) {
-        nativeView.append(child.nativeViewProtected);
-      } else {
-        // @ts-ignore
-        nativeView.addView(child.nativeViewProtected, atIndex);
-        // const node = nativeView.getNode();
-        // node.addChildAt(child.nativeViewProtected, atIndex);
-      }
-
-      // @ts-ignore
-      //nativeView.addView(child.nativeViewProtected, atIndex ?? -1);
-      return true;
+      const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      nativeView.addChildAt(child.nativeViewProtected, index as never);
     }
 
     return false;
