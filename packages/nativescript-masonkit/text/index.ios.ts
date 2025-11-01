@@ -225,7 +225,7 @@ export class Text extends TextBase {
       const y = layout.y;
       const width = layout.width;
       const height = layout.height;
-      View.layoutChild(this as never, child, x, y, width, height);
+      View.layoutChild(this as never, child as never, x, y, width, height);
       i++;
     }
   }

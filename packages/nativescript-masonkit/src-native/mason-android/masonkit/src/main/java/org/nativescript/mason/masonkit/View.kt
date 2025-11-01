@@ -70,9 +70,6 @@ class View @JvmOverloads constructor(
     // todo cache layout
     val layout = layout()
     applyLayoutRecursive(node, layout)
-    if (node.parent == null) {
-      node.mason.printTree(node)
-    }
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

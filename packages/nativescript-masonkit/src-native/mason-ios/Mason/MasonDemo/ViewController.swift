@@ -414,7 +414,91 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //inlineTest()
   //  testTextInsert()
    // testInsert()
-    testInlineStyleChange()
+   // testInlineStyleChange()
+    //testTextNodeInsertingInline()
+    testTextNodeReplaceWithImage()
+  }
+  
+  func testTextNodeReplaceWithImage() {
+     let root = NSCMason.shared.createView()
+    root.append(text: "A")
+    root.append(text: "C")
+    root.append(text: "C")
+
+     body.append(root)
+    
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+      DispatchQueue.main.async {
+        let checkmark = NSCMason.shared.createImageView()
+        checkmark.style.size = MasonSize(
+          MasonDimension.Points(100), MasonDimension.Points(100)
+        )
+        checkmark.image = UIImage.checkmark
+
+        root.replaceChildAt(element: checkmark, 1)
+
+        NSCMason.shared.printTree(root.node)
+      }
+    }
+
+
+
+   }
+  
+  func testTextNodeInsertingInline() {
+    let root = NSCMason.shared.createView()
+    let a = NSCMason.shared.createTextView()
+    a.append(text: "A")
+    let b = NSCMason.shared.createTextView()
+    b.append(text: "B")
+
+    let c = NSCMason.shared.createTextView()
+    c.append(text: "C")
+
+    let other = NSCMason.shared.createView()
+    other.backgroundColor  = .blue
+
+    let d = NSCMason.shared.createTextView()
+    d.append(text: "D")
+
+    other.append(d)
+    //other.addChildAt(d, 0)
+
+
+    let img = NSCMason.shared.createImageView()
+    // img.style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
+
+    print("image \(img.style.display)")
+
+    other.append(img)
+
+    let e = NSCMason.shared.createTextView()
+    e.append(text: "E")
+
+
+    let f = NSCMason.shared.createTextView()
+    f.append(text: "F")
+
+
+    
+    other.append(e)
+    other.append(f)
+
+    root.append(a)
+    root.append(b)
+    root.append(c)
+
+    root.append(other)
+
+    
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+      DispatchQueue.main.async {
+        img.src = "https://picsum.photos/600/600"
+      }
+    }
+
+    body.append(root)
+
   }
   
   func testInlineStyleChange() {
