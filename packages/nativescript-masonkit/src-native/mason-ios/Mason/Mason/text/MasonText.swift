@@ -453,6 +453,7 @@ public class MasonText: UIView, MasonElement, MasonElementObjc {
       // noop
       break
     case .P:
+      node.style.display = .Block
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(16 * scale), .Points(16 * scale))
       break
     case .Span:
@@ -461,36 +462,42 @@ public class MasonText: UIView, MasonElement, MasonElementObjc {
       break
     case .H1:
       fontSize = 32
+      node.style.display = .Block
       font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(16 * scale), .Points(16 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 8 * scale)
       break
     case .H2:
       fontSize = 24
+      node.style.display = .Block
       font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(14 * scale), .Points(14 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 7 * scale)
       break
     case .H3:
       fontSize = 18
+      node.style.display = .Block
       font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(12 * scale), .Points(12 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 6 * scale)
       break
     case .H4:
       fontSize = 16
+      node.style.display = .Block
       font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(10 * scale), .Points(10 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 5 * scale)
       break
     case .H5:
       fontSize = 13
+      node.style.display = .Block
       font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(8 * scale), .Points(8 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 4 * scale)
       break
     case .H6:
       fontSize = 10
+      node.style.display = .Block
       font.weight = .bold
       node.style.margin = MasonRect(.Points(0), .Points(0), .Points(6 * scale), .Points(6 * scale))
       paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
@@ -500,7 +507,7 @@ public class MasonText: UIView, MasonElement, MasonElementObjc {
     case .Blockquote:
       font.style = "italic"
       let indent: Float = 40 * scale
-      
+      node.style.display = .Block
       node.style.margin = MasonRect(.Points(indent), .Points(0), .Points(indent), .Points(0))
       paragraphStyle.headIndent = CGFloat(40)
       paragraphStyle.firstLineHeadIndent =  CGFloat(40)
@@ -1327,6 +1334,7 @@ extension MasonText {
 // MARK: - Drawing
 extension MasonText {
   public override func draw(_ rect: CGRect) {
+
     drawState = .drawing
     // Build attributed string for drawing (uses cache if valid)
     let text = buildAttributedString(forMeasurement: false)

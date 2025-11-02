@@ -1,5 +1,5 @@
-import { Color, colorProperty, Utils, View, ViewBase } from '@nativescript/core';
-import { isMasonView_, isText_, isTextChild_, style_, TextBase, textWrapProperty } from '../common';
+import { backgroundColorProperty, Color, colorProperty, Utils, View, ViewBase } from '@nativescript/core';
+import { isMasonView_, isText_, isTextChild_, style_, text_, TextBase, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { parseLength } from '../utils';
@@ -30,6 +30,8 @@ const enum TextType {
   Blockquote = 11,
 
   B = 12,
+
+  Pre = 13,
 }
 
 export class Text extends TextBase {
@@ -111,16 +113,25 @@ export class Text extends TextBase {
     const nativeView = this._view;
     if (nativeView) {
       // hacking vue3 to handle text nodes
-
+      // hacking vue3 to handle text nodes
       if (global.VUE3_ELEMENT_REF) {
-        const view_ref = this[global.VUE3_ELEMENT_REF];
+        const view_ref = this[global.VUE3_ELEMENT_REF] as any;
         if (Array.isArray(view_ref.childNodes)) {
+          if (view_ref.childNodes.length === 0) {
+            this.addChild({ [text_]: value });
+            return;
+          }
+          if (view_ref.childNodes.length === 1) {
+            const node = view_ref.childNodes[0];
+            if (node && node.nodeType === 'text') {
+              this.addChild({ [text_]: node.text });
+            }
+            return;
+          }
+
           (view_ref.childNodes as any[]).forEach((node, index) => {
             if (node.nodeType === 'text') {
-              // using replace to avoid accumulating text nodes
-              // @ts-ignore
-              nativeView.mason_replaceChildAtText(node.text || '', index);
-              // nativeView.addChildAtText(node.text || '', index);
+              this.replaceChild({ [text_]: node.text }, index);
             }
           });
         }
@@ -179,16 +190,13 @@ export class Text extends TextBase {
     return new Color(this[style_].backgroundColor);
   }
 
-  // [backgroundColorProperty.setNative](value) {
-  //   console.log('backgroundColorProperty.setNative', value);
-  //   // if (typeof value === 'number') {
-  //   //   this[style_].backgroundColor = value;
-  //   //   this[style_].syncStyle(true);
-  //   // } else if (value instanceof Color) {
-  //   //   this[style_].backgroundColor = value.argb;
-  //   //   this[style_].syncStyle(true);
-  //   // }
-  // }
+  [backgroundColorProperty.setNative](value) {
+    if (typeof value === 'number') {
+      this[style_].backgroundColor = value;
+    } else if (value instanceof Color) {
+      this[style_].backgroundColor = value.argb;
+    }
+  }
 
   [textWrapProperty.setNative](value) {
     switch (value) {
@@ -219,7 +227,7 @@ export class Text extends TextBase {
     if (children.count === 0) {
       return;
     }
-    for (const child of this._children) {
+    for (const child of this._viewChildren) {
       layout = children.objectAtIndex(i);
       const x = layout.x;
       const y = layout.y;
@@ -322,8 +330,7 @@ export class Text extends TextBase {
     const nativeView = this._view;
 
     if (nativeView && child.nativeViewProtected) {
-      child._hasNativeView = true;
-      child._isMasonChild = true;
+      child[isTextChild_] = true;
 
       const index = atIndex ?? -1;
       if (index >= 0) {

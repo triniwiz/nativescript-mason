@@ -112,7 +112,6 @@ interface Element {
 
   fun attachAndApply() {
     applyLayoutRecursive(node, layout())
-    Mason.shared.printTree(node)
   }
 
   fun append(element: Element) {

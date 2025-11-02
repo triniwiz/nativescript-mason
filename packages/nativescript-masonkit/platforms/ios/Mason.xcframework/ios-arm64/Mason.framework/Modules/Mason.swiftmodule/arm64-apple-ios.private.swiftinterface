@@ -10,6 +10,141 @@ import UIKit
 import _Concurrency
 import _StringProcessing
 import _SwiftConcurrencyShims
+@objc(NSCFontDisplay) public enum NSCFontDisplay : Swift.Int, Swift.RawRepresentable, Swift.Codable {
+  case auto
+  case block
+  case fallback
+  case optional
+  case swap
+  public typealias RawValue = Swift.Int
+  public init?(rawValue: Swift.Int)
+  public var rawValue: Swift.Int {
+    get
+  }
+}
+@objc(NSCFontWeight) public enum NSCFontWeight : Swift.Int, Swift.RawRepresentable, Swift.Codable, Swift.CustomStringConvertible {
+  case thin
+  case extraLight
+  case light
+  case normal
+  case medium
+  case semiBold
+  case bold
+  case extraBold
+  case black
+  public var description: Swift.String {
+    get
+  }
+  public typealias RawValue = Swift.Int
+  public init?(rawValue: Swift.Int)
+  public var rawValue: Swift.Int {
+    get
+  }
+  public var uiFontWeight: UIKit.UIFont.Weight {
+    get
+  }
+  public static func from(uiFontWeight: UIKit.UIFont.Weight) -> Mason.NSCFontWeight
+}
+@objcMembers @objc(NSCFontDescriptors) public class NSCFontDescriptors : ObjectiveC.NSObject, Swift.Codable {
+  @objc public init(family: Swift.String)
+  @objc public func update(_ value: Swift.String)
+  @objc public func setFontWeight(_ value: Swift.String)
+  @objc public func setFontStyle(_ value: Swift.String)
+  @objc deinit
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+}
+@objc(NSCFontFaceStatus) public enum NSCFontFaceStatus : Swift.Int, Swift.RawRepresentable {
+  case unloaded
+  case loading
+  case loaded
+  case error
+  public typealias RawValue = Swift.Int
+  public init?(rawValue: Swift.Int)
+  public var rawValue: Swift.Int {
+    get
+  }
+}
+@objcMembers @objc(NSCFontFace) public class NSCFontFace : ObjectiveC.NSObject {
+  @objc public var font: CoreGraphics.CGFont? {
+    get
+  }
+  @objc public var fontData: Foundation.NSData? {
+    get
+  }
+  @objc public func updateDescriptor(value: Swift.String)
+  @objc public static func loadFromStyle(style: Swift.String) -> Mason.NSCFontFace?
+  @objc public static func importFromRemote(url: Swift.String, load: Swift.Bool, callback: @escaping ([Mason.NSCFontFace]?, Swift.String?) -> Swift.Void)
+  @objc public init(family: Swift.String)
+  @objc public init(family: Swift.String, source: Swift.String)
+  @objc public init(family: Swift.String, data source: Foundation.NSData)
+  @objc public init(_ family: Swift.String, _ source: Swift.String? = nil, _ descriptors: Mason.NSCFontDescriptors? = nil)
+  @objc public init(_ family: Swift.String, data: Foundation.NSData? = nil, _ descriptors: Mason.NSCFontDescriptors? = nil)
+  @objc public var status: Mason.NSCFontFaceStatus
+  @objc public var display: Mason.NSCFontDisplay
+  @objc public func setFontDisplay(value: Swift.String)
+  @objc public var style: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public func setFontStyle(value: Swift.String, angle: Swift.String?)
+  @objc public var weight: Mason.NSCFontWeight {
+    @objc get
+    @objc set
+  }
+  @objc public func setFontWeight(value: Swift.String)
+  @objc public var family: Swift.String {
+    @objc get
+  }
+  @objc public var ascentOverride: Swift.String {
+    @objc get
+  }
+  @objc public var descentOverride: Swift.String {
+    @objc get
+  }
+  @objc public func load(_ callback: @escaping (Swift.String?) -> Swift.Void)
+  @objc deinit
+}
+@objcMembers @objc(MasonDocument) public class MasonDocument : ObjectiveC.NSObject {
+  @objc final public let node: Mason.MasonNode
+  @objc final public let mason: Mason.NSCMason
+  public var documentElement: (any Mason.MasonElement)? {
+    get
+  }
+  @objc public init(mason instance: Mason.NSCMason)
+  @objc deinit
+}
+public struct Line<T> {
+  public init(_ start: T, _ end: T)
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(LineGridPlacementCompat) public class LineGridPlacementCompat : ObjectiveC.NSObject {
+  @objc public var start: Mason.GridPlacementCompat {
+    get
+  }
+  @objc public var end: Mason.GridPlacementCompat {
+    get
+  }
+  @objc deinit
+}
+@objcMembers @objc(MinMax) public class MinMax : ObjectiveC.NSObject, Swift.Codable {
+  @objc public init(_ min: Mason.MinSizing, _ max: Mason.MaxSizing)
+  @objc public static func Points(points: Swift.Float) -> Mason.MinMax
+  @objc public static func Percent(percent: Swift.Float) -> Mason.MinMax
+  @objc public static func Flex(flex: Swift.Float) -> Mason.MinMax
+  @objc public static func FitContent(fit: Swift.Float) -> Mason.MinMax
+  @objc public static func FitContentPercent(fit: Swift.Float) -> Mason.MinMax
+  @objc public static let Auto: Mason.MinMax
+  @objc public static func fromTypeValue(_ minType: Swift.Int, _ minValue: Swift.Float, _ maxType: Swift.Int, _ maxValue: Swift.Float) -> Mason.MinMax?
+  @objc public var cssValue: Swift.String {
+    @objc get
+  }
+  @objc public var jsonValue: Swift.String? {
+    @objc get
+  }
+  required public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
+  @objc deinit
+}
 @objc(MasonTextType) public enum MasonTextType : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case None
   case P
@@ -156,9 +291,6 @@ extension Mason.MasonText {
   @objc public var length: Swift.Int {
     @objc get
   }
-  @objc override public var parent: Mason.MasonNode? {
-    @objc get
-  }
   @objc public func substringData(offset: Swift.Int, count: Swift.Int) -> Swift.String
   @discardableResult
   @objc public func appendData(_ s: Swift.String) -> Self
@@ -176,141 +308,6 @@ extension Mason.MasonText {
 }
 extension Mason.MasonTextNode {
   @objc dynamic public func attributed() -> Foundation.NSAttributedString
-}
-@objc(NSCFontDisplay) public enum NSCFontDisplay : Swift.Int, Swift.RawRepresentable, Swift.Codable {
-  case auto
-  case block
-  case fallback
-  case optional
-  case swap
-  public typealias RawValue = Swift.Int
-  public init?(rawValue: Swift.Int)
-  public var rawValue: Swift.Int {
-    get
-  }
-}
-@objc(NSCFontWeight) public enum NSCFontWeight : Swift.Int, Swift.RawRepresentable, Swift.Codable, Swift.CustomStringConvertible {
-  case thin
-  case extraLight
-  case light
-  case normal
-  case medium
-  case semiBold
-  case bold
-  case extraBold
-  case black
-  public var description: Swift.String {
-    get
-  }
-  public typealias RawValue = Swift.Int
-  public init?(rawValue: Swift.Int)
-  public var rawValue: Swift.Int {
-    get
-  }
-  public var uiFontWeight: UIKit.UIFont.Weight {
-    get
-  }
-  public static func from(uiFontWeight: UIKit.UIFont.Weight) -> Mason.NSCFontWeight
-}
-@objcMembers @objc(NSCFontDescriptors) public class NSCFontDescriptors : ObjectiveC.NSObject, Swift.Codable {
-  @objc public init(family: Swift.String)
-  @objc public func update(_ value: Swift.String)
-  @objc public func setFontWeight(_ value: Swift.String)
-  @objc public func setFontStyle(_ value: Swift.String)
-  @objc deinit
-  public func encode(to encoder: any Swift.Encoder) throws
-  required public init(from decoder: any Swift.Decoder) throws
-}
-@objc(NSCFontFaceStatus) public enum NSCFontFaceStatus : Swift.Int, Swift.RawRepresentable {
-  case unloaded
-  case loading
-  case loaded
-  case error
-  public typealias RawValue = Swift.Int
-  public init?(rawValue: Swift.Int)
-  public var rawValue: Swift.Int {
-    get
-  }
-}
-@objcMembers @objc(NSCFontFace) public class NSCFontFace : ObjectiveC.NSObject {
-  @objc public var font: CoreGraphics.CGFont? {
-    get
-  }
-  @objc public var fontData: Foundation.NSData? {
-    get
-  }
-  @objc public func updateDescriptor(value: Swift.String)
-  @objc public static func loadFromStyle(style: Swift.String) -> Mason.NSCFontFace?
-  @objc public static func importFromRemote(url: Swift.String, load: Swift.Bool, callback: @escaping ([Mason.NSCFontFace]?, Swift.String?) -> Swift.Void)
-  @objc public init(family: Swift.String)
-  @objc public init(family: Swift.String, source: Swift.String)
-  @objc public init(family: Swift.String, data source: Foundation.NSData)
-  @objc public init(_ family: Swift.String, _ source: Swift.String? = nil, _ descriptors: Mason.NSCFontDescriptors? = nil)
-  @objc public init(_ family: Swift.String, data: Foundation.NSData? = nil, _ descriptors: Mason.NSCFontDescriptors? = nil)
-  @objc public var status: Mason.NSCFontFaceStatus
-  @objc public var display: Mason.NSCFontDisplay
-  @objc public func setFontDisplay(value: Swift.String)
-  @objc public var style: Swift.String {
-    @objc get
-    @objc set
-  }
-  @objc public func setFontStyle(value: Swift.String, angle: Swift.String?)
-  @objc public var weight: Mason.NSCFontWeight {
-    @objc get
-    @objc set
-  }
-  @objc public func setFontWeight(value: Swift.String)
-  @objc public var family: Swift.String {
-    @objc get
-  }
-  @objc public var ascentOverride: Swift.String {
-    @objc get
-  }
-  @objc public var descentOverride: Swift.String {
-    @objc get
-  }
-  @objc public func load(_ callback: @escaping (Swift.String?) -> Swift.Void)
-  @objc deinit
-}
-@objcMembers @objc(MasonDocument) public class MasonDocument : ObjectiveC.NSObject {
-  @objc final public let node: Mason.MasonNode
-  @objc final public let mason: Mason.NSCMason
-  public var documentElement: (any Mason.MasonElement)? {
-    get
-  }
-  @objc public init(mason instance: Mason.NSCMason)
-  @objc deinit
-}
-public struct Line<T> {
-  public init(_ start: T, _ end: T)
-}
-@_hasMissingDesignatedInitializers @objcMembers @objc(LineGridPlacementCompat) public class LineGridPlacementCompat : ObjectiveC.NSObject {
-  @objc public var start: Mason.GridPlacementCompat {
-    get
-  }
-  @objc public var end: Mason.GridPlacementCompat {
-    get
-  }
-  @objc deinit
-}
-@objcMembers @objc(MinMax) public class MinMax : ObjectiveC.NSObject, Swift.Codable {
-  @objc public init(_ min: Mason.MinSizing, _ max: Mason.MaxSizing)
-  @objc public static func Points(points: Swift.Float) -> Mason.MinMax
-  @objc public static func Percent(percent: Swift.Float) -> Mason.MinMax
-  @objc public static func Flex(flex: Swift.Float) -> Mason.MinMax
-  @objc public static func FitContent(fit: Swift.Float) -> Mason.MinMax
-  @objc public static func FitContentPercent(fit: Swift.Float) -> Mason.MinMax
-  @objc public static let Auto: Mason.MinMax
-  @objc public static func fromTypeValue(_ minType: Swift.Int, _ minValue: Swift.Float, _ maxType: Swift.Int, _ maxValue: Swift.Float) -> Mason.MinMax?
-  @objc public var cssValue: Swift.String {
-    @objc get
-  }
-  @objc public var jsonValue: Swift.String? {
-    @objc get
-  }
-  required public init(from decoder: any Swift.Decoder) throws
-  public func encode(to encoder: any Swift.Encoder) throws
-  @objc deinit
 }
 @_inheritsConvenienceInitializers @objc(NSCMason) @objcMembers public class NSCMason : ObjectiveC.NSObject {
   @objc public var nativePtr: Swift.OpaquePointer? {
@@ -417,6 +414,8 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   @objc public var mason: Mason.NSCMason {
     get
   }
+  @objc public var onNodeAttached: (() -> Swift.Void)?
+  @objc public var onNodeDetached: (() -> Swift.Void)?
   @objc public var nativePtr: Swift.OpaquePointer? {
     get
   }
@@ -429,7 +428,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   public typealias MeasureFunc = (CoreFoundation.CGSize?, CoreFoundation.CGSize) -> CoreFoundation.CGSize
   @objc public func getRootNode() -> Mason.MasonNode
   @objc public var parent: Mason.MasonNode? {
-    get
+    @objc get
   }
   @objc public var parentNode: Mason.MasonNode? {
     @objc get
@@ -515,6 +514,7 @@ extension Mason.MasonElement {
   public func syncStyle(_ state: Swift.String)
   public func configure(_ block: (Mason.MasonStyle) -> Swift.Void)
   public func requestLayout()
+  public func invalidateLayout()
   public func addView(_ view: UIKit.UIView)
   public func addView(_ view: UIKit.UIView, at: Swift.Int)
   public func append(_ element: any Mason.MasonElement)
@@ -1906,14 +1906,14 @@ public enum TextOverflow : Swift.CustomStringConvertible {
   @objc @_Concurrency.MainActor @preconcurrency public func setSize(_ width: Swift.Float, _ height: Swift.Float)
   @objc deinit
 }
-extension Mason.MasonTextType : Swift.Equatable {}
-extension Mason.MasonTextType : Swift.Hashable {}
 extension Mason.NSCFontDisplay : Swift.Equatable {}
 extension Mason.NSCFontDisplay : Swift.Hashable {}
 extension Mason.NSCFontWeight : Swift.Equatable {}
 extension Mason.NSCFontWeight : Swift.Hashable {}
 extension Mason.NSCFontFaceStatus : Swift.Equatable {}
 extension Mason.NSCFontFaceStatus : Swift.Hashable {}
+extension Mason.MasonTextType : Swift.Equatable {}
+extension Mason.MasonTextType : Swift.Hashable {}
 extension Mason.MasonNodeType : Swift.Equatable {}
 extension Mason.MasonNodeType : Swift.Hashable {}
 extension Mason.NSCFontFaceSetStatus : Swift.Equatable {}

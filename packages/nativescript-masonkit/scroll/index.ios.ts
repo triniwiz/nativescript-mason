@@ -1,8 +1,9 @@
-import { Utils, View } from '@nativescript/core';
-import { isMasonView_, style_, ViewBase } from '../common';
+import { CSSType, Utils, View } from '@nativescript/core';
+import { isMasonView_, style_, text_, ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 
+@CSSType('Scroll')
 export class Scroll extends ViewBase {
   [style_];
   private _view: MasonScroll;
@@ -39,7 +40,7 @@ export class Scroll extends ViewBase {
       return;
     }
 
-    for (const child of this._children) {
+    for (const child of this._viewChildren) {
       layout = children.objectAtIndex(i);
       const x = layout.x;
       const y = layout.y;
@@ -119,22 +120,26 @@ export class Scroll extends ViewBase {
         const view_ref = this[global.VUE3_ELEMENT_REF] as any;
         if (Array.isArray(view_ref.childNodes)) {
           if (view_ref.childNodes.length === 0) {
-            // @ts-ignore
-            nativeView.mason_addChildAtText(value || '', -1);
+            this.addChild({ [text_]: value });
             return;
           }
+          if (view_ref.childNodes.length === 1) {
+            const node = view_ref.childNodes[0];
+            if (node && node.nodeType === 'text') {
+              this.addChild({ [text_]: node.text });
+            }
+            return;
+          }
+
           (view_ref.childNodes as any[]).forEach((node, index) => {
             if (node.nodeType === 'text') {
-              // using replace to avoid accumulating text nodes
-              // @ts-ignore
-              //  nativeView.mason_replaceChildAtText(node.text || '', index);
-              nativeView.mason_replaceChildAtText(node.text || '', index);
+              this.replaceChild({ [text_]: node.text }, index);
             }
           });
         }
       } else {
         // will replace all nodes with a new text node
-        // nativeView.text = value;
+        // nativeView.setTextContent(value);
       }
     }
   }
@@ -146,11 +151,8 @@ export class Scroll extends ViewBase {
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
       child._isMasonChild = true;
-      if (atIndex <= -1) {
-        nativeView.addView(child.nativeViewProtected);
-      } else {
-        nativeView.addViewAt(child.nativeViewProtected, atIndex);
-      }
+      const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      nativeView.addViewAt(child.nativeViewProtected, index);
       return true;
     }
 

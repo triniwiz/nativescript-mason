@@ -2,3 +2,44 @@
 .sample {
     color: blue;
 }
+
+/* Common Styles */
+.content,
+.content1,
+.content2 {
+  color: white;
+  font: 100 24px/100px sans-serif;
+  height: 150px;
+  width: 897px;
+  text-align: center;
+}
+
+.content div,
+.content1 div,
+.content2 div {
+  height: 50%;
+  width: 300px;
+}
+.red {
+  background: orangered;
+}
+.green {
+  background: yellowgreen;
+}
+.blue {
+  background: steelblue;
+}
+
+/* Flexbox Styles */
+.content {
+  display: flex;
+  flex-wrap: wrap;
+}
+.content1 {
+  display: flex;
+  flex-wrap: nowrap;
+}
+.content2 {
+  display: flex;
+  flex-wrap: wrap-reverse;
+}

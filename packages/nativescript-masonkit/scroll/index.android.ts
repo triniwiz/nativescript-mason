@@ -1,8 +1,9 @@
-import { Utils } from '@nativescript/core';
+import { CSSType, Utils } from '@nativescript/core';
 import { isMasonView_, style_, text_, textProperty, ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 
+@CSSType('Scroll')
 export class Scroll extends ViewBase {
   [style_];
   private _view: org.nativescript.mason.masonkit.Scroll;

@@ -167,6 +167,10 @@ extension MasonElement {
     }
   }
   
+  public func invalidateLayout(){
+    requestLayout()
+  }
+  
   
   public func addView(_ view: UIView){
     if(view.superview == uiView){
@@ -235,10 +239,6 @@ extension MasonElement {
   }
   
   public func append(node childNode: MasonNode){
-    if let view = self as? MasonText {
-      view.addChild(node)
-      return
-    }
     node.appendChild(childNode)
   }
   
@@ -246,91 +246,30 @@ extension MasonElement {
   public func append(texts: [String]){
     guard !texts.isEmpty else { return }
     
-    // Create text nodes
-    let textNodes = texts.map { text in
+    let nodes = texts.map { text in
       MasonTextNode(mason: node.mason, data: text)
     }
     
-    // Add to author tree
-    node.children.append(contentsOf: textNodes)
-    for textNode in textNodes {
-      textNode.parent = node
+    for node in nodes {
+      self.node.appendChild(node)
     }
-    
-    // Text nodes don't have nativePtr, so handle via anonymous container
-    // Delegate to node's appendChild which handles text node containerization
-    for textNode in textNodes {
-      // Find or create anonymous text container
-      let container = node.getOrCreateAnonymousTextContainer()
-      if let masonText = container.view as? MasonText {
-        masonText.addChild(textNode)
-        if(container.parent == nil){
-          append(masonText)
-        }
-      }
-    }
-    
-    node.markDirty()
+  
   }
   
   public func append(nodes: [MasonNode]){
     guard !nodes.isEmpty else { return }
-    
-    // Separate real nodes from text nodes
-    var realNodes: [OpaquePointer] = []
-    var textNodes: [MasonNode] = []
-    
-    for childNode in nodes {
-      // Remove from old parent
-      if let oldParent = childNode.parent {
-        oldParent.removeChild(childNode)
-      }
-      
-      if let childPtr = childNode.nativePtr {
-        realNodes.append(childPtr)
-      } else if childNode.type == .text {
-        textNodes.append(childNode)
-      }
+    for node in nodes {
+      self.node.appendChild(node)
     }
-    
-    // Add to author tree
-    node.children.append(contentsOf: nodes)
-    for childNode in nodes {
-      childNode.parent = node
-      if let childView = childNode.view {
-        if(!(self.uiView is MasonText)){
-          node.view?.addSubview(childView)
-        }
-      }
-    }
-    
-    // Batch append real nodes to layout tree
-    if !realNodes.isEmpty {
-      var optionalNodes = realNodes.map { Optional($0) }
-      mason_node_add_children(node.mason.nativePtr, node.nativePtr, &optionalNodes, UInt(realNodes.count))
-    }
-    
-    // Handle text nodes via anonymous containers
-    if !textNodes.isEmpty {
-      for textNode in textNodes {
-        let container = node.getOrCreateAnonymousTextContainer()
-        if let masonText = container.view as? MasonText {
-          masonText.addChild(textNode)
-          if(container.parent == nil){
-            append(masonText)
-          }
-        }
-      }
-    }
-    
-    node.markDirty()
   }
   
   public func append(elements: [MasonElement]){
     guard !elements.isEmpty else { return }
+ 
+    for element in elements {
+      self.node.appendChild(element.node)
+    }
     
-    let nodes = elements.map { $0.node }
-    append(nodes: nodes)
   }
   
   public func markNodeDirty() {
@@ -537,6 +476,7 @@ class MasonElementHelpers: NSObject {
       var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
       
       if(isTextView){
+        
         if(!hasWidthConstraint && realLayout.contentSize.width > realLayout.width){
           width = CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale)
         }

@@ -56,16 +56,13 @@ public class MasonTextNode: MasonNode, MasonCharacterData {
   }
   
   // is always the attached container parent
-  public internal(set) override var parent: MasonNode? {
-    get {
-      if let container = container {
-        if(container.node.isAnonymous){
-          return container.node.parent
-        }
-      }
+  internal override var layoutParent: MasonNode? {
+    get{
       return container?.node
     }
-    set {}
+    set {
+      // noop
+    }
   }
   
   public func substringData(offset: Int, count: Int) -> String {

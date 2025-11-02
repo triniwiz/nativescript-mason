@@ -87,8 +87,8 @@ cbindgen --config "$CWD/mason-ios/cbindgen.toml"  "$CWD/mason-ios/src/lib.rs" -l
 
 
 if $IS_RELEASE; then
-  export RUSTFLAGS="-Zlocation-detail=none -C panic=abort -Zfmt-debug=none"
-  cargo +nightly build -Z build-std='std,panic_abort' -Z build-std-features='panic_immediate_abort,optimize_for_size'  --manifest-path Cargo.toml --target $RUST_BUILD_TARGET $RUST_BUILD_TYPE -p mason-ios
+  export RUSTFLAGS="-Zlocation-detail=none -C panic=abort -Zfmt-debug=none -Zunstable-options -Cpanic=immediate-abort"
+  cargo +nightly build -Z build-std='std' -Z build-std-features='optimize_for_size'  --manifest-path Cargo.toml --target $RUST_BUILD_TARGET $RUST_BUILD_TYPE -p mason-ios
 
 else 
   cargo build --manifest-path Cargo.toml --target $RUST_BUILD_TARGET $RUST_BUILD_TYPE -p mason-ios

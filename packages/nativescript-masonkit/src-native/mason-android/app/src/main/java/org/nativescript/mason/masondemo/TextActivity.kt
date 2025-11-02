@@ -10,6 +10,8 @@ import androidx.core.graphics.toColorInt
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.Display
+import org.nativescript.mason.masonkit.FlexDirection
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
@@ -21,7 +23,10 @@ import org.nativescript.mason.masonkit.View
 import java.util.Timer
 import kotlin.concurrent.schedule
 
-
+val LIGHT_BLUE = Color.rgb(173, 216, 230)
+val BROWN = Color.rgb(165, 42, 42)
+val LIGHT_GREEN = Color.rgb(144, 238, 144)
+val light_salmon = Color.rgb(255, 160, 122)
 class TextActivity : AppCompatActivity() {
   lateinit var body: View
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,11 +61,318 @@ class TextActivity : AppCompatActivity() {
 //    testTextAppend()
     // testTextContainerAppend()
     // testTextContainerReplace()
-    // testTextContainerReplaceInContainer()
+    /// testTextContainerReplaceInContainer()
 //    testTextNodeReplaceWithImage()
-    //testTextNodeInsertWithImage()
-    testTextNodeInsertingInline()
+    //  testTextNodeInsertWithImage()
+    //   testTextWrap()
+    // flexDirection()
+    //  flexGrow()
+    flexShrink()
     setContentView(body)
+  }
+
+  fun flexShrink() {
+    val root = Mason.shared.createView(this)
+    root.style.setSizeWidth(Dimension.Points(500f))
+    root.style.display = Display.Flex
+
+    val a = Mason.shared.createView(this)
+    a.style.setSizeWidth(Dimension.Points(200f))
+    a.setBackgroundColor(Color.RED)
+    a.append("A")
+
+    val b = Mason.shared.createView(this)
+    b.style.setSizeWidth(Dimension.Points(200f))
+    b.setBackgroundColor(LIGHT_BLUE)
+    b.append("B")
+
+    val c = Mason.shared.createView(this)
+    c.style.setSizeWidth(Dimension.Points(200f))
+    c.setBackgroundColor(Color.YELLOW)
+    c.append("C")
+
+    val d = Mason.shared.createView(this)
+    d.style.setSizeWidth(Dimension.Points(200f))
+    d.style.flexShrink = 1.5f
+    d.setBackgroundColor(light_salmon)
+    d.append("D")
+
+    val e = Mason.shared.createView(this)
+    e.style.setSizeWidth(Dimension.Points(200f))
+    e.append("E")
+    e.setBackgroundColor(LIGHT_GREEN)
+    e.style.flexShrink = 2.5f
+
+    root.append(arrayOf(a,b,c,d,e))
+
+
+    body.append(root)
+  }
+
+  fun flexGrow() {
+    /*
+
+      <div>
+        <h1>This is a <code>flex-grow</code> example</h1>
+        <p>
+          A, B, C, and F have <code>flex-grow: 1</code> set. D and E have
+          <code>flex-grow: 2</code> set.
+        </p>
+        <div id="content">
+          <div class="box1">A</div>
+          <div class="box2">B</div>
+          <div class="box3">C</div>
+          <div class="box4">D</div>
+          <div class="box5">E</div>
+          <div class="box6">F</div>
+        </div>
+      </div>
+     */
+
+    val root = Mason.shared.createView(this)
+
+    val h1 = Mason.shared.createTextView(this, TextType.H1)
+    h1.append("This is a")
+
+    val code = Mason.shared.createTextView(this, TextType.Code)
+    code.append("flex-grow")
+    h1.append(code)
+
+    h1.append(" example")
+
+    root.append(h1)
+
+    val p = Mason.shared.createTextView(this, TextType.P)
+    p.append("A, B, C, and F have ")
+
+    val code2 = Mason.shared.createTextView(this, TextType.Code)
+    code2.append("flex-grow: 1")
+
+    p.append(code2)
+
+    p.append(" set. D and E have")
+
+
+    val code3 = Mason.shared.createTextView(this, TextType.Code)
+    code3.append("flex-grow: 2")
+
+    p.append(code3)
+
+    p.append(" set.")
+
+    root.append(p)
+
+    val div = Mason.shared.createView(this)
+
+    div.style.display = Display.Flex
+
+    val boxA = Mason.shared.createView(this)
+    boxA.append("A")
+    boxA.setBackgroundColor(Color.RED)
+
+    boxA.style.flexGrow = 1f
+
+    val boxB = Mason.shared.createView(this)
+    boxB.append("B")
+    boxB.setBackgroundColor(LIGHT_BLUE)
+
+    boxB.style.flexGrow = 1f
+
+    val boxC = Mason.shared.createView(this)
+    boxC.append("C")
+    boxC.setBackgroundColor(Color.YELLOW)
+
+    boxC.style.flexGrow = 1f
+
+    val boxD = Mason.shared.createView(this)
+    boxD.append("D")
+    boxD.setBackgroundColor(BROWN)
+
+    boxD.style.flexGrow = 2f
+
+    val boxE = Mason.shared.createView(this)
+    boxE.append("E")
+    boxE.setBackgroundColor(LIGHT_GREEN)
+
+
+    boxE.style.flexGrow = 2f
+
+    val boxF = Mason.shared.createView(this)
+    boxF.append("F")
+    boxF.setBackgroundColor(BROWN)
+    boxF.style.flexGrow = 1f
+
+    div.append(arrayOf(boxA, boxB, boxC, boxD, boxE, boxF))
+
+    root.append(div)
+
+    body.append(root)
+  }
+
+  fun flexDirection() {
+    /*
+    <h4>This is a Column-Reverse</h4>
+<div id="col-rev" class="content">
+  <div class="box red">A</div>
+  <div class="box lightblue">B</div>
+  <div class="box yellow">C</div>
+</div>
+<h4>This is a Row-Reverse</h4>
+<div id="row-rev" class="content">
+  <div class="box red">A</div>
+  <div class="box lightblue">B</div>
+  <div class="box yellow">C</div>
+</div>
+     */
+    val root = Mason.shared.createView(this)
+    val h4 = Mason.shared.createTextView(this, TextType.H4)
+    h4.append("This is a Column-Reverse")
+
+    root.append(h4)
+
+    /*
+    .content {
+  width: 200px;
+  height: 200px;
+  border: 1px solid #c3c3c3;
+  display: flex;
+}
+
+#col-rev {
+  flex-direction: column-reverse;
+}
+     */
+
+    val colRev = Mason.shared.createView(this)
+    colRev.style.flexDirection = FlexDirection.ColumnReverse
+
+    colRev.style.size = Size(
+      Dimension.Points(200F),
+      Dimension.Points(200F)
+    )
+    colRev.style.border = Rect(
+      LengthPercentage.Points(1f),
+      LengthPercentage.Points(1f),
+      LengthPercentage.Points(1f),
+      LengthPercentage.Points(1f)
+    )
+
+    colRev.style.display = Display.Flex
+
+    val colA = Mason.shared.createView(this)
+    colA.append("A")
+    colA.style.size = Size(
+      Dimension.Points(50F),
+      Dimension.Points(50F)
+    )
+    colA.setBackgroundColor(Color.RED)
+
+    val colB = Mason.shared.createView(this)
+    colB.append("B")
+    colB.style.size = Size(
+      Dimension.Points(50F),
+      Dimension.Points(50F)
+    )
+    colB.setBackgroundColor(Color.rgb(173, 216, 230))
+
+    val colC = Mason.shared.createView(this)
+    colC.append("C")
+    colC.style.size = Size(
+      Dimension.Points(50F),
+      Dimension.Points(50F)
+    )
+    colC.setBackgroundColor(Color.YELLOW)
+
+    colRev.append(arrayOf(colA, colB, colC))
+
+    root.append(colRev)
+
+
+    val h4_2 = Mason.shared.createTextView(this, TextType.H4)
+    h4_2.append("This is a Row-Reverse")
+
+    root.append(h4_2)
+
+    val rowRev = Mason.shared.createView(this)
+    rowRev.style.flexDirection = FlexDirection.RowReverse
+
+    rowRev.style.size = Size(
+      Dimension.Points(200F),
+      Dimension.Points(200F)
+    )
+    rowRev.style.border = Rect(
+      LengthPercentage.Points(1f),
+      LengthPercentage.Points(1f),
+      LengthPercentage.Points(1f),
+      LengthPercentage.Points(1f)
+    )
+
+    rowRev.style.display = Display.Flex
+
+    val rowA = Mason.shared.createView(this)
+    rowA.append("A")
+    rowA.style.size = Size(
+      Dimension.Points(50F),
+      Dimension.Points(50F)
+    )
+    rowA.setBackgroundColor(Color.RED)
+
+    val rowB = Mason.shared.createView(this)
+    rowB.append("B")
+    rowB.style.size = Size(
+      Dimension.Points(50F),
+      Dimension.Points(50F)
+    )
+    rowB.setBackgroundColor(Color.rgb(173, 216, 230))
+
+    val rowC = Mason.shared.createView(this)
+    rowC.append("C")
+    rowC.style.size = Size(
+      Dimension.Points(50F),
+      Dimension.Points(50F)
+    )
+    rowC.setBackgroundColor(Color.YELLOW)
+
+    rowRev.append(arrayOf(rowA, rowB, rowC))
+
+    root.append(rowRev)
+
+    body.append(root)
+  }
+
+
+  fun testTextWrap() {
+    val root = Mason.shared.createView(this)
+    val a = Mason.shared.createTextView(this)
+    a.style.display = Display.Block
+    a.append(
+      "\n" +
+        "\n" +
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec dapibus hendrerit elit, id rhoncus turpis accumsan quis. Donec ipsum tellus, tristique eget luctus sed, venenatis et nibh. Morbi euismod massa consequat, dignissim augue et, facilisis leo. Nulla a vestibulum massa, dapibus fringilla leo. Nulla imperdiet lacus leo, vel tincidunt dui commodo id. Vestibulum sagittis aliquet arcu. Quisque vitae imperdiet magna, sit amet lacinia ligula. Praesent ullamcorper accumsan risus eu eleifend. Curabitur a pharetra orci. Mauris fringilla elit at magna faucibus semper.\n" +
+        "\n" +
+        "Ut cursus magna sed augue rutrum dictum. Proin dignissim lorem nec sem pretium, fermentum mattis sapien mollis. Quisque ligula urna, cursus vitae velit eu, feugiat luctus ex. In auctor libero sit amet lobortis fermentum. Mauris sit amet aliquam augue. Duis vehicula suscipit imperdiet. Phasellus nec placerat lectus.\n" +
+        "\n" +
+        "Nam elementum volutpat magna, ac volutpat neque viverra at. Sed eu pulvinar est. Aenean ultrices pharetra sem, eget imperdiet arcu fermentum quis. Sed porta sit amet lacus quis viverra. Quisque in nunc id purus dictum viverra in nec dolor. Suspendisse potenti. Integer facilisis massa id mi ornare, et commodo neque ornare. Fusce sollicitudin libero in velit tempor, sit amet mattis ex condimentum. Nunc ac orci et arcu convallis volutpat vel eget odio. Morbi interdum ante tincidunt ligula condimentum tristique. Donec at bibendum libero. Curabitur aliquet metus ac libero commodo eleifend. Fusce pretium condimentum suscipit. Cras mauris erat, feugiat nec metus nec, ullamcorper dignissim quam.\n" +
+        "\n" +
+        "Ut faucibus arcu magna, in sagittis metus aliquam nec. Vestibulum laoreet laoreet sapien, id tincidunt ligula hendrerit sed. Suspendisse tristique, libero et placerat dictum, metus tellus luctus erat, sed faucibus elit nunc a erat. Sed vehicula vitae risus a luctus. Nam et aliquam magna. Nulla placerat sed augue at semper. Nam faucibus consequat velit id ullamcorper. In sollicitudin non arcu eget venenatis.\n" +
+        "\n" +
+        "Vivamus id feugiat massa. Curabitur viverra ultrices auctor. Nulla ultrices odio a ante auctor, vel condimentum lorem euismod. Maecenas nec odio ac odio iaculis lobortis. Mauris bibendum lectus non tempor laoreet. Nunc eu eros lorem. Vestibulum egestas mollis enim, sed dignissim mauris porta ullamcorper. Cras tempus odio ut felis lobortis auctor. Sed eu sodales nulla, vitae posuere tellus. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;\n" +
+        "\n" +
+        "Duis dapibus arcu eu sapien viverra, nec accumsan elit porttitor. Fusce a porttitor felis. Vivamus et eros a ipsum commodo rhoncus. Etiam vel facilisis orci, et cursus tellus. Donec ultricies augue sit amet venenatis iaculis. Integer non aliquet turpis. Aenean lacinia tortor augue, a pellentesque urna sollicitudin eu. Curabitur condimentum tortor interdum felis consequat hendrerit. Mauris vel lacus lacinia, luctus enim porttitor, commodo velit. Proin hendrerit orci eget luctus pharetra. Duis ut dolor et dui iaculis sagittis. Sed varius quis elit sed interdum. Maecenas magna quam, facilisis ut ullamcorper vitae, maximus at ante. Mauris tristique dolor metus, in tincidunt nulla vestibulum at.\n" +
+        "\n" +
+        "Curabitur mattis erat non erat varius lacinia. Integer nec iaculis tortor. Aliquam laoreet porta vestibulum. Duis malesuada velit purus, et tempus elit blandit nec. Vestibulum et aliquet leo. Aenean risus velit, convallis sit amet consequat et, tempus eget eros. Suspendisse ac scelerisque ipsum, fringilla dictum risus. Suspendisse finibus nulla sit amet mauris ornare, et pulvinar sapien tristique.\n" +
+        "\n" +
+        "Vestibulum vitae libero id mauris placerat porttitor vitae sed tellus. Quisque aliquet semper arcu, quis euismod orci convallis vitae. Pellentesque ullamcorper hendrerit augue vitae posuere. Donec efficitur congue lacus et ultrices. In at arcu eleifend, suscipit turpis nec, sollicitudin massa. Nam non eros risus. Mauris ut arcu sit amet erat pellentesque feugiat ultrices sit amet tortor. Quisque eget augue vitae eros faucibus interdum eu a felis. Donec hendrerit augue sit amet risus euismod, eu accumsan dolor feugiat.\n" +
+        "\n" +
+        "Sed vehicula egestas neque. Etiam rutrum ornare risus, sit amet volutpat leo fringilla non. Aliquam erat volutpat. Ut sit amet turpis ut ex convallis luctus. Vestibulum facilisis turpis augue, eget gravida libero sollicitudin at. Suspendisse mattis, odio semper aliquam aliquet, eros ante vulputate sem, in scelerisque erat ante eget ex. Aenean accumsan libero ut placerat viverra. Maecenas viverra est nulla, in consectetur augue congue vel. Nam sed eleifend ipsum. Pellentesque ultricies, justo eu vehicula dictum, mauris eros euismod neque, nec consequat nulla velit sit amet justo. Phasellus faucibus elementum congue. Duis odio orci, aliquam auctor vestibulum eget, vulputate faucibus tortor.\n" +
+        "\n" +
+        "Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt arcu in facilisis. Morbi at eros placerat, cursus erat non, iaculis dui. Mauris nisi ex, laoreet et mollis vel, ullamcorper ac tortor. Nam a consectetur metus. Mauris massa velit, tincidunt eu egestas ac, viverra sed ligula. Phasellus laoreet vestibulum gravida. Morbi hendrerit, massa ac vulputate mollis, erat quam aliquet eros, et tincidunt ipsum odio id odio. Donec ornare mi eget tempus dictum. In molestie elit vel lacus cursus maximus. \""
+    )
+
+
+    root.append(a)
+    body.append(root)
+
   }
 
   fun testTextNodeInsertingInline() {
@@ -71,24 +383,46 @@ class TextActivity : AppCompatActivity() {
     b.append("B")
 
     val c = Mason.shared.createTextView(this)
+    c.style.display = Display.Block
     c.append("C")
 
     val other = Mason.shared.createView(this)
     other.setBackgroundColor(Color.BLUE)
 
-    val d = Mason.shared.createTextView(this)
-    d.append("D")
+    val d = Mason.shared.createTextView(this, TextType.P)
+    d.textWrap = Styles.TextWrap.Wrap
+    Log.d("com.test", "display ${d.style.display}")
+    d.append(
+      "\n" +
+        "\n" +
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec dapibus hendrerit elit, id rhoncus turpis accumsan quis. Donec ipsum tellus, tristique eget luctus sed, venenatis et nibh. Morbi euismod massa consequat, dignissim augue et, facilisis leo. Nulla a vestibulum massa, dapibus fringilla leo. Nulla imperdiet lacus leo, vel tincidunt dui commodo id. Vestibulum sagittis aliquet arcu. Quisque vitae imperdiet magna, sit amet lacinia ligula. Praesent ullamcorper accumsan risus eu eleifend. Curabitur a pharetra orci. Mauris fringilla elit at magna faucibus semper.\n" +
+        "\n" +
+        "Ut cursus magna sed augue rutrum dictum. Proin dignissim lorem nec sem pretium, fermentum mattis sapien mollis. Quisque ligula urna, cursus vitae velit eu, feugiat luctus ex. In auctor libero sit amet lobortis fermentum. Mauris sit amet aliquam augue. Duis vehicula suscipit imperdiet. Phasellus nec placerat lectus.\n" +
+        "\n" +
+        "Nam elementum volutpat magna, ac volutpat neque viverra at. Sed eu pulvinar est. Aenean ultrices pharetra sem, eget imperdiet arcu fermentum quis. Sed porta sit amet lacus quis viverra. Quisque in nunc id purus dictum viverra in nec dolor. Suspendisse potenti. Integer facilisis massa id mi ornare, et commodo neque ornare. Fusce sollicitudin libero in velit tempor, sit amet mattis ex condimentum. Nunc ac orci et arcu convallis volutpat vel eget odio. Morbi interdum ante tincidunt ligula condimentum tristique. Donec at bibendum libero. Curabitur aliquet metus ac libero commodo eleifend. Fusce pretium condimentum suscipit. Cras mauris erat, feugiat nec metus nec, ullamcorper dignissim quam.\n" +
+        "\n" +
+        "Ut faucibus arcu magna, in sagittis metus aliquam nec. Vestibulum laoreet laoreet sapien, id tincidunt ligula hendrerit sed. Suspendisse tristique, libero et placerat dictum, metus tellus luctus erat, sed faucibus elit nunc a erat. Sed vehicula vitae risus a luctus. Nam et aliquam magna. Nulla placerat sed augue at semper. Nam faucibus consequat velit id ullamcorper. In sollicitudin non arcu eget venenatis.\n" +
+        "\n" +
+        "Vivamus id feugiat massa. Curabitur viverra ultrices auctor. Nulla ultrices odio a ante auctor, vel condimentum lorem euismod. Maecenas nec odio ac odio iaculis lobortis. Mauris bibendum lectus non tempor laoreet. Nunc eu eros lorem. Vestibulum egestas mollis enim, sed dignissim mauris porta ullamcorper. Cras tempus odio ut felis lobortis auctor. Sed eu sodales nulla, vitae posuere tellus. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;\n" +
+        "\n" +
+        "Duis dapibus arcu eu sapien viverra, nec accumsan elit porttitor. Fusce a porttitor felis. Vivamus et eros a ipsum commodo rhoncus. Etiam vel facilisis orci, et cursus tellus. Donec ultricies augue sit amet venenatis iaculis. Integer non aliquet turpis. Aenean lacinia tortor augue, a pellentesque urna sollicitudin eu. Curabitur condimentum tortor interdum felis consequat hendrerit. Mauris vel lacus lacinia, luctus enim porttitor, commodo velit. Proin hendrerit orci eget luctus pharetra. Duis ut dolor et dui iaculis sagittis. Sed varius quis elit sed interdum. Maecenas magna quam, facilisis ut ullamcorper vitae, maximus at ante. Mauris tristique dolor metus, in tincidunt nulla vestibulum at.\n" +
+        "\n" +
+        "Curabitur mattis erat non erat varius lacinia. Integer nec iaculis tortor. Aliquam laoreet porta vestibulum. Duis malesuada velit purus, et tempus elit blandit nec. Vestibulum et aliquet leo. Aenean risus velit, convallis sit amet consequat et, tempus eget eros. Suspendisse ac scelerisque ipsum, fringilla dictum risus. Suspendisse finibus nulla sit amet mauris ornare, et pulvinar sapien tristique.\n" +
+        "\n" +
+        "Vestibulum vitae libero id mauris placerat porttitor vitae sed tellus. Quisque aliquet semper arcu, quis euismod orci convallis vitae. Pellentesque ullamcorper hendrerit augue vitae posuere. Donec efficitur congue lacus et ultrices. In at arcu eleifend, suscipit turpis nec, sollicitudin massa. Nam non eros risus. Mauris ut arcu sit amet erat pellentesque feugiat ultrices sit amet tortor. Quisque eget augue vitae eros faucibus interdum eu a felis. Donec hendrerit augue sit amet risus euismod, eu accumsan dolor feugiat.\n" +
+        "\n" +
+        "Sed vehicula egestas neque. Etiam rutrum ornare risus, sit amet volutpat leo fringilla non. Aliquam erat volutpat. Ut sit amet turpis ut ex convallis luctus. Vestibulum facilisis turpis augue, eget gravida libero sollicitudin at. Suspendisse mattis, odio semper aliquam aliquet, eros ante vulputate sem, in scelerisque erat ante eget ex. Aenean accumsan libero ut placerat viverra. Maecenas viverra est nulla, in consectetur augue congue vel. Nam sed eleifend ipsum. Pellentesque ultricies, justo eu vehicula dictum, mauris eros euismod neque, nec consequat nulla velit sit amet justo. Phasellus faucibus elementum congue. Duis odio orci, aliquam auctor vestibulum eget, vulputate faucibus tortor.\n" +
+        "\n" +
+        "Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt arcu in facilisis. Morbi at eros placerat, cursus erat non, iaculis dui. Mauris nisi ex, laoreet et mollis vel, ullamcorper ac tortor. Nam a consectetur metus. Mauris massa velit, tincidunt eu egestas ac, viverra sed ligula. Phasellus laoreet vestibulum gravida. Morbi hendrerit, massa ac vulputate mollis, erat quam aliquet eros, et tincidunt ipsum odio id odio. Donec ornare mi eget tempus dictum. In molestie elit vel lacus cursus maximus. \""
+    )
 
     other.append(d)
     //other.addChildAt(d, 0)
 
 
     val img = Mason.shared.createImageView(this)
-    // img.style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
-
-    Log.d("com.test", "image ${img.style.display}")
-
-    //other.append(img)
+    img.style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
+    other.append(img)
 
     val e = Mason.shared.createTextView(this)
     e.append("E")

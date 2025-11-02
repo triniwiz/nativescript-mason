@@ -29,9 +29,261 @@ fn main() {
     //bug();
     //insert_test()
     //inline_node()
-    inline_mix_bug()
+    //  inline_mix_bug()
+    // flex_direction_bug()
+    flex_grow_bug()
 }
 
+fn flex_grow_bug() {
+
+    extern "C" fn flex_grow_bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        if unsafe { *(id) } == 1 {
+            return MeasureOutput::make(10., 10.);
+        }
+        MeasureOutput::make(200., 200.)
+    }
+
+    let mut mason = Mason::new();
+    let body = mason.create_node();
+    let root = mason.create_node();
+
+    mason.add_child(body.id(), root.id());
+
+    let div = mason.create_node();
+    mason.with_style_mut(div.id(), |style| {
+        style.set_display(Display::Flex);
+    });
+
+    let div_a = mason.create_node();
+
+    mason.with_style_mut(div_a.id(), |style| {
+        style.set_flex_grow(1.);
+    });
+
+
+    let text_a = mason.create_text_node();
+    mason.add_child(div_a.id(), text_a.id());
+
+    mason.set_measure(text_a.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
+
+
+
+    let div_b = mason.create_node();
+
+
+    mason.with_style_mut(div_b.id(), |style| {
+        style.set_flex_grow(1.);
+    });
+
+
+    let text_b = mason.create_text_node();
+    mason.add_child(div_b.id(), text_b.id());
+
+    mason.set_measure(text_b.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
+
+
+    let div_c = mason.create_node();
+
+    mason.with_style_mut(div_c.id(), |style| {
+        style.set_flex_grow(1.);
+    });
+
+
+    let text_c = mason.create_text_node();
+    mason.add_child(div_c.id(), text_c.id());
+
+    mason.set_measure(text_c.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
+
+
+    let div_d = mason.create_node();
+    let text_d = mason.create_text_node();
+    mason.add_child(div_d.id(), text_d.id());
+
+    mason.set_measure(text_d.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
+
+
+    mason.with_style_mut(div_d.id(), |style| {
+        style.set_flex_grow(2.);
+    });
+
+    let div_e = mason.create_node();
+    let text_e = mason.create_text_node();
+    mason.add_child(div_e.id(), text_e.id());
+
+    mason.set_measure(text_e.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
+
+
+    mason.with_style_mut(div_e.id(), |style| {
+        style.set_flex_grow(2.);
+    });
+
+
+
+    let div_f = mason.create_node();
+
+    mason.with_style_mut(div_f.id(), |style| {
+        style.set_flex_grow(1.);
+    });
+
+    let text_f = mason.create_text_node();
+    mason.add_child(div_f.id(), text_f.id());
+
+    mason.with_style_mut(text_f.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(10.),
+            height: Dimension::length(10.),
+        })
+    });
+
+    mason.add_child(div.id(), div_a.id());
+    mason.add_child(div.id(), div_b.id());
+    mason.add_child(div.id(), div_c.id());
+    mason.add_child(div.id(), div_d.id());
+    mason.add_child(div.id(), div_e.id());
+    mason.add_child(div.id(), div_f.id());
+
+    mason.add_child(root.id(), div.id());
+
+    mason.compute_wh(body.id(), 2000., 2000.);
+
+    mason.print_tree(body.id());
+}
+fn flex_direction_bug() {
+    let mut mason = Mason::new();
+    let body = mason.create_node();
+    let root = mason.create_node();
+
+    let h4_1 = mason.create_text_node();
+    let div_1 = mason.create_node();
+
+    mason.with_style_mut(div_1.id(), |style| {
+        style.set_border(Rect {
+            left: LengthPercentage::length(1.),
+            right: LengthPercentage::length(1.),
+            top: LengthPercentage::length(1.),
+            bottom: LengthPercentage::length(1.),
+        });
+        style.set_display(Display::Flex);
+        style.set_flex_direction(FlexDirection::ColumnReverse);
+        style.set_size(Size {
+            width: Dimension::length(200.),
+            height: Dimension::length(200.),
+        })
+    });
+
+    let div_1_box_a = mason.create_node();
+
+    let div_1_box_a_txt = mason.create_text_node();
+
+    mason.add_child(div_1_box_a.id(), div_1_box_a_txt.id());
+
+    mason.with_style_mut(div_1_box_a.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    let div_1_box_b = mason.create_node();
+
+    mason.with_style_mut(div_1_box_b.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    let div_1_box_c = mason.create_node();
+
+    mason.with_style_mut(div_1_box_c.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    mason.add_child(root.id(), h4_1.id());
+
+    mason.add_child(root.id(), div_1.id());
+
+    mason.add_child(div_1.id(), div_1_box_a.id());
+
+    mason.add_child(div_1.id(), div_1_box_b.id());
+
+    mason.add_child(div_1.id(), div_1_box_c.id());
+
+    let h4_2 = mason.create_text_node();
+    let div_2 = mason.create_node();
+
+    mason.with_style_mut(div_2.id(), |style| {
+        style.set_border(Rect {
+            left: LengthPercentage::length(1.),
+            right: LengthPercentage::length(1.),
+            top: LengthPercentage::length(1.),
+            bottom: LengthPercentage::length(1.),
+        });
+        style.set_display(Display::Flex);
+        style.set_flex_direction(FlexDirection::RowReverse);
+        style.set_size(Size {
+            width: Dimension::length(200.),
+            height: Dimension::length(200.),
+        })
+    });
+
+    let div_2_box_a = mason.create_node();
+
+    let div_2_box_a_txt = mason.create_text_node();
+
+    mason.add_child(div_2_box_a.id(), div_2_box_a_txt.id());
+
+    mason.with_style_mut(div_2_box_a.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    let div_2_box_b = mason.create_node();
+
+    mason.with_style_mut(div_2_box_b.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    let div_2_box_c = mason.create_node();
+
+    mason.with_style_mut(div_2_box_c.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    mason.add_child(root.id(), h4_2.id());
+
+    mason.add_child(root.id(), div_2.id());
+
+    mason.add_child(div_2.id(), div_2_box_a.id());
+
+    mason.add_child(div_2.id(), div_2_box_b.id());
+
+    mason.add_child(div_2.id(), div_2_box_c.id());
+
+    mason.add_child(body.id(), root.id());
+
+    mason.compute_wh(body.id(), 2000., 2000.);
+
+    mason.print_tree(body.id());
+}
 fn inline_mix_bug() {
     let mut mason = Mason::new();
 

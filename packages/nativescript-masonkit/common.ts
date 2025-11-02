@@ -1126,7 +1126,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     _forceStyleUpdate(this as any);
   }
 
-  private get _viewChildren() {
+  get _viewChildren() {
     return this._children.filter((child) => child instanceof NSView) as NSView[];
   }
 
@@ -1196,8 +1196,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       if (text_ in child) {
         //@ts-ignore
         if (this._view) {
-          //@ts-ignore
-          this._view.addChildAt(child[text_] || '', this._children.length);
+          if (__ANDROID__) {
+            //@ts-ignore
+            this._view.addChildAt(child[text_] || '', this._children.length);
+          }
+
+          if (__APPLE__) {
+            //@ts-ignore
+            this._view.mason_addChildAtText(child[text_] || '', this._children.length);
+          }
         }
         this._children.push(child);
       }
@@ -1225,16 +1232,29 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       if (text_ in child) {
         //@ts-ignore
         if (this._view) {
-          //@ts-ignore
-          this._view.replaceChildAt(child[text_] || '', atIndex);
+          if (__ANDROID__) {
+            //@ts-ignore
+            this._view.replaceChildAt(child[text_] || '', atIndex);
+          }
+
+          if (__APPLE__) {
+            //@ts-ignore
+            console.log('Mason replaceChildAtText called', this._view.node.getChildren());
+            //@ts-ignore
+            this._view.mason_replaceChildAtText(child[text_] || '', atIndex);
+          }
         }
-        this._children[atIndex] = { text: child[text_] || '' };
+        if (this._children.length >= atIndex) {
+          this._children[atIndex] = { text: child[text_] || '' };
+        } else {
+          this._children.push({ text: child[text_] || '' });
+        }
       }
     }
   }
 
   removeChild(child: any) {
-    const index = this._viewChildren.indexOf(child);
+    const index = this._children.indexOf(child);
     if (index > -1) {
       this._children.splice(index, 1);
       this._removeView(child);
@@ -1304,63 +1324,124 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   [flexWrapProperty.setNative](value) {
-    // _setFlexWrap(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexWrap = value;
+    }
   }
 
   [flexDirectionProperty.setNative](value) {
-    // _setFlexDirection(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexDirection = value;
+    }
   }
 
   [flexGrowProperty.setNative](value) {
-    // _setFlexGrow(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexGrow = value;
+    }
   }
 
   [flexShrinkProperty.setNative](value) {
-    //  _setFlexShrink(value, this as any);
+    console.log('flexShrink setNative called with value:', value);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexShrink = value;
+    }
   }
 
   [flexBasisProperty.setNative](value) {
-    //  _setFlexBasis(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexBasis = value;
+    }
   }
 
   [alignItemsProperty.setNative](value) {
-    //  _setAlignItems(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.alignItems = value;
+    }
   }
 
   [alignSelfProperty.setNative](value) {
-    // _setAlignSelf(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.alignSelf = value;
+    }
   }
 
   [alignContentProperty.setNative](value) {
-    // _setAlignContent(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.alignContent = value;
+    }
   }
 
   [justifyItemsProperty.setNative](value) {
-    // _setJustifyItems(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.justifyItems = value;
+    }
   }
 
   [justifySelfProperty.setNative](value) {
-    //  _setJustifySelf(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.justifySelf = value;
+    }
   }
 
   [justifyContentProperty.setNative](value) {
-    //  _setJustifyContent(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.justifyContent = value;
+    }
   }
 
   [leftProperty.setNative](value) {
-    //  _setLeft(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.left = value;
+    }
   }
 
   [rightProperty.setNative](value) {
-    //  _setRight(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.right = value;
+    }
   }
 
   [bottomProperty.setNative](value) {
-    // _setBottom(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.bottom = value;
+    }
   }
 
   [topProperty.setNative](value) {
-    // _setTop(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.top = value;
+    }
   }
 
   [minWidthProperty.setNative](value) {
@@ -1412,32 +1493,64 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   [marginLeftProperty.setNative](value) {
-    // _setMarginLeft(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginLeft = value;
+    }
   }
 
   [marginRightProperty.setNative](value) {
-    // _setMarginRight(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginRight = value;
+    }
   }
 
   [marginBottomProperty.setNative](value) {
-    // _setMarginBottom(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginBottom = value;
+    }
   }
 
   [marginTopProperty.setNative](value) {
-    // _setMarginTop(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginTop = value;
+    }
   }
 
   [paddingLeftProperty.setNative](value) {
-    // _setPaddingLeft(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingLeft = value;
+    }
   }
   [paddingRightProperty.setNative](value) {
-    //  _setPaddingRight(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingRight = value;
+    }
   }
   [paddingTopProperty.setNative](value) {
-    // _setPaddingTop(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingTop = value;
+    }
   }
   [paddingBottomProperty.setNative](value) {
-    // _setPaddingBottom(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingBottom = value;
+    }
   }
 
   set rowGap(value: Length) {
@@ -1576,7 +1689,7 @@ srcProperty.register(ImageBase);
 // flexDirectionProperty.register(Style);
 // flexWrapProperty.register(Style);
 // flexGrowProperty.register(Style);
-// flexShrinkProperty.register(Style);
+flexShrinkProperty.register(Style);
 
 paddingLeftProperty.overrideHandlers({
   name: 'paddingLeft',

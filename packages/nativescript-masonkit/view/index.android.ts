@@ -52,7 +52,6 @@ export class View extends ViewBase {
 
           (view_ref.childNodes as any[]).forEach((node, index) => {
             if (node.nodeType === 'text') {
-              //  nativeView.replaceChildAt(node.text, index);
               this.replaceChild({ [text_]: node.text }, index);
             }
           });

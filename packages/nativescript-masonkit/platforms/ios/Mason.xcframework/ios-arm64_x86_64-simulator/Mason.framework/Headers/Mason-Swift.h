@@ -711,6 +711,8 @@ enum MasonNodeType : int32_t;
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, copy) void (^ _Nullable onNodeAttached)(void);
+@property (nonatomic, copy) void (^ _Nullable onNodeDetached)(void);
 @property (nonatomic, readonly) void * _Nullable nativePtr;
 @property (nonatomic, readonly, strong) MasonLayout * _Nonnull computedLayout;
 @property (nonatomic, readonly, strong) MasonDocument * _Nullable document;
@@ -897,12 +899,12 @@ SWIFT_CLASS_NAMED("MasonText")
 @end
 
 @interface MasonText (SWIFT_EXTENSION(Mason))
-- (void)drawRect:(CGRect)rect;
+/// Remove child from text container
+- (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
 @end
 
 @interface MasonText (SWIFT_EXTENSION(Mason))
-/// Remove child from text container
-- (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
+- (void)drawRect:(CGRect)rect;
 @end
 
 SWIFT_CLASS_NAMED("MasonTextNode")
@@ -911,7 +913,6 @@ SWIFT_CLASS_NAMED("MasonTextNode")
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc data:(NSString * _Nonnull)text attributes:(NSDictionary<NSAttributedStringKey, id> * _Nullable)attrs OBJC_DESIGNATED_INITIALIZER;
 - (void)appendChild:(MasonNode * _Nonnull)child;
 @property (nonatomic, readonly) NSInteger length;
-@property (nonatomic, readonly, strong) MasonNode * _Nullable parent;
 - (NSString * _Nonnull)substringDataWithOffset:(NSInteger)offset count:(NSInteger)count SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)appendData:(NSString * _Nonnull)s;
 - (nonnull instancetype)insertData:(NSString * _Nonnull)s at:(NSInteger)offset;
@@ -2117,6 +2118,8 @@ enum MasonNodeType : int32_t;
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, copy) void (^ _Nullable onNodeAttached)(void);
+@property (nonatomic, copy) void (^ _Nullable onNodeDetached)(void);
 @property (nonatomic, readonly) void * _Nullable nativePtr;
 @property (nonatomic, readonly, strong) MasonLayout * _Nonnull computedLayout;
 @property (nonatomic, readonly, strong) MasonDocument * _Nullable document;
@@ -2303,12 +2306,12 @@ SWIFT_CLASS_NAMED("MasonText")
 @end
 
 @interface MasonText (SWIFT_EXTENSION(Mason))
-- (void)drawRect:(CGRect)rect;
+/// Remove child from text container
+- (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
 @end
 
 @interface MasonText (SWIFT_EXTENSION(Mason))
-/// Remove child from text container
-- (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
+- (void)drawRect:(CGRect)rect;
 @end
 
 SWIFT_CLASS_NAMED("MasonTextNode")
@@ -2317,7 +2320,6 @@ SWIFT_CLASS_NAMED("MasonTextNode")
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc data:(NSString * _Nonnull)text attributes:(NSDictionary<NSAttributedStringKey, id> * _Nullable)attrs OBJC_DESIGNATED_INITIALIZER;
 - (void)appendChild:(MasonNode * _Nonnull)child;
 @property (nonatomic, readonly) NSInteger length;
-@property (nonatomic, readonly, strong) MasonNode * _Nullable parent;
 - (NSString * _Nonnull)substringDataWithOffset:(NSInteger)offset count:(NSInteger)count SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)appendData:(NSString * _Nonnull)s;
 - (nonnull instancetype)insertData:(NSString * _Nonnull)s at:(NSInteger)offset;

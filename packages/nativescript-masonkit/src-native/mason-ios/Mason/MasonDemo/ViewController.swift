@@ -95,14 +95,14 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
   
   override func viewSafeAreaInsetsDidChange() {
-   // body.frame = body.frame.offsetBy(dx: view.safeAreaInsets.left, dy: view.safeAreaInsets.top)
+    // body.frame = body.frame.offsetBy(dx: view.safeAreaInsets.left, dy: view.safeAreaInsets.top)
     let left = Float(self.view.safeAreaInsets.left) * scale
     let right = Float(self.view.safeAreaInsets.right) * scale
     let top = Float(self.view.safeAreaInsets.top) * scale
     let bottom = Float(self.view.safeAreaInsets.bottom) * scale
     
     body.style.padding = MasonRect(.Points(left), .Points(right), .Points(top), .Points(bottom))
-  
+    
     guard view.subviews.first is MasonUIView else {return}
     
     
@@ -172,7 +172,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     text.addView(child)
     
-  
+    
     let spacer = mason.createTextView()
     spacer.append(text: " OMG ??? ")
     spacer.textTransform = .FullWidth
@@ -188,16 +188,16 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
     image.src = "https://picsum.photos/300/300"
     
-   // loadImage("https://picsum.photos/300/300", imageInstance: image, parent: text)
+    // loadImage("https://picsum.photos/300/300", imageInstance: image, parent: text)
     
     text.addView(image)
     
-  
+    
     
     
     let first = mason.createTextView()
     first.append(text: " this")
-   // first.setColor(ui: .magenta)
+    // first.setColor(ui: .magenta)
     text.addView(first)
     
     
@@ -220,7 +220,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         MasonDimension.Points(300))
     }
     image2.src = "https://picsum.photos/300/300"
-   // loadImage("https://picsum.photos/300/300", imageInstance: image2, parent: text)
+    // loadImage("https://picsum.photos/300/300", imageInstance: image2, parent: text)
     
     other.append(image2)
     
@@ -237,7 +237,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-        
+    
     
   }
   
@@ -286,56 +286,56 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //            i+=1
     //        } while i < 1000
     
-//    body.style.size = .init(.Points(Float(view.bounds.width * UIScreen.main.scale)), (.Points(Float(view.bounds.height * UIScreen.main.scale))))
-   // document.node.appendChild(body.node)
-
+    //    body.style.size = .init(.Points(Float(view.bounds.width * UIScreen.main.scale)), (.Points(Float(view.bounds.height * UIScreen.main.scale))))
+    // document.node.appendChild(body.node)
+    
     view.addSubview(body)
     
     body.style.size = .init(.Points(Float(view.frame.width * UIScreen.main.scale)), .Points(Float(view.frame.height * UIScreen.main.scale)))
     
     
     
-   // let root = mason.createView()
-   // body.addView(root)
+    // let root = mason.createView()
+    // body.addView(root)
     
     /*
-    
-    let text = mason.createTextView(type: .Pre)
-    root.addView(text)
-    text.text = """
-                 S
-                 A
-                LUT
-                 M
-                O N
-                D  E
-                DONT
-               E SUIS
-               LA LAN
-              G U E  É
-             L O Q U E N
-            TE      QUESA
-           B  O  U  C  H  E
-          O        P A R I S
-         T I R E   ET   TIRERA
-        T O U             JOURS
-       AUX                  A  L
+     
+     let text = mason.createTextView(type: .Pre)
+     root.addView(text)
+     text.text = """
+     S
+     A
+     LUT
+     M
+     O N
+     D  E
+     DONT
+     E SUIS
+     LA LAN
+     G U E  É
+     L O Q U E N
+     TE      QUESA
+     B  O  U  C  H  E
+     O        P A R I S
+     T I R E   ET   TIRERA
+     T O U             JOURS
+     AUX                  A  L
      LEM                      ANDS   - Apollinaire
-    """
+     """
+     
+     mason.printTree(root.node)
+     
+     
+     root.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+     
+     
+     */
+    // textWithImage()
     
-    mason.printTree(root.node)
+    //imageTest()
     
     
-    root.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-    
-    
-    */
-   // textWithImage()
-    
-  //imageTest()
-    
-    
-     //textSample()
+    //textSample()
     
     //flexIssue()
     
@@ -346,35 +346,35 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     // showGridExample()
     // animationExample()
     
-   //wrapper5()
-   // wrapper6()
+    //wrapper5()
+    // wrapper6()
     
     /*
-    let con = mason.createView()
-    let text = mason.createTextView()
-    text.style.setSizeHeight(.Points(48))
-    text.text = "Hello, World!"
-    con.addView(text)
-    body.addView(con)
+     let con = mason.createView()
+     let text = mason.createTextView()
+     text.style.setSizeHeight(.Points(48))
+     text.text = "Hello, World!"
+     con.addView(text)
+     body.addView(con)
+     
+     con.backgroundColor = .blue
+     text.backgroundColor = .red
+     
+     text.color = UIColor.green.toUInt32()
+     
+     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+     
+     */
     
-    con.backgroundColor = .blue
-    text.backgroundColor = .red
+    //  textDemo()
     
-    text.color = UIColor.green.toUInt32()
-    
-    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-    
-    */
-    
-  //  textDemo()
-    
-   // imageExample()
+    // imageExample()
     // textSample()
-     // gridSample()
+    // gridSample()
     
-     // testLateUpdate()
+    // testLateUpdate()
     
-   // scrollTest()
+    // scrollTest()
     
     //headers()
     
@@ -412,20 +412,220 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //      root.node.computeWithMaxContent()
     
     //inlineTest()
-  //  testTextInsert()
-   // testInsert()
-   // testInlineStyleChange()
+    //  testTextInsert()
+    // testInsert()
+    // testInlineStyleChange()
     //testTextNodeInsertingInline()
-    testTextNodeReplaceWithImage()
+    //testTextNodeReplaceWithImage()
+    // testTextAppend()
+    flexDirection()
+  }
+  
+  func flexDirection() {
+    /*
+     <h4>This is a Column-Reverse</h4>
+     <div id="col-rev" class="content">
+     <div class="box red">A</div>
+     <div class="box lightblue">B</div>
+     <div class="box yellow">C</div>
+     </div>
+     <h4>This is a Row-Reverse</h4>
+     <div id="row-rev" class="content">
+     <div class="box red">A</div>
+     <div class="box lightblue">B</div>
+     <div class="box yellow">C</div>
+     </div>
+     */
+    let root = NSCMason.shared.createView()
+    let h4 = NSCMason.shared.createTextView(type: MasonTextType(rawValue: 6)!)
+    h4.mason_addChildAt(text: "This is a Column-Reverse", 1)
+    
+    root.append(h4)
+    
+    /*
+     .content {
+     width: 200px;
+     height: 200px;
+     border: 1px solid #c3c3c3;
+     display: flex;
+     }
+     
+     #col-rev {
+     flex-direction: column-reverse;
+     }
+     */
+    
+    let colRev = NSCMason.shared.createView()
+    colRev.style.flexDirection = FlexDirection.ColumnReverse
+    
+    colRev.style.size = MasonSize(
+      MasonDimension.Points(200),
+      MasonDimension.Points(200)
+    )
+    colRev.style.border =  MasonRect(
+      MasonLengthPercentage.Points(1),
+      MasonLengthPercentage.Points(1),
+      MasonLengthPercentage.Points(1),
+      MasonLengthPercentage.Points(1)
+    )
+    
+    colRev.style.display = Display.Flex
+    
+    let colA = NSCMason.shared.createView()
+    colA.append(text: "A")
+    colA.style.size = MasonSize(
+      MasonDimension.Points(50),
+      MasonDimension.Points(50)
+    )
+    colA.backgroundColor = .red
+    
+    let colB = NSCMason.shared.createView()
+    colB.append(text:"B")
+    colB.style.size = MasonSize(
+      MasonDimension.Points(50),
+      MasonDimension.Points(50)
+    )
+    colB.backgroundColor = UIColor(red: 173 / 255, green: 216 / 255, blue: 230 / 255, alpha: 1.00)
+    
+    let colC = NSCMason.shared.createView()
+    colC.append(text:"C")
+    colC.style.size = MasonSize(
+      MasonDimension.Points(50),
+      MasonDimension.Points(50)
+    )
+    colC.backgroundColor = .yellow
+  
+    
+   colRev.append(elements: [colA, colB, colC])
+    
+    root.append(colRev)
+    
+    
+    let h4_2 = NSCMason.shared.createTextView(type: .H4)
+    h4_2.append(text: "This is a Row-Reverse")
+    
+    root.append(h4_2)
+    
+    
+    let rowRev = NSCMason.shared.createView()
+    rowRev.style.flexDirection = FlexDirection.RowReverse
+    
+    rowRev.style.size = MasonSize(
+      MasonDimension.Points(200),
+      MasonDimension.Points(200)
+    )
+    
+    rowRev.style.border = MasonRect(
+      MasonLengthPercentage.Points(1),
+      MasonLengthPercentage.Points(1),
+      MasonLengthPercentage.Points(1),
+      MasonLengthPercentage.Points(1)
+    )
+    
+    rowRev.style.display = Display.Flex
+    
+    let rowA = NSCMason.shared.createView()
+    rowA.append(text:"A")
+    rowA.style.size = MasonSize(
+      MasonDimension.Points(50),
+      MasonDimension.Points(50)
+    )
+    rowA.backgroundColor = .red
+    
+    let rowB = NSCMason.shared.createView()
+    rowB.append(text:"B")
+    rowB.style.size = MasonSize(
+      MasonDimension.Points(50),
+      MasonDimension.Points(50)
+    )
+    rowB.backgroundColor = UIColor(red: 173 / 255, green: 216 / 255, blue: 230 / 255, alpha: 1.00)
+    
+    let rowC = NSCMason.shared.createView()
+    rowC.append(text:"C")
+    rowC.style.size = MasonSize(
+      MasonDimension.Points(50),
+      MasonDimension.Points(50)
+    )
+    rowC.backgroundColor = .yellow
+    
+    rowRev.append(elements: [rowA, rowB, rowC])
+    
+    root.append(rowRev)
+    
+    body.append(root)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+  }
+  
+  func testTextAppend() {
+    let root = NSCMason.shared.createView()
+    //  root.backgroundColor = .green
+    
+    let txt = NSCMason.shared.createTextView()
+    txt.append(text: "A")
+    
+    let txt2 = NSCMason.shared.createTextView()
+    txt2.append(text: "B")
+    
+    let txt3 = NSCMason.shared.createTextView()
+    txt3.append(text: "C")
+    txt3.style.display = .Block
+    
+    
+    root.addView(txt, at: 0)
+    root.addView(txt2, at: 1)
+    root.addView(txt3, at: 2)
+    
+    
+    body.append(root)
+    
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+    
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+      DispatchQueue.main.async {
+        let view = NSCMason.shared.createView()
+        view.replaceChildAt(text: "Hello", 0)
+        
+        let txt = NSCMason.shared.createTextView()
+        txt.append(text: " 1 ")
+        
+        view.addView(txt, at: 1)
+        
+        let img = NSCMason.shared.createImageView()
+        img.style.size = MasonSize(
+          uniform: MasonDimension.Points(100)
+        )
+        img.src = "https://picsum.photos/600/600"
+        
+        view.addView(img, at: 2)
+        
+        let txt2 = NSCMason.shared.createTextView()
+        txt2.append(text: " 2 ")
+        
+        view.addView(txt2, at: 3)
+        
+        view.replaceChildAt(text: "???", 4)
+        
+        
+        root.addView(view, at: 3)
+        
+      }
+    }
   }
   
   func testTextNodeReplaceWithImage() {
-     let root = NSCMason.shared.createView()
+    let root = NSCMason.shared.createView()
     root.append(text: "A")
     root.append(text: "C")
     root.append(text: "C")
-
-     body.append(root)
+    
+    body.append(root)
+    
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
     DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
       DispatchQueue.main.async {
@@ -434,16 +634,14 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
           MasonDimension.Points(100), MasonDimension.Points(100)
         )
         checkmark.image = UIImage.checkmark
-
+        
         root.replaceChildAt(element: checkmark, 1)
-
-        NSCMason.shared.printTree(root.node)
       }
     }
-
-
-
-   }
+    
+    
+    
+  }
   
   func testTextNodeInsertingInline() {
     let root = NSCMason.shared.createView()
@@ -451,88 +649,88 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     a.append(text: "A")
     let b = NSCMason.shared.createTextView()
     b.append(text: "B")
-
+    
     let c = NSCMason.shared.createTextView()
     c.append(text: "C")
-
+    
     let other = NSCMason.shared.createView()
     other.backgroundColor  = .blue
-
+    
     let d = NSCMason.shared.createTextView()
     d.append(text: "D")
-
+    
     other.append(d)
     //other.addChildAt(d, 0)
-
-
+    
+    
     let img = NSCMason.shared.createImageView()
     // img.style.size = Size(Dimension.Points(100f), Dimension.Points(100f))
-
+    
     print("image \(img.style.display)")
-
+    
     other.append(img)
-
+    
     let e = NSCMason.shared.createTextView()
     e.append(text: "E")
-
-
+    
+    
     let f = NSCMason.shared.createTextView()
     f.append(text: "F")
-
-
+    
+    
     
     other.append(e)
     other.append(f)
-
+    
     root.append(a)
     root.append(b)
     root.append(c)
-
+    
     root.append(other)
-
+    
     
     DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
       DispatchQueue.main.async {
         img.src = "https://picsum.photos/600/600"
       }
     }
-
+    
     body.append(root)
-
+    
   }
   
   func testInlineStyleChange() {
     let txt = NSCMason.shared.createTextView()
-      //txt.backgroundColorValue = UIColor.green.toUInt32()
-      txt.color = UIColor.red.toUInt32()
-      txt.append(text: "First")
-
-      let txt2 = NSCMason.shared.createTextView()
-      txt2.backgroundColorValue = UIColor.yellow.toUInt32()
-      txt2.append(text: " Second")
-
-      txt.append(txt2)
-
-      let txt3 = NSCMason.shared.createTextView()
-      txt3.append(text: " Third")
-
-      txt.append(txt3)
+    //txt.backgroundColorValue = UIColor.green.toUInt32()
+    txt.color = UIColor.red.toUInt32()
+    txt.append(text: "First")
     
-//    let checkmark = NSCMason.shared.createImageView()
-//    checkmark.image = UIImage.checkmark
-//    
-//    txt.append(checkmark)
+    let txt2 = NSCMason.shared.createTextView()
+    txt2.backgroundColorValue = UIColor.yellow.toUInt32()
+    txt2.append(text: " Second")
+    
+    txt.append(txt2)
+    
+    let txt3 = NSCMason.shared.createTextView()
+    txt3.append(text: " Third")
+    
+    txt.append(txt3)
+    
+    //    let checkmark = NSCMason.shared.createImageView()
+    //    checkmark.image = UIImage.checkmark
+    //
+    //    txt.append(checkmark)
     
     
-
-      body.mason_append(elements: [txt])
-      body.mason_computeWithMaxContent()
- 
+    
+    body.mason_append(elements: [txt])
+    body.mason_computeWithMaxContent()
+    
     
     DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
       DispatchQueue.main.async {
         //txt.fontSize = 24
-       // txt2.fontSize = 40
+        // txt2.fontSize = 40
         txt2.fontWeight = "semibold"
         txt3.decorationLine = .Underline
         txt3.color = UIColor.purple.toUInt32()
@@ -541,10 +739,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     }
     
     
-  
-      //  body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-
-    }
+    
+    //  body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+  }
   
   func testInsert(){
     let root = NSCMason.shared.createView()
@@ -587,12 +785,12 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     
     view.addChildAt(element: remove, 1)
-        
-
+    
+    
     root.append(view)
     body.append(root)
     
-
+    
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
@@ -607,9 +805,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     view.append(text: "3")
     view.addChildAt(text: "2", 1)
     view.append(text: "4")
-
+    
     let img = NSCMason.shared.createImageView()
-
+    
     img.style.size = MasonSize(
       .Points(100), .Points(100)
     )
@@ -621,8 +819,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     view.append(text: "5")
     
     mason.printTree(view.node)
-  
-
+    
+    
     root.append(view)
     body.append(root)
     
@@ -649,7 +847,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     let img = NSCMason.shared.createImageView()
     img.backgroundColor = UIColor.blue
-
+    
     img.style.size = MasonSize(
       .Points(100), .Points(100)
     )
@@ -669,54 +867,54 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     root.append(elements: [txt])
     
     body.append(root)
-
+    
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
   }
   
   func textWithImage() {
-      let txt = NSCMason.shared.createTextView()
-      txt.backgroundColorValue = UIColor.green.toUInt32()
-      txt.color = UIColor.red.toUInt32()
-      txt.append(text: "Inline Image ")
-      txt.tag = 1
-
-
-      let img = NSCMason.shared.createImageView()
-      img.backgroundColor = UIColor.blue
-
-      img.style.size = MasonSize(
-        .Points(150), .Points(150)
-      )
-      img.image = UIImage.checkmark
-
-
-      let txt2 = NSCMason.shared.createTextView()
-      txt2.backgroundColorValue = UIColor.yellow.toUInt32()
-      txt2.color = UIColor.blue.toUInt32()
-      txt2.append(text: "Hello ???")
-
-      txt2.tag = 2
-
-      txt.append(txt2)
-
-      let txt3 = NSCMason.shared.createTextView()
+    let txt = NSCMason.shared.createTextView()
+    txt.backgroundColorValue = UIColor.green.toUInt32()
+    txt.color = UIColor.red.toUInt32()
+    txt.append(text: "Inline Image ")
+    txt.tag = 1
     
-      txt3.backgroundColorValue = UIColor.gray.toUInt32()
-      txt3.color = UIColor.green.toUInt32()
-      txt3.append(text: " ashbnjmkasijdaskmd")
     
-      txt3.tag = 3
-
-      txt.append(txt3)
+    let img = NSCMason.shared.createImageView()
+    img.backgroundColor = UIColor.blue
     
-
-      body.append(elements: [txt, img])
-      body.mason_computeWithMaxContent()
-  
-      //  body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-
-    }
+    img.style.size = MasonSize(
+      .Points(150), .Points(150)
+    )
+    img.image = UIImage.checkmark
+    
+    
+    let txt2 = NSCMason.shared.createTextView()
+    txt2.backgroundColorValue = UIColor.yellow.toUInt32()
+    txt2.color = UIColor.blue.toUInt32()
+    txt2.append(text: "Hello ???")
+    
+    txt2.tag = 2
+    
+    txt.append(txt2)
+    
+    let txt3 = NSCMason.shared.createTextView()
+    
+    txt3.backgroundColorValue = UIColor.gray.toUInt32()
+    txt3.color = UIColor.green.toUInt32()
+    txt3.append(text: " ashbnjmkasijdaskmd")
+    
+    txt3.tag = 3
+    
+    txt.append(txt3)
+    
+    
+    body.append(elements: [txt, img])
+    body.mason_computeWithMaxContent()
+    
+    //  body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+  }
   
   func scrollTest(){
     let root = mason.createScrollView()
@@ -778,8 +976,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     txt2.backgroundColor = .red
     txt2.textWrap = .NoWrap
     txt2.text = "Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec nec eleifend eros. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Praesent eget turpis erat. Aliquam faucibus ullamcorper risus cursus feugiat. Etiam ac feugiat mauris, sit amet ornare ipsum. Ut a malesuada lectus, non consequat quam. Vestibulum quis molestie augue. Sed id dolor ac dui vehicula tempus. Nam sed pellentesque ipsum."
-  
-
+    
+    
     //root.addView(txt2)
     
     root.addView(txt)
@@ -790,18 +988,18 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
   
   var animator: UIViewPropertyAnimator?
   
-
+  
   var animateBlock: ((CGFloat) -> Void)?
-
+  
   var displayLink: CADisplayLink?
   
   @objc func updateProgress() {
     guard let animator = animator else { return }
-      animateBlock?(animator.fractionComplete)
-      animator.fractionComplete += 0.001
-      if animator.state == .stopped || animator.state == .inactive || animator.fractionComplete >= 1 {
-         displayLink?.invalidate()
-      }
+    animateBlock?(animator.fractionComplete)
+    animator.fractionComplete += 0.001
+    if animator.state == .stopped || animator.state == .inactive || animator.fractionComplete >= 1 {
+      displayLink?.invalidate()
+    }
   }
   
   
@@ -828,12 +1026,12 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     view.style.size = MasonSize(.Points(400), .Points(400))
     view.backgroundColor = .purple
     
-   // root.addView(view)
+    // root.addView(view)
     
     let txtView = mason.createTextView()
     
     txtView.text = "Hello World"
- 
+    
     view.addView(txtView)
     
     txt.addView(view)
@@ -848,57 +1046,57 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     txting.text = " inlining this thing "
     
     txt.addView(txting)
-  
+    
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
     let timing = UISpringTimingParameters(
-        dampingRatio: 0.4,
-        initialVelocity: CGVector(dx: 0, dy: 5)
-    )
-
-    let animator = UIViewPropertyAnimator(
-        duration: 3,
-        timingParameters: timing
+      dampingRatio: 0.4,
+      initialVelocity: CGVector(dx: 0, dy: 5)
     )
     
-
+    let animator = UIViewPropertyAnimator(
+      duration: 3,
+      timingParameters: timing
+    )
+    
+    
     let originalSize = img.style.sizeCompat
     animateBlock = { fractionComplete in
-            img.configure { style in
-              style.size = MasonSize(.Points(Float(originalSize.width.value * Float(fractionComplete))), .Points(Float(originalSize.height.value * Float(fractionComplete))))
-            }
-    
+      img.configure { style in
+        style.size = MasonSize(.Points(Float(originalSize.width.value * Float(fractionComplete))), .Points(Float(originalSize.height.value * Float(fractionComplete))))
+      }
       
-            self.body.requestLayout()
+      
+      self.body.requestLayout()
     }
     
     self.animator = animator
-
-   // animator.startAnimation()
+    
+    // animator.startAnimation()
     
     displayLink = CADisplayLink(target: self, selector: #selector(updateProgress))
     displayLink?.add(to: .main, forMode: .default)
     
     
-//
-//    UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
-//      print("animate", Date.now)
-//      img.configure { style in
-//        style.size = MasonSize(.Percent(0.3), .Percent(0.3))
-//      }
-//      
-//      self.body.requestLayout()
-//    }
-  
-  
+    //
+    //    UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
+    //      print("animate", Date.now)
+    //      img.configure { style in
+    //        style.size = MasonSize(.Percent(0.3), .Percent(0.3))
+    //      }
+    //
+    //      self.body.requestLayout()
+    //    }
     
     
-//    UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
-//      img.configure { style in
-//        style.size = MasonSize(.Points(200), .Points(200))
-//      }
-//    }
+    
+    
+    //    UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
+    //      img.configure { style in
+    //        style.size = MasonSize(.Points(200), .Points(200))
+    //      }
+    //    }
   }
   
   func headers(){
@@ -982,47 +1180,47 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     body.addView(root)
     
     let text = mason.createTextView()
-
+    
     root.addView(text)
-   // text.textWrap = .Wrap
+    // text.textWrap = .Wrap
     // text.setBackgroundColor(ui: .cyan)
     
     let text2 = mason.createTextView()
     text2.whiteSpace = .PreLine
-
+    
     text.addView(text2)
-  
-
+    
+    
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
     text.append(text: "Hello World \n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris.")
     
     /*
-    DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
-      DispatchQueue.main.async {
-        text.updateText("Hello World")
-        
-        DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
-          DispatchQueue.main.async {
-            text2.setBackgroundColor(ui: .green)
-            text2.setColor(ui: .blue)
-            text2.updateText("\n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris.")
-            
-            
-      
-            
-            //            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
-            //              DispatchQueue.main.async {
-            //                text.removeView(text2)
-            //                root.node.computeWithMaxContent()
-            //              }
-            //            }
-            
-          }
-        }
-      }
-    }
-    */
+     DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+     DispatchQueue.main.async {
+     text.updateText("Hello World")
+     
+     DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+     DispatchQueue.main.async {
+     text2.setBackgroundColor(ui: .green)
+     text2.setColor(ui: .blue)
+     text2.updateText("\n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris.")
+     
+     
+     
+     
+     //            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+     //              DispatchQueue.main.async {
+     //                text.removeView(text2)
+     //                root.node.computeWithMaxContent()
+     //              }
+     //            }
+     
+     }
+     }
+     }
+     }
+     */
     
     
   }
@@ -1079,14 +1277,14 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
-//    
-//    <div backgroundColor="red">
-//        <p style="color: red;">Test nativescript-masonkit
-//          <sspan style="color: blue;"> inline text</sspan>
-//        </p>
-//        <p style="color: black;background-color: pink;">Paragraph with image <img width="100" height="100" src="https://picsum.photos/200/300" /></p>
-//        <img width="300" height="300" src="https://picsum.photos/200/300" />
-//      </div>
+    //
+    //    <div backgroundColor="red">
+    //        <p style="color: red;">Test nativescript-masonkit
+    //          <sspan style="color: blue;"> inline text</sspan>
+    //        </p>
+    //        <p style="color: black;background-color: pink;">Paragraph with image <img width="100" height="100" src="https://picsum.photos/200/300" /></p>
+    //        <img width="300" height="300" src="https://picsum.photos/200/300" />
+    //      </div>
   }
   
   func imageExample(){
@@ -1094,7 +1292,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     let root = mason.createView()
     root.configure { style in
       style.marginTop = .Points(300)
-     // style.marginLeft = .Points(100)
+      // style.marginLeft = .Points(100)
     }
     body.addView(root)
     
@@ -1141,23 +1339,23 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
-//    DispatchQueue.global().async { [self] in
-//      do {
-//        let data = try Data(contentsOf: URL(string: "https://picsum.photos/600/600")!)
-//        
-//        let side = CGFloat(300 / scale)
-//        
-//        let img = resizeImage(UIImage(data: data)!, CGSize(width: side, height: side))
-//        
-//        DispatchQueue.main.async {
-//          image.image = img
-//          image.style.size = MasonSize(uniform: .Points(Float(side)))
-//          self.body.computeWithMaxContent()
-//        }
-//      }catch{
-//        print(error)
-//      }
-//    }
+    //    DispatchQueue.global().async { [self] in
+    //      do {
+    //        let data = try Data(contentsOf: URL(string: "https://picsum.photos/600/600")!)
+    //
+    //        let side = CGFloat(300 / scale)
+    //
+    //        let img = resizeImage(UIImage(data: data)!, CGSize(width: side, height: side))
+    //
+    //        DispatchQueue.main.async {
+    //          image.image = img
+    //          image.style.size = MasonSize(uniform: .Points(Float(side)))
+    //          self.body.computeWithMaxContent()
+    //        }
+    //      }catch{
+    //        print(error)
+    //      }
+    //    }
     
     
     
@@ -1293,7 +1491,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     wrapper6.configure { style in
       style.display = .Grid
-//      style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
+      //      style.size = MasonSize(.Points(scale * Float(view.bounds.width)), .Points(scale * Float(view.bounds.height)))
       style.gap = MasonSize(.Points(10 ), .Points(10))
       style.gridTemplateColumns = [
         TrackSizingFunction.AutoRepeat(.Count(6), [.Points(points: 150 )])
@@ -1352,9 +1550,9 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
   }
   
   func animationExample(){
-//    view.subviews.forEach { view in
-//      view.removeFromSuperview()
-//    }
+    //    view.subviews.forEach { view in
+    //      view.removeFromSuperview()
+    //    }
     
     let root = mason.createView()
     root.backgroundColor = .blue
@@ -1368,7 +1566,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     body.addView(root)
     
     body.computeWithSize(width, height)
-
+    
     UIView.animate(withDuration: 3, delay: 1, usingSpringWithDamping: 0.4, initialSpringVelocity: 5){
       root.setSizeHeight(0.3, 2)
       root.setSizeWidth(0.3, 2)
@@ -1384,7 +1582,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     let root = mason.createView()
     body.addView(root)
     root.backgroundColor = .red
-
+    
     root.configure({ style in
       style.flexGrow = 1
       style.display = .Flex
@@ -1446,7 +1644,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
   
   func gridSample(){
     /// https://gridbyexample.com/examples/example1/
-   
+    
     
     let childBg = UIColor(hex: "#444444FF")
     let root = mason.createView()
@@ -1893,7 +2091,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     
     
     imageView1.src = "https://hips.hearstapps.com/digitalspyuk.cdnds.net/17/19/1494434353-deadpool.jpg"
-   
+    
     
   }
   

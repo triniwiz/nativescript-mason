@@ -304,12 +304,20 @@ open class Node internal constructor(
   }
 
   open fun appendChild(child: Node) {
-    // TODO handle parent
     if (child is TextNode) {
+      var pending = false
       val container = if (view is TextView) {
         this
       } else {
+        pending = true
         getOrCreateAnonymousTextContainer()
+      }
+
+      if (pending) {
+        if (child.nativePtr != 0L) {
+          NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
+        }
+        NodeUtils.addView(this, child.view as? View)
       }
 
       container.children.add(child)

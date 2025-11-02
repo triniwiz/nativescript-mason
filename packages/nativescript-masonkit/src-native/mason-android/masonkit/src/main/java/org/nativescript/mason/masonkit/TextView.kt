@@ -16,6 +16,7 @@ import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.createBitmap
@@ -25,6 +26,7 @@ import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.ceil
 import kotlin.math.round
 
 class TextView @JvmOverloads constructor(
@@ -129,6 +131,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.H1 -> {
           font = FontFace("sans-serif")
+          node.style.display = Display.Block
           font.weight = FontFace.NSCFontWeight.Bold
           fontSize = 32
           paint.textSize = 32 * scale
@@ -137,6 +140,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.H2 -> {
           font = FontFace("sans-serif")
+          node.style.display = Display.Block
           font.weight = FontFace.NSCFontWeight.Bold
           fontSize = 24
           paint.textSize = 24 * scale
@@ -145,6 +149,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.H3 -> {
           font = FontFace("sans-serif")
+          node.style.display = Display.Block
           font.weight = FontFace.NSCFontWeight.Bold
           fontSize = 18
           paint.textSize = 18 * scale
@@ -153,6 +158,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.H4 -> {
           font = FontFace("sans-serif")
+          node.style.display = Display.Block
           font.weight = FontFace.NSCFontWeight.Bold
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
@@ -161,6 +167,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.H5 -> {
           font = FontFace("sans-serif")
+          node.style.display = Display.Block
           font.weight = FontFace.NSCFontWeight.Bold
           fontSize = 13
           paint.textSize = 13 * scale
@@ -169,6 +176,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.H6 -> {
           font = FontFace("sans-serif")
+          node.style.display = Display.Block
           font.weight = FontFace.NSCFontWeight.Bold
           fontSize = 10
           paint.textSize = 10 * scale
@@ -183,6 +191,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.Blockquote -> {
           font = FontFace("sans-serif")
+          node.style.display = Display.Block
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
         }
@@ -208,10 +217,10 @@ class TextView @JvmOverloads constructor(
 
         TextType.P -> {
           font = FontFace("sans-serif")
+          node.style.display = Display.Block
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
           node.style.margin = margin(16f, 16f)
-          node.style.display = Display.Block
         }
 
         else -> {
@@ -616,7 +625,7 @@ class TextView @JvmOverloads constructor(
     // Get the ACTUAL measured width from the layout, not the constraint
     var measuredWidth = 0
     for (i in 0 until layout.lineCount) {
-      val lineWidth = round(layout.getLineWidth(i)).toInt()
+      val lineWidth = ceil(layout.getLineWidth(i)).toInt()
       if (lineWidth > measuredWidth) {
         measuredWidth = lineWidth
       }
@@ -740,7 +749,7 @@ class TextView @JvmOverloads constructor(
 
           segments.add(
             InlineSegment.Text(
-              round(width),  // Already in px
+              ceil(width),  // Already in px
               -fontMetrics.ascent,  // Negative because ascent is negative
               fontMetrics.descent  // Already in px
             )

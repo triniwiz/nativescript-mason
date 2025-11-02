@@ -522,7 +522,6 @@ export class Style {
         break;
     }
     if (weight !== -1) {
-      console.log('Setting font weight to', TextStyleKeys.FONT_WEIGHT, this.text_style_view.byteLength, weight);
       setInt32(this.text_style_view, TextStyleKeys.FONT_WEIGHT, weight);
       this.setOrAppendTextState(TextStateKeys.FONT_WEIGHT);
     }
@@ -1268,7 +1267,7 @@ export class Style {
         }
         break;
     }
-    this.setOrAppendState(StateKeys.INSET);
+    this.setOrAppendState(StateKeys.MARGIN);
   }
 
   get marginRight() {
@@ -2017,6 +2016,8 @@ export class Style {
         setInt32(this.style_view, StyleKeys.GRID_AUTO_FLOW, 3);
         break;
     }
+
+    this.setOrAppendState(StateKeys.GRID_AUTO_FLOW);
   }
 
   get gridRowGap() {
@@ -2091,6 +2092,8 @@ export class Style {
         }
         break;
     }
+
+    this.setOrAppendState(StateKeys.GRID_COLUMN);
   }
 
   get gridColumnEnd(): string {
@@ -2141,6 +2144,8 @@ export class Style {
         }
         break;
     }
+
+    this.setOrAppendState(StateKeys.GRID_COLUMN);
   }
 
   get gridRow(): string {
@@ -2198,6 +2203,7 @@ export class Style {
         }
         break;
     }
+    this.setOrAppendState(StateKeys.GRID_ROW);
   }
 
   get gridRowEnd(): string {
@@ -2249,6 +2255,8 @@ export class Style {
         }
         break;
     }
+
+    this.setOrAppendState(StateKeys.GRID_ROW);
   }
 
   set gridTemplateRows(value: string | Array<GridTemplates>) {
@@ -2338,6 +2346,8 @@ export class Style {
         }
         break;
     }
+
+    this.setOrAppendState(StateKeys.OVERFLOW);
   }
   get overflowX() {
     switch (getInt32(this.style_view, StyleKeys.OVERFLOW_X)) {
@@ -2351,16 +2361,23 @@ export class Style {
   }
 
   set overflowX(value: OverFlow) {
+    let dirty = false;
     switch (value) {
       case 'visible':
         setInt32(this.style_view, StyleKeys.OVERFLOW_X, 0);
+        dirty = true;
         break;
       case 'hidden':
         setInt32(this.style_view, StyleKeys.OVERFLOW_X, 1);
+        dirty = true;
         break;
       case 'scroll':
+        dirty = true;
         setInt32(this.style_view, StyleKeys.OVERFLOW_X, 2);
         break;
+    }
+    if (dirty) {
+      this.setOrAppendState(StateKeys.OVERFLOW_X);
     }
   }
 
@@ -2376,16 +2393,23 @@ export class Style {
   }
 
   set overflowY(value: OverFlow) {
+    let dirty = false;
     switch (value) {
       case 'visible':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 0);
+        dirty = true;
         break;
       case 'hidden':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 1);
+        dirty = true;
         break;
       case 'scroll':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 2);
+        dirty = true;
         break;
+    }
+    if (dirty) {
+      this.setOrAppendState(StateKeys.OVERFLOW_Y);
     }
   }
 
@@ -2395,6 +2419,7 @@ export class Style {
 
   set flexGrow(value: number) {
     setFloat32(this.style_view, StyleKeys.FLEX_GROW, value);
+    this.setOrAppendState(StateKeys.FLEX_GROW);
   }
 
   get flexShrink(): number {
@@ -2403,6 +2428,7 @@ export class Style {
 
   set flexShrink(value: number) {
     setFloat32(this.style_view, StyleKeys.FLEX_SHRINK, value);
+    this.setOrAppendState(StateKeys.FLEX_SHRINK);
   }
 
   get scrollBarWidth(): number | CoreTypes.LengthType {
@@ -2412,13 +2438,16 @@ export class Style {
   set scrollBarWidth(value: number | CoreTypes.LengthType) {
     if (typeof value === 'number') {
       setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, value);
+      this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
     } else if (typeof value === 'object') {
       switch (value.unit) {
         case 'dip':
           setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, layout.toDevicePixels(value.value));
+          this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
           break;
         case 'px':
           setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, value.value);
+          this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
           break;
       }
     }
