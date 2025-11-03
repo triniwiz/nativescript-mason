@@ -12,15 +12,16 @@ import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Display
 import org.nativescript.mason.masonkit.FlexDirection
+import org.nativescript.mason.masonkit.FontFace
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.MinMax
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles
+import org.nativescript.mason.masonkit.TextStateKeys
+import org.nativescript.mason.masonkit.TextStyleKeys
 import org.nativescript.mason.masonkit.TextType
 import org.nativescript.mason.masonkit.TextView
-import org.nativescript.mason.masonkit.TrackSizingFunction
 import org.nativescript.mason.masonkit.View
 import java.util.Timer
 import kotlin.concurrent.schedule
@@ -77,7 +78,23 @@ class TextActivity : AppCompatActivity() {
 
   fun gridTemplateColumns() {
     val root = Mason.shared.createView(this)
-    root.style.color = Color.WHITE
+
+    root.append("??????")
+
+    Timer().schedule(2000L) {
+      runOnUiThread {
+//        root.style.textValues.putInt(TextStyleKeys.COLOR, Color.RED)
+//        root.style.textValues.putInt(TextStyleKeys.COLOR_STATE, 1)
+//        root.syncStyle("-1", "${TextStateKeys.COLOR.bits}")
+        root.style.inBatch = true
+        root.style.color = Color.RED
+//        root.style.fontStyle = FontFace.NSCFontStyle.Italic
+        root.style.fontWeight = FontFace.NSCFontWeight.Bold
+        root.style.inBatch = false
+      }
+    }
+
+    /*
     root.style.display = Display.Grid
     root.style.gridTemplateColumns = arrayOf(
       TrackSizingFunction.Single(MinMax.fromTypeValue(3, 100f, 3, 100f)!!),
@@ -152,6 +169,7 @@ class TextActivity : AppCompatActivity() {
 
 
     root.append(arrayOf(a, b, c, d, e, f))
+    */
 
     body.append(root)
   }

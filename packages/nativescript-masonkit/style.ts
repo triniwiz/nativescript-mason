@@ -106,20 +106,35 @@ enum StyleKeys {
 
 enum TextStyleKeys {
   COLOR = 0,
-  DECORATION_LINE = 4,
-  DECORATION_COLOR = 8,
-  TEXT_ALIGN = 12,
-  TEXT_JUSTIFY = 16,
-  BACKGROUND_COLOR = 20,
-  SIZE = 24,
-  TRANSFORM = 28,
-  FONT_STYLE_TYPE = 32,
-  FONT_STYLE_SLANT = 36,
-  TEXT_WRAP = 40,
-  TEXT_OVERFLOW = 44,
-  DECORATION_STYLE = 48,
-  WHITE_SPACE = 52,
-  FONT_WEIGHT = 56,
+  COLOR_STATE = 4, // 0 = inherit, 1 = set
+  SIZE = 8,
+  SIZE_STATE = 12,
+  FONT_WEIGHT = 16,
+  FONT_WEIGHT_STATE = 20,
+  FONT_STYLE_TYPE = 24,
+  FONT_STYLE_STATE = 28,
+  BACKGROUND_COLOR = 32,
+  BACKGROUND_COLOR_STATE = 36,
+  DECORATION_LINE = 40,
+  DECORATION_LINE_STATE = 44,
+  DECORATION_COLOR = 48,
+  DECORATION_COLOR_STATE = 52,
+  DECORATION_STYLE = 56,
+  DECORATION_STYLE_STATE = 60,
+  LETTER_SPACING = 64,
+  LETTER_SPACING_STATE = 68,
+  TEXT_WRAP = 72,
+  TEXT_WRAP_STATE = 76,
+  WHITE_SPACE = 80,
+  WHITE_SPACE_STATE = 84,
+  TRANSFORM = 88,
+  TRANSFORM_STATE = 92,
+  TEXT_ALIGN = 96,
+  TEXT_ALIGN_STATE = 100,
+  TEXT_JUSTIFY = 104,
+  TEXT_JUSTIFY_STATE = 108,
+  TEXT_INDENT = 112,
+  TEXT_INDENT_STATE = 116,
 }
 
 export type OverFlow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
@@ -231,12 +246,20 @@ class TextStateKeys {
   }
 }
 
-const getUint16 = (view: DataView, offset: number) => {
-  return view.getUint16(offset, true);
+const getInt8 = (view: DataView, offset: number) => {
+  return view.getInt8(offset);
 };
 
-const setUint16 = (view: DataView, offset: number, value: number) => {
-  view.setUint16(offset, value, true);
+const setInt8 = (view: DataView, offset: number, value: number) => {
+  view.setInt8(offset, value);
+};
+
+const getUint8 = (view: DataView, offset: number) => {
+  return view.getUint8(offset);
+};
+
+const setUint8 = (view: DataView, offset: number, value: number) => {
+  view.setUint8(offset, value);
 };
 
 const getInt16 = (view: DataView, offset: number) => {
@@ -278,44 +301,38 @@ export class Style {
   private isDirty = -1n;
   private isTextDirty = -1n;
   private inBatch = false;
-  static fromView(view: View, nativeView, isText = false): Style {
+  static fromView(view: View, nativeView): Style {
     //console.time('fromView');
     const ret = new Style();
     ret.view_ = view;
     if (__ANDROID__) {
-      const style = (nativeView as org.nativescript.mason.masonkit.TextView).getStyle();
-      if (!isText) {
-        const styleBuffer = style.getValues();
-        const buffer = (<any>ArrayBuffer).from(styleBuffer);
-        ret.style_view = new DataView(buffer);
-      } else {
-        const styleBuffer = style.getValues();
-        const buffer = (<any>ArrayBuffer).from(styleBuffer);
-        ret.style_view = new DataView(buffer);
+      const style = (nativeView as org.nativescript.mason.masonkit.Element).getStyle();
+      const styleBuffer = style.getValues();
+      const buffer = (<any>ArrayBuffer).from(styleBuffer);
+      ret.style_view = new DataView(buffer);
 
-        const textStyleBuffer = (nativeView as org.nativescript.mason.masonkit.TextView).getTextValues();
-        const textBuffer = (<any>ArrayBuffer).from(textStyleBuffer);
-        ret.text_style_view = new DataView(textBuffer);
-      }
+      const textStyleBuffer = style.getTextValues();
+      const textBuffer = (<any>ArrayBuffer).from(textStyleBuffer);
+      ret.text_style_view = new DataView(textBuffer);
     } else if (__APPLE__) {
       // todo
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       const style = (nativeView as MasonText).style;
-      if (!isText) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        const styleBuffer = style.valuesCompat;
-        const buffer = interop.bufferFromData(styleBuffer);
-        ret.style_view = new DataView(buffer);
-      } else {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        const styleBuffer = style.valuesCompat;
-        const buffer = interop.bufferFromData(styleBuffer);
-        ret.style_view = new DataView(buffer);
+      // if (!isText) {
+      //   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      //   const styleBuffer = style.valuesCompat;
+      //   const buffer = interop.bufferFromData(styleBuffer);
+      //   ret.style_view = new DataView(buffer);
+      // } else {
+      //   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      //   const styleBuffer = style.valuesCompat;
+      //   const buffer = interop.bufferFromData(styleBuffer);
+      //   ret.style_view = new DataView(buffer);
 
-        const textStyleBuffer = (nativeView as MasonText).textValues;
-        const textBuffer = interop.bufferFromData(textStyleBuffer);
-        ret.text_style_view = new DataView(textBuffer);
-      }
+      //   const textStyleBuffer = (nativeView as MasonText).textValues;
+      //   const textBuffer = interop.bufferFromData(textStyleBuffer);
+      //   ret.text_style_view = new DataView(textBuffer);
+      // }
     }
     //console.timeEnd('fromView');
 
@@ -327,25 +344,20 @@ export class Style {
     this.isTextDirty = -1n;
   }
 
-  private syncStyle(isText = false) {
+  private syncStyle() {
     if (__ANDROID__) {
-      if (!isText) {
-        const view = this.view.android as org.nativescript.mason.masonkit.View;
-        view.syncStyle(this.isDirty.toString());
-      } else {
-        const view = this.view.android as never as org.nativescript.mason.masonkit.TextView;
-        view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
-      }
+      const view = this.view.android as never as org.nativescript.mason.masonkit.Element;
+      view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
     } else if (__APPLE__) {
-      if (!isText) {
-        const view = this.view.ios as MasonUIView;
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        view.syncStyle(this.isDirty.toString());
-      } else {
-        const view = this.view.ios as never as MasonText;
-        view.syncStyleTextState(this.isDirty.toString(), this.isTextDirty.toString());
-      }
+      // if (!isText) {
+      //   const view = this.view.ios as MasonUIView;
+      //   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      //   // @ts-ignore
+      //   view.syncStyle(this.isDirty.toString());
+      // } else {
+      //   const view = this.view.ios as never as MasonText;
+      //   view.syncStyleTextState(this.isDirty.toString(), this.isTextDirty.toString());
+      // }
     }
     this.resetState();
   }
@@ -357,7 +369,7 @@ export class Style {
       this.isDirty = this.isDirty | value.bits;
     }
     if (!this.inBatch) {
-      this.syncStyle(this.text_style_view != null);
+      this.syncStyle();
     }
   }
 
@@ -369,7 +381,7 @@ export class Style {
     }
 
     if (!this.inBatch) {
-      this.syncStyle(this.text_style_view != null);
+      this.syncStyle();
     }
   }
 
@@ -377,7 +389,7 @@ export class Style {
     this.inBatch = true;
     fn(this);
     this.inBatch = false;
-    this.syncStyle(this.text_style_view != null);
+    this.syncStyle();
   }
 
   get view(): View {
@@ -424,6 +436,7 @@ export class Style {
       return;
     }
     setFloat32(this.text_style_view, TextStyleKeys.SIZE, value);
+    setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
     this.setOrAppendTextState(TextStateKeys.SIZE);
   }
 
@@ -463,6 +476,7 @@ export class Style {
     }
     if (style !== -1) {
       setInt32(this.text_style_view, TextStyleKeys.FONT_STYLE_TYPE, style);
+      setInt8(this.text_style_view, TextStyleKeys.FONT_STYLE_STATE, 1);
       this.setOrAppendTextState(TextStateKeys.FONT_STYLE);
     }
   }
@@ -523,6 +537,7 @@ export class Style {
     }
     if (weight !== -1) {
       setInt32(this.text_style_view, TextStyleKeys.FONT_WEIGHT, weight);
+      setInt8(this.text_style_view, TextStyleKeys.FONT_WEIGHT_STATE, 1);
       this.setOrAppendTextState(TextStateKeys.FONT_WEIGHT);
     }
   }
@@ -541,6 +556,7 @@ export class Style {
       return;
     }
     setUint32(this.text_style_view, TextStyleKeys.COLOR, value);
+    setInt8(this.text_style_view, TextStyleKeys.COLOR_STATE, 1);
     this.setOrAppendTextState(TextStateKeys.COLOR);
   }
 
@@ -557,6 +573,7 @@ export class Style {
       return;
     }
     setUint32(this.text_style_view, TextStyleKeys.BACKGROUND_COLOR, value);
+    setInt8(this.text_style_view, TextStyleKeys.BACKGROUND_COLOR_STATE, 1);
     this.setOrAppendTextState(TextStateKeys.BACKGROUND_COLOR);
   }
 
@@ -593,6 +610,7 @@ export class Style {
 
     if (wrap !== -1) {
       setInt32(this.text_style_view, TextStyleKeys.TEXT_WRAP, wrap);
+      setInt8(this.text_style_view, TextStyleKeys.TEXT_WRAP_STATE, 1);
       this.setOrAppendTextState(TextStateKeys.TEXT_WRAP);
     }
   }

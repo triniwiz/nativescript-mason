@@ -299,25 +299,27 @@ open class Node internal constructor(
     return children
   }
 
-  // Efficient single-pass invalidation that only walks each TextView once
-  private fun invalidateDescendantTextViews(node: Node) {
-    // Early exit if node has no initialized text values
-   // if (!node.style.isTextValueInitialized) {
-    //  return
-   // }
+  companion object {
+    // Efficient single-pass invalidation that only walks each TextView once
+    internal fun invalidateDescendantTextViews(node: Node) {
+      // Early exit if node has no initialized text values
+      // if (!node.style.isTextValueInitialized) {
+      //  return
+      // }
 
-    // Direct invalidation if this is a TextView
-    if (node.view is TextView) {
-      (node.view as TextView).apply {
-        updateStyleOnTextNodes()
-        invalidateInlineSegments()
+      // Direct invalidation if this is a TextView
+      if (node.view is TextView) {
+        (node.view as TextView).apply {
+          updateStyleOnTextNodes()
+          invalidateInlineSegments()
+        }
       }
-    }
 
-    // Iterate children (only layout children, not author children)
-    val size = node.children.size
-    for (i in 0 until size) {
-      invalidateDescendantTextViews(node.children[i])
+      // Iterate children (only layout children, not author children)
+      val size = node.children.size
+      for (i in 0 until size) {
+        invalidateDescendantTextViews(node.children[i])
+      }
     }
   }
 
@@ -329,6 +331,10 @@ open class Node internal constructor(
       } else {
         pending = true
         getOrCreateAnonymousTextContainer()
+      }
+
+      if (style.font.font == null){
+        style.font.loadSync((container.view as TextView).context) {}
       }
 
       if (pending) {

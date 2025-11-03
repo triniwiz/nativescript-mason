@@ -669,8 +669,19 @@ class FontFace {
             }
 
             if (fontDescriptors.weight != NSCFontWeight.Normal) {
-              font = Typeface.create(font, fontDescriptors.weight.weight)
+              font = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                Typeface.create(font, fontDescriptors.weight.weight, fontDescriptors.weight.isBold)
+              } else {
+                Typeface.create(
+                  font,
+                  fontDescriptors.weight.getStyle(fontDescriptors.style == NSCFontStyle.Italic)
+                )
+              }
             }
+
+
+
+
             status = FontFaceStatus.loaded
             this.font = font
             callback(null)

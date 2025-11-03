@@ -13,7 +13,8 @@ import kotlin.math.roundToInt
 
 class View @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
-) : ViewGroup(context, attrs, defStyleAttr), Element {
+) : ViewGroup(context, attrs, defStyleAttr), Element,
+  StyleChangeListener {
 
   override lateinit var node: Node
 
@@ -30,6 +31,7 @@ class View @JvmOverloads constructor(
     node = mason.createNode().apply {
       view = this@View
     }
+    node.style.setStyleChangeListener(this)
   }
 
   init {
@@ -38,6 +40,8 @@ class View @JvmOverloads constructor(
         node = Mason.shared.createNode().apply {
           view = this@View
         }
+
+        node.style.setStyleChangeListener(this)
       }
     }
   }
@@ -46,6 +50,10 @@ class View @JvmOverloads constructor(
 
   fun updateNodeAndStyle() {
     node.style.updateNativeStyle()
+  }
+
+  override fun onTextStyleChanged(change: TextStyleChange) {
+    Node.invalidateDescendantTextViews(node)
   }
 
 //  fun setStyleFromString(style: String) {
@@ -891,17 +899,6 @@ class View @JvmOverloads constructor(
     node.style.maxSize = Size(maxWidth, maxHeight)
 
     checkAndUpdateStyle()
-  }
-
-  fun syncStyle(state: String) {
-    try {
-      val value = state.toLong()
-      if (value != -1L) {
-        node.style.isDirty = value
-        node.style.updateNativeStyle()
-      }
-    } catch (_: Error) {
-    }
   }
 
   private fun checkAndUpdateStyle() {

@@ -1377,7 +1377,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       const style = this._styleHelper;
       if (style) {
         // @ts-ignore
-        style.color = value;
+        style.color = value.argb;
       }
     }
   }

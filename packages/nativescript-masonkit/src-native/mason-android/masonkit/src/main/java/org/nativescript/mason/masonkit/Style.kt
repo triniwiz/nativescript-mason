@@ -905,10 +905,7 @@ interface StyleChangeListener {
 }
 
 enum class TextStyleChange {
-  COLOR, FONT_SIZE, FONT_WEIGHT, FONT_STYLE,
-  TEXT_WRAP, WHITE_SPACE, TEXT_TRANSFORM,
-  BACKGROUND_COLOR, DECORATION_LINE, DECORATION_COLOR,
-  DECORATION_STYLE, LETTER_SPACING, TEXT_JUSTIFY
+  COLOR, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, TEXT_WRAP, WHITE_SPACE, TEXT_TRANSFORM, BACKGROUND_COLOR, DECORATION_LINE, DECORATION_COLOR, DECORATION_STYLE, LETTER_SPACING, TEXT_JUSTIFY
 }
 
 internal object StyleState {
@@ -916,13 +913,12 @@ internal object StyleState {
   const val SET: Byte = 1
 }
 
-
 class Style internal constructor(private var node: Node) {
 
   internal var isValueInitialized: Boolean = false
   internal var isTextValueInitialized: Boolean = false
 
-  lateinit var font: FontFace
+  var font: FontFace = FontFace("sans-serif")
     internal set
 
   val values: ByteBuffer by lazy {
@@ -976,8 +972,6 @@ class Style internal constructor(private var node: Node) {
 
       putInt(TextStyleKeys.TEXT_JUSTIFY, TextJustify.None.value)
       put(TextStyleKeys.TEXT_JUSTIFY_STATE, StyleState.INHERIT)
-
-
     }
   }
 
@@ -1003,7 +997,7 @@ class Style internal constructor(private var node: Node) {
     }
   }
 
-  private fun setOrAppendState(keys: Array<StateKeys>) {
+  internal fun setOrAppendState(keys: Array<StateKeys>) {
     for (value in keys) {
       isDirty = if (isDirty == -1L) {
         value.bits
@@ -1016,16 +1010,13 @@ class Style internal constructor(private var node: Node) {
     }
   }
 
-  internal fun setOrAppendState(value: TextStateKeys) {
-    isTextDirty = if (isTextDirty == -1L) {
-      value.bits
-    } else {
-      isTextDirty or value.bits
+  internal fun updateTextStyle() {
+    if (node.nativePtr == 0L) {
+      return
     }
 
-
-    var invalidate = false
-    if (!inBatch && isTextDirty != -1L) {
+    if (isTextDirty != -1L) {
+      var invalidate = false
       val value = TextStateKeys(isTextDirty)
       val colorDirty = value.hasFlag(TextStateKeys.COLOR)
       val sizeDirty = value.hasFlag(TextStateKeys.SIZE)
@@ -1057,12 +1048,39 @@ class Style internal constructor(private var node: Node) {
       if (colorDirty) {
         notifyTextStyleChanged(TextStyleChange.COLOR)
       }
+
+      isTextDirty = -1L
+
+      if (invalidate && isDirty == -1L) {
+        (node.view as? Element)?.invalidateLayout()
+      }
+      return
+    }
+  }
+
+  internal fun setOrAppendState(value: TextStateKeys) {
+    isTextDirty = if (isTextDirty == -1L) {
+      value.bits
+    } else {
+      isTextDirty or value.bits
     }
 
+    if (!inBatch) {
+      updateTextStyle()
+    }
 
+  }
 
-    if (invalidate) {
-      //invalidateLayout()
+  private fun setOrAppendState(keys: Array<TextStateKeys>) {
+    for (value in keys) {
+      isTextDirty = if (isTextDirty == -1L) {
+        value.bits
+      } else {
+        isTextDirty or value.bits
+      }
+    }
+    if (!inBatch) {
+      updateTextStyle()
     }
   }
 
@@ -1076,6 +1094,7 @@ class Style internal constructor(private var node: Node) {
       val changed = field && !value
       field = value
       if (changed) {
+        updateTextStyle()
         updateNativeStyle()
       }
     }
@@ -2582,8 +2601,9 @@ class Style internal constructor(private var node: Node) {
     get() {
       val state = textValues.get(TextStyleKeys.DECORATION_LINE_STATE)
       return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedDecorationLine
-          ?: Styles.DecorationLine.fromInt(textValues.getInt(TextStyleKeys.DECORATION_LINE))
+        parentStyleWithTextValues?.resolvedDecorationLine ?: Styles.DecorationLine.fromInt(
+          textValues.getInt(TextStyleKeys.DECORATION_LINE)
+        )
       } else {
         Styles.DecorationLine.fromInt(textValues.getInt(TextStyleKeys.DECORATION_LINE))
       }
@@ -2604,10 +2624,11 @@ class Style internal constructor(private var node: Node) {
     get() {
       val state = textValues.get(TextStyleKeys.DECORATION_STYLE_STATE)
       return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedDecorationStyle
-          ?: Styles.DecorationStyle.values()[textValues.getInt(TextStyleKeys.DECORATION_STYLE)]
+        parentStyleWithTextValues?.resolvedDecorationStyle ?: Styles.DecorationStyle.fromInt(
+          textValues.getInt(TextStyleKeys.DECORATION_STYLE)
+        )
       } else {
-        Styles.DecorationStyle.values()[textValues.getInt(TextStyleKeys.DECORATION_STYLE)]
+        Styles.DecorationStyle.fromInt(textValues.getInt(TextStyleKeys.DECORATION_STYLE))
       }
     }
 
@@ -2626,11 +2647,13 @@ class Style internal constructor(private var node: Node) {
     get() {
       val state = textValues.get(TextStyleKeys.TEXT_WRAP_STATE)
       return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedTextWrap ?: Styles.TextWrap.values()[textValues.getInt(
-          TextStyleKeys.TEXT_WRAP
-        )]
+        parentStyleWithTextValues?.resolvedTextWrap ?: Styles.TextWrap.fromInt(
+          textValues.getInt(
+            TextStyleKeys.TEXT_WRAP
+          )
+        )
       } else {
-        Styles.TextWrap.values()[textValues.getInt(TextStyleKeys.TEXT_WRAP)]
+        Styles.TextWrap.fromInt(textValues.getInt(TextStyleKeys.TEXT_WRAP))
       }
     }
 
@@ -2639,9 +2662,9 @@ class Style internal constructor(private var node: Node) {
       val state = textValues.get(TextStyleKeys.WHITE_SPACE_STATE)
       return if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedWhiteSpace
-          ?: Styles.WhiteSpace.values()[textValues.getInt(TextStyleKeys.WHITE_SPACE)]
+          ?: Styles.WhiteSpace.fromInt(textValues.getInt(TextStyleKeys.WHITE_SPACE))
       } else {
-        Styles.WhiteSpace.values()[textValues.getInt(TextStyleKeys.WHITE_SPACE)]
+        Styles.WhiteSpace.fromInt(textValues.getInt(TextStyleKeys.WHITE_SPACE))
       }
     }
 
@@ -2650,9 +2673,9 @@ class Style internal constructor(private var node: Node) {
       val state = textValues.get(TextStyleKeys.TRANSFORM_STATE)
       return if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedTextTransform
-          ?: Styles.TextTransform.values()[textValues.getInt(TextStyleKeys.TRANSFORM)]
+          ?: Styles.TextTransform.fromInt(textValues.getInt(TextStyleKeys.TRANSFORM))
       } else {
-        Styles.TextTransform.values()[textValues.getInt(TextStyleKeys.TRANSFORM)]
+        Styles.TextTransform.fromInt(textValues.getInt(TextStyleKeys.TRANSFORM))
       }
     }
 
@@ -2660,11 +2683,13 @@ class Style internal constructor(private var node: Node) {
     get() {
       val state = textValues.get(TextStyleKeys.TEXT_ALIGN_STATE)
       return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedTextAlign ?: TextAlign.values()[textValues.getInt(
-          TextStyleKeys.TEXT_ALIGN
-        )]
+        parentStyleWithTextValues?.resolvedTextAlign ?: TextAlign.fromInt(
+          textValues.getInt(
+            TextStyleKeys.TEXT_ALIGN
+          )
+        )
       } else {
-        TextAlign.values()[textValues.getInt(TextStyleKeys.TEXT_ALIGN)]
+        TextAlign.fromInt(textValues.getInt(TextStyleKeys.TEXT_ALIGN))
       }
     }
 

@@ -130,17 +130,6 @@ class Img @JvmOverloads constructor(
 
     }
 
-  fun syncStyle(state: String) {
-    try {
-      val value = state.toLong()
-      if (value != -1L) {
-        node.style.isDirty = value
-        node.style.updateNativeStyle()
-      }
-    } catch (_: Error) {
-    }
-  }
-
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
 
     val specWidth = MeasureSpec.getSize(widthMeasureSpec)

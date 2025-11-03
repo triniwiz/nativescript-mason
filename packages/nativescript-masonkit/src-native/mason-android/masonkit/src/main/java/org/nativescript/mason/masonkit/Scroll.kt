@@ -108,16 +108,4 @@ class Scroll @JvmOverloads constructor(
 //  override fun getChildAt(index: Int): android.view.View? {
 //    return scrollRoot.getChildAt(index)
 //  }
-
-
-  fun syncStyle(state: String) {
-    try {
-      val value = state.toLong()
-      if (value != -1L) {
-        node.style.isDirty = value
-        node.style.updateNativeStyle()
-      }
-    } catch (_: Error) {
-    }
-  }
 }

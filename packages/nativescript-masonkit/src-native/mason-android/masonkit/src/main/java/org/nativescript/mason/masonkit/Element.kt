@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
@@ -9,6 +8,20 @@ interface Element {
   val style: Style
 
   val node: Node
+
+  fun syncStyle(state: String, textState: String) {
+    val stateValue = state.toLongOrNull() ?: return
+    val textStateValue = textState.toLongOrNull() ?: return
+    if (textStateValue != -1L) {
+      val value = TextStateKeys(textStateValue)
+      style.setOrAppendState(value)
+    }
+
+    if (stateValue != -1L) {
+      style.isDirty = stateValue
+      style.updateNativeStyle()
+    }
+  }
 
   fun onNodeAttached() {}
 

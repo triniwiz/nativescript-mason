@@ -332,28 +332,6 @@ class TextView @JvmOverloads constructor(
       return style.values
     }
 
-  fun syncStyle(state: String, textState: String) {
-    val stateValue = state.toLongOrNull() ?: return
-    val textStateValue = textState.toLongOrNull() ?: return
-    var invalidate = false
-    if (textStateValue != -1L) {
-      val value = TextStateKeys(textStateValue)
-      style.setOrAppendState(value)
-    }
-
-
-    if (stateValue != -1L) {
-      val value = TextStateKeys(stateValue)
-      style.setOrAppendState(value)
-    }
-
-//    if (invalidate) {
-//      updateStyleOnTextNodes()
-//      invalidateInlineSegments()
-//      invalidateLayout()
-//    }
-  }
-
   var includePadding = true
 
   var textAlign: TextAlign
@@ -851,6 +829,7 @@ class TextView @JvmOverloads constructor(
     }
 
     invalidate()
+    requestLayout()
 
   }
 
