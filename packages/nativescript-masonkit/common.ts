@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing } from '.';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows, GridTemplates } from './utils';
@@ -259,6 +259,51 @@ export const columnGapProperty = new CssProperty<Style, Length>({
     if (view) {
       view.columnGap = newValue;
     }
+  },
+});
+
+export const gridGapProperty = new ShorthandProperty<Style, Gap>({
+  name: 'gridGap',
+  cssName: 'grid-gap',
+  getter: function () {
+    if (this.rowGap === this.columnGap) {
+      return this.rowGap;
+    }
+    return `${this.rowGap} ${this.columnGap}`;
+  },
+  converter(gap) {
+    const properties: [CssProperty<any, any>, any][] = [];
+
+    let value = gap;
+
+    if (typeof value === 'number') {
+      value = `${value}`;
+    }
+
+    if (typeof value === 'string') {
+      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
+
+      const length = values.length;
+      if (length === 0) {
+        return properties;
+      }
+
+      if (length === 1) {
+        const row = values[0];
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, row]);
+      }
+
+      if (length > 1) {
+        const row = values[0];
+        const column = values[1];
+
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, column]);
+      }
+    }
+
+    return properties;
   },
 });
 
@@ -1239,8 +1284,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
           if (__APPLE__) {
             //@ts-ignore
-            console.log('Mason replaceChildAtText called', this._view.node.getChildren());
-            //@ts-ignore
             this._view.mason_replaceChildAtText(child[text_] || '', atIndex);
           }
         }
@@ -1320,7 +1363,23 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   set position(value: Position) {
-    this.style.position = value;
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.position = value;
+    }
+  }
+
+  [colorProperty.setNative](value) {
+    if (value instanceof Color) {
+      // @ts-ignore
+      const style = this._styleHelper;
+      if (style) {
+        // @ts-ignore
+        style.color = value;
+      }
+    }
   }
 
   [flexWrapProperty.setNative](value) {
@@ -1348,7 +1407,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   [flexShrinkProperty.setNative](value) {
-    console.log('flexShrink setNative called with value:', value);
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
@@ -1784,6 +1842,7 @@ columnGapProperty.register(Style);
 gridRowGapProperty.register(Style);
 gridColumnGapProperty.register(Style);
 gapProperty.register(Style);
+gridGapProperty.register(Style);
 
 aspectRatioProperty.register(Style);
 

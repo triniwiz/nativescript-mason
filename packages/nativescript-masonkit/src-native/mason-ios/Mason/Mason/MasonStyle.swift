@@ -192,17 +192,42 @@ internal struct StateKeys: OptionSet {
   static let maxContentHeight = StateKeys(rawValue: 1 << 39)
 }
 
+enum TextStyleChange {
+  case COLOR
+  case FONT_SIZE
+  case FONT_WEIGHT
+  case FONT_STYLE
+  case TEXT_WRAP
+  case WHITE_SPACE
+  case TEXT_TRANSFORM
+  case BACKGROUND_COLOR
+  case DECORATION_LINE
+  case DECORATION_COLOR
+  case DECORATION_STYLE
+  case LETTER_SPACING
+}
+
+
+
+
+protocol StyleChangeListener{
+  func onTextStyleChanged(change: TextStyleChange)
+}
 
 
 @objc(MasonStyle)
 @objcMembers
-public class MasonStyle: NSObject {
+public class MasonStyle: NSObject, StyleChangeListener {
   internal var isDirty: Int64 = -1
   internal var isSlowDirty = false
   let node: MasonNode
   var inBatch = false
   
   internal var isValueInitialized: Bool  = false
+  
+  func onTextStyleChanged(change: TextStyleChange) {
+    <#code#>
+  }
   
   public lazy var valuesCompat: NSMutableData = {
     let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)

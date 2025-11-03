@@ -14,11 +14,13 @@ import org.nativescript.mason.masonkit.Display
 import org.nativescript.mason.masonkit.FlexDirection
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.MinMax
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles
 import org.nativescript.mason.masonkit.TextType
 import org.nativescript.mason.masonkit.TextView
+import org.nativescript.mason.masonkit.TrackSizingFunction
 import org.nativescript.mason.masonkit.View
 import java.util.Timer
 import kotlin.concurrent.schedule
@@ -27,6 +29,7 @@ val LIGHT_BLUE = Color.rgb(173, 216, 230)
 val BROWN = Color.rgb(165, 42, 42)
 val LIGHT_GREEN = Color.rgb(144, 238, 144)
 val light_salmon = Color.rgb(255, 160, 122)
+
 class TextActivity : AppCompatActivity() {
   lateinit var body: View
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,8 +70,90 @@ class TextActivity : AppCompatActivity() {
     //   testTextWrap()
     // flexDirection()
     //  flexGrow()
-    flexShrink()
+    // flexShrink()
+    gridTemplateColumns()
     setContentView(body)
+  }
+
+  fun gridTemplateColumns() {
+    val root = Mason.shared.createView(this)
+    root.style.color = Color.WHITE
+    root.style.display = Display.Grid
+    root.style.gridTemplateColumns = arrayOf(
+      TrackSizingFunction.Single(MinMax.fromTypeValue(3, 100f, 3, 100f)!!),
+      TrackSizingFunction.Single(MinMax.fromTypeValue(3, 100f, 3, 100f)!!),
+      TrackSizingFunction.Single(MinMax.fromTypeValue(3, 100f, 3, 100f)!!)
+    )
+    root.style.gap = Size(
+      LengthPercentage.Points(10F),
+      LengthPercentage.Points(10F)
+    )
+
+    val bg = Color.rgb(68, 68, 68)
+    val a = Mason.shared.createView(this)
+    a.append("A")
+    a.style.padding = Rect(
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f)
+    )
+    a.setBackgroundColor(bg)
+
+    val b = Mason.shared.createView(this)
+    b.append("B")
+    b.style.padding = Rect(
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f)
+    )
+    b.setBackgroundColor(bg)
+
+    val c = Mason.shared.createView(this)
+    c.append("C")
+    c.style.padding = Rect(
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f)
+    )
+    c.setBackgroundColor(bg)
+
+    val d = Mason.shared.createView(this)
+    d.append("D")
+    d.style.padding = Rect(
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f)
+    )
+    d.setBackgroundColor(bg)
+
+    val e = Mason.shared.createView(this)
+    e.append("E")
+    e.style.padding = Rect(
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f)
+    )
+    e.setBackgroundColor(bg)
+
+    val f = Mason.shared.createView(this)
+    f.style.padding = Rect(
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f)
+    )
+    f.append("F")
+    f.setBackgroundColor(bg)
+
+
+    root.append(arrayOf(a, b, c, d, e, f))
+
+    body.append(root)
   }
 
   fun flexShrink() {
@@ -103,7 +188,7 @@ class TextActivity : AppCompatActivity() {
     e.setBackgroundColor(LIGHT_GREEN)
     e.style.flexShrink = 2.5f
 
-    root.append(arrayOf(a,b,c,d,e))
+    root.append(arrayOf(a, b, c, d, e))
 
 
     body.append(root)

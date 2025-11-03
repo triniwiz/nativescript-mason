@@ -38,7 +38,7 @@ class FontFace {
     private set
 
   private var localOrRemoteSource: String? = null
-  private var fontDescriptors: NSCFontDescriptors
+  internal var fontDescriptors: NSCFontDescriptors
 
   companion object {
     @JvmStatic
@@ -279,6 +279,8 @@ class FontFace {
     var featureSettings: String
     var lineGapOverride: String
     var variationSettings: String
+    var kerning: String
+    var variantLigatures: String
 
     init {
       weight = NSCFontWeight.Normal
@@ -291,6 +293,8 @@ class FontFace {
       this.featureSettings = "normal"
       this.variationSettings = "normal"
       this.lineGapOverride = "normal"
+      this.kerning = "auto"
+      this.variantLigatures = "normal"
     }
 
     internal fun update(value: String) {

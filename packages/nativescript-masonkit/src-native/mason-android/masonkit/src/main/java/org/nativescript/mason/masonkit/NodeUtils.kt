@@ -6,7 +6,7 @@ import android.view.ViewGroup
 internal object NodeUtils {
   fun isInlineLike(node: Node): Boolean {
     // prefer to use style.display when initialized, otherwise fall back to display mode
-    if (node.isStyleInitialized) {
+    if (node.style.isValueInitialized) {
       return node.style.display == Display.Inline
         || node.style.display == Display.InlineBlock
         || node.style.display == Display.InlineFlex

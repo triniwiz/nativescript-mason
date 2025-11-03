@@ -690,9 +690,9 @@ export class Style {
       case 1:
         return 'row';
       case 2:
-        return 'column-reverse';
-      case 3:
         return 'row-reverse';
+      case 3:
+        return 'column-reverse';
     }
   }
 
@@ -705,10 +705,10 @@ export class Style {
       case 'row':
         flex = 1;
         break;
-      case 'column-reverse':
+      case 'row-reverse':
         flex = 2;
         break;
-      case 'row-reverse':
+      case 'column-reverse':
         flex = 3;
         break;
     }

@@ -2,7 +2,6 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.os.Build
 import android.text.Layout
@@ -16,7 +15,6 @@ import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.createBitmap
@@ -25,13 +23,12 @@ import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.math.ceil
-import kotlin.math.round
 
 class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
-) : androidx.appcompat.widget.AppCompatTextView(context, attrs), Element, MeasureFunc {
+) : androidx.appcompat.widget.AppCompatTextView(context, attrs), Element, MeasureFunc,
+  StyleChangeListener {
 
   override val view: View
     get() = this
@@ -39,8 +36,10 @@ class TextView @JvmOverloads constructor(
   override val style: Style
     get() = node.style
 
-  lateinit var font: FontFace
-    private set
+  internal val fontFace: FontFace
+    get() {
+      return style.font
+    }
 
   var type: TextType = TextType.None
     private set
@@ -119,104 +118,104 @@ class TextView @JvmOverloads constructor(
 
       when (type) {
         TextType.Span -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           style.display = Display.Inline
         }
 
         TextType.Code -> {
-          font = FontFace("monospace")
+          style.font = FontFace("monospace")
           style.display = Display.Inline
           setBackgroundColor(0xFFEFEFEF.toInt())
         }
 
         TextType.H1 -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
-          font.weight = FontFace.NSCFontWeight.Bold
+          fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 32
           paint.textSize = 32 * scale
           node.style.margin = margin(16f, 16f)
         }
 
         TextType.H2 -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
-          font.weight = FontFace.NSCFontWeight.Bold
+          fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 24
           paint.textSize = 24 * scale
           node.style.margin = margin(14f, 14f)
         }
 
         TextType.H3 -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
-          font.weight = FontFace.NSCFontWeight.Bold
+          fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 18
           paint.textSize = 18 * scale
           node.style.margin = margin(12f, 12f)
         }
 
         TextType.H4 -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
-          font.weight = FontFace.NSCFontWeight.Bold
+          fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
           node.style.margin = margin(10f, 10f)
         }
 
         TextType.H5 -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
-          font.weight = FontFace.NSCFontWeight.Bold
+          fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 13
           paint.textSize = 13 * scale
           node.style.margin = margin(8f, 8f)
         }
 
         TextType.H6 -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
-          font.weight = FontFace.NSCFontWeight.Bold
+          fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 10
           paint.textSize = 10 * scale
           node.style.margin = margin(6f, 6f)
         }
 
         TextType.Li -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
         }
 
         TextType.Blockquote -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
         }
 
         TextType.B, TextType.Strong -> {
-          font = FontFace("sans-serif")
-          font.weight = FontFace.NSCFontWeight.Bold
+          style.font = FontFace("sans-serif")
+          fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
           style.display = Display.Inline
         }
 
         TextType.Pre -> {
-          font = FontFace("monospace")
+          style.font = FontFace("monospace")
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
           whiteSpace = Styles.WhiteSpace.Pre
         }
 
         TextType.I, TextType.Em -> {
-          font.style = FontFace.NSCFontStyle.Italic
+          fontFace.style = FontFace.NSCFontStyle.Italic
         }
 
         TextType.P -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           fontSize = Constants.DEFAULT_FONT_SIZE
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
@@ -224,20 +223,22 @@ class TextView @JvmOverloads constructor(
         }
 
         else -> {
-          font = FontFace("sans-serif")
+          style.font = FontFace("sans-serif")
           paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
         }
       }
 
-      font.loadSync(context) {}
+      fontFace.loadSync(context) {}
 
       node.style.inBatch = false
 
     } else {
-      font = FontFace("sans-serif")
+      style.font = FontFace("sans-serif")
       paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
-      font.loadSync(context) {}
+      fontFace.loadSync(context) {}
     }
+
+    node.style.setStyleChangeListener(this)
 
 //    setSpannableFactory(object : Spannable.Factory() {
 //      override fun newSpannable(source: CharSequence): Spannable {
@@ -249,17 +250,82 @@ class TextView @JvmOverloads constructor(
 //    })
   }
 
-  val textValues: ByteBuffer by lazy {
-    ByteBuffer.allocateDirect(60).apply {
-      order(ByteOrder.nativeOrder())
-      putInt(TextStyleKeys.COLOR, Color.BLACK)
-      putInt(TextStyleKeys.DECORATION_COLOR, Constants.UNSET_COLOR.toInt())
-      putInt(TextStyleKeys.TEXT_ALIGN, AlignContent.Start.value)
-      putInt(TextStyleKeys.TEXT_JUSTIFY, TextJustify.None.value)
-      putInt(TextStyleKeys.SIZE, Constants.DEFAULT_FONT_SIZE)
-      putInt(TextStyleKeys.FONT_WEIGHT, FontFace.NSCFontWeight.Normal.weight)
+  override fun onTextStyleChanged(change: TextStyleChange) {
+    when (change) {
+      TextStyleChange.COLOR -> {
+        paint.color = color
+        updateStyleOnTextNodes()
+        invalidateInlineSegments()
+      }
+
+      TextStyleChange.FONT_SIZE -> {
+        val fontSize = this.fontSize
+        if (fontSize == 0) {
+          paint.textSize = 0f
+        } else {
+          paint.textSize = fontSize * resources.displayMetrics.density
+        }
+        updateStyleOnTextNodes()
+        invalidateInlineSegments()
+        invalidateLayout()
+      }
+
+      TextStyleChange.FONT_WEIGHT -> {
+        updateStyleOnTextNodes()
+      }
+
+      TextStyleChange.FONT_STYLE -> {
+        updateStyleOnTextNodes()
+      }
+
+      TextStyleChange.TEXT_WRAP -> {
+        invalidateInlineSegments()
+      }
+
+      TextStyleChange.WHITE_SPACE -> {
+        invalidateInlineSegments()
+      }
+
+      TextStyleChange.TEXT_TRANSFORM -> {
+        invalidateInlineSegments()
+      }
+
+      TextStyleChange.BACKGROUND_COLOR -> {
+        val parent = node.parent
+        if (parent?.view is TextView) {
+          (parent.view as TextView).invalidateInlineSegments()
+        }
+
+        updateStyleOnTextNodes()
+        invalidateInlineSegments()
+      }
+
+      TextStyleChange.DECORATION_LINE -> {
+        updateStyleOnTextNodes()
+      }
+
+      TextStyleChange.DECORATION_COLOR -> {
+        updateStyleOnTextNodes()
+      }
+
+      TextStyleChange.DECORATION_STYLE -> {
+        updateStyleOnTextNodes()
+      }
+
+      TextStyleChange.LETTER_SPACING -> {
+        updateStyleOnTextNodes()
+      }
+
+      TextStyleChange.TEXT_JUSTIFY -> {
+        updateStyleOnTextNodes()
+      }
     }
   }
+
+  val textValues: ByteBuffer
+    get() {
+      return style.textValues
+    }
 
   val values: ByteBuffer
     get() {
@@ -272,53 +338,20 @@ class TextView @JvmOverloads constructor(
     var invalidate = false
     if (textStateValue != -1L) {
       val value = TextStateKeys(textStateValue)
-      val colorDirty = value.hasFlag(TextStateKeys.COLOR)
-      val sizeDirty = value.hasFlag(TextStateKeys.SIZE)
-      val weightDirty = value.hasFlag(TextStateKeys.FONT_WEIGHT)
-      val styleDirty = value.hasFlag(TextStateKeys.FONT_STYLE)
-      if (value.hasFlag(TextStateKeys.TRANSFORM) || value.hasFlag(TextStateKeys.TEXT_WRAP) || value.hasFlag(
-          TextStateKeys.WHITE_SPACE
-        ) || value.hasFlag(
-          TextStateKeys.TEXT_OVERFLOW
-        ) || colorDirty || value.hasFlag(TextStateKeys.BACKGROUND_COLOR) || value.hasFlag(
-          TextStateKeys.DECORATION_COLOR
-        ) || value.hasFlag(TextStateKeys.DECORATION_LINE) || sizeDirty || weightDirty || styleDirty
-      ) {
-        invalidate = true
-      }
-
-      if (styleDirty) {
-        font.style = fontStyle
-      }
-
-      if (weightDirty) {
-        font.weight = fontWeight
-      }
-
-      if (sizeDirty) {
-        val size = fontSize
-        if (size == 0) {
-          paint.textSize = 0f
-        } else {
-          paint.textSize = size * resources.displayMetrics.density
-        }
-      }
-      if (colorDirty) {
-        paint.color = color
-      }
+      style.setOrAppendState(value)
     }
 
 
     if (stateValue != -1L) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
+      val value = TextStateKeys(stateValue)
+      style.setOrAppendState(value)
     }
 
-    if (invalidate) {
-      updateStyleOnTextNodes()
-      invalidateInlineSegments()
-      invalidateLayout()
-    }
+//    if (invalidate) {
+//      updateStyleOnTextNodes()
+//      invalidateInlineSegments()
+//      invalidateLayout()
+//    }
   }
 
   var includePadding = true
@@ -333,52 +366,143 @@ class TextView @JvmOverloads constructor(
 
   var textJustify: TextJustify
     get() {
-      return TextJustify.fromInt(textValues.getInt(TextStyleKeys.TEXT_JUSTIFY))
+      return style.textJustify
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.TEXT_JUSTIFY, value.value)
+      style.textJustify = value
     }
 
   var color: Int
-    get() = textValues.getInt(TextStyleKeys.COLOR)
+    get() = style.color
     set(value) {
-      textValues.putInt(TextStyleKeys.COLOR, value)
-      paint.color = value
-      updateStyleOnTextNodes()
-      invalidateInlineSegments()
+      style.color = value
     }
+
+  var font: String
+    get() {
+      return ""
+    }
+    set(value) {
+
+    }
+
+  var fontFamily: String
+    get() {
+      return style.fontFamily
+    }
+    set(value) {
+      style.fontFamily = value
+    }
+
+  var fontVariant: String
+    get() {
+      return style.fontVariant
+    }
+    set(value) {
+      style.fontVariant = value
+    }
+
+
+  var fontStretch: String
+    get() {
+      return style.fontStretch
+    }
+    set(value) {
+      style.fontStretch = value
+    }
+
 
   var fontSize: Int
     get() {
-      return textValues.getInt(TextStyleKeys.SIZE)
+      return style.fontSize
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.SIZE, value)
-      if (value == 0) {
-        paint.textSize = 0f
-      } else {
-        paint.textSize = value * resources.displayMetrics.density
-      }
-      updateStyleOnTextNodes()
-      invalidateInlineSegments()
-      invalidateLayout()
+      style.fontSize = value
     }
 
   var fontWeight: FontFace.NSCFontWeight
     get() {
-      val weight = textValues.getInt(TextStyleKeys.FONT_WEIGHT)
-      return FontFace.NSCFontWeight.from(weight)
+      return style.fontWeight
     }
     set(value) {
-      val old = fontWeight
-      if (value != old) {
-        font.weight = value
-      }
+      style.fontWeight = value
+    }
+
+  var fontStyle: FontFace.NSCFontStyle
+    set(value) {
+      style.fontStyle = value
+    }
+    get() {
+      return style.fontStyle
+    }
+
+  var textWrap: TextWrap
+    get() {
+      return style.textWrap
+    }
+    set(value) {
+      style.textWrap = value
+    }
+
+  var letterSpacingValue: Float
+    get() {
+      return style.letterSpacing
+    }
+    set(value) {
+      style.letterSpacing = value
+    }
+
+  var whiteSpace: Styles.WhiteSpace
+    get() {
+      return style.whiteSpace
+    }
+    set(value) {
+      style.whiteSpace = value
+    }
+
+  var textTransform: Styles.TextTransform
+    get() {
+      return style.textTransform
+    }
+    set(value) {
+      style.textTransform = value
+    }
+
+  var backgroundColorValue: Int
+    get() {
+      return style.backgroundColor
+    }
+    set(value) {
+      style.backgroundColor = value
+    }
+
+  var decorationLine: Styles.DecorationLine
+    get() {
+      return style.decorationLine
+    }
+    set(value) {
+      style.decorationLine = value
+    }
+
+  var decorationColor: Int
+    get() {
+      return style.decorationColor
+    }
+    set(value) {
+      style.decorationColor = value
+    }
+
+  var decorationStyle: Styles.DecorationStyle
+    get() {
+      return style.decorationStyle
+    }
+    set(value) {
+      style.decorationStyle = value
     }
 
 
   // Update attributes on all direct TextNode children when styles change
-  private fun updateStyleOnTextNodes() {
+  internal fun updateStyleOnTextNodes() {
     val defaultAttrs = getDefaultAttributes()
 
     for (child in node.children) {
@@ -393,125 +517,45 @@ class TextView @JvmOverloads constructor(
   internal fun getDefaultAttributes(): Map<String, Any> {
     val attrs = mutableMapOf<String, Any>()
 
+    val color = style.resolvedColor
+
     if (color != 0) {
       attrs["color"] = color
     }
+
+    val fontSize = style.resolvedFontSize
 
     if (fontSize > 0) {
       attrs["fontSize"] = fontSize
     }
 
-    font.font?.let {
+    // todo
+    fontFace.font?.let {
       attrs["typeface"] = it
     }
 
+    val decorationLine = style.resolvedDecorationLine
     if (decorationLine != Styles.DecorationLine.None) {
       attrs["decorationLine"] = decorationLine
     }
 
+    val decorationColor = style.resolvedDecorationColor
     if (decorationColor != 0) {
       attrs["decorationColor"] = decorationColor
     }
 
+    val letterSpacing = style.resolvedLetterSpacing
     if (letterSpacing != 0f) {
       attrs["letterSpacing"] = letterSpacing
     }
 
+    val backgroundColorValue = style.backgroundColor
     if (backgroundColorValue != 0) {
       attrs["backgroundColor"] = backgroundColorValue
     }
 
     return attrs
   }
-
-  var fontStyle: FontFace.NSCFontStyle
-    set(value) {
-      val previous = fontStyle
-      if (previous != value) {
-        textValues.putInt(TextStyleKeys.FONT_STYLE_TYPE, value.style.value)
-        font.style = value
-      }
-    }
-    get() {
-      val style = textValues.getInt(TextStyleKeys.FONT_STYLE_TYPE)
-      when (style) {
-        0 -> {
-          return FontFace.NSCFontStyle.Normal
-        }
-
-        1 -> {
-          return FontFace.NSCFontStyle.Italic
-        }
-
-        2 -> {
-          return FontFace.NSCFontStyle.Oblique()
-        }
-
-        else -> {
-          return FontFace.NSCFontStyle.Normal
-        }
-      }
-    }
-
-  var textWrap: TextWrap = TextWrap.Wrap
-    set(value) {
-      field = value
-      textValues.putInt(TextStyleKeys.TEXT_WRAP, value.ordinal)
-      invalidateInlineSegments()
-    }
-
-  var whiteSpace: Styles.WhiteSpace = Styles.WhiteSpace.Normal
-    set(value) {
-      field = value
-      textValues.putInt(TextStyleKeys.WHITE_SPACE, value.ordinal)
-      invalidateInlineSegments()
-    }
-
-  var textTransform: Styles.TextTransform = Styles.TextTransform.None
-    set(value) {
-      field = value
-      textValues.putInt(TextStyleKeys.TRANSFORM, value.ordinal)
-      invalidateInlineSegments()
-    }
-
-
-  var backgroundColorValue: Int
-    get() {
-      return textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
-    }
-    set(value) {
-      textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, value)
-
-      val parent = node.parent
-      if (parent?.view is TextView) {
-        (parent.view as TextView).invalidateInlineSegments()
-      }
-
-      updateStyleOnTextNodes()
-      invalidateInlineSegments()
-    }
-
-  var decorationLine: Styles.DecorationLine = Styles.DecorationLine.None
-    set(value) {
-      field = value
-      textValues.putInt(TextStyleKeys.DECORATION_LINE, value.ordinal)
-      updateStyleOnTextNodes()
-    }
-
-  var decorationColor: Int = 0
-    set(value) {
-      field = value
-      textValues.putInt(TextStyleKeys.DECORATION_COLOR, value)
-      updateStyleOnTextNodes()
-    }
-
-  var decorationStyle: Styles.DecorationStyle = Styles.DecorationStyle.Solid
-    set(value) {
-      field = value
-      textValues.putInt(TextStyleKeys.DECORATION_STYLE, value.value)
-      updateStyleOnTextNodes()
-    }
-
 
   private fun mapMeasureSpec(mode: Int, value: Int): AvailableSpace {
     return when (mode) {
@@ -535,7 +579,6 @@ class TextView @JvmOverloads constructor(
       else -> AvailableSpace.MinContent
     }
   }
-
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     val specWidth = MeasureSpec.getSize(widthMeasureSpec)
@@ -693,7 +736,7 @@ class TextView @JvmOverloads constructor(
     val textPaint = TextPaint(paint).apply {
       textSize =
         this@TextView.fontSize * resources.displayMetrics.density  // fontSize is already in px
-      typeface = this@TextView.font.font
+      typeface = this@TextView.fontFace.font
     }
 
     // Walk through the spannable to find text runs and view placeholders
@@ -893,10 +936,11 @@ class TextView @JvmOverloads constructor(
 
     val flags = Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
 
+    val color = textView.style.resolvedColor
     // Apply color
-    if (textView.color != 0) {
+    if (color != 0) {
       spannable.setSpan(
-        ForegroundColorSpan(textView.color), start, end, flags
+        ForegroundColorSpan(color), start, end, flags
       )
     }
 
@@ -908,7 +952,7 @@ class TextView @JvmOverloads constructor(
     }
 
     // Apply typeface
-    textView.font.font?.let { typeface ->
+    textView.fontFace.font?.let { typeface ->
       spannable.setSpan(
         Spans.TypefaceSpan(typeface), start, end, flags
       )
@@ -930,9 +974,9 @@ class TextView @JvmOverloads constructor(
     }
 
     // Apply letter spacing
-    if (textView.letterSpacing != 0f) {
+    if (textView.letterSpacingValue != 0f) {
       spannable.setSpan(
-        android.text.style.ScaleXSpan(1f + textView.letterSpacing), start, end, flags
+        android.text.style.ScaleXSpan(1f + textView.letterSpacingValue), start, end, flags
       )
     }
   }
@@ -1121,7 +1165,7 @@ class TextView @JvmOverloads constructor(
   }
 
   internal fun shouldFlattenTextContainer(textView: TextView): Boolean {
-    if (!textView.node.isStyleInitialized) return true
+    if (!textView.style.isValueInitialized) return true
     val style = textView.node.style
     val hasBackground = textView.backgroundColorValue != 0 || textView.background != null
     val border = style.border

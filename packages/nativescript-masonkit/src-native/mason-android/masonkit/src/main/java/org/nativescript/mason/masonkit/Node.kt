@@ -195,11 +195,7 @@ open class Node internal constructor(
   var view: Any? = null
 
   internal var children = arrayListOf<Node>()
-  internal var isStyleInitialized = false
-  internal val style: Style by lazy {
-    isStyleInitialized = true
-    Style(this)
-  }
+  internal val style = Style(this)
 
   internal var suppressChildOps = 0
   internal inline fun <T> suppressChildOperations(block: () -> T): T {
@@ -303,6 +299,28 @@ open class Node internal constructor(
     return children
   }
 
+  // Efficient single-pass invalidation that only walks each TextView once
+  private fun invalidateDescendantTextViews(node: Node) {
+    // Early exit if node has no initialized text values
+   // if (!node.style.isTextValueInitialized) {
+    //  return
+   // }
+
+    // Direct invalidation if this is a TextView
+    if (node.view is TextView) {
+      (node.view as TextView).apply {
+        updateStyleOnTextNodes()
+        invalidateInlineSegments()
+      }
+    }
+
+    // Iterate children (only layout children, not author children)
+    val size = node.children.size
+    for (i in 0 until size) {
+      invalidateDescendantTextViews(node.children[i])
+    }
+  }
+
   open fun appendChild(child: Node) {
     if (child is TextNode) {
       var pending = false
@@ -335,6 +353,10 @@ open class Node internal constructor(
         NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
       }
       NodeUtils.addView(this, child.view as? View)
+
+      // Single pass invalidation of descendants with text styles
+      invalidateDescendantTextViews(child)
+
       onNodeAttached?.let { it() }
     }
   }
@@ -533,6 +555,9 @@ open class Node internal constructor(
               }
             }
 
+            // Single invalidation pass for the newly inserted child
+            invalidateDescendantTextViews(child)
+
             // sync native/layout trees
             NodeUtils.syncNode(this, children)
             if (!style.inBatch) {
@@ -549,6 +574,10 @@ open class Node internal constructor(
       reference.parent = null
       NodeUtils.removeView(this, reference.view as? View)
       NodeUtils.addView(this, child.view as? View)
+
+      // Single invalidation pass for the newly inserted child
+      invalidateDescendantTextViews(child)
+
       NodeUtils.syncNode(this, children)
       if (!style.inBatch) {
         if (child.view is TextView) {
@@ -731,6 +760,9 @@ open class Node internal constructor(
           (afterContainer?.view as? Element)?.invalidateLayout()
           (child.view as? Element)?.invalidateLayout()
 
+          // Single invalidation pass
+          invalidateDescendantTextViews(child)
+
           // sync views/native tree once using the updated children vector
           NodeUtils.syncNode(this, children)
           // ensure child view is added, then sync
@@ -754,6 +786,10 @@ open class Node internal constructor(
     } else {
       NodeUtils.addView(this, child.view as? View)
     }
+
+    // Single invalidation pass
+    invalidateDescendantTextViews(child)
+
     NodeUtils.syncNode(this, children)
     if (!style.inBatch) {
       (view as? Element)?.invalidateLayout()

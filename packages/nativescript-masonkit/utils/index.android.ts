@@ -772,7 +772,6 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View
 }
 
 export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: View, initial = false) {
-  console.log('setGridTemplateColumns', value, instance[isMasonView_]);
   if (!instance[isMasonView_]) {
     return;
   }
