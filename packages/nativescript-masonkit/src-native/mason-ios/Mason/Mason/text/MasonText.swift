@@ -1876,21 +1876,7 @@ extension MasonText {
     
     node.children.append(child)
     child.parent = node
-    
-//  
-//    // Add ALL non-text nodes to layout tree (including TextViews that won't be flattened)
-//    if child.type != .text && child.nativePtr != nil {
-//      // Check if this TextView should be inline-block
-//      if let textView = child.view as? MasonText {
-//        // Only add to layout tree if it won't be flattened
-//        if !shouldFlattenTextContainer(textView) {
-//          syncLayoutChildren()
-//        }
-//      } else {
-//        // Non-TextView elements always go in layout tree
-//        syncLayoutChildren()
-//      }
-//    }
+  
         
     invalidate()
   }
