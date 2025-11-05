@@ -53,8 +53,8 @@ const viewFeature = (args) => {
 <style scoped>
 .wrapper {
     display: grid;
-    grid-gap: 10px;
-    grid-template-columns: 100px 100px 100px;
+    grid-gap: 10;
+    grid-template-columns: 100 100 100;
     background-color: #fff;
     color: #444;
   }
@@ -62,10 +62,9 @@ const viewFeature = (args) => {
   .box {
     background-color: #444;
     color: #fff;
-    border-radius: 5px;
-    padding: 20px;
+    border-radius: 5;
+    padding: 20;
     font-size: 150%;
-
   }
 
   .a {

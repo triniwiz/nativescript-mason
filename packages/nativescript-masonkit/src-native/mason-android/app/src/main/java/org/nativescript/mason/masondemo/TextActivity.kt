@@ -4,6 +4,7 @@ import android.animation.ValueAnimator
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
+import android.view.WindowInsets
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
@@ -46,7 +47,7 @@ class TextActivity : AppCompatActivity() {
         LengthPercentage.Points(systemBars.bottom.toFloat())
       )
 
-      insets
+      WindowInsetsCompat.CONSUMED
     }
 
     enableEdgeToEdge()
@@ -55,7 +56,7 @@ class TextActivity : AppCompatActivity() {
     //basicNesting()
     // testText()
     //textWithImage()
-    // basicBlock()
+   //  basicBlock()
     //  testWrap()
     //testElements()
     //testTextInsert()
@@ -66,7 +67,7 @@ class TextActivity : AppCompatActivity() {
     // testTextContainerAppend()
     // testTextContainerReplace()
     /// testTextContainerReplaceInContainer()
-//    testTextNodeReplaceWithImage()
+   // testTextNodeReplaceWithImage()
     //  testTextNodeInsertWithImage()
     //   testTextWrap()
     // flexDirection()
@@ -78,17 +79,16 @@ class TextActivity : AppCompatActivity() {
 
   fun gridTemplateColumns() {
     val root = Mason.shared.createView(this)
+    //root.setBackgroundColor(Color.BLUE)
+    root.append("Osei")
+    root.append(" Fortune")
 
-    root.append("??????")
-
-    Timer().schedule(2000L) {
+    Timer().schedule(1000L) {
       runOnUiThread {
-//        root.style.textValues.putInt(TextStyleKeys.COLOR, Color.RED)
-//        root.style.textValues.putInt(TextStyleKeys.COLOR_STATE, 1)
-//        root.syncStyle("-1", "${TextStateKeys.COLOR.bits}")
         root.style.inBatch = true
         root.style.color = Color.RED
-//        root.style.fontStyle = FontFace.NSCFontStyle.Italic
+        root.style.fontSize = 20
+        root.style.fontStyle = FontFace.NSCFontStyle.Italic
         root.style.fontWeight = FontFace.NSCFontWeight.Bold
         root.style.inBatch = false
       }
@@ -859,7 +859,6 @@ class TextActivity : AppCompatActivity() {
     body.append(root)
   }
 
-
   fun inlineTest() {
     val root = Mason.shared.createView(this)
     root.setBackgroundColor(Color.GRAY)
@@ -995,14 +994,14 @@ class TextActivity : AppCompatActivity() {
   }
 
   fun basicBlock() {
-    val a = TextView(this)
+    val a = Mason.shared.createTextView(this, TextType.P)
     a.append("This should")
 
-    val b = TextView(this)
+    val b = Mason.shared.createTextView(this, TextType.P)
     b.append(" be different")
     b.color = Color.RED
 
-    val c = TextView(this)
+    val c = Mason.shared.createTextView(this, TextType.P)
     c.append(" Lines!!!")
     c.color = Color.BLUE
 

@@ -1095,7 +1095,7 @@ const flexProperty = new ShorthandProperty({
 });
 
 // @ts-ignore
-export const textWrapProperty = new Property<TextBase, 'nowrap' | 'wrap' | 'balance'>({
+export const textWrapProperty = new Property<ViewBase, 'nowrap' | 'wrap' | 'balance'>({
   name: 'textWrap',
   affectsLayout: true,
   defaultValue: 'nowrap',
@@ -1143,6 +1143,8 @@ export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: MasonUIView;
+
+  textWrap: 'nowrap' | 'wrap' | 'balance';
 
   overflow: Overflow | `${Overflow} ${Overflow}`;
 
@@ -1690,15 +1692,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   get gridAutoRows(): string {
     return this.style.gridAutoRows;
   }
-}
-
-export class TextBase extends ViewBase {
-  text: string;
-  textWrap: 'nowrap' | 'wrap' | 'balance';
-
-  constructor() {
-    super();
-  }
 
   [fontSizeProperty.setNative](value: Length) {
     // @ts-ignore
@@ -1725,8 +1718,12 @@ export class TextBase extends ViewBase {
   }
 }
 
+export class TextBase extends ViewBase {
+  text: string;
+}
+
 textProperty.register(TextBase);
-textWrapProperty.register(TextBase);
+textWrapProperty.register(ViewBase);
 
 // @ts-ignore
 export const srcProperty = new Property<ImageBase, string>({
@@ -1748,6 +1745,48 @@ srcProperty.register(ImageBase);
 // flexWrapProperty.register(Style);
 // flexGrowProperty.register(Style);
 flexShrinkProperty.register(Style);
+
+// revert valueConverter if causing issues with core components
+fontSizeProperty.overrideHandlers({
+  name: 'fontSize',
+  cssName: 'font-size',
+  valueConverter: function (value) {
+    return value as never;
+  },
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        if (typeof newValue === 'string') {
+          // @ts-ignore
+          if (newValue.indexOf('%') !== -1) {
+            view.fontSize = {
+              value: parseFloat(newValue as never) / 100,
+              unit: '%',
+            };
+            // @ts-ignore
+          } else if (newValue.indexOf('dip') !== -1) {
+            view.fontSize = parseFloat(newValue as never);
+            // @ts-ignore
+          } else if (newValue.indexOf('px') !== -1) {
+            view.fontSize = {
+              value: parseFloat(newValue as never),
+              unit: 'px',
+            };
+          } else {
+            view.fontSize = parseFloat(newValue as never);
+          }
+        } else {
+          view.fontSize = newValue as never;
+        }
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.fontSize = oldValue as never;
+      }
+    }
+  },
+});
 
 paddingLeftProperty.overrideHandlers({
   name: 'paddingLeft',

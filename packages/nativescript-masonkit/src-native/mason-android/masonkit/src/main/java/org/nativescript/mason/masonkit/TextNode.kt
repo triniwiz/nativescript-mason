@@ -6,7 +6,6 @@ import android.text.style.AbsoluteSizeSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
-import android.util.Log
 
 class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
   constructor(mason: Mason, data: String) : this(mason) {
@@ -97,8 +96,18 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
 
     // Apply font size
     attributes["fontSize"]?.let { size ->
-      if (size is Float && size > 0) {
-        spannable.setSpan(AbsoluteSizeSpan(size.toInt(), true), start, end, flags)
+      var fontSize: Int? = null
+      when (size) {
+        is Int -> {
+          fontSize = size
+        }
+
+        is Float -> {
+          fontSize = size.toInt()
+        }
+      }
+      fontSize?.takeIf { it > 0 }?.let {
+        spannable.setSpan(AbsoluteSizeSpan(it, true), start, end, flags)
       }
     }
 

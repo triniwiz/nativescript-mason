@@ -219,7 +219,7 @@ open class Node internal constructor(
     // Create new anonymous container
     val textView = mason.createTextView(
       (view as? View)?.context ?: throw IllegalStateException("View context required"),
-      TextType.None,
+      TextType.Span,
       true
     )
 
@@ -301,7 +301,7 @@ open class Node internal constructor(
 
   companion object {
     // Efficient single-pass invalidation that only walks each TextView once
-    internal fun invalidateDescendantTextViews(node: Node) {
+    internal fun invalidateDescendantTextViews(node: Node, state: Int) {
       // Early exit if node has no initialized text values
       // if (!node.style.isTextValueInitialized) {
       //  return
@@ -310,15 +310,15 @@ open class Node internal constructor(
       // Direct invalidation if this is a TextView
       if (node.view is TextView) {
         (node.view as TextView).apply {
-          updateStyleOnTextNodes()
-          invalidateInlineSegments()
+          // Notify all text style changes to ensure paint is fully updated
+          onTextStyleChanged(state)
         }
       }
 
       // Iterate children (only layout children, not author children)
       val size = node.children.size
       for (i in 0 until size) {
-        invalidateDescendantTextViews(node.children[i])
+        invalidateDescendantTextViews(node.children[i], state)
       }
     }
   }
@@ -333,7 +333,7 @@ open class Node internal constructor(
         getOrCreateAnonymousTextContainer()
       }
 
-      if (style.font.font == null){
+      if (style.font.font == null) {
         style.font.loadSync((container.view as TextView).context) {}
       }
 
@@ -361,7 +361,7 @@ open class Node internal constructor(
       NodeUtils.addView(this, child.view as? View)
 
       // Single pass invalidation of descendants with text styles
-      invalidateDescendantTextViews(child)
+      invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
 
       onNodeAttached?.let { it() }
     }
@@ -562,7 +562,7 @@ open class Node internal constructor(
             }
 
             // Single invalidation pass for the newly inserted child
-            invalidateDescendantTextViews(child)
+            invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
 
             // sync native/layout trees
             NodeUtils.syncNode(this, children)
@@ -582,7 +582,7 @@ open class Node internal constructor(
       NodeUtils.addView(this, child.view as? View)
 
       // Single invalidation pass for the newly inserted child
-      invalidateDescendantTextViews(child)
+      invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
 
       NodeUtils.syncNode(this, children)
       if (!style.inBatch) {
@@ -767,7 +767,7 @@ open class Node internal constructor(
           (child.view as? Element)?.invalidateLayout()
 
           // Single invalidation pass
-          invalidateDescendantTextViews(child)
+          invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
 
           // sync views/native tree once using the updated children vector
           NodeUtils.syncNode(this, children)
@@ -794,7 +794,7 @@ open class Node internal constructor(
     }
 
     // Single invalidation pass
-    invalidateDescendantTextViews(child)
+    invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
 
     NodeUtils.syncNode(this, children)
     if (!style.inBatch) {

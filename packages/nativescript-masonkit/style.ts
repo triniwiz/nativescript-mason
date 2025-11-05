@@ -108,7 +108,8 @@ enum TextStyleKeys {
   COLOR = 0,
   COLOR_STATE = 4, // 0 = inherit, 1 = set
   SIZE = 8,
-  SIZE_STATE = 12,
+  SIZE_TYPE = 12,
+  SIZE_STATE = 13,
   FONT_WEIGHT = 16,
   FONT_WEIGHT_STATE = 20,
   FONT_STYLE_TYPE = 24,
@@ -428,16 +429,54 @@ export class Style {
       return 16;
     }
 
-    return getFloat32(this.text_style_view, TextStyleKeys.SIZE);
+    const type = getUint8(this.text_style_view, TextStyleKeys.SIZE_TYPE);
+    const value = getInt32(this.text_style_view, TextStyleKeys.SIZE);
+    if (type === 1) {
+      return `${value / 100}%` as never;
+    }
+
+    return value;
   }
 
-  set fontSize(value: number) {
+  set fontSize(value: number | { value: number; unit: 'dip' | 'px' | '%' }) {
     if (!this.text_style_view) {
       return;
     }
-    setFloat32(this.text_style_view, TextStyleKeys.SIZE, value);
-    setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
-    this.setOrAppendTextState(TextStateKeys.SIZE);
+
+    switch (typeof value) {
+      case 'number':
+        setInt32(this.text_style_view, TextStyleKeys.SIZE, value);
+        setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
+        setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 0);
+        this.setOrAppendTextState(TextStateKeys.SIZE);
+        break;
+      case 'object':
+        switch (value.unit) {
+          case 'dip':
+            setInt32(this.text_style_view, TextStyleKeys.SIZE, value.value);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 0);
+            this.setOrAppendTextState(TextStateKeys.SIZE);
+            break;
+          case 'px':
+            setInt32(this.text_style_view, TextStyleKeys.SIZE, layout.toDeviceIndependentPixels(value.value));
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 0);
+            this.setOrAppendTextState(TextStateKeys.SIZE);
+            break;
+          case '%':
+            setInt32(this.text_style_view, TextStyleKeys.SIZE, value.value * 100);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 1);
+            this.setOrAppendTextState(TextStateKeys.SIZE);
+            break;
+        }
+        break;
+    }
+
+    if (value && typeof value === 'object') {
+    } else {
+    }
   }
 
   get fontStyle() {

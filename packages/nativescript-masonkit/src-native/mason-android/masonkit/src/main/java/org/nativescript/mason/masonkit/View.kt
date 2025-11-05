@@ -52,8 +52,8 @@ class View @JvmOverloads constructor(
     node.style.updateNativeStyle()
   }
 
-  override fun onTextStyleChanged(change: TextStyleChange) {
-    Node.invalidateDescendantTextViews(node)
+  override fun onTextStyleChanged(change: Int) {
+    Node.invalidateDescendantTextViews(node, change)
   }
 
 //  fun setStyleFromString(style: String) {
@@ -91,7 +91,6 @@ class View @JvmOverloads constructor(
       mapMeasureSpec(specWidthMode, specWidth).value,
       mapMeasureSpec(specHeightMode, specHeight).value
     )
-
     // todo cache layout
     val layout = layout()
     setMeasuredDimension(

@@ -2,7 +2,13 @@ use crate::node::{InlineSegment, Node, NodeData, NodeRef, NodeType};
 use crate::style::{DisplayMode, Style};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use std::fmt::Debug;
-use taffy::{compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout, compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace, CacheTree, ClearState, CollapsibleMarginSet, CoreStyle, Dimension, Display, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId, PrintTree, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree};
+use taffy::{
+    compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
+    compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
+    CacheTree, ClearState, CollapsibleMarginSet, Display, Layout,
+    LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId,
+    PrintTree, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree,
+};
 
 new_key_type! {
    pub struct Id;
@@ -646,9 +652,14 @@ impl Tree {
 
                     let mode_inline = matches!(mode, DisplayMode::Inline | DisplayMode::Box);
 
-                    if mode == DisplayMode::Inline || node.style.force_inline() || node.type_ == NodeType::Text && mode_inline {
+                    if mode == DisplayMode::Inline
+                        || node.style.force_inline()
+                        || node.type_ == NodeType::Text && mode_inline
+                    {
                         has_inline = true;
-                    } else if matches!(mode, DisplayMode::None) && !matches!(node.style.get_display(), Display::None) {
+                    } else if matches!(mode, DisplayMode::None)
+                        && !matches!(node.style.get_display(), Display::None)
+                    {
                         // Block-level display modes
                         has_block = true;
                     }
@@ -688,8 +699,8 @@ impl Tree {
             .get_padding()
             .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0)
             + style
-            .get_border()
-            .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
+                .get_border()
+                .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
 
         let inline_available = inputs
             .available_space
@@ -711,10 +722,14 @@ impl Tree {
             let child_node_id = NodeId::from(child_id);
 
             // Determine if this child is inline or block
-            let is_inline = self.nodes.get(child_id).map(|node| {
-                let resolved_mode = node.style.display_mode();
-                resolved_mode == DisplayMode::Inline || node.style.force_inline()
-            }).unwrap_or(false);
+            let is_inline = self
+                .nodes
+                .get(child_id)
+                .map(|node| {
+                    let resolved_mode = node.style.display_mode();
+                    resolved_mode == DisplayMode::Inline || node.style.force_inline()
+                })
+                .unwrap_or(false);
 
             // Only pre-measure inline children
             if !is_inline {
@@ -742,8 +757,12 @@ impl Tree {
         for &child_id in child_ids {
             if let Some(child_node) = self.nodes.get(child_id) {
                 let resolved_mode = child_node.style.display_mode();
-                let is_inline = resolved_mode == DisplayMode::Inline || child_node.style.force_inline();
-                let margin = child_node.style.get_margin().resolve_or_zero(Size::NONE, |_v, _b| 0.0);
+                let is_inline =
+                    resolved_mode == DisplayMode::Inline || child_node.style.force_inline();
+                let margin = child_node
+                    .style
+                    .get_margin()
+                    .resolve_or_zero(Size::NONE, |_v, _b| 0.0);
 
                 if is_inline {
                     let child_w = child_node.unrounded_layout.size.width;
@@ -754,7 +773,9 @@ impl Tree {
                     let descent = margin.bottom;
 
                     // Add inline node to the current line
-                    if current_line_width + segment_width > available_width && !current_line.is_empty() {
+                    if current_line_width + segment_width > available_width
+                        && !current_line.is_empty()
+                    {
                         // Finalize the current line
                         let line_height = current_line
                             .iter()
@@ -828,7 +849,13 @@ impl Tree {
 
                     // Compute the block child with full available width
                     let block_child_node_id = NodeId::from(child_id);
-                    let block_available_width = inline_available.unwrap_or(inputs.available_space.width.into_option().unwrap_or(f32::INFINITY));
+                    let block_available_width = inline_available.unwrap_or(
+                        inputs
+                            .available_space
+                            .width
+                            .into_option()
+                            .unwrap_or(f32::INFINITY),
+                    );
 
                     let block_inputs = LayoutInput {
                         known_dimensions: Size::NONE,
@@ -1316,7 +1343,10 @@ impl Tree {
                                         .resolve_or_zero(Size::NONE, |_v, _b| 0.0);
                                     let segment_width = margin.left + child_width + margin.right;
 
-                                    if segment_width > 0.0 && current_line_width + segment_width > available_width && !current_line.is_empty() {
+                                    if segment_width > 0.0
+                                        && current_line_width + segment_width > available_width
+                                        && !current_line.is_empty()
+                                    {
                                         // Finalize the current line
                                         let line_height = current_line
                                             .iter()
@@ -1413,7 +1443,6 @@ impl Tree {
                     max_line_width
                 };
 
-
                 Size {
                     width: resolved_width + pb.horizontal_components().sum(),
                     height: total_height + pb.vertical_components().sum(),
@@ -1455,6 +1484,8 @@ impl Tree {
                     node.unrounded_layout.location.y = y;
                     node.unrounded_layout.size.width = content_width.max(0.0);
                     node.unrounded_layout.size.height = content_height.max(0.0);
+                    node.unrounded_layout.content_size.width = node.unrounded_layout.size.width;
+                    node.unrounded_layout.content_size.height = node.unrounded_layout.size.height;
 
                     cursor_x += width;
                 }

@@ -15,6 +15,7 @@ import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.createBitmap
@@ -240,84 +241,62 @@ class TextView @JvmOverloads constructor(
 
     node.style.setStyleChangeListener(this)
 
-//    setSpannableFactory(object : Spannable.Factory() {
-//      override fun newSpannable(source: CharSequence): Spannable {
-//        if (source is String) {
-//          return SpannableString(source)
-//        }
-//        return source as Spannable
-//      }
-//    })
   }
 
-  override fun onTextStyleChanged(change: TextStyleChange) {
-    when (change) {
-      TextStyleChange.COLOR -> {
-        paint.color = color
-        updateStyleOnTextNodes()
-        invalidateInlineSegments()
-      }
+  override fun onTextStyleChanged(change: Int) {
+    var dirty = false
+    var layout = false
+    if (change and TextStyleChangeMask.COLOR != 0) {
+      paint.color = style.resolvedColor
+      dirty = true
+    }
 
-      TextStyleChange.FONT_SIZE -> {
-        val fontSize = this.fontSize
-        if (fontSize == 0) {
-          paint.textSize = 0f
-        } else {
-          paint.textSize = fontSize * resources.displayMetrics.density
+    if (change and TextStyleChangeMask.FONT_SIZE != 0) {
+      val fontSize = style.resolvedFontSize
+      if (fontSize == 0) {
+        paint.textSize = 0f
+      } else {
+        paint.textSize = TypedValue.applyDimension(
+          TypedValue.COMPLEX_UNIT_DIP,
+          fontSize.toFloat(),
+          resources.displayMetrics
+        )
+      }
+      layout = true
+      dirty = true
+    }
+
+    if (change and TextStyleChangeMask.FONT_WEIGHT != 0 || change and TextStyleChangeMask.FONT_STYLE != 0 || change and TextStyleChangeMask.FONT_FAMILY != 0) {
+      style.resolvedFontFace.font?.let {
+        paint.typeface = it
+        dirty = true
+      }
+    }
+
+
+    if (
+      change and TextStyleChangeMask.TEXT_WRAP != 0 ||
+      change and TextStyleChangeMask.WHITE_SPACE != 0 ||
+      change and TextStyleChangeMask.TEXT_TRANSFORM != 0 ||
+      change and TextStyleChangeMask.DECORATION_LINE != 0 ||
+      change and TextStyleChangeMask.DECORATION_COLOR != 0 ||
+      change and TextStyleChangeMask.DECORATION_STYLE != 0 ||
+      change and TextStyleChangeMask.LETTER_SPACING != 0 ||
+      change and TextStyleChangeMask.TEXT_JUSTIFY != 0 ||
+      change and TextStyleChangeMask.BACKGROUND_COLOR != 0
+    ) {
+      dirty = true
+    }
+
+
+    if (dirty) {
+      updateStyleOnTextNodes()
+      invalidateInlineSegments()
+      if (layout) {
+        if (node.isAnonymous) {
+          node.layoutParent?.dirty()
         }
-        updateStyleOnTextNodes()
-        invalidateInlineSegments()
         invalidateLayout()
-      }
-
-      TextStyleChange.FONT_WEIGHT -> {
-        updateStyleOnTextNodes()
-      }
-
-      TextStyleChange.FONT_STYLE -> {
-        updateStyleOnTextNodes()
-      }
-
-      TextStyleChange.TEXT_WRAP -> {
-        invalidateInlineSegments()
-      }
-
-      TextStyleChange.WHITE_SPACE -> {
-        invalidateInlineSegments()
-      }
-
-      TextStyleChange.TEXT_TRANSFORM -> {
-        invalidateInlineSegments()
-      }
-
-      TextStyleChange.BACKGROUND_COLOR -> {
-        val parent = node.parent
-        if (parent?.view is TextView) {
-          (parent.view as TextView).invalidateInlineSegments()
-        }
-
-        updateStyleOnTextNodes()
-        invalidateInlineSegments()
-      }
-
-      TextStyleChange.DECORATION_LINE -> {
-        updateStyleOnTextNodes()
-      }
-
-      TextStyleChange.DECORATION_COLOR -> {
-        updateStyleOnTextNodes()
-      }
-
-      TextStyleChange.DECORATION_STYLE -> {
-        updateStyleOnTextNodes()
-      }
-
-      TextStyleChange.LETTER_SPACING -> {
-        updateStyleOnTextNodes()
-      }
-
-      TextStyleChange.TEXT_JUSTIFY -> {
-        updateStyleOnTextNodes()
       }
     }
   }
@@ -379,7 +358,6 @@ class TextView @JvmOverloads constructor(
     set(value) {
       style.fontVariant = value
     }
-
 
   var fontStretch: String
     get() {
@@ -492,49 +470,6 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-  internal fun getDefaultAttributes(): Map<String, Any> {
-    val attrs = mutableMapOf<String, Any>()
-
-    val color = style.resolvedColor
-
-    if (color != 0) {
-      attrs["color"] = color
-    }
-
-    val fontSize = style.resolvedFontSize
-
-    if (fontSize > 0) {
-      attrs["fontSize"] = fontSize
-    }
-
-    // todo
-    fontFace.font?.let {
-      attrs["typeface"] = it
-    }
-
-    val decorationLine = style.resolvedDecorationLine
-    if (decorationLine != Styles.DecorationLine.None) {
-      attrs["decorationLine"] = decorationLine
-    }
-
-    val decorationColor = style.resolvedDecorationColor
-    if (decorationColor != 0) {
-      attrs["decorationColor"] = decorationColor
-    }
-
-    val letterSpacing = style.resolvedLetterSpacing
-    if (letterSpacing != 0f) {
-      attrs["letterSpacing"] = letterSpacing
-    }
-
-    val backgroundColorValue = style.backgroundColor
-    if (backgroundColorValue != 0) {
-      attrs["backgroundColor"] = backgroundColorValue
-    }
-
-    return attrs
-  }
-
   private fun mapMeasureSpec(mode: Int, value: Int): AvailableSpace {
     return when (mode) {
       MeasureSpec.EXACTLY -> AvailableSpace.Definite(value.toFloat())
@@ -600,7 +535,8 @@ class TextView @JvmOverloads constructor(
         ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
       )
     }
-    text = spannable
+
+    setText(spannable, BufferType.SPANNABLE)
 
     if (spannable.isEmpty() && node.children.isEmpty()) {
       return null
@@ -632,28 +568,55 @@ class TextView @JvmOverloads constructor(
     val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
 
     val layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      StaticLayout.Builder.obtain(
+
+      val heuristic = when (textDirection) {
+        View.TEXT_DIRECTION_ANY_RTL -> android.text.TextDirectionHeuristics.ANYRTL_LTR
+        View.TEXT_DIRECTION_LTR -> android.text.TextDirectionHeuristics.LTR
+        View.TEXT_DIRECTION_RTL -> android.text.TextDirectionHeuristics.RTL
+        View.TEXT_DIRECTION_LOCALE -> android.text.TextDirectionHeuristics.LOCALE
+        View.TEXT_DIRECTION_FIRST_STRONG_RTL -> android.text.TextDirectionHeuristics.FIRSTSTRONG_RTL
+        View.TEXT_DIRECTION_FIRST_STRONG_LTR -> android.text.TextDirectionHeuristics.FIRSTSTRONG_LTR
+        else -> android.text.TextDirectionHeuristics.FIRSTSTRONG_LTR
+      }
+
+      var builder = StaticLayout.Builder.obtain(
         spannable, 0, spannable.length, paint, widthConstraint
-      ).setAlignment(alignment).setLineSpacing(0f, 1f).setIncludePad(true).build()
+      )
+        .setAlignment(alignment)
+        .setLineSpacing(0f, 1f)
+        .setIncludePad(includePadding)
+        .setTextDirection(heuristic)
+
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        builder = builder.setUseLineSpacingFromFallbacks(true)
+      }
+
+      builder.build()
     } else {
       StaticLayout(
         spannable, paint, widthConstraint, alignment, 1f, // lineSpacingMultiplier
         0f, // lineSpacingExtra
-        true // includePad
+        includePadding // includePad
       )
     }
 
     // Get the ACTUAL measured width from the layout, not the constraint
-    var measuredWidth = 0
-    for (i in 0 until layout.lineCount) {
-      val lineWidth = ceil(layout.getLineWidth(i)).toInt()
-      if (lineWidth > measuredWidth) {
-        measuredWidth = lineWidth
+    var measuredWidth = 0f
+
+    if (isInline) {
+      for (i in 0 until layout.lineCount) {
+        val lineWidth = ceil(layout.getLineWidth(i))
+        if (lineWidth > measuredWidth) {
+          measuredWidth = lineWidth
+        }
       }
+    } else {
+      measuredWidth = layout.width.toFloat()
     }
 
     // Store the actual measured dimensions (not the constraints)
-    this.measuredTextWidth = measuredWidth.toFloat()
+    this.measuredTextWidth = measuredWidth
     this.measuredTextHeight = layout.height.toFloat()
 
     // CRITICAL: Collect and send segments to Rust
@@ -711,11 +674,7 @@ class TextView @JvmOverloads constructor(
     val segments = mutableListOf<InlineSegment>()
 
     // Use a TextPaint matching the current TextView properties for consistent measurement
-    val textPaint = TextPaint(paint).apply {
-      textSize =
-        this@TextView.fontSize * resources.displayMetrics.density  // fontSize is already in px
-      typeface = this@TextView.fontFace.font
-    }
+    val textPaint = TextPaint(paint)
 
     // Walk through the spannable to find text runs and view placeholders
     var currentPos = 0
@@ -745,7 +704,6 @@ class TextView @JvmOverloads constructor(
 
           // Measure with the attributed text's spans applied
           // val width = Layout.getDesiredWidth(textRun, 0, textRun.length, textPaint)
-
 
           val width = try {
             val startX = layout.getPrimaryHorizontal(currentPos)
@@ -830,7 +788,6 @@ class TextView @JvmOverloads constructor(
 
     invalidate()
     requestLayout()
-
   }
 
   internal fun attachTextNode(node: TextNode, index: Int = -1) {
@@ -923,23 +880,29 @@ class TextView @JvmOverloads constructor(
       )
     }
 
+    val fontSize = textView.style.resolvedFontSize
+
     // Apply font size
-    if (textView.paint.textSize > 0) {
+    if (fontSize > 0) {
       spannable.setSpan(
-        AbsoluteSizeSpan(textView.fontSize, true), start, end, flags
+        AbsoluteSizeSpan(fontSize, true), start, end, flags
       )
     }
 
+
+    val fontFace = textView.style.resolvedFontFace
     // Apply typeface
-    textView.fontFace.font?.let { typeface ->
+    fontFace.font?.let { typeface ->
       spannable.setSpan(
         Spans.TypefaceSpan(typeface), start, end, flags
       )
     }
 
+    val decorationLine = textView.style.resolvedDecorationLine
+
     // Apply text decoration
-    if (textView.decorationLine != Styles.DecorationLine.None) {
-      when (textView.decorationLine) {
+    if (decorationLine != Styles.DecorationLine.None) {
+      when (decorationLine) {
         Styles.DecorationLine.Underline -> {
           spannable.setSpan(UnderlineSpan(), start, end, flags)
         }
@@ -952,10 +915,11 @@ class TextView @JvmOverloads constructor(
       }
     }
 
+    val letterSpacingValue = textView.style.resolvedLetterSpacing
     // Apply letter spacing
-    if (textView.letterSpacingValue != 0f) {
+    if (letterSpacingValue != 0f) {
       spannable.setSpan(
-        android.text.style.ScaleXSpan(1f + textView.letterSpacingValue), start, end, flags
+        android.text.style.ScaleXSpan(1f + letterSpacingValue), start, end, flags
       )
     }
   }

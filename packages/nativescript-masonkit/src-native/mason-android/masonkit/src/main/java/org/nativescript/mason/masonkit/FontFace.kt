@@ -679,9 +679,6 @@ class FontFace {
               }
             }
 
-
-
-
             status = FontFaceStatus.loaded
             this.font = font
             callback(null)

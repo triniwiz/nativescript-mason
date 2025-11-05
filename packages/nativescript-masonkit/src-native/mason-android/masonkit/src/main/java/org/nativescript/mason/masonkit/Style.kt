@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.graphics.Color
+import android.util.Log
 import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.Display.Block
 import org.nativescript.mason.masonkit.Display.Flex
@@ -14,6 +15,7 @@ import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.ceil
 
 
 enum class TextType(val value: Int) {
@@ -899,13 +901,28 @@ value class StateKeys internal constructor(val bits: Long) {
   infix fun hasFlag(flag: StateKeys): Boolean = (bits and flag.bits) != 0L
 }
 
-
-interface StyleChangeListener {
-  fun onTextStyleChanged(change: TextStyleChange)
+object TextStyleChangeMask {
+  const val NONE: Int = 0
+  const val COLOR: Int = 1 shl 0
+  const val FONT_SIZE: Int = 1 shl 1
+  const val FONT_WEIGHT: Int = 1 shl 2
+  const val FONT_STYLE: Int = 1 shl 3
+  const val FONT_FAMILY: Int = 1 shl 4
+  const val LETTER_SPACING: Int = 1 shl 5
+  const val DECORATION_LINE: Int = 1 shl 6
+  const val DECORATION_COLOR: Int = 1 shl 7
+  const val DECORATION_STYLE: Int = 1 shl 8
+  const val BACKGROUND_COLOR: Int = 1 shl 9
+  const val TEXT_WRAP: Int = 1 shl 10
+  const val WHITE_SPACE: Int = 1 shl 11
+  const val TEXT_TRANSFORM: Int = 1 shl 12
+  const val TEXT_JUSTIFY: Int = 1 shl 13
+  const val ALL: Int = -1
 }
 
-enum class TextStyleChange {
-  COLOR, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, TEXT_WRAP, WHITE_SPACE, TEXT_TRANSFORM, BACKGROUND_COLOR, DECORATION_LINE, DECORATION_COLOR, DECORATION_STYLE, LETTER_SPACING, TEXT_JUSTIFY
+
+interface StyleChangeListener {
+  fun onTextStyleChanged(change: Int)
 }
 
 internal object StyleState {
@@ -930,7 +947,7 @@ class Style internal constructor(private var node: Node) {
 
   val textValues: ByteBuffer by lazy {
     isTextValueInitialized = true
-    ByteBuffer.allocateDirect(120).apply {
+    ByteBuffer.allocateDirect(124).apply {
       order(ByteOrder.nativeOrder())
       putInt(TextStyleKeys.COLOR, Color.BLACK)
       putInt(TextStyleKeys.DECORATION_COLOR, Constants.UNSET_COLOR.toInt())
@@ -950,6 +967,7 @@ class Style internal constructor(private var node: Node) {
       put(TextStyleKeys.FONT_WEIGHT_STATE, StyleState.INHERIT)
 
       put(TextStyleKeys.FONT_STYLE_STATE, StyleState.INHERIT)
+      put(TextStyleKeys.FONT_FAMILY_STATE, StyleState.INHERIT)
 
       putInt(TextStyleKeys.BACKGROUND_COLOR, 0)
       put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT)
@@ -1033,20 +1051,26 @@ class Style internal constructor(private var node: Node) {
         invalidate = true
       }
 
+      var state = TextStyleChangeMask.NONE
+
       if (styleDirty) {
-        notifyTextStyleChanged(TextStyleChange.FONT_STYLE)
+        state = state or TextStyleChangeMask.FONT_STYLE
       }
 
       if (weightDirty) {
-        notifyTextStyleChanged(TextStyleChange.FONT_WEIGHT)
+        state = state or TextStyleChangeMask.FONT_WEIGHT
       }
 
       if (sizeDirty) {
-        notifyTextStyleChanged(TextStyleChange.FONT_SIZE)
+        state = state or TextStyleChangeMask.FONT_SIZE
       }
 
       if (colorDirty) {
-        notifyTextStyleChanged(TextStyleChange.COLOR)
+        state = state or TextStyleChangeMask.COLOR
+      }
+
+      if (state != TextStyleChangeMask.NONE) {
+        notifyTextStyleChanged(state)
       }
 
       isTextDirty = -1L
@@ -1112,7 +1136,7 @@ class Style internal constructor(private var node: Node) {
   }
 
   @Suppress("NOTHING_TO_INLINE")
-  private inline fun notifyTextStyleChanged(change: TextStyleChange) {
+  private inline fun notifyTextStyleChanged(change: Int) {
     styleChangeListener?.onTextStyleChanged(change)
   }
 
@@ -1139,7 +1163,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.TEXT_JUSTIFY, value.value)
       textValues.put(TextStyleKeys.TEXT_JUSTIFY_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.TEXT_JUSTIFY)
+      notifyTextStyleChanged(TextStyleChangeMask.TEXT_JUSTIFY)
     }
 
   var color: Int
@@ -1147,7 +1171,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.COLOR, value)
       textValues.put(TextStyleKeys.COLOR_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.COLOR)
+      notifyTextStyleChanged(TextStyleChangeMask.COLOR)
     }
 
   var fontFamily: String
@@ -1155,7 +1179,18 @@ class Style internal constructor(private var node: Node) {
       return font.fontFamily
     }
     set(value) {
-      // todo
+      val oldFamily = font.fontFamily
+      if (oldFamily != value) {
+        val oldFont = font
+        // Create new font with updated family
+        font = FontFace(value).apply {
+          weight = oldFont.weight
+          style = oldFont.style
+          fontDescriptors.display = oldFont.fontDescriptors.display
+        }
+        textValues.put(TextStyleKeys.FONT_FAMILY_STATE, StyleState.SET)
+        notifyTextStyleChanged(TextStyleChangeMask.FONT_FAMILY)
+      }
     }
 
   var fontVariant: String
@@ -1206,7 +1241,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.SIZE, value)
       textValues.put(TextStyleKeys.SIZE_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.FONT_SIZE)
+      notifyTextStyleChanged(TextStyleChangeMask.FONT_SIZE)
     }
 
   var fontWeight: FontFace.NSCFontWeight
@@ -1217,9 +1252,10 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       val old = fontWeight
       if (value != old) {
-        font.weight = value
+        textValues.putInt(TextStyleKeys.FONT_WEIGHT, value.weight)
         textValues.put(TextStyleKeys.FONT_WEIGHT_STATE, StyleState.SET)
-        notifyTextStyleChanged(TextStyleChange.FONT_WEIGHT)
+        font.weight = value
+        notifyTextStyleChanged(TextStyleChangeMask.FONT_WEIGHT)
       }
     }
 
@@ -1230,7 +1266,7 @@ class Style internal constructor(private var node: Node) {
         textValues.putInt(TextStyleKeys.FONT_STYLE_TYPE, value.style.value)
         textValues.put(TextStyleKeys.FONT_STYLE_STATE, StyleState.SET)
         font.style = value
-        notifyTextStyleChanged(TextStyleChange.FONT_STYLE)
+        notifyTextStyleChanged(TextStyleChangeMask.FONT_STYLE)
       }
     }
     get() {
@@ -1261,7 +1297,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       textValues.putFloat(TextStyleKeys.LETTER_SPACING, value)
-      notifyTextStyleChanged(TextStyleChange.LETTER_SPACING)
+      notifyTextStyleChanged(TextStyleChangeMask.LETTER_SPACING)
     }
 
   var textWrap: TextWrap
@@ -1271,7 +1307,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.TEXT_WRAP, value.value)
       textValues.put(TextStyleKeys.TEXT_WRAP_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.TEXT_WRAP)
+      notifyTextStyleChanged(TextStyleChangeMask.TEXT_WRAP)
     }
 
   var whiteSpace: Styles.WhiteSpace
@@ -1281,7 +1317,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.WHITE_SPACE, value.value)
       textValues.put(TextStyleKeys.WHITE_SPACE_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.WHITE_SPACE)
+      notifyTextStyleChanged(TextStyleChangeMask.WHITE_SPACE)
     }
 
   var textTransform: Styles.TextTransform
@@ -1291,7 +1327,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.TRANSFORM, value.value)
       textValues.put(TextStyleKeys.TRANSFORM_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.TEXT_TRANSFORM)
+      notifyTextStyleChanged(TextStyleChangeMask.TEXT_TRANSFORM)
     }
 
   var backgroundColor: Int
@@ -1301,7 +1337,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, value)
       textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.BACKGROUND_COLOR)
+      notifyTextStyleChanged(TextStyleChangeMask.BACKGROUND_COLOR)
     }
 
   var decorationLine: Styles.DecorationLine
@@ -1311,7 +1347,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.DECORATION_LINE, value.value)
       textValues.put(TextStyleKeys.DECORATION_LINE_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.DECORATION_LINE)
+      notifyTextStyleChanged(TextStyleChangeMask.DECORATION_LINE)
     }
 
   var decorationColor: Int
@@ -1321,7 +1357,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.DECORATION_COLOR, value)
       textValues.put(TextStyleKeys.DECORATION_COLOR_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.DECORATION_COLOR)
+      notifyTextStyleChanged(TextStyleChangeMask.DECORATION_COLOR)
     }
 
   var decorationStyle: Styles.DecorationStyle
@@ -1333,7 +1369,7 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.DECORATION_STYLE, value.value)
       textValues.put(TextStyleKeys.DECORATION_STYLE_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChange.DECORATION_STYLE)
+      notifyTextStyleChanged(TextStyleChangeMask.DECORATION_STYLE)
     }
 
 
@@ -2544,6 +2580,52 @@ class Style internal constructor(private var node: Node) {
       return null
     }
 
+  // Store the resolved FontFace - lazily computed
+  internal val resolvedFontFace: FontFace
+    get() {
+      val familyState = textValues.get(TextStyleKeys.FONT_FAMILY_STATE)
+      val weightState = textValues.get(TextStyleKeys.FONT_WEIGHT_STATE)
+      val styleState = textValues.get(TextStyleKeys.FONT_STYLE_STATE)
+
+      // If all font properties are inherited, use parent's font face
+      if (familyState == StyleState.INHERIT && weightState == StyleState.INHERIT && styleState == StyleState.INHERIT) {
+        return parentStyleWithTextValues?.resolvedFontFace ?: font
+      }
+
+      // If family is inherited but weight/style are set, need to create a new FontFace
+      val baseFamily = if (familyState == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedFontFace?.fontFamily ?: font.fontFamily
+      } else {
+        font.fontFamily
+      }
+
+      val resolvedWeight = if (weightState == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedFontWeight
+          ?: FontFace.NSCFontWeight.from(textValues.getInt(TextStyleKeys.FONT_WEIGHT))
+      } else {
+        FontFace.NSCFontWeight.from(textValues.getInt(TextStyleKeys.FONT_WEIGHT))
+      }
+
+      val resolvedStyle = if (styleState == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedFontStyle ?: fontStyle
+      } else {
+        fontStyle
+      }
+
+      // If everything matches current font, return it
+      if (font.fontFamily == baseFamily && font.weight == resolvedWeight && font.style == resolvedStyle) {
+        return font
+      }
+
+      // Create a new FontFace with resolved properties
+      val resolvedFont = FontFace(baseFamily).apply {
+        weight = resolvedWeight
+        style = resolvedStyle
+      }
+
+      return resolvedFont
+    }
+
   // Resolved properties that handle inheritance
   internal val resolvedColor: Int
     get() {
@@ -2558,12 +2640,28 @@ class Style internal constructor(private var node: Node) {
   internal val resolvedFontSize: Int
     get() {
       val state = textValues.get(TextStyleKeys.SIZE_STATE)
+      val type = textValues.get(TextStyleKeys.SIZE_TYPE)
+      // PERCENT == 1
+      if (type == StyleState.SET) {
+        val parentFontSize =
+          node.parent?.takeIf { it.style.isTextValueInitialized }?.style?.resolvedFontSize
+            ?: Constants.DEFAULT_FONT_SIZE
+
+        Log.w("com.test", "parentFontSize $parentFontSize")
+        return resolvePercentageFontSize(parentFontSize, textValues.getInt(TextStyleKeys.SIZE))
+      }
       return if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedFontSize ?: textValues.getInt(TextStyleKeys.SIZE)
       } else {
         textValues.getInt(TextStyleKeys.SIZE)
       }
     }
+
+  internal fun resolvePercentageFontSize(parentFontSize: Int, percent: Int): Int {
+    val rawSize = textValues.getInt(TextStyleKeys.SIZE)
+    val percent = rawSize.toFloat() / 100f
+    return ceil((parentFontSize * percent).coerceAtLeast(0f)).toInt()
+  }
 
   internal val resolvedFontWeight: FontFace.NSCFontWeight
     get() {
@@ -2706,6 +2804,23 @@ class Style internal constructor(private var node: Node) {
         TextJustify.fromInt(textValues.getInt(TextStyleKeys.TEXT_JUSTIFY))
       }
     }
+
+
+  // Reset methods
+  fun resetFontFamilyToInherit() {
+    textValues.put(TextStyleKeys.FONT_FAMILY_STATE, StyleState.INHERIT)
+    notifyTextStyleChanged(TextStyleChangeMask.FONT_FAMILY)
+  }
+
+  fun resetFontWeightToInherit() {
+    textValues.put(TextStyleKeys.FONT_WEIGHT_STATE, StyleState.INHERIT)
+    notifyTextStyleChanged(TextStyleChangeMask.FONT_WEIGHT)
+  }
+
+  fun resetFontStyleToInherit() {
+    textValues.put(TextStyleKeys.FONT_STYLE_STATE, StyleState.INHERIT)
+    notifyTextStyleChanged(TextStyleChangeMask.FONT_STYLE)
+  }
 
 
   /* Resolved Styles */

@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
@@ -136,10 +137,11 @@ interface Element {
       data = text
       if (this@Element is TextView) {
         container = this@Element
-        attributes.clear()
-        // Copy current TextView attributes to the new text node
-        attributes.putAll(getDefaultAttributes())
       }
+
+      attributes.clear()
+      // Copy current TextView attributes to the new text node
+      attributes.putAll(getDefaultAttributes())
     }
     node.appendChild(textNode)
   }
@@ -196,7 +198,6 @@ interface Element {
   fun invalidateLayout() {
     node.dirty()
 
-
     val root = node.getRootNode() ?: node
 
     if (root.type == NodeType.Document) {
@@ -222,8 +223,6 @@ interface Element {
       } else {
         root.computeCache.height
       }
-
-
       (root.view as Element).compute(width, height)
     }
 
@@ -303,6 +302,27 @@ interface Element {
 
 }
 
+internal fun Element.getDefaultAttributes(): Map<String, Any> {
+  val resolvedFont = style.resolvedFontFace
+
+  return mapOf(
+    "color" to style.resolvedColor,
+    "fontSize" to style.resolvedFontSize,
+    "fontWeight" to style.resolvedFontWeight,
+    "fontStyle" to style.resolvedFontStyle,
+    "fontFamily" to resolvedFont.fontFamily,
+    "font" to resolvedFont,
+    "textWrap" to style.resolvedTextWrap,
+    "whiteSpace" to style.resolvedWhiteSpace,
+    "textTransform" to style.resolvedTextTransform,
+    "backgroundColor" to style.resolvedBackgroundColor,
+    "decorationLine" to style.resolvedDecorationLine,
+    "decorationColor" to style.resolvedDecorationColor,
+    "decorationStyle" to style.resolvedDecorationStyle,
+    "letterSpacing" to style.resolvedLetterSpacing
+  )
+}
+
 internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
   node.computedLayout = layout
 
@@ -320,7 +340,7 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
         return
       }
 
-      if (node.type == NodeType.Text) {
+      if (node.view is TextView) {
         realLayout = node.computedLayout
         isText = true
         hasWidthConstraint = node.style.size.width != Dimension.Auto

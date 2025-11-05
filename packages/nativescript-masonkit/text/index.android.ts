@@ -92,7 +92,7 @@ export class Text extends TextBase {
     }
 
     this[isMasonView_] = true;
-    this[style_] = Style.fromView(this as never, this._view, true);
+    this[style_] = Style.fromView(this as never, this._view);
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
