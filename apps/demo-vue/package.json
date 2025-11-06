@@ -3,14 +3,16 @@
   "description": "NativeScript Application",
   "dependencies": {
     "@nativescript/core": "file:../../node_modules/@nativescript/core",
-    "@triniwiz/nativescript-masonkit": "file:../../packages/nativescript-masonkit"
+    "@nativescript/tailwind": "^4.0.5",
+    "@triniwiz/nativescript-masonkit": "file:../../packages/nativescript-masonkit",
+    "tailwindcss": "^4.1.16"
   },
   "devDependencies": {
     "@nativescript/android": "~8.9.0",
     "@nativescript/ios": "~8.9.0",
     "@nativescript/webpack": "~5.0.5",
     "nativescript-vue": "^3.0.0",
-    "vue": "^3.5.0",
-    "typescript": "~5.6.0"
+    "typescript": "~5.6.0",
+    "vue": "^3.5.0"
   }
 }
