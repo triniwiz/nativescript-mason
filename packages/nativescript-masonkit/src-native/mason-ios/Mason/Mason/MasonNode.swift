@@ -65,6 +65,31 @@ public class MasonNode: NSObject {
   public var onNodeDetached: (() -> Void)? = nil
   
   
+  static func invalidateDescendantTextViews(_ node: MasonNode, _ state: Int64) {
+    // Early exit if node has no initialized text values
+    // if (!node.style.isTextValueInitialized) {
+    //  return
+    // }
+    
+    let textState = TextStyleChangeMasks(rawValue: state)
+    if(textState.contains(.fontWeight)){
+      let weight = node.style.getInt32(TextStyleKeys.FONT_WEIGHT, text: true)
+      node.style.setFontWeight(Int(weight), nil)
+    }
+
+    // Direct invalidation if this is a MasonText
+    if let view = node.view as? MasonText {
+      // Notify all text style changes to ensure paint is fully updated
+      view.onTextStyleChanged(change: state)
+    }
+
+    // Iterate children (only layout children, not author children)
+    for child in node.children {
+      invalidateDescendantTextViews(child, state)
+    }
+  }
+  
+  
   internal var suppressChildOps = 0
   
   @inline(__always)
@@ -309,9 +334,10 @@ extension MasonNode {
       children.append(child)
       child.parent = self
       NativeHelpers.nativeNodeAddChild(mason, self, child)
-      onNodeAttached?()
       NodeUtils.addView(self, child.view)
-      NodeUtils.invalidateLayout(self)
+      // Single pass invalidation of descendants with text styles
+      MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+      onNodeAttached?()
     }
   }
   
@@ -327,6 +353,7 @@ extension MasonNode {
     
     // Create new anonymous container
     let textView = MasonText(mason: mason, isAnonymous: true)
+    textView.style.display = .Inline
     
     if(append){
       // Add container to this node
@@ -570,6 +597,10 @@ extension MasonNode {
             NodeUtils.addView(self, child.view)
           }
           
+          
+          // Single pass invalidation of descendants with text styles
+          MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+          
           NodeUtils.syncNode(self, children)
           if !style.inBatch {
             (view as? MasonElement)?.invalidateLayout()
@@ -585,6 +616,11 @@ extension MasonNode {
     reference.parent = nil
     NodeUtils.removeView(self, reference.view)
     NodeUtils.addView(self, child.view)
+    
+    // Single pass invalidation of descendants with text styles
+    MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+    
+    
     NodeUtils.syncNode(self, children)
     
     if !style.inBatch {
@@ -749,6 +785,10 @@ extension MasonNode {
         
         NodeUtils.syncNode(self, children)
         NodeUtils.addView(self, child.view)
+        // Single pass invalidation of descendants with text styles
+        MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+        
+        
         NodeUtils.syncNode(self, children)
         if !style.inBatch { (view as? MasonElement)?.invalidateLayout() }
         return
@@ -766,6 +806,9 @@ extension MasonNode {
     } else {
       NodeUtils.addView(self, child.view)
     }
+    
+    // Single pass invalidation of descendants with text styles
+    MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
     
     NodeUtils.syncNode(self, children)
     if !style.inBatch { (view as? MasonElement)?.invalidateLayout() }

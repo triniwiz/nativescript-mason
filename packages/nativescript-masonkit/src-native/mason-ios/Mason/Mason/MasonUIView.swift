@@ -10,7 +10,11 @@ import Foundation
 
 @objcMembers
 @objc(MasonUIView)
-public class MasonUIView: UIView, MasonElement, MasonElementObjc {
+public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeListener {
+  func onTextStyleChanged(change: Int64) {
+    MasonNode.invalidateDescendantTextViews(node, change)
+  }
+  
   public let node: MasonNode
   public let mason: NSCMason
   
@@ -33,23 +37,14 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc {
     mason = doc
     super.init(frame: .zero)
     setComputeCache(.init(width: -2, height: -2))
+    computeCacheDirty = false
     node.view = self
-   // node.setDefaultMeasureFunction()
+    style.setStyleChangeListener(listener: self)
   }
   
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
-  
-  
-  public func syncStyle(_ state: String) {
-    guard let stateValue = Int64(state, radix: 10) else {return}
-    if (stateValue != -1) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
-  }
-  
   
   @objc public static func createGridView(_ mason: NSCMason) -> MasonUIView{
     let view = MasonUIView(mason: mason)

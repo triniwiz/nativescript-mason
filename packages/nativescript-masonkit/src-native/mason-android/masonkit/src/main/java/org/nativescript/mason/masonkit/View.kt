@@ -91,6 +91,8 @@ class View @JvmOverloads constructor(
       mapMeasureSpec(specWidthMode, specWidth).value,
       mapMeasureSpec(specHeightMode, specHeight).value
     )
+
+    node.mason.printTree(node)
     // todo cache layout
     val layout = layout()
     setMeasuredDimension(

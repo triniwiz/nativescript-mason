@@ -10,6 +10,7 @@ import android.text.SpannableStringBuilder
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.style.AbsoluteSizeSpan
+import android.text.style.AlignmentSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
@@ -23,6 +24,8 @@ import androidx.core.graphics.withTranslation
 import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
+import org.nativescript.mason.masonkit.TextNode.FixedLineHeightSpan
+import org.nativescript.mason.masonkit.TextNode.RelativeLineHeightSpan
 import java.nio.ByteBuffer
 import kotlin.math.ceil
 
@@ -283,7 +286,11 @@ class TextView @JvmOverloads constructor(
       change and TextStyleChangeMask.DECORATION_STYLE != 0 ||
       change and TextStyleChangeMask.LETTER_SPACING != 0 ||
       change and TextStyleChangeMask.TEXT_JUSTIFY != 0 ||
-      change and TextStyleChangeMask.BACKGROUND_COLOR != 0
+      change and TextStyleChangeMask.BACKGROUND_COLOR != 0 ||
+      change and TextStyleChangeMask.LINE_HEIGHT != 0 ||
+      change and TextStyleChangeMask.TEXT_ALIGN != 0 ||
+      change and TextStyleChangeMask.TEXT_OVERFLOW != 0
+
     ) {
       dirty = true
     }
@@ -557,13 +564,28 @@ class TextView @JvmOverloads constructor(
       heightConstraint = knownHeight.toInt()
     }
 
-    if (textWrap != TextWrap.NoWrap && availableWidth > 0 && availableWidth != Float.MIN_VALUE) {
-      widthConstraint = availableWidth.toInt()
-    }
 
     if (isInline) {
       widthConstraint = Int.MAX_VALUE
     }
+
+    var allowWrap = true
+    if (node.style.isTextValueInitialized) {
+      val ws = node.style.whiteSpace
+      // No wrap for pre / nowrap
+      if (ws == Styles.WhiteSpace.Pre || ws == Styles.WhiteSpace.NoWrap) {
+        allowWrap = false
+      }
+      // Explicit override
+      if (node.style.textWrap == TextWrap.NoWrap) {
+        allowWrap = false
+      }
+    }
+
+    if (allowWrap && availableWidth > 0 && availableWidth != Float.MIN_VALUE) {
+      widthConstraint = availableWidth.toInt()
+    }
+
 
     val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
 
@@ -626,7 +648,7 @@ class TextView @JvmOverloads constructor(
   }
 
   private fun getLayoutAlignment(): Layout.Alignment {
-    return when (textAlign) {
+    return when (style.resolvedTextAlign) {
       TextAlign.Left, TextAlign.Start -> Layout.Alignment.ALIGN_NORMAL
       TextAlign.Right, TextAlign.End -> Layout.Alignment.ALIGN_OPPOSITE
       TextAlign.Center -> Layout.Alignment.ALIGN_CENTER
@@ -889,7 +911,6 @@ class TextView @JvmOverloads constructor(
       )
     }
 
-
     val fontFace = textView.style.resolvedFontFace
     // Apply typeface
     fontFace.font?.let { typeface ->
@@ -922,6 +943,39 @@ class TextView @JvmOverloads constructor(
         android.text.style.ScaleXSpan(1f + letterSpacingValue), start, end, flags
       )
     }
+
+    val lineHeight = textView.style.resolvedLineHeight
+    val lineType = textView.style.resolvedLineHeightType
+
+    // Apply line height
+
+    lineHeight.takeIf { it > 0 }?.let {
+      // 1
+      if (lineType == StyleState.SET) {
+        spannable.setSpan(FixedLineHeightSpan(it.toInt()), start, end, flags)
+      } else {
+        spannable.setSpan(RelativeLineHeightSpan(it), start, end, flags)
+      }
+    }
+
+    val align = when (style.resolvedTextAlign) {
+      TextAlign.Left, TextAlign.Start -> android.text.Layout.Alignment.ALIGN_NORMAL
+      TextAlign.Right, TextAlign.End -> android.text.Layout.Alignment.ALIGN_OPPOSITE
+      TextAlign.Center -> android.text.Layout.Alignment.ALIGN_CENTER
+      TextAlign.Justify -> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          android.text.Layout.Alignment.ALIGN_NORMAL // Justify handled by justificationMode
+        } else {
+          android.text.Layout.Alignment.ALIGN_NORMAL
+        }
+      }
+
+      else -> android.text.Layout.Alignment.ALIGN_NORMAL
+    }
+
+    spannable.setSpan(AlignmentSpan.Standard(align), start, end, flags)
+
+
   }
 
   // Append multiple items (strings or nodes)

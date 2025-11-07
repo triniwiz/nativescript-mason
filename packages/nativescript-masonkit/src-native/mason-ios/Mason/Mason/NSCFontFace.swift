@@ -411,10 +411,10 @@ let srcPattern = #"src:\s*url\(([^)]+)\)\s*format\('([^']+)'\);"#
 public class NSCFontFace: NSObject {
   private var uiFont: UIFont? = nil
   public internal(set) var font: CGFont? = nil
-  private var fontFamily: String
+  internal var fontFamily: String
   public internal(set) var fontData: NSData? = nil
   private var localOrRemoteSource: String? = nil
-  private var fontDescriptors: NSCFontDescriptors
+  internal var fontDescriptors: NSCFontDescriptors
   private var loaderQueue = DispatchQueue(label: "NSCFontFace Loader Queue")
   private static let bundle = Bundle(identifier: "com.github.triniwiz.Mason")
   static let genericFontFamilies = [
@@ -712,7 +712,6 @@ public class NSCFontFace: NSObject {
       if let font = uiFont {
         var descriptor = font.fontDescriptor
       
-        
         switch(fontDescriptors.styleValue){
         case .normal:
           break

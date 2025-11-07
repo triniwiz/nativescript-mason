@@ -88,7 +88,6 @@ public protocol MasonElement: NSObjectProtocol {
   
   func addChildAt(node: MasonNode, _ index: Int)
   
-
   func replaceChildAt(text: String, _ index: Int)
   
   func replaceChildAt(element: MasonElement, _ index: Int)
@@ -96,14 +95,250 @@ public protocol MasonElement: NSObjectProtocol {
   func replaceChildAt(node: MasonNode, _ index: Int)
 }
 
-
-
 private struct MasonElementProperties {
   static var computeCache: UInt8 = 0
   static var isInLayout: UInt8 = 1
+  static var computeCacheDirty: UInt8 = 2
+}
+
+func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
+  // UIFont.Weight → CoreText weight value
+  let weightValue: CGFloat
+  switch weight {
+  case .thin: weightValue = -0.8
+  case .ultraLight: weightValue = -1.0
+  case .light: weightValue = -0.5
+  case .regular: weightValue = 0
+  case .medium: weightValue = 0.4
+  case .semibold: weightValue = 0.6
+  case .bold: weightValue = 0.8
+  case .heavy, .black: weightValue = 1.0
+  default: weightValue = 0
+  }
+  
+  var traits: [CFString: Any] = [
+    kCTFontWeightTrait: weightValue
+  ]
+  
+  var symbolicTraits: CTFontSymbolicTraits = []
+  switch(style) {
+  case .normal:
+    // noop
+    break
+  case .italic:
+    symbolicTraits.insert(.traitItalic)
+  case .oblique(let value):
+    if let value = value {
+      // todo handle slant value
+      symbolicTraits.insert(.traitItalic)
+    }else {
+      symbolicTraits.insert(.traitItalic)
+    }
+  }
+  if weightValue >= 0.6 {
+    symbolicTraits.insert(.traitBold)
+  }
+  
+  if !symbolicTraits.isEmpty {
+    traits[kCTFontSymbolicTrait] = symbolicTraits.rawValue
+  }
+  
+  let postScriptName = cgFont.postScriptName! as String
+  
+  let attributes: [CFString: Any] = [
+    kCTFontNameAttribute: postScriptName as CFString,
+    kCTFontSizeAttribute: fontSize,
+    kCTFontTraitsAttribute: traits
+  ]
+  
+  let descriptor = CTFontDescriptorCreateWithAttributes(attributes as CFDictionary)
+  
+  return CTFontCreateWithFontDescriptor(descriptor, fontSize, nil)
 }
 
 extension MasonElement {
+  
+  private func getDecorationColor() -> UIColor {
+    let decColor = style.resolvedDecorationColor
+    if decColor == Constants.UNSET_COLOR {
+      return UIColor.colorFromARGB(style.resolvedColor)
+    }
+    return UIColor.colorFromARGB(decColor)
+  }
+  
+  /// Helper to get default text attributes for new text nodes
+  public func getDefaultAttributes() -> [NSAttributedString.Key: Any] {
+    var attrs: [NSAttributedString.Key: Any] = [:]
+    
+    if(style.font.font == nil){
+      style.font.loadSync { _ in }
+    }
+    
+    let paragraphStyle = NSMutableParagraphStyle()
+    
+    var type = MasonTextType.None
+    
+    if let view = uiView as? MasonText {
+      type = view.type
+    }
+    
+    let scale = NSCMason.scale
+    
+    switch(type){
+    case .H1:
+      paragraphStyle.paragraphSpacing = CGFloat( 8 * scale)
+      break
+    case .H2:
+      paragraphStyle.paragraphSpacing = CGFloat( 7 * scale)
+      break
+    case .H3:
+      paragraphStyle.paragraphSpacing = CGFloat( 6 * scale)
+      break
+    case .H4:
+      paragraphStyle.paragraphSpacing = CGFloat( 5 * scale)
+      break
+    case .H5:
+      paragraphStyle.paragraphSpacing = CGFloat( 4 * scale)
+      break
+    case .H6:
+      paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
+      break
+    case .Blockquote:
+      paragraphStyle.headIndent = CGFloat(40)
+      paragraphStyle.firstLineHeadIndent =  CGFloat(40)
+      break
+    default:
+      //noop
+      break
+    }
+    
+    let fontFace = style.resolvedFontFace
+    
+    if(fontFace.font == nil){
+      fontFace.loadSync { _ in}
+    }
+    
+    if let font = fontFace.font {
+      // Font
+      let ctFont = ctFont(from: font, fontSize: CGFloat(style.resolvedFontSize), weight: style.resolvedFontWeight.uiFontWeight, style: style.resolvedInternalFontStyle)
+      attrs[.font] = ctFont
+    }
+    
+    
+    // Color
+    attrs[.foregroundColor] =  UIColor.colorFromARGB(style.resolvedColor)
+    
+    
+    let backgroundColorValue = style.resolvedBackgroundColor
+    // Background color
+    if backgroundColorValue != 0 {
+      attrs[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
+    }
+    
+    
+    switch(style.resolvedDecorationLine){
+    case .None: break
+      // noop
+    case .Underline:
+      attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
+      attrs[.underlineColor] = getDecorationColor()
+    case .Overline:
+      // todo
+      break
+    case .LineThrough:
+      attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+      attrs[.strikethroughColor] = getDecorationColor()
+      
+    }
+    
+    
+    let ws = style.resolvedWhiteSpace
+    let noWrap = (style.resolvedTextWrap == .NoWrap)
+    // Allow wrap unless textWrap=NoWrap or white-space forbids it
+    let allowWrap = !(noWrap || ws == .Pre || ws == .NoWrap)
+
+    switch ws {
+    case .Normal, .PreWrap, .PreLine, .BreakSpaces:
+      paragraphStyle.lineBreakMode = allowWrap ? .byWordWrapping : .byClipping
+    case .Pre, .NoWrap:
+      paragraphStyle.lineBreakMode = .byClipping
+    }
+
+    if #available(iOS 14.0, *) {
+      paragraphStyle.lineBreakStrategy = allowWrap ? [.standard, .hangulWordPriority, .pushOut] : []
+    }
+    
+    // Preserve spacing better when wrapping
+    paragraphStyle.allowsDefaultTighteningForTruncation = false
+    
+    // letter spacing
+    let letterSpacing = style.resolvedLetterSpacing
+    if(letterSpacing > 0){
+      attrs[.kern] = letterSpacing
+    }
+    
+    let lineHeightType = style.resolvedLineHeightType
+    let lineHeight = style.resolvedLineHeight
+    if(lineHeightType == 1){
+      let height = CGFloat(lineHeight)
+      paragraphStyle.minimumLineHeight = height
+      paragraphStyle.maximumLineHeight = height
+    }else {
+      if(lineHeight > 0){
+        paragraphStyle.lineHeightMultiple = CGFloat(lineHeight)
+      }
+    }
+    
+    // text alignment
+    switch style.resolvedTextAlign {
+    case .Auto:
+      paragraphStyle.alignment = .natural
+    case .Left:
+      paragraphStyle.alignment = .left
+    case .Right:
+      paragraphStyle.alignment = .right
+    case .Center:
+      paragraphStyle.alignment = .center
+    case .Justify:
+      paragraphStyle.alignment = .justified
+    case .Start:
+      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+      if(isLTR){
+        paragraphStyle.alignment = .left
+      }else {
+        paragraphStyle.alignment = .right
+      }
+      break
+    case .End:
+      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+      if(isLTR){
+        paragraphStyle.alignment = .right
+      }else {
+        paragraphStyle.alignment = .left
+      }
+      break
+    }
+    
+    // Paragraph style
+    attrs[.paragraphStyle] = paragraphStyle
+    
+    
+    return attrs
+  }
+  
+  
+  public func syncStyle(_ state: String, _ textState: String) {
+    let stateValue = Int64(state, radix: 10)
+    let textStateValue = Int64(textState, radix: 10)
+    if let textStateValue = textStateValue {
+      node.style.invalidateStyle(textStateValue)
+    }
+    
+    if let stateValue = stateValue {
+      style.isDirty = stateValue
+      style.updateNativeStyle()
+    }
+  }
   
   public func addChildAt(text: String, _ index: Int) {
     node.addChildAt(MasonTextNode(mason: node.mason, data: text), index)
@@ -135,15 +370,6 @@ extension MasonElement {
     }
   }
   
-  public func syncStyle(_ state: String) {
-    guard let stateValue = Int64(state, radix: 10) else {return}
-    //  let keys = StateKeys(rawValue: UInt64(stateValue))
-    if (stateValue != -1) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
-  }
-  
   public func configure(_ block :(MasonStyle) -> Void) {
     node.inBatch = true
     block(node.style)
@@ -162,9 +388,18 @@ extension MasonElement {
     }
     
     if let view = view {
-      let computed = view.computeCache()
-      view.computeWithSize(Float(computed.width), Float(computed.height))
+      if(view.computeCacheDirty){
+        let computed = view.computeCache()
+        view.computeWithSize(Float(computed.width), Float(computed.height))
+      }
     }
+  }
+  
+  public func invalidate(markDirty: Bool = false) {
+    //    if(markDirty){
+    //      node.markDirty()
+    //    }
+    //    uiView.setNeedsDisplay()
   }
   
   public func invalidateLayout(){
@@ -218,12 +453,23 @@ extension MasonElement {
     }
   }
   
+  
+  internal var computeCacheDirty: Bool {
+    get {
+      return objc_getAssociatedObject(self, &MasonElementProperties.computeCacheDirty) as? Bool ?? false
+    }
+    set {
+      objc_setAssociatedObject(self, &MasonElementProperties.computeCacheDirty, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+  }
+  
   internal func computeCache() -> CGSize {
     return objc_getAssociatedObject(self, &MasonElementProperties.computeCache) as? CGSize ?? .zero
   }
   
   internal func setComputeCache(_ value: CGSize) {
     objc_setAssociatedObject(self, &MasonElementProperties.computeCache, value, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    computeCacheDirty = true
   }
   
   public func append(_ element: MasonElement){
@@ -253,7 +499,7 @@ extension MasonElement {
     for node in nodes {
       self.node.appendChild(node)
     }
-  
+    
   }
   
   public func append(nodes: [MasonNode]){
@@ -265,7 +511,7 @@ extension MasonElement {
   
   public func append(elements: [MasonElement]){
     guard !elements.isEmpty else { return }
- 
+    
     for element in elements {
       self.node.appendChild(element.node)
     }
@@ -476,7 +722,6 @@ class MasonElementHelpers: NSObject {
       var height = CGFloat(heightIsNan ? 0 : realLayout.height/NSCMason.scale)
       
       if(isTextView){
-        
         if(!hasWidthConstraint && realLayout.contentSize.width > realLayout.width){
           width = CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale)
         }
@@ -489,8 +734,8 @@ class MasonElementHelpers: NSObject {
       
       let point = CGPoint(x: x, y: y)
       
-      let size = CGSizeMake(width, height)
-      
+      var size = CGSizeMake(width, height)
+    
       view.frame = CGRect(origin: point, size: size)
       
       node.isLayoutValid = true

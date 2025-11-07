@@ -22,11 +22,11 @@ class Styles {
     companion object {
       fun fromInt(value: Int): TextJustify {
         return when (value) {
-          0 -> None
-          1 -> Auto
-          2 -> InterWord
-          3 -> InterCharacter
-          4 -> Distribute
+          -1 -> None
+          0 -> Auto
+          1 -> InterWord
+          2 -> InterCharacter
+          3 -> Distribute
           else -> throw IllegalArgumentException("Unknown enum value: $value")
         }
       }
@@ -177,6 +177,21 @@ class Styles {
           }
 
           else -> throw IllegalArgumentException("Unknown enum value: $value")
+        }
+      }
+
+      @JvmStatic
+      fun ellipse(token: String): TextOverflow {
+        return Ellipse.apply {
+          this.token = token
+        }
+      }
+
+      @JvmOverloads
+      @JvmStatic
+      fun custom(token: String = ""): TextOverflow {
+        return Ellipse.apply {
+          this.token = token
         }
       }
     }

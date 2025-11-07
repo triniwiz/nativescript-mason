@@ -4,7 +4,7 @@ import android.animation.ValueAnimator
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
-import android.view.WindowInsets
+import android.util.TypedValue
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
@@ -14,15 +14,21 @@ import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Display
 import org.nativescript.mason.masonkit.FlexDirection
 import org.nativescript.mason.masonkit.FontFace
+import org.nativescript.mason.masonkit.GridPlacement
 import org.nativescript.mason.masonkit.LengthPercentage
+import org.nativescript.mason.masonkit.Line
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.MinMax
+import org.nativescript.mason.masonkit.NodeHelper
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
+import org.nativescript.mason.masonkit.StateKeys
+import org.nativescript.mason.masonkit.StyleKeys
 import org.nativescript.mason.masonkit.Styles
-import org.nativescript.mason.masonkit.TextStateKeys
-import org.nativescript.mason.masonkit.TextStyleKeys
+import org.nativescript.mason.masonkit.TextAlign
 import org.nativescript.mason.masonkit.TextType
 import org.nativescript.mason.masonkit.TextView
+import org.nativescript.mason.masonkit.TrackSizingFunction
 import org.nativescript.mason.masonkit.View
 import java.util.Timer
 import kotlin.concurrent.schedule
@@ -56,7 +62,7 @@ class TextActivity : AppCompatActivity() {
     //basicNesting()
     // testText()
     //textWithImage()
-   //  basicBlock()
+    //  basicBlock()
     //  testWrap()
     //testElements()
     //testTextInsert()
@@ -67,14 +73,233 @@ class TextActivity : AppCompatActivity() {
     // testTextContainerAppend()
     // testTextContainerReplace()
     /// testTextContainerReplaceInContainer()
-   // testTextNodeReplaceWithImage()
+    // testTextNodeReplaceWithImage()
     //  testTextNodeInsertWithImage()
     //   testTextWrap()
     // flexDirection()
     //  flexGrow()
     // flexShrink()
-    gridTemplateColumns()
+    //gridTemplateColumns()
+    //dynamicGridTemplateColumns()
+    //padding()
+    textAlignment()
     setContentView(body)
+  }
+
+  fun textAlignment() {
+    val root = Mason.shared.createView(this)
+    root.style.size = Size(Dimension.Percent(1f), Dimension.Auto)
+    root.setBackgroundColor(Color.RED)
+    val text = Mason.shared.createTextView(this, TextType.P)
+    text.fontSize = 18
+    text.backgroundColorValue = Color.BLUE
+    text.style.setLineHeight(28f, false)
+    text.append("Hello")
+
+    text.style.textAlign = TextAlign.Center
+    root.append(text)
+
+    body.append(root)
+  }
+
+  fun fontSize() {
+    val root = Mason.shared.createView(this)
+    root.style.fontSize = 30
+
+    val outer1 = Mason.shared.createTextView(this, TextType.Span)
+    outer1.append("Outer")
+
+    val outer2 = Mason.shared.createTextView(this, TextType.Span)
+    outer2.append("Outer")
+    outer1.style.size = Size(Dimension.Points(0f), Dimension.Auto)
+    outer1.append(outer2)
+
+    root.append(outer1)
+
+    outer2.style.fontSize = 10
+
+    body.append(root)
+    outer2.style.color = Color.RED
+    outer2.style.fontStyle = FontFace.NSCFontStyle.Italic
+    outer1.style.fontWeight = FontFace.NSCFontWeight.Bold
+
+    val text = Mason.shared.createTextView(this, TextType.P)
+    text.fontSize = 16
+    text.append(
+      """
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque a tempor nisi. Sed et pellentesque metus, eu luctus tellus. Vivamus interdum pretium lorem, dignissim auctor elit sollicitudin non. Maecenas eget ex in erat sollicitudin elementum. Praesent vitae mattis nisi, sed posuere neque. Sed sit amet aliquet nulla, vel posuere lorem. Nunc quis odio vehicula, facilisis leo at, convallis elit.
+
+Fusce pretium sagittis magna, pellentesque ullamcorper purus molestie a. Fusce sit amet interdum lacus. Morbi tincidunt nisi lectus, sit amet congue libero congue quis. Proin id faucibus dui, quis lacinia massa. Praesent felis ante, finibus vitae malesuada in, euismod vel arcu. Cras tellus lorem, congue at felis a, vulputate elementum augue. Aliquam eget eleifend justo. Vestibulum at rutrum lectus. Curabitur quis augue id lacus fringilla dictum. Mauris in mauris id lorem posuere tempus. Mauris ac ornare velit, in accumsan nibh. Pellentesque vel nibh porttitor, ultricies risus et, tempor ipsum. In eu ante nisi. Donec sed arcu tempus, tempor erat nec, consequat velit. Ut ac auctor purus.
+
+Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Phasellus aliquet, neque a rutrum tristique, velit tellus condimentum arcu, in sodales urna dolor ut lorem. Pellentesque non lobortis sem. Aliquam a cursus ligula. Proin dapibus congue erat, sagittis viverra massa elementum sed. Vestibulum sit amet libero turpis. Vestibulum elit mauris, pharetra vel egestas quis, convallis sed tellus. Nullam sodales hendrerit diam. Fusce in viverra purus. Mauris commodo diam ac mauris molestie suscipit. Nunc massa tellus, sagittis ut consectetur in, maximus at ligula. Nam quis pharetra mi. Donec convallis ante mi, vel dapibus tellus cursus sed.
+
+Integer vel risus quis nulla porta sollicitudin. Vivamus vel convallis ligula, quis finibus metus. Suspendisse sollicitudin sodales accumsan. Ut vel leo efficitur, porta leo at, porta magna. Vivamus laoreet consequat tempor. Suspendisse sodales massa vel iaculis tristique. Vivamus quis nunc fringilla, ultricies sapien in, lobortis purus. Donec sed consequat massa. Nulla placerat ex id urna fringilla, non iaculis ante finibus. Fusce at venenatis augue, a sagittis felis. Vivamus nulla quam, venenatis sit amet sagittis in, faucibus pretium quam. Nullam laoreet et purus et commodo.
+
+Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et malesuada fames ac ante ipsum primis in faucibus. Duis volutpat, nulla faucibus consectetur porta, nulla ex sollicitudin ex, at imperdiet elit ante tristique ante. Sed finibus risus a risus imperdiet, et condimentum urna vulputate. Phasellus commodo vestibulum risus, vel iaculis elit vehicula id. Vestibulum id lorem sit amet nulla dapibus pulvinar ut at quam. Nullam non metus nisi. Quisque sed leo maximus quam accumsan egestas. Praesent aliquet diam sed iaculis lobortis. Quisque in felis non lacus lacinia lacinia in eget lorem. Aenean vel augue sit amet ligula varius dapibus. Maecenas nec iaculis purus. Maecenas ut libero quis est ornare porttitor eu in nunc.
+"""
+    )
+    root.append(text)
+
+    Timer().schedule(3000L) {
+      runOnUiThread {
+        root.style.setLineHeight(50f, false)
+      }
+    }
+  }
+
+  fun padding() {
+    val root = Mason.shared.createView(this)
+    val h4 = Mason.shared.createTextView(this, TextType.H4)
+    h4.append("This element has moderate padding.")
+
+    h4.setBackgroundColor(Color.rgb(0, 255, 0))
+    root.append(h4)
+    h4.style.padding = Rect(
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(20f),
+      LengthPercentage.Points(50f),
+      LengthPercentage.Points(50f)
+    )
+
+    val h3 = Mason.shared.createTextView(this, TextType.H3)
+    h3.append("The padding is huge in this element!")
+
+
+    h3.setBackgroundColor(Color.rgb(0, 255, 255))
+
+    root.append(h3)
+
+    h3.style.padding = Rect(
+      LengthPercentage.Points(110f),
+      LengthPercentage.Points(50f),
+      LengthPercentage.Points(110f),
+      LengthPercentage.Points(50f)
+    )
+    body.append(root)
+  }
+
+  fun dynamicGridTemplateColumns() {
+    val root = Mason.shared.createView(this)
+    root.setBackgroundColor(Color.WHITE)
+    root.style.color = Color.rgb(68, 68, 68)
+    root.style.values.putInt(
+      StyleKeys.DISPLAY, 2
+    )
+    root.syncStyle("${StateKeys.DISPLAY.bits}", "-1")
+    val col = TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_DIP,
+      100f,
+      resources.displayMetrics
+    )
+
+    val gap = TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_DIP,
+      10f,
+      resources.displayMetrics
+    )
+    NodeHelper.shared.setGridTemplateColumns(
+      root, arrayOf(
+        TrackSizingFunction.Single(MinMax.fromTypeValue(3, col, 3, col)!!),
+        TrackSizingFunction.Single(MinMax.fromTypeValue(3, col, 3, col)!!),
+        TrackSizingFunction.Single(MinMax.fromTypeValue(3, col, 3, col)!!)
+      )
+    )
+
+
+    Timer().schedule(1000L) {
+      runOnUiThread {
+        root.style.values.putInt(
+          StyleKeys.GAP_ROW_TYPE, 0
+        )
+        root.style.values.putFloat(
+          StyleKeys.GAP_ROW_VALUE, gap
+        )
+        root.syncStyle("${StateKeys.GAP.bits}", "-1")
+
+
+        root.style.values.putInt(
+          StyleKeys.GAP_COLUMN_TYPE, 0
+        )
+        root.style.values.putFloat(
+          StyleKeys.GAP_COLUMN_VALUE, gap
+        )
+        root.syncStyle("${StateKeys.GAP.bits}", "-1")
+
+
+        val context = this@TextActivity
+        val bg = Color.rgb(68, 68, 68)
+        val a = Mason.shared.createView(context)
+        a.style.color = Color.WHITE
+        a.append("A")
+        a.style.padding = Rect(
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f)
+        )
+        a.setBackgroundColor(bg)
+
+        a.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+        a.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+
+
+        root.append(a)
+
+        val b = Mason.shared.createView(context)
+        b.style.color = Color.WHITE
+        b.append("B")
+        b.style.padding = Rect(
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f)
+        )
+        b.setBackgroundColor(bg)
+
+
+        b.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
+        b.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+
+
+        root.append(b)
+
+        val c = Mason.shared.createView(context)
+        c.append("C")
+        c.style.color = Color.WHITE
+        c.style.padding = Rect(
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f)
+        )
+        c.setBackgroundColor(bg)
+
+        c.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+        c.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+
+
+        root.append(c)
+
+        val d = Mason.shared.createView(context)
+        d.append("D")
+        d.style.color = Color.WHITE
+        d.style.padding = Rect(
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f),
+          LengthPercentage.Points(20f)
+        )
+        d.setBackgroundColor(bg)
+
+        root.append(d)
+
+        d.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+        d.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+
+      }
+    }
+
+    body.append(root)
   }
 
   fun gridTemplateColumns() {

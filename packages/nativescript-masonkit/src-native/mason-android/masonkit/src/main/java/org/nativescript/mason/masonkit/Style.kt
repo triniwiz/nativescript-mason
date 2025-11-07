@@ -1,7 +1,6 @@
 package org.nativescript.mason.masonkit
 
 import android.graphics.Color
-import android.util.Log
 import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.Display.Block
 import org.nativescript.mason.masonkit.Display.Flex
@@ -746,8 +745,6 @@ val Array<TrackSizingFunction>.cssValue: String
     return builder.toString()
   }
 
-const val BYTE_FALSE: Byte = 0
-
 object StyleKeys {
   const val DISPLAY = 0
   const val POSITION = 4
@@ -917,6 +914,9 @@ object TextStyleChangeMask {
   const val WHITE_SPACE: Int = 1 shl 11
   const val TEXT_TRANSFORM: Int = 1 shl 12
   const val TEXT_JUSTIFY: Int = 1 shl 13
+  const val TEXT_OVERFLOW: Int = 1 shl 14
+  const val LINE_HEIGHT: Int = 1 shl 15
+  const val TEXT_ALIGN: Int = 1 shl 16
   const val ALL: Int = -1
 }
 
@@ -947,14 +947,8 @@ class Style internal constructor(private var node: Node) {
 
   val textValues: ByteBuffer by lazy {
     isTextValueInitialized = true
-    ByteBuffer.allocateDirect(124).apply {
+    ByteBuffer.allocateDirect(140).apply {
       order(ByteOrder.nativeOrder())
-      putInt(TextStyleKeys.COLOR, Color.BLACK)
-      putInt(TextStyleKeys.DECORATION_COLOR, Constants.UNSET_COLOR.toInt())
-      putInt(TextStyleKeys.TEXT_ALIGN, AlignContent.Start.value)
-      putInt(TextStyleKeys.TEXT_JUSTIFY, TextJustify.None.value)
-      putInt(TextStyleKeys.SIZE, Constants.DEFAULT_FONT_SIZE)
-      putInt(TextStyleKeys.FONT_WEIGHT, FontFace.NSCFontWeight.Normal.weight)
 
       // Initialize all values with INHERIT state
       putInt(TextStyleKeys.COLOR, Color.BLACK)
@@ -1040,13 +1034,14 @@ class Style internal constructor(private var node: Node) {
       val sizeDirty = value.hasFlag(TextStateKeys.SIZE)
       val weightDirty = value.hasFlag(TextStateKeys.FONT_WEIGHT)
       val styleDirty = value.hasFlag(TextStateKeys.FONT_STYLE)
+      val lineHeightDirty = value.hasFlag(TextStateKeys.LINE_HEIGHT)
       if (value.hasFlag(TextStateKeys.TRANSFORM) || value.hasFlag(TextStateKeys.TEXT_WRAP) || value.hasFlag(
           TextStateKeys.WHITE_SPACE
         ) || value.hasFlag(
           TextStateKeys.TEXT_OVERFLOW
         ) || colorDirty || value.hasFlag(TextStateKeys.BACKGROUND_COLOR) || value.hasFlag(
           TextStateKeys.DECORATION_COLOR
-        ) || value.hasFlag(TextStateKeys.DECORATION_LINE) || sizeDirty || weightDirty || styleDirty
+        ) || value.hasFlag(TextStateKeys.DECORATION_LINE) || sizeDirty || weightDirty || styleDirty || lineHeightDirty
       ) {
         invalidate = true
       }
@@ -1067,6 +1062,10 @@ class Style internal constructor(private var node: Node) {
 
       if (colorDirty) {
         state = state or TextStyleChangeMask.COLOR
+      }
+
+      if (lineHeightDirty) {
+        state = state or TextStyleChangeMask.LINE_HEIGHT
       }
 
       if (state != TextStyleChangeMask.NONE) {
@@ -1297,6 +1296,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       textValues.putFloat(TextStyleKeys.LETTER_SPACING, value)
+      textValues.put(TextStyleKeys.LETTER_SPACING_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.LETTER_SPACING)
     }
 
@@ -1370,6 +1370,37 @@ class Style internal constructor(private var node: Node) {
       textValues.putInt(TextStyleKeys.DECORATION_STYLE, value.value)
       textValues.put(TextStyleKeys.DECORATION_STYLE_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.DECORATION_STYLE)
+    }
+
+  var lineHeight: Float
+    get() {
+      return textValues.getFloat(TextStyleKeys.LINE_HEIGHT)
+    }
+    set(value) {
+      textValues.putFloat(TextStyleKeys.LINE_HEIGHT, value)
+      textValues.put(TextStyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
+      textValues.put(TextStyleKeys.LINE_HEIGHT_TYPE, 0)
+      notifyTextStyleChanged(TextStyleChangeMask.LETTER_SPACING)
+    }
+
+  fun setLineHeight(value: Float, isRelative: Boolean) {
+    textValues.putFloat(TextStyleKeys.LINE_HEIGHT, value)
+    textValues.put(TextStyleKeys.LINE_HEIGHT_STATE, StyleState.SET)
+    if (!isRelative) {
+      textValues.put(TextStyleKeys.LINE_HEIGHT_TYPE, 1)
+    } else {
+      textValues.put(TextStyleKeys.LINE_HEIGHT_TYPE, 0)
+    }
+    notifyTextStyleChanged(TextStyleChangeMask.LETTER_SPACING)
+  }
+
+
+  var textOverflow: Styles.TextOverflow = Styles.TextOverflow.Clip
+    set(value) {
+      field = value
+      textValues.putInt(TextStyleKeys.TRANSFORM, value.value)
+      textValues.put(TextStyleKeys.TRANSFORM_STATE, StyleState.SET)
+      notifyTextStyleChanged(TextStyleChangeMask.TEXT_OVERFLOW)
     }
 
 
@@ -1569,6 +1600,7 @@ class Style internal constructor(private var node: Node) {
     }
     set(value) {
       textValues.putInt(TextStyleKeys.TEXT_ALIGN, value.value)
+      textValues.put(TextStyleKeys.TEXT_ALIGN_STATE, StyleState.SET)
       setOrAppendState(TextStateKeys.TEXT_ALIGN)
     }
 
@@ -2219,12 +2251,18 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       field = value
       isSlowDirty = true
+      if (!inBatch) {
+        updateNativeStyle()
+      }
     }
 
   var gridAutoColumns: Array<MinMax> = emptyArray()
     set(value) {
       field = value
       isSlowDirty = true
+      if (!inBatch) {
+        updateNativeStyle()
+      }
     }
 
   var gridAutoFlow: GridAutoFlow
@@ -2331,12 +2369,18 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       field = value
       isSlowDirty = true
+      if (!inBatch) {
+        updateNativeStyle()
+      }
     }
 
   var gridTemplateColumns: Array<TrackSizingFunction> = emptyArray()
     set(value) {
       field = value
       isSlowDirty = true
+      if (!inBatch) {
+        updateNativeStyle()
+      }
     }
 
   internal fun updateNativeStyle() {
@@ -2646,8 +2690,6 @@ class Style internal constructor(private var node: Node) {
         val parentFontSize =
           node.parent?.takeIf { it.style.isTextValueInitialized }?.style?.resolvedFontSize
             ?: Constants.DEFAULT_FONT_SIZE
-
-        Log.w("com.test", "parentFontSize $parentFontSize")
         return resolvePercentageFontSize(parentFontSize, textValues.getInt(TextStyleKeys.SIZE))
       }
       return if (state == StyleState.INHERIT) {
@@ -2805,6 +2847,27 @@ class Style internal constructor(private var node: Node) {
       }
     }
 
+  internal val resolvedLineHeight: Float
+    get() {
+      val state = textValues.get(TextStyleKeys.LINE_HEIGHT_STATE)
+      return if (state == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedLineHeight
+          ?: textValues.getFloat(TextStyleKeys.LINE_HEIGHT)
+      } else {
+        textValues.getFloat(TextStyleKeys.LINE_HEIGHT)
+      }
+    }
+
+  internal val resolvedLineHeightType: Byte
+    get() {
+      val state = textValues.get(TextStyleKeys.LINE_HEIGHT_STATE)
+      return if (state == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedLineHeightType
+          ?: textValues.get(TextStyleKeys.LINE_HEIGHT_TYPE)
+      } else {
+        textValues.get(TextStyleKeys.LINE_HEIGHT_TYPE)
+      }
+    }
 
   // Reset methods
   fun resetFontFamilyToInherit() {

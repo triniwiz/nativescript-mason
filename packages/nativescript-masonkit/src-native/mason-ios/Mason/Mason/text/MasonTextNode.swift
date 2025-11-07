@@ -126,9 +126,23 @@ extension MasonTextNode {
     /// Get attributed string representation of this text node
     public func attributed() -> NSAttributedString {
         // Apply text transforms and whitespace processing
-        let processedText = processText(data)        
+        let processedText = processText(data)
+      
         return NSAttributedString(string: processedText, attributes: attributes)
     }
+  
+  internal func fullWidthTransformed(_ string: String) -> String {
+    let mapped = string.unicodeScalars.map { scalar in
+      if scalar.value >= 0x21 && scalar.value <= 0x7E {
+        let fullWidth = scalar.value + 0xFEE0
+        return UnicodeScalar(fullWidth)!
+      } else {
+        return scalar
+      }
+    }
+    
+    return String(String.UnicodeScalarView(mapped))
+  }
     
     private func processText(_ text: String) -> String {
         guard let container = self.container else { return text }
@@ -147,7 +161,7 @@ extension MasonTextNode {
         case .Lowercase:
             processed = processed.lowercased()
         case .FullWidth:
-            processed = container.fullWidthTransformed(processed)
+            processed = fullWidthTransformed(processed)
         case .FullSizeKana:
             processed = processed.applyingTransform(.fullwidthToHalfwidth, reverse: true) ?? processed
         case .MathAuto:

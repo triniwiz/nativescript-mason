@@ -126,14 +126,6 @@ public class Img: UIImageView, MasonElement, MasonElementObjc {
     fatalError("init(coder:) has not been implemented")
   }
   
-  public func syncStyle(_ state: String) {
-    guard let stateValue = Int64(state, radix: 10) else {return}
-    if (stateValue != -1) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
-  }
-  
   private static func measure(_ view: Img, _ known: CGSize?, _ available: CGSize) -> CGSize {
     var ret = CGSize.zero
     if let known = known {

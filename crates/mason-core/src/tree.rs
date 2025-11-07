@@ -2,13 +2,7 @@ use crate::node::{InlineSegment, Node, NodeData, NodeRef, NodeType};
 use crate::style::{DisplayMode, Style};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use std::fmt::Debug;
-use taffy::{
-    compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
-    compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
-    CacheTree, ClearState, CollapsibleMarginSet, Display, Layout,
-    LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId,
-    PrintTree, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree,
-};
+use taffy::{compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout, compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace, CacheTree, ClearState, CollapsibleMarginSet, CoreStyle, Dimension, Display, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId, PrintTree, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree};
 
 new_key_type! {
    pub struct Id;
@@ -875,6 +869,7 @@ impl Tree {
                     // Update the child's layout with the new computed size
                     if let Some(child) = self.nodes.get_mut(child_id) {
                         child.unrounded_layout.size = block_layout.size;
+                        child.unrounded_layout.content_size = block_layout.content_size;
                     }
 
                     // Position the block node
@@ -1184,7 +1179,19 @@ impl Tree {
 
             // IMPORTANT: Store the layout so run delegates can read it
             if let Some(child) = self.nodes.get_mut(*child_id) {
+                let padding = child
+                    .style
+                    .padding()
+                    .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
+
+                let border = child
+                    .style
+                    .border()
+                    .resolve_or_zero(inputs.parent_size, |_v, _b| 0.0);
+
+                child.unrounded_layout.border = border;
                 child.unrounded_layout.size = layout.size;
+                child.unrounded_layout.padding = padding
             }
 
             #[cfg(target_vendor = "apple")]
@@ -1204,7 +1211,7 @@ impl Tree {
 
         // NOW call the text container's measure function
         let node = self.nodes.get(id).unwrap();
-        let style = node.style.clone();
+        let mut style = node.style.clone();
         let measure = self.node_data.get(id).unwrap().copy_measure();
         let is_text_container = node.is_text_container();
         let has_measure = node.has_measure;
@@ -1212,13 +1219,39 @@ impl Tree {
         if is_text_container {
             // Text container: call measure which will build attributed string
             // and collect segments (now inline children have their layouts)
+            let ignore_known_for_inline_leaf =
+                is_text_container && matches!(style.display_mode(), DisplayMode::Inline);
+            if ignore_known_for_inline_leaf {
+                let mut size = style.size();
+                let mut dirty = false;
+                if !size.width.is_auto() && size.width.value() == 0.0 {
+                    size.width = Dimension::auto();
+                    dirty = true;
+                }
+
+                if !size.height.is_auto() && size.height.value() == 0.0 {
+                    size.height = Dimension::auto();
+                    dirty = true;
+                }
+
+                if dirty {
+                    style.set_size(size);
+                }
+            }
             return compute_leaf_layout(
                 inputs,
                 &style,
                 |_val, _basis| 0.0,
                 |known_dimensions, available_space| {
                     // Pass known_dimensions from inputs, not available_space
-                    measure.measure(known_dimensions, available_space)
+
+                    let measure_known = if ignore_known_for_inline_leaf {
+                        Size::NONE
+                    } else {
+                        known_dimensions
+                    };
+
+                    measure.measure(measure_known, available_space)
                 },
             );
         }
@@ -1563,7 +1596,18 @@ impl LayoutPartialTree for Tree {
     }
 
     fn compute_child_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
-        compute_cached_layout(self, node_id, inputs, |tree, node_id, inputs| {
+
+        let is_inline_text = {
+            let node = self.node_from_id(node_id);
+            node.style.display_mode() == DisplayMode::Inline && node.is_text_container()
+        };
+
+        let mut adjusted_inputs = inputs;
+        if is_inline_text {
+            adjusted_inputs.known_dimensions = Size::NONE;
+        }
+
+        compute_cached_layout(self, node_id, adjusted_inputs, |tree, node_id, inputs| {
             let id: Id = node_id.into();
             let node = tree.nodes.get(id).unwrap();
             let has_children = tree.has_children(id);

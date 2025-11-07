@@ -418,8 +418,139 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //testTextNodeInsertingInline()
     //testTextNodeReplaceWithImage()
     // testTextAppend()
-    flexDirection()
+   //flexDirection()
+    
+   // gridTemplateColumns()
+   // padding()
+   // fontSize()
+    textAlignment()
   }
+  
+  func textAlignment() {
+    let root = NSCMason.shared.createView()
+    root.backgroundColor = .red
+    let text = NSCMason.shared.createTextView(type:.P)
+    text.fontSize = 18
+    text.backgroundColor = .blue
+    text.style.setLineHeight(28, false)
+    text.append(text: "Hello")
+
+    root.append(text)
+    
+    let btn = UIButton()
+    btn.setTitle("Hello", for: .normal)
+    
+    root.addView(btn)
+
+    body.append(root)
+   
+   
+   body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+  }
+  
+  func fontSize(){
+    let root = NSCMason.shared.createView()
+    root.style.fontSize = 30
+    
+    let outer1 = NSCMason.shared.createTextView(type: .Span)
+    outer1.append(text: "Outer")
+    
+    let outer2 = NSCMason.shared.createTextView(type: .Span)
+    outer2.append(text: "Outer")
+    outer1.style.size = .init(.Points(0), .Auto)
+    outer1.append(outer2)
+    
+   root.append(outer1)
+    
+    outer2.style.fontSize = 10
+    
+    body.append(root)
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+    outer2.style.color = UIColor.red.toUInt32()
+    outer2.style.fontStyle = .Italic
+    outer1.style.fontWeight = "bold"
+    
+    let text = NSCMason.shared.createTextView(type: .P)
+    text.fontSize = 16
+    text.append(text: """
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque a tempor nisi. Sed et pellentesque metus, eu luctus tellus. Vivamus interdum pretium lorem, dignissim auctor elit sollicitudin non. Maecenas eget ex in erat sollicitudin elementum. Praesent vitae mattis nisi, sed posuere neque. Sed sit amet aliquet nulla, vel posuere lorem. Nunc quis odio vehicula, facilisis leo at, convallis elit.
+
+Fusce pretium sagittis magna, pellentesque ullamcorper purus molestie a. Fusce sit amet interdum lacus. Morbi tincidunt nisi lectus, sit amet congue libero congue quis. Proin id faucibus dui, quis lacinia massa. Praesent felis ante, finibus vitae malesuada in, euismod vel arcu. Cras tellus lorem, congue at felis a, vulputate elementum augue. Aliquam eget eleifend justo. Vestibulum at rutrum lectus. Curabitur quis augue id lacus fringilla dictum. Mauris in mauris id lorem posuere tempus. Mauris ac ornare velit, in accumsan nibh. Pellentesque vel nibh porttitor, ultricies risus et, tempor ipsum. In eu ante nisi. Donec sed arcu tempus, tempor erat nec, consequat velit. Ut ac auctor purus.
+
+Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Phasellus aliquet, neque a rutrum tristique, velit tellus condimentum arcu, in sodales urna dolor ut lorem. Pellentesque non lobortis sem. Aliquam a cursus ligula. Proin dapibus congue erat, sagittis viverra massa elementum sed. Vestibulum sit amet libero turpis. Vestibulum elit mauris, pharetra vel egestas quis, convallis sed tellus. Nullam sodales hendrerit diam. Fusce in viverra purus. Mauris commodo diam ac mauris molestie suscipit. Nunc massa tellus, sagittis ut consectetur in, maximus at ligula. Nam quis pharetra mi. Donec convallis ante mi, vel dapibus tellus cursus sed.
+
+Integer vel risus quis nulla porta sollicitudin. Vivamus vel convallis ligula, quis finibus metus. Suspendisse sollicitudin sodales accumsan. Ut vel leo efficitur, porta leo at, porta magna. Vivamus laoreet consequat tempor. Suspendisse sodales massa vel iaculis tristique. Vivamus quis nunc fringilla, ultricies sapien in, lobortis purus. Donec sed consequat massa. Nulla placerat ex id urna fringilla, non iaculis ante finibus. Fusce at venenatis augue, a sagittis felis. Vivamus nulla quam, venenatis sit amet sagittis in, faucibus pretium quam. Nullam laoreet et purus et commodo.
+
+Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et malesuada fames ac ante ipsum primis in faucibus. Duis volutpat, nulla faucibus consectetur porta, nulla ex sollicitudin ex, at imperdiet elit ante tristique ante. Sed finibus risus a risus imperdiet, et condimentum urna vulputate. Phasellus commodo vestibulum risus, vel iaculis elit vehicula id. Vestibulum id lorem sit amet nulla dapibus pulvinar ut at quam. Nullam non metus nisi. Quisque sed leo maximus quam accumsan egestas. Praesent aliquet diam sed iaculis lobortis. Quisque in felis non lacus lacinia lacinia in eget lorem. Aenean vel augue sit amet ligula varius dapibus. Maecenas nec iaculis purus. Maecenas ut libero quis est ornare porttitor eu in nunc. 
+""")
+    root.append(text)
+  
+    
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+      DispatchQueue.main.async {
+        root.style.setLineHeight(50, false)
+      }
+    }
+  }
+  
+  func padding() {
+    let root = NSCMason.shared.createView()
+    
+    let h4 = NSCMason.shared.createTextView(type: MasonTextType.H4)
+    h4.append(text: "This element has moderate padding.")
+
+    h4.backgroundColorValue = UIColor.green.toUInt32()
+     root.append(h4)
+     h4.style.padding = MasonRect(
+       MasonLengthPercentage.Points(20),
+       MasonLengthPercentage.Points(20),
+       MasonLengthPercentage.Points(50),
+       MasonLengthPercentage.Points(50)
+     )
+
+    let h3 = NSCMason.shared.createTextView(type: MasonTextType.H3)
+    h3.append(text: "The padding is huge in this element!")
+
+
+    h3.backgroundColorValue = UIColor.cyan.toUInt32()
+     root.append(h3)
+
+     h3.style.padding = MasonRect(
+      MasonLengthPercentage.Points(110),
+      MasonLengthPercentage.Points(50),
+      MasonLengthPercentage.Points(110),
+      MasonLengthPercentage.Points(50)
+     )
+     body.append(root)
+    
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+   }
+  
+  func gridTemplateColumns() {
+     let root = NSCMason.shared.createView()
+     //root.setBackgroundColor(Color.BLUE)
+    root.append(text: "Osei")
+     root.append(text: " Fortune")
+
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+      DispatchQueue.main.async {
+         root.node.inBatch = true
+          root.style.color = UIColor.red.toUInt32()
+         root.style.fontSize = 20
+         root.style.fontStyle = FontStyle.Italic
+        root.style.fontWeight = "bold"
+         root.node.inBatch = false
+       }
+     }
+
+
+     body.append(root)
+  
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+   }
   
   func flexDirection() {
     /*

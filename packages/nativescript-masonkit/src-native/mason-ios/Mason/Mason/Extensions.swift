@@ -217,8 +217,17 @@ func replaceChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) 
     element.replaceChildAt(node: node, index)
 }
 
+func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: String) {
+    element.syncStyle(state, textState)
+}
+
 
 @objc extension NSObject {
+  
+  @objc public func mason_syncStyle(_ state: String, _ textState: String){
+    guard let element = self as? MasonElement else { return }
+    element.syncStyle(state, textState)
+  }
   
   @objc public func mason_addView(_ view: UIView){
     guard let element = self as? MasonElement else { return }

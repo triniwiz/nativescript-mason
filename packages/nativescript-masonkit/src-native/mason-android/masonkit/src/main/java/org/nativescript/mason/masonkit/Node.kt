@@ -16,12 +16,12 @@ open class Node internal constructor(
   internal var isImage = false
   var computeCache = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
     set(value) {
+      computeCacheDirty = true
       field = if (isImage && value.width == -1f && value.height == -1f) {
         SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
       } else {
         value
       }
-      computeCacheDirty = true
     }
   var computedLayout: Layout = Layout.empty
     internal set

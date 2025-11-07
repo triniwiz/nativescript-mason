@@ -112,8 +112,11 @@ enum TextStyleKeys {
   SIZE_STATE = 13,
   FONT_WEIGHT = 16,
   FONT_WEIGHT_STATE = 20,
-  FONT_STYLE_TYPE = 24,
-  FONT_STYLE_STATE = 28,
+  FONT_STYLE_SLANT = 24,
+  FONT_STYLE_TYPE = 28, // shifted +4 from 24
+  FONT_STYLE_STATE = 29,
+  FONT_FAMILY_STATE = 30,
+  FONT_RESOLVED_DIRTY = 31, // single-byte flag
   BACKGROUND_COLOR = 32,
   BACKGROUND_COLOR_STATE = 36,
   DECORATION_LINE = 40,
@@ -136,6 +139,11 @@ enum TextStyleKeys {
   TEXT_JUSTIFY_STATE = 108,
   TEXT_INDENT = 112,
   TEXT_INDENT_STATE = 116,
+  TEXT_OVERFLOW = 120,
+  TEXT_OVERFLOW_STATE = 124,
+  LINE_HEIGHT = 128,
+  LINE_HEIGHT_TYPE = 132,
+  LINE_HEIGHT_STATE = 133,
 }
 
 export type OverFlow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
@@ -217,22 +225,25 @@ class StateKeys {
 
 class TextStateKeys {
   constructor(public readonly bits: bigint) {}
-
+  static readonly ALL = new TextStateKeys(-1n);
+  static readonly NONE = new TextStateKeys(0n);
   static readonly COLOR = new TextStateKeys(1n << 0n);
-  static readonly DECORATION_LINE = new TextStateKeys(1n << 1n);
-  static readonly DECORATION_COLOR = new TextStateKeys(1n << 2n);
-  static readonly TEXT_ALIGN = new TextStateKeys(1n << 3n);
-  static readonly TEXT_JUSTIFY = new TextStateKeys(1n << 4n);
-  static readonly BACKGROUND_COLOR = new TextStateKeys(1n << 5n);
-  static readonly SIZE = new TextStateKeys(1n << 6n);
-  static readonly TRANSFORM = new TextStateKeys(1n << 7n);
-  static readonly FONT_STYLE = new TextStateKeys(1n << 8n);
-  static readonly FONT_STYLE_SLANT = new TextStateKeys(1n << 9n);
+  static readonly SIZE = new TextStateKeys(1n << 1n);
+  static readonly FONT_WEIGHT = new TextStateKeys(1n << 2n);
+  static readonly FONT_STYLE = new TextStateKeys(1n << 3n);
+  static readonly FONT_FAMILY = new TextStateKeys(1n << 4n);
+  static readonly LETTER_SPACING = new TextStateKeys(1n << 5n);
+  static readonly DECORATION_LINE = new TextStateKeys(1n << 6n);
+  static readonly DECORATION_COLOR = new TextStateKeys(1n << 7n);
+  static readonly DECORATION_STYLE = new TextStateKeys(1n << 8n);
+  static readonly BACKGROUND_COLOR = new TextStateKeys(1n << 9n);
   static readonly TEXT_WRAP = new TextStateKeys(1n << 10n);
-  static readonly TEXT_OVERFLOW = new TextStateKeys(1n << 11n);
-  static readonly DECORATION_STYLE = new TextStateKeys(1n << 12n);
-  static readonly WHITE_SPACE = new TextStateKeys(1n << 13n);
-  static readonly FONT_WEIGHT = new TextStateKeys(1n << 14n);
+  static readonly WHITE_SPACE = new TextStateKeys(1n << 11n);
+  static readonly TRANSFORM = new TextStateKeys(1n << 12n);
+  static readonly TEXT_JUSTIFY = new TextStateKeys(1n << 13n);
+  static readonly TEXT_OVERFLOW = new TextStateKeys(1n << 14n);
+  static readonly LINE_HEIGHT = new TextStateKeys(1n << 15n);
+  static readonly TEXT_ALIGN = new TextStateKeys(1n << 16n);
 
   or(other: TextStateKeys): TextStateKeys {
     return new TextStateKeys(this.bits | other.bits);
@@ -307,7 +318,11 @@ export class Style {
     const ret = new Style();
     ret.view_ = view;
     if (__ANDROID__) {
-      const style = (nativeView as org.nativescript.mason.masonkit.Element).getStyle();
+      let style = (nativeView as org.nativescript.mason.masonkit.Element)?.getStyle?.();
+      if (!style) {
+        // if a non mason view is passed
+        style = org.nativescript.mason.masonkit.Mason.getShared().styleForView(nativeView);
+      }
       const styleBuffer = style.getValues();
       const buffer = (<any>ArrayBuffer).from(styleBuffer);
       ret.style_view = new DataView(buffer);
@@ -316,24 +331,20 @@ export class Style {
       const textBuffer = (<any>ArrayBuffer).from(textStyleBuffer);
       ret.text_style_view = new DataView(textBuffer);
     } else if (__APPLE__) {
-      // todo
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      const style = (nativeView as MasonText).style;
-      // if (!isText) {
-      //   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //   const styleBuffer = style.valuesCompat;
-      //   const buffer = interop.bufferFromData(styleBuffer);
-      //   ret.style_view = new DataView(buffer);
-      // } else {
-      //   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //   const styleBuffer = style.valuesCompat;
-      //   const buffer = interop.bufferFromData(styleBuffer);
-      //   ret.style_view = new DataView(buffer);
+      let style: MasonStyle = nativeView?.style as never;
+      if (!style) {
+        style = NSCMason.shared.styleForView(nativeView) as never;
+      }
+      const styleBuffer = style.values;
 
-      //   const textStyleBuffer = (nativeView as MasonText).textValues;
-      //   const textBuffer = interop.bufferFromData(textStyleBuffer);
-      //   ret.text_style_view = new DataView(textBuffer);
-      // }
+      const buffer = interop.bufferFromData(styleBuffer);
+      ret.style_view = new DataView(buffer);
+
+      //@ts-ignore
+      const textStyleBuffer = style.textValues;
+
+      const textBuffer = interop.bufferFromData(textStyleBuffer);
+      ret.text_style_view = new DataView(textBuffer);
     }
     //console.timeEnd('fromView');
 
@@ -350,15 +361,9 @@ export class Style {
       const view = this.view.android as never as org.nativescript.mason.masonkit.Element;
       view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
     } else if (__APPLE__) {
-      // if (!isText) {
-      //   const view = this.view.ios as MasonUIView;
-      //   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      //   // @ts-ignore
-      //   view.syncStyle(this.isDirty.toString());
-      // } else {
-      //   const view = this.view.ios as never as MasonText;
-      //   view.syncStyleTextState(this.isDirty.toString(), this.isTextDirty.toString());
-      // }
+      const view = this.view.ios as never as MasonText;
+      // @ts-ignore
+      view.mason_syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
     }
     this.resetState();
   }
@@ -545,8 +550,6 @@ export class Style {
         weight = 300;
         break;
       case 'normal':
-        weight = 400;
-        break;
       case '400':
         weight = 400;
         break;
@@ -556,10 +559,8 @@ export class Style {
       case '600':
         weight = 600;
         break;
-      case 'bold':
-        weight = 700;
-        break;
       case '700':
+      case 'bold':
         weight = 700;
         break;
       case '800':
@@ -621,7 +622,7 @@ export class Style {
       // BLACK ?
       return 0;
     }
-    return getInt32(this.text_style_view, TextStyleKeys.TEXT_ALIGN);
+    return getInt32(this.text_style_view, TextStyleKeys.TEXT_WRAP);
   }
 
   set textWrap(value: number | 'nowrap' | 'wrap' | 'balance') {
@@ -2507,6 +2508,186 @@ export class Style {
           this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
           break;
       }
+    }
+  }
+
+  get letterSpacing(): number | CoreTypes.LengthType {
+    return getFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING);
+  }
+
+  set letterSpacing(value: number | CoreTypes.LengthType) {
+    if (typeof value === 'number') {
+      setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, value);
+      setUint8(this.text_style_view, TextStyleKeys.LETTER_SPACING_STATE, 1);
+      this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+    } else if (typeof value === 'object') {
+      switch (value.unit) {
+        case 'dip':
+          setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
+          setUint8(this.text_style_view, TextStyleKeys.LETTER_SPACING_STATE, 1);
+          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          break;
+        case 'px':
+          setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, value.value);
+          setUint8(this.text_style_view, TextStyleKeys.LETTER_SPACING_STATE, 1);
+          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          break;
+      }
+    }
+  }
+
+  get lineHeight(): number | CoreTypes.LengthType {
+    return getFloat32(this.text_style_view, TextStyleKeys.LINE_HEIGHT);
+  }
+
+  set lineHeight(value: number | CoreTypes.LengthType) {
+    if (typeof value === 'number') {
+      setFloat32(this.text_style_view, TextStyleKeys.LINE_HEIGHT, value);
+      setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_STATE, 1);
+      setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_TYPE, 0);
+      this.setOrAppendTextState(TextStateKeys.LINE_HEIGHT);
+    } else if (typeof value === 'object') {
+      switch (value.unit) {
+        case 'dip':
+          setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
+          setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_STATE, 1);
+          setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_TYPE, 1);
+          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          break;
+        case 'px':
+          setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, value.value);
+          setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_STATE, 1);
+          setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_TYPE, 1);
+          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          break;
+      }
+    }
+  }
+
+  get textOverflow() {
+    if (!this.text_style_view) {
+      // clip ?
+      return 'clip';
+    }
+    const type = getInt32(this.text_style_view, TextStyleKeys.TEXT_OVERFLOW);
+    switch (type) {
+      case 0:
+        return 'clip';
+      case 1:
+        return 'ellipsis';
+      default:
+    }
+
+    if (__ANDROID__) {
+      // @ts-ignore
+      const overflow = this.view_._view.getTextOverflow();
+    }
+
+    if (__APPLE__) {
+      // @ts-ignore
+      const overflow = this.view_._view.textOverflow;
+    }
+
+    return 'clip';
+  }
+
+  set textOverflow(value: 'clip' | 'ellipsis' | `${string}`) {
+    if (!this.text_style_view) {
+      return;
+    }
+
+    let flow = -1;
+
+    switch (value) {
+      case 'clip':
+        flow = 0;
+        break;
+      case 'ellipsis':
+        flow = 1;
+        break;
+      default:
+        {
+          if (__ANDROID__) {
+            // @ts-ignore
+            const overflow = this.view_._view.getTextOverflow();
+          }
+
+          if (__APPLE__) {
+            // @ts-ignore
+            const overflow = this.view_._view.textOverflow;
+          }
+        }
+        break;
+    }
+
+    if (flow !== -1) {
+      setInt32(this.text_style_view, TextStyleKeys.TEXT_OVERFLOW, flow);
+      setInt8(this.text_style_view, TextStyleKeys.TEXT_OVERFLOW_STATE, 1);
+      this.setOrAppendTextState(TextStateKeys.TEXT_OVERFLOW);
+    }
+  }
+
+  get textAlignment() {
+    if (!this.text_style_view) {
+      // clip ?
+      return 'start';
+    }
+    const type = getInt32(this.text_style_view, TextStyleKeys.TEXT_ALIGN);
+    switch (type) {
+      case 0:
+        // auto
+        return 'start';
+      case 1:
+        return 'left';
+      case 2:
+        return 'right';
+      case 3:
+        return 'center';
+      case 4:
+        return 'justify';
+      case 5:
+        return 'start';
+      case 6:
+        return 'end';
+      default:
+        return 'start';
+    }
+  }
+
+  set textAlignment(value: 'left' | 'right' | 'center' | 'justify' | 'start' | 'end') {
+    if (!this.text_style_view) {
+      return;
+    }
+
+    let align = -1;
+
+    switch (value) {
+      case 'left':
+        align = 1;
+        break;
+      case 'right':
+        align = 2;
+        break;
+      case 'center':
+        align = 3;
+        break;
+      case 'justify':
+        align = 4;
+        break;
+      case 'start':
+        align = 5;
+        break;
+      case 'end':
+        align = 6;
+        break;
+      default:
+        break;
+    }
+
+    if (align !== -1) {
+      setInt32(this.text_style_view, TextStyleKeys.TEXT_ALIGN, align);
+      setInt8(this.text_style_view, TextStyleKeys.TEXT_ALIGN_STATE, 1);
+      this.setOrAppendTextState(TextStateKeys.TEXT_ALIGN);
     }
   }
 

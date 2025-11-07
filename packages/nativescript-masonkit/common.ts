@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing } from '.';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows, GridTemplates } from './utils';
@@ -1095,7 +1095,7 @@ const flexProperty = new ShorthandProperty({
 });
 
 // @ts-ignore
-export const textWrapProperty = new Property<ViewBase, 'nowrap' | 'wrap' | 'balance'>({
+export const textWrapProperty = new CssProperty<Style, 'nowrap' | 'wrap' | 'balance'>({
   name: 'textWrap',
   affectsLayout: true,
   defaultValue: 'nowrap',
@@ -1103,6 +1103,18 @@ export const textWrapProperty = new Property<ViewBase, 'nowrap' | 'wrap' | 'bala
     const view = target?.viewRef ? getViewStyle(target.viewRef) : target.view;
     if (view) {
       view.textWrap = newValue;
+    }
+  },
+});
+
+// @ts-ignore
+export const textOverFlowProperty = new CssProperty<Style, 'clip' | 'ellipsis' | `${string}`>({
+  name: 'textOverflow',
+  defaultValue: 'text-overflow',
+  valueChanged(target: any, oldValue, newValue) {
+    const view = target?.viewRef ? getViewStyle(target.viewRef) : target.view;
+    if (view) {
+      view.textOverflow = newValue;
     }
   },
 });
@@ -1318,6 +1330,33 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       }
     }
     this._children.splice(0);
+  }
+
+  [lineHeightProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.lineHeight = value;
+    }
+  }
+
+  [letterSpacingProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.letterSpacing = value;
+    }
+  }
+
+  [textAlignmentProperty.setNative](value: CoreTypes.TextAlignmentType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.textAlignment = value;
+    }
   }
 
   get boxSizing(): BoxSizing {
@@ -1723,7 +1762,8 @@ export class TextBase extends ViewBase {
 }
 
 textProperty.register(TextBase);
-textWrapProperty.register(ViewBase);
+textWrapProperty.register(Style);
+textOverFlowProperty.register(Style);
 
 // @ts-ignore
 export const srcProperty = new Property<ImageBase, string>({

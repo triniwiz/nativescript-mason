@@ -2,7 +2,7 @@
   <Frame>
     <Page>
       <ActionBar>
-        <Label text="Home?" />
+        <Label text="Home?" class="text-white bg-gray-800" />
       </ActionBar>
       <!-- <div>
         <sspan>Welcome to the New Layout!</sspan>
@@ -13,13 +13,28 @@
 
 
 
-      <div class="wrapper">
+      <!-- <div class="wrapper">
         <div class="box a">A</div>
         <div class="box b">B</div>
         <div class="box c">C</div>
         <div class="box d">D</div>
-      </div>
+      </div> -->
 
+
+      <!-- <div class="wrapper">
+        <div class="box a">a</div>
+        <div class="box b">b</div>
+      </div> -->
+
+      <div class="p-8 bg-gray-100">
+        <sspan text="Tap the button" class="text-3xl text-center text-gray-900" />
+        <Button text="Tap Here" class="mt-4 text-white normal-case bg-blue-500 rounded-full" />
+        <sspan text="message " class="mt-4 text-xl text-center text-gray-700" textWrap="true">
+          <img class="w-[100] h-[100]" src="https://picsum.photos/200/300" />
+        </sspan>
+
+        <p text="Hello" class="mt-[200] text-[#65adf1] text-lg text-center bg-orange-500" />
+      </div>
 
     </Page>
   </Frame>
@@ -29,6 +44,7 @@
 import { $navigateTo } from 'nativescript-vue';
 import NativescriptMasonkit from '../plugin-demos/nativescript-masonkit.vue'
 import Grid from '~/plugin-demos/Grid.vue';
+import { StackLayout } from '@nativescript/core';
 
 const viewDemo = (args) => {
   const label = args.object;
@@ -50,37 +66,4 @@ const viewFeature = (args) => {
 }
 </script>
 
-<style scoped>
-.wrapper {
-    display: grid;
-    grid-gap: 10;
-    grid-template-columns: 100 100 100;
-    background-color: #fff;
-    color: #444;
-  }
-
-  .box {
-    background-color: #444;
-    color: #fff;
-    border-radius: 5;
-    padding: 20;
-    font-size: 150%;
-  }
-
-  .a {
-    grid-column: 1 / 3;
-    grid-row: 1;
-  }
-  .b {
-    grid-column: 3 ;
-    grid-row: 1 / 3;
-  }
-  .c {
-    grid-column: 1 ;
-    grid-row: 2 ;
-  }
-  .d {
-    grid-column: 2;
-    grid-row: 2;
-  }
-</style>
+<style scoped></style>

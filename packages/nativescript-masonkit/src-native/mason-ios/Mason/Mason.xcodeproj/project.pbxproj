@@ -37,6 +37,7 @@
 		F18C9B862E5170CA006E5561 /* Scroll.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18C9B852E5170B8006E5561 /* Scroll.swift */; };
 		F18C9B882E5199CA006E5561 /* MasonPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18C9B872E5199C5006E5561 /* MasonPoint.swift */; };
 		F18E99132DCB73FC0062B4F7 /* Img.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18E99122DCB73F80062B4F7 /* Img.swift */; };
+		F1DE08992EBC1199002870F6 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1DE08982EBC1195002870F6 /* Constants.swift */; };
 		F1E4F95229622AD60091913B /* MasonRect.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95129622AD60091913B /* MasonRect.swift */; };
 		F1E4F95429622ADF0091913B /* MasonSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95329622ADF0091913B /* MasonSize.swift */; };
 		F1E4F956296231A50091913B /* MasonCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F955296231A50091913B /* MasonCompat.swift */; };
@@ -138,6 +139,7 @@
 		F18C9B872E5199C5006E5561 /* MasonPoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonPoint.swift; sourceTree = "<group>"; };
 		F18E99122DCB73F80062B4F7 /* Img.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Img.swift; sourceTree = "<group>"; };
 		F18E99142DCB95F80062B4F7 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.1.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
+		F1DE08982EBC1195002870F6 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		F1E4F95129622AD60091913B /* MasonRect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonRect.swift; sourceTree = "<group>"; };
 		F1E4F95329622ADF0091913B /* MasonSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonSize.swift; sourceTree = "<group>"; };
 		F1E4F955296231A50091913B /* MasonCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonCompat.swift; sourceTree = "<group>"; };
@@ -242,6 +244,7 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F1DE08982EBC1195002870F6 /* Constants.swift */,
 				F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */,
 				F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */,
 				F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */,
@@ -548,6 +551,7 @@
 				F13D4E932E96EDF300456A68 /* MasonDocument.swift in Sources */,
 				F1E4F95E296266A60091913B /* MasonLine.swift in Sources */,
 				F1E4F958296241FD0091913B /* MinMax.swift in Sources */,
+				F1DE08992EBC1199002870F6 /* Constants.swift in Sources */,
 				F18483E329357AC900EC35F4 /* NSCMason.swift in Sources */,
 				F18483E92935A19500EC35F4 /* MeasureOutput.swift in Sources */,
 				F1848391293534D800EC35F4 /* Mason.docc in Sources */,

@@ -31,7 +31,94 @@ fn main() {
     //inline_node()
     //  inline_mix_bug()
     // flex_direction_bug()
-    flex_grow_bug()
+    //flex_grow_bug()
+   // inline_size_bug()
+    wrap_bug()
+}
+
+fn wrap_bug() {
+    let mut mason = Mason::new();
+
+    extern "C" fn inline_mix_bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        if unsafe { *(id) } == 2 {
+            return MeasureOutput::make(20., 20.);
+        }
+
+        MeasureOutput::make(available_space_width, 4000.)
+    }
+
+    let root = mason.create_node();
+
+    let inline = mason.create_text_node();
+
+    mason.add_child(root.id(), inline.id());
+
+    mason.set_measure(
+        inline.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+
+    let one = mason.create_text_node();
+    mason.with_style_mut(one.id(), |style| {
+        style.set_display(Display::Block);
+        style.set_display_mode(DisplayMode::None);
+    });
+
+    mason.add_child(root.id(), inline.id());
+    mason.add_child(root.id(), one.id());
+
+    mason.set_measure(
+        one.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(root.id());
+}
+
+fn inline_size_bug() {
+    let mut mason = Mason::new();
+
+    extern "C" fn inline_mix_bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        MeasureOutput::make(200., 200.)
+    }
+
+    let root = mason.create_node();
+    let one = mason.create_text_node();
+    mason.with_style_mut(one.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(0f32),
+            height: Dimension::length(0f32),
+        })
+    });
+
+    mason.add_child(root.id(), one.id());
+
+    mason.set_measure(
+        one.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(root.id());
 }
 
 fn flex_grow_bug() {
@@ -66,26 +153,29 @@ fn flex_grow_bug() {
         style.set_flex_grow(1.);
     });
 
-
     let text_a = mason.create_anonymous_text_node();
     mason.add_child(div_a.id(), text_a.id());
 
-    mason.set_measure(text_a.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
-
+    mason.set_measure(
+        text_a.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
 
     let div_b = mason.create_node();
-
 
     mason.with_style_mut(div_b.id(), |style| {
         style.set_flex_grow(1.);
     });
 
-
     let text_b = mason.create_anonymous_text_node();
     mason.add_child(div_b.id(), text_b.id());
 
-    mason.set_measure(text_b.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
-
+    mason.set_measure(
+        text_b.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
 
     let div_c = mason.create_node();
 
@@ -93,19 +183,24 @@ fn flex_grow_bug() {
         style.set_flex_grow(1.);
     });
 
-
     let text_c = mason.create_anonymous_text_node();
     mason.add_child(div_c.id(), text_c.id());
 
-    mason.set_measure(text_c.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
-
+    mason.set_measure(
+        text_c.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
 
     let div_d = mason.create_node();
     let text_d = mason.create_anonymous_text_node();
     mason.add_child(div_d.id(), text_d.id());
 
-    mason.set_measure(text_d.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
-
+    mason.set_measure(
+        text_d.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
 
     mason.with_style_mut(div_d.id(), |style| {
         style.set_flex_grow(2.);
@@ -115,14 +210,15 @@ fn flex_grow_bug() {
     let text_e = mason.create_anonymous_text_node();
     mason.add_child(div_e.id(), text_e.id());
 
-    mason.set_measure(text_e.id(), Some(flex_grow_bug_measure_inline), &1 as *const i32 as _);
-
+    mason.set_measure(
+        text_e.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
 
     mason.with_style_mut(div_e.id(), |style| {
         style.set_flex_grow(2.);
     });
-
-
 
     let div_f = mason.create_node();
 

@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
+import android.os.Build
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
@@ -11,14 +11,15 @@ interface Element {
   val node: Node
 
   fun syncStyle(state: String, textState: String) {
-    val stateValue = state.toLongOrNull() ?: return
-    val textStateValue = textState.toLongOrNull() ?: return
-    if (textStateValue != -1L) {
+    val stateValue = state.toLongOrNull()?.takeIf { it > -1 }
+    val textStateValue = textState.toLongOrNull()?.takeIf { it > -1 }
+
+    textStateValue?.let { textStateValue ->
       val value = TextStateKeys(textStateValue)
       style.setOrAppendState(value)
     }
 
-    if (stateValue != -1L) {
+    stateValue?.let { stateValue ->
       style.isDirty = stateValue
       style.updateNativeStyle()
     }
@@ -54,7 +55,6 @@ interface Element {
     }
     return Layout.fromFloatArray(layouts, 0).second
   }
-
 
   fun compute() {
     NativeHelpers.nativeNodeCompute(node.mason.nativePtr, node.nativePtr)
@@ -197,7 +197,6 @@ interface Element {
 
   fun invalidateLayout() {
     node.dirty()
-
     val root = node.getRootNode() ?: node
 
     if (root.type == NodeType.Document) {
@@ -211,7 +210,7 @@ interface Element {
     }
 
     // Otherwise use the topmost element (root)
-    if (root.view is Element) {
+    if (root.view is Element && root.computeCacheDirty) {
       val width = if (root.computeCache.width == Float.MIN_VALUE) {
         -1f
       } else {
@@ -319,7 +318,23 @@ internal fun Element.getDefaultAttributes(): Map<String, Any> {
     "decorationLine" to style.resolvedDecorationLine,
     "decorationColor" to style.resolvedDecorationColor,
     "decorationStyle" to style.resolvedDecorationStyle,
-    "letterSpacing" to style.resolvedLetterSpacing
+    "letterSpacing" to style.resolvedLetterSpacing,
+    "lineHeight" to style.resolvedLineHeight,
+    "lineHeightType" to style.resolvedLineHeightType,
+    "textAlign" to when (style.resolvedTextAlign) {
+      TextAlign.Left, TextAlign.Start -> android.text.Layout.Alignment.ALIGN_NORMAL
+      TextAlign.Right, TextAlign.End -> android.text.Layout.Alignment.ALIGN_OPPOSITE
+      TextAlign.Center -> android.text.Layout.Alignment.ALIGN_CENTER
+      TextAlign.Justify -> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          android.text.Layout.Alignment.ALIGN_NORMAL // Justify handled by justificationMode
+        } else {
+          android.text.Layout.Alignment.ALIGN_NORMAL
+        }
+      }
+
+      else -> android.text.Layout.Alignment.ALIGN_NORMAL
+    }
   )
 }
 
@@ -383,6 +398,15 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
           realLayout.contentSize.height.toInt()
         )
       } else {
+        // only set padding on a text element
+        if (isText) {
+          view.setPadding(
+            realLayout.padding.left.toInt(),
+            realLayout.padding.top.toInt(),
+            realLayout.padding.right.toInt(),
+            realLayout.padding.bottom.toInt()
+          )
+        }
         view.layout(x, y, right, bottom)
       }
 

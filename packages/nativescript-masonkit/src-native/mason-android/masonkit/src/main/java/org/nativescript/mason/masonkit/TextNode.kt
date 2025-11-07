@@ -1,11 +1,16 @@
 package org.nativescript.mason.masonkit
 
+import android.graphics.Paint
 import android.text.Spannable
 import android.text.SpannableStringBuilder
+import android.text.TextPaint
 import android.text.style.AbsoluteSizeSpan
+import android.text.style.AlignmentSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.LineHeightSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
+
 
 class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
   constructor(mason: Mason, data: String) : this(mason) {
@@ -71,6 +76,81 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
     return this
   }
 
+  class FixedLineHeightSpan(private val heightDip: Int) : LineHeightSpan.WithDensity {
+
+    private fun choose(
+      fm: Paint.FontMetricsInt,
+      scale: Float = 1f
+    ) {
+      val originalHeight = fm.descent - fm.ascent
+      if (originalHeight <= 0) return
+
+      val diff = (heightDip * scale).toInt() - originalHeight
+      if (diff == 0) return
+
+      val half = diff / 2
+      fm.ascent -= half
+      fm.descent += (diff - half)
+      fm.top = fm.ascent
+      fm.bottom = fm.descent
+    }
+
+    override fun chooseHeight(
+      text: CharSequence?,
+      start: Int,
+      end: Int,
+      spanstartv: Int,
+      lineHeight: Int,
+      fm: Paint.FontMetricsInt?,
+      paint: TextPaint?
+    ) {
+      fm?.let {
+        choose(it, paint?.density ?: 1f)
+      }
+    }
+
+
+    override fun chooseHeight(
+      text: CharSequence?,
+      start: Int,
+      end: Int,
+      spanstartv: Int,
+      lineHeight: Int,
+      fm: Paint.FontMetricsInt?
+    ) {
+      fm?.let {
+        choose(it)
+      }
+    }
+  }
+
+  class RelativeLineHeightSpan(private val multiplier: Float) : LineHeightSpan {
+
+    override fun chooseHeight(
+      text: CharSequence?,
+      start: Int,
+      end: Int,
+      spanstartv: Int,
+      lineHeight: Int,
+      fm: Paint.FontMetricsInt?
+    ) {
+      fm?.let { fm ->
+        val originalHeight = fm.descent - fm.ascent
+        if (originalHeight <= 0) return
+
+        val targetHeight = (originalHeight * multiplier).toInt()
+        val diff = targetHeight - originalHeight
+        if (diff == 0) return
+
+        val half = diff / 2
+        fm.ascent -= half
+        fm.descent += (diff - half)
+        fm.top = fm.ascent
+        fm.bottom = fm.descent
+      }
+    }
+  }
+
   // Build attributed string from this text node's data and attributes
   fun attributed(): SpannableStringBuilder {
     val processed = processText(data)
@@ -111,6 +191,26 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
       }
     }
 
+    // Apply letter spacing
+    (attributes["letterSpacing"] as? Float)?.takeIf { it > 0 }?.let { spacing ->
+      spannable.setSpan(
+        android.text.style.ScaleXSpan(1f + spacing), start, end, flags
+      )
+    }
+
+    // Apply line height
+    (attributes["lineHeight"] as? Float)?.let { lineHeight ->
+      val type = attributes["lineHeightType"] as? Byte ?: 0
+      lineHeight.takeIf { it > 0 }?.let {
+        // 1 px/dip
+        if (type == StyleState.SET) {
+          spannable.setSpan(FixedLineHeightSpan(it.toInt()), start, end, flags)
+        } else {
+          spannable.setSpan(RelativeLineHeightSpan(it), start, end, flags)
+        }
+      }
+    }
+
     // Apply typeface
     attributes["typeface"]?.let { typeface ->
       if (typeface is android.graphics.Typeface) {
@@ -133,6 +233,10 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
       }
     }
 
+    // Apply textAligment
+    (attributes["textAlign"] as? android.text.Layout.Alignment)?.let { align ->
+      spannable.setSpan(AlignmentSpan.Standard(align), start, end, flags)
+    }
     // Apply backgroundColor
     attributes["backgroundColor"]?.let { color ->
       if (color is Int && color != 0) {

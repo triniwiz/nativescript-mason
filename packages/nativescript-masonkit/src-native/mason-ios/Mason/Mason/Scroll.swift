@@ -8,7 +8,11 @@ import UIKit
 
 @objc(MasonScroll)
 @objcMembers
-public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement, MasonElementObjc {
+public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement, MasonElementObjc, StyleChangeListener {
+  func onTextStyleChanged(change: Int64) {
+    MasonNode.invalidateDescendantTextViews(node, change)
+  }
+  
   
   public let node: MasonNode
   public let mason: NSCMason
@@ -19,14 +23,6 @@ public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement, MasonElem
   
   public var style: MasonStyle {
     return node.style
-  }
-  
-  public func syncStyle(_ state: String) {
-    guard let stateValue = Int64(state, radix: 10) else {return}
-    if (stateValue != -1) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
   }
   
   internal var canScroll: (Bool, Bool) {
@@ -59,7 +55,7 @@ public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement, MasonElem
     super.init(frame: .zero)
     node.view = self
     self.delegate = self
-    
+    style.setStyleChangeListener(listener: self)
     isOpaque = false
   }
   
