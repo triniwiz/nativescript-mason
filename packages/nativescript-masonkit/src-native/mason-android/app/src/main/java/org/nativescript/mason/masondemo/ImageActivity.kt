@@ -29,19 +29,19 @@ class ImageActivity : AppCompatActivity() {
     super.onCreate(savedInstanceState)
     val root = mason.createView(this)
     val text = mason.createTextView(this)
-    text.updateText("Hello")
+    text.append("Hello")
 
     val text2 = mason.createTextView(this)
-    text2.updateText("\n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris. ")
+    text2.append("\n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris. ")
 
-    text.addView(text2)
+    text.append(text2)
 
     val image = mason.createImageView(this)
-    text.addView(image)
+    text.append(image)
     root.addView(text)
 
     image.configure {
-      style.size = Size(Dimension.Points(300f), Dimension.Points(300f))
+      it.size = Size(Dimension.Points(300f), Dimension.Points(300f))
     }
 
     image.src = "https://picsum.photos/600/600"

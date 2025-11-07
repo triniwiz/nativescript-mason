@@ -1,7 +1,12 @@
-use jni::objects::{JClass, JObject, JPrimitiveArray, ReleaseMode};
-use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, JNI_FALSE, JNI_TRUE};
+use crate::style::{JAVA_FLOAT_TYPE, JAVA_INT_TYPE, JAVA_LONG_TYPE};
+use crate::INLINE_SEGMENT;
+use jni::objects::{JClass, JObject, JObjectArray, JPrimitiveArray, ReleaseMode};
+use jni::sys::{
+    jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, jobject, jobjectArray, JNI_FALSE,
+    JNI_TRUE,
+};
 use jni::JNIEnv;
-use mason_core::{AvailableSpace, Mason, NodeRef, Size};
+use mason_core::{AvailableSpace, Id, InlineSegment, Mason, NodeRef, Size};
 
 #[no_mangle]
 pub extern "system" fn NodeNativeDestroy(node: jlong) {
@@ -23,29 +28,49 @@ pub extern "system" fn NodeNativeDestroyNormal(_env: JNIEnv, _: JClass, node: jl
     }
 }
 
-fn native_new_node(taffy: jlong) -> jlong {
+fn native_new_node(taffy: jlong, is_anonymous: jboolean) -> jlong {
     if taffy == 0 {
         return 0;
     }
 
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
-        Box::into_raw(Box::new(mason.create_node())) as jlong
+        Box::into_raw(Box::new(if is_anonymous == JNI_TRUE {
+            mason.create_anonymous_node()
+        } else {
+            mason.create_node()
+        })) as jlong
+    }
+}
+
+fn native_new_text_node(taffy: jlong, is_anonymous: jboolean) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+        Box::into_raw(Box::new(if is_anonymous == JNI_TRUE {
+            mason.create_anonymous_text_node()
+        } else {
+            mason.create_text_node()
+        })) as jlong
     }
 }
 
 #[no_mangle]
-pub extern "system" fn NodeNativeNewNode(taffy: jlong) -> jlong {
-    native_new_node(taffy)
+pub extern "system" fn NodeNativeNewNode(taffy: jlong, is_anonymous: jboolean) -> jlong {
+    native_new_node(taffy, is_anonymous)
 }
 
 #[no_mangle]
 pub extern "system" fn NodeNativeNewNodeNormal(
     _: JNIEnv,
     _: JClass,
-    taffy: jlong
+    taffy: jlong,
+    is_anonymous: jboolean,
 ) -> jlong {
-    native_new_node(taffy)
+    native_new_node(taffy, is_anonymous)
 }
 
 #[no_mangle]
@@ -54,6 +79,7 @@ pub extern "system" fn NodeNativeNewNodeWithContext(
     _: JClass,
     taffy: jlong,
     measure: JObject,
+    is_anonymous: jboolean,
 ) -> jlong {
     if taffy == 0 {
         return 0;
@@ -63,7 +89,11 @@ pub extern "system" fn NodeNativeNewNodeWithContext(
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
 
-        let node = mason.create_node();
+        let node = if is_anonymous == JNI_TRUE {
+            mason.create_anonymous_node()
+        } else {
+            mason.create_node()
+        };
 
         mason.setup(node.id(), Some(measure));
 
@@ -76,7 +106,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
     mut env: JNIEnv,
     _: JClass,
     taffy: jlong,
-    children: jlongArray
+    children: jlongArray,
 ) -> jlong {
     if taffy == 0 {
         return 0;
@@ -86,6 +116,83 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewNodeWi
         let mason = &mut *(taffy as *mut Mason);
 
         let node = mason.create_node();
+
+        let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
+        match env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
+            Ok(array) => {
+                let data: Vec<_> =
+                    std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, array.len())
+                        .iter()
+                        .map(|v| (*(*v as *mut NodeRef)).id())
+                        .collect();
+
+                mason.append_node(node.id(), data.as_slice());
+            }
+            Err(_) => {}
+        };
+
+        Box::into_raw(Box::new(node)) as jlong
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewTextNode(taffy: jlong, is_anonymous: jboolean) -> jlong {
+    native_new_text_node(taffy, is_anonymous)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewTextNodeNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    is_anonymous: jboolean,
+) -> jlong {
+    native_new_text_node(taffy, is_anonymous)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewTextNodeWithContext(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    measure: JObject,
+    is_anonymous: jboolean,
+) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    let measure = env.new_global_ref(measure).unwrap();
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+
+        let node = if is_anonymous == JNI_TRUE {
+            mason.create_anonymous_text_node()
+        } else {
+            mason.create_text_node()
+        };
+
+        mason.setup(node.id(), Some(measure));
+
+        Box::into_raw(Box::new(node)) as jlong
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeNewTextNodeWithChildren(
+    mut env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    children: jlongArray,
+) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+
+        let node = mason.create_text_node();
 
         let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
         match env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
@@ -150,7 +257,7 @@ pub extern "system" fn nativeLayout(
         let size = output.len();
         match env.new_float_array(size as i32) {
             Ok(array) => {
-                if let Err(_) = env.set_float_array_region(&array, 0, &output) {}
+                if let Err(_) = env.set_float_array_region(&array, 0, output.as_slice()) {}
                 array.into_raw()
             }
             Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
@@ -321,7 +428,8 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeComputeAn
         let result = env.new_float_array(size as i32).unwrap();
 
         if size > 0 {
-            env.set_float_array_region(&result, 0, &output).unwrap();
+            env.set_float_array_region(&result, 0, output.as_slice())
+                .unwrap();
         }
 
         result.into_raw()
@@ -350,7 +458,8 @@ pub extern "system" fn nativeComputeWithSizeAndLayout(
         let output = mason.layout(node.id());
         match env.new_float_array(output.len() as i32) {
             Ok(array) => {
-                env.set_float_array_region(&array, 0, &output).unwrap();
+                env.set_float_array_region(&array, 0, output.as_slice())
+                    .unwrap();
                 array.into_raw()
             }
             Err(_) => env.new_float_array(0_i32).unwrap().into_raw(),
@@ -803,14 +912,15 @@ pub extern "system" fn nativeGetChildren(
             .into_iter()
             .map(|v| Box::into_raw(Box::new(v)) as jlong)
             .collect();
-        env.set_long_array_region(&array, 0, &buf).unwrap();
+        env.set_long_array_region(&array, 0, buf.as_slice())
+            .unwrap();
 
         array.into_raw()
     }
 }
 
 #[no_mangle]
-pub extern "system" fn Java_org_nativescript_mason_masonkit_Node_nativeSetContext(
+pub extern "system" fn NodeNativeSetContext(
     env: JNIEnv,
     _: JObject,
     taffy: jlong,
@@ -857,4 +967,166 @@ pub extern "system" fn NodeNativeRemoveContextNormal(
     node: jlong,
 ) {
     native_remove_context(taffy, node)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeSetChildren(
+    mut env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    children: jlongArray,
+) {
+    if taffy == 0 || node == 0 {
+        return;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+
+        let node = &*(node as *mut NodeRef);
+
+        let children: JPrimitiveArray<jlong> = JPrimitiveArray::from_raw(children);
+        match env.get_array_elements_critical(&children, ReleaseMode::NoCopyBack) {
+            Ok(array) => {
+                let data: Vec<_> =
+                    std::slice::from_raw_parts_mut(array.as_ptr() as *mut jlong, array.len())
+                        .iter()
+                        .map(|v| (*(*v as *mut NodeRef)).id())
+                        .collect();
+
+                mason.set_children(node.id(), data.as_slice());
+            }
+            Err(_) => {}
+        };
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeSetSegments(
+    mut env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    children: jobjectArray,
+) {
+    if taffy == 0 || node == 0 {
+        return;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+
+        let node = &*(node as *mut NodeRef);
+
+        let inline_segment = INLINE_SEGMENT.get().unwrap();
+
+        let children = JObjectArray::from_raw(children);
+        let count = env.get_array_length(&children).unwrap_or_default();
+        let mut child: Vec<InlineSegment> = vec![];
+        for i in 0..count {
+            if let Ok(segment) = env.get_object_array_element(&children, i) {
+                let kind = env
+                    .get_field_unchecked(&segment, inline_segment.kind, JAVA_INT_TYPE)
+                    .and_then(|v| v.i())
+                    .unwrap_or(-1);
+                match kind {
+                    0 => {
+                        let width = env
+                            .get_field_unchecked(
+                                &segment,
+                                inline_segment.text_width,
+                                JAVA_FLOAT_TYPE,
+                            )
+                            .and_then(|v| v.f())
+                            .unwrap_or(0f32);
+
+                        let ascent = env
+                            .get_field_unchecked(
+                                &segment,
+                                inline_segment.text_ascent,
+                                JAVA_FLOAT_TYPE,
+                            )
+                            .and_then(|v| v.f())
+                            .unwrap_or(0f32);
+
+                        let descent = env
+                            .get_field_unchecked(
+                                &segment,
+                                inline_segment.text_descent,
+                                JAVA_FLOAT_TYPE,
+                            )
+                            .and_then(|v| v.f())
+                            .unwrap_or(0f32);
+
+                        child.push(InlineSegment::Text {
+                            width,
+                            ascent,
+                            descent,
+                        });
+                    }
+                    1 => {
+                        let id = env
+                            .get_field_unchecked(
+                                &segment,
+                                inline_segment.inline_node_ptr,
+                                JAVA_LONG_TYPE,
+                            )
+                            .and_then(|v| v.j())
+                            .unwrap_or(0i64);
+
+                        let descent = env
+                            .get_field_unchecked(
+                                &segment,
+                                inline_segment.inline_child_descent,
+                                JAVA_FLOAT_TYPE,
+                            )
+                            .and_then(|v| v.f())
+                            .unwrap_or(0f32);
+
+                        let mut child_id: Option<Id> = None;
+                        if id != 0 {
+                            let node = &*(id as *mut NodeRef);
+                            child_id = Some(node.id());
+                        }
+
+                        child.push(InlineSegment::InlineChild {
+                            id: child_id,
+                            baseline: descent,
+                        });
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        mason.set_segments(node.id(), child);
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeSetAndroidNode(
+    mut env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    android_node: jobject,
+) {
+    if taffy == 0 || node == 0 {
+        return;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+
+        let node = &*(node as *mut NodeRef);
+
+        if android_node.is_null() {
+            mason.clear_android_node(node.id());
+        } else {
+            let object = JObject::from_raw(android_node);
+            let instance = env.new_global_ref(object).unwrap();
+            mason.set_android_node(node.id(), instance);
+        }
+    }
 }

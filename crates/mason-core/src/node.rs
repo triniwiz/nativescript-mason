@@ -1,12 +1,81 @@
-
-use crate::style::{Style, StyleKeys};
+use crate::style::Style;
 use crate::tree::Id;
 use crate::MeasureOutput;
+
+#[cfg(target_vendor = "apple")]
+use objc2::runtime::NSObject;
+
 use std::rc::Rc;
 use taffy::{AvailableSpace, Cache, ClearState, Layout, Size};
 
 #[cfg(target_os = "android")]
-use crate::JVM;
+use crate::{JVM, JVM_CACHE};
+
+#[cfg(target_vendor = "apple")]
+#[derive(Debug, Clone)]
+pub struct AppleNode(objc2::rc::Retained<NSObject>);
+
+#[cfg(target_vendor = "apple")]
+impl AppleNode {
+    pub fn from_ptr(ptr: *mut NSObject) -> Option<Self> {
+        unsafe { objc2::rc::Retained::from_raw(ptr).map(|n| AppleNode(n)) }
+    }
+    pub fn set_computed_size(&mut self, width: f64, height: f64) {
+        let _: () = unsafe { objc2::msg_send![&self.0, setComputedSize: width height: height] };
+    }
+    pub fn computed_width(&self) -> f64 {
+        unsafe { objc2::msg_send![&self.0, computedWidth] }
+    }
+
+    pub fn computed_height(&self) -> f64 {
+        unsafe { objc2::msg_send![&self.0, computedHeight] }
+    }
+}
+
+#[cfg(target_os = "android")]
+#[derive(Debug, Clone)]
+pub struct AndroidNode(pub(crate) jni::objects::GlobalRef);
+
+#[cfg(target_os = "android")]
+impl AndroidNode {
+    pub fn set_computed_size(&mut self, width: f32, height: f32) {
+        if let Some(jvm) = crate::JVM.get() {
+            let vm = jvm.attach_current_thread();
+            let mut env = vm.unwrap();
+            match crate::JVM_CACHE.get() {
+                Some(cache) => unsafe {
+                    _ = env.call_method_unchecked(
+                        self.0.as_obj(),
+                        cache.node_set_computed_size_id,
+                        jni::signature::ReturnType::Primitive(jni::signature::Primitive::Void),
+                        &[
+                            jni::sys::jvalue { f: width },
+                            jni::sys::jvalue { f: height },
+                        ],
+                    );
+                },
+                _ => {
+                    _ = env.call_method(
+                        self.0.as_obj(),
+                        "setComputedSize",
+                        "(FF)V",
+                        &[
+                            jni::objects::JValue::from(width),
+                            jni::objects::JValue::from(height),
+                        ],
+                    );
+                }
+            }
+        }
+    }
+    pub fn computed_width(&self) -> f32 {
+        0f32
+    }
+
+    pub fn computed_height(&self) -> f32 {
+        0f32
+    }
+}
 
 #[derive(Debug)]
 pub struct NodeMeasure {
@@ -37,29 +106,61 @@ impl NodeMeasure {
             (Some(measure), Some(jvm)) => {
                 let vm = jvm.attach_current_thread();
                 let mut env = vm.unwrap();
-                let result = env.call_method(
-                    measure.as_obj(),
-                    "measure",
-                    "(JJ)J",
-                    &[
-                        jni::objects::JValue::from(MeasureOutput::make(
-                            known_dimensions.width.unwrap_or(f32::NAN),
-                            known_dimensions.height.unwrap_or(f32::NAN),
-                        )),
-                        jni::objects::JValue::from(MeasureOutput::make(
-                            match available_space.width {
-                                AvailableSpace::MinContent => -1.,
-                                AvailableSpace::MaxContent => -2.,
-                                AvailableSpace::Definite(value) => value,
-                            },
-                            match available_space.height {
-                                AvailableSpace::MinContent => -1.,
-                                AvailableSpace::MaxContent => -2.,
-                                AvailableSpace::Definite(value) => value,
-                            },
-                        )),
-                    ],
-                );
+
+                let result = match crate::JVM_CACHE.get() {
+                    Some(cache) => unsafe {
+                        env.call_method_unchecked(
+                            measure.as_obj(),
+                            cache.measure_measure_id,
+                            jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
+                            &[
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make(
+                                        known_dimensions.width.unwrap_or(f32::NAN),
+                                        known_dimensions.height.unwrap_or(f32::NAN),
+                                    ),
+                                },
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make(
+                                        match available_space.width {
+                                            AvailableSpace::MinContent => -1.,
+                                            AvailableSpace::MaxContent => -2.,
+                                            AvailableSpace::Definite(value) => value,
+                                        },
+                                        match available_space.height {
+                                            AvailableSpace::MinContent => -1.,
+                                            AvailableSpace::MaxContent => -2.,
+                                            AvailableSpace::Definite(value) => value,
+                                        },
+                                    ),
+                                },
+                            ],
+                        )
+                    },
+                    _ => env.call_method(
+                        measure.as_obj(),
+                        "measure",
+                        "(JJ)J",
+                        &[
+                            jni::objects::JValue::from(MeasureOutput::make(
+                                known_dimensions.width.unwrap_or(f32::NAN),
+                                known_dimensions.height.unwrap_or(f32::NAN),
+                            )),
+                            jni::objects::JValue::from(MeasureOutput::make(
+                                match available_space.width {
+                                    AvailableSpace::MinContent => -1.,
+                                    AvailableSpace::MaxContent => -2.,
+                                    AvailableSpace::Definite(value) => value,
+                                },
+                                match available_space.height {
+                                    AvailableSpace::MinContent => -1.,
+                                    AvailableSpace::MaxContent => -2.,
+                                    AvailableSpace::Definite(value) => value,
+                                },
+                            )),
+                        ],
+                    ),
+                };
 
                 match result {
                     Ok(result) => {
@@ -118,10 +219,28 @@ impl NodeMeasure {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum InlineSegment {
+    Text {
+        width: f32,
+        ascent: f32,
+        descent: f32,
+    },
+    InlineChild {
+        id: Option<Id>,
+        baseline: f32,
+    },
+}
+
 #[derive(Debug)]
 pub struct NodeData {
+    pub(crate) inline_segments: Vec<InlineSegment>,
     #[cfg(not(target_os = "android"))]
     pub(crate) data: *mut std::os::raw::c_void,
+    #[cfg(target_vendor = "apple")]
+    pub apple_data: Option<AppleNode>,
+    #[cfg(target_os = "android")]
+    pub android_data: Option<AndroidNode>,
     #[cfg(target_os = "android")]
     pub(crate) measure: Option<jni::objects::GlobalRef>,
     #[cfg(not(target_os = "android"))]
@@ -133,15 +252,25 @@ pub struct NodeData {
             std::os::raw::c_float,
             std::os::raw::c_float,
         ) -> std::os::raw::c_longlong,
-    >
+    >,
 }
 
 impl NodeData {
+    pub fn inline_segments(&self) -> &[InlineSegment] {
+        self.inline_segments.as_slice()
+    }
+
+    pub fn set_inline_segments(&mut self, segments: Vec<InlineSegment>) {
+        self.inline_segments = segments;
+    }
+
     #[cfg(target_os = "android")]
     pub(crate) fn new() -> Self {
         unsafe {
             Self {
                 measure: None,
+                android_data: None,
+                inline_segments: vec![],
             }
         }
     }
@@ -151,11 +280,13 @@ impl NodeData {
         unsafe {
             Self {
                 data: 0 as _,
+                #[cfg(target_vendor = "apple")]
+                apple_data: None,
                 measure: None,
+                inline_segments: vec![],
             }
         }
     }
-
 
     #[cfg(target_os = "android")]
     pub fn measure(
@@ -167,30 +298,60 @@ impl NodeData {
             (Some(measure), Some(jvm)) => {
                 let vm = jvm.attach_current_thread();
                 let mut env = vm.unwrap();
-                let result = env.call_method(
-                    measure.as_obj(),
-                    "measure",
-                    "(JJ)J",
-                    &[
-                        jni::objects::JValue::from(MeasureOutput::make(
-                            known_dimensions.width.unwrap_or(f32::NAN),
-                            known_dimensions.height.unwrap_or(f32::NAN),
-                        )),
-                        jni::objects::JValue::from(MeasureOutput::make(
-                            match available_space.width {
-                                AvailableSpace::MinContent => -1.,
-                                AvailableSpace::MaxContent => -2.,
-                                AvailableSpace::Definite(value) => value,
-                            },
-                            match available_space.height {
-                                AvailableSpace::MinContent => -1.,
-                                AvailableSpace::MaxContent => -2.,
-                                AvailableSpace::Definite(value) => value,
-                            },
-                        )),
-                    ],
-                );
-
+                let result = match crate::JVM_CACHE.get() {
+                    Some(cache) => unsafe {
+                        env.call_method_unchecked(
+                            measure.as_obj(),
+                            cache.measure_measure_id,
+                            jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
+                            &[
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make(
+                                        known_dimensions.width.unwrap_or(f32::NAN),
+                                        known_dimensions.height.unwrap_or(f32::NAN),
+                                    ),
+                                },
+                                jni::sys::jvalue {
+                                    j: MeasureOutput::make(
+                                        match available_space.width {
+                                            AvailableSpace::MinContent => -1.,
+                                            AvailableSpace::MaxContent => -2.,
+                                            AvailableSpace::Definite(value) => value,
+                                        },
+                                        match available_space.height {
+                                            AvailableSpace::MinContent => -1.,
+                                            AvailableSpace::MaxContent => -2.,
+                                            AvailableSpace::Definite(value) => value,
+                                        },
+                                    ),
+                                },
+                            ],
+                        )
+                    },
+                    _ => env.call_method(
+                        measure.as_obj(),
+                        "measure",
+                        "(JJ)J",
+                        &[
+                            jni::objects::JValue::from(MeasureOutput::make(
+                                known_dimensions.width.unwrap_or(f32::NAN),
+                                known_dimensions.height.unwrap_or(f32::NAN),
+                            )),
+                            jni::objects::JValue::from(MeasureOutput::make(
+                                match available_space.width {
+                                    AvailableSpace::MinContent => -1.,
+                                    AvailableSpace::MaxContent => -2.,
+                                    AvailableSpace::Definite(value) => value,
+                                },
+                                match available_space.height {
+                                    AvailableSpace::MinContent => -1.,
+                                    AvailableSpace::MaxContent => -2.,
+                                    AvailableSpace::Definite(value) => value,
+                                },
+                            )),
+                        ],
+                    ),
+                };
                 match result {
                     Ok(result) => {
                         let size = result.j().unwrap_or_default();
@@ -252,6 +413,9 @@ impl NodeData {
         NodeMeasure {
             #[cfg(not(target_os = "android"))]
             data: self.data,
+            #[cfg(not(target_os = "android"))]
+            measure: self.measure,
+            #[cfg(target_os = "android")]
             measure: self.measure.clone(),
         }
     }
@@ -263,6 +427,11 @@ impl Default for NodeData {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NodeType {
+    Normal,
+    Text,
+}
 #[derive(Debug, Clone)]
 pub struct Node {
     pub(crate) style: Style,
@@ -271,6 +440,8 @@ pub struct Node {
     pub(crate) final_layout: Layout,
     pub(crate) guard: Rc<()>,
     pub(crate) has_measure: bool,
+    pub(crate) type_: NodeType,
+    pub(crate) is_anonymous: bool,
 }
 
 impl Node {
@@ -282,11 +453,18 @@ impl Node {
             final_layout: Default::default(),
             guard: Default::default(),
             has_measure: false,
+            type_: NodeType::Normal,
+            is_anonymous: false,
         }
     }
 
     pub fn mark_dirty(&mut self) -> ClearState {
         self.cache.clear()
+    }
+
+    #[inline]
+    pub fn is_text_container(&self) -> bool {
+        self.type_ == NodeType::Text
     }
 }
 

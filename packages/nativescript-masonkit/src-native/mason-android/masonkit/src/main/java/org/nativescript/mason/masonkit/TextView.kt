@@ -1,85 +1,49 @@
 package org.nativescript.mason.masonkit
 
-import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Color
-import android.graphics.text.LineBreaker
-import android.icu.text.Transliterator
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.os.Build
-import android.text.BoringLayout
 import android.text.Layout
 import android.text.Spannable
-import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.StaticLayout
+import android.text.TextPaint
+import android.text.style.AbsoluteSizeSpan
+import android.text.style.AlignmentSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.ReplacementSpan
+import android.text.style.StrikethroughSpan
+import android.text.style.UnderlineSpan
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.View
-import androidx.annotation.RequiresApi
+import android.view.ViewGroup
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withTranslation
 import androidx.core.widget.TextViewCompat
-import org.nativescript.mason.masonkit.TextAlign.Start
-import org.nativescript.mason.masonkit.text.Spans
-import org.nativescript.mason.masonkit.text.Styles
-import org.nativescript.mason.masonkit.text.Styles.DecorationLine
-import org.nativescript.mason.masonkit.text.Styles.TextJustify
+import org.nativescript.mason.masonkit.Styles.TextJustify
+import org.nativescript.mason.masonkit.Styles.TextWrap
+import org.nativescript.mason.masonkit.TextNode.FixedLineHeightSpan
+import org.nativescript.mason.masonkit.TextNode.RelativeLineHeightSpan
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.util.Locale
 import kotlin.math.ceil
-import kotlin.math.max
-
-object TextStyleKeys {
-  const val COLOR = 0
-  const val DECORATION_LINE = 4
-  const val DECORATION_COLOR = 8
-  const val TEXT_ALIGN = 12
-  const val TEXT_JUSTIFY = 16
-  const val BACKGROUND_COLOR = 20
-  const val SIZE = 24
-  const val TRANSFORM = 28
-  const val FONT_STYLE_TYPE = 32
-  const val FONT_STYLE_SLANT = 36
-  const val TEXT_WRAP = 40
-  const val WHITE_SPACE = 40
-  const val TEXT_OVERFLOW = 44
-}
-
-const val UNSET_COLOR = 0xDEADBEEF
-
-@JvmInline
-value class TextStateKeys internal constructor(val bits: Long) {
-  companion object {
-    val COLOR = TextStateKeys(1L shl 0)
-    val DECORATION_LINE = TextStateKeys(1L shl 1)
-    val DECORATION_COLOR = TextStateKeys(1L shl 2)
-    val TEXT_ALIGN = TextStateKeys(1L shl 3)
-    val TEXT_JUSTIFY = TextStateKeys(1L shl 4)
-    val BACKGROUND_COLOR = TextStateKeys(1L shl 5)
-
-    val SIZE = TextStateKeys(1L shl 6)
-    val TRANSFORM = TextStateKeys(1L shl 7)
-    val FONT_STYLE = TextStateKeys(1L shl 8)
-    val FONT_STYLE_SLANT = TextStateKeys(1L shl 9)
-    val TEXT_WRAP = TextStateKeys(1L shl 10)
-    val WHITE_SPACE = TextStateKeys(1L shl 11)
-    val TEXT_OVERFLOW = TextStateKeys(1L shl 12)
-  }
-
-  infix fun or(other: TextStateKeys): TextStateKeys = TextStateKeys(bits or other.bits)
-  infix fun and(other: TextStateKeys): TextStateKeys = TextStateKeys(bits and other.bits)
-  infix fun hasFlag(flag: TextStateKeys): Boolean = (bits and flag.bits) != 0L
-}
-
-const val VIEW_PLACEHOLDER = "\uFFFC"
 
 class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
-) : androidx.appcompat.widget.AppCompatTextView(context, attrs), MasonView, MeasureFunc {
-  private var spannableText: String? = null
-  private var spannable = SpannableStringBuilder("")
-  private var spans = mutableMapOf<Spans.Type, Spans.NSCSpan>()
+) : androidx.appcompat.widget.AppCompatTextView(context, attrs), Element, MeasureFunc,
+  StyleChangeListener {
 
-  lateinit var font: FontFace
-    private set
+  override val view: View
+    get() = this
+
+  override val style: Style
+    get() = node.style
+
+  internal val fontFace: FontFace
+    get() {
+      return style.font
+    }
 
   var type: TextType = TextType.None
     private set
@@ -87,22 +51,15 @@ class TextView @JvmOverloads constructor(
   override lateinit var node: Node
     private set
 
-  internal lateinit var textNode: Node
-
-  private var owner: TextView? = null
-  private val children: MutableList<TextChild> = mutableListOf()
-
-  private data class TextChild(
-    val view: View, val text: TextView?, val attachment: Spans.NSCSpan?, val node: Node
-  )
-
   constructor(context: Context, mason: Mason) : this(context, null, true) {
     setup(mason)
   }
 
-  constructor(context: Context, mason: Mason, type: TextType) : this(context, null, true) {
+  constructor(context: Context, mason: Mason, type: TextType, isAnonymous: Boolean = false) : this(
+    context, null, true
+  ) {
     this.type = type
-    setup(mason)
+    setup(mason, isAnonymous)
   }
 
   init {
@@ -111,204 +68,255 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-  private fun setup(mason: Mason) {
-    TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
-    node = mason.createNode(this)
-      .apply {
-        data = this@TextView
-        isTextView = true
+  var textContent: String
+    get() {
+      var result = ""
+      for (child in node.children) {
+        if (child is TextNode) {
+          result += child.data
+        }
+      }
+      return result
+    }
+    set(value) {
+      // Remove all existing children
+      node.children.clear()
+
+      // Create a single text node with the new text
+      val textNode = TextNode(node.mason, value)
+      textNode.container = this
+
+      // Add to children
+      node.children.add(textNode)
+      textNode.parent = node
+
+      // Clear layout tree (text nodes don't have nativePtr)
+      if (node.nativePtr != 0L) {
+        NativeHelpers.nativeNodeRemoveChildren(node.mason.nativePtr, node.nativePtr)
       }
 
-    textNode = mason.createNode(this)
-      .apply {
-        style.display = Display.Inline
-        isText = true
-      }
+      invalidateInlineSegments()
+      node.dirty()
+      invalidate()
+      requestLayout()
+    }
+
+  private fun setup(mason: Mason, isAnonymous: Boolean = false) {
+    TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
+    node = mason.createTextNode(this, isAnonymous).apply {
+      view = this@TextView
+      this.isAnonymous = isAnonymous
+    }
     val scale = context.resources.displayMetrics.density
     val margin = { top: Float, bottom: Float ->
       Rect<LengthPercentageAuto>(
         LengthPercentageAuto.Points(0f),
         LengthPercentageAuto.Points(0f),
-        LengthPercentageAuto.Points(top * scale),
-        LengthPercentageAuto.Points(bottom * scale)
+        LengthPercentageAuto.Points(top),
+        LengthPercentageAuto.Points(bottom)
       )
     }
 
-    node.inBatch = true
+    if (type != TextType.None) {
+      node.style.inBatch = true
 
-    when (type) {
-      TextType.Span -> {
-        font = FontFace("sans-serif")
-        style.display = Display.Inline
-      }
-
-      TextType.Code -> {
-        font = FontFace("monospace")
-        style.display = Display.Inline
-        setBackgroundColor(0xFFEFEFEF.toInt())
-      }
-
-      TextType.H1 -> {
-        font = FontFace("sans-serif")
-        font.weight = FontFace.NSCFontWeight.Bold
-        spans[Spans.Type.Size] = Spans.SizeSpan(32, true)
-        paint.textSize = 32 * scale
-        node.style.margin = margin(16f, 16f)
-      }
-
-      TextType.H2 -> {
-        font = FontFace("sans-serif")
-        font.weight = FontFace.NSCFontWeight.Bold
-        spans[Spans.Type.Size] = Spans.SizeSpan(24, true)
-        paint.textSize = 24 * scale
-        node.style.margin = margin(14f, 14f)
-      }
-
-      TextType.H3 -> {
-        font = FontFace("sans-serif")
-        font.weight = FontFace.NSCFontWeight.Bold
-        spans[Spans.Type.Size] = Spans.SizeSpan(18, true)
-        paint.textSize = 18 * scale
-        node.style.margin = margin(12f, 12f)
-      }
-
-      TextType.H4 -> {
-        font = FontFace("sans-serif")
-        font.weight = FontFace.NSCFontWeight.Bold
-        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
-        paint.textSize = 16 * scale
-        node.style.margin = margin(10f, 10f)
-      }
-
-      TextType.H5 -> {
-        font = FontFace("sans-serif")
-        font.weight = FontFace.NSCFontWeight.Bold
-        spans[Spans.Type.Size] = Spans.SizeSpan(13, true)
-        paint.textSize = 13 * scale
-        node.style.margin = margin(8f, 8f)
-      }
-
-      TextType.H6 -> {
-        font = FontFace("sans-serif")
-        font.weight = FontFace.NSCFontWeight.Bold
-        spans[Spans.Type.Size] = Spans.SizeSpan(10, true)
-        paint.textSize = 10 * scale
-        node.style.margin = margin(6f, 6f)
-      }
-
-      TextType.Li -> {
-        font = FontFace("sans-serif")
-        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
-        paint.textSize = 16 * scale
-      }
-
-      TextType.Blockquote -> {
-        font = FontFace("sans-serif")
-        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
-        paint.textSize = 16 * scale
-      }
-
-      TextType.B -> {
-        font = FontFace("sans-serif")
-        font.weight = FontFace.NSCFontWeight.Bold
-        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
-        paint.textSize = 16 * scale
-        style.display = Display.Inline
-      }
-
-      TextType.Pre -> {
-        font = FontFace("monospace")
-        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
-        paint.textSize = 16 * scale
-        whiteSpace = Styles.WhiteSpace.Pre
-      }
-
-      else -> {
-        font = FontFace("sans-serif")
-        spans[Spans.Type.Size] = Spans.SizeSpan(16, true)
-        paint.textSize = 16 * scale
-      }
-    }
-
-    font.loadSync(context) {}
-
-    spans[Spans.Type.Typeface] = Spans.TypefaceSpan(font.font!!, font.weight.isBold)
-    node.inBatch = false
-
-    setSpannableFactory(object : Spannable.Factory() {
-      override fun newSpannable(source: CharSequence): Spannable {
-        if (source is String) {
-          return SpannableString(source)
+      when (type) {
+        TextType.Span -> {
+          style.font = FontFace("sans-serif")
+          style.display = Display.Inline
         }
-        return source as Spannable
+
+        TextType.Code -> {
+          style.font = FontFace("monospace")
+          style.display = Display.Inline
+          setBackgroundColor(0xFFEFEFEF.toInt())
+        }
+
+        TextType.H1 -> {
+          style.font = FontFace("sans-serif")
+          node.style.display = Display.Block
+          fontFace.weight = FontFace.NSCFontWeight.Bold
+          fontSize = 32
+          paint.textSize = 32 * scale
+          node.style.margin = margin(16f, 16f)
+        }
+
+        TextType.H2 -> {
+          style.font = FontFace("sans-serif")
+          node.style.display = Display.Block
+          fontFace.weight = FontFace.NSCFontWeight.Bold
+          fontSize = 24
+          paint.textSize = 24 * scale
+          node.style.margin = margin(14f, 14f)
+        }
+
+        TextType.H3 -> {
+          style.font = FontFace("sans-serif")
+          node.style.display = Display.Block
+          fontFace.weight = FontFace.NSCFontWeight.Bold
+          fontSize = 18
+          paint.textSize = 18 * scale
+          node.style.margin = margin(12f, 12f)
+        }
+
+        TextType.H4 -> {
+          style.font = FontFace("sans-serif")
+          node.style.display = Display.Block
+          fontFace.weight = FontFace.NSCFontWeight.Bold
+          fontSize = Constants.DEFAULT_FONT_SIZE
+          paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
+          node.style.margin = margin(10f, 10f)
+        }
+
+        TextType.H5 -> {
+          style.font = FontFace("sans-serif")
+          node.style.display = Display.Block
+          fontFace.weight = FontFace.NSCFontWeight.Bold
+          fontSize = 13
+          paint.textSize = 13 * scale
+          node.style.margin = margin(8f, 8f)
+        }
+
+        TextType.H6 -> {
+          style.font = FontFace("sans-serif")
+          node.style.display = Display.Block
+          fontFace.weight = FontFace.NSCFontWeight.Bold
+          fontSize = 10
+          paint.textSize = 10 * scale
+          node.style.margin = margin(6f, 6f)
+        }
+
+        TextType.Li -> {
+          style.font = FontFace("sans-serif")
+          fontSize = Constants.DEFAULT_FONT_SIZE
+          paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
+        }
+
+        TextType.Blockquote -> {
+          style.font = FontFace("sans-serif")
+          node.style.display = Display.Block
+          fontSize = Constants.DEFAULT_FONT_SIZE
+          paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
+        }
+
+        TextType.B, TextType.Strong -> {
+          style.font = FontFace("sans-serif")
+          fontFace.weight = FontFace.NSCFontWeight.Bold
+          fontSize = Constants.DEFAULT_FONT_SIZE
+          paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
+          style.display = Display.Inline
+        }
+
+        TextType.Pre -> {
+          style.font = FontFace("monospace")
+          fontSize = Constants.DEFAULT_FONT_SIZE
+          paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
+          whiteSpace = Styles.WhiteSpace.Pre
+        }
+
+        TextType.I, TextType.Em -> {
+          fontFace.style = FontFace.NSCFontStyle.Italic
+        }
+
+        TextType.P -> {
+          style.font = FontFace("sans-serif")
+          node.style.display = Display.Block
+          fontSize = Constants.DEFAULT_FONT_SIZE
+          paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
+          node.style.margin = margin(16f, 16f)
+        }
+
+        else -> {
+          style.font = FontFace("sans-serif")
+          paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
+        }
       }
-    })
-    setText(spannable, BufferType.SPANNABLE)
+
+      fontFace.loadSync(context) {}
+
+      node.style.inBatch = false
+
+    } else {
+      style.font = FontFace("sans-serif")
+      paint.textSize = Constants.DEFAULT_FONT_SIZE * scale
+      fontFace.loadSync(context) {}
+    }
+
+    node.style.setStyleChangeListener(this)
+
   }
 
-  val textValues: ByteBuffer by lazy {
-    ByteBuffer.allocateDirect(52).apply {
-      order(ByteOrder.nativeOrder())
-      putInt(TextStyleKeys.COLOR, Color.BLACK)
-      putInt(TextStyleKeys.DECORATION_COLOR, UNSET_COLOR.toInt())
-      putInt(TextStyleKeys.TEXT_ALIGN, Start.value)
-      putInt(TextStyleKeys.TEXT_JUSTIFY, TextJustify.None.value)
-      putInt(TextStyleKeys.SIZE, (15 * resources.displayMetrics.density).toInt())
+  override fun onTextStyleChanged(change: Int) {
+    var dirty = false
+    var layout = false
+    if (change and TextStyleChangeMask.COLOR != 0) {
+      paint.color = style.resolvedColor
+      dirty = true
+    }
+
+    if (change and TextStyleChangeMask.FONT_SIZE != 0) {
+      val fontSize = style.resolvedFontSize
+      if (fontSize == 0) {
+        paint.textSize = 0f
+      } else {
+        paint.textSize = TypedValue.applyDimension(
+          TypedValue.COMPLEX_UNIT_DIP,
+          fontSize.toFloat(),
+          resources.displayMetrics
+        )
+      }
+      layout = true
+      dirty = true
+    }
+
+    if (change and TextStyleChangeMask.FONT_WEIGHT != 0 || change and TextStyleChangeMask.FONT_STYLE != 0 || change and TextStyleChangeMask.FONT_FAMILY != 0) {
+      style.resolvedFontFace.font?.let {
+        paint.typeface = it
+        dirty = true
+      }
+    }
+
+
+    if (
+      change and TextStyleChangeMask.TEXT_WRAP != 0 ||
+      change and TextStyleChangeMask.WHITE_SPACE != 0 ||
+      change and TextStyleChangeMask.TEXT_TRANSFORM != 0 ||
+      change and TextStyleChangeMask.DECORATION_LINE != 0 ||
+      change and TextStyleChangeMask.DECORATION_COLOR != 0 ||
+      change and TextStyleChangeMask.DECORATION_STYLE != 0 ||
+      change and TextStyleChangeMask.LETTER_SPACING != 0 ||
+      change and TextStyleChangeMask.TEXT_JUSTIFY != 0 ||
+      change and TextStyleChangeMask.BACKGROUND_COLOR != 0 ||
+      change and TextStyleChangeMask.LINE_HEIGHT != 0 ||
+      change and TextStyleChangeMask.TEXT_ALIGN != 0 ||
+      change and TextStyleChangeMask.TEXT_OVERFLOW != 0
+
+    ) {
+      dirty = true
+    }
+
+
+    if (dirty) {
+      updateStyleOnTextNodes()
+      invalidateInlineSegments()
+      if (layout) {
+        if (node.isAnonymous) {
+          node.layoutParent?.dirty()
+        }
+        invalidateLayout()
+      }
     }
   }
+
+  val textValues: ByteBuffer
+    get() {
+      return style.textValues
+    }
 
   val values: ByteBuffer
     get() {
       return style.values
     }
-
-  fun syncStyle(state: String, textState: String) {
-    val stateValue = state.toLongOrNull() ?: return
-    val textStateValue = textState.toLongOrNull() ?: return
-    if (textStateValue != -1L) {
-      val value = TextStateKeys(textStateValue)
-      if (value.hasFlag(TextStateKeys.COLOR)) {
-        val color = textValues.getInt(TextStyleKeys.COLOR)
-        updateColor(color)
-      }
-
-      if (value.hasFlag(TextStateKeys.BACKGROUND_COLOR)) {
-        val backgroundColor = textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
-        updateBackgroundColor(backgroundColor)
-      }
-
-      val hasDecorationColor = value.hasFlag(TextStateKeys.DECORATION_COLOR)
-      val hasDecorationLine = value.hasFlag(TextStateKeys.DECORATION_LINE)
-
-      if (hasDecorationColor || hasDecorationLine) {
-        updateDecorationLine(decorationLine, decorationColor)
-      }
-
-      var dirty = false
-      if (value.hasFlag(TextStateKeys.TRANSFORM) || value.hasFlag(TextStateKeys.TEXT_WRAP) || value.hasFlag(
-          TextStateKeys.WHITE_SPACE
-        ) || value.hasFlag(
-          TextStateKeys.TEXT_OVERFLOW
-        )
-      ) {
-        applyTransform(textTransform, true, whiteSpace, textWrap)
-        dirty = true
-      }
-
-      if (dirty) {
-        node.dirty()
-        invalidate()
-      }
-    }
-    if (stateValue != -1L) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
-  }
-
-  override fun isLeaf(): Boolean {
-    return true
-  }
 
   var includePadding = true
 
@@ -322,401 +330,152 @@ class TextView @JvmOverloads constructor(
 
   var textJustify: TextJustify
     get() {
-      return TextJustify.fromInt(textValues.getInt(TextStyleKeys.TEXT_JUSTIFY))
+      return style.textJustify
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.TEXT_JUSTIFY, value.value)
+      style.textJustify = value
     }
 
-  private fun updateFontSize(value: Int) {
-    spans[Spans.Type.Size]?.let {
-      spannable.removeSpan(it)
+  var color: Int
+    get() = style.color
+    set(value) {
+      style.color = value
     }
-    spans[Spans.Type.Size] = Spans.SizeSpan(value, true)
-    paint.textSize = value * resources.displayMetrics.density
-    applySpans()
-  }
+
+  var font: String
+    get() {
+      return ""
+    }
+    set(value) {
+
+    }
+
+  var fontFamily: String
+    get() {
+      return style.fontFamily
+    }
+    set(value) {
+      style.fontFamily = value
+    }
+
+  var fontVariant: String
+    get() {
+      return style.fontVariant
+    }
+    set(value) {
+      style.fontVariant = value
+    }
+
+  var fontStretch: String
+    get() {
+      return style.fontStretch
+    }
+    set(value) {
+      style.fontStretch = value
+    }
+
 
   var fontSize: Int
     get() {
-      return textValues.getInt(TextStyleKeys.SIZE)
+      return style.fontSize
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.SIZE, value)
-      updateFontSize(value)
-      node.dirty()
-      if (!node.inBatch) {
-        invalidateView()
-      }
+      style.fontSize = value
+    }
+
+  var fontWeight: FontFace.NSCFontWeight
+    get() {
+      return style.fontWeight
+    }
+    set(value) {
+      style.fontWeight = value
     }
 
   var fontStyle: FontFace.NSCFontStyle
     set(value) {
-      font.style = value
+      style.fontStyle = value
     }
     get() {
-      return font.style
+      return style.fontStyle
     }
 
-
-  var textWrap: Styles.TextWrap
+  var textWrap: TextWrap
     get() {
-      return Styles.TextWrap.fromInt(textValues.getInt(TextStyleKeys.TEXT_WRAP))
+      return style.textWrap
     }
     set(value) {
-      val changed = value != textWrap
-      textValues.putInt(TextStyleKeys.TEXT_WRAP, value.value)
-      applyTransform(textTransform, changed, whiteSpace, value)
-      markDirtyAndRecompute()
+      style.textWrap = value
+    }
+
+  var letterSpacingValue: Float
+    get() {
+      return style.letterSpacing
+    }
+    set(value) {
+      style.letterSpacing = value
     }
 
   var whiteSpace: Styles.WhiteSpace
     get() {
-      return Styles.WhiteSpace.fromInt(textValues.getInt(TextStyleKeys.WHITE_SPACE))
+      return style.whiteSpace
     }
     set(value) {
-      val changed = value != whiteSpace
-      textValues.putInt(TextStyleKeys.WHITE_SPACE, value.value)
-      applyTransform(textTransform, changed, value, textWrap)
-      markDirtyAndRecompute()
+      style.whiteSpace = value
     }
-
-  var textOverflow: Styles.TextOverflow = Styles.TextOverflow.Clip
-    set(value) {
-      field = value
-      textValues.putInt(TextStyleKeys.TEXT_OVERFLOW, value.value)
-      invalidate()
-    }
-
-  private fun markDirtyAndRecompute() {
-    node.dirty()
-    if (!node.inBatch) {
-      rootNode.computeCacheWidth?.let { width ->
-        rootNode.computeCacheHeight?.let { height ->
-          rootNode.compute(width, height)
-          (rootNode.data as? View)?.requestLayout()
-        }
-      }
-    }
-  }
-
-  private fun fullWidthTransformed(string: String): String {
-    val result = StringBuilder(string.length)
-    for (char in string) {
-      val code = char.code
-      if (code in 0x21..0x7E) {
-        result.append((code + 0xFEE0).toChar())
-      } else {
-        result.append(char)
-      }
-    }
-    return result.toString()
-  }
-
-  @RequiresApi(Build.VERSION_CODES.Q)
-  private fun fullWidthKana(string: String): String {
-    val transliterator = Transliterator.getInstance("Halfwidth-Fullwidth")
-    return transliterator.transliterate(string)
-  }
-
-  private val halfwidthToFullwidthMap: Map<Char, Char> = mapOf(
-    'ｦ' to 'ヲ',
-    'ｧ' to 'ァ',
-    'ｨ' to 'ィ',
-    'ｩ' to 'ゥ',
-    'ｪ' to 'ェ',
-    'ｫ' to 'ォ',
-    'ｬ' to 'ャ',
-    'ｭ' to 'ュ',
-    'ｮ' to 'ョ',
-    'ｯ' to 'ッ',
-    'ｰ' to 'ー',
-    'ｱ' to 'ア',
-    'ｲ' to 'イ',
-    'ｳ' to 'ウ',
-    'ｴ' to 'エ',
-    'ｵ' to 'オ',
-    'ｶ' to 'カ',
-    'ｷ' to 'キ',
-    'ｸ' to 'ク',
-    'ｹ' to 'ケ',
-    'ｺ' to 'コ',
-    'ｻ' to 'サ',
-    'ｼ' to 'シ',
-    'ｽ' to 'ス',
-    'ｾ' to 'セ',
-    'ｿ' to 'ソ',
-    'ﾀ' to 'タ',
-    'ﾁ' to 'チ',
-    'ﾂ' to 'ツ',
-    'ﾃ' to 'テ',
-    'ﾄ' to 'ト',
-    'ﾅ' to 'ナ',
-    'ﾆ' to 'ニ',
-    'ﾇ' to 'ヌ',
-    'ﾈ' to 'ネ',
-    'ﾉ' to 'ノ',
-    'ﾊ' to 'ハ',
-    'ﾋ' to 'ヒ',
-    'ﾌ' to 'フ',
-    'ﾍ' to 'ヘ',
-    'ﾎ' to 'ホ',
-    'ﾏ' to 'マ',
-    'ﾐ' to 'ミ',
-    'ﾑ' to 'ム',
-    'ﾒ' to 'メ',
-    'ﾓ' to 'モ',
-    'ﾔ' to 'ヤ',
-    'ﾕ' to 'ユ',
-    'ﾖ' to 'ヨ',
-    'ﾗ' to 'ラ',
-    'ﾘ' to 'リ',
-    'ﾙ' to 'ル',
-    'ﾚ' to 'レ',
-    'ﾛ' to 'ロ',
-    'ﾜ' to 'ワ',
-    'ﾝ' to 'ン'
-  )
-
-  private val dakutenMap: Map<Char, Char> = mapOf(
-    'カ' to 'ガ',
-    'キ' to 'ギ',
-    'ク' to 'グ',
-    'ケ' to 'ゲ',
-    'コ' to 'ゴ',
-    'サ' to 'ザ',
-    'シ' to 'ジ',
-    'ス' to 'ズ',
-    'セ' to 'ゼ',
-    'ソ' to 'ゾ',
-    'タ' to 'ダ',
-    'チ' to 'ヂ',
-    'ツ' to 'ヅ',
-    'テ' to 'デ',
-    'ト' to 'ド',
-    'ハ' to 'バ',
-    'ヒ' to 'ビ',
-    'フ' to 'ブ',
-    'ヘ' to 'ベ',
-    'ホ' to 'ボ',
-    'ウ' to 'ヴ'
-  )
-
-  private val handakutenMap: Map<Char, Char> = mapOf(
-    'ハ' to 'パ', 'ヒ' to 'ピ', 'フ' to 'プ', 'ヘ' to 'ペ', 'ホ' to 'ポ'
-  )
-
-  private fun fullWidthKanaCompat(string: String): String {
-    val builder = StringBuilder(string.length)
-    var lastFullwidthKanaIndex = -1
-
-    for (char in string) {
-      when (char) {
-        in 'ｦ'..'ﾝ' -> {
-          // Halfwidth Kana
-          val fullwidth = halfwidthToFullwidthMap[char] ?: char
-          builder.append(fullwidth)
-          lastFullwidthKanaIndex = builder.length - 1
-        }
-
-        'ﾞ' -> {
-          if (lastFullwidthKanaIndex != -1) {
-            val base = builder[lastFullwidthKanaIndex]
-            val combined = dakutenMap[base] ?: base
-            builder.setCharAt(lastFullwidthKanaIndex, combined)
-          } else {
-            builder.append('゛')
-          }
-          lastFullwidthKanaIndex = -1
-        }
-
-        'ﾟ' -> {
-          if (lastFullwidthKanaIndex != -1) {
-            val base = builder[lastFullwidthKanaIndex]
-            val combined = handakutenMap[base] ?: base
-            builder.setCharAt(lastFullwidthKanaIndex, combined)
-          } else {
-            builder.append('゜')
-          }
-          lastFullwidthKanaIndex = -1
-        }
-
-        in '\u0021'..'\u007E' -> {
-          // Fullwidth ASCII
-          val fullwidth = (char.code + 0xFEE0).toChar()
-          builder.append(fullwidth)
-          lastFullwidthKanaIndex = -1
-        }
-
-        else -> {
-          builder.append(char)
-          lastFullwidthKanaIndex = -1
-        }
-      }
-    }
-    return builder.toString()
-  }
-
-  private fun balancedText(input: String): String {
-    // todo
-    return input
-  }
-
-  private fun applyTransform(
-    value: Styles.TextTransform,
-    changed: Boolean,
-    whiteSpace: Styles.WhiteSpace,
-    textWrap: Styles.TextWrap
-  ) {
-    if (!changed || spannable.isEmpty()) {
-      return
-    }
-
-    var transformedText = spannableText ?: return
-
-    transformedText = when (whiteSpace) {
-      Styles.WhiteSpace.Normal -> transformedText.replace(Regex("\\s+"), " ")
-      Styles.WhiteSpace.Pre -> transformedText
-      Styles.WhiteSpace.PreWrap -> transformedText
-      Styles.WhiteSpace.PreLine -> transformedText.replace(Regex("[ \t]+"), " ")
-    }
-
-    transformedText = when (textWrap) {
-      Styles.TextWrap.NoWrap -> transformedText.replace("\n", " ")
-      Styles.TextWrap.Wrap -> transformedText
-      Styles.TextWrap.Balance -> {
-        balancedText(transformedText)
-      }
-    }
-
-    when (value) {
-      Styles.TextTransform.None -> {
-        spannable.replace(0, spannable.length, transformedText)
-      }
-
-      Styles.TextTransform.Capitalize -> {
-        spannable.replace(
-          0,
-          spannable.length,
-          transformedText.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() })
-      }
-
-      Styles.TextTransform.Uppercase -> {
-        spannable.replace(0, spannable.length, transformedText.uppercase())
-      }
-
-      Styles.TextTransform.Lowercase -> {
-        spannable.replace(0, spannable.length, transformedText.lowercase())
-      }
-
-      Styles.TextTransform.FullWidth -> {
-        spannable.replace(0, spannable.length, transformedText.let {
-          fullWidthTransformed(it)
-        })
-      }
-
-      Styles.TextTransform.FullSizeKana -> {
-        spannable.replace(0, spannable.length, transformedText.let {
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            fullWidthKana(it)
-          } else {
-            fullWidthKanaCompat(it)
-          }
-        })
-      }
-
-      Styles.TextTransform.MathAuto -> {
-        spannable.replace(0, spannable.length, transformedText)
-      }
-    }
-  }
 
   var textTransform: Styles.TextTransform
     get() {
-      return Styles.TextTransform.fromInt(textValues.getInt(TextStyleKeys.TRANSFORM))
+      return style.textTransform
     }
     set(value) {
-      val changed = value != textTransform
-      textValues.putInt(TextStyleKeys.TRANSFORM, value.value)
-      applyTransform(value, changed, whiteSpace, textWrap)
-      markDirtyAndRecompute()
+      style.textTransform = value
     }
-
-  private fun updateColor(color: Int, replace: Boolean = false) {
-    spans[Spans.Type.ForegroundColor] = Spans.ForegroundColorSpan(color)
-    applySpans()
-    invalidateView()
-  }
-
-  var color: Int
-    get() {
-      return textValues.getInt(TextStyleKeys.COLOR)
-    }
-    set(value) {
-      textValues.putInt(TextStyleKeys.COLOR, value)
-      updateColor(value, text.isNotEmpty())
-    }
-
-
-  private fun updateBackgroundColor(color: Int) {
-    val background = Spans.BackgroundColorSpan(color)
-
-    if ((spannableText?.length ?: 0) == 0) {
-      spans[Spans.Type.BackgroundColor] = background
-      return
-    }
-    spans[Spans.Type.BackgroundColor] = background
-
-    applySpans()
-
-    invalidateView()
-  }
 
   var backgroundColorValue: Int
     get() {
-      return textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
+      return style.backgroundColor
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, value)
-      updateBackgroundColor(value)
+      style.backgroundColor = value
+    }
+
+  var decorationLine: Styles.DecorationLine
+    get() {
+      return style.decorationLine
+    }
+    set(value) {
+      style.decorationLine = value
     }
 
   var decorationColor: Int
     get() {
-      return textValues.getInt(TextStyleKeys.DECORATION_COLOR)
+      return style.decorationColor
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.DECORATION_COLOR, value)
-      updateDecorationLine(decorationLine, value)
+      style.decorationColor = value
     }
 
-  private fun updateDecorationLine(value: DecorationLine, color: Int) {
-    val lineSpan = when (value) {
-      DecorationLine.None -> null
-      DecorationLine.Underline -> Spans.UnderlineSpan()
-      DecorationLine.LineThrough -> Spans.StrikethroughSpan()
-      DecorationLine.Overline -> null // TODO: Need custom span
-    }
-
-    if (lineSpan != null) {
-      spans[Spans.Type.DecorationLine] = lineSpan
-    } else {
-      spans.remove(Spans.Type.DecorationLine)
-    }
-
-    applySpans()
-
-    invalidateView()
-  }
-
-  var decorationLine: DecorationLine
-    set(value) {
-      textValues.putInt(TextStyleKeys.DECORATION_LINE, value.value)
-      updateDecorationLine(value, decorationColor)
-    }
+  var decorationStyle: Styles.DecorationStyle
     get() {
-      return DecorationLine.fromInt(textValues.getInt(TextStyleKeys.DECORATION_LINE))
+      return style.decorationStyle
     }
+    set(value) {
+      style.decorationStyle = value
+    }
+
+
+  // Update attributes on all direct TextNode children when styles change
+  internal fun updateStyleOnTextNodes() {
+    val defaultAttrs = getDefaultAttributes()
+
+    for (child in node.children) {
+      if (child is TextNode && child.container === this) {
+        // Only update TextNodes that belong to THIS TextView
+        // Don't touch TextNodes that belong to child TextViews
+        child.attributes.putAll(defaultAttrs)
+      }
+    }
+  }
 
   private fun mapMeasureSpec(mode: Int, value: Int): AvailableSpace {
     return when (mode) {
@@ -741,25 +500,6 @@ class TextView @JvmOverloads constructor(
     }
   }
 
-  override fun configure(block: Node.() -> Unit) {
-    block(node)
-  }
-
-  private var batching = false
-    set(value) {
-      if (field && !value) {
-        // todo dirty state
-        //  updateText(spannableText, true)
-      }
-      field = value
-    }
-
-  fun configureText(block: TextView.() -> Unit) {
-    batching = true
-    block()
-    batching = false
-  }
-
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     val specWidth = MeasureSpec.getSize(widthMeasureSpec)
     val specHeight = MeasureSpec.getSize(heightMeasureSpec)
@@ -767,249 +507,676 @@ class TextView @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-    if (owner == null && parent !is MasonView) {
-      node.compute(
+    if (node.parent == null && parent !is Element) {
+      compute(
         mapMeasureSpec(specWidthMode, specWidth).value,
         mapMeasureSpec(specHeightMode, specHeight).value
       )
 
-      val layout = node.layout()
+      val layout = layout()
       node.computedLayout = layout
       setMeasuredDimension(
         layout.width.toInt(),
         layout.height.toInt(),
       )
     } else {
-      val layout = node.layout()
-      setMeasuredDimension(
-        layout.width.toInt(), layout.height.toInt()
-      )
+      if (specWidthMode == MeasureSpec.EXACTLY && specHeightMode == MeasureSpec.EXACTLY) {
+        setMeasuredDimension(
+          specWidth, specHeight
+        )
+      } else {
+        val layout = layout()
+        setMeasuredDimension(
+          layout.width.toInt(), layout.height.toInt()
+        )
+      }
     }
   }
 
   private fun measureLayout(
     knownWidth: Float, knownHeight: Float, availableWidth: Float, availableHeight: Float
   ): Layout? {
-    val textToMeasure = spannableText ?: ""
-    val boring = BoringLayout.isBoring(textToMeasure, paint)
-    val width = boring?.let {
-      Float.NaN
-    } ?: Layout.getDesiredWidth(textToMeasure, paint)
-
-
-    val isNoWrap = textWrap == Styles.TextWrap.NoWrap
-
-    val isWidthUnConstrained =
-      (availableWidth.isNaN() || availableWidth == -1f || availableWidth == -2f || isNoWrap) && knownWidth.isNaN()
-    return if (boring == null && (isWidthUnConstrained || (!width.isNaN() && width <= knownWidth))) {
-      createLayout(textToMeasure, ceil(width).toInt())
-    } else if (boring != null && (isWidthUnConstrained || boring.width <= knownWidth)) {
-      BoringLayout.make(
-        textToMeasure,
-        paint,
-        max(boring.width, 0),
-        Layout.Alignment.ALIGN_NORMAL,
-        1F,
-        0f,
-        boring,
-        includePadding
+    val spannable = buildAttributedString()
+    if (layoutParams == null) {
+      layoutParams = ViewGroup.LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
       )
-    } else {
-      val maxWidth = knownWidth.takeIf { !it.isNaN() } ?: availableWidth
-      createLayout(textToMeasure, ceil(maxWidth).toInt())
     }
-  }
 
-  @SuppressLint("WrongConstant")
-  private fun createLayout(spannable: String, maxWidth: Int): Layout {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+    setText(spannable, BufferType.SPANNABLE)
+
+    if (spannable.isEmpty() && node.children.isEmpty()) {
+      return null
+    }
+
+    // Determine the width constraint for StaticLayout
+    // For inline elements, we want to measure to content, not fill available width
+    val isInline = NodeUtils.isInlineLike(node)
+
+    var widthConstraint = Int.MAX_VALUE
+    var heightConstraint = Int.MAX_VALUE
+
+    if (knownWidth > 0 && knownHeight != Float.MIN_VALUE) {
+      widthConstraint = knownWidth.toInt()
+    }
+
+    if (knownHeight > 0 && knownHeight != Float.MIN_VALUE) {
+      heightConstraint = knownHeight.toInt()
+    }
+
+
+    if (isInline) {
+      widthConstraint = Int.MAX_VALUE
+    }
+
+    var allowWrap = true
+    if (node.style.isTextValueInitialized) {
+      val ws = node.style.whiteSpace
+      // No wrap for pre / nowrap
+      if (ws == Styles.WhiteSpace.Pre || ws == Styles.WhiteSpace.NoWrap) {
+        allowWrap = false
+      }
+      // Explicit override
+      if (node.style.textWrap == TextWrap.NoWrap) {
+        allowWrap = false
+      }
+    }
+
+    if (allowWrap && availableWidth > 0 && availableWidth != Float.MIN_VALUE) {
+      widthConstraint = availableWidth.toInt()
+    }
+
+
+    val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
+
+    val layout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+
+      val heuristic = when (textDirection) {
+        View.TEXT_DIRECTION_ANY_RTL -> android.text.TextDirectionHeuristics.ANYRTL_LTR
+        View.TEXT_DIRECTION_LTR -> android.text.TextDirectionHeuristics.LTR
+        View.TEXT_DIRECTION_RTL -> android.text.TextDirectionHeuristics.RTL
+        View.TEXT_DIRECTION_LOCALE -> android.text.TextDirectionHeuristics.LOCALE
+        View.TEXT_DIRECTION_FIRST_STRONG_RTL -> android.text.TextDirectionHeuristics.FIRSTSTRONG_RTL
+        View.TEXT_DIRECTION_FIRST_STRONG_LTR -> android.text.TextDirectionHeuristics.FIRSTSTRONG_LTR
+        else -> android.text.TextDirectionHeuristics.FIRSTSTRONG_LTR
+      }
+
       var builder = StaticLayout.Builder.obtain(
-        spannable, 0, spannable.length, paint, maxWidth
+        spannable, 0, spannable.length, paint, widthConstraint
       )
-        .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+        .setAlignment(alignment)
+        .setLineSpacing(0f, 1f)
         .setIncludePad(includePadding)
+        .setTextDirection(heuristic)
 
-      if (type == TextType.Pre) {
-        builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-          builder.setBreakStrategy(LineBreaker.BREAK_STRATEGY_SIMPLE)
-        } else {
-          builder.setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE)
-        }
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        builder = builder.setUseLineSpacingFromFallbacks(true)
       }
 
-      return builder.build()
+      builder.build()
     } else {
-      return StaticLayout(
-        spannable, paint, maxWidth, Layout.Alignment.ALIGN_NORMAL, 1F, 0f, includePadding
+      StaticLayout(
+        spannable, paint, widthConstraint, alignment, 1f, // lineSpacingMultiplier
+        0f, // lineSpacingExtra
+        includePadding // includePad
       )
     }
+
+    // Get the ACTUAL measured width from the layout, not the constraint
+    var measuredWidth = 0f
+
+    if (isInline) {
+      for (i in 0 until layout.lineCount) {
+        val lineWidth = ceil(layout.getLineWidth(i))
+        if (lineWidth > measuredWidth) {
+          measuredWidth = lineWidth
+        }
+      }
+    } else {
+      measuredWidth = layout.width.toFloat()
+    }
+
+    // Store the actual measured dimensions (not the constraints)
+    this.measuredTextWidth = measuredWidth
+    this.measuredTextHeight = layout.height.toFloat()
+
+    // CRITICAL: Collect and send segments to Rust
+    collectAndCacheSegments(layout, spannable)
+
+    return layout
   }
 
-  private fun rebuildText(): SpannableStringBuilder {
-    val result = SpannableStringBuilder()
-    markDirtyAndRecompute()
-    val ownStart = result.length
-    result.append(spannable)
-    val ownEnd = result.length
-
-    if (result.isEmpty()) {
-      return result
-    }
-
-    if (ownStart < ownEnd) {
-      for ((_, span) in spans) {
-        result.setSpan(span, ownStart, ownEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-      }
-    }
-
-    for (child in children) {
-      when {
-        child.text != null -> {
-          val childText = child.text.rebuildText()
-          val start = result.length
-          result.append(childText)
-          val end = result.length
-
-          for ((_, span) in child.text.spans) {
-            if (start == end) {
-              continue
-            }
-            result.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-          }
+  private fun getLayoutAlignment(): Layout.Alignment {
+    return when (style.resolvedTextAlign) {
+      TextAlign.Left, TextAlign.Start -> Layout.Alignment.ALIGN_NORMAL
+      TextAlign.Right, TextAlign.End -> Layout.Alignment.ALIGN_OPPOSITE
+      TextAlign.Center -> Layout.Alignment.ALIGN_CENTER
+      TextAlign.Justify -> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          Layout.Alignment.ALIGN_NORMAL // Justify handled by justificationMode
+        } else {
+          Layout.Alignment.ALIGN_NORMAL
         }
+      }
 
-        child.attachment != null -> {
-          val start = result.length
-          result.append(VIEW_PLACEHOLDER)
-          val end = result.length
-          result.setSpan(
-            child.attachment, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+      else -> Layout.Alignment.ALIGN_NORMAL
+    }
+  }
+
+  private var measuredTextWidth: Float = 0f
+  private var measuredTextHeight: Float = 0f
+
+  override fun measure(knownDimensions: Size<Float?>, availableSpace: Size<Float?>): Size<Float> {
+    val layout = measureLayout(
+      knownDimensions.width ?: Float.NaN,
+      knownDimensions.height ?: Float.NaN,
+      availableSpace.width ?: Float.NaN,
+      availableSpace.height ?: Float.NaN
+    )
+
+    // Use the actual measured dimensions from the layout
+    val width = if (layout != null) {
+      measuredTextWidth
+    } else {
+      0f
+    }
+
+    val height = if (layout != null) {
+      measuredTextHeight
+    } else {
+      0f
+    }
+
+    return Size(width, height)
+  }
+
+  private fun collectAndCacheSegments(layout: Layout, attributed: SpannableStringBuilder) {
+
+    val segments = mutableListOf<InlineSegment>()
+
+    // Use a TextPaint matching the current TextView properties for consistent measurement
+    val textPaint = TextPaint(paint)
+
+    // Walk through the spannable to find text runs and view placeholders
+    var currentPos = 0
+    while (currentPos < attributed.length) {
+      val viewSpans = attributed.getSpans(currentPos, currentPos + 1, ViewSpan::class.java)
+
+      if (viewSpans.isNotEmpty()) {
+        // Inline child placeholder
+        val viewSpan = viewSpans[0]
+        val height = viewSpan.childNode.cachedHeight.takeIf { it > 0 }
+          ?: viewSpan.childNode.computedLayout.height
+
+        segments.add(
+          InlineSegment.InlineChild(
+            viewSpan.childNode.nativePtr, height  // Already in px
           )
+        )
+
+        currentPos = attributed.getSpanEnd(viewSpan)
+      } else {
+        // Text segment - measure this run with proper paint
+        val nextViewStart = findNextViewSpan(attributed, currentPos)
+        val end = if (nextViewStart >= 0) nextViewStart else attributed.length
+
+        if (end > currentPos) {
+          val textRun = attributed.subSequence(currentPos, end)
+
+          // Measure with the attributed text's spans applied
+          // val width = Layout.getDesiredWidth(textRun, 0, textRun.length, textPaint)
+
+          val width = try {
+            val startX = layout.getPrimaryHorizontal(currentPos)
+            val endX = layout.getPrimaryHorizontal(end) // runEnd is the index after the last char
+            kotlin.math.abs(endX - startX)
+          } catch (_: Throwable) {
+            // fallback to desired width if layout doesn't support primaryHorizontal for some reason
+            Layout.getDesiredWidth(textRun, 0, textRun.length, textPaint)
+          }
+
+          // Get font metrics for this specific run by applying spans to a temporary paint
+          val runPaint = TextPaint(textPaint)
+
+          // Apply all character style spans to the paint
+          val spans =
+            attributed.getSpans(currentPos, end, android.text.style.CharacterStyle::class.java)
+          for (span in spans) {
+            span.updateDrawState(runPaint)
+          }
+
+          val fontMetrics = runPaint.fontMetrics
+
+          segments.add(
+            InlineSegment.Text(
+              ceil(width),  // Already in px
+              -fontMetrics.ascent,  // Negative because ascent is negative
+              fontMetrics.descent  // Already in px
+            )
+          )
+
+          currentPos = end
+        } else {
+          currentPos++
         }
       }
     }
-    spannableText = result.toString()
-    return result
-  }
 
-  internal fun invalidateView() {
-    if (owner != null) {
-      owner?.invalidateView()
-      return
+    // Push segments to native
+    if (node.nativePtr != 0L) {
+      NativeHelpers.nativeNodeSetSegments(
+        node.mason.nativePtr, node.nativePtr, segments.toTypedArray()
+      )
     }
 
-    val rebuilt = rebuildText()
-    setText(rebuilt, BufferType.SPANNABLE)
+    // segments are up-to-date now — align attributedStringVersion so cache checks succeed
+    attributedStringVersion = segmentsInvalidateVersion
+  }
+
+  private fun findNextViewSpan(text: SpannableStringBuilder, start: Int): Int {
+    val spans = text.getSpans(start, text.length, ViewSpan::class.java)
+    return if (spans.isNotEmpty()) {
+      text.getSpanStart(spans[0])
+    } else {
+      -1
+    }
+  }
+
+  // monotonically increasing version for invalidation; cachedAttributedString is valid when
+  // attributedStringVersion == segmentsInvalidateVersion
+  private var attributedStringVersion: Int = 0
+  private var segmentsInvalidateVersion: Int = 0
+  internal var cachedAttributedString: SpannableStringBuilder? = null
+  private var isBuilding = false
+
+  internal fun invalidateInlineSegments(markDirty: Boolean = true) {
+    segmentsInvalidateVersion += 1
+    cachedAttributedString = null
+    measuredTextWidth = 0f
+    measuredTextHeight = 0f
+    node.cachedWidth = 0f
+    node.cachedHeight = 0f
+    if (markDirty) {
+      node.dirty()
+    }
+    // If this TextView is a child of another TextView, invalidate parent too
+    // This handles the case where a flattened child's styles change
+    val parent = node.parent
+
+    if (parent?.view is TextView) {
+      (parent.view as TextView).invalidateInlineSegments()
+    }
+
     invalidate()
     requestLayout()
   }
 
-  override fun invalidate() {
-    if (::node.isInitialized) {
-      node.dirty()
-    }
-    super.invalidate()
+  internal fun attachTextNode(node: TextNode, index: Int = -1) {
+    node.container = this
+    invalidateInlineSegments()
   }
 
-  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-    node.computedLayout.let { parentLayout ->
-      parentLayout.children.forEachIndexed { index, layout ->
-        children.getOrNull(index)?.let {
-          it.node.computedLayout = layout
+  internal fun detachTextNode(node: TextNode) {
+    if (node.container === this) {
+      node.container = null
+      invalidateInlineSegments()
+    }
+  }
+
+  internal fun onCharacterDataChanged(node: TextNode) {
+    if (node.container === this) {
+      invalidateInlineSegments()
+    }
+  }
+
+  private fun processTextNode(node: TextNode): CharSequence {
+    return node.data
+  }
+
+  // When building attributed string, walk tree and apply current styles
+  private fun buildAttributedString(): SpannableStringBuilder {
+
+    // Return cached version if valid
+    if (cachedAttributedString != null && attributedStringVersion == segmentsInvalidateVersion) {
+      return cachedAttributedString!!
+    }
+
+    if (isBuilding) {
+      return SpannableStringBuilder()
+    }
+
+    isBuilding = true
+
+    val composed = SpannableStringBuilder()
+
+    for (child in node.children) {
+      when {
+        child is TextNode -> {
+          composed.append(child.attributed())
+        }
+
+        child.view is TextView -> {
+          val childTextView = child.view as TextView
+          if (shouldFlattenTextContainer(childTextView)) {
+            val nested = childTextView.buildAttributedString()
+            val start = composed.length
+            composed.append(nested)
+            val end = composed.length
+            applyTextViewStylesToSpan(composed, start, end, childTextView)
+          } else {
+            val placeholder = createPlaceholder(child)
+            composed.append(placeholder)
+          }
+        }
+
+        child.nativePtr != 0L && child.style.display != Display.None -> {
+          val placeholder = createPlaceholder(child)
+          composed.append(placeholder)
+        }
+      }
+    }
+
+    isBuilding = false
+
+    // Cache the result
+    cachedAttributedString = composed
+    // mark cached string as up-to-date with the current invalidate version
+    attributedStringVersion = segmentsInvalidateVersion
+
+    return composed
+  }
+
+  private fun applyTextViewStylesToSpan(
+    spannable: SpannableStringBuilder, start: Int, end: Int, textView: TextView
+  ) {
+    if (start >= end) return
+
+    val flags = Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+
+    val color = textView.style.resolvedColor
+    // Apply color
+    if (color != 0) {
+      spannable.setSpan(
+        ForegroundColorSpan(color), start, end, flags
+      )
+    }
+
+    val fontSize = textView.style.resolvedFontSize
+
+    // Apply font size
+    if (fontSize > 0) {
+      spannable.setSpan(
+        AbsoluteSizeSpan(fontSize, true), start, end, flags
+      )
+    }
+
+    val fontFace = textView.style.resolvedFontFace
+    // Apply typeface
+    fontFace.font?.let { typeface ->
+      spannable.setSpan(
+        Spans.TypefaceSpan(typeface), start, end, flags
+      )
+    }
+
+    val decorationLine = textView.style.resolvedDecorationLine
+
+    // Apply text decoration
+    if (decorationLine != Styles.DecorationLine.None) {
+      when (decorationLine) {
+        Styles.DecorationLine.Underline -> {
+          spannable.setSpan(UnderlineSpan(), start, end, flags)
+        }
+
+        Styles.DecorationLine.LineThrough -> {
+          spannable.setSpan(StrikethroughSpan(), start, end, flags)
+        }
+
+        else -> {}
+      }
+    }
+
+    val letterSpacingValue = textView.style.resolvedLetterSpacing
+    // Apply letter spacing
+    if (letterSpacingValue != 0f) {
+      spannable.setSpan(
+        android.text.style.ScaleXSpan(1f + letterSpacingValue), start, end, flags
+      )
+    }
+
+    val lineHeight = textView.style.resolvedLineHeight
+    val lineType = textView.style.resolvedLineHeightType
+
+    // Apply line height
+
+    lineHeight.takeIf { it > 0 }?.let {
+      // 1
+      if (lineType == StyleState.SET) {
+        spannable.setSpan(FixedLineHeightSpan(it.toInt()), start, end, flags)
+      } else {
+        spannable.setSpan(RelativeLineHeightSpan(it), start, end, flags)
+      }
+    }
+
+    val align = when (style.resolvedTextAlign) {
+      TextAlign.Left, TextAlign.Start -> android.text.Layout.Alignment.ALIGN_NORMAL
+      TextAlign.Right, TextAlign.End -> android.text.Layout.Alignment.ALIGN_OPPOSITE
+      TextAlign.Center -> android.text.Layout.Alignment.ALIGN_CENTER
+      TextAlign.Justify -> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          android.text.Layout.Alignment.ALIGN_NORMAL // Justify handled by justificationMode
+        } else {
+          android.text.Layout.Alignment.ALIGN_NORMAL
+        }
+      }
+
+      else -> android.text.Layout.Alignment.ALIGN_NORMAL
+    }
+
+    spannable.setSpan(AlignmentSpan.Standard(align), start, end, flags)
+
+
+  }
+
+  // Append multiple items (strings or nodes)
+  fun append(vararg items: Any) {
+    for (item in items) {
+      when (item) {
+        is String -> {
+          val textNode = TextNode(node.mason).apply {
+            data = item
+            container = this@TextView
+          }
+          node.appendChild(textNode)
+        }
+
+        is TextView -> {
+          node.appendChild(item.node)
+        }
+
+        is Element -> {
+          node.appendChild(item.node)
+        }
+
+        is Node -> {
+          node.appendChild(item)
+        }
+
+        else -> {
+          // Convert to string and append as text
+          val textNode = TextNode(node.mason).apply {
+            data = item.toString()
+            container = this@TextView
+          }
+          node.appendChild(textNode)
         }
       }
     }
   }
 
-  fun updateText(text: String?) {
-    if (text == spannableText) {
-      return
-    }
-
-    if (text == null) {
-      node.removeChild(textNode)
-    } else {
-      node.addChild(textNode)
-    }
-
-    spannableText = text
-    spannable.clearSpans()
-    spannable.clear()
-    spannable.append(text ?: "")
-    applySpans()
-    node.dirty()
-    invalidateView()
+  override fun addChildAt(text: String, index: Int) {
+    node.addChildAt(TextNode(node.mason, text).apply {
+      container = this@TextView
+      attributes.clear()
+      attributes.putAll(getDefaultAttributes())
+    }, index)
   }
 
-  @JvmOverloads
-  fun addView(view: View, index: Int = -1) {
-    // Return early if the view is already added
-    if (children.any { it.view == view }) {
-      return
+  // Custom span for inline child views
+  private inner class ViewSpan(
+    val childNode: Node, private val viewHelper: ViewHelper
+  ) : ReplacementSpan() {
+
+    private var cachedFontMetrics: Paint.FontMetricsInt? = null
+    private var cachedBaseline: Int = 0
+
+    override fun getSize(
+      paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?
+    ): Int {
+      val width = if (childNode.cachedWidth > 0) {
+        childNode.cachedWidth.toInt()
+      } else {
+        childNode.computedLayout.width.toInt()
+      }
+
+      val height = if (childNode.cachedHeight > 0) {
+        childNode.cachedHeight.toInt()
+      } else {
+        childNode.computedLayout.height.toInt()
+      }
+
+      val childView = childNode.view as? View
+
+      // Prefer the view baseline (most accurate). Fallback to paint metrics + padding.
+      val childBaselineFromTop: Int = when (childView) {
+        is android.widget.TextView -> {
+          val b = childView.baseline
+          if (b >= 0) {
+            b
+          } else {
+            val childPaintFm = childView.paint.fontMetricsInt
+            childView.paddingTop + (-childPaintFm.ascent)
+          }
+        }
+
+        else -> {
+          val b = childView?.baseline ?: -1
+          if (b >= 0) b else height
+        }
+      }
+
+      // Parent font metrics (paint represents parent)
+      val parentFm = paint.fontMetricsInt
+
+      // Expand ascent/descent to include child but keep the parent's baseline location (y) unchanged
+      val ascent = kotlin.math.min(parentFm.ascent, -childBaselineFromTop) // ascent negative
+      val descent = kotlin.math.max(parentFm.descent, height - childBaselineFromTop)
+
+      fm?.let {
+        it.ascent = ascent
+        it.descent = descent
+        it.top = kotlin.math.min(parentFm.top, ascent)
+        it.bottom = kotlin.math.max(parentFm.bottom, descent)
+      }
+
+      // Cache baseline and child height for draw
+      cachedBaseline = childBaselineFromTop
+
+      return width
     }
-    val isText = view is TextView
-    var attachment: Spans.NSCSpan? = null
-    val childNode = if (view is MasonView) {
-      view.node
-    } else {
-      Mason.shared.nodeForView(view)
-    }
 
-    if (!isText) {
-      attachment = Spans.ViewSpannable(view, childNode)
-    } else {
-      (view as TextView).owner = this
-    }
+    override fun draw(
+      canvas: Canvas,
+      text: CharSequence?,
+      start: Int,
+      end: Int,
+      x: Float,
+      top: Int,
+      y: Int,
+      bottom: Int,
+      paint: Paint
+    ) {
+      val cachedWidth = if (childNode.cachedWidth > 0) {
+        childNode.cachedWidth.toInt()
+      } else {
+        childNode.computedLayout.width.toInt()
+      }
 
-    val child = TextChild(view, view as? TextView, attachment, childNode)
+      val cachedHeight = if (childNode.cachedHeight > 0) {
+        childNode.cachedHeight.toInt()
+      } else {
+        childNode.computedLayout.height.toInt()
+      }
 
-    if (index == -1 || index >= children.size) {
-      children.add(child)
-    } else {
-      children.add(index, child)
-    }
+      val childView = childNode.view as? View ?: return
 
-    node.addChild(childNode)
+      if (cachedWidth > 0 && cachedHeight > 0) {
+        childView.measure(
+          MeasureSpec.makeMeasureSpec(cachedWidth, MeasureSpec.EXACTLY),
+          MeasureSpec.makeMeasureSpec(cachedHeight, MeasureSpec.EXACTLY)
+        )
+        childView.layout(0, 0, cachedWidth, cachedHeight)
+      }
 
+      val parentPaddingLeft = childNode.computedLayout.padding.left
+      val drawX = x + parentPaddingLeft
 
-    invalidateView()
-  }
+      // position top so child baseline (top + cachedBaseline) == y
+      val drawTop = y - cachedBaseline
 
-  fun removeView(view: View) {
-    val index = children.indexOfFirst { it.view == view }
-    if (index != -1) {
-      children.removeAt(index)
-      node.removeChild(node.mason.nodeForView(view))
-      invalidateView()
-    }
-  }
-
-  private fun applySpans() {
-    if (spannable.isEmpty()) {
-      return
-    }
-    val start = 0
-    val end = spannable.length
-    if (start < end) {
-      for ((_, span) in spans) {
-        spannable.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+      canvas.withTranslation(drawX, drawTop.toFloat()) {
+        childView.draw(this)
       }
     }
   }
 
-  override fun measure(
-    knownDimensions: Size<Float?>, availableSpace: Size<Float?>
-  ): Size<Float> {
-    val layout = measureLayout(
-      knownDimensions.width ?: Float.NaN, knownDimensions.height ?: Float.NaN,
-      availableSpace.width ?: Float.NaN, availableSpace.height ?: Float.NaN,
-    )
-    val height = knownDimensions.height?.takeIf {
-      !it.isNaN() && it >= 0
-    } ?: layout?.height ?: 0
+  // Helper to capture view as bitmap for rendering
+  private inner class ViewHelper(val view: View, val node: Node) {
+    var bitmap: android.graphics.Bitmap? = null
 
-    return layout?.let {
-      Size(it.width.toFloat(), height.toFloat())
-    } ?: Size(0f, 0f)
+    fun updateBitmap(afterLayout: Boolean) {
+      val layout = node.computedLayout
+      val width = layout.width.toInt()
+      val height = layout.height.toInt()
+
+      if (width <= 0 || height <= 0) return
+
+      view.layout(0, 0, width, height)
+
+      bitmap = createBitmap(width, height)
+      val canvas = Canvas(bitmap!!)
+      view.draw(canvas)
+    }
+  }
+
+  private fun createPlaceholder(child: Node): SpannableStringBuilder {
+    val childView = child.view as? View ?: return SpannableStringBuilder("")
+
+    val helper = ViewHelper(childView, child)
+    val placeholder = SpannableStringBuilder(Constants.VIEW_PLACEHOLDER)
+
+    val viewSpan = ViewSpan(child, helper)
+    placeholder.setSpan(viewSpan, 0, placeholder.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+    return placeholder
+  }
+
+  internal fun shouldFlattenTextContainer(textView: TextView): Boolean {
+    if (!textView.style.isValueInitialized) return true
+    val style = textView.node.style
+    val hasBackground = textView.backgroundColorValue != 0 || textView.background != null
+    val border = style.border
+    val hasBorder =
+      border.top.value > 0f || border.right.value > 0f || border.bottom.value > 0f || border.left.value > 0f
+
+    val padding = style.padding
+    val hasPadding =
+      padding.top.value > 0f || padding.right.value > 0f || padding.bottom.value > 0f || padding.left.value > 0f
+
+    val size = style.size
+    val hasExplicitSize = size.width != Dimension.Auto || size.height != Dimension.Auto
+
+    // If it has any view properties, treat as inline-block
+    return !(hasBackground || hasBorder || hasPadding || hasExplicitSize)
   }
 }

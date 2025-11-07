@@ -1,7 +1,8 @@
-import { Color, colorProperty, Utils, View } from '@nativescript/core';
-import { style_, TextBase, textWrapProperty } from '../common';
+import { backgroundColorProperty, Color, colorProperty, Utils, View, ViewBase } from '@nativescript/core';
+import { isMasonView_, isText_, isTextChild_, style_, text_, TextBase, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
+import { parseLength } from '../utils';
 
 const enum TextType {
   None = 0,
@@ -29,16 +30,17 @@ const enum TextType {
   Blockquote = 11,
 
   B = 12,
+
+  Pre = 13,
 }
 
 export class Text extends TextBase {
   [style_];
-  _hasNativeView = false;
   _inBatch = false;
-  _isText = true;
   private _view: MasonText;
   constructor(type: TextType = 0) {
     super();
+    this[isText_] = true;
     switch (type) {
       case TextType.None:
         this._view = Tree.instance.createTextView(null, MasonTextType.None as number) as never;
@@ -80,9 +82,8 @@ export class Text extends TextBase {
         this._view = Tree.instance.createTextView(null, MasonTextType.B as number) as never;
         break;
     }
-
-    this._hasNativeView = true;
-    this[style_] = Style.fromView(this as never, this._view, true);
+    this[isMasonView_] = true;
+    this[style_] = Style.fromView(this as never, this._view);
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -91,7 +92,7 @@ export class Text extends TextBase {
     return this._view;
   }
 
-  get _styleHelper() {
+  get _styleHelper(): Style {
     if (this[style_] === undefined) {
       this[style_] = Style.fromView(this as never, this._view);
     }
@@ -111,7 +112,33 @@ export class Text extends TextBase {
   set text(value: string) {
     const nativeView = this._view;
     if (nativeView) {
-      nativeView.updateText(value);
+      // hacking vue3 to handle text nodes
+      // hacking vue3 to handle text nodes
+      if (global.VUE3_ELEMENT_REF) {
+        const view_ref = this[global.VUE3_ELEMENT_REF] as any;
+        if (Array.isArray(view_ref.childNodes)) {
+          if (view_ref.childNodes.length === 0) {
+            this.addChild({ [text_]: value });
+            return;
+          }
+          if (view_ref.childNodes.length === 1) {
+            const node = view_ref.childNodes[0];
+            if (node && node.nodeType === 'text') {
+              this.addChild({ [text_]: node.text });
+            }
+            return;
+          }
+
+          (view_ref.childNodes as any[]).forEach((node, index) => {
+            if (node.nodeType === 'text') {
+              this.replaceChild({ [text_]: node.text }, index);
+            }
+          });
+        }
+      } else {
+        // will replace all nodes with a new text node
+        nativeView.text = value;
+      }
     }
   }
 
@@ -126,19 +153,16 @@ export class Text extends TextBase {
   [colorProperty.setNative](value) {
     switch (typeof value) {
       case 'number':
-        this[style_].color = value;
-        this[style_].syncStyle(true);
+        this._styleHelper.color = value;
         break;
       case 'string':
         {
-          this[style_].color = new Color(value).argb;
-          this[style_].syncStyle(true);
+          this._styleHelper.color = new Color(value).argb;
         }
         break;
       case 'object':
         {
-          this[style_].color = value.argb;
-          this[style_].syncStyle(true);
+          this._styleHelper.color = value.argb;
         }
         break;
     }
@@ -149,18 +173,13 @@ export class Text extends TextBase {
   set backgroundColor(value: Color | number) {
     switch (typeof value) {
       case 'number':
-        this[style_].backgroundColor = value;
-        this[style_].syncStyle(true);
+        this._styleHelper.backgroundColor = value;
         break;
       case 'string':
-        {
-          this[style_].backgroundColor = new Color(value).argb;
-          this[style_].syncStyle(true);
-        }
+        this._styleHelper.backgroundColor = new Color(value).argb;
         break;
       case 'object':
-        this[style_].backgroundColor = value.argb;
-        this[style_].syncStyle(true);
+        this._styleHelper.backgroundColor = value.argb;
         break;
     }
   }
@@ -171,69 +190,74 @@ export class Text extends TextBase {
     return new Color(this[style_].backgroundColor);
   }
 
-  // [backgroundColorProperty.setNative](value) {
-  //   console.log('backgroundColorProperty.setNative', value);
-  //   // if (typeof value === 'number') {
-  //   //   this[style_].backgroundColor = value;
-  //   //   this[style_].syncStyle(true);
-  //   // } else if (value instanceof Color) {
-  //   //   this[style_].backgroundColor = value.argb;
-  //   //   this[style_].syncStyle(true);
-  //   // }
-  // }
+  [backgroundColorProperty.setNative](value) {
+    if (typeof value === 'number') {
+      this[style_].backgroundColor = value;
+    } else if (value instanceof Color) {
+      this[style_].backgroundColor = value.argb;
+    }
+  }
 
   [textWrapProperty.setNative](value) {
     switch (value) {
       case 'false':
       case false:
       case 'nowrap':
-        this[style_].textWrap = MasonTextWrap.NoWrap;
-        this[style_].syncStyle(true);
+        this._styleHelper.textWrap = MasonTextWrap.NoWrap;
         break;
       case true:
       case 'true':
       case 'wrap':
-        this[style_].textWrap = MasonTextWrap.Wrap;
-        this[style_].syncStyle(true);
+        this._styleHelper.textWrap = MasonTextWrap.Wrap;
         break;
       case 'balance':
-        this[style_].textWrap = MasonTextWrap.Balance;
-        this[style_].syncStyle(true);
+        this._styleHelper.textWrap = MasonTextWrap.Balance;
         break;
     }
   }
 
   public onLayout(left: number, top: number, right: number, bottom: number): void {
     super.onLayout(left, top, right, bottom);
-    let layout = this._view.node.computedLayout ?? this._view.node.layout();
-    const children = layout.children;
-    let i = 1;
 
-    for (const child of this._children) {
+    // todo
+    // @ts-ignore
+    let layout = this._view.node.computedLayout;
+    const children = layout.children;
+    let i = 0;
+    if (children.count === 0) {
+      return;
+    }
+    for (const child of this._viewChildren) {
       layout = children.objectAtIndex(i);
       const x = layout.x;
       const y = layout.y;
       const width = layout.width;
       const height = layout.height;
-      View.layoutChild(this as never, child, x, y, width, height);
+      View.layoutChild(this as never, child as never, x, y, width, height);
       i++;
     }
   }
 
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this._view;
+
     if (nativeView) {
       const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
       const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
       const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
 
-      if (!this._isMasonChild) {
+      if (!this[isMasonView_]) {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
-          this.ios.node.computeWithMaxContent();
+          // todo
+          // @ts-ignore
+          this.ios.mason_computeWithSize(specWidth, specHeight);
+          //this.ios.computeWithMaxContent();
 
-          const layout = this.ios.node.layout();
+          // todo
+          // @ts-ignore
+          const layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -273,9 +297,12 @@ export class Text extends TextBase {
               height = Utils.layout.toDevicePixels(this.height);
               break;
           }
-          this.ios.node.computeWithSize(width, height);
 
-          const layout = this.ios.node.layout();
+          // todo
+          // @ts-ignore
+          this.ios.mason_computeWithSize(width, height);
+
+          const layout = this.ios.node.computedLayout;
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -283,9 +310,15 @@ export class Text extends TextBase {
           this.setMeasuredDimension(w, h);
         }
       } else {
-        const layout = nativeView.node.computedLayout ?? nativeView.node.layout();
+        // todo
+        // @ts-ignore
+        const layout = nativeView.node.computedLayout;
         const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
         const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
+
+        this.eachLayoutChild((child) => {
+          View.measureChild(this as never, child, child._currentWidthMeasureSpec, child._currentHeightMeasureSpec);
+        });
 
         this.setMeasuredDimension(w, h);
       }
@@ -297,14 +330,23 @@ export class Text extends TextBase {
     const nativeView = this._view;
 
     if (nativeView && child.nativeViewProtected) {
-      child._hasNativeView = true;
-      child._isMasonChild = true;
+      child[isTextChild_] = true;
 
-      nativeView.addView(child.nativeViewProtected, atIndex ?? -1);
+      const index = atIndex ?? -1;
+      if (index >= 0) {
+        nativeView.addViewAt(child.nativeViewProtected, index);
+      } else {
+        nativeView.addView(child.nativeViewProtected);
+      }
       return true;
     }
 
     return false;
+  }
+
+  _removeViewFromNativeVisualTree(view: ViewBase): void {
+    view[isTextChild_] = false;
+    super._removeViewFromNativeVisualTree(view);
   }
 
   _setNativeViewFrame(nativeView: any, frame: CGRect): void {

@@ -1,7 +1,7 @@
 use std::ffi::{c_float, c_longlong, c_void};
 
 use crate::{CMason, CMasonNode};
-use mason_core::Size;
+use mason_core::{InlineSegment, Size};
 
 #[repr(C)]
 pub enum AvailableSpace {
@@ -33,6 +33,115 @@ impl Default for NodeArray {
             array: std::ptr::null_mut(),
             length: 0,
         }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Debug)]
+pub struct CMasonInlineTextSegment {
+    width: f32,
+    ascent: f32,
+    descent: f32,
+}
+
+#[repr(C)]
+#[derive(Clone, Debug)]
+pub struct CMasonInlineChildSegment {
+    node: *const CMasonNode,
+    descent: f32,
+}
+
+#[repr(C)]
+#[derive(Clone, Debug)]
+pub enum CMasonSegment {
+    Text(CMasonInlineTextSegment),
+    InlineChild(CMasonInlineChildSegment),
+}
+
+impl From<&CMasonSegment> for InlineSegment {
+    fn from(segment: &CMasonSegment) -> Self {
+        match segment {
+            CMasonSegment::Text(text) => InlineSegment::Text {
+                width: text.width,
+                ascent: text.ascent,
+                descent: text.descent,
+            },
+            CMasonSegment::InlineChild(child) => {
+                let id = if child.node.is_null() {
+                    None
+                } else {
+                    unsafe {
+                        let node = &*child.node;
+                        Some(node.0.id())
+                    }
+                };
+
+                InlineSegment::InlineChild {
+                    id,
+                    baseline: child.descent,
+                }
+            }
+        }
+    }
+}
+
+impl Into<InlineSegment> for CMasonSegment {
+    fn into(self) -> InlineSegment {
+        match self {
+            CMasonSegment::Text(text) => InlineSegment::Text {
+                width: text.width,
+                ascent: text.ascent,
+                descent: text.descent,
+            },
+            CMasonSegment::InlineChild(child) => {
+                let id = if child.node.is_null() {
+                    None
+                } else {
+                    unsafe {
+                        let node = &*child.node;
+                        Some(node.0.id())
+                    }
+                };
+
+                InlineSegment::InlineChild {
+                    id,
+                    baseline: child.descent,
+                }
+            }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_set_segments(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    segments: *mut CMasonSegment,
+    segments_len: usize,
+) {
+    if mason.is_null() || node.is_null() || segments.is_null() {
+        return;
+    }
+    unsafe {
+        let mason = &mut (*mason).0;
+        let node = &(*node).0;
+        let segments = std::slice::from_raw_parts(segments, segments_len)
+            .iter()
+            .map(|segment| segment.into())
+            .collect::<Vec<InlineSegment>>();
+        mason.set_segments(node.id(), segments);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_clear_segments(mason: *mut CMason, node: *mut CMasonNode) {
+    if mason.is_null() || node.is_null() {
+        return;
+    }
+    unsafe {
+        let mason = &mut (*mason).0;
+        let node = &(*node).0;
+        mason.clear_segments(node.id());
     }
 }
 
@@ -89,13 +198,17 @@ pub extern "C" fn mason_node_destroy(node: *mut CMasonNode) {
 }
 
 #[no_mangle]
-pub extern "C" fn mason_node_new_node(mason: *mut CMason) -> *mut CMasonNode {
+pub extern "C" fn mason_node_new_node(mason: *mut CMason, anonymous: bool) -> *mut CMasonNode {
     if mason.is_null() {
         return std::ptr::null_mut();
     }
     unsafe {
         let mason = &mut (*mason).0;
-        Box::into_raw(Box::new(CMasonNode(mason.create_node())))
+        Box::into_raw(Box::new(CMasonNode(if anonymous {
+            mason.create_anonymous_node()
+        } else {
+            mason.create_node()
+        })))
     }
 }
 
@@ -124,7 +237,7 @@ pub extern "C" fn mason_node_new_node_with_context(
 #[no_mangle]
 pub extern "C" fn mason_node_new_node_with_children(
     mason: *mut CMason,
-    children: *const *mut CMasonNode,
+    children: *mut *mut CMasonNode,
     children_size: usize,
 ) -> *mut CMasonNode {
     if mason.is_null() {
@@ -144,6 +257,72 @@ pub extern "C" fn mason_node_new_node_with_children(
             .collect();
 
         let node_id = mason.create_node();
+        mason.set_children(node_id.id(), &data);
+
+        Box::into_raw(Box::new(CMasonNode(node_id)))
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_new_text_node(mason: *mut CMason, anonymous: bool) -> *mut CMasonNode {
+    if mason.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut (*mason).0;
+        Box::into_raw(Box::new(CMasonNode(if anonymous {
+            mason.create_anonymous_text_node()
+        } else {
+            mason.create_text_node()
+        })))
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[no_mangle]
+pub extern "C" fn mason_node_new_text_node_with_context(
+    mason: *mut CMason,
+    measure_data: *mut c_void,
+    measure: Option<extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong>,
+) -> *mut CMasonNode {
+    if mason.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    unsafe {
+        let mason = &mut (*mason).0;
+
+        let node_id = mason.create_text_node();
+
+        mason.set_measure(node_id.id(), measure, measure_data);
+
+        Box::into_raw(Box::new(CMasonNode(node_id)))
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_new_text_node_with_children(
+    mason: *mut CMason,
+    children: *mut *mut CMasonNode,
+    children_size: usize,
+) -> *mut CMasonNode {
+    if mason.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut (*mason).0;
+
+        let data = std::slice::from_raw_parts(children, children_size);
+
+        let data: Vec<_> = data
+            .iter()
+            .map(|v| {
+                let node = &*(*v);
+                node.0.id()
+            })
+            .collect();
+
+        let node_id = mason.create_text_node();
         mason.set_children(node_id.id(), &data);
 
         Box::into_raw(Box::new(CMasonNode(node_id)))
@@ -326,6 +505,57 @@ pub extern "C" fn mason_node_add_children(
             .collect();
 
         mason.add_children(node_id.id(), &data);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_prepend_children(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    children: *const *mut CMasonNode,
+    children_size: usize,
+) {
+    if mason.is_null() || node.is_null() {
+        return;
+    }
+
+    unsafe {
+        if children_size == 0 {
+            return;
+        }
+
+        let mason = &mut (*mason).0;
+        let node_id = &(*node).0;
+
+        let data = std::slice::from_raw_parts(children, children_size);
+
+        let data: Vec<_> = data
+            .iter()
+            .map(|v| {
+                let node = &*(*v);
+                node.0.id()
+            })
+            .collect();
+
+        mason.prepend_children(node_id.id(), &data);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mason_node_prepend(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    child: *mut CMasonNode,
+) {
+    if mason.is_null() || node.is_null() || child.is_null() {
+        return;
+    }
+    unsafe {
+        let mason = &mut (*mason).0;
+        let node = &(*node).0;
+        let child = &(*child).0;
+
+        mason.prepend(node.id(), child.id());
     }
 }
 
@@ -596,5 +826,23 @@ pub extern "C" fn mason_node_remove_context(mason: *mut CMason, node: *mut CMaso
         let mason = &mut (*mason).0;
         let node_id = &(*node);
         mason.set_measure(node_id.0.id(), None, 0 as _);
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+#[no_mangle]
+pub extern "C" fn mason_node_set_apple_node(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    apple_node: *mut c_void,
+) {
+    if mason.is_null() || node.is_null() || apple_node.is_null() {
+        return;
+    }
+
+    unsafe {
+        let mason = &mut (*mason).0;
+        let node_id = &(*node).0;
+        mason.set_apple_data(node_id.id(), apple_node);
     }
 }

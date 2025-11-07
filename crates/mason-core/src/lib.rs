@@ -1,6 +1,5 @@
-use crate::tree::{Id, Tree};
+pub use crate::tree::{Id, Tree};
 use std::ffi::{c_float, c_longlong, c_void};
-use slotmap::Key;
 pub use taffy::geometry::{Line, Point, Rect, Size};
 pub use taffy::style::{
     AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, CompactLength, Dimension,
@@ -12,19 +11,52 @@ pub use taffy::style::{
 pub use taffy::style_helpers::*;
 pub use taffy::Layout;
 pub use taffy::Overflow;
-use taffy::PrintTree;
 
 mod node;
 
+#[cfg(target_vendor = "apple")]
+use crate::node::AppleNode;
+
+pub use crate::node::InlineSegment;
 pub use crate::style::Style;
 pub use node::NodeRef;
 
+mod inline;
 pub mod style;
 mod tree;
 pub mod utils;
 
-// #[cfg(target_os = "android")]
+#[cfg(target_os = "android")]
 pub static JVM: std::sync::OnceLock<jni::JavaVM> = std::sync::OnceLock::new();
+
+#[cfg(target_os = "android")]
+#[derive(Debug, Clone)]
+pub struct JVMCache {
+    pub(crate) measure_clazz: jni::objects::GlobalRef,
+    pub(crate) measure_measure_id: jni::objects::JMethodID,
+    pub(crate) node_clazz: jni::objects::GlobalRef,
+    pub(crate) node_set_computed_size_id: jni::objects::JMethodID,
+}
+
+#[cfg(target_os = "android")]
+impl JVMCache {
+    pub fn new(
+        measure_clazz: jni::objects::GlobalRef,
+        measure_measure_id: jni::objects::JMethodID,
+        node_clazz: jni::objects::GlobalRef,
+        node_set_computed_size_id: jni::objects::JMethodID,
+    ) -> Self {
+        Self {
+            measure_clazz,
+            measure_measure_id,
+            node_clazz,
+            node_set_computed_size_id,
+        }
+    }
+}
+#[cfg(target_os = "android")]
+pub static JVM_CACHE: std::sync::OnceLock<JVMCache> = std::sync::OnceLock::new();
+
 pub struct MeasureOutput;
 
 impl MeasureOutput {
@@ -113,6 +145,21 @@ impl Mason {
         self.0.create_node()
     }
 
+    #[track_caller]
+    pub fn create_anonymous_node(&mut self) -> NodeRef {
+        self.0.create_anonymous_node()
+    }
+
+    #[track_caller]
+    pub fn create_text_node(&mut self) -> NodeRef {
+        self.0.create_text_node()
+    }
+
+    #[track_caller]
+    pub fn create_anonymous_text_node(&mut self) -> NodeRef {
+        self.0.create_anonymous_text_node()
+    }
+
     #[cfg(target_os = "android")]
     #[track_caller]
     pub fn style_data(&mut self, node: Id) -> jni::objects::GlobalRef {
@@ -191,10 +238,45 @@ impl Mason {
         if let Some(node) = self.0.node_data.get_mut(node) {
             node.measure = measure;
             node.data = data;
+
+            // #[cfg(target_vendor = "apple")]
+            // if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
+            //     node.apple_data = Some(apple_node);
+            // }
         }
 
         if let Some(node) = self.0.nodes.get_mut(node) {
             node.has_measure = has_measure;
+        }
+    }
+
+    #[cfg(target_vendor = "apple")]
+    #[track_caller]
+    pub fn set_apple_data(&mut self, node: Id, data: *mut c_void) {
+        if let Some(node) = self.0.node_data.get_mut(node) {
+            if data.is_null() {
+                node.apple_data = None;
+            } else {
+                if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
+                    node.apple_data = Some(apple_node);
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    #[track_caller]
+    pub fn set_android_node(&mut self, node: Id, android_node: jni::objects::GlobalRef) {
+        if let Some(node) = self.0.node_data.get_mut(node) {
+            node.android_data = Some(crate::node::AndroidNode(android_node));
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    #[track_caller]
+    pub fn clear_android_node(&mut self, node: Id) {
+        if let Some(node) = self.0.node_data.get_mut(node) {
+            node.android_data = None;
         }
     }
 
@@ -231,7 +313,6 @@ impl Mason {
                 _ => AvailableSpace::Definite(height),
             },
         };
-
         self.compute_layout(node_id, size);
     }
 
@@ -252,6 +333,32 @@ impl Mason {
         self.0.remove(parent, node)
     }
 
+    pub fn append_segment(&mut self, node: Id, segment: InlineSegment) {
+        if let Some(data) = self.0.node_data.get_mut(node) {
+            data.inline_segments.push(segment);
+        }
+    }
+
+    pub fn clear_segments(&mut self, node: Id) {
+        if let Some(data) = self.0.node_data.get_mut(node) {
+            data.inline_segments.clear();
+        }
+    }
+
+    pub fn set_segments(&mut self, node: Id, segments: Vec<InlineSegment>) {
+        if let Some(data) = self.0.node_data.get_mut(node) {
+            data.inline_segments = segments;
+        }
+    }
+
+    pub fn get_segments(&mut self, node: Id) -> &[InlineSegment] {
+        self.0
+            .node_data
+            .get(node)
+            .map(|data| data.inline_segments.as_slice())
+            .unwrap_or(&[])
+    }
+
     pub fn set_children(&mut self, parent: Id, children: &[Id]) {
         if let Some(current_children) = self.0.children.get_mut(parent) {
             if children.is_empty() && current_children.is_empty() {
@@ -261,26 +368,47 @@ impl Mason {
                 return;
             }
 
-            for child in current_children.iter() {
-                self.0.parents.remove(*child);
-            }
-
             current_children.clear();
             current_children.extend_from_slice(children);
 
             for child in children.iter() {
-                self.0.parents.insert(*child, Some(parent));
+                if let Some(Some(removed)) = self.0.parents.insert(*child, Some(parent)) {
+                    if removed == parent {
+                        continue;
+                    }
+                    if let Some(node) = self.0.nodes.get_mut(removed) {
+                        if let Some(previous_children) = self.0.children.get_mut(removed) {
+                            previous_children.retain(|&id| id != *child);
+                        }
+                        node.mark_dirty();
+                    }
+                }
             }
         } else {
             self.0.children.insert(parent, children.to_vec());
             for child in children.iter() {
-                self.0.parents.insert(*child, Some(parent));
+                if let Some(Some(removed)) = self.0.parents.insert(*child, Some(parent)) {
+                    if let Some(node) = self.0.nodes.get_mut(removed) {
+                        if let Some(previous_children) = self.0.children.get_mut(removed) {
+                            previous_children.retain(|&id| id != *child);
+                        }
+                        node.mark_dirty();
+                    }
+                }
             }
         }
     }
 
     pub fn add_children(&mut self, node: Id, children: &[Id]) {
+        self.append_children(node, children);
+    }
+
+    pub fn append_children(&mut self, node: Id, children: &[Id]) {
         self.0.append_children(node, children)
+    }
+
+    pub fn prepend_children(&mut self, node: Id, children: &[Id]) {
+        self.0.prepend_children(node, children)
     }
 
     pub fn print_tree(&self, node: Id) {
@@ -288,7 +416,11 @@ impl Mason {
     }
 
     pub fn add_child(&mut self, node: Id, child: Id) {
-        self.0.append(node, child)
+        self.append(node, child)
+    }
+
+    pub fn prepend(&mut self, node: Id, child: Id) {
+        self.0.prepend(node, child)
     }
 
     pub fn add_child_at_index(&mut self, node: Id, child: Id, index: usize) {

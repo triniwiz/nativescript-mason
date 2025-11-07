@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
 import java.lang.ref.WeakReference
@@ -30,32 +31,89 @@ class Mason {
   }
 
   @JvmOverloads
-  fun createNode(children: Array<Node>? = null): Node {
+  fun createNode(children: Array<Node>? = null, isAnonymous: Boolean = false): Node {
     val nodePtr = children?.let {
-      Node.nativeNewNodeWithChildren(
+      NativeHelpers.nativeNodeNewWithChildren(
         nativePtr,
         children.map { it.nativePtr }.toLongArray(),
       )
-    } ?: Node.nativeNewNode(nativePtr)
-    return Node(this, nodePtr).apply {
+    } ?: NativeHelpers.nativeNodeNew(nativePtr, isAnonymous)
+    val node = Node(this, nodePtr).apply {
       children?.let {
         children.forEach {
-          it.owner = this
+          it.parent = this
+          NativeHelpers.nativeSetAndroidNode(nativePtr, it.nativePtr, it)
         }
         this.children.addAll(children)
       }
       nodes[nodePtr] = this
+      this.isAnonymous = isAnonymous
     }
+
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+
+    return node
   }
 
-  fun createNode(measure: MeasureFunc): Node {
+  fun createNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
     val nodePtr =
-      Node.nativeNewNodeWithContext(nativePtr, func)
-    return Node(this, nodePtr).apply {
+      NativeHelpers.nativeNodeNewWithContext(nativePtr, func, isAnonymous)
+    val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = this
       measureFunc = measure
+      this.isAnonymous = isAnonymous
     }
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+
+    return node
+  }
+
+
+  @JvmOverloads
+  fun createTextNode(children: Array<Node>? = null, isAnonymous: Boolean = false): Node {
+    val nodePtr = children?.let {
+      NativeHelpers.nativeNodeNewWithChildren(
+        nativePtr,
+        children.map { map ->
+          if (map.nativePtr == 0L) {
+            null
+          } else {
+            map.nativePtr
+          }
+        }.mapNotNull { it }.toLongArray()
+      )
+    } ?: NativeHelpers.nativeNodeNewText(nativePtr, isAnonymous)
+    val node = Node(this, nodePtr).apply {
+      children?.let {
+        children.forEach {
+          it.parent = this
+          NativeHelpers.nativeSetAndroidNode(nativePtr, it.nativePtr, it)
+        }
+        this.children.addAll(children)
+        this.isAnonymous = isAnonymous
+      }
+      nodes[nodePtr] = this
+    }
+
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+
+    return node
+  }
+
+  fun createTextNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
+    val func = MeasureFuncImpl(WeakReference(measure))
+    val nodePtr =
+      NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func, isAnonymous)
+    val node = Node(this, nodePtr).apply {
+      nodes[nodePtr] = this
+      measureFunc = measure
+      this.isAnonymous = isAnonymous
+    }
+
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+
+    return node
   }
 
   fun createView(context: Context): View {
@@ -64,8 +122,12 @@ class Mason {
 
 
   @JvmOverloads
-  fun createTextView(context: Context, type: TextType = TextType.None): TextView {
-    return TextView(context, this, type)
+  fun createTextView(
+    context: Context,
+    type: TextType = TextType.None,
+    isAnonymous: Boolean = false
+  ): TextView {
+    return TextView(context, this, type, isAnonymous)
   }
 
   fun createImageView(context: Context): Img {
@@ -76,12 +138,21 @@ class Mason {
     return Scroll(context, this)
   }
 
+
+  fun configureStyleForView(view: android.view.View, block: (Style) -> Unit) {
+    val node = nodeForView(view)
+    node.style.inBatch = true
+    block(node.style)
+    node.style.inBatch = false
+    node.style.updateNativeStyle()
+  }
+
   fun nodeForView(view: android.view.View): Node {
     return when (view) {
-      is MasonView -> {
+      is Element -> {
         nodes[view.node.nativePtr] ?: run {
           val node = createNode().apply {
-            data = view
+            this.view = view
           }
           nodes[view.node.nativePtr] = node
           node
@@ -92,7 +163,8 @@ class Mason {
         viewNodes[view] ?: run {
           // is leaf to ensure it triggers android's view measure
           val node = createNode().apply {
-            data = view
+            this.view = view
+            setDefaultMeasureFunction()
           }
           viewNodes[view] = node
           node
@@ -101,12 +173,17 @@ class Mason {
     }
   }
 
+  fun styleForView(view: android.view.View): Style {
+    val node = nodeForView(view)
+    return node.style
+  }
+
   fun requestLayout(node: Long) {
     nodes[node]?.style?.updateNativeStyle()
   }
 
   fun requestLayout(view: android.view.View) {
-    if (view is MasonView) {
+    if (view is Element) {
       view.style.updateNativeStyle()
     } else {
       viewNodes[view]?.style?.updateNativeStyle()
@@ -124,14 +201,9 @@ class Mason {
   }
 
   companion object {
-    private var didInit = false
 
     internal fun initLib() {
-      if (didInit) {
-        return
-      }
-      didInit = true
-      System.loadLibrary("masonnative")
+      NativeHelpers.initLib()
     }
 
     init {

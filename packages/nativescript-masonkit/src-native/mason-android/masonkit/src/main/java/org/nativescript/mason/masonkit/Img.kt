@@ -7,14 +7,21 @@ import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatImageView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.target.Target
 import com.bumptech.glide.request.transition.Transition
 
 class Img @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
-) : AppCompatImageView(context, attrs), MasonView, MeasureFunc {
+) : AppCompatImageView(context, attrs), Element, MeasureFunc {
   override lateinit var node: Node
     private set
+
+  var onStateChange: ((LoadingState) -> Unit)? = null
+
+  override val style: Style
+    get() = node.style
+
+  override val view: android.view.View
+    get() = this
 
   internal var currentBitmap: Bitmap? = null
 
@@ -35,16 +42,20 @@ class Img @JvmOverloads constructor(
 
   constructor(context: Context, mason: Mason) : this(context, null, true) {
     node = mason.createNode(this).apply {
-      data = this@Img
+      view = this@Img
+      isImage = true
     }
+    style.display = Display.Inline
   }
 
   init {
     if (!override) {
       if (!::node.isInitialized) {
         node = Mason.shared.createNode(this).apply {
-          data = this@Img
+          view = this@Img
+          isImage = true
         }
+        style.display = Display.Inline
       }
     }
   }
@@ -53,33 +64,14 @@ class Img @JvmOverloads constructor(
     markDirtyAndRecompute()
   }
 
-  override fun invalidate() {
-    markDirtyAndRecompute()
-    super.invalidate()
-  }
-
   private fun markDirtyAndRecompute() {
     node.dirty()
-    if (!node.inBatch) {
-      if (parent == null) {
-        val parent = node.owner
-        if (parent?.data != null) {
-          (parent.data as? TextView)?.apply {
-            invalidateView()
-            requestLayout()
-          }
-        }
+    if (!node.style.inBatch) {
+      if (node.parent == null) {
+        invalidateLayout()
+        requestLayout()
       } else {
-        rootNode.computeCacheWidth?.let { width ->
-          rootNode.computeCacheHeight?.let { height ->
-            rootNode.compute(width, height)
-            (rootNode.data as? android.view.View)?.let {
-              it.requestLayout()
-              it.invalidate()
-            }
-
-          }
-        }
+        invalidateLayout()
       }
     }
   }
@@ -94,12 +86,31 @@ class Img @JvmOverloads constructor(
         currentTarget = null
       }
       val target = object : CustomTarget<Bitmap>(
-        node.computeCacheWidth?.toInt() ?: Target.SIZE_ORIGINAL,
-        node.computeCacheHeight?.toInt() ?: Target.SIZE_ORIGINAL
+        if (node.computeCache.width == Float.MIN_VALUE) {
+          SIZE_ORIGINAL
+        } else {
+          node.computeCache.width.toInt()
+        },
+        if (node.computeCache.height == Float.MIN_VALUE) {
+          SIZE_ORIGINAL
+        } else {
+          node.computeCache.height.toInt()
+        },
       ) {
         override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
           setImageBitmap(resource)
           markDirtyAndRecompute()
+          onStateChange?.let {
+            it(LoadingState.Loaded)
+          }
+        }
+
+        override fun onLoadFailed(errorDrawable: Drawable?) {
+          super.onLoadFailed(errorDrawable)
+          markDirtyAndRecompute()
+          onStateChange?.let {
+            it(LoadingState.Error)
+          }
         }
 
         override fun onLoadCleared(placeholder: Drawable?) {
@@ -109,35 +120,15 @@ class Img @JvmOverloads constructor(
 
       }
       currentTarget = target
+      onStateChange?.let {
+        it(LoadingState.Loading)
+      }
       Glide.with(this)
         .asBitmap()
         .load(value)
         .into(target)
 
     }
-
-  var inBatch: Boolean
-    get() {
-      return node.inBatch
-    }
-    set(value) {
-      node.inBatch = value
-    }
-
-  fun syncStyle(state: String) {
-    try {
-      val value = state.toLong()
-      if (value != -1L) {
-        node.style.isDirty = value
-        node.style.updateNativeStyle()
-      }
-    } catch (_: Error) {
-    }
-  }
-
-  override fun isLeaf(): Boolean {
-    return true
-  }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
 
@@ -151,13 +142,13 @@ class Img @JvmOverloads constructor(
       setMeasuredDimension(
         specWidth, specHeight
       )
-    } else if (parent !is MasonView) {
-      node.compute(
+    } else if (parent !is Element) {
+      compute(
         View.mapMeasureSpec(specWidthMode, specWidth).value,
         View.mapMeasureSpec(specHeightMode, specHeight).value
       )
 
-      val layout = node.layout()
+      val layout = layout()
       node.computedLayout = layout
 
       setMeasuredDimension(
@@ -165,7 +156,7 @@ class Img @JvmOverloads constructor(
         layout.height.toInt(),
       )
     } else {
-      val layout = node.layout()
+      val layout = layout()
 
       var width = layout.width.toInt()
       var height = layout.height.toInt()
@@ -212,7 +203,7 @@ class Img @JvmOverloads constructor(
     }
 
     if (width != null && height != null) {
-      drawable.setBounds(0, 0, knownDimensions.width!!.toInt(), knownDimensions.height!!.toInt())
+      drawable?.setBounds(0, 0, knownDimensions.width!!.toInt(), knownDimensions.height!!.toInt())
     }
 
 

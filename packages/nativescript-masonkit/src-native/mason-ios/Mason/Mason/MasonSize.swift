@@ -73,8 +73,8 @@ public class MasonLengthPercentageSizeCompat: NSObject, Codable{
 
 
 public struct MasonSize<T: Codable>: Codable{
-    var width: T
-    var height: T
+    public var width: T
+    public var height: T
     
     internal var compatDimension: MasonDimensionSizeCompat? = nil
     internal var compatLengthAuto: MasonLengthPercentageAutoSizeCompat? = nil

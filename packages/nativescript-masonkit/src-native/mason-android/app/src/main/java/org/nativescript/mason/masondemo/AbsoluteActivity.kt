@@ -4,25 +4,20 @@ import android.app.Activity
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.util.DisplayMetrics
+import android.view.WindowInsets
+import android.view.WindowMetrics
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Display
-import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Position
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
-import org.nativescript.mason.masonkit.TextAlign
-import org.nativescript.mason.masonkit.TextView
+import org.nativescript.mason.masonkit.Styles
 import org.nativescript.mason.masonkit.View
-import android.util.DisplayMetrics
-import android.util.Log
-import android.view.TextureView
-import android.view.WindowInsets
-import android.view.WindowMetrics
-import androidx.annotation.RequiresApi
-import org.nativescript.mason.masonkit.text.Styles
 
 @RequiresApi(Build.VERSION_CODES.R)
 fun getActivitySizeWithInsets(activity: Activity): Triple<Int, Int, android.graphics.Rect> {
@@ -104,13 +99,13 @@ class AbsoluteActivity : AppCompatActivity() {
     val rootLayout = mason.createView(this)
     rootLayout.setBackgroundColor(Color.BLUE)
     rootLayout.configure {
-     style.display = Display.Block
+      it.display = Display.Block
 //     style.size = Size(
 //        Dimension.Points(adjustedWidth.toFloat()),
 //        Dimension.Points(adjustedHeight.toFloat())
 //      )
 
-     style.size = Size(
+      it.size = Size(
         Dimension.Percent(1f),
         Dimension.Percent(1f)
       )
@@ -119,9 +114,9 @@ class AbsoluteActivity : AppCompatActivity() {
 
     //rootLayout.addView(child)
 
-     absTextText(rootLayout)
+    absTextText(rootLayout)
 
-   // regularTextText(rootLayout)
+    // regularTextText(rootLayout)
 
     setContentView(rootLayout)
 
@@ -137,15 +132,16 @@ class AbsoluteActivity : AppCompatActivity() {
     // ct.textAlignment = android.widget.TextView.TEXT_ALIGNMENT_CENTER
     rootLayout.addView(ct)
 
+
     ct.configure {
-     style.position = Position.Absolute
-     style.margin = Rect(
+      it.position = Position.Absolute
+      it.margin = Rect(
         LengthPercentageAuto.Points(-(size / 2)),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Auto
       )
-     style.inset = Rect(
+      it.inset = Rect(
         LengthPercentageAuto.Percent(.5f),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Percent(.5f),
@@ -160,8 +156,8 @@ class AbsoluteActivity : AppCompatActivity() {
     rootLayout.addView(topLeft)
 
     topLeft.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(10f),
@@ -173,8 +169,8 @@ class AbsoluteActivity : AppCompatActivity() {
     topRight.text = "Top Right"
 
     topRight.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Points(10f),
@@ -189,8 +185,8 @@ class AbsoluteActivity : AppCompatActivity() {
     bottomRight.text = "Bottom Right"
 
     bottomRight.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Auto,
@@ -211,8 +207,8 @@ class AbsoluteActivity : AppCompatActivity() {
     bottomLeft.addView(bottomLeftTxt)
 
     bottomLeft.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Auto,
@@ -233,14 +229,14 @@ class AbsoluteActivity : AppCompatActivity() {
     ct.setBackgroundColor(Color.GREEN)
     ct.textAlignment = android.widget.TextView.TEXT_ALIGNMENT_CENTER
     ct.configure {
-     style.position = Position.Absolute
-     style.margin = Rect(
+      it.position = Position.Absolute
+      it.margin = Rect(
         LengthPercentageAuto.Points(-(size / 2)),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Auto
       )
-     style.inset = Rect(
+      it.inset = Rect(
         LengthPercentageAuto.Percent(.5f),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Percent(.5f),
@@ -255,8 +251,8 @@ class AbsoluteActivity : AppCompatActivity() {
     topLeft.text = "Top Left"
 
     topLeft.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(10f),
@@ -272,8 +268,8 @@ class AbsoluteActivity : AppCompatActivity() {
     topRight.text = "Top Right"
 
     topRight.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Points(10f),
@@ -286,8 +282,8 @@ class AbsoluteActivity : AppCompatActivity() {
     bottomRight.text = "Bottom Right"
 
     bottomRight.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Auto,
@@ -300,8 +296,8 @@ class AbsoluteActivity : AppCompatActivity() {
     bottomLeft.text = "Bottom Left"
 
     bottomLeft.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Auto,
@@ -319,8 +315,8 @@ class AbsoluteActivity : AppCompatActivity() {
     ct.setText("Center Text")
     ct.color = Color.MAGENTA
     ct.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Percent(.5f),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Auto,
@@ -347,16 +343,16 @@ class AbsoluteActivity : AppCompatActivity() {
     rootLayout.addView(text)
 
 
-    text.addView(textIn)
-    text.addView(textNested)
+    text.append(textIn)
+    text.append(textNested)
 
 
     val topLeft = mason.createTextView(this)
     topLeft.text = "Top Left"
 
     topLeft.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Points(0f),
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(0f),
@@ -374,14 +370,14 @@ class AbsoluteActivity : AppCompatActivity() {
     para1.color = Color.GREEN
     para1.decorationLine = Styles.DecorationLine.Underline
     para1.decorationColor = Color.RED
-    text.addView(para1)
+    text.appendView(para1)
 
 
     val para2 = mason.createTextView(this)
     para2.text =
       "\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Ut hendrerit leo at porta luctus. Etiam condimentum nulla non lorem consectetur, ut tincidunt ligula volutpat. Morbi egestas tellus nec libero egestas, eu tristique nunc pharetra. Integer vehicula, elit ultrices iaculis luctus, sapien magna tempus ipsum, sit amet tempus ex lacus vitae nisl. Maecenas a fermentum nunc. Nulla non molestie tellus. Sed pellentesque mauris in faucibus tincidunt. Mauris id dui quis justo blandit consequat eget in nisl. Maecenas eu est consequat, lobortis dolor consectetur, volutpat ligula. "
     para2.color = Color.BLUE
-    text.addView(para2)
+    text.appendView(para2)
 
 
     val topRight = mason.createTextView(this)
@@ -389,8 +385,8 @@ class AbsoluteActivity : AppCompatActivity() {
     topRight.text = "Top Right"
 
     topRight.configure {
-     style.position = Position.Absolute
-     style.inset = Rect(
+      it.position = Position.Absolute
+      it.inset = Rect(
         LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Points(0f),
@@ -416,8 +412,8 @@ class AbsoluteActivity : AppCompatActivity() {
 //    br.addView(bottomRight)
 //    bottomRight.text = "Bottom Right"
 //    val bottomRightNode = Node()
-//    bottomRightNode.style.position = Position.Absolute
-//    bottomRightNode.style.inset = Rect(
+//    bottomRightNode.it.position = Position.Absolute
+//    bottomRightNode.it.inset = Rect(
 //      LengthPercentageAuto.Points(0f),
 //      LengthPercentageAuto.Points(0f),
 //      LengthPercentageAuto.Percent(1f),

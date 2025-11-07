@@ -6,47 +6,64 @@
 //
 import UIKit
 
+
+@objc(MasonLoadingState)
+public enum LoadingState: Int, RawRepresentable {
+    case Loading
+    case Loaded
+    case Error
+    
+    public typealias RawValue = Int32
+    
+    public var rawValue: RawValue {
+        switch self {
+        case .Loading:
+            return 0
+        case .Loaded:
+            return 1
+        case .Error:
+            return 2
+        }
+    }
+    
+    
+    public init?(rawValue: RawValue) {
+        switch rawValue {
+        case 0:
+          self = .Loaded
+        case 1:
+          self = .Loaded
+        case 2:
+          self = .Error
+        default:
+            return nil
+        }
+    }
+}
+
 @objcMembers
 @objc(MasonImg)
-public class Img: UIImageView, MasonView {
-  public var style: MasonStyle {
-    return node.style
-  }
+public class Img: UIImageView, MasonElement, MasonElementObjc {
   
-  public func markNodeDirty() {
-    node.markDirty()
-  }
-  
-  public func isNodeDirty() -> Bool {
-    return node.isDirty
-  }
-  
-  public func configure(_ block: (MasonNode) -> Void) {
-    node.configure(block)
-  }
+  public let node: MasonNode
+  public let mason: NSCMason
   
   public var uiView: UIView {
     return self
   }
   
-  public let node: MasonNode
-  public let mason: NSCMason
-  
-  private var rootNode: MasonNode {
-    var current = self.node
-    while let parent = current.owner {
-      current = parent
-    }
-    return current
+  public var style: MasonStyle {
+    return node.style
   }
   
   public var didLayout: (() -> Void)?
   
-  public func requestLayout(){
-    node.markDirty()
-    if let root = node.root, let cache = root.computeCache {
-      root.computeWithSize(Float(cache.width), Float(cache.height))
-      didLayout?()
+  public var onStateChange: ((LoadingState, Error?) -> Void)?
+  
+  public override var image: UIImage? {
+    didSet {
+      self.setNeedsDisplay()
+      requestLayout()
     }
   }
   
@@ -62,17 +79,19 @@ public class Img: UIImageView, MasonView {
           self.image = nil
           self.requestLayout()
           self.setNeedsDisplay()
+          self.onStateChange?(.Loaded, error)
           return
         }
 
         DispatchQueue.main.async {
           self.image = image
-          self.requestLayout()
           self.setNeedsDisplay()
-          
+          self.node.markDirty()
+          self.requestLayout()
+          self.onStateChange?(.Loaded, nil)
         }
       })
-      
+      onStateChange?(.Loading, nil)
       currentTask?.resume()
     }
   }
@@ -80,17 +99,23 @@ public class Img: UIImageView, MasonView {
   
   
   public func updateImage(_ image: UIImage?) {
+    if(image != nil){
+      onStateChange?(.Loading, nil)
+    }
     self.image = image
-    requestLayout()
     setNeedsDisplay()
+    node.markDirty()
+    requestLayout()
+    onStateChange?(.Loaded, nil)
   }
   
   init(mason doc: NSCMason) {
     node = doc.createNode()
+    node.style.display = Display.Inline
     mason = doc
     super.init(frame: .zero)
-    node.data = self
     isOpaque = false
+    node.view = self
     node.measureFunc = { known, available in
       return Img.measure(self, known, available)
     }
@@ -101,19 +126,12 @@ public class Img: UIImageView, MasonView {
     fatalError("init(coder:) has not been implemented")
   }
   
-  public func syncStyle(_ state: String) {
-    guard let stateValue = Int64(state, radix: 10) else {return}
-  //  let keys = StateKeys(rawValue: UInt64(stateValue))
-    if (stateValue != -1) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
-  }
-  
   private static func measure(_ view: Img, _ known: CGSize?, _ available: CGSize) -> CGSize {
     var ret = CGSize.zero
     if let known = known {
       if(!known.width.isNaN && !known.height.isNaN){
+        view.node.cachedWidth = known.width
+        view.node.cachedHeight = known.height
         return known
       }
       
@@ -138,6 +156,10 @@ public class Img: UIImageView, MasonView {
         ret.height = CGFloat(ciImage.extent.height)
       }
     }
+    
+    view.node.cachedWidth = ret.width
+    view.node.cachedHeight = ret.height
+    
     return ret
   }
 }

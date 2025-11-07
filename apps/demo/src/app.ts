@@ -28,7 +28,8 @@ if (__ANDROID__) {
     // }
   });
 } else {
-  run();
+  // run();
 }
 
+//@ts-ignore
 Application.run({ moduleName: 'app-root' });

@@ -1,9 +1,6 @@
 package org.nativescript.mason.masondemo
 
-import android.graphics.Color
 import android.os.Bundle
-import android.util.DisplayMetrics
-import android.util.Log
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
@@ -16,6 +13,7 @@ import org.nativescript.mason.masonkit.AlignItems
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Display
 import org.nativescript.mason.masonkit.FlexDirection
+import org.nativescript.mason.masonkit.Img
 import org.nativescript.mason.masonkit.Mason
 
 class ListActivity : AppCompatActivity() {
@@ -50,13 +48,13 @@ class ListActivity : AppCompatActivity() {
   class CustomAdapter(private val list: ListActivity) :
     RecyclerView.Adapter<CustomAdapter.ViewHolder>() {
     class ViewHolder(view: android.view.View) : RecyclerView.ViewHolder(view) {
-      val textView: TextView
-      val imageView: ImageView
+      val textView: org.nativescript.mason.masonkit.TextView
+      val imageView: Img
 
       init {
         val root = view as ViewGroup
-        textView = root.getChildAt(0) as TextView
-        imageView = root.getChildAt(2) as ImageView
+        textView = root.getChildAt(0) as org.nativescript.mason.masonkit.TextView
+        imageView = root.getChildAt(2) as Img
       }
     }
 
@@ -64,20 +62,20 @@ class ListActivity : AppCompatActivity() {
       val context = viewGroup.context
       val root = list.mason.createView(context)
       root.configure {
-        style.setSizeWidth(Dimension.Percent(1f))
-        style.display = Display.Flex
-        style.alignContent = AlignContent.Stretch
-        style.alignItems = AlignItems.Center
-        style.flexDirection = FlexDirection.Column
-        style.flexGrow = 1f
+        it.setSizeWidth(Dimension.Percent(1f))
+        it.display = Display.Flex
+        it.alignContent = AlignContent.Stretch
+        it.alignItems = AlignItems.Center
+        it.flexDirection = FlexDirection.Column
+        it.flexGrow = 1f
       }
-      root.addView(TextView(context))
-      val tv = TextView(context)
-      tv.text = "Laffy Taffy!!!!"
+      root.addView(list.mason.createTextView(context))
+      val tv = list.mason.createTextView(context)
+      tv.textContent = "Laffy Taffy!!!!"
       root.addView(tv)
-      val image = ImageView(context)
-      list.mason.nodeForView(image).configure {
-        style.setSizeHeight(Dimension.Points(50 * context.resources.displayMetrics.density))
+      val image = list.mason.createImageView(context)
+      image.configure {
+        it.setSizeHeight(Dimension.Points(50 * context.resources.displayMetrics.density))
       }
       root.addView(image)
 
@@ -86,16 +84,10 @@ class ListActivity : AppCompatActivity() {
 
     override fun onBindViewHolder(viewHolder: ViewHolder, position: Int) {
       val url = list.array[position]
-      viewHolder.textView.text = url
-      Glide
-        .with(viewHolder.imageView)
-        .load(url)
-        .fitCenter()
-        .override(
-          (150 * list.resources.displayMetrics.density).toInt(),
-          (150 * list.resources.displayMetrics.density).toInt()
-        )
-        .into(viewHolder.imageView)
+      viewHolder.textView.textContent = url
+
+      viewHolder.imageView.src = url
+
     }
 
     override fun getItemCount() = list.array.size

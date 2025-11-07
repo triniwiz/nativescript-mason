@@ -1,14 +1,14 @@
-package org.nativescript.mason.masonkit.text
+package org.nativescript.mason.masonkit
 
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.os.Build
 import android.text.TextPaint
 import android.text.style.ReplacementSpan
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.withSave
-import org.nativescript.mason.masonkit.Node
 
 class Spans {
   enum class Type {
@@ -100,10 +100,31 @@ class Spans {
       get() = Type.DecorationLine
   }
 
-  class UnderlineSpan : android.text.style.UnderlineSpan(), NSCSpan {
+  class UnderlineSpan(val color: Int) : android.text.style.CharacterStyle(), NSCSpan {
     override val type: Type
       get() = Type.DecorationLine
+
+    override fun updateDrawState(tp: TextPaint?) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        tp?.underlineColor = color
+        tp?.isUnderlineText = true
+      }
+    }
   }
+
+  class UnderlineLineThrough(val color: Int) : android.text.style.CharacterStyle(), NSCSpan {
+    override val type: Type
+      get() = Type.DecorationLine
+
+    override fun updateDrawState(tp: TextPaint?) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      //  tp?.underlineColor = color
+        tp?.isUnderlineText = true
+        tp?.isStrikeThruText = true
+      }
+    }
+  }
+
 
   class BackgroundColorSpan(val color: Int) : android.text.style.BackgroundColorSpan(color),
     NSCSpan {

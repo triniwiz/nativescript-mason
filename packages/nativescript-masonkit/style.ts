@@ -1,6 +1,6 @@
 import { layout } from '@nativescript/core/utils';
 import type { GridAutoFlow, Length, LengthAuto, View } from '.';
-import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, Length } from '@nativescript/core';
+import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns } from './utils';
 
 enum StyleKeys {
@@ -106,16 +106,44 @@ enum StyleKeys {
 
 enum TextStyleKeys {
   COLOR = 0,
-  DECORATION_LINE = 4,
-  DECORATION_COLOR = 8,
-  TEXT_ALIGN = 12,
-  TEXT_JUSTIFY = 16,
-  BACKGROUND_COLOR = 20,
-  SIZE = 24,
-  TRANSFORM = 28,
-  FONT_STYLE_TYPE = 32,
-  FONT_STYLE_SLANT = 36,
-  TEXT_WRAP = 40,
+  COLOR_STATE = 4, // 0 = inherit, 1 = set
+  SIZE = 8,
+  SIZE_TYPE = 12,
+  SIZE_STATE = 13,
+  FONT_WEIGHT = 16,
+  FONT_WEIGHT_STATE = 20,
+  FONT_STYLE_SLANT = 24,
+  FONT_STYLE_TYPE = 28, // shifted +4 from 24
+  FONT_STYLE_STATE = 29,
+  FONT_FAMILY_STATE = 30,
+  FONT_RESOLVED_DIRTY = 31, // single-byte flag
+  BACKGROUND_COLOR = 32,
+  BACKGROUND_COLOR_STATE = 36,
+  DECORATION_LINE = 40,
+  DECORATION_LINE_STATE = 44,
+  DECORATION_COLOR = 48,
+  DECORATION_COLOR_STATE = 52,
+  DECORATION_STYLE = 56,
+  DECORATION_STYLE_STATE = 60,
+  LETTER_SPACING = 64,
+  LETTER_SPACING_STATE = 68,
+  TEXT_WRAP = 72,
+  TEXT_WRAP_STATE = 76,
+  WHITE_SPACE = 80,
+  WHITE_SPACE_STATE = 84,
+  TRANSFORM = 88,
+  TRANSFORM_STATE = 92,
+  TEXT_ALIGN = 96,
+  TEXT_ALIGN_STATE = 100,
+  TEXT_JUSTIFY = 104,
+  TEXT_JUSTIFY_STATE = 108,
+  TEXT_INDENT = 112,
+  TEXT_INDENT_STATE = 116,
+  TEXT_OVERFLOW = 120,
+  TEXT_OVERFLOW_STATE = 124,
+  LINE_HEIGHT = 128,
+  LINE_HEIGHT_TYPE = 132,
+  LINE_HEIGHT_STATE = 133,
 }
 
 export type OverFlow = 'visible' | 'hidden' | 'scroll' | 'clip' | 'auto';
@@ -197,19 +225,25 @@ class StateKeys {
 
 class TextStateKeys {
   constructor(public readonly bits: bigint) {}
-
+  static readonly ALL = new TextStateKeys(-1n);
+  static readonly NONE = new TextStateKeys(0n);
   static readonly COLOR = new TextStateKeys(1n << 0n);
-  static readonly DECORATION_LINE = new TextStateKeys(1n << 1n);
-  static readonly DECORATION_COLOR = new TextStateKeys(1n << 2n);
-  static readonly TEXT_ALIGN = new TextStateKeys(1n << 3n);
-  static readonly TEXT_JUSTIFY = new TextStateKeys(1n << 4n);
-  static readonly BACKGROUND_COLOR = new TextStateKeys(1n << 5n);
-
-  static readonly SIZE = new TextStateKeys(1n << 6n);
-  static readonly TRANSFORM = new TextStateKeys(1n << 7n);
-  static readonly FONT_STYLE = new TextStateKeys(1n << 8n);
-  static readonly FONT_STYLE_SLANT = new TextStateKeys(1n << 9n);
+  static readonly SIZE = new TextStateKeys(1n << 1n);
+  static readonly FONT_WEIGHT = new TextStateKeys(1n << 2n);
+  static readonly FONT_STYLE = new TextStateKeys(1n << 3n);
+  static readonly FONT_FAMILY = new TextStateKeys(1n << 4n);
+  static readonly LETTER_SPACING = new TextStateKeys(1n << 5n);
+  static readonly DECORATION_LINE = new TextStateKeys(1n << 6n);
+  static readonly DECORATION_COLOR = new TextStateKeys(1n << 7n);
+  static readonly DECORATION_STYLE = new TextStateKeys(1n << 8n);
+  static readonly BACKGROUND_COLOR = new TextStateKeys(1n << 9n);
   static readonly TEXT_WRAP = new TextStateKeys(1n << 10n);
+  static readonly WHITE_SPACE = new TextStateKeys(1n << 11n);
+  static readonly TRANSFORM = new TextStateKeys(1n << 12n);
+  static readonly TEXT_JUSTIFY = new TextStateKeys(1n << 13n);
+  static readonly TEXT_OVERFLOW = new TextStateKeys(1n << 14n);
+  static readonly LINE_HEIGHT = new TextStateKeys(1n << 15n);
+  static readonly TEXT_ALIGN = new TextStateKeys(1n << 16n);
 
   or(other: TextStateKeys): TextStateKeys {
     return new TextStateKeys(this.bits | other.bits);
@@ -224,12 +258,20 @@ class TextStateKeys {
   }
 }
 
-const getUint16 = (view: DataView, offset: number) => {
-  return view.getUint16(offset, true);
+const getInt8 = (view: DataView, offset: number) => {
+  return view.getInt8(offset);
 };
 
-const setUint16 = (view: DataView, offset: number, value: number) => {
-  view.setUint16(offset, value, true);
+const setInt8 = (view: DataView, offset: number, value: number) => {
+  view.setInt8(offset, value);
+};
+
+const getUint8 = (view: DataView, offset: number) => {
+  return view.getUint8(offset);
+};
+
+const setUint8 = (view: DataView, offset: number, value: number) => {
+  view.setUint8(offset, value);
 };
 
 const getInt16 = (view: DataView, offset: number) => {
@@ -271,44 +313,38 @@ export class Style {
   private isDirty = -1n;
   private isTextDirty = -1n;
   private inBatch = false;
-  static fromView(view: View, nativeView, isText = false): Style {
+  static fromView(view: View, nativeView): Style {
     //console.time('fromView');
     const ret = new Style();
     ret.view_ = view;
     if (__ANDROID__) {
-      const style = (nativeView as org.nativescript.mason.masonkit.TextView).getStyle();
-      if (!isText) {
-        const styleBuffer = style.getValues();
-        const buffer = (<any>ArrayBuffer).from(styleBuffer);
-        ret.style_view = new DataView(buffer);
-      } else {
-        const styleBuffer = style.getValues();
-        const buffer = (<any>ArrayBuffer).from(styleBuffer);
-        ret.style_view = new DataView(buffer);
-
-        const textStyleBuffer = (nativeView as org.nativescript.mason.masonkit.TextView).getTextValues();
-        const textBuffer = (<any>ArrayBuffer).from(textStyleBuffer);
-        ret.text_style_view = new DataView(textBuffer);
+      let style = (nativeView as org.nativescript.mason.masonkit.Element)?.getStyle?.();
+      if (!style) {
+        // if a non mason view is passed
+        style = org.nativescript.mason.masonkit.Mason.getShared().styleForView(nativeView);
       }
+      const styleBuffer = style.getValues();
+      const buffer = (<any>ArrayBuffer).from(styleBuffer);
+      ret.style_view = new DataView(buffer);
+
+      const textStyleBuffer = style.getTextValues();
+      const textBuffer = (<any>ArrayBuffer).from(textStyleBuffer);
+      ret.text_style_view = new DataView(textBuffer);
     } else if (__APPLE__) {
-      const style = (nativeView as MasonText).style;
-      if (!isText) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        const styleBuffer = style.valuesCompat;
-        const buffer = interop.bufferFromData(styleBuffer);
-        ret.style_view = new DataView(buffer);
-      } else {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        const styleBuffer = style.valuesCompat;
-        const buffer = interop.bufferFromData(styleBuffer);
-        ret.style_view = new DataView(buffer);
-
-        const textStyleBuffer = (nativeView as MasonText).textValues;
-        const textBuffer = interop.bufferFromData(textStyleBuffer);
-        ret.text_style_view = new DataView(textBuffer);
+      let style: MasonStyle = nativeView?.style as never;
+      if (!style) {
+        style = NSCMason.shared.styleForView(nativeView) as never;
       }
+      const styleBuffer = style.values;
+
+      const buffer = interop.bufferFromData(styleBuffer);
+      ret.style_view = new DataView(buffer);
+
+      //@ts-ignore
+      const textStyleBuffer = style.textValues;
+
+      const textBuffer = interop.bufferFromData(textStyleBuffer);
+      ret.text_style_view = new DataView(textBuffer);
     }
     //console.timeEnd('fromView');
 
@@ -320,27 +356,16 @@ export class Style {
     this.isTextDirty = -1n;
   }
 
-  private syncStyle(isText = false) {
-    //  console.time('syncStyle');
+  private syncStyle() {
     if (__ANDROID__) {
-      if (!isText) {
-        const view = this.view.android as org.nativescript.mason.masonkit.View;
-        view.syncStyle(this.isDirty.toString());
-      } else {
-        const view = this.view.android as never as org.nativescript.mason.masonkit.TextView;
-        view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
-      }
+      const view = this.view.android as never as org.nativescript.mason.masonkit.Element;
+      view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
     } else if (__APPLE__) {
-      if (!isText) {
-        const view = this.view.ios as MasonUIView;
-        view.syncStyle(this.isDirty.toString());
-      } else {
-        const view = this.view.ios as never as MasonText;
-        view.syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
-      }
+      const view = this.view.ios as never as MasonText;
+      // @ts-ignore
+      view.mason_syncStyle(this.isDirty.toString(), this.isTextDirty.toString());
     }
     this.resetState();
-    //   console.timeEnd('syncStyle');
   }
 
   private setOrAppendState(value: StateKeys) {
@@ -350,7 +375,7 @@ export class Style {
       this.isDirty = this.isDirty | value.bits;
     }
     if (!this.inBatch) {
-      this.syncStyle(this.text_style_view != null);
+      this.syncStyle();
     }
   }
 
@@ -360,8 +385,9 @@ export class Style {
     } else {
       this.isTextDirty = this.isTextDirty | value.bits;
     }
+
     if (!this.inBatch) {
-      this.syncStyle(this.text_style_view != null);
+      this.syncStyle();
     }
   }
 
@@ -369,7 +395,7 @@ export class Style {
     this.inBatch = true;
     fn(this);
     this.inBatch = false;
-    this.syncStyle(this.text_style_view != null);
+    this.syncStyle();
   }
 
   get view(): View {
@@ -402,6 +428,160 @@ export class Style {
     }
   }
 
+  get fontSize() {
+    if (!this.text_style_view) {
+      // BLACK ?
+      return 16;
+    }
+
+    const type = getUint8(this.text_style_view, TextStyleKeys.SIZE_TYPE);
+    const value = getInt32(this.text_style_view, TextStyleKeys.SIZE);
+    if (type === 1) {
+      return `${value / 100}%` as never;
+    }
+
+    return value;
+  }
+
+  set fontSize(value: number | { value: number; unit: 'dip' | 'px' | '%' }) {
+    if (!this.text_style_view) {
+      return;
+    }
+
+    switch (typeof value) {
+      case 'number':
+        setInt32(this.text_style_view, TextStyleKeys.SIZE, value);
+        setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
+        setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 0);
+        this.setOrAppendTextState(TextStateKeys.SIZE);
+        break;
+      case 'object':
+        switch (value.unit) {
+          case 'dip':
+            setInt32(this.text_style_view, TextStyleKeys.SIZE, value.value);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 0);
+            this.setOrAppendTextState(TextStateKeys.SIZE);
+            break;
+          case 'px':
+            setInt32(this.text_style_view, TextStyleKeys.SIZE, layout.toDeviceIndependentPixels(value.value));
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 0);
+            this.setOrAppendTextState(TextStateKeys.SIZE);
+            break;
+          case '%':
+            setInt32(this.text_style_view, TextStyleKeys.SIZE, value.value * 100);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
+            setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 1);
+            this.setOrAppendTextState(TextStateKeys.SIZE);
+            break;
+        }
+        break;
+    }
+
+    if (value && typeof value === 'object') {
+    } else {
+    }
+  }
+
+  get fontStyle() {
+    if (!this.text_style_view) {
+      // normal ?
+      return 'normal';
+    }
+    switch (getInt32(this.text_style_view, TextStyleKeys.FONT_STYLE_TYPE)) {
+      case 0:
+        return 'normal';
+      case 1:
+        return 'italic';
+      case 2:
+        return 'oblique';
+      default:
+        return 'normal';
+    }
+  }
+
+  set fontStyle(value: 'normal' | 'italic' | 'oblique' | `oblique ${number}deg`) {
+    if (!this.text_style_view) {
+      return;
+    }
+    let style = -1;
+
+    switch (value) {
+      case 'normal':
+        style = 0;
+        break;
+      case 'italic':
+        style = 1;
+        break;
+      case 'oblique':
+        style = 2;
+        break;
+    }
+    if (style !== -1) {
+      setInt32(this.text_style_view, TextStyleKeys.FONT_STYLE_TYPE, style);
+      setInt8(this.text_style_view, TextStyleKeys.FONT_STYLE_STATE, 1);
+      this.setOrAppendTextState(TextStateKeys.FONT_STYLE);
+    }
+  }
+
+  get fontWeight() {
+    if (!this.text_style_view) {
+      // BLACK ?
+      return 400;
+    }
+
+    return getInt32(this.text_style_view, TextStyleKeys.FONT_WEIGHT);
+  }
+
+  set fontWeight(value: '100' | '200' | '300' | 'normal' | '400' | '500' | '600' | 'bold' | '700' | '800' | '900' | number) {
+    if (!this.text_style_view) {
+      return;
+    }
+    let weight = -1;
+    switch (value) {
+      case '100':
+        weight = 100;
+        break;
+      case '200':
+        weight = 200;
+        break;
+      case '300':
+        weight = 300;
+        break;
+      case 'normal':
+      case '400':
+        weight = 400;
+        break;
+      case '500':
+        weight = 500;
+        break;
+      case '600':
+        weight = 600;
+        break;
+      case '700':
+      case 'bold':
+        weight = 700;
+        break;
+      case '800':
+        weight = 800;
+        break;
+      case '900':
+        weight = 900;
+        break;
+      default:
+        if (typeof value === 'number' && value >= 100 && value <= 1000) {
+          weight = value;
+        }
+        break;
+    }
+    if (weight !== -1) {
+      setInt32(this.text_style_view, TextStyleKeys.FONT_WEIGHT, weight);
+      setInt8(this.text_style_view, TextStyleKeys.FONT_WEIGHT_STATE, 1);
+      this.setOrAppendTextState(TextStateKeys.FONT_WEIGHT);
+    }
+  }
+
   get color() {
     if (!this.text_style_view) {
       // BLACK ?
@@ -416,6 +596,7 @@ export class Style {
       return;
     }
     setUint32(this.text_style_view, TextStyleKeys.COLOR, value);
+    setInt8(this.text_style_view, TextStyleKeys.COLOR_STATE, 1);
     this.setOrAppendTextState(TextStateKeys.COLOR);
   }
 
@@ -432,6 +613,7 @@ export class Style {
       return;
     }
     setUint32(this.text_style_view, TextStyleKeys.BACKGROUND_COLOR, value);
+    setInt8(this.text_style_view, TextStyleKeys.BACKGROUND_COLOR_STATE, 1);
     this.setOrAppendTextState(TextStateKeys.BACKGROUND_COLOR);
   }
 
@@ -440,7 +622,7 @@ export class Style {
       // BLACK ?
       return 0;
     }
-    return getInt32(this.text_style_view, TextStyleKeys.TEXT_ALIGN);
+    return getInt32(this.text_style_view, TextStyleKeys.TEXT_WRAP);
   }
 
   set textWrap(value: number | 'nowrap' | 'wrap' | 'balance') {
@@ -468,6 +650,7 @@ export class Style {
 
     if (wrap !== -1) {
       setInt32(this.text_style_view, TextStyleKeys.TEXT_WRAP, wrap);
+      setInt8(this.text_style_view, TextStyleKeys.TEXT_WRAP_STATE, 1);
       this.setOrAppendTextState(TextStateKeys.TEXT_WRAP);
     }
   }
@@ -495,7 +678,6 @@ export class Style {
       case 7:
         return 'inline-grid';
       default:
-        console.info('Unknown display value: ' + getInt32(this.style_view, StyleKeys.DISPLAY));
         return 'none';
     }
   }
@@ -566,9 +748,9 @@ export class Style {
       case 1:
         return 'row';
       case 2:
-        return 'column-reverse';
-      case 3:
         return 'row-reverse';
+      case 3:
+        return 'column-reverse';
     }
   }
 
@@ -581,10 +763,10 @@ export class Style {
       case 'row':
         flex = 1;
         break;
-      case 'column-reverse':
+      case 'row-reverse':
         flex = 2;
         break;
-      case 'row-reverse':
+      case 'column-reverse':
         flex = 3;
         break;
     }
@@ -1143,7 +1325,7 @@ export class Style {
         }
         break;
     }
-    this.setOrAppendState(StateKeys.INSET);
+    this.setOrAppendState(StateKeys.MARGIN);
   }
 
   get marginRight() {
@@ -1429,7 +1611,6 @@ export class Style {
   }
 
   set rowGap(value: Length) {
-    console.log('Setting rowGap:', value);
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.GAP_ROW_TYPE, 0);
@@ -1459,12 +1640,10 @@ export class Style {
   get columnGap(): Length {
     const type = getInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.GAP_COLUMN_VALUE);
-    console.log('Getting columnGap:', parseLengthPercentage(type, value), type, value);
     return parseLengthPercentage(type, value);
   }
 
   set columnGap(value: Length) {
-    console.log('Setting columnGap:', value);
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.GAP_COLUMN_TYPE, 0);
@@ -1895,6 +2074,8 @@ export class Style {
         setInt32(this.style_view, StyleKeys.GRID_AUTO_FLOW, 3);
         break;
     }
+
+    this.setOrAppendState(StateKeys.GRID_AUTO_FLOW);
   }
 
   get gridRowGap() {
@@ -1969,6 +2150,8 @@ export class Style {
         }
         break;
     }
+
+    this.setOrAppendState(StateKeys.GRID_COLUMN);
   }
 
   get gridColumnEnd(): string {
@@ -2019,6 +2202,8 @@ export class Style {
         }
         break;
     }
+
+    this.setOrAppendState(StateKeys.GRID_COLUMN);
   }
 
   get gridRow(): string {
@@ -2076,6 +2261,7 @@ export class Style {
         }
         break;
     }
+    this.setOrAppendState(StateKeys.GRID_ROW);
   }
 
   get gridRowEnd(): string {
@@ -2127,6 +2313,8 @@ export class Style {
         }
         break;
     }
+
+    this.setOrAppendState(StateKeys.GRID_ROW);
   }
 
   set gridTemplateRows(value: string | Array<GridTemplates>) {
@@ -2216,6 +2404,8 @@ export class Style {
         }
         break;
     }
+
+    this.setOrAppendState(StateKeys.OVERFLOW);
   }
   get overflowX() {
     switch (getInt32(this.style_view, StyleKeys.OVERFLOW_X)) {
@@ -2229,16 +2419,23 @@ export class Style {
   }
 
   set overflowX(value: OverFlow) {
+    let dirty = false;
     switch (value) {
       case 'visible':
         setInt32(this.style_view, StyleKeys.OVERFLOW_X, 0);
+        dirty = true;
         break;
       case 'hidden':
         setInt32(this.style_view, StyleKeys.OVERFLOW_X, 1);
+        dirty = true;
         break;
       case 'scroll':
+        dirty = true;
         setInt32(this.style_view, StyleKeys.OVERFLOW_X, 2);
         break;
+    }
+    if (dirty) {
+      this.setOrAppendState(StateKeys.OVERFLOW_X);
     }
   }
 
@@ -2254,16 +2451,23 @@ export class Style {
   }
 
   set overflowY(value: OverFlow) {
+    let dirty = false;
     switch (value) {
       case 'visible':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 0);
+        dirty = true;
         break;
       case 'hidden':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 1);
+        dirty = true;
         break;
       case 'scroll':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 2);
+        dirty = true;
         break;
+    }
+    if (dirty) {
+      this.setOrAppendState(StateKeys.OVERFLOW_Y);
     }
   }
 
@@ -2273,6 +2477,7 @@ export class Style {
 
   set flexGrow(value: number) {
     setFloat32(this.style_view, StyleKeys.FLEX_GROW, value);
+    this.setOrAppendState(StateKeys.FLEX_GROW);
   }
 
   get flexShrink(): number {
@@ -2281,6 +2486,7 @@ export class Style {
 
   set flexShrink(value: number) {
     setFloat32(this.style_view, StyleKeys.FLEX_SHRINK, value);
+    this.setOrAppendState(StateKeys.FLEX_SHRINK);
   }
 
   get scrollBarWidth(): number | CoreTypes.LengthType {
@@ -2290,15 +2496,198 @@ export class Style {
   set scrollBarWidth(value: number | CoreTypes.LengthType) {
     if (typeof value === 'number') {
       setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, value);
+      this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
     } else if (typeof value === 'object') {
       switch (value.unit) {
         case 'dip':
           setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, layout.toDevicePixels(value.value));
+          this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
           break;
         case 'px':
           setFloat32(this.style_view, StyleKeys.SCROLLBAR_WIDTH, value.value);
+          this.setOrAppendState(StateKeys.SCROLLBAR_WIDTH);
           break;
       }
+    }
+  }
+
+  get letterSpacing(): number | CoreTypes.LengthType {
+    return getFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING);
+  }
+
+  set letterSpacing(value: number | CoreTypes.LengthType) {
+    if (typeof value === 'number') {
+      setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, value);
+      setUint8(this.text_style_view, TextStyleKeys.LETTER_SPACING_STATE, 1);
+      this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+    } else if (typeof value === 'object') {
+      switch (value.unit) {
+        case 'dip':
+          setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
+          setUint8(this.text_style_view, TextStyleKeys.LETTER_SPACING_STATE, 1);
+          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          break;
+        case 'px':
+          setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, value.value);
+          setUint8(this.text_style_view, TextStyleKeys.LETTER_SPACING_STATE, 1);
+          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          break;
+      }
+    }
+  }
+
+  get lineHeight(): number | CoreTypes.LengthType {
+    return getFloat32(this.text_style_view, TextStyleKeys.LINE_HEIGHT);
+  }
+
+  set lineHeight(value: number | CoreTypes.LengthType) {
+    if (typeof value === 'number') {
+      setFloat32(this.text_style_view, TextStyleKeys.LINE_HEIGHT, value);
+      setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_STATE, 1);
+      setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_TYPE, 0);
+      this.setOrAppendTextState(TextStateKeys.LINE_HEIGHT);
+    } else if (typeof value === 'object') {
+      switch (value.unit) {
+        case 'dip':
+          setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, layout.toDevicePixels(value.value));
+          setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_STATE, 1);
+          setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_TYPE, 1);
+          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          break;
+        case 'px':
+          setFloat32(this.text_style_view, TextStyleKeys.LETTER_SPACING, value.value);
+          setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_STATE, 1);
+          setUint8(this.text_style_view, TextStyleKeys.LINE_HEIGHT_TYPE, 1);
+          this.setOrAppendTextState(TextStateKeys.LETTER_SPACING);
+          break;
+      }
+    }
+  }
+
+  get textOverflow() {
+    if (!this.text_style_view) {
+      // clip ?
+      return 'clip';
+    }
+    const type = getInt32(this.text_style_view, TextStyleKeys.TEXT_OVERFLOW);
+    switch (type) {
+      case 0:
+        return 'clip';
+      case 1:
+        return 'ellipsis';
+      default:
+    }
+
+    if (__ANDROID__) {
+      // @ts-ignore
+      const overflow = this.view_._view.getTextOverflow();
+    }
+
+    if (__APPLE__) {
+      // @ts-ignore
+      const overflow = this.view_._view.textOverflow;
+    }
+
+    return 'clip';
+  }
+
+  set textOverflow(value: 'clip' | 'ellipsis' | `${string}`) {
+    if (!this.text_style_view) {
+      return;
+    }
+
+    let flow = -1;
+
+    switch (value) {
+      case 'clip':
+        flow = 0;
+        break;
+      case 'ellipsis':
+        flow = 1;
+        break;
+      default:
+        {
+          if (__ANDROID__) {
+            // @ts-ignore
+            const overflow = this.view_._view.getTextOverflow();
+          }
+
+          if (__APPLE__) {
+            // @ts-ignore
+            const overflow = this.view_._view.textOverflow;
+          }
+        }
+        break;
+    }
+
+    if (flow !== -1) {
+      setInt32(this.text_style_view, TextStyleKeys.TEXT_OVERFLOW, flow);
+      setInt8(this.text_style_view, TextStyleKeys.TEXT_OVERFLOW_STATE, 1);
+      this.setOrAppendTextState(TextStateKeys.TEXT_OVERFLOW);
+    }
+  }
+
+  get textAlignment() {
+    if (!this.text_style_view) {
+      // clip ?
+      return 'start';
+    }
+    const type = getInt32(this.text_style_view, TextStyleKeys.TEXT_ALIGN);
+    switch (type) {
+      case 0:
+        // auto
+        return 'start';
+      case 1:
+        return 'left';
+      case 2:
+        return 'right';
+      case 3:
+        return 'center';
+      case 4:
+        return 'justify';
+      case 5:
+        return 'start';
+      case 6:
+        return 'end';
+      default:
+        return 'start';
+    }
+  }
+
+  set textAlignment(value: 'left' | 'right' | 'center' | 'justify' | 'start' | 'end') {
+    if (!this.text_style_view) {
+      return;
+    }
+
+    let align = -1;
+
+    switch (value) {
+      case 'left':
+        align = 1;
+        break;
+      case 'right':
+        align = 2;
+        break;
+      case 'center':
+        align = 3;
+        break;
+      case 'justify':
+        align = 4;
+        break;
+      case 'start':
+        align = 5;
+        break;
+      case 'end':
+        align = 6;
+        break;
+      default:
+        break;
+    }
+
+    if (align !== -1) {
+      setInt32(this.text_style_view, TextStyleKeys.TEXT_ALIGN, align);
+      setInt8(this.text_style_view, TextStyleKeys.TEXT_ALIGN_STATE, 1);
+      this.setOrAppendTextState(TextStateKeys.TEXT_ALIGN);
     }
   }
 

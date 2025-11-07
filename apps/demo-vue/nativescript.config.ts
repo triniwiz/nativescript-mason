@@ -8,4 +8,7 @@ export default {
     v8Flags: '--expose_gc',
     markingMode: 'none',
   },
+  tailwind: {
+    autoload: true,
+  },
 } as NativeScriptConfig;

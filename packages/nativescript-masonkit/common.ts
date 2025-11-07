@@ -1,23 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing } from '.';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows, GridTemplates } from './utils';
 import { Style as MasonStyle } from './style';
 export const native_ = Symbol('[[native]]');
 export const style_ = Symbol('[[style]]');
+export const isTextChild_ = Symbol('[[isTextChild]]');
+export const isText_ = Symbol('[[isText]]');
+export const isMasonView_ = Symbol('[[isMasonView]]');
+export const text_ = Symbol('[[text]]');
 
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
   const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
   return ret._styleHelper as MasonStyle;
 }
 
-export interface MasonChild extends ViewBase {
-  _isMasonChild: boolean;
-  _masonParent: ViewBase;
-  _hasNativeView: boolean;
-}
+export interface MasonChild extends ViewBase {}
 
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',
@@ -262,6 +262,51 @@ export const columnGapProperty = new CssProperty<Style, Length>({
   },
 });
 
+export const gridGapProperty = new ShorthandProperty<Style, Gap>({
+  name: 'gridGap',
+  cssName: 'grid-gap',
+  getter: function () {
+    if (this.rowGap === this.columnGap) {
+      return this.rowGap;
+    }
+    return `${this.rowGap} ${this.columnGap}`;
+  },
+  converter(gap) {
+    const properties: [CssProperty<any, any>, any][] = [];
+
+    let value = gap;
+
+    if (typeof value === 'number') {
+      value = `${value}`;
+    }
+
+    if (typeof value === 'string') {
+      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
+
+      const length = values.length;
+      if (length === 0) {
+        return properties;
+      }
+
+      if (length === 1) {
+        const row = values[0];
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, row]);
+      }
+
+      if (length > 1) {
+        const row = values[0];
+        const column = values[1];
+
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, column]);
+      }
+    }
+
+    return properties;
+  },
+});
+
 export const gapProperty = new ShorthandProperty<Style, Gap>({
   name: 'gap',
   cssName: 'gap',
@@ -271,8 +316,14 @@ export const gapProperty = new ShorthandProperty<Style, Gap>({
     }
     return `${this.rowGap} ${this.columnGap}`;
   },
-  converter(value) {
+  converter(gap) {
     const properties: [CssProperty<any, any>, any][] = [];
+
+    let value = gap;
+
+    if (typeof value === 'number') {
+      value = `${value}`;
+    }
 
     if (typeof value === 'string') {
       const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
@@ -361,7 +412,6 @@ export const displayProperty = new CssProperty<Style, Display>({
       case 'inline-grid':
         return value;
       default:
-        console.warn(`Invalid display value: ${value}`);
         return undefined;
     }
   },
@@ -477,7 +527,6 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   valueConverter: masonLengthParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
-    console.log('left changed', newValue);
     if (view) {
       view.left = newValue;
     }
@@ -1046,7 +1095,7 @@ const flexProperty = new ShorthandProperty({
 });
 
 // @ts-ignore
-export const textWrapProperty = new Property<TextBase, 'nowrap' | 'wrap' | 'balance'>({
+export const textWrapProperty = new CssProperty<Style, 'nowrap' | 'wrap' | 'balance'>({
   name: 'textWrap',
   affectsLayout: true,
   defaultValue: 'nowrap',
@@ -1054,6 +1103,18 @@ export const textWrapProperty = new Property<TextBase, 'nowrap' | 'wrap' | 'bala
     const view = target?.viewRef ? getViewStyle(target.viewRef) : target.view;
     if (view) {
       view.textWrap = newValue;
+    }
+  },
+});
+
+// @ts-ignore
+export const textOverFlowProperty = new CssProperty<Style, 'clip' | 'ellipsis' | `${string}`>({
+  name: 'textOverflow',
+  defaultValue: 'text-overflow',
+  valueChanged(target: any, oldValue, newValue) {
+    const view = target?.viewRef ? getViewStyle(target.viewRef) : target.view;
+    if (view) {
+      view.textOverflow = newValue;
     }
   },
 });
@@ -1086,7 +1147,6 @@ export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
       case 'border-box':
         return value;
       default:
-        console.warn(`Invalid boxSizing value: ${value}`);
         return undefined;
     }
   },
@@ -1095,6 +1155,8 @@ export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: MasonUIView;
+
+  textWrap: 'nowrap' | 'wrap' | 'balance';
 
   overflow: Overflow | `${Overflow} ${Overflow}`;
 
@@ -1109,9 +1171,11 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   margin: LengthAuto;
   border: Length;
 
-  _children: any[] = [];
-  _isMasonView = false;
-  _isMasonChild = false;
+  _children: (NSView | { text?: string })[] = [];
+  [isMasonView_] = false;
+
+  [isTextChild_] = false;
+  [isText_] = false;
 
   constructor() {
     super();
@@ -1119,6 +1183,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   forceStyleUpdate() {
     _forceStyleUpdate(this as any);
+  }
+
+  get _viewChildren() {
+    return this._children.filter((child) => child instanceof NSView) as NSView[];
   }
 
   public eachLayoutChild(callback: (child: NSView, isLast: boolean) => void): void {
@@ -1142,50 +1210,104 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   public eachChild(callback: (child: NSViewBase) => boolean) {
-    for (const child of this._children) {
+    for (const child of this._viewChildren) {
       callback(child);
     }
   }
 
   public eachChildView(callback: (child: NSView) => boolean): void {
-    for (const view of this._children) {
+    for (const view of this._viewChildren) {
       callback(view);
     }
   }
 
   _addChildFromBuilder(name: string, value: any): void {
-    if (value instanceof NSView) {
-      this.addChild(value);
-    }
+    this.addChild(value);
   }
 
   getChildrenCount() {
-    return this._children.length;
+    return this._viewChildren.length;
   }
 
   get _childrenCount() {
-    return this._children.length;
+    return this._viewChildren.length;
   }
 
   getChildAt(index: number) {
-    return this._children[index];
+    return this._viewChildren[index];
   }
 
   getChildIndex(child: NSView) {
-    return this._children.indexOf(child);
+    return this._viewChildren.indexOf(child);
   }
   getChildById(id: string) {
     return getViewById(this as never, id);
   }
 
   addChild(child: any) {
-    this._children.push(child);
-    this._addView(child);
+    if (child instanceof NSView) {
+      this._children.push(child);
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+      this._addView(child);
+    } else {
+      if (text_ in child) {
+        //@ts-ignore
+        if (this._view) {
+          if (__ANDROID__) {
+            //@ts-ignore
+            this._view.addChildAt(child[text_] || '', this._children.length);
+          }
+
+          if (__APPLE__) {
+            //@ts-ignore
+            this._view.mason_addChildAtText(child[text_] || '', this._children.length);
+          }
+        }
+        this._children.push(child);
+      }
+    }
   }
 
   insertChild(child: any, atIndex: number) {
-    this._children.splice(atIndex, 0, child);
-    this._addView(child, atIndex);
+    if (child instanceof NSView) {
+      this._children.splice(atIndex, 0, child);
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+      this._addView(child, atIndex);
+    }
+  }
+
+  replaceChild(child: any, atIndex: number) {
+    if (child instanceof NSView) {
+      this._children[atIndex] = child;
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+      this._addView(child, atIndex);
+    } else {
+      if (text_ in child) {
+        //@ts-ignore
+        if (this._view) {
+          if (__ANDROID__) {
+            //@ts-ignore
+            this._view.replaceChildAt(child[text_] || '', atIndex);
+          }
+
+          if (__APPLE__) {
+            //@ts-ignore
+            this._view.mason_replaceChildAtText(child[text_] || '', atIndex);
+          }
+        }
+        if (this._children.length >= atIndex) {
+          this._children[atIndex] = { text: child[text_] || '' };
+        } else {
+          this._children.push({ text: child[text_] || '' });
+        }
+      }
+    }
   }
 
   removeChild(child: any) {
@@ -1197,14 +1319,44 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   removeChildren() {
-    if (this._children.length === 0) {
+    if (this._viewChildren.length === 0) {
       return;
     }
-    for (const child of this._children) {
+    for (const child of this._viewChildren) {
+      // @ts-ignore
       child._isMasonChild = false;
-      this._removeView(child);
+      if (child instanceof NSView) {
+        this._removeView(child);
+      }
     }
     this._children.splice(0);
+  }
+
+  [lineHeightProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.lineHeight = value;
+    }
+  }
+
+  [letterSpacingProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.letterSpacing = value;
+    }
+  }
+
+  [textAlignmentProperty.setNative](value: CoreTypes.TextAlignmentType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.textAlignment = value;
+    }
   }
 
   get boxSizing(): BoxSizing {
@@ -1252,67 +1404,143 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   set position(value: Position) {
-    this.style.position = value;
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.position = value;
+    }
+  }
+
+  [colorProperty.setNative](value) {
+    if (value instanceof Color) {
+      // @ts-ignore
+      const style = this._styleHelper;
+      if (style) {
+        // @ts-ignore
+        style.color = value.argb;
+      }
+    }
   }
 
   [flexWrapProperty.setNative](value) {
-    // _setFlexWrap(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexWrap = value;
+    }
   }
 
   [flexDirectionProperty.setNative](value) {
-    // _setFlexDirection(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexDirection = value;
+    }
   }
 
   [flexGrowProperty.setNative](value) {
-    // _setFlexGrow(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexGrow = value;
+    }
   }
 
   [flexShrinkProperty.setNative](value) {
-    //  _setFlexShrink(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexShrink = value;
+    }
   }
 
   [flexBasisProperty.setNative](value) {
-    //  _setFlexBasis(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexBasis = value;
+    }
   }
 
   [alignItemsProperty.setNative](value) {
-    //  _setAlignItems(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.alignItems = value;
+    }
   }
 
   [alignSelfProperty.setNative](value) {
-    // _setAlignSelf(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.alignSelf = value;
+    }
   }
 
   [alignContentProperty.setNative](value) {
-    // _setAlignContent(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.alignContent = value;
+    }
   }
 
   [justifyItemsProperty.setNative](value) {
-    // _setJustifyItems(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.justifyItems = value;
+    }
   }
 
   [justifySelfProperty.setNative](value) {
-    //  _setJustifySelf(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.justifySelf = value;
+    }
   }
 
   [justifyContentProperty.setNative](value) {
-    //  _setJustifyContent(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.justifyContent = value;
+    }
   }
 
   [leftProperty.setNative](value) {
-    //  _setLeft(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.left = value;
+    }
   }
 
   [rightProperty.setNative](value) {
-    //  _setRight(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.right = value;
+    }
   }
 
   [bottomProperty.setNative](value) {
-    // _setBottom(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.bottom = value;
+    }
   }
 
   [topProperty.setNative](value) {
-    // _setTop(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.top = value;
+    }
   }
 
   [minWidthProperty.setNative](value) {
@@ -1336,7 +1564,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       style.height = value;
-      console.log('height set native', this.id, style.toJSON());
     }
   }
 
@@ -1365,32 +1592,64 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   [marginLeftProperty.setNative](value) {
-    // _setMarginLeft(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginLeft = value;
+    }
   }
 
   [marginRightProperty.setNative](value) {
-    // _setMarginRight(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginRight = value;
+    }
   }
 
   [marginBottomProperty.setNative](value) {
-    // _setMarginBottom(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginBottom = value;
+    }
   }
 
   [marginTopProperty.setNative](value) {
-    // _setMarginTop(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginTop = value;
+    }
   }
 
   [paddingLeftProperty.setNative](value) {
-    // _setPaddingLeft(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingLeft = value;
+    }
   }
   [paddingRightProperty.setNative](value) {
-    //  _setPaddingRight(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingRight = value;
+    }
   }
   [paddingTopProperty.setNative](value) {
-    // _setPaddingTop(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingTop = value;
+    }
   }
   [paddingBottomProperty.setNative](value) {
-    // _setPaddingBottom(value, this as any);
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingBottom = value;
+    }
   }
 
   set rowGap(value: Length) {
@@ -1472,19 +1731,39 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   get gridAutoRows(): string {
     return this.style.gridAutoRows;
   }
+
+  [fontSizeProperty.setNative](value: Length) {
+    // @ts-ignore
+    if (this._styleHelper) {
+      //@ts-ignore
+      this._styleHelper.fontSize = value;
+    }
+  }
+
+  [fontWeightProperty.setNative](value: string) {
+    // @ts-ignore
+    if (this._styleHelper) {
+      //@ts-ignore
+      this._styleHelper.fontWeight = value;
+    }
+  }
+
+  [fontStyleProperty.setNative](value: string) {
+    // @ts-ignore
+    if (this._styleHelper) {
+      //@ts-ignore
+      this._styleHelper.fontStyle = value;
+    }
+  }
 }
 
 export class TextBase extends ViewBase {
   text: string;
-  textWrap: 'nowrap' | 'wrap' | 'balance';
-
-  constructor() {
-    super();
-  }
 }
 
 textProperty.register(TextBase);
-textWrapProperty.register(TextBase);
+textWrapProperty.register(Style);
+textOverFlowProperty.register(Style);
 
 // @ts-ignore
 export const srcProperty = new Property<ImageBase, string>({
@@ -1505,7 +1784,49 @@ srcProperty.register(ImageBase);
 // flexDirectionProperty.register(Style);
 // flexWrapProperty.register(Style);
 // flexGrowProperty.register(Style);
-// flexShrinkProperty.register(Style);
+flexShrinkProperty.register(Style);
+
+// revert valueConverter if causing issues with core components
+fontSizeProperty.overrideHandlers({
+  name: 'fontSize',
+  cssName: 'font-size',
+  valueConverter: function (value) {
+    return value as never;
+  },
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        if (typeof newValue === 'string') {
+          // @ts-ignore
+          if (newValue.indexOf('%') !== -1) {
+            view.fontSize = {
+              value: parseFloat(newValue as never) / 100,
+              unit: '%',
+            };
+            // @ts-ignore
+          } else if (newValue.indexOf('dip') !== -1) {
+            view.fontSize = parseFloat(newValue as never);
+            // @ts-ignore
+          } else if (newValue.indexOf('px') !== -1) {
+            view.fontSize = {
+              value: parseFloat(newValue as never),
+              unit: 'px',
+            };
+          } else {
+            view.fontSize = parseFloat(newValue as never);
+          }
+        } else {
+          view.fontSize = newValue as never;
+        }
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.fontSize = oldValue as never;
+      }
+    }
+  },
+});
 
 paddingLeftProperty.overrideHandlers({
   name: 'paddingLeft',
@@ -1600,6 +1921,7 @@ columnGapProperty.register(Style);
 gridRowGapProperty.register(Style);
 gridColumnGapProperty.register(Style);
 gapProperty.register(Style);
+gridGapProperty.register(Style);
 
 aspectRatioProperty.register(Style);
 

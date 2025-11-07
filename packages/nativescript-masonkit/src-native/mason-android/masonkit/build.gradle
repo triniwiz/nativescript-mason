@@ -1,3 +1,6 @@
+import com.android.build.gradle.tasks.MergeSourceSetFolders
+import com.nishtahir.CargoBuildTask
+
 plugins {
   id 'com.android.library'
   id 'org.jetbrains.kotlin.android'
@@ -41,8 +44,8 @@ cargo {
     "x86"   : 21,
     "x86_64": 21
   ]
-  targets = ["arm", "arm64", "x86", "x86_64"]
-//  targets = ["arm64"]
+ targets = ["arm", "arm64", "x86", "x86_64"]
+ // targets = ["arm64"]
   profile = "release"
   targetDirectory = "../../../../../target"
   verbose = false
@@ -57,11 +60,16 @@ tasks.configureEach { task ->
   if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
     task.dependsOn 'cargoBuild'
   }
+
+  if (name == "mergeDebugJniLibFolders" || name == "mergeReleaseJniLibFolders") {
+    outputs.upToDateWhen { false }
+    dependsOn("cargoBuild")
+  }
 }
 
 //afterEvaluate {
-//    tasks.withType(com.nishtahir.CargoBuildTask).configureEach { buildTask ->
-//        tasks.withType(com.android.build.gradle.tasks.MergeSourceSetFolders).configureEach {
+//    tasks.withType(CargoBuildTask).configureEach { buildTask ->
+//        tasks.withType(MergeSourceSetFolders).configureEach {
 //            inputs.dir(layout.buildDirectory.dir("rustJniLibs${File.separator}${buildTask.toolchain.folder}"))
 //            dependsOn(buildTask)
 //        }
@@ -73,7 +81,7 @@ dependencies {
 
   implementation 'androidx.core:core-ktx:1.16.0'
   implementation 'androidx.appcompat:appcompat:1.7.1'
-  implementation 'com.google.code.gson:gson:2.13.1'
+  implementation 'com.google.code.gson:gson:2.13.2'
   testImplementation 'junit:junit:4.13.2'
   androidTestImplementation 'androidx.test.ext:junit:1.2.1'
   androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'

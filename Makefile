@@ -14,7 +14,7 @@ GENERATE_HEADERS:
 .PHONY: $(ARCHS_IOS)
 $(ARCHS_IOS): %:
 	#cargo +nightly build -Z build-std='std,panic_abort' --target $@ -p mason-ios
-	RUSTFLAGS="-Zlocation-detail=none -C panic=abort -Zfmt-debug=none" cargo +nightly build -Z build-std='std,panic_abort'  -Z build-std-features='panic_immediate_abort,optimize_for_size' --target $@ --release -p mason-ios
+	RUSTFLAGS="-Zlocation-detail=none -C panic=abort -Zfmt-debug=none -Zunstable-options -Cpanic=immediate-abort" cargo +nightly build -Z build-std='std'  -Z build-std-features='optimize_for_size' --target $@ --release -p mason-ios
 
 $(XCFRAMEWORK): $(ARCHS_IOS)
 

@@ -9,7 +9,7 @@
 import Foundation
 import UIKit
 
-enum NSCFontStyle: Codable {
+enum NSCFontStyle: Codable, Equatable {
   case normal
   case italic
   case oblique(Int?)
@@ -76,7 +76,7 @@ public enum NSCFontDisplay: Int, RawRepresentable, Codable {
 }
 
 @objc(NSCFontWeight)
-public enum NSCFontWeight: Int, RawRepresentable, Codable {
+public enum NSCFontWeight: Int, RawRepresentable, Codable, CustomStringConvertible {
   case thin
   case extraLight
   case light
@@ -86,6 +86,31 @@ public enum NSCFontWeight: Int, RawRepresentable, Codable {
   case bold
   case extraBold
   case black
+  
+  public var description: String {
+    switch(self){
+    case .thin:
+      return "100"
+    case .extraLight:
+      return "200"
+    case .light:
+      return "300"
+    case .normal:
+      return "400"
+    case .medium:
+      return "500"
+    case .semiBold:
+      return "600"
+    case .bold:
+      return "700"
+    case .extraBold:
+      return "800"
+    case .black:
+      return "900"
+    }
+  }
+  
+  
   public typealias RawValue = Int
   public init?(rawValue: Int) {
     switch rawValue {
@@ -154,6 +179,33 @@ public enum NSCFontWeight: Int, RawRepresentable, Codable {
       return .heavy
     case .black:
       return .black
+    }
+  }
+  
+  
+  public static func from(uiFontWeight: UIFont.Weight) -> Self{
+    switch(uiFontWeight){
+    case .thin:
+      return .thin
+    case .ultraLight:
+      return .extraLight
+    case .light:
+      return .light
+    case .regular:
+      return .normal
+    case .medium:
+      return .medium
+    case .semibold:
+      return .semiBold
+    case .bold:
+      return .bold
+    case .heavy:
+      return .extraBold
+    case .black:
+      return .black
+    default:
+      // ??
+      return .normal
     }
   }
   
@@ -357,11 +409,12 @@ let srcPattern = #"src:\s*url\(([^)]+)\)\s*format\('([^']+)'\);"#
 @objcMembers
 @objc(NSCFontFace)
 public class NSCFontFace: NSObject {
+  private var uiFont: UIFont? = nil
   public internal(set) var font: CGFont? = nil
-  private var fontFamily: String
+  internal var fontFamily: String
   public internal(set) var fontData: NSData? = nil
   private var localOrRemoteSource: String? = nil
-  private var fontDescriptors: NSCFontDescriptors
+  internal var fontDescriptors: NSCFontDescriptors
   private var loaderQueue = DispatchQueue(label: "NSCFontFace Loader Queue")
   private static let bundle = Bundle(identifier: "com.github.triniwiz.Mason")
   static let genericFontFamilies = [
@@ -655,6 +708,29 @@ public class NSCFontFace: NSObject {
     
     set {
       fontDescriptors.setFontStyle(newValue)
+      
+      if let font = uiFont {
+        var descriptor = font.fontDescriptor
+      
+        switch(fontDescriptors.styleValue){
+        case .normal:
+          break
+        case .italic:
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
+              descriptor = newDescriptor
+          }
+        case .oblique(_):
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
+              descriptor = newDescriptor
+          }
+          break
+        }
+        
+        let fontValue = UIFont(descriptor: descriptor, size: 16)
+        self.font = CTFontCopyGraphicsFont(fontValue, nil)
+        self.uiFont = fontValue
+      }
+  
     }
   }
   
@@ -669,6 +745,28 @@ public class NSCFontFace: NSObject {
     
     set {
       fontDescriptors.weight = newValue
+      
+      if let font = uiFont {
+        var descriptor = font.fontDescriptor
+        let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: fontDescriptors.weight.uiFontWeight]
+        
+        
+        descriptor.addingAttributes([.traits: traits])
+        
+        switch(fontDescriptors.weight){
+        case .semiBold, .bold, .extraBold, .black:
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitBold) {
+              descriptor = newDescriptor
+          }
+        default:
+          break
+        }
+        
+        let fontValue = UIFont(descriptor: descriptor, size: 16)
+        self.font = CTFontCopyGraphicsFont(fontValue, nil)
+        self.uiFont = fontValue
+      }
+      
     }
     
   }
@@ -707,31 +805,58 @@ public class NSCFontFace: NSObject {
     // todo handle fangsong
     
     guard let fontPath = fontPath else {
-      var font: CGFont? = nil
       if(fontData == nil){
         guard let name = NSCFontFace.genericFontFamilies[fontFamily] else {
           let systemFont = UIFont.systemFont(ofSize: 16, weight: weight.uiFontWeight)
-          self.font = CGFont(systemFont.fontName as CFString)
+          self.font = CTFontCopyGraphicsFont(systemFont, nil)
+          self.uiFont = systemFont
+          self.status = .loaded
           return nil
         }
-     
+        
+       
         guard let newFont = UIFont(name: name, size: 16) else {
-          self.font = CGFont(UIFont.systemFont(ofSize: 16).fontName as CFString)
+          let font = UIFont.systemFont(ofSize: 16)
+          self.font = CTFontCopyGraphicsFont(font, nil)
+          self.uiFont = font
+          self.status = .loaded
           return nil
         }
+        
+        var descriptor = newFont.fontDescriptor
+        let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: fontDescriptors.weight.uiFontWeight]
+        
+        
+        descriptor.addingAttributes([.traits: traits])
+        
+        switch(fontDescriptors.weight){
+        case .semiBold, .bold, .extraBold, .black:
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitBold) {
+              descriptor = newDescriptor
+          }
+        default:
+          break
+        }
+        
         switch(fontDescriptors.styleValue){
         case .normal:
           break
         case .italic:
-          if let descriptor = newFont.fontDescriptor.withSymbolicTraits(.traitItalic) {
-            let fontValue = UIFont(descriptor: descriptor, size: 16)
-            self.font = CGFont(fontValue.fontName as CFString)
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
+              descriptor = newDescriptor
           }
         case .oblique(_):
+          if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
+              descriptor = newDescriptor
+          }
           break
         }
         
-        self.font = CGFont(newFont.fontName as CFString)
+        let fontValue = UIFont(descriptor: descriptor, size: 16)
+        self.font = CTFontCopyGraphicsFont(fontValue, nil)
+        self.uiFont = fontValue
+        self.status = .loaded
+        
         return nil
       }
       

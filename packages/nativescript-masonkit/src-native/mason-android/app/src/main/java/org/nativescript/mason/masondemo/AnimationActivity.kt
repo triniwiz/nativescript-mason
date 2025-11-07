@@ -40,7 +40,7 @@ class AnimationActivity : AppCompatActivity() {
     val animatedView = mason.createView(this)
 
     animatedView.configure {
-      style.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+      it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
     }
     animatedView.setBackgroundColor(Color.BLUE)
 

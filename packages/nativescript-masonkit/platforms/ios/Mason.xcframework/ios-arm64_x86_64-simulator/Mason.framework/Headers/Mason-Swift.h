@@ -308,6 +308,13 @@ typedef unsigned int swift_uint4  __attribute__((__ext_vector_type__(4)));
 
 #if defined(__OBJC__)
 
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonAlign, "Align", open) {
+  MasonAlignAuto = 0,
+  MasonAlignLeft = 1,
+  MasonAlignRight = 2,
+  MasonAlignCenter = 3,
+};
+
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonAlignContent, "AlignContent", open) {
   MasonAlignContentNormal = -1,
   MasonAlignContentStart = 0,
@@ -353,6 +360,14 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonDecorationLine, "DecorationLine", open)
   MasonDecorationLineUnderline = 1,
   MasonDecorationLineOverline = 2,
   MasonDecorationLineLineThrough = 3,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonDecorationStyle, "DecorationStyle", open) {
+  MasonDecorationStyleSolid = 0,
+  MasonDecorationStyleDouble = 1,
+  MasonDecorationStyleDotted = 2,
+  MasonDecorationStyleDashed = 3,
+  MasonDecorationStyleWavy = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonDirection, "Direction", open) {
@@ -437,24 +452,29 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonGridTra
 @class MasonStyle;
 @class MasonNode;
 @class UIView;
+SWIFT_PROTOCOL("_TtP5Mason16MasonElementObjc_")
+@protocol MasonElementObjc <NSObject>
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
+@property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@end
+
 @class NSCMason;
+enum MasonLoadingState : NSInteger;
 @class UIImage;
 @class NSCoder;
 SWIFT_CLASS_NAMED("Img")
-@interface MasonImg : UIImageView
-@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
-- (void)markNodeDirty;
-- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
-@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@interface MasonImg : UIImageView <MasonElementObjc>
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 @property (nonatomic, copy) void (^ _Nullable didLayout)(void);
-- (void)requestLayout;
+@property (nonatomic, copy) void (^ _Nullable onStateChange)(enum MasonLoadingState, NSError * _Nullable);
+@property (nonatomic, strong) UIImage * _Nullable image;
 @property (nonatomic, copy) NSString * _Nullable src;
 - (void)updateImage:(UIImage * _Nullable)image;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
-- (void)syncStyle:(NSString * _Nonnull)state;
 - (nonnull instancetype)initWithImage:(UIImage * _Nullable)image SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithImage:(UIImage * _Nullable)image highlightedImage:(UIImage * _Nullable)highlightedImage SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
@@ -510,6 +530,25 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonLineHeight, "LineHeight", open) {
   MasonLineHeightPreLine = 3,
 };
 
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonLoadingState, "LoadingState", open) {
+  MasonLoadingStateLoading = 0,
+  MasonLoadingStateLoaded = 1,
+  MasonLoadingStateError = 2,
+};
+
+SWIFT_PROTOCOL("_TtP5Mason18MasonCharacterData_")
+@protocol MasonCharacterData
+@property (nonatomic, copy) NSString * _Nonnull data;
+@property (nonatomic, readonly) NSInteger length;
+- (nonnull instancetype)appendData:(NSString * _Nonnull)s;
+- (nonnull instancetype)insertData:(NSString * _Nonnull)s at:(NSInteger)offset;
+- (nonnull instancetype)deleteDataWithOffset:(NSInteger)offset count:(NSInteger)count;
+- (nonnull instancetype)replaceDataWithOffset:(NSInteger)offset count:(NSInteger)count with:(NSString * _Nonnull)s;
+- (NSString * _Nonnull)substringDataWithOffset:(NSInteger)offset count:(NSInteger)count SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)deleteDataWithRange:(NSRange)range;
+- (nonnull instancetype)replaceDataWithRange:(NSRange)range with:(NSString * _Nonnull)s;
+@end
+
 enum MasonDimensionCompatType : NSInteger;
 SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @interface MasonDimensionCompat : NSObject
@@ -560,6 +599,15 @@ SWIFT_CLASS_NAMED("MasonDimensionSizeCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+SWIFT_CLASS_NAMED("MasonDocument")
+@interface MasonDocument : NSObject
+@property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
+@property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)instance OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
 SWIFT_CLASS_NAMED("MasonLayout")
 @interface MasonLayout : NSObject
 @property (nonatomic, readonly) NSInteger order;
@@ -568,6 +616,9 @@ SWIFT_CLASS_NAMED("MasonLayout")
 @property (nonatomic, readonly) float width;
 @property (nonatomic, readonly) float height;
 @property (nonatomic, readonly, copy) NSArray<MasonLayout *> * _Nonnull children;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonLayout * _Nonnull zero;)
++ (MasonLayout * _Nonnull)zero SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly) BOOL hasChildren;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
@@ -670,35 +721,40 @@ SWIFT_CLASS_NAMED("MasonLengthPercentageSizeCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+enum MasonNodeType : int32_t;
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
+@property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, copy) void (^ _Nullable onNodeAttached)(void);
+@property (nonatomic, copy) void (^ _Nullable onNodeDetached)(void);
 @property (nonatomic, readonly) void * _Nullable nativePtr;
 @property (nonatomic, readonly, strong) MasonLayout * _Nonnull computedLayout;
-@property (nonatomic) id _Nullable data;
-@property (nonatomic, strong) MasonStyle * _Nonnull style;
-@property (nonatomic, readonly, strong) MasonNode * _Nullable owner;
-@property (nonatomic, readonly, copy) NSArray<MasonNode *> * _Nonnull children;
+@property (nonatomic, readonly, strong) MasonDocument * _Nullable document;
+- (MasonNode * _Nonnull)getRootNode SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, strong) MasonNode * _Nullable parent;
+@property (nonatomic, readonly, strong) MasonNode * _Nullable parentNode;
+@property (nonatomic, readonly) enum MasonNodeType type;
+- (NSArray<MasonNode *> * _Nonnull)getChildren SWIFT_WARN_UNUSED_RESULT;
+- (NSArray<MasonNode *> * _Nonnull)getLayoutChildren SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic) BOOL inBatch;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes OBJC_DESIGNATED_INITIALIZER;
-- (MasonLayout * _Nonnull)layout;
 @property (nonatomic, readonly) BOOL isDirty;
 - (void)markDirty;
-- (MasonNode * _Nullable)getRoot SWIFT_WARN_UNUSED_RESULT;
-- (void)compute;
-- (void)compute:(float)width :(float)height;
-- (void)computeMaxContent;
-- (void)computeMinContent;
-- (void)computeWithSize:(float)width :(float)height;
-- (void)computeWithViewSize;
-- (void)computeWithViewSizeWithLayout:(BOOL)layout;
-- (void)computeWithMaxContent;
-- (void)computeWithMinContent;
-- (void)attachAndApply;
-- (void)setChildrenWithValue:(NSArray<MasonNode *> * _Nonnull)value;
-- (void)addChildren:(NSArray<MasonNode *> * _Nonnull)children;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
+- (UIView * _Nullable)getRoot SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
+
+@interface MasonNode (SWIFT_EXTENSION(Mason))
+- (void)setChildrenWithValue:(NSArray<MasonNode *> * _Nonnull)value;
+- (void)appendChild:(MasonNode * _Nonnull)child;
+@end
+
+typedef SWIFT_ENUM_NAMED(int32_t, MasonNodeType, "MasonNodeType", open) {
+  MasonNodeTypeElement = 0,
+  MasonNodeTypeText = 1,
+  MasonNodeTypeDocument = 2,
+};
 
 enum MasonOverflow : NSInteger;
 SWIFT_CLASS_NAMED("MasonOverflowPointCompat")
@@ -710,17 +766,43 @@ SWIFT_CLASS_NAMED("MasonOverflowPointCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class NSCFontFace;
 @class NSMutableData;
-@class NSData;
+@class UIColor;
+enum MasonTextJustify : NSInteger;
+@class MasonTextOverflowCompat;
+enum MasonTextTransform : NSInteger;
+enum MasonWhiteSpace : NSInteger;
+enum MasonTextWrap : NSInteger;
 enum MasonPosition : NSInteger;
 enum MasonTextAlign : NSInteger;
 @class MinMax;
 @class TrackSizingFunction;
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
-@property (nonatomic, strong) NSMutableData * _Nonnull valuesCompat;
-@property (nonatomic, copy) NSData * _Nonnull values;
+@property (nonatomic, readonly, strong) NSCFontFace * _Nonnull font;
+@property (nonatomic, strong) NSMutableData * _Nonnull values;
+@property (nonatomic, strong) NSMutableData * _Nonnull textValues;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)node OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic) uint32_t color;
+- (void)setColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) uint32_t backgroundColor;
+- (void)setBackgroundColorWithUi:(UIColor * _Nonnull)color;
+- (void)setLineHeight:(float)value :(BOOL)isRelative;
+@property (nonatomic) float lineHeight;
+@property (nonatomic) float letterSpacing;
+@property (nonatomic) uint32_t decorationColor;
+- (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) enum MasonDecorationLine decorationLine;
+@property (nonatomic) int32_t fontSize;
+- (void)setFontStyle:(enum MasonFontStyle)style :(int32_t)slant;
+@property (nonatomic) enum MasonTextJustify textJustify;
+@property (nonatomic) enum MasonFontStyle fontStyle;
+@property (nonatomic, copy) NSString * _Nonnull fontWeight;
+@property (nonatomic, strong) MasonTextOverflowCompat * _Nonnull textOverflowCompat;
+@property (nonatomic) enum MasonTextTransform textTransform;
+@property (nonatomic) enum MasonWhiteSpace whiteSpace;
+@property (nonatomic) enum MasonTextWrap textWrap;
 @property (nonatomic) enum MasonDisplay display;
 @property (nonatomic) enum MasonPosition position;
 @property (nonatomic) enum MasonDirection direction;
@@ -763,6 +845,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic) float flexShrink;
 - (void)setFlexBasis:(float)value :(NSInteger)type;
 - (void)setScrollBarWidth:(float)value;
+@property (nonatomic) enum MasonAlign align;
 @property (nonatomic) enum MasonTextAlign textAlign;
 @property (nonatomic) enum MasonBoxSizing boxSizing;
 @property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull minSizeCompat;
@@ -804,54 +887,77 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @end
 
 enum MasonTextType : NSInteger;
-@class NSCFontFace;
-@class NSMutableAttributedString;
-@class MasonTextOverflowCompat;
-enum MasonTextTransform : NSInteger;
-@class UIColor;
-enum MasonWhiteSpace : NSInteger;
-enum MasonTextWrap : NSInteger;
 SWIFT_CLASS_NAMED("MasonText")
-@interface MasonText : UIView
-@property (nonatomic, readonly, strong) MasonText * _Nullable owner;
+@interface MasonText : UIView <MasonElementObjc>
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
-@property (nonatomic, readonly, strong) MasonNode * _Nonnull textNode;
-@property (nonatomic, readonly, strong) NSMutableData * _Nonnull textValues;
 @property (nonatomic, readonly) enum MasonTextType type;
-@property (nonatomic, readonly, strong) NSCFontFace * _Nonnull font;
-- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)masonNode OBJC_DESIGNATED_INITIALIZER;
-- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+@property (nonatomic, readonly, strong) NSMutableData * _Nonnull textValues;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
 @property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
-- (void)markNodeDirty;
-- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
-- (void)updateText:(NSString * _Nullable)value;
-@property (nonatomic, strong) NSMutableAttributedString * _Nonnull txtToRender;
-- (void)invalidateStyle:(int64_t)state;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
+- (void)setNeedsDisplay;
+- (void)requestLayout;
+- (void)addView:(UIView * _Nonnull)view;
+- (void)addView:(UIView * _Nonnull)view at:(NSInteger)at;
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 @property (nonatomic, strong) MasonTextOverflowCompat * _Nonnull textOverflowCompat;
-@property (nonatomic) enum MasonTextTransform textTransform;
-@property (nonatomic) CGFloat fontSize;
+@property (nonatomic) uint32_t color;
+- (void)setColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) uint32_t backgroundColorValue;
+- (void)setBackgroundColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) uint32_t decorationColor;
+- (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) enum MasonDecorationLine decorationLine;
+@property (nonatomic) int32_t fontSize;
 @property (nonatomic) enum MasonFontStyle fontStyle;
 - (void)setFontStyle:(enum MasonFontStyle)style slant:(int32_t)slant;
 @property (nonatomic, copy) NSString * _Nonnull fontWeight;
-@property (nonatomic) uint32_t color;
-@property (nonatomic) uint32_t backgroundColorValue;
-- (void)setColorWithUi:(UIColor * _Nonnull)color;
-- (void)setBackgroundColorWithUi:(UIColor * _Nonnull)color;
-- (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
-@property (nonatomic) uint32_t decorationColor;
-@property (nonatomic) enum MasonDecorationLine decorationLine;
+@property (nonatomic) enum MasonTextTransform textTransform;
 @property (nonatomic) enum MasonWhiteSpace whiteSpace;
 @property (nonatomic) enum MasonTextWrap textWrap;
-- (void)drawRect:(CGRect)rect;
-- (void)addView:(UIView * _Nonnull)view :(NSInteger)index;
-- (void)removeView:(UIView * _Nonnull)view;
-@property (nonatomic, copy) NSString * _Nullable text;
-- (void)syncStyle:(NSString * _Nonnull)state :(NSString * _Nonnull)textState;
+@property (nonatomic) float lineHeight;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+- (void)addChild:(MasonNode * _Nonnull)child;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+/// Text content - sets or gets the concatenated text from all text nodes
+@property (nonatomic, copy) NSString * _Nonnull text;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+- (void)drawRect:(CGRect)rect;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+/// Remove child from text container
+- (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
+@end
+
+SWIFT_CLASS_NAMED("MasonTextNode")
+@interface MasonTextNode : MasonNode <MasonCharacterData>
+@property (nonatomic, copy) NSString * _Nonnull data;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc data:(NSString * _Nonnull)text attributes:(NSDictionary<NSAttributedStringKey, id> * _Nullable)attrs OBJC_DESIGNATED_INITIALIZER;
+- (void)appendChild:(MasonNode * _Nonnull)child;
+@property (nonatomic, readonly) NSInteger length;
+- (NSString * _Nonnull)substringDataWithOffset:(NSInteger)offset count:(NSInteger)count SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)appendData:(NSString * _Nonnull)s;
+- (nonnull instancetype)insertData:(NSString * _Nonnull)s at:(NSInteger)offset;
+- (nonnull instancetype)deleteDataWithOffset:(NSInteger)offset count:(NSInteger)count;
+- (nonnull instancetype)replaceDataWithOffset:(NSInteger)offset count:(NSInteger)count with:(NSString * _Nonnull)s;
+- (nonnull instancetype)deleteDataWithRange:(NSRange)range;
+- (nonnull instancetype)replaceDataWithRange:(NSRange)range with:(NSString * _Nonnull)s;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes SWIFT_UNAVAILABLE;
+@end
+
+@class NSAttributedString;
+@interface MasonTextNode (SWIFT_EXTENSION(Mason))
+/// Get attributed string representation of this text node
+- (NSAttributedString * _Nonnull)attributed SWIFT_WARN_UNUSED_RESULT;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
@@ -872,24 +978,21 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
 };
 
 SWIFT_CLASS_NAMED("MasonUIView")
-@interface MasonUIView : UIView
-@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
-- (void)markNodeDirty;
-- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
+@interface MasonUIView : UIView <MasonElementObjc>
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
+- (void)markNodeDirty;
+- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 + (MasonUIView * _Nonnull)createGridView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
 + (MasonUIView * _Nonnull)createFlexView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
 + (MasonUIView * _Nonnull)createBlockView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
-@property (nonatomic, strong) MasonStyle * _Nonnull style;
-- (void)requestLayout;
 - (void)addView:(UIView * _Nonnull)view;
 - (void)addView:(UIView * _Nonnull)view at:(NSInteger)at;
-- (void)syncStyle:(NSString * _Nonnull)state;
 - (void)addSubviews:(NSArray<UIView *> * _Nonnull)views;
 - (void)addSubviews:(NSArray<UIView *> * _Nonnull)views at:(NSInteger)index;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
 @property (nonatomic) BOOL inBatch;
 @property (nonatomic) enum MasonDisplay display;
 @property (nonatomic) enum MasonPosition _position;
@@ -1066,6 +1169,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, NSCFontDisplay, "NSCFontDisplay", open) {
   NSCFontDisplaySwap = 4,
 };
 
+@class NSData;
 enum NSCFontFaceStatus : NSInteger;
 enum NSCFontWeight : NSInteger;
 SWIFT_CLASS_NAMED("NSCFontFace")
@@ -1147,15 +1251,60 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 + (void)setShared:(NSCMason * _Nonnull)value;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (MasonNode * _Nonnull)nodeForView:(UIView * _Nonnull)view :(BOOL)isLeaf SWIFT_WARN_UNUSED_RESULT;
+- (void)configureStyleForView:(UIView * _Nonnull)view :(SWIFT_NOESCAPE void (^ _Nonnull)(MasonStyle * _Nonnull))block;
+- (MasonStyle * _Nonnull)styleForView:(UIView * _Nonnull)view SWIFT_WARN_UNUSED_RESULT;
+- (MasonLayout * _Nonnull)layoutForView:(UIView * _Nonnull)view;
 - (void)clear;
+- (MasonDocument * _Nonnull)createDocument SWIFT_WARN_UNUSED_RESULT;
 - (MasonUIView * _Nonnull)createView SWIFT_WARN_UNUSED_RESULT;
 - (MasonText * _Nonnull)createTextView SWIFT_WARN_UNUSED_RESULT;
+- (MasonTextNode * _Nonnull)createTextNode:(NSString * _Nonnull)data SWIFT_WARN_UNUSED_RESULT;
 - (MasonText * _Nonnull)createTextViewWithType:(enum MasonTextType)type SWIFT_WARN_UNUSED_RESULT;
 - (MasonImg * _Nonnull)createImageView SWIFT_WARN_UNUSED_RESULT;
 - (MasonScroll * _Nonnull)createScrollView SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createNode SWIFT_WARN_UNUSED_RESULT;
 - (void)printTree:(MasonNode * _Nonnull)node;
 - (MasonNode * _Nonnull)createTextNode SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@interface NSObject (SWIFT_EXTENSION(Mason))
+- (void)mason_syncStyle:(NSString * _Nonnull)state :(NSString * _Nonnull)textState;
+- (void)mason_addView:(UIView * _Nonnull)view;
+- (void)mason_addView:(UIView * _Nonnull)view at:(NSInteger)at;
+- (void)mason_markNodeDirty;
+- (BOOL)mason_isNodeDirty SWIFT_WARN_UNUSED_RESULT;
+- (void)mason_configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonStyle * _Nonnull))block;
+- (MasonLayout * _Nonnull)mason_layout;
+- (void)mason_compute;
+- (void)mason_computeWithWidth:(float)width height:(float)height;
+- (void)mason_computeMaxContent;
+- (void)mason_computeMinContent;
+- (void)mason_computeWithSize:(float)width :(float)height;
+- (void)mason_computeWithViewSize;
+- (void)mason_computeWithViewSizeWithLayout:(BOOL)layout;
+- (void)mason_computeWithMaxContent;
+- (void)mason_computeWithMinContent;
+- (void)mason_attachAndApply;
+- (void)mason_requestLayout;
+- (void)mason_invalidateLayout;
+- (void)mason_append:(id <MasonElementObjc> _Nonnull)element;
+- (void)mason_appendWithText:(NSString * _Nonnull)text;
+- (void)mason_appendWithNode:(MasonNode * _Nonnull)node;
+- (void)mason_appendWithTexts:(NSArray<NSString *> * _Nonnull)texts;
+- (void)mason_appendWithElements:(NSArray<id <MasonElementObjc>> * _Nonnull)elements;
+- (void)mason_appendWithNodes:(NSArray<MasonNode *> * _Nonnull)nodes;
+- (void)mason_prepend:(id <MasonElementObjc> _Nonnull)element;
+- (void)mason_prependWithText:(NSString * _Nonnull)text;
+- (void)mason_prependWithNode:(MasonNode * _Nonnull)node;
+- (void)mason_prependWithTexts:(NSArray<NSString *> * _Nonnull)texts;
+- (void)mason_prependWithElements:(NSArray<id <MasonElementObjc>> * _Nonnull)elements;
+- (void)mason_prependWithNodes:(NSArray<MasonNode *> * _Nonnull)nodes;
+- (void)mason_addChildAtText:(NSString * _Nonnull)text :(NSInteger)index;
+- (void)mason_addChildAtElement:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
+- (void)mason_addChildAtNode:(MasonNode * _Nonnull)node :(NSInteger)index;
+- (void)mason_replaceChildAtText:(NSString * _Nonnull)text :(NSInteger)index;
+- (void)mason_replaceChildAtElement:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
+- (void)mason_replaceChildAtNode:(MasonNode * _Nonnull)node :(NSInteger)index;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonOverflow, "Overflow", open) {
@@ -1172,22 +1321,53 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonPosition, "Position", open) {
 };
 
 SWIFT_CLASS_NAMED("Scroll")
-@interface MasonScroll : UIScrollView <UIScrollViewDelegate>
-@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
-- (void)markNodeDirty;
-- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
-@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@interface MasonScroll : UIScrollView <MasonElementObjc, UIScrollViewDelegate>
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 - (void)scrollViewWillBeginDragging:(UIScrollView * _Nonnull)scrollView;
 - (void)scrollViewDidScroll:(UIScrollView * _Nonnull)scrollView;
-- (void)syncStyle:(NSString * _Nonnull)state;
 - (void)addView:(UIView * _Nonnull)view;
 - (void)addView:(UIView * _Nonnull)view at:(NSInteger)at;
-- (void)requestLayout;
+- (void)setSize:(float)width :(float)height;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+SWIFT_CLASS_NAMED("SwiftHelpers")
+@interface MasonSwiftHelpers : NSObject
++ (void)markNodeDirty:(id <MasonElementObjc> _Nonnull)element;
++ (BOOL)isNodeDirty:(id <MasonElementObjc> _Nonnull)element SWIFT_WARN_UNUSED_RESULT;
++ (void)configure:(id <MasonElementObjc> _Nonnull)element :(SWIFT_NOESCAPE void (^ _Nonnull)(MasonStyle * _Nonnull))block;
++ (MasonLayout * _Nonnull)layout:(id <MasonElementObjc> _Nonnull)element;
++ (void)compute:(id <MasonElementObjc> _Nonnull)element;
++ (void)compute:(id <MasonElementObjc> _Nonnull)element :(float)width :(float)height;
++ (void)computeMaxContent:(id <MasonElementObjc> _Nonnull)element;
++ (void)computeMinContent:(id <MasonElementObjc> _Nonnull)element;
++ (void)computeWithSize:(id <MasonElementObjc> _Nonnull)element :(float)width :(float)height;
++ (void)computeWithViewSize:(id <MasonElementObjc> _Nonnull)element;
++ (void)computeWithViewSize:(id <MasonElementObjc> _Nonnull)element layout:(BOOL)layout;
++ (void)computeWithMaxContent:(id <MasonElementObjc> _Nonnull)element;
++ (void)computeWithMinContent:(id <MasonElementObjc> _Nonnull)element;
++ (void)attachAndApply:(id <MasonElementObjc> _Nonnull)element;
++ (void)requestLayout:(id <MasonElementObjc> _Nonnull)element;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent :(id <MasonElementObjc> _Nonnull)element;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent text:(NSString * _Nonnull)text;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent node:(MasonNode * _Nonnull)node;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent texts:(NSArray<NSString *> * _Nonnull)texts;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent elements:(NSArray<id <MasonElementObjc>> * _Nonnull)elements;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent nodes:(NSArray<MasonNode *> * _Nonnull)nodes;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent :(id <MasonElementObjc> _Nonnull)element;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent string:(NSString * _Nonnull)string;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent node:(MasonNode * _Nonnull)node;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent strings:(NSArray<NSString *> * _Nonnull)strings;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent elements:(NSArray<id <MasonElementObjc>> * _Nonnull)elements;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent nodes:(NSArray<MasonNode *> * _Nonnull)nodes;
++ (void)addChildAt:(id <MasonElementObjc> _Nonnull)parent text:(NSString * _Nonnull)text :(NSInteger)index;
++ (void)addChildAt:(id <MasonElementObjc> _Nonnull)parent element:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
++ (void)addChildAt:(id <MasonElementObjc> _Nonnull)parent node:(MasonNode * _Nonnull)node :(NSInteger)index;
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextAlign, "TextAlign", open) {
@@ -1198,6 +1378,14 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextAlign, "TextAlign", open) {
   MasonTextAlignJustify = 4,
   MasonTextAlignStart = 5,
   MasonTextAlignEnd = 6,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextJustify, "TextJustify", open) {
+  MasonTextJustifyNone = 0,
+  MasonTextJustifyAuto = 1,
+  MasonTextJustifyInterWord = 2,
+  MasonTextJustifyInterCharacter = 3,
+  MasonTextJustifyDistribute = 4,
 };
 
 SWIFT_CLASS_NAMED("TextOverflowCompat")
@@ -1225,6 +1413,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextWrap, "TextWrap", open) {
   MasonTextWrapWrap = 0,
   MasonTextWrapNoWrap = 1,
   MasonTextWrapBalance = 2,
+  MasonTextWrapPretty = 3,
 };
 
 SWIFT_CLASS_NAMED("TrackSizingFunction")
@@ -1243,7 +1432,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonWhiteSpace, "WhiteSpace", open) {
   MasonWhiteSpacePre = 1,
   MasonWhiteSpacePreWrap = 2,
   MasonWhiteSpacePreLine = 3,
-  MasonWhiteSpaceNowrap = 4,
+  MasonWhiteSpaceNoWrap = 4,
+  MasonWhiteSpaceBreakSpaces = 5,
 };
 
 #endif
@@ -1564,6 +1754,13 @@ typedef unsigned int swift_uint4  __attribute__((__ext_vector_type__(4)));
 
 #if defined(__OBJC__)
 
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonAlign, "Align", open) {
+  MasonAlignAuto = 0,
+  MasonAlignLeft = 1,
+  MasonAlignRight = 2,
+  MasonAlignCenter = 3,
+};
+
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonAlignContent, "AlignContent", open) {
   MasonAlignContentNormal = -1,
   MasonAlignContentStart = 0,
@@ -1609,6 +1806,14 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonDecorationLine, "DecorationLine", open)
   MasonDecorationLineUnderline = 1,
   MasonDecorationLineOverline = 2,
   MasonDecorationLineLineThrough = 3,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonDecorationStyle, "DecorationStyle", open) {
+  MasonDecorationStyleSolid = 0,
+  MasonDecorationStyleDouble = 1,
+  MasonDecorationStyleDotted = 2,
+  MasonDecorationStyleDashed = 3,
+  MasonDecorationStyleWavy = 4,
 };
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonDirection, "Direction", open) {
@@ -1693,24 +1898,29 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonGridTra
 @class MasonStyle;
 @class MasonNode;
 @class UIView;
+SWIFT_PROTOCOL("_TtP5Mason16MasonElementObjc_")
+@protocol MasonElementObjc <NSObject>
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
+@property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@end
+
 @class NSCMason;
+enum MasonLoadingState : NSInteger;
 @class UIImage;
 @class NSCoder;
 SWIFT_CLASS_NAMED("Img")
-@interface MasonImg : UIImageView
-@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
-- (void)markNodeDirty;
-- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
-@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@interface MasonImg : UIImageView <MasonElementObjc>
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 @property (nonatomic, copy) void (^ _Nullable didLayout)(void);
-- (void)requestLayout;
+@property (nonatomic, copy) void (^ _Nullable onStateChange)(enum MasonLoadingState, NSError * _Nullable);
+@property (nonatomic, strong) UIImage * _Nullable image;
 @property (nonatomic, copy) NSString * _Nullable src;
 - (void)updateImage:(UIImage * _Nullable)image;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
-- (void)syncStyle:(NSString * _Nonnull)state;
 - (nonnull instancetype)initWithImage:(UIImage * _Nullable)image SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithImage:(UIImage * _Nullable)image highlightedImage:(UIImage * _Nullable)highlightedImage SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
@@ -1766,6 +1976,25 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonLineHeight, "LineHeight", open) {
   MasonLineHeightPreLine = 3,
 };
 
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonLoadingState, "LoadingState", open) {
+  MasonLoadingStateLoading = 0,
+  MasonLoadingStateLoaded = 1,
+  MasonLoadingStateError = 2,
+};
+
+SWIFT_PROTOCOL("_TtP5Mason18MasonCharacterData_")
+@protocol MasonCharacterData
+@property (nonatomic, copy) NSString * _Nonnull data;
+@property (nonatomic, readonly) NSInteger length;
+- (nonnull instancetype)appendData:(NSString * _Nonnull)s;
+- (nonnull instancetype)insertData:(NSString * _Nonnull)s at:(NSInteger)offset;
+- (nonnull instancetype)deleteDataWithOffset:(NSInteger)offset count:(NSInteger)count;
+- (nonnull instancetype)replaceDataWithOffset:(NSInteger)offset count:(NSInteger)count with:(NSString * _Nonnull)s;
+- (NSString * _Nonnull)substringDataWithOffset:(NSInteger)offset count:(NSInteger)count SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)deleteDataWithRange:(NSRange)range;
+- (nonnull instancetype)replaceDataWithRange:(NSRange)range with:(NSString * _Nonnull)s;
+@end
+
 enum MasonDimensionCompatType : NSInteger;
 SWIFT_CLASS_NAMED("MasonDimensionCompat")
 @interface MasonDimensionCompat : NSObject
@@ -1816,6 +2045,15 @@ SWIFT_CLASS_NAMED("MasonDimensionSizeCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+SWIFT_CLASS_NAMED("MasonDocument")
+@interface MasonDocument : NSObject
+@property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
+@property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)instance OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
 SWIFT_CLASS_NAMED("MasonLayout")
 @interface MasonLayout : NSObject
 @property (nonatomic, readonly) NSInteger order;
@@ -1824,6 +2062,9 @@ SWIFT_CLASS_NAMED("MasonLayout")
 @property (nonatomic, readonly) float width;
 @property (nonatomic, readonly) float height;
 @property (nonatomic, readonly, copy) NSArray<MasonLayout *> * _Nonnull children;
+SWIFT_CLASS_PROPERTY(@property (nonatomic, class, readonly, strong) MasonLayout * _Nonnull zero;)
++ (MasonLayout * _Nonnull)zero SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly) BOOL hasChildren;
 @property (nonatomic, readonly, copy) NSString * _Nonnull description;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
@@ -1926,35 +2167,40 @@ SWIFT_CLASS_NAMED("MasonLengthPercentageSizeCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+enum MasonNodeType : int32_t;
 SWIFT_CLASS_NAMED("MasonNode")
 @interface MasonNode : NSObject
+@property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, copy) void (^ _Nullable onNodeAttached)(void);
+@property (nonatomic, copy) void (^ _Nullable onNodeDetached)(void);
 @property (nonatomic, readonly) void * _Nullable nativePtr;
 @property (nonatomic, readonly, strong) MasonLayout * _Nonnull computedLayout;
-@property (nonatomic) id _Nullable data;
-@property (nonatomic, strong) MasonStyle * _Nonnull style;
-@property (nonatomic, readonly, strong) MasonNode * _Nullable owner;
-@property (nonatomic, readonly, copy) NSArray<MasonNode *> * _Nonnull children;
+@property (nonatomic, readonly, strong) MasonDocument * _Nullable document;
+- (MasonNode * _Nonnull)getRootNode SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, strong) MasonNode * _Nullable parent;
+@property (nonatomic, readonly, strong) MasonNode * _Nullable parentNode;
+@property (nonatomic, readonly) enum MasonNodeType type;
+- (NSArray<MasonNode *> * _Nonnull)getChildren SWIFT_WARN_UNUSED_RESULT;
+- (NSArray<MasonNode *> * _Nonnull)getLayoutChildren SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic) BOOL inBatch;
 - (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes OBJC_DESIGNATED_INITIALIZER;
-- (MasonLayout * _Nonnull)layout;
 @property (nonatomic, readonly) BOOL isDirty;
 - (void)markDirty;
-- (MasonNode * _Nullable)getRoot SWIFT_WARN_UNUSED_RESULT;
-- (void)compute;
-- (void)compute:(float)width :(float)height;
-- (void)computeMaxContent;
-- (void)computeMinContent;
-- (void)computeWithSize:(float)width :(float)height;
-- (void)computeWithViewSize;
-- (void)computeWithViewSizeWithLayout:(BOOL)layout;
-- (void)computeWithMaxContent;
-- (void)computeWithMinContent;
-- (void)attachAndApply;
-- (void)setChildrenWithValue:(NSArray<MasonNode *> * _Nonnull)value;
-- (void)addChildren:(NSArray<MasonNode *> * _Nonnull)children;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
+- (UIView * _Nullable)getRoot SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
+
+@interface MasonNode (SWIFT_EXTENSION(Mason))
+- (void)setChildrenWithValue:(NSArray<MasonNode *> * _Nonnull)value;
+- (void)appendChild:(MasonNode * _Nonnull)child;
+@end
+
+typedef SWIFT_ENUM_NAMED(int32_t, MasonNodeType, "MasonNodeType", open) {
+  MasonNodeTypeElement = 0,
+  MasonNodeTypeText = 1,
+  MasonNodeTypeDocument = 2,
+};
 
 enum MasonOverflow : NSInteger;
 SWIFT_CLASS_NAMED("MasonOverflowPointCompat")
@@ -1966,17 +2212,43 @@ SWIFT_CLASS_NAMED("MasonOverflowPointCompat")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class NSCFontFace;
 @class NSMutableData;
-@class NSData;
+@class UIColor;
+enum MasonTextJustify : NSInteger;
+@class MasonTextOverflowCompat;
+enum MasonTextTransform : NSInteger;
+enum MasonWhiteSpace : NSInteger;
+enum MasonTextWrap : NSInteger;
 enum MasonPosition : NSInteger;
 enum MasonTextAlign : NSInteger;
 @class MinMax;
 @class TrackSizingFunction;
 SWIFT_CLASS_NAMED("MasonStyle")
 @interface MasonStyle : NSObject
-@property (nonatomic, strong) NSMutableData * _Nonnull valuesCompat;
-@property (nonatomic, copy) NSData * _Nonnull values;
+@property (nonatomic, readonly, strong) NSCFontFace * _Nonnull font;
+@property (nonatomic, strong) NSMutableData * _Nonnull values;
+@property (nonatomic, strong) NSMutableData * _Nonnull textValues;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)node OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic) uint32_t color;
+- (void)setColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) uint32_t backgroundColor;
+- (void)setBackgroundColorWithUi:(UIColor * _Nonnull)color;
+- (void)setLineHeight:(float)value :(BOOL)isRelative;
+@property (nonatomic) float lineHeight;
+@property (nonatomic) float letterSpacing;
+@property (nonatomic) uint32_t decorationColor;
+- (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) enum MasonDecorationLine decorationLine;
+@property (nonatomic) int32_t fontSize;
+- (void)setFontStyle:(enum MasonFontStyle)style :(int32_t)slant;
+@property (nonatomic) enum MasonTextJustify textJustify;
+@property (nonatomic) enum MasonFontStyle fontStyle;
+@property (nonatomic, copy) NSString * _Nonnull fontWeight;
+@property (nonatomic, strong) MasonTextOverflowCompat * _Nonnull textOverflowCompat;
+@property (nonatomic) enum MasonTextTransform textTransform;
+@property (nonatomic) enum MasonWhiteSpace whiteSpace;
+@property (nonatomic) enum MasonTextWrap textWrap;
 @property (nonatomic) enum MasonDisplay display;
 @property (nonatomic) enum MasonPosition position;
 @property (nonatomic) enum MasonDirection direction;
@@ -2019,6 +2291,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic) float flexShrink;
 - (void)setFlexBasis:(float)value :(NSInteger)type;
 - (void)setScrollBarWidth:(float)value;
+@property (nonatomic) enum MasonAlign align;
 @property (nonatomic) enum MasonTextAlign textAlign;
 @property (nonatomic) enum MasonBoxSizing boxSizing;
 @property (nonatomic, strong) MasonDimensionSizeCompat * _Nonnull minSizeCompat;
@@ -2060,54 +2333,77 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @end
 
 enum MasonTextType : NSInteger;
-@class NSCFontFace;
-@class NSMutableAttributedString;
-@class MasonTextOverflowCompat;
-enum MasonTextTransform : NSInteger;
-@class UIColor;
-enum MasonWhiteSpace : NSInteger;
-enum MasonTextWrap : NSInteger;
 SWIFT_CLASS_NAMED("MasonText")
-@interface MasonText : UIView
-@property (nonatomic, readonly, strong) MasonText * _Nullable owner;
+@interface MasonText : UIView <MasonElementObjc>
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
-@property (nonatomic, readonly, strong) MasonNode * _Nonnull textNode;
-@property (nonatomic, readonly, strong) NSMutableData * _Nonnull textValues;
 @property (nonatomic, readonly) enum MasonTextType type;
-@property (nonatomic, readonly, strong) NSCFontFace * _Nonnull font;
-- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)masonNode OBJC_DESIGNATED_INITIALIZER;
-- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+@property (nonatomic, readonly, strong) NSMutableData * _Nonnull textValues;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
 @property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
-- (void)markNodeDirty;
-- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
-- (void)updateText:(NSString * _Nullable)value;
-@property (nonatomic, strong) NSMutableAttributedString * _Nonnull txtToRender;
-- (void)invalidateStyle:(int64_t)state;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason type:(enum MasonTextType)textType OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)mason OBJC_DESIGNATED_INITIALIZER;
+- (void)setNeedsDisplay;
+- (void)requestLayout;
+- (void)addView:(UIView * _Nonnull)view;
+- (void)addView:(UIView * _Nonnull)view at:(NSInteger)at;
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 @property (nonatomic, strong) MasonTextOverflowCompat * _Nonnull textOverflowCompat;
-@property (nonatomic) enum MasonTextTransform textTransform;
-@property (nonatomic) CGFloat fontSize;
+@property (nonatomic) uint32_t color;
+- (void)setColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) uint32_t backgroundColorValue;
+- (void)setBackgroundColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) uint32_t decorationColor;
+- (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
+@property (nonatomic) enum MasonDecorationLine decorationLine;
+@property (nonatomic) int32_t fontSize;
 @property (nonatomic) enum MasonFontStyle fontStyle;
 - (void)setFontStyle:(enum MasonFontStyle)style slant:(int32_t)slant;
 @property (nonatomic, copy) NSString * _Nonnull fontWeight;
-@property (nonatomic) uint32_t color;
-@property (nonatomic) uint32_t backgroundColorValue;
-- (void)setColorWithUi:(UIColor * _Nonnull)color;
-- (void)setBackgroundColorWithUi:(UIColor * _Nonnull)color;
-- (void)setDecorationColorWithUi:(UIColor * _Nonnull)color;
-@property (nonatomic) uint32_t decorationColor;
-@property (nonatomic) enum MasonDecorationLine decorationLine;
+@property (nonatomic) enum MasonTextTransform textTransform;
 @property (nonatomic) enum MasonWhiteSpace whiteSpace;
 @property (nonatomic) enum MasonTextWrap textWrap;
-- (void)drawRect:(CGRect)rect;
-- (void)addView:(UIView * _Nonnull)view :(NSInteger)index;
-- (void)removeView:(UIView * _Nonnull)view;
-@property (nonatomic, copy) NSString * _Nullable text;
-- (void)syncStyle:(NSString * _Nonnull)state :(NSString * _Nonnull)textState;
+@property (nonatomic) float lineHeight;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+- (void)addChild:(MasonNode * _Nonnull)child;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+/// Text content - sets or gets the concatenated text from all text nodes
+@property (nonatomic, copy) NSString * _Nonnull text;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+- (void)drawRect:(CGRect)rect;
+@end
+
+@interface MasonText (SWIFT_EXTENSION(Mason))
+/// Remove child from text container
+- (MasonNode * _Nullable)removeChild:(MasonNode * _Nonnull)child;
+@end
+
+SWIFT_CLASS_NAMED("MasonTextNode")
+@interface MasonTextNode : MasonNode <MasonCharacterData>
+@property (nonatomic, copy) NSString * _Nonnull data;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc data:(NSString * _Nonnull)text attributes:(NSDictionary<NSAttributedStringKey, id> * _Nullable)attrs OBJC_DESIGNATED_INITIALIZER;
+- (void)appendChild:(MasonNode * _Nonnull)child;
+@property (nonatomic, readonly) NSInteger length;
+- (NSString * _Nonnull)substringDataWithOffset:(NSInteger)offset count:(NSInteger)count SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)appendData:(NSString * _Nonnull)s;
+- (nonnull instancetype)insertData:(NSString * _Nonnull)s at:(NSInteger)offset;
+- (nonnull instancetype)deleteDataWithOffset:(NSInteger)offset count:(NSInteger)count;
+- (nonnull instancetype)replaceDataWithOffset:(NSInteger)offset count:(NSInteger)count with:(NSString * _Nonnull)s;
+- (nonnull instancetype)deleteDataWithRange:(NSRange)range;
+- (nonnull instancetype)replaceDataWithRange:(NSRange)range with:(NSString * _Nonnull)s;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes SWIFT_UNAVAILABLE;
+@end
+
+@class NSAttributedString;
+@interface MasonTextNode (SWIFT_EXTENSION(Mason))
+/// Get attributed string representation of this text node
+- (NSAttributedString * _Nonnull)attributed SWIFT_WARN_UNUSED_RESULT;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
@@ -2128,24 +2424,21 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
 };
 
 SWIFT_CLASS_NAMED("MasonUIView")
-@interface MasonUIView : UIView
-@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
-- (void)markNodeDirty;
-- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
+@interface MasonUIView : UIView <MasonElementObjc>
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
+- (void)markNodeDirty;
+- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 + (MasonUIView * _Nonnull)createGridView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
 + (MasonUIView * _Nonnull)createFlexView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
 + (MasonUIView * _Nonnull)createBlockView:(NSCMason * _Nonnull)mason SWIFT_WARN_UNUSED_RESULT;
-@property (nonatomic, strong) MasonStyle * _Nonnull style;
-- (void)requestLayout;
 - (void)addView:(UIView * _Nonnull)view;
 - (void)addView:(UIView * _Nonnull)view at:(NSInteger)at;
-- (void)syncStyle:(NSString * _Nonnull)state;
 - (void)addSubviews:(NSArray<UIView *> * _Nonnull)views;
 - (void)addSubviews:(NSArray<UIView *> * _Nonnull)views at:(NSInteger)index;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
 @property (nonatomic) BOOL inBatch;
 @property (nonatomic) enum MasonDisplay display;
 @property (nonatomic) enum MasonPosition _position;
@@ -2322,6 +2615,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, NSCFontDisplay, "NSCFontDisplay", open) {
   NSCFontDisplaySwap = 4,
 };
 
+@class NSData;
 enum NSCFontFaceStatus : NSInteger;
 enum NSCFontWeight : NSInteger;
 SWIFT_CLASS_NAMED("NSCFontFace")
@@ -2403,15 +2697,60 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 + (void)setShared:(NSCMason * _Nonnull)value;
 - (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 - (MasonNode * _Nonnull)nodeForView:(UIView * _Nonnull)view :(BOOL)isLeaf SWIFT_WARN_UNUSED_RESULT;
+- (void)configureStyleForView:(UIView * _Nonnull)view :(SWIFT_NOESCAPE void (^ _Nonnull)(MasonStyle * _Nonnull))block;
+- (MasonStyle * _Nonnull)styleForView:(UIView * _Nonnull)view SWIFT_WARN_UNUSED_RESULT;
+- (MasonLayout * _Nonnull)layoutForView:(UIView * _Nonnull)view;
 - (void)clear;
+- (MasonDocument * _Nonnull)createDocument SWIFT_WARN_UNUSED_RESULT;
 - (MasonUIView * _Nonnull)createView SWIFT_WARN_UNUSED_RESULT;
 - (MasonText * _Nonnull)createTextView SWIFT_WARN_UNUSED_RESULT;
+- (MasonTextNode * _Nonnull)createTextNode:(NSString * _Nonnull)data SWIFT_WARN_UNUSED_RESULT;
 - (MasonText * _Nonnull)createTextViewWithType:(enum MasonTextType)type SWIFT_WARN_UNUSED_RESULT;
 - (MasonImg * _Nonnull)createImageView SWIFT_WARN_UNUSED_RESULT;
 - (MasonScroll * _Nonnull)createScrollView SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createNode SWIFT_WARN_UNUSED_RESULT;
 - (void)printTree:(MasonNode * _Nonnull)node;
 - (MasonNode * _Nonnull)createTextNode SWIFT_WARN_UNUSED_RESULT;
+@end
+
+@interface NSObject (SWIFT_EXTENSION(Mason))
+- (void)mason_syncStyle:(NSString * _Nonnull)state :(NSString * _Nonnull)textState;
+- (void)mason_addView:(UIView * _Nonnull)view;
+- (void)mason_addView:(UIView * _Nonnull)view at:(NSInteger)at;
+- (void)mason_markNodeDirty;
+- (BOOL)mason_isNodeDirty SWIFT_WARN_UNUSED_RESULT;
+- (void)mason_configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonStyle * _Nonnull))block;
+- (MasonLayout * _Nonnull)mason_layout;
+- (void)mason_compute;
+- (void)mason_computeWithWidth:(float)width height:(float)height;
+- (void)mason_computeMaxContent;
+- (void)mason_computeMinContent;
+- (void)mason_computeWithSize:(float)width :(float)height;
+- (void)mason_computeWithViewSize;
+- (void)mason_computeWithViewSizeWithLayout:(BOOL)layout;
+- (void)mason_computeWithMaxContent;
+- (void)mason_computeWithMinContent;
+- (void)mason_attachAndApply;
+- (void)mason_requestLayout;
+- (void)mason_invalidateLayout;
+- (void)mason_append:(id <MasonElementObjc> _Nonnull)element;
+- (void)mason_appendWithText:(NSString * _Nonnull)text;
+- (void)mason_appendWithNode:(MasonNode * _Nonnull)node;
+- (void)mason_appendWithTexts:(NSArray<NSString *> * _Nonnull)texts;
+- (void)mason_appendWithElements:(NSArray<id <MasonElementObjc>> * _Nonnull)elements;
+- (void)mason_appendWithNodes:(NSArray<MasonNode *> * _Nonnull)nodes;
+- (void)mason_prepend:(id <MasonElementObjc> _Nonnull)element;
+- (void)mason_prependWithText:(NSString * _Nonnull)text;
+- (void)mason_prependWithNode:(MasonNode * _Nonnull)node;
+- (void)mason_prependWithTexts:(NSArray<NSString *> * _Nonnull)texts;
+- (void)mason_prependWithElements:(NSArray<id <MasonElementObjc>> * _Nonnull)elements;
+- (void)mason_prependWithNodes:(NSArray<MasonNode *> * _Nonnull)nodes;
+- (void)mason_addChildAtText:(NSString * _Nonnull)text :(NSInteger)index;
+- (void)mason_addChildAtElement:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
+- (void)mason_addChildAtNode:(MasonNode * _Nonnull)node :(NSInteger)index;
+- (void)mason_replaceChildAtText:(NSString * _Nonnull)text :(NSInteger)index;
+- (void)mason_replaceChildAtElement:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
+- (void)mason_replaceChildAtNode:(MasonNode * _Nonnull)node :(NSInteger)index;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonOverflow, "Overflow", open) {
@@ -2428,22 +2767,53 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonPosition, "Position", open) {
 };
 
 SWIFT_CLASS_NAMED("Scroll")
-@interface MasonScroll : UIScrollView <UIScrollViewDelegate>
-@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
-- (void)markNodeDirty;
-- (BOOL)isNodeDirty SWIFT_WARN_UNUSED_RESULT;
-- (void)configure:(SWIFT_NOESCAPE void (^ _Nonnull)(MasonNode * _Nonnull))block;
-@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@interface MasonScroll : UIScrollView <MasonElementObjc, UIScrollViewDelegate>
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 - (void)scrollViewWillBeginDragging:(UIScrollView * _Nonnull)scrollView;
 - (void)scrollViewDidScroll:(UIScrollView * _Nonnull)scrollView;
-- (void)syncStyle:(NSString * _Nonnull)state;
 - (void)addView:(UIView * _Nonnull)view;
 - (void)addView:(UIView * _Nonnull)view at:(NSInteger)at;
-- (void)requestLayout;
+- (void)setSize:(float)width :(float)height;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+SWIFT_CLASS_NAMED("SwiftHelpers")
+@interface MasonSwiftHelpers : NSObject
++ (void)markNodeDirty:(id <MasonElementObjc> _Nonnull)element;
++ (BOOL)isNodeDirty:(id <MasonElementObjc> _Nonnull)element SWIFT_WARN_UNUSED_RESULT;
++ (void)configure:(id <MasonElementObjc> _Nonnull)element :(SWIFT_NOESCAPE void (^ _Nonnull)(MasonStyle * _Nonnull))block;
++ (MasonLayout * _Nonnull)layout:(id <MasonElementObjc> _Nonnull)element;
++ (void)compute:(id <MasonElementObjc> _Nonnull)element;
++ (void)compute:(id <MasonElementObjc> _Nonnull)element :(float)width :(float)height;
++ (void)computeMaxContent:(id <MasonElementObjc> _Nonnull)element;
++ (void)computeMinContent:(id <MasonElementObjc> _Nonnull)element;
++ (void)computeWithSize:(id <MasonElementObjc> _Nonnull)element :(float)width :(float)height;
++ (void)computeWithViewSize:(id <MasonElementObjc> _Nonnull)element;
++ (void)computeWithViewSize:(id <MasonElementObjc> _Nonnull)element layout:(BOOL)layout;
++ (void)computeWithMaxContent:(id <MasonElementObjc> _Nonnull)element;
++ (void)computeWithMinContent:(id <MasonElementObjc> _Nonnull)element;
++ (void)attachAndApply:(id <MasonElementObjc> _Nonnull)element;
++ (void)requestLayout:(id <MasonElementObjc> _Nonnull)element;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent :(id <MasonElementObjc> _Nonnull)element;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent text:(NSString * _Nonnull)text;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent node:(MasonNode * _Nonnull)node;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent texts:(NSArray<NSString *> * _Nonnull)texts;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent elements:(NSArray<id <MasonElementObjc>> * _Nonnull)elements;
++ (void)append:(id <MasonElementObjc> _Nonnull)parent nodes:(NSArray<MasonNode *> * _Nonnull)nodes;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent :(id <MasonElementObjc> _Nonnull)element;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent string:(NSString * _Nonnull)string;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent node:(MasonNode * _Nonnull)node;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent strings:(NSArray<NSString *> * _Nonnull)strings;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent elements:(NSArray<id <MasonElementObjc>> * _Nonnull)elements;
++ (void)prepend:(id <MasonElementObjc> _Nonnull)parent nodes:(NSArray<MasonNode *> * _Nonnull)nodes;
++ (void)addChildAt:(id <MasonElementObjc> _Nonnull)parent text:(NSString * _Nonnull)text :(NSInteger)index;
++ (void)addChildAt:(id <MasonElementObjc> _Nonnull)parent element:(id <MasonElementObjc> _Nonnull)element :(NSInteger)index;
++ (void)addChildAt:(id <MasonElementObjc> _Nonnull)parent node:(MasonNode * _Nonnull)node :(NSInteger)index;
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextAlign, "TextAlign", open) {
@@ -2454,6 +2824,14 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextAlign, "TextAlign", open) {
   MasonTextAlignJustify = 4,
   MasonTextAlignStart = 5,
   MasonTextAlignEnd = 6,
+};
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextJustify, "TextJustify", open) {
+  MasonTextJustifyNone = 0,
+  MasonTextJustifyAuto = 1,
+  MasonTextJustifyInterWord = 2,
+  MasonTextJustifyInterCharacter = 3,
+  MasonTextJustifyDistribute = 4,
 };
 
 SWIFT_CLASS_NAMED("TextOverflowCompat")
@@ -2481,6 +2859,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextWrap, "TextWrap", open) {
   MasonTextWrapWrap = 0,
   MasonTextWrapNoWrap = 1,
   MasonTextWrapBalance = 2,
+  MasonTextWrapPretty = 3,
 };
 
 SWIFT_CLASS_NAMED("TrackSizingFunction")
@@ -2499,7 +2878,8 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonWhiteSpace, "WhiteSpace", open) {
   MasonWhiteSpacePre = 1,
   MasonWhiteSpacePreWrap = 2,
   MasonWhiteSpacePreLine = 3,
-  MasonWhiteSpaceNowrap = 4,
+  MasonWhiteSpaceNoWrap = 4,
+  MasonWhiteSpaceBreakSpaces = 5,
 };
 
 #endif

@@ -12,6 +12,34 @@ typedef struct CMason CMason;
 
 typedef struct CMasonNode CMasonNode;
 
+typedef struct CMasonInlineTextSegment {
+  float width;
+  float ascent;
+  float descent;
+} CMasonInlineTextSegment;
+
+typedef struct CMasonInlineChildSegment {
+  const struct CMasonNode *node;
+  float descent;
+} CMasonInlineChildSegment;
+
+typedef enum CMasonSegment_Tag {
+  Text,
+  InlineChild,
+} CMasonSegment_Tag;
+
+typedef struct CMasonSegment {
+  CMasonSegment_Tag tag;
+  union {
+    struct {
+      struct CMasonInlineTextSegment text;
+    };
+    struct {
+      struct CMasonInlineChildSegment inline_child;
+    };
+  };
+} CMasonSegment;
+
 typedef struct NodeArray {
   void **array;
   uintptr_t length;
@@ -83,13 +111,20 @@ void mason_release(struct CMason *mason);
 
 void mason_print_tree(struct CMason *mason, struct CMasonNode *node);
 
+void mason_node_set_segments(struct CMason *mason,
+                             struct CMasonNode *node,
+                             struct CMasonSegment *segments,
+                             uintptr_t segments_len);
+
+void mason_node_clear_segments(struct CMason *mason, struct CMasonNode *node);
+
 bool mason_node_is_equal(struct CMasonNode *node_a, struct CMasonNode *node_b);
 
 void mason_node_array_destroy(struct NodeArray *array);
 
 void mason_node_destroy(struct CMasonNode *node);
 
-struct CMasonNode *mason_node_new_node(struct CMason *mason);
+struct CMasonNode *mason_node_new_node(struct CMason *mason, bool anonymous);
 
 #if !defined(TARGET_OS_ANDROID)
 struct CMasonNode *mason_node_new_node_with_context(struct CMason *mason,
@@ -102,8 +137,24 @@ struct CMasonNode *mason_node_new_node_with_context(struct CMason *mason,
 #endif
 
 struct CMasonNode *mason_node_new_node_with_children(struct CMason *mason,
-                                                     struct CMasonNode *const *children,
+                                                     struct CMasonNode **children,
                                                      uintptr_t children_size);
+
+struct CMasonNode *mason_node_new_text_node(struct CMason *mason, bool anonymous);
+
+#if !defined(TARGET_OS_ANDROID)
+struct CMasonNode *mason_node_new_text_node_with_context(struct CMason *mason,
+                                                         void *measure_data,
+                                                         long long (*measure)(const void*,
+                                                                              float,
+                                                                              float,
+                                                                              float,
+                                                                              float));
+#endif
+
+struct CMasonNode *mason_node_new_text_node_with_children(struct CMason *mason,
+                                                          struct CMasonNode **children,
+                                                          uintptr_t children_size);
 
 void *mason_node_layout(struct CMason *mason,
                         struct CMasonNode *node,
@@ -138,6 +189,13 @@ void mason_node_add_children(struct CMason *mason,
                              struct CMasonNode *node,
                              struct CMasonNode *const *children,
                              uintptr_t children_size);
+
+void mason_node_prepend_children(struct CMason *mason,
+                                 struct CMasonNode *node,
+                                 struct CMasonNode *const *children,
+                                 uintptr_t children_size);
+
+void mason_node_prepend(struct CMason *mason, struct CMasonNode *node, struct CMasonNode *child);
 
 void mason_node_add_child(struct CMason *mason, struct CMasonNode *node, struct CMasonNode *child);
 
@@ -191,6 +249,10 @@ void mason_node_set_context(struct CMason *mason,
 
 #if !defined(TARGET_OS_ANDROID)
 void mason_node_remove_context(struct CMason *mason, struct CMasonNode *node);
+#endif
+
+#if !defined(TARGET_OS_ANDROID)
+void mason_node_set_apple_node(struct CMason *mason, struct CMasonNode *node, void *apple_node);
 #endif
 
 void mason_destroy_non_repeated_track_sizing_function_array(struct CMasonNonRepeatedTrackSizingFunctionArray *array);

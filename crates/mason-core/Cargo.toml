@@ -9,9 +9,9 @@ bitflags = "2.9.0"
 log = "0.4.26"
 slotmap = "1.0.7"
 
-#[target.'cfg(target_os = "android")'.dependencies]
-#jni = { git = "https://github.com/jni-rs/jni-rs.git", rev = "1a4a345b1e65aca405e856046ff2661d37edde6d" }
+[target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21.1"
+#jni = { git = "https://github.com/jni-rs/jni-rs.git", rev = "1a4a345b1e65aca405e856046ff2661d37edde6d" }
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
 objc2 = "0.6.1"

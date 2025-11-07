@@ -296,6 +296,9 @@ pub(crate) const JAVA_BOOLEAN_TYPE: ReturnType =
 pub(crate) const JAVA_OBJECT_TYPE: ReturnType = ReturnType::Object;
 pub(crate) const JAVA_ARRAY_TYPE: ReturnType = ReturnType::Array;
 
+pub(crate) const JAVA_LONG_TYPE: ReturnType =
+    ReturnType::Primitive(jni::signature::Primitive::Long);
+
 pub(crate) fn to_vec_non_repeated_track_sizing_function_jni(
     env: &mut JNIEnv,
     array: jobjectArray,

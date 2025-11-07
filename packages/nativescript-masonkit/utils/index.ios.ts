@@ -1,5 +1,5 @@
-import { Length, Utils } from '@nativescript/core';
-import { style_, ViewBase } from '../common';
+import { CoreTypes, Length, Utils } from '@nativescript/core';
+import { isMasonView_, style_, ViewBase } from '../common';
 
 type View = ViewBase & {
   _hasNativeView: boolean;
@@ -246,7 +246,7 @@ let sharedMason = null;
 
 function getNode(instance: View): MasonNode {
   const nativeView = instance?.ios;
-  if (instance._isMasonView) {
+  if (instance[isMasonView_]) {
     return nativeView.node;
   }
   if (!sharedMason) {
@@ -259,7 +259,8 @@ function getNode(instance: View): MasonNode {
 function getStyle(instance: View): MasonStyle {
   const nativeView = instance?.ios;
 
-  if (instance._isMasonView) {
+  if (instance[isMasonView_]) {
+    // @ts-ignore
     return nativeView.node.style as MasonStyle;
   }
 
@@ -322,6 +323,17 @@ export function _parseDimension(dim: org.nativescript.mason.masonkit.Dimension |
       return { value: value, unit: 'px' };
     case MasonDimensionCompatType.Percent:
       return { value: value, unit: '%' };
+  }
+}
+
+export function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit, parent = 0) {
+  switch (length.unit) {
+    case '%':
+      return length.value * parent;
+    case 'dip':
+      return Utils.layout.toDevicePixels(length.value);
+    case 'px':
+      return length.value;
   }
 }
 
@@ -867,7 +879,7 @@ export function _parseGridTemplates(value: string): Array<GridTemplates> {
 }
 
 export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -914,7 +926,7 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View
 }
 
 export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -939,7 +951,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
           gridTrackRepetition = TSCGridTrackRepetition.AutoFit;
           break;
         case TSCGridTrackRepetition.Count:
-          gridTrackRepetition = GridTrackRepetition.Count(item.repeating_count);
+          gridTrackRepetition = MasonGridTrackRepetition.Count(item.repeating_count);
           break;
       }
       if (gridTrackRepetition === null) {
@@ -979,7 +991,7 @@ export function _parseGridAutoRowsColumns(value: string): Array<MinMaxType> {
 }
 
 export function _setGridAutoFlow(value, instance: View) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -987,7 +999,7 @@ export function _setGridAutoFlow(value, instance: View) {
 }
 
 export function _getGridAutoFlow(instance) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -995,7 +1007,7 @@ export function _getGridAutoFlow(instance) {
 }
 
 export function _setGridAutoRows(value, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -1014,7 +1026,7 @@ export function _setGridAutoRows(value, instance: View, initial = false) {
 }
 
 export function _setGridAutoColumns(value, instance: View, initial = false) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return;
   }
 
@@ -1033,17 +1045,17 @@ export function _setGridAutoColumns(value, instance: View, initial = false) {
 }
 
 export function _getGridTemplateRows(instance: View) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return '';
   }
 
-  return instance.ios.style.gridTemplateRowsCSS;
+  return ''; //instance.ios.style.gridTemplateRowsCSS;
 }
 
 export function _getGridTemplateColumns(instance: View) {
-  if (!instance._hasNativeView) {
+  if (!instance[isMasonView_]) {
     return '';
   }
 
-  return instance.ios.style.gridTemplateColumnsCSS;
+  return ''; //instance.ios.style.gridTemplateColumnsCSS;
 }

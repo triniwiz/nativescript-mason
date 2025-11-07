@@ -244,6 +244,8 @@ export function _isDirty(instance: View): boolean;
 
 export function _intoType(type: 'auto' | 'points' | 'percent'): MasonDimensionCompatType;
 
+export function parseLength(length: CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit, parent = 0): Length;
+
 export function _parseDimension(dim: org.nativescript.mason.masonkit.Dimension | MasonDimensionCompat): LengthAuto;
 
 export function _parseLengthPercentage(dim: org.nativescript.mason.masonkit.LengthPercentage | MasonLengthPercentageCompat): Length;

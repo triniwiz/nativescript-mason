@@ -24,6 +24,8 @@ enum TextType {
   Blockquote = 11,
 
   B = 12,
+
+  Pre = 13,
 }
 
 export class Tree {

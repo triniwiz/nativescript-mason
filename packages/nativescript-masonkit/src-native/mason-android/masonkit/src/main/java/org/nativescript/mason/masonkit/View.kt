@@ -8,45 +8,52 @@ import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import androidx.core.content.withStyledAttributes
 import androidx.core.util.size
-import androidx.core.view.isGone
 import com.google.gson.Gson
 import kotlin.math.roundToInt
 
 class View @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
-) : ViewGroup(context, attrs, defStyleAttr), MasonView {
+) : ViewGroup(context, attrs, defStyleAttr), Element,
+  StyleChangeListener {
 
   override lateinit var node: Node
+
   // private set
+  override val style: Style
+    get() = node.style
+
+  override val view: android.view.View
+    get() = this
 
   private val nodes = mutableMapOf<android.view.View, Node>()
 
   constructor(context: Context, mason: Mason) : this(context) {
     node = mason.createNode().apply {
-      data = this@View
+      view = this@View
     }
+    node.style.setStyleChangeListener(this)
   }
 
   init {
     if (!override) {
       if (!::node.isInitialized) {
         node = Mason.shared.createNode().apply {
-          data = this@View
+          view = this@View
         }
+
+        node.style.setStyleChangeListener(this)
       }
     }
   }
 
-
   internal var isScrollRoot = false
-
-  override fun isLeaf(): Boolean {
-    return false
-  }
-
 
   fun updateNodeAndStyle() {
     node.style.updateNativeStyle()
+  }
+
+  override fun onTextStyleChanged(change: Int) {
+    Node.invalidateDescendantTextViews(node, change)
   }
 
 //  fun setStyleFromString(style: String) {
@@ -66,115 +73,10 @@ class View @JvmOverloads constructor(
     return null
   }
 
-  private fun applyLayoutRecursive(node: Node, layout: Layout) {
-    val view = node.data as? android.view.View
-    node.computedLayout = layout
-
-    if (node.isText) {
-      return
-    }
-
-    if (view != null && view != this) {
-      var realLayout = layout
-      var isText = false
-      var hasWidthConstraint = false
-      var hasHeightConstraint = false
-      if (view.isGone) {
-        return
-      }
-
-      if (view is TextView) {
-        realLayout = view.node.computedLayout
-        isText = true
-        hasWidthConstraint = node.style.size.width != Dimension.Auto
-        hasHeightConstraint = node.style.size.height != Dimension.Auto
-      }
-
-      val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
-      var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
-      var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
-
-      if (isText) {
-        if (!hasWidthConstraint) {
-          width = realLayout.contentSize.width.toInt()
-        }
-
-        if (!hasHeightConstraint) {
-          height = realLayout.contentSize.height.toInt()
-        }
-      }
-
-      if (view !is MasonView) {
-        val widthSpec = if (realLayout.width.isInfinite()) {
-          MeasureSpec.UNSPECIFIED
-        } else if (width > 0) {
-          if (node.knownWidth != null) {
-            MeasureSpec.EXACTLY
-          } else {
-            MeasureSpec.AT_MOST
-          }
-        } else {
-          MeasureSpec.UNSPECIFIED
-        }
-
-        val heightSpec = if (realLayout.height.isInfinite()) {
-          MeasureSpec.UNSPECIFIED
-        } else if (height > 0) {
-          if (node.knownHeight != null) {
-            MeasureSpec.EXACTLY
-          } else {
-            MeasureSpec.AT_MOST
-          }
-        } else {
-          MeasureSpec.UNSPECIFIED
-        }
-
-        view.measure(
-          MeasureSpec.makeMeasureSpec(
-            width,
-            widthSpec
-          ),
-          MeasureSpec.makeMeasureSpec(
-            height,
-            heightSpec
-          )
-        )
-
-        width = view.measuredWidth
-        height = view.measuredHeight
-      }
-
-      var right: Int = x + width
-      var bottom: Int = y + height
-
-      view.layout(x, y, right, bottom)
-
-
-      if (view is Scroll) {
-        view.scrollRoot.layout(
-          0,
-          0,
-          realLayout.contentSize.width.toInt(),
-          realLayout.contentSize.height.toInt()
-        )
-      }
-    }
-
-    val childrenCount = node.getChildCount()
-
-    for (i in 0 until childrenCount) {
-      node.getChildAt(i)?.let {
-        layout.children.getOrNull(i)?.let { children ->
-          applyLayoutRecursive(it, children)
-        }
-      }
-    }
-  }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     // todo cache layout
-    val layout = node.layout()
+    val layout = layout()
     applyLayoutRecursive(node, layout)
   }
 
@@ -185,145 +87,198 @@ class View @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-    node.compute(
+    compute(
       mapMeasureSpec(specWidthMode, specWidth).value,
       mapMeasureSpec(specHeightMode, specHeight).value
     )
 
+    node.mason.printTree(node)
     // todo cache layout
-    val layout = node.layout()
+    val layout = layout()
     setMeasuredDimension(
       layout.width.toInt(),
       layout.height.toInt(),
     )
   }
 
-  override fun addView(child: android.view.View) {
-    addView(
-      child, -1, -2
-    )
-  }
+  // Public addView methods delegate to Node
+  override fun addView(child: android.view.View?) {
+    child ?: return
 
-  override fun addView(child: android.view.View, index: Int, params: ViewGroup.LayoutParams) {
-    val childNode = if (child is MasonView) {
-      child.node
+    // Get or create a node for any view
+    val childNode = if (child is Element) {
+      (child as Element).node
     } else {
       node.mason.nodeForView(child)
-    }.apply {
-      data = child
     }
 
-    addView(child, index, params, childNode)
-  }
 
-  @JvmOverloads
-  fun addViews(children: Array<android.view.View>, index: Int = -1) {
-    children.forEachIndexed { childIndex, child ->
-      if (index < 0) {
-        addView(child)
-      } else {
-        addView(child, index + childIndex, child.layoutParams)
-      }
-    }
-  }
-
-  fun addView(child: android.view.View, node: Node) {
-    if (node.owner != null) {
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super<ViewGroup>.addView(child)
       return
     }
 
-    addView(
-      child, -1, ViewGroup.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-      ), node
-    )
-  }
 
-  private fun addView(
-    child: android.view.View,
-    index: Int,
-    params: ViewGroup.LayoutParams,
-    childNode: Node
-  ) {
-    if (nodes.containsKey(child)) {
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child)
       return
     }
 
-    nodes[child] = childNode
+    node.appendChild(childNode)
+  }
 
-    if (index == -1) {
-      node.addChild(childNode)
+  override fun addView(child: android.view.View?, index: Int) {
+    child ?: return
+
+    val childNode = if (child is Element) {
+      (child as Element).node
     } else {
-      node.addChildAt(childNode, index)
+      node.mason.nodeForView(child)
     }
 
-    super.addView(child, index, params)
+
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super<ViewGroup>.addView(child, index)
+      return
+    }
+
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child, index)
+      return
+    }
+
+    node.addChildAt(childNode, index)
   }
 
-  override fun removeView(view: android.view.View) {
-    removeViewFromMasonTree(view, false)
-    super.removeView(view)
+  override fun addView(child: android.view.View?, params: ViewGroup.LayoutParams?) {
+    child ?: return
+
+    val childNode = if (child is Element) {
+      (child as Element).node
+    } else {
+      node.mason.nodeForView(child)
+    }
+
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super<ViewGroup>.addView(child, params)
+      return
+    }
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child, params)
+      return
+    }
+
+    node.appendChild(childNode)
+  }
+
+  override fun addView(child: android.view.View?, index: Int, params: ViewGroup.LayoutParams?) {
+    child ?: return
+
+    val childNode = if (child is Element) {
+      (child as Element).node
+    } else {
+      node.mason.nodeForView(child)
+    }
+
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super<ViewGroup>.addView(child, index, params)
+      return
+    }
+
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child, index, params)
+      return
+    }
+
+    node.addChildAt(childNode, index)
+  }
+
+  override fun removeView(view: android.view.View?) {
+    view ?: return
+
+    val childNode = if (view is Element) {
+      (view as Element).node
+    } else {
+      node.mason.nodeForView(view)
+    }
+
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super.removeView(view)
+      return
+    }
+
+    if (childNode.parent == node) {
+      super.removeView(view)
+      return
+    }
+
+    node.removeChild(childNode)
   }
 
   override fun removeViewAt(index: Int) {
-    removeViewFromMasonTree(getChildAt(index), false)
-    super.removeViewAt(index)
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super.removeViewAt(index)
+      return
+    }
+    node.removeChildAt(index)
+  }
+
+  override fun removeAllViews() {
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super.removeAllViews()
+      return
+    }
+    node.removeChildren()
   }
 
   override fun removeViewInLayout(view: android.view.View) {
-    removeViewFromMasonTree(view, true)
+    if (node.suppressChildOps > 0) {
+      removeViewFromMasonTree(view, true)
+    }
     super.removeViewInLayout(view)
   }
 
   override fun removeViews(start: Int, count: Int) {
-    for (i in start until start + count) {
-      removeViewFromMasonTree(getChildAt(i), false)
+    if (node.suppressChildOps > 0) {
+      for (i in start until start + count) {
+        removeViewFromMasonTree(getChildAt(i), false)
+      }
     }
     super.removeViews(start, count)
   }
 
   override fun removeViewsInLayout(start: Int, count: Int) {
-    for (i in start until start + count) {
-      removeViewFromMasonTree(getChildAt(i), true)
+    if (node.suppressChildOps > 0) {
+      for (i in start until start + count) {
+        removeViewFromMasonTree(getChildAt(i), true)
+      }
     }
     super.removeViewsInLayout(start, count)
   }
 
-  override fun removeAllViews() {
-    val childCount = nodes.count()
-    for (i in 0 until childCount) {
-      removeViewFromMasonTree(getChildAt(i), false)
-    }
-    super.removeAllViews()
-  }
-
-  fun invalidate(view: android.view.View?) {
-    if (nodes.containsKey(view)) {
-      nodes[view]?.dirty()
-      return
-    }
-    val childCount = nodes.count()
-    for (i in 0 until childCount) {
-      node.getChildAt(i)?.let {
-        if (it.data is View) {
-          (it.data as View).invalidate()
-        }
-      }
-    }
-    invalidate()
-  }
-
   override fun removeAllViewsInLayout() {
-    val childCount = nodes.count()
-    for (i in 0 until childCount) {
-      removeViewFromMasonTree(getChildAt(i), true)
+    if (node.suppressChildOps > 0) {
+      val childCount = nodes.count()
+      for (i in 0 until childCount) {
+        removeViewFromMasonTree(getChildAt(i), true)
+      }
     }
     super.removeAllViewsInLayout()
   }
 
   private fun removeViewFromMasonTree(view: android.view.View, inLayout: Boolean) {
     nodes[view]?.let { node ->
-      val owner = node.owner as Node
+      val owner = node.parent as Node
       val count = owner.getChildCount()
       for (i in 0 until count) {
         owner.getChildAt(i)?.let {
@@ -333,10 +288,10 @@ class View @JvmOverloads constructor(
           }
         }
       }
-      node.data = null
+      node.view = null
       nodes.remove(view)
       if (inLayout) {
-        node.computeMaxContent()
+        computeMaxContent()
       }
     }
   }
@@ -529,7 +484,8 @@ class View @JvmOverloads constructor(
         }
 
         R.styleable.mason_mason_overflow -> {
-          node.style.overflow = Overflow.fromInt(value.roundToInt())
+          val overflow = Overflow.fromInt(value.roundToInt())
+          node.style.overflow = Point(overflow, overflow)
         }
 
         R.styleable.mason_mason_paddingLeft -> {
@@ -946,28 +902,8 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-
-  var inBatch: Boolean
-    get() {
-      return node.inBatch
-    }
-    set(value) {
-      node.inBatch = value
-    }
-
-  fun syncStyle(state: String) {
-    try {
-      val value = state.toLong()
-      if (value != -1L) {
-        node.style.isDirty = value
-        node.style.updateNativeStyle()
-      }
-    } catch (_: Error) {
-    }
-  }
-
   private fun checkAndUpdateStyle() {
-    if (!node.inBatch) {
+    if (!node.style.inBatch) {
       node.style.updateNativeStyle()
     }
   }
@@ -1017,7 +953,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var overflow: Overflow
+  var overflow: Point<Overflow>
     get() {
       return style.overflow
     }
@@ -1181,16 +1117,10 @@ class View @JvmOverloads constructor(
   }
 
   fun setPadding(
-    left: LengthPercentage,
-    top: LengthPercentage,
-    right: LengthPercentage,
-    bottom: LengthPercentage
+    left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
     style.padding = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
@@ -1279,16 +1209,10 @@ class View @JvmOverloads constructor(
   }
 
   fun setBorder(
-    left: LengthPercentage,
-    top: LengthPercentage,
-    right: LengthPercentage,
-    bottom: LengthPercentage
+    left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
     style.border = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
@@ -1382,10 +1306,7 @@ class View @JvmOverloads constructor(
     bottom: LengthPercentageAuto
   ) {
     style.margin = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
@@ -1480,10 +1401,7 @@ class View @JvmOverloads constructor(
     bottom: LengthPercentageAuto
   ) {
     style.inset = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }

@@ -57,7 +57,6 @@ impl Into<taffy::style::Overflow> for Overflow {
     }
 }
 
-
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DisplayMode {
     None,
@@ -459,7 +458,7 @@ impl Clone for Style {
     fn clone(&self) -> Self {
         let clone =
             unsafe { std::slice::from_raw_parts_mut(self.raw_data, self.raw_data_len).to_vec() };
-        let mut buffer = NSMutableData::from_vec(clone);
+        let buffer = NSMutableData::from_vec(clone);
         let (ptr, len) = {
             let slice = unsafe { buffer.as_mut_bytes_unchecked() };
             (slice.as_mut_ptr(), slice.len())
@@ -548,6 +547,14 @@ impl Style {
 
         int_slice[StyleKeys::JUSTIFY_CONTENT as usize / 4] = -1;
 
+        int_slice[StyleKeys::INSET_LEFT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::INSET_TOP_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::INSET_RIGHT_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::INSET_BOTTOM_TYPE as usize / 4] = 1;
+
         int_slice[StyleKeys::MARGIN_LEFT_TYPE as usize / 4] = 1;
 
         int_slice[StyleKeys::MARGIN_TOP_TYPE as usize / 4] = 1;
@@ -555,6 +562,22 @@ impl Style {
         int_slice[StyleKeys::MARGIN_RIGHT_TYPE as usize / 4] = 1;
 
         int_slice[StyleKeys::MARGIN_BOTTOM_TYPE as usize / 4] = 1;
+
+        int_slice[StyleKeys::PADDING_LEFT_TYPE as usize / 4] = 0;
+
+        int_slice[StyleKeys::PADDING_TOP_TYPE as usize / 4] = 0;
+
+        int_slice[StyleKeys::PADDING_RIGHT_TYPE as usize / 4] = 0;
+
+        int_slice[StyleKeys::PADDING_BOTTOM_TYPE as usize / 4] = 0;
+
+        int_slice[StyleKeys::BORDER_LEFT_TYPE as usize / 4] = 0;
+
+        int_slice[StyleKeys::BORDER_TOP_TYPE as usize / 4] = 0;
+
+        int_slice[StyleKeys::BORDER_RIGHT_TYPE as usize / 4] = 0;
+
+        int_slice[StyleKeys::BORDER_BOTTOM_TYPE as usize / 4] = 0;
 
         buffer
     }
@@ -658,7 +681,7 @@ impl Style {
             grid_auto_rows: Default::default(),
             grid_auto_columns: Default::default(),
             data_owned: true,
-            buffer: buffer_ref
+            buffer: buffer_ref,
         }
     }
 
@@ -1160,20 +1183,20 @@ impl Style {
     pub fn get_border(&self) -> Rect<LengthPercentage> {
         Rect {
             left: length_percentage_from_type_value(
-                get_style_data_i32(self.data(), StyleKeys::PADDING_LEFT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_LEFT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::BORDER_LEFT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::BORDER_LEFT_VALUE),
             ),
             right: length_percentage_from_type_value(
-                get_style_data_i32(self.data(), StyleKeys::PADDING_RIGHT_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_RIGHT_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::BORDER_RIGHT_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::BORDER_RIGHT_VALUE),
             ),
             top: length_percentage_from_type_value(
-                get_style_data_i32(self.data(), StyleKeys::PADDING_TOP_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_TOP_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::BORDER_TOP_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::BORDER_TOP_VALUE),
             ),
             bottom: length_percentage_from_type_value(
-                get_style_data_i32(self.data(), StyleKeys::PADDING_BOTTOM_TYPE),
-                get_style_data_f32(self.data(), StyleKeys::PADDING_BOTTOM_VALUE),
+                get_style_data_i32(self.data(), StyleKeys::BORDER_BOTTOM_TYPE),
+                get_style_data_f32(self.data(), StyleKeys::BORDER_BOTTOM_VALUE),
             ),
         }
     }
@@ -1394,7 +1417,6 @@ impl Style {
             Some(value) => align_content_to_enum(value),
             None => -1,
         };
-        println!("set_align_content {:?} {:?}", align, value);
         set_style_data_i32(self.data_mut(), StyleKeys::ALIGN_CONTENT, align);
     }
 

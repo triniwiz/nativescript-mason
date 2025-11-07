@@ -8,29 +8,22 @@ import UIKit
 
 @objc(MasonScroll)
 @objcMembers
-public class Scroll: UIScrollView, MasonView, UIScrollViewDelegate {
-  public var style: MasonStyle {
-    return node.style
+public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement, MasonElementObjc, StyleChangeListener {
+  func onTextStyleChanged(change: Int64) {
+    MasonNode.invalidateDescendantTextViews(node, change)
   }
   
-  public func markNodeDirty() {
-    node.markDirty()
-  }
   
-  public func isNodeDirty() -> Bool {
-    return node.isDirty
-  }
-  
-  public func configure(_ block: (MasonNode) -> Void) {
-    node.configure(block)
-  }
+  public let node: MasonNode
+  public let mason: NSCMason
   
   public var uiView: UIView {
     return self
   }
   
-  public let node: MasonNode
-  public let mason: NSCMason
+  public var style: MasonStyle {
+    return node.style
+  }
   
   internal var canScroll: (Bool, Bool) {
     let flow = node.style.overflow
@@ -60,9 +53,9 @@ public class Scroll: UIScrollView, MasonView, UIScrollViewDelegate {
     node = doc.createNode()
     mason = doc
     super.init(frame: .zero)
-    node.data = self
+    node.view = self
     self.delegate = self
-    
+    style.setStyleChangeListener(listener: self)
     isOpaque = false
   }
   
@@ -96,25 +89,15 @@ public class Scroll: UIScrollView, MasonView, UIScrollViewDelegate {
     lastContentOffset = targetOffset
   }
   
-
-  public func syncStyle(_ state: String) {
-    guard let stateValue = Int64(state, radix: 10) else {return}
-  //  let keys = StateKeys(rawValue: UInt64(stateValue))
-    if (stateValue != -1) {
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
-  }
   
   public func addView(_ view: UIView){
     if(view.superview == self){
       return
     }
-    addSubview(view)
-    if(view is MasonView){
-      node.addChild((view as! MasonView).node)
+    if(view is MasonElement){
+      append((view as! MasonElement))
     }else {
-      node.addChild(mason.nodeForView(view))
+      append(node: mason.nodeForView(view))
     }
   }
   
@@ -122,24 +105,27 @@ public class Scroll: UIScrollView, MasonView, UIScrollViewDelegate {
     if(view.superview == self){
       return
     }
-    if(at <= -1){
-      addSubview(view)
-    }else {
-      insertSubview(view, at: at)
-    }
 
-    if(view is MasonView){
-      node.addChildAt((view as! MasonView).node, at)
+    if(view is MasonElement){
+      node.addChildAt((view as! MasonElement).node, at)
     }else {
       node.addChildAt(mason.nodeForView(view), at)
     }
   }
   
-  public func requestLayout(){
-    node.markDirty()
-    if let root = node.root, let cache = root.computeCache {
-      root.computeWithSize(Float(cache.width), Float(cache.height))
-    }
+  
+  func checkAndUpdateStyle() {
+      if (!node.inBatch) {
+        node.style.updateNativeStyle()
+      }
+  }
+  
+  @objc public func setSize(_ width: Float,_  height: Float) {
+      node.style.size = MasonSize(
+          MasonDimension.Points(width),
+          MasonDimension.Points(height)
+      )
+      checkAndUpdateStyle()
   }
   
 }

@@ -14,6 +14,19 @@ interface CMasonBuffer {
 }
 declare var CMasonBuffer: interop.StructType<CMasonBuffer>;
 
+interface CMasonInlineChildSegment {
+	node: interop.Pointer | interop.Reference<any>;
+	descent: number;
+}
+declare var CMasonInlineChildSegment: interop.StructType<CMasonInlineChildSegment>;
+
+interface CMasonInlineTextSegment {
+	width: number;
+	ascent: number;
+	descent: number;
+}
+declare var CMasonInlineTextSegment: interop.StructType<CMasonInlineTextSegment>;
+
 interface CMasonMinMax {
 	min_type: number;
 	min_value: number;
@@ -27,6 +40,13 @@ interface CMasonNonRepeatedTrackSizingFunctionArray {
 	length: number;
 }
 declare var CMasonNonRepeatedTrackSizingFunctionArray: interop.StructType<CMasonNonRepeatedTrackSizingFunctionArray>;
+
+declare const enum CMasonSegment_Tag {
+
+	Text = 0,
+
+	InlineChild = 1
+}
 
 declare const enum CMasonTrackSizingFunction_Tag {
 
@@ -138,6 +158,31 @@ declare const enum MasonBoxSizing {
 
 	ContentBox = 1
 }
+
+interface MasonCharacterData {
+
+	data: string;
+
+	length: number;
+
+	appendData(s: string): MasonCharacterData;
+
+	deleteDataWithOffsetCount(offset: number, count: number): MasonCharacterData;
+
+	deleteDataWithRange(range: NSRange): MasonCharacterData;
+
+	insertDataAt(s: string, offset: number): MasonCharacterData;
+
+	replaceDataWithOffsetCountWith(offset: number, count: number, s: string): MasonCharacterData;
+
+	replaceDataWithRangeWith(range: NSRange, s: string): MasonCharacterData;
+
+	substringDataWithOffsetCount(offset: number, count: number): string;
+}
+declare var MasonCharacterData: {
+
+	prototype: MasonCharacterData;
+};
 
 declare const enum MasonDecorationLine {
 
@@ -255,6 +300,34 @@ declare const enum MasonDisplay {
 	InlineGrid = 7
 }
 
+declare class MasonDocument extends NSObject {
+
+	static alloc(): MasonDocument; // inherited from NSObject
+
+	static new(): MasonDocument; // inherited from NSObject
+
+	readonly mason: NSCMason;
+
+	readonly node: MasonNode;
+
+	constructor(o: { mason: NSCMason; });
+
+	initWithMason(instance: NSCMason): this;
+}
+
+interface MasonElementObjc extends NSObjectProtocol {
+
+	node: MasonNode;
+
+	style: MasonStyle;
+
+	uiView: UIView;
+}
+declare var MasonElementObjc: {
+
+	prototype: MasonElementObjc;
+};
+
 declare const enum MasonFlexDirection {
 
 	Row = 0,
@@ -323,7 +396,7 @@ declare class MasonGridTrackRepetition extends NSObject {
 	static readonly AutoFit: MasonGridTrackRepetition;
 }
 
-declare class MasonImg extends UIImageView {
+declare class MasonImg extends UIImageView implements MasonElementObjc {
 
 	static alloc(): MasonImg; // inherited from NSObject
 
@@ -362,21 +435,49 @@ declare class MasonImg extends UIImageView {
 
 	readonly mason: NSCMason;
 
-	readonly node: MasonNode;
+	onStateChange: (p1: MasonLoadingState, p2: NSError) => void;
 
 	src: string;
 
-	readonly style: MasonStyle;
+	readonly debugDescription: string; // inherited from NSObjectProtocol
 
-	readonly uiView: UIView;
+	readonly description: string; // inherited from NSObjectProtocol
 
-	configure(block: (p1: MasonNode) => void): void;
+	readonly hash: number; // inherited from NSObjectProtocol
 
-	isNodeDirty(): boolean;
+	readonly isProxy: boolean; // inherited from NSObjectProtocol
 
-	markNodeDirty(): void;
+	readonly node: MasonNode; // inherited from MasonElementObjc
 
-	requestLayout(): void;
+	readonly style: MasonStyle; // inherited from MasonElementObjc
+
+	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+
+	readonly uiView: UIView; // inherited from MasonElementObjc
+
+	readonly  // inherited from NSObjectProtocol
+
+	class(): typeof NSObject;
+
+	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
+
+	isEqual(object: any): boolean;
+
+	isKindOfClass(aClass: typeof NSObject): boolean;
+
+	isMemberOfClass(aClass: typeof NSObject): boolean;
+
+	performSelector(aSelector: string): any;
+
+	performSelectorWithObject(aSelector: string, object: any): any;
+
+	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
+
+	respondsToSelector(aSelector: string): boolean;
+
+	retainCount(): number;
+
+	self(): this;
 
 	syncStyle(state: string): void;
 
@@ -452,6 +553,8 @@ declare class MasonLayout extends NSObject {
 
 	readonly children: NSArray<MasonLayout>;
 
+	readonly hasChildren: boolean;
+
 	readonly height: number;
 
 	readonly order: number;
@@ -461,6 +564,8 @@ declare class MasonLayout extends NSObject {
 	readonly x: number;
 
 	readonly y: number;
+
+	static readonly zero: MasonLayout;
 }
 
 declare class MasonLengthPercentageAutoCompat extends NSObject {
@@ -624,59 +729,65 @@ declare const enum MasonLineHeight {
 	PreLine = 3
 }
 
+declare const enum MasonLoadingState {
+
+	Loading = 0,
+
+	Loaded = 1,
+
+	Error = 2
+}
+
 declare class MasonNode extends NSObject {
 
 	static alloc(): MasonNode; // inherited from NSObject
 
 	static new(): MasonNode; // inherited from NSObject
 
-	readonly children: NSArray<MasonNode>;
-
 	readonly computedLayout: MasonLayout;
 
-	data: any;
+	readonly document: MasonDocument;
+
+	inBatch: boolean;
 
 	readonly isDirty: boolean;
 
+	readonly mason: NSCMason;
+
 	readonly nativePtr: interop.Pointer | interop.Reference<any>;
 
-	readonly owner: MasonNode;
+	readonly parent: MasonNode;
 
-	style: MasonStyle;
+	readonly parentNode: MasonNode;
+
+	readonly type: MasonNodeType;
 
 	constructor(o: { mason: NSCMason; children: NSArray<MasonNode> | MasonNode[]; });
 
-	addChildren(children: NSArray<MasonNode> | MasonNode[]): void;
+	appendChild(child: MasonNode): void;
 
-	attachAndApply(): void;
+	getChildren(): NSArray<MasonNode>;
 
-	compute(): void;
+	getLayoutChildren(): NSArray<MasonNode>;
 
-	computeMaxContent(): void;
+	getRoot(): UIView;
 
-	computeMinContent(): void;
-
-	computeWithMaxContent(): void;
-
-	computeWithMinContent(): void;
-
-	computeWithSize(width: number, height: number): void;
-
-	computeWithViewSize(): void;
-
-	computeWithViewSizeWithLayout(layout: boolean): void;
-
-	configure(block: (p1: MasonNode) => void): void;
-
-	getRoot(): MasonNode;
+	getRootNode(): MasonNode;
 
 	initWithMasonChildren(doc: NSCMason, nodes: NSArray<MasonNode> | MasonNode[]): this;
-
-	layout(): MasonLayout;
 
 	markDirty(): void;
 
 	setChildrenWithValue(value: NSArray<MasonNode> | MasonNode[]): void;
+}
+
+declare const enum MasonNodeType {
+
+	Element = 0,
+
+	Text = 1,
+
+	Document = 2
 }
 
 declare const enum MasonOverflow {
@@ -712,7 +823,7 @@ declare const enum MasonPosition {
 	Absolute = 1
 }
 
-declare class MasonScroll extends UIScrollView implements UIScrollViewDelegate {
+declare class MasonScroll extends UIScrollView implements MasonElementObjc, UIScrollViewDelegate {
 
 	static alloc(): MasonScroll; // inherited from NSObject
 
@@ -749,12 +860,6 @@ declare class MasonScroll extends UIScrollView implements UIScrollViewDelegate {
 
 	readonly mason: NSCMason;
 
-	readonly node: MasonNode;
-
-	readonly style: MasonStyle;
-
-	readonly uiView: UIView;
-
 	readonly debugDescription: string; // inherited from NSObjectProtocol
 
 	readonly description: string; // inherited from NSObjectProtocol
@@ -763,7 +868,13 @@ declare class MasonScroll extends UIScrollView implements UIScrollViewDelegate {
 
 	readonly isProxy: boolean; // inherited from NSObjectProtocol
 
+	readonly node: MasonNode; // inherited from MasonElementObjc
+
+	readonly style: MasonStyle; // inherited from MasonElementObjc
+
 	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+
+	readonly uiView: UIView; // inherited from MasonElementObjc
 
 	readonly  // inherited from NSObjectProtocol
 
@@ -773,8 +884,6 @@ declare class MasonScroll extends UIScrollView implements UIScrollViewDelegate {
 
 	class(): typeof NSObject;
 
-	configure(block: (p1: MasonNode) => void): void;
-
 	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
 
 	isEqual(object: any): boolean;
@@ -783,17 +892,11 @@ declare class MasonScroll extends UIScrollView implements UIScrollViewDelegate {
 
 	isMemberOfClass(aClass: typeof NSObject): boolean;
 
-	isNodeDirty(): boolean;
-
-	markNodeDirty(): void;
-
 	performSelector(aSelector: string): any;
 
 	performSelectorWithObject(aSelector: string, object: any): any;
 
 	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
-
-	requestLayout(): void;
 
 	respondsToSelector(aSelector: string): boolean;
 
@@ -838,6 +941,8 @@ declare class MasonScroll extends UIScrollView implements UIScrollViewDelegate {
 	scrollViewWillEndDraggingWithVelocityTargetContentOffset(scrollView: UIScrollView, velocity: CGPoint, targetContentOffset: interop.Pointer | interop.Reference<CGPoint>): void;
 
 	self(): this;
+
+	setSize(width: number, height: number): void;
 
 	syncStyle(state: string): void;
 
@@ -1013,7 +1118,72 @@ declare class MasonStyle extends NSObject {
 	updateNativeStyle(): void;
 }
 
-declare class MasonText extends UIView {
+declare class MasonSwiftHelpers extends NSObject {
+
+	static addChildAtElement(parent: MasonElementObjc, element: MasonElementObjc, index: number): void;
+
+	static addChildAtNode(parent: MasonElementObjc, node: MasonNode, index: number): void;
+
+	static addChildAtText(parent: MasonElementObjc, text: string, index: number): void;
+
+	static alloc(): MasonSwiftHelpers; // inherited from NSObject
+
+	static append(parent: MasonElementObjc, element: MasonElementObjc): void;
+
+	static appendElements(parent: MasonElementObjc, elements: NSArray<MasonElementObjc> | MasonElementObjc[]): void;
+
+	static appendNode(parent: MasonElementObjc, node: MasonNode): void;
+
+	static appendNodes(parent: MasonElementObjc, nodes: NSArray<MasonNode> | MasonNode[]): void;
+
+	static appendText(parent: MasonElementObjc, text: string): void;
+
+	static appendTexts(parent: MasonElementObjc, texts: NSArray<string> | string[]): void;
+
+	static attachAndApply(element: MasonElementObjc): void;
+
+	static compute(element: MasonElementObjc): void;
+
+	static computeMaxContent(element: MasonElementObjc): void;
+
+	static computeMinContent(element: MasonElementObjc): void;
+
+	static computeWithMaxContent(element: MasonElementObjc): void;
+
+	static computeWithMinContent(element: MasonElementObjc): void;
+
+	static computeWithSize(element: MasonElementObjc, width: number, height: number): void;
+
+	static computeWithViewSize(element: MasonElementObjc): void;
+
+	static computeWithViewSizeLayout(element: MasonElementObjc, layout: boolean): void;
+
+	static configure(element: MasonElementObjc, block: (p1: MasonStyle) => void): void;
+
+	static isNodeDirty(element: MasonElementObjc): boolean;
+
+	static layout(element: MasonElementObjc): MasonLayout;
+
+	static markNodeDirty(element: MasonElementObjc): void;
+
+	static new(): MasonSwiftHelpers; // inherited from NSObject
+
+	static prepend(parent: MasonElementObjc, element: MasonElementObjc): void;
+
+	static prependElements(parent: MasonElementObjc, elements: NSArray<MasonElementObjc> | MasonElementObjc[]): void;
+
+	static prependNode(parent: MasonElementObjc, node: MasonNode): void;
+
+	static prependNodes(parent: MasonElementObjc, nodes: NSArray<MasonNode> | MasonNode[]): void;
+
+	static prependString(parent: MasonElementObjc, string: string): void;
+
+	static prependStrings(parent: MasonElementObjc, strings: NSArray<string> | string[]): void;
+
+	static requestLayout(element: MasonElementObjc): void;
+}
+
+declare class MasonText extends UIView implements MasonElementObjc {
 
 	static alloc(): MasonText; // inherited from NSObject
 
@@ -1064,15 +1234,7 @@ declare class MasonText extends UIView {
 
 	fontWeight: string;
 
-	readonly node: MasonNode;
-
-	readonly owner: MasonText;
-
-	readonly style: MasonStyle;
-
 	text: string;
-
-	readonly textNode: MasonNode;
 
 	textOverflowCompat: MasonTextOverflowCompat;
 
@@ -1082,37 +1244,71 @@ declare class MasonText extends UIView {
 
 	textWrap: MasonTextWrap;
 
-	txtToRender: NSMutableAttributedString;
-
 	readonly type: MasonTextType;
 
-	readonly uiView: UIView;
-
 	whiteSpace: MasonWhiteSpace;
+
+	readonly debugDescription: string; // inherited from NSObjectProtocol
+
+	readonly description: string; // inherited from NSObjectProtocol
+
+	readonly hash: number; // inherited from NSObjectProtocol
+
+	readonly isProxy: boolean; // inherited from NSObjectProtocol
+
+	readonly node: MasonNode; // inherited from MasonElementObjc
+
+	readonly style: MasonStyle; // inherited from MasonElementObjc
+
+	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+
+	readonly uiView: UIView; // inherited from MasonElementObjc
+
+	readonly  // inherited from NSObjectProtocol
 
 	constructor(o: { mason: NSCMason; });
 
 	constructor(o: { mason: NSCMason; type: MasonTextType; });
 
-	constructor(o: { node: MasonNode; });
+	addChild(child: MasonNode): void;
 
-	addView(view: UIView, index: number): void;
+	addView(view: UIView): void;
 
-	configure(block: (p1: MasonNode) => void): void;
+	addViewAt(view: UIView, at: number): void;
+
+	class(): typeof NSObject;
+
+	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
+
+	getDefaultAttributes(): NSDictionary<string, any>;
 
 	initWithMason(mason: NSCMason): this;
 
 	initWithMasonType(mason: NSCMason, textType: MasonTextType): this;
 
-	initWithNode(masonNode: MasonNode): this;
-
 	invalidateStyle(state: number): void;
 
-	isNodeDirty(): boolean;
+	isEqual(object: any): boolean;
 
-	markNodeDirty(): void;
+	isKindOfClass(aClass: typeof NSObject): boolean;
 
-	removeView(view: UIView): void;
+	isMemberOfClass(aClass: typeof NSObject): boolean;
+
+	performSelector(aSelector: string): any;
+
+	performSelectorWithObject(aSelector: string, object: any): any;
+
+	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
+
+	removeChild(child: MasonNode): MasonNode;
+
+	requestLayout(): void;
+
+	respondsToSelector(aSelector: string): boolean;
+
+	retainCount(): number;
+
+	self(): this;
 
 	setBackgroundColorWithUi(color: UIColor): void;
 
@@ -1122,9 +1318,7 @@ declare class MasonText extends UIView {
 
 	setFontStyleSlant(style: MasonFontStyle, slant: number): void;
 
-	syncStyle(state: string, textState: string): void;
-
-	updateText(value: string): void;
+	syncStyleTextState(state: string, textState: string): void;
 }
 
 declare const enum MasonTextAlign {
@@ -1142,6 +1336,37 @@ declare const enum MasonTextAlign {
 	Start = 5,
 
 	End = 6
+}
+
+declare class MasonTextNode extends MasonNode implements MasonCharacterData {
+
+	static alloc(): MasonTextNode; // inherited from NSObject
+
+	static new(): MasonTextNode; // inherited from NSObject
+
+	data: string; // inherited from MasonCharacterData
+
+	readonly length: number; // inherited from MasonCharacterData
+
+	constructor(o: { mason: NSCMason; data: string; attributes: NSDictionary<string, any>; });
+
+	appendData(s: string): this;
+
+	attributed(): NSAttributedString;
+
+	deleteDataWithOffsetCount(offset: number, count: number): this;
+
+	deleteDataWithRange(range: NSRange): this;
+
+	initWithMasonDataAttributes(doc: NSCMason, text: string, attrs: NSDictionary<string, any>): this;
+
+	insertDataAt(s: string, offset: number): this;
+
+	replaceDataWithOffsetCountWith(offset: number, count: number, s: string): this;
+
+	replaceDataWithRangeWith(range: NSRange, s: string): this;
+
+	substringDataWithOffsetCount(offset: number, count: number): string;
 }
 
 declare class MasonTextOverflowCompat extends NSObject {
@@ -1211,10 +1436,12 @@ declare const enum MasonTextWrap {
 
 	NoWrap = 1,
 
-	Balance = 2
+	Balance = 2,
+
+	Pretty = 3
 }
 
-declare class MasonUIView extends UIView {
+declare class MasonUIView extends UIView implements MasonElementObjc {
 
 	static alloc(): MasonUIView; // inherited from NSObject
 
@@ -1311,17 +1538,29 @@ declare class MasonUIView extends UIView {
 
 	readonly mason: NSCMason;
 
-	readonly node: MasonNode;
-
 	overflowX: MasonOverflow;
 
 	overflowY: MasonOverflow;
 
 	scrollBarWidthCompat: MasonDimensionCompat;
 
-	style: MasonStyle;
+	readonly debugDescription: string; // inherited from NSObjectProtocol
 
-	readonly uiView: UIView;
+	readonly description: string; // inherited from NSObjectProtocol
+
+	readonly hash: number; // inherited from NSObjectProtocol
+
+	readonly isProxy: boolean; // inherited from NSObjectProtocol
+
+	readonly node: MasonNode; // inherited from MasonElementObjc
+
+	readonly style: MasonStyle; // inherited from MasonElementObjc
+
+	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+
+	readonly uiView: UIView; // inherited from MasonElementObjc
+
+	readonly  // inherited from NSObjectProtocol
 
 	addSubviews(views: NSArray<UIView> | UIView[]): void;
 
@@ -1331,7 +1570,9 @@ declare class MasonUIView extends UIView {
 
 	addViewAt(view: UIView, at: number): void;
 
-	configure(block: (p1: MasonNode) => void): void;
+	class(): typeof NSObject;
+
+	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
 
 	getBorder(): MasonLengthPercentageRectCompat;
 
@@ -1397,11 +1638,27 @@ declare class MasonUIView extends UIView {
 
 	getSizeWidth(): MasonDimensionCompat;
 
+	isEqual(object: any): boolean;
+
+	isKindOfClass(aClass: typeof NSObject): boolean;
+
+	isMemberOfClass(aClass: typeof NSObject): boolean;
+
 	isNodeDirty(): boolean;
 
 	markNodeDirty(): void;
 
-	requestLayout(): void;
+	performSelector(aSelector: string): any;
+
+	performSelectorWithObject(aSelector: string, object: any): any;
+
+	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
+
+	respondsToSelector(aSelector: string): boolean;
+
+	retainCount(): number;
+
+	self(): this;
 
 	setBorder(left: number, top: number, right: number, bottom: number): void;
 
@@ -1486,7 +1743,9 @@ declare const enum MasonWhiteSpace {
 
 	PreLine = 3,
 
-	Nowrap = 4
+	NoWrap = 4,
+
+	BreakSpaces = 5
 }
 
 declare class MaxSizing extends NSObject {
@@ -1748,13 +2007,17 @@ declare class NSCMason extends NSObject {
 
 	clear(): void;
 
+	configureStyleForView(view: UIView, block: (p1: MasonStyle) => void): void;
+
+	createDocument(): MasonDocument;
+
 	createImageView(): MasonImg;
 
 	createNode(): MasonNode;
 
 	createScrollView(): MasonScroll;
 
-	createTextNode(): MasonNode;
+	createTextNode(data: string): MasonTextNode;
 
 	createTextView(): MasonText;
 
@@ -1762,9 +2025,13 @@ declare class NSCMason extends NSObject {
 
 	createView(): MasonUIView;
 
+	layoutForView(view: UIView): MasonLayout;
+
 	nodeForView(view: UIView, isLeaf: boolean): MasonNode;
 
 	printTree(node: MasonNode): void;
+
+	styleForView(view: UIView): MasonStyle;
 }
 
 interface NodeArray {
@@ -1811,6 +2078,8 @@ declare function mason_node_add_children(mason: interop.Pointer | interop.Refere
 
 declare function mason_node_array_destroy(array: interop.Pointer | interop.Reference<NodeArray>): void;
 
+declare function mason_node_clear_segments(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
+
 declare function mason_node_compute(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_node_compute_max_content(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
@@ -1839,11 +2108,21 @@ declare function mason_node_layout(mason: interop.Pointer | interop.Reference<an
 
 declare function mason_node_mark_dirty(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
 
-declare function mason_node_new_node(mason: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
+declare function mason_node_new_node(mason: interop.Pointer | interop.Reference<any>, anonymous: boolean): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_new_node_with_children(mason: interop.Pointer | interop.Reference<any>, children: interop.Pointer | interop.Reference<interop.Pointer | interop.Reference<any>>, children_size: number): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_new_node_with_context(mason: interop.Pointer | interop.Reference<any>, measure_data: interop.Pointer | interop.Reference<any>, measure: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<any>, p2: number, p3: number, p4: number, p5: number) => number>): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_new_text_node(mason: interop.Pointer | interop.Reference<any>, anonymous: boolean): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_new_text_node_with_children(mason: interop.Pointer | interop.Reference<any>, children: interop.Pointer | interop.Reference<interop.Pointer | interop.Reference<any>>, children_size: number): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_new_text_node_with_context(mason: interop.Pointer | interop.Reference<any>, measure_data: interop.Pointer | interop.Reference<any>, measure: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<any>, p2: number, p3: number, p4: number, p5: number) => number>): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_prepend(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>): void;
+
+declare function mason_node_prepend_children(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, children: interop.Pointer | interop.Reference<interop.Pointer | interop.Reference<any>>, children_size: number): void;
 
 declare function mason_node_remove_child(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
 
@@ -1854,6 +2133,8 @@ declare function mason_node_remove_children(mason: interop.Pointer | interop.Ref
 declare function mason_node_remove_context(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_node_replace_child_at(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>, index: number): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_set_apple_node(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, apple_node: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_node_set_children(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, children: interop.Pointer | interop.Reference<interop.Pointer | interop.Reference<any>>, children_size: number): void;
 

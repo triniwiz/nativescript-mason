@@ -25,7 +25,565 @@ fn main() {
     // flex_bug();
     //scroll();
     //scroll_horizontal();
-    inline_bug();
+    // inline_bug();
+    //bug();
+    //insert_test()
+    //inline_node()
+    //  inline_mix_bug()
+    // flex_direction_bug()
+    //flex_grow_bug()
+   // inline_size_bug()
+    wrap_bug()
+}
+
+fn wrap_bug() {
+    let mut mason = Mason::new();
+
+    extern "C" fn inline_mix_bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        if unsafe { *(id) } == 2 {
+            return MeasureOutput::make(20., 20.);
+        }
+
+        MeasureOutput::make(available_space_width, 4000.)
+    }
+
+    let root = mason.create_node();
+
+    let inline = mason.create_text_node();
+
+    mason.add_child(root.id(), inline.id());
+
+    mason.set_measure(
+        inline.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+
+    let one = mason.create_text_node();
+    mason.with_style_mut(one.id(), |style| {
+        style.set_display(Display::Block);
+        style.set_display_mode(DisplayMode::None);
+    });
+
+    mason.add_child(root.id(), inline.id());
+    mason.add_child(root.id(), one.id());
+
+    mason.set_measure(
+        one.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(root.id());
+}
+
+fn inline_size_bug() {
+    let mut mason = Mason::new();
+
+    extern "C" fn inline_mix_bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        MeasureOutput::make(200., 200.)
+    }
+
+    let root = mason.create_node();
+    let one = mason.create_text_node();
+    mason.with_style_mut(one.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(0f32),
+            height: Dimension::length(0f32),
+        })
+    });
+
+    mason.add_child(root.id(), one.id());
+
+    mason.set_measure(
+        one.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(root.id());
+}
+
+fn flex_grow_bug() {
+    extern "C" fn flex_grow_bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        if unsafe { *(id) } == 1 {
+            return MeasureOutput::make(10., 10.);
+        }
+        MeasureOutput::make(200., 200.)
+    }
+
+    let mut mason = Mason::new();
+    let body = mason.create_node();
+    let root = mason.create_node();
+
+    mason.add_child(body.id(), root.id());
+
+    let div = mason.create_node();
+    mason.with_style_mut(div.id(), |style| {
+        style.set_display(Display::Flex);
+    });
+
+    let div_a = mason.create_node();
+
+    mason.with_style_mut(div_a.id(), |style| {
+        style.set_flex_grow(1.);
+    });
+
+    let text_a = mason.create_anonymous_text_node();
+    mason.add_child(div_a.id(), text_a.id());
+
+    mason.set_measure(
+        text_a.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    let div_b = mason.create_node();
+
+    mason.with_style_mut(div_b.id(), |style| {
+        style.set_flex_grow(1.);
+    });
+
+    let text_b = mason.create_anonymous_text_node();
+    mason.add_child(div_b.id(), text_b.id());
+
+    mason.set_measure(
+        text_b.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    let div_c = mason.create_node();
+
+    mason.with_style_mut(div_c.id(), |style| {
+        style.set_flex_grow(1.);
+    });
+
+    let text_c = mason.create_anonymous_text_node();
+    mason.add_child(div_c.id(), text_c.id());
+
+    mason.set_measure(
+        text_c.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    let div_d = mason.create_node();
+    let text_d = mason.create_anonymous_text_node();
+    mason.add_child(div_d.id(), text_d.id());
+
+    mason.set_measure(
+        text_d.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    mason.with_style_mut(div_d.id(), |style| {
+        style.set_flex_grow(2.);
+    });
+
+    let div_e = mason.create_node();
+    let text_e = mason.create_anonymous_text_node();
+    mason.add_child(div_e.id(), text_e.id());
+
+    mason.set_measure(
+        text_e.id(),
+        Some(flex_grow_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    mason.with_style_mut(div_e.id(), |style| {
+        style.set_flex_grow(2.);
+    });
+
+    let div_f = mason.create_node();
+
+    mason.with_style_mut(div_f.id(), |style| {
+        style.set_flex_grow(1.);
+    });
+
+    let text_f = mason.create_anonymous_text_node();
+    mason.add_child(div_f.id(), text_f.id());
+
+    mason.with_style_mut(text_f.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(10.),
+            height: Dimension::length(10.),
+        })
+    });
+
+    mason.add_child(div.id(), div_a.id());
+    mason.add_child(div.id(), div_b.id());
+    mason.add_child(div.id(), div_c.id());
+    mason.add_child(div.id(), div_d.id());
+    mason.add_child(div.id(), div_e.id());
+    mason.add_child(div.id(), div_f.id());
+
+    mason.add_child(root.id(), div.id());
+
+    mason.compute_wh(body.id(), 2000., 2000.);
+
+    mason.print_tree(body.id());
+}
+fn flex_direction_bug() {
+    let mut mason = Mason::new();
+    let body = mason.create_node();
+    let root = mason.create_node();
+
+    let h4_1 = mason.create_text_node();
+    let div_1 = mason.create_node();
+
+    mason.with_style_mut(div_1.id(), |style| {
+        style.set_border(Rect {
+            left: LengthPercentage::length(1.),
+            right: LengthPercentage::length(1.),
+            top: LengthPercentage::length(1.),
+            bottom: LengthPercentage::length(1.),
+        });
+        style.set_display(Display::Flex);
+        style.set_flex_direction(FlexDirection::ColumnReverse);
+        style.set_size(Size {
+            width: Dimension::length(200.),
+            height: Dimension::length(200.),
+        })
+    });
+
+    let div_1_box_a = mason.create_node();
+
+    let div_1_box_a_txt = mason.create_text_node();
+
+    mason.add_child(div_1_box_a.id(), div_1_box_a_txt.id());
+
+    mason.with_style_mut(div_1_box_a.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    let div_1_box_b = mason.create_node();
+
+    mason.with_style_mut(div_1_box_b.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    let div_1_box_c = mason.create_node();
+
+    mason.with_style_mut(div_1_box_c.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    mason.add_child(root.id(), h4_1.id());
+
+    mason.add_child(root.id(), div_1.id());
+
+    mason.add_child(div_1.id(), div_1_box_a.id());
+
+    mason.add_child(div_1.id(), div_1_box_b.id());
+
+    mason.add_child(div_1.id(), div_1_box_c.id());
+
+    let h4_2 = mason.create_text_node();
+    let div_2 = mason.create_node();
+
+    mason.with_style_mut(div_2.id(), |style| {
+        style.set_border(Rect {
+            left: LengthPercentage::length(1.),
+            right: LengthPercentage::length(1.),
+            top: LengthPercentage::length(1.),
+            bottom: LengthPercentage::length(1.),
+        });
+        style.set_display(Display::Flex);
+        style.set_flex_direction(FlexDirection::RowReverse);
+        style.set_size(Size {
+            width: Dimension::length(200.),
+            height: Dimension::length(200.),
+        })
+    });
+
+    let div_2_box_a = mason.create_node();
+
+    let div_2_box_a_txt = mason.create_text_node();
+
+    mason.add_child(div_2_box_a.id(), div_2_box_a_txt.id());
+
+    mason.with_style_mut(div_2_box_a.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    let div_2_box_b = mason.create_node();
+
+    mason.with_style_mut(div_2_box_b.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    let div_2_box_c = mason.create_node();
+
+    mason.with_style_mut(div_2_box_c.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(50.),
+            height: Dimension::length(50.),
+        })
+    });
+
+    mason.add_child(root.id(), h4_2.id());
+
+    mason.add_child(root.id(), div_2.id());
+
+    mason.add_child(div_2.id(), div_2_box_a.id());
+
+    mason.add_child(div_2.id(), div_2_box_b.id());
+
+    mason.add_child(div_2.id(), div_2_box_c.id());
+
+    mason.add_child(body.id(), root.id());
+
+    mason.compute_wh(body.id(), 2000., 2000.);
+
+    mason.print_tree(body.id());
+}
+fn inline_mix_bug() {
+    let mut mason = Mason::new();
+
+    extern "C" fn inline_mix_bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        if unsafe { *(id) } == 1 {
+            return MeasureOutput::make(10., 20.);
+        } else if unsafe { *(id) } == 2 {
+            return MeasureOutput::make(20., 20.);
+        } else if unsafe { *(id) } == 3 {
+            return MeasureOutput::make(0., 0.);
+        }
+
+        MeasureOutput::make(200., 200.)
+    }
+
+    let root = mason.create_node();
+    let one = mason.create_text_node();
+    let two = mason.create_text_node();
+    let three = mason.create_text_node();
+
+    let div = mason.create_node();
+    let second = mason.create_text_node();
+
+    let a = mason.create_text_node();
+    let b = mason.create_text_node();
+    let c = mason.create_text_node();
+
+    let d = mason.create_text_node();
+
+    mason.add_child(root.id(), one.id());
+    mason.add_child(root.id(), two.id());
+    mason.add_child(root.id(), three.id());
+
+    mason.add_child(div.id(), second.id());
+    mason.add_child(div.id(), a.id());
+    mason.add_child(div.id(), b.id());
+    mason.add_child(div.id(), c.id());
+    mason.add_child(div.id(), d.id());
+
+    mason.add_child(root.id(), div.id());
+
+    mason.set_measure(
+        one.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+    mason.set_measure(
+        two.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+    mason.set_measure(
+        three.id(),
+        Some(inline_mix_bug_measure_inline),
+        &1 as *const i32 as _,
+    );
+
+    mason.set_measure(
+        second.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+    mason.set_measure(
+        a.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+    mason.set_measure(
+        b.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+    mason.set_measure(
+        c.id(),
+        Some(inline_mix_bug_measure_inline),
+        &2 as *const i32 as _,
+    );
+    mason.set_measure(
+        d.id(),
+        Some(inline_mix_bug_measure_inline),
+        &3 as *const i32 as _,
+    );
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(root.id());
+}
+
+fn inline_node() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+    let first = mason.create_text_node();
+    let second = mason.create_text_node();
+    mason.with_style_mut(first.id(), |style| {
+        style.set_display_mode(DisplayMode::Inline);
+        style.set_size(Size {
+            width: Dimension::length(10.),
+            height: Dimension::length(10.),
+        });
+    });
+
+    mason.with_style_mut(second.id(), |style| {
+        style.set_display_mode(DisplayMode::Inline);
+        style.set_size(Size {
+            width: Dimension::length(10.),
+            height: Dimension::length(50.),
+        });
+    });
+
+    mason.add_child(root.id(), first.id());
+    mason.add_child(root.id(), second.id());
+    mason.compute(root.id());
+    mason.print_tree(root.id());
+}
+
+fn insert_test() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+    let node_a = mason.create_node();
+    mason.with_style_mut(node_a.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(1f32),
+            height: Dimension::length(1f32),
+        });
+    });
+    let node_b = mason.create_node();
+    mason.with_style_mut(node_b.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(2f32),
+            height: Dimension::length(2f32),
+        });
+    });
+
+    mason.add_child(root.id(), node_a.id());
+
+    let node_c = mason.create_node();
+    mason.with_style_mut(node_c.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(3f32),
+            height: Dimension::length(3f32),
+        });
+    });
+
+    mason.add_child(root.id(), node_c.id());
+
+    mason.insert_child_before(root.id(), node_b.id(), node_c.id());
+
+    let node_d = mason.create_node();
+    mason.with_style_mut(node_d.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(4f32),
+            height: Dimension::length(4f32),
+        });
+    });
+
+    mason.insert_child_after(root.id(), node_d.id(), node_c.id());
+
+    mason.compute(root.id());
+
+    mason.print_tree(root.id());
+}
+
+fn bug() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+    let node = mason.create_text_node();
+
+    extern "C" fn bug_measure_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        if unsafe { *(id) } == 1 {
+            return MeasureOutput::make(600., 400.);
+        }
+        MeasureOutput::make(200., 200.)
+    }
+
+    mason.set_measure(node.id(), Some(bug_measure_inline), &1 as *const i32 as _);
+
+    let child = mason.create_node();
+
+    mason.with_style_mut(child.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(300.),
+            height: Dimension::length(300.),
+        });
+    });
+
+    mason.add_child(node.id(), child.id());
+
+    mason.add_child(root.id(), node.id());
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+
+    mason.print_tree(root.id());
 }
 
 fn inline_bug() {

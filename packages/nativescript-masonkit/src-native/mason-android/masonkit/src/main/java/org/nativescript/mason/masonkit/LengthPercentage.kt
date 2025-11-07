@@ -37,9 +37,11 @@ sealed class LengthPercentage {
       is Points -> {
         this.points = value
       }
+
       is Percent -> {
         this.percentage = value
       }
+
       else -> {}
     }
   }
@@ -53,13 +55,15 @@ sealed class LengthPercentage {
     get() {
       return when (this) {
         is Points -> {
-          "$points$PxUnit"
+          "$points${Constants.PX_UNIT}"
         }
+
         is Zero -> {
-          "$points$PxUnit"
+          "$points${Constants.PX_UNIT}"
         }
+
         is Percent -> {
-          "${percentage * 100}$PercentUnit"
+          "${percentage * 100}${Constants.PERCENT_UNIT}"
         }
       }
     }
@@ -74,6 +78,8 @@ val Rect<LengthPercentage>.cssValue: String
   get() {
     return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
   }
+
+
 
 val Size<LengthPercentage>.jsonValue: String
   get() {

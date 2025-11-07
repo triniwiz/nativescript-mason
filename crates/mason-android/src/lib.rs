@@ -2,7 +2,7 @@ extern crate mason_c;
 
 use android_logger::Config;
 use itertools::izip;
-use jni::objects::{GlobalRef, JClass, JMethodID, JObject};
+use jni::objects::{GlobalRef, JClass, JFieldID, JMethodID, JObject};
 use jni::sys::{jint, jlong};
 use jni::JavaVM;
 use jni::{JNIEnv, NativeMethod};
@@ -14,7 +14,7 @@ use mason_core::{
     auto, fit_content, flex, length, max_content, min_content, percent, Mason, NodeRef,
     NonRepeatedTrackSizingFunction, TrackSizingFunction,
 };
-use mason_core::{LengthPercentage, JVM};
+use mason_core::{JVMCache, LengthPercentage, JVM, JVM_CACHE};
 
 mod node;
 pub mod style;
@@ -52,6 +52,73 @@ impl MinMaxCacheItem {
 }
 
 const MIN_MAX_CLASS: &str = "org/nativescript/mason/masonkit/MinMax";
+
+const INLINE_SEGMENT_CLASS: &str = "org/nativescript/mason/masonkit/InlineSegment";
+
+const INLINE_SEGMENT_TEXT_CLASS: &str = "org/nativescript/mason/masonkit/InlineSegment$Text";
+
+const INLINE_SEGMENT_INLINE_CHILD_CLASS: &str =
+    "org/nativescript/mason/masonkit/InlineSegment$InlineChild";
+
+const MEASURE_JNI_CLASS: &str = "org/nativescript/mason/masonkit/MeasureFuncImpl";
+
+const NODE_CLASS: &str = "org/nativescript/mason/masonkit/Node";
+
+#[derive(Clone)]
+pub struct InlineSegmentCacheItem {
+    clazz: GlobalRef,
+    text_clazz: GlobalRef,
+    kind: JFieldID,
+    inline_child_clazz: GlobalRef,
+    text_width: JFieldID,
+    text_ascent: JFieldID,
+    text_descent: JFieldID,
+    inline_node_ptr: JFieldID,
+    inline_child_descent: JFieldID,
+}
+
+impl InlineSegmentCacheItem {
+    pub fn new(
+        clazz: GlobalRef,
+        text_clazz: GlobalRef,
+        inline_child_clazz: GlobalRef,
+        kind: JFieldID,
+        text_width: JFieldID,
+        text_ascent: JFieldID,
+        text_descent: JFieldID,
+        inline_node_ptr: JFieldID,
+        inline_child_descent: JFieldID,
+    ) -> Self {
+        Self {
+            clazz,
+            text_clazz,
+            inline_child_clazz,
+            kind,
+            text_width,
+            text_ascent,
+            text_descent,
+            inline_node_ptr,
+            inline_child_descent,
+        }
+    }
+
+    pub fn clazz(&self) -> JClass<'_> {
+        let obj = unsafe { JObject::from_raw(self.clazz.as_raw()) };
+        JClass::from(obj)
+    }
+
+    pub fn text(&self) -> JClass<'_> {
+        let obj = unsafe { JObject::from_raw(self.text_clazz.as_raw()) };
+        JClass::from(obj)
+    }
+
+    pub fn inline_child(&self) -> JClass<'_> {
+        let obj = unsafe { JObject::from_raw(self.inline_child_clazz.as_raw()) };
+        JClass::from(obj)
+    }
+}
+
+pub static INLINE_SEGMENT: OnceCell<InlineSegmentCacheItem> = OnceCell::new();
 
 #[derive(Clone)]
 pub struct TrackSizingFunctionCacheItem {
@@ -124,7 +191,7 @@ const ANDROID_O: i32 = 26;
 
 pub(crate) const BUILD_VERSION_CLASS: &str = "android/os/Build$VERSION";
 
-const NODE_CLASS: &str = "org/nativescript/mason/masonkit/Node";
+const NATIVE_HELPERS_CLASS: &str = "org/nativescript/mason/masonkit/NativeHelpers";
 const MASON_CLASS: &str = "org/nativescript/mason/masonkit/Mason";
 const STYLE_CLASS: &str = "org/nativescript/mason/masonkit/Style";
 
@@ -188,40 +255,46 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
 
             let _ = env.register_native_methods(&mason_class, mason_native_methods.as_slice());
 
-            let node_class = env.find_class(NODE_CLASS).unwrap();
+            let native_helper_class = env.find_class(NATIVE_HELPERS_CLASS).unwrap();
 
-            let node_method_names = [
-                "nativeDestroy",
-                "nativeNewNode",
-                "nativeNewNodeWithContext",
-                "nativeGetChildCount",
-                "nativeComputeWH",
-                "nativeComputeSize",
-                "nativeComputeMaxContent",
-                "nativeComputeMinContent",
-                "nativeCompute",
-                "nativeGetChildAt",
-                "nativeAddChild",
-                "nativeReplaceChildAt",
-                "nativeAddChildAt",
-                "nativeInsertChildBefore",
-                "nativeInsertChildAfter",
-                "nativeDirty",
-                "nativeMarkDirty",
-                "nativeRemoveChildren",
-                "nativeRemoveChildAt",
-                "nativeRemoveChild",
-                "nativeRemoveContext",
-                "nativeComputeWithSizeAndLayout",
-                "nativeGetChildren",
-                "nativeLayout",
+            let native_helper_method_names = [
+                "nativeNodeDestroy",
+                "nativeNodeNew",
+                "nativeNodeNewWithContext",
+                "nativeNodeGetChildCount",
+                "nativeNodeComputeWH",
+                "nativeNodeComputeSize",
+                "nativeNodeComputeMaxContent",
+                "nativeNodeComputeMinContent",
+                "nativeNodeCompute",
+                "nativeNodeGetChildAt",
+                "nativeNodeAddChild",
+                "nativeNodeReplaceChildAt",
+                "nativeNodeAddChildAt",
+                "nativeNodeInsertChildBefore",
+                "nativeNodeInsertChildAfter",
+                "nativeNodeDirty",
+                "nativeNodeMarkDirty",
+                "nativeNodeRemoveChildren",
+                "nativeNodeRemoveChildAt",
+                "nativeNodeRemoveChild",
+                "nativeNodeRemoveContext",
+                "nativeNodeComputeWithSizeAndLayout",
+                "nativeNodeGetChildren",
+                "nativeNodeLayout",
+                "nativeNodeNewText",
+                "nativeNodeNewTextWithContext",
+                "nativeNodeSetChildren",
+                "nativeNodeSetSegments",
+                "nativeNodeSetContext",
+                "nativeSetAndroidNode",
             ];
 
-            let node_signatures = if ret >= ANDROID_O {
+            let native_helper_signatures = if ret >= ANDROID_O {
                 [
                     "(J)V",
-                    "(J)J",
-                    "(JLjava/lang/Object;)J",
+                    "(JZ)J",
+                    "(JLjava/lang/Object;Z)J",
                     "(JJ)I",
                     "(JJFF)V",
                     "(JJJ)V",
@@ -243,12 +316,18 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJFF)[F",
                     "(JJ)[J",
                     "(JJ)[F",
+                    "(JZ)J",
+                    "(JLjava/lang/Object;Z)J",
+                    "(JJ[J)V",
+                    "(JJ[Lorg/nativescript/mason/masonkit/InlineSegment;)V",
+                    "(JJLjava/lang/Object;)V",
+                    "(JJLorg/nativescript/mason/masonkit/Node;)V",
                 ]
             } else {
                 [
                     "!(J)V",
-                    "!(J)J",
-                    "!(JLjava/lang/Object;)J",
+                    "!(JZ)J",
+                    "!(JLjava/lang/Object;Z)J",
                     "!(JJ)I",
                     "!(JJFF)V",
                     "!(JJJ)V",
@@ -270,10 +349,16 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJFF)[F",
                     "!(JJ)[J",
                     "!(JJ)[F",
+                    "!(JZ)J",
+                    "!(JLjava/lang/Object;Z)J",
+                    "!(JJ[J)V",
+                    "!(JJ[Lorg/nativescript/mason/masonkit/InlineSegment;)V",
+                    "!(JJLjava/lang/Object;)V",
+                    "!(JJLorg/nativescript/mason/masonkit/Node;)V",
                 ]
             };
 
-            let node_methods = if ret >= ANDROID_O {
+            let native_helper_methods = if ret >= ANDROID_O {
                 [
                     node::NodeNativeDestroy as *mut c_void,
                     node::NodeNativeNewNode as *mut c_void,
@@ -299,6 +384,12 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::nativeComputeWithSizeAndLayout as *mut c_void,
                     node::nativeGetChildren as *mut c_void,
                     node::nativeLayout as *mut c_void,
+                    node::NodeNativeNewTextNode as *mut c_void,
+                    node::NodeNativeNewTextNodeWithContext as *mut c_void,
+                    node::NodeNativeSetChildren as *mut c_void,
+                    node::NodeNativeSetSegments as *mut c_void,
+                    node::NodeNativeSetContext as *mut c_void,
+                    node::NodeNativeSetAndroidNode as *mut c_void,
                 ]
             } else {
                 [
@@ -326,19 +417,29 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::nativeComputeWithSizeAndLayout as *mut c_void,
                     node::nativeGetChildren as *mut c_void,
                     node::nativeLayout as *mut c_void,
+                    node::NodeNativeNewTextNodeNormal as *mut c_void,
+                    node::NodeNativeNewTextNodeWithContext as *mut c_void,
+                    node::NodeNativeSetChildren as *mut c_void,
+                    node::NodeNativeSetSegments as *mut c_void,
+                    node::NodeNativeSetContext as *mut c_void,
+                    node::NodeNativeSetAndroidNode as *mut c_void,
                 ]
             };
 
-            let node_native_methods: Vec<NativeMethod> =
-                izip!(node_method_names, node_signatures, node_methods)
-                    .map(|(name, signature, method)| NativeMethod {
-                        name: name.into(),
-                        sig: signature.into(),
-                        fn_ptr: method,
-                    })
-                    .collect();
+            let node_native_methods: Vec<NativeMethod> = izip!(
+                native_helper_method_names,
+                native_helper_signatures,
+                native_helper_methods
+            )
+            .map(|(name, signature, method)| NativeMethod {
+                name: name.into(),
+                sig: signature.into(),
+                fn_ptr: method,
+            })
+            .collect();
 
-            let _ = env.register_native_methods(&node_class, node_native_methods.as_slice());
+            let _ =
+                env.register_native_methods(&native_helper_class, node_native_methods.as_slice());
 
             let style_class = env.find_class(STYLE_CLASS).unwrap();
 
@@ -440,6 +541,71 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     auto_repeat_value,
                     auto_repeat_grid_track_repetition,
                     auto_repeat_grid_track_repetition_count,
+                )
+            });
+
+            let inline_segment_clazz = env.find_class(INLINE_SEGMENT_CLASS).unwrap();
+            let inline_segment_text_clazz = env.find_class(INLINE_SEGMENT_TEXT_CLASS).unwrap();
+            let inline_segment_inline_child_clazz =
+                env.find_class(INLINE_SEGMENT_INLINE_CHILD_CLASS).unwrap();
+
+            let inline_segment_kind = env
+                .get_field_id(&inline_segment_clazz, "kind", "I")
+                .unwrap();
+
+            let inline_segment_text_width = env
+                .get_field_id(&inline_segment_text_clazz, "width", "F")
+                .unwrap();
+
+            let inline_segment_text_ascent = env
+                .get_field_id(&inline_segment_text_clazz, "ascent", "F")
+                .unwrap();
+
+            let inline_segment_text_descent = env
+                .get_field_id(&inline_segment_text_clazz, "descent", "F")
+                .unwrap();
+
+            let inline_segment_inline_child_node_ptr = env
+                .get_field_id(&inline_segment_inline_child_clazz, "nodePtr", "J")
+                .unwrap();
+
+            let inline_segment_inline_child_descent = env
+                .get_field_id(&inline_segment_inline_child_clazz, "descent", "F")
+                .unwrap();
+
+            INLINE_SEGMENT.get_or_init(|| {
+                InlineSegmentCacheItem::new(
+                    env.new_global_ref(inline_segment_clazz).unwrap(),
+                    env.new_global_ref(inline_segment_text_clazz).unwrap(),
+                    env.new_global_ref(inline_segment_inline_child_clazz)
+                        .unwrap(),
+                    inline_segment_kind,
+                    inline_segment_text_width,
+                    inline_segment_text_ascent,
+                    inline_segment_text_descent,
+                    inline_segment_inline_child_node_ptr,
+                    inline_segment_inline_child_descent,
+                )
+            });
+
+            let measure_clazz = env.find_class(MEASURE_JNI_CLASS).unwrap();
+
+            let node_clazz = env.find_class(NODE_CLASS).unwrap();
+
+            let measure_id = env
+                .get_method_id(&measure_clazz, "measure", "(JJ)J")
+                .unwrap();
+
+            let set_computed_size = env
+                .get_method_id(&node_clazz, "setComputedSize", "(FF)V")
+                .unwrap();
+
+            JVM_CACHE.get_or_init(|| {
+                JVMCache::new(
+                    env.new_global_ref(measure_clazz).unwrap(),
+                    measure_id,
+                    env.new_global_ref(node_clazz).unwrap(),
+                    set_computed_size,
                 )
             });
         }

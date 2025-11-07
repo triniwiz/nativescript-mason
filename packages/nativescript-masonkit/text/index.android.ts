@@ -1,5 +1,5 @@
-import { backgroundColorProperty, Color, colorProperty, CSSType, Utils } from '@nativescript/core';
-import { style_, TextBase, textProperty, textWrapProperty } from '../common';
+import { backgroundColorProperty, Color, colorProperty, CSSType, Utils, ViewBase } from '@nativescript/core';
+import { isMasonView_, isTextChild_, style_, TextBase, textProperty, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 
@@ -42,11 +42,12 @@ const enum TextWrap {
 @CSSType('Text')
 export class Text extends TextBase {
   [style_];
-  _hasNativeView = false;
   _inBatch = false;
   private _view: org.nativescript.mason.masonkit.TextView;
+  private _type: TextType;
   constructor(type: TextType = 0) {
     super();
+    this._type = type;
     const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
     switch (type) {
       case TextType.None:
@@ -90,9 +91,8 @@ export class Text extends TextBase {
         break;
     }
 
-    this._hasNativeView = true;
-    this._isMasonView = true;
-    this[style_] = Style.fromView(this as never, this._view, true);
+    this[isMasonView_] = true;
+    this[style_] = Style.fromView(this as never, this._view);
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -115,7 +115,25 @@ export class Text extends TextBase {
   [textProperty.setNative](value) {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
     if (nativeView) {
-      nativeView.updateText(value);
+      // hacking vue3 to handle text nodes
+      if (global.VUE3_ELEMENT_REF) {
+        const view_ref = this[global.VUE3_ELEMENT_REF];
+        if (Array.isArray(view_ref.childNodes)) {
+          if (view_ref.childNodes.length === 0 || view_ref.childNodes.length === 1) {
+            nativeView.addChildAt(value || '', 0);
+            return;
+          }
+
+          (view_ref.childNodes as any[]).forEach((node, index) => {
+            if (node.nodeType === 'text') {
+              nativeView.addChildAt(node.text || '', index);
+            }
+          });
+        }
+      } else {
+        // will replace all nodes with a new text node
+        nativeView.setTextContent(value);
+      }
     }
   }
 
@@ -152,14 +170,18 @@ export class Text extends TextBase {
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
-
     if (nativeView && child.nativeViewProtected) {
-      child._hasNativeView = true;
-      child._isMasonChild = true;
-      nativeView.addView(child.nativeViewProtected, atIndex ?? -1);
-      return true;
+      child[isTextChild_] = true;
+      const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      nativeView.addChildAt(child.nativeViewProtected, index as never);
     }
 
     return false;
+  }
+
+  _removeViewFromNativeVisualTree(view: ViewBase): void {
+    view[isTextChild_] = false;
+    // @ts-ignore
+    super._removeViewFromNativeVisualTree(view);
   }
 }

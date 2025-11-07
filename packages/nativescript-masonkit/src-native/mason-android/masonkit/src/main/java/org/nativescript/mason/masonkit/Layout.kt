@@ -83,20 +83,19 @@ data class Layout(
       )
     }
 
-    fun empty(): Layout {
-      return Layout(
-        0,
-        0F,
-        0F,
-        0F,
-        0F,
-        Rect(0F, 0F, 0F, 0F),
-        Rect(0F, 0F, 0F, 0F),
-        Rect(0F, 0F, 0F, 0F),
-        Size(0F, 0F),
-        Size(0F, 0F),
-        listOf()
-      )
-    }
+    @JvmStatic
+    val empty = Layout(
+      0,
+      0F,
+      0F,
+      0F,
+      0F,
+      Rect(0F, 0F, 0F, 0F),
+      Rect(0F, 0F, 0F, 0F),
+      Rect(0F, 0F, 0F, 0F),
+      Size(0F, 0F),
+      Size(0F, 0F),
+      listOf()
+    )
   }
 }
