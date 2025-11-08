@@ -25,38 +25,6 @@ export class Scroll extends ViewBase {
     return this._view;
   }
 
-  set text(value) {
-    const nativeView = this._view;
-    if (nativeView) {
-      if (global.VUE3_ELEMENT_REF) {
-        const view_ref = this[global.VUE3_ELEMENT_REF] as any;
-        if (Array.isArray(view_ref.childNodes)) {
-          if (view_ref.childNodes.length === 0) {
-            this.addChild({ [text_]: value });
-            return;
-          }
-          if (view_ref.childNodes.length === 1) {
-            const node = view_ref.childNodes[0];
-            if (node && node.nodeType === 'text') {
-              this.addChild({ [text_]: node.text });
-            }
-            return;
-          }
-
-          (view_ref.childNodes as any[]).forEach((node, index) => {
-            if (node.nodeType === 'text') {
-              //  nativeView.replaceChildAt(node.text, index);
-              this.replaceChild({ [text_]: node.text }, index);
-            }
-          });
-        }
-      } else {
-        // will replace all nodes with a new text node
-        // nativeView.setTextContent(value);
-      }
-    }
-  }
-
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   get android() {
@@ -70,7 +38,8 @@ export class Scroll extends ViewBase {
     if (nativeView && child.nativeViewProtected) {
       child._hasNativeView = true;
       child._isMasonChild = true;
-      nativeView.addView(child.nativeViewProtected, (atIndex ?? -1) as never);
+      const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      nativeView.addView(child.nativeViewProtected, index as never);
       return true;
     }
 

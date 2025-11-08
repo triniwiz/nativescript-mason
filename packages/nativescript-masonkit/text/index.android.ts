@@ -1,5 +1,5 @@
 import { backgroundColorProperty, Color, colorProperty, CSSType, Utils, ViewBase } from '@nativescript/core';
-import { isMasonView_, isTextChild_, style_, TextBase, textProperty, textWrapProperty } from '../common';
+import { isMasonView_, isTextChild_, style_, TextBase, textContentProperty, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 
@@ -112,28 +112,10 @@ export class Text extends TextBase {
     return this._view;
   }
 
-  [textProperty.setNative](value) {
+  [textContentProperty.setNative](value) {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
     if (nativeView) {
-      // hacking vue3 to handle text nodes
-      if (global.VUE3_ELEMENT_REF) {
-        const view_ref = this[global.VUE3_ELEMENT_REF];
-        if (Array.isArray(view_ref.childNodes)) {
-          if (view_ref.childNodes.length === 0 || view_ref.childNodes.length === 1) {
-            nativeView.addChildAt(value || '', 0);
-            return;
-          }
-
-          (view_ref.childNodes as any[]).forEach((node, index) => {
-            if (node.nodeType === 'text') {
-              nativeView.addChildAt(node.text || '', index);
-            }
-          });
-        }
-      } else {
-        // will replace all nodes with a new text node
-        nativeView.setTextContent(value);
-      }
+      nativeView.setTextContent(value);
     }
   }
 

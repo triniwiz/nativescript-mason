@@ -1,5 +1,5 @@
 import { backgroundColorProperty, Color, colorProperty, Utils, View, ViewBase } from '@nativescript/core';
-import { isMasonView_, isText_, isTextChild_, style_, text_, TextBase, textWrapProperty } from '../common';
+import { isMasonView_, isText_, isTextChild_, style_, text_, TextBase, textContentProperty, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { parseLength } from '../utils';
@@ -103,52 +103,12 @@ export class Text extends TextBase {
     return this._view;
   }
 
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  //@ts-ignore
-  get text() {
-    return this._view.text;
-  }
-
-  set text(value: string) {
+  [textContentProperty.setNative](value) {
     const nativeView = this._view;
     if (nativeView) {
-      // hacking vue3 to handle text nodes
-      // hacking vue3 to handle text nodes
-      if (global.VUE3_ELEMENT_REF) {
-        const view_ref = this[global.VUE3_ELEMENT_REF] as any;
-        if (Array.isArray(view_ref.childNodes)) {
-          if (view_ref.childNodes.length === 0) {
-            this.addChild({ [text_]: value });
-            return;
-          }
-          if (view_ref.childNodes.length === 1) {
-            const node = view_ref.childNodes[0];
-            if (node && node.nodeType === 'text') {
-              this.addChild({ [text_]: node.text });
-            }
-            return;
-          }
-
-          (view_ref.childNodes as any[]).forEach((node, index) => {
-            if (node.nodeType === 'text') {
-              this.replaceChild({ [text_]: node.text }, index);
-            }
-          });
-        }
-      } else {
-        // will replace all nodes with a new text node
-        nativeView.text = value;
-      }
+      nativeView.text = value;
     }
   }
-
-  // [textProperty.setNative](value) {
-  //   const nativeView = this._view;
-  //   console.log('text:setNative', value);
-  //   if (nativeView) {
-  //     nativeView.updateText(value);
-  //   }
-  // }
 
   [colorProperty.setNative](value) {
     switch (typeof value) {
@@ -332,12 +292,9 @@ export class Text extends TextBase {
     if (nativeView && child.nativeViewProtected) {
       child[isTextChild_] = true;
 
-      const index = atIndex ?? -1;
-      if (index >= 0) {
-        nativeView.addViewAt(child.nativeViewProtected, index);
-      } else {
-        nativeView.addView(child.nativeViewProtected);
-      }
+      const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      //@ts-ignore
+      nativeView.mason_addChildAt(child.nativeViewProtected, index);
       return true;
     }
 

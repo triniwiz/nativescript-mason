@@ -19,6 +19,22 @@ function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle
 
 export interface MasonChild extends ViewBase {}
 
+enum FrameWork {
+  Core,
+  Angular,
+  Vue,
+  React,
+  Svelte,
+  Solid,
+}
+
+let frameWork = FrameWork.Core;
+
+try {
+  global.VUE3_ELEMENT_REF = require('nativescript-vue').ELEMENT_REF;
+  frameWork = FrameWork.Vue;
+} catch (e) {}
+
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',
   cssName: 'scroll-bar-width',
@@ -372,6 +388,7 @@ export const displayProperty = new CssProperty<Style, Display>({
   defaultValue: 'block',
   valueChanged: (target, oldValue, newValue) => {
     const view = getViewStyle(target.viewRef);
+    console.log('Display changed from', oldValue, 'to', newValue);
     if (view && newValue) {
       view.display = newValue;
     } else {
@@ -1119,9 +1136,8 @@ export const textOverFlowProperty = new CssProperty<Style, 'clip' | 'ellipsis' |
   },
 });
 
-// @ts-ignore
-export const textProperty = new Property<TextBase, string>({
-  name: 'text',
+export const textContentProperty = new Property<TextBase, string>({
+  name: 'textContent',
   affectsLayout: true,
   defaultValue: '',
 });
@@ -1330,6 +1346,58 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       }
     }
     this._children.splice(0);
+  }
+
+  set text(value: string) {
+    if (frameWork === FrameWork.Vue && global.VUE3_ELEMENT_REF) {
+      const view_ref = this[global.VUE3_ELEMENT_REF] as any;
+      if (Array.isArray(view_ref.childNodes)) {
+        if (view_ref.childNodes.length === 0) {
+          this.addChild({ [text_]: value });
+          return;
+        }
+        if (view_ref.childNodes.length === 1) {
+          const node = view_ref.childNodes[0];
+          if (node && node.nodeType === 'text') {
+            this.addChild({ [text_]: node.text });
+          }
+          return;
+        }
+
+        (view_ref.childNodes as any[]).forEach((node, index) => {
+          if (node.nodeType === 'text') {
+            //  nativeView.replaceChildAt(node.text, index);
+            this.replaceChild({ [text_]: node.text }, index);
+          }
+        });
+      }
+      return;
+    }
+    if ('firstChild' in this) {
+      function getTextNodes(root) {
+        const result = [];
+        let node = root.firstChild;
+        while (node) {
+          result.push(node);
+          node = node.nextSibling;
+        }
+        return result;
+      }
+
+      const nodes = getTextNodes(this);
+
+      for (const [index, node] of nodes.entries()) {
+        if (node.nodeType === 'text' || node.nodeName === 'TextNode' || node.constructor.name === 'TextNode') {
+          const existing = this._children[index];
+          if (existing && Object.is(existing['node'], node)) {
+            // todo direct set text
+            this.replaceChild({ [text_]: node.text, node }, index);
+            continue;
+          }
+          this.replaceChild({ [text_]: node.text, node }, index);
+        }
+      }
+    }
   }
 
   [lineHeightProperty.setNative](value: CoreTypes.LengthType) {
@@ -1732,6 +1800,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     return this.style.gridAutoRows;
   }
 
+  // @ts-ignore
   [fontSizeProperty.setNative](value: Length) {
     // @ts-ignore
     if (this._styleHelper) {
@@ -1758,10 +1827,10 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 }
 
 export class TextBase extends ViewBase {
-  text: string;
+  textContent: string;
 }
 
-textProperty.register(TextBase);
+textContentProperty.register(TextBase);
 textWrapProperty.register(Style);
 textOverFlowProperty.register(Style);
 
