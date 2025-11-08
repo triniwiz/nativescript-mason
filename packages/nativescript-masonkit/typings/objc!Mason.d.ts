@@ -1234,7 +1234,7 @@ declare class MasonText extends UIView implements MasonElementObjc {
 
 	fontWeight: string;
 
-	text: string;
+	textContent: string;
 
 	textOverflowCompat: MasonTextOverflowCompat;
 

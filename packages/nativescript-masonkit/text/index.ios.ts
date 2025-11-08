@@ -106,7 +106,7 @@ export class Text extends TextBase {
   [textContentProperty.setNative](value) {
     const nativeView = this._view;
     if (nativeView) {
-      nativeView.text = value;
+      nativeView.textContent = value;
     }
   }
 
@@ -293,8 +293,8 @@ export class Text extends TextBase {
       child[isTextChild_] = true;
 
       const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
-      //@ts-ignore
-      nativeView.mason_addChildAt(child.nativeViewProtected, index);
+      console.log('Adding text child at index', index, 'with text:', child);
+      nativeView.addViewAt(child.nativeViewProtected, index);
       return true;
     }
 
