@@ -3,7 +3,7 @@ use crate::style::utils::{
     get_style_data_f32, get_style_data_i32, length_percentage_auto_from_type_value,
     length_percentage_auto_to_format_type_value, length_percentage_auto_to_type_value,
     length_percentage_from_type_value, length_percentage_to_format_type_value,
-    length_percentage_to_type_value, set_style_data_f32, set_style_data_i16, set_style_data_i32,
+    length_percentage_to_type_value, set_style_data_f32, set_style_data_i32,
 };
 use crate::utils::{
     align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
@@ -23,14 +23,19 @@ use objc2::__framework_prelude::Retained;
 #[cfg(target_vendor = "apple")]
 use objc2_foundation::NSMutableData;
 
-use std::fmt::Formatter;
+use std::fmt::{Debug, Formatter};
+use std::ops::Deref;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
+use style_atoms::Atom;
+use taffy::prelude::TaffyGridLine;
 use taffy::{
     AbsoluteAxis, AbstractAxis, AlignContent, AlignItems, AlignSelf, BlockContainerStyle,
     BlockItemStyle, BoxGenerationMode, BoxSizing, CoreStyle, Dimension, Display, FlexDirection,
-    FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, GridAutoFlow, GridContainerStyle,
-    GridItemStyle, GridPlacement, JustifyContent, JustifyItems, JustifySelf, LengthPercentage,
-    LengthPercentageAuto, Line, NonRepeatedTrackSizingFunction, Point, Position, Rect, Size,
-    TextAlign, TrackSizingFunction,
+    FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, GenericGridTemplateComponent, GridAutoFlow,
+    GridContainerStyle, GridItemStyle, GridPlacement, GridTemplateArea, GridTemplateComponent,
+    GridTemplateRepetition, JustifyContent, JustifyItems, JustifySelf, LengthPercentage,
+    LengthPercentageAuto, Line, Point, Position, Rect, Size, TextAlign, TrackSizingFunction,
 };
 
 pub mod utils;
@@ -226,19 +231,94 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
 pub struct Style {
     raw_data: *mut u8,
     raw_data_len: usize,
     data_owned: bool,
-    grid_template_rows: Vec<TrackSizingFunction>,
-    grid_template_columns: Vec<TrackSizingFunction>,
-    grid_auto_rows: Vec<NonRepeatedTrackSizingFunction>,
-    grid_auto_columns: Vec<NonRepeatedTrackSizingFunction>,
+    grid_area: Option<Atom>,
+    grid_column_start: GridPlacement<Atom>,
+    grid_column_end: GridPlacement<Atom>,
+    grid_row_start: GridPlacement<Atom>,
+    grid_row_end: GridPlacement<Atom>,
+    grid_template_rows: Vec<GridTemplateComponent<Atom>>,
+    grid_template_rows_raw: Option<Atom>,
+    grid_template_columns: Vec<GridTemplateComponent<Atom>>,
+    grid_template_columns_raw: Option<Atom>,
+    grid_auto_rows: Vec<TrackSizingFunction>,
+    grid_auto_rows_raw: Option<Atom>,
+    grid_auto_columns: Vec<TrackSizingFunction>,
+    grid_auto_columns_raw: Option<Atom>,
+    pub(crate) grid_template_areas: Vec<GridTemplateArea<Atom>>,
+    pub(crate) grid_template_areas_raw: Atom,
+    grid_template_column_names: Vec<Vec<Atom>>,
+    grid_template_row_names: Vec<Vec<Atom>>,
     #[cfg(target_os = "android")]
     pub(crate) buffer: jni::objects::GlobalRef,
     #[cfg(target_vendor = "apple")]
     pub(crate) buffer: Retained<NSMutableData>,
+    pub(crate) device_scale: Option<Arc<AtomicU32>>,
+}
+
+impl Debug for Style {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let size = self.size();
+
+        let size = DisplaySize::from(size);
+
+        let min_size = DisplaySize::from(self.min_size());
+
+        let max_size = DisplaySize::from(self.max_size());
+
+        f.debug_struct("Style")
+            .field("display", &self.get_display())
+            .field("displayMode", &self.display_mode())
+            .field("itemIsTable", &self.get_item_is_table())
+            .field("itemIsReplaced", &self.get_item_is_replaced())
+            .field("boxSizing", &self.get_box_sizing())
+            .field("overflow", &self.get_overflow())
+            .field("scrollbarWidth", &self.get_scrollbar_width())
+            .field("position", &self.get_position())
+            .field("size", &size)
+            .field("minSize", &min_size)
+            .field("maxSize", &max_size)
+            .field("border", &DisplayRect::from(self.get_border()))
+            .field("padding", &DisplayRect::from(self.get_padding()))
+            .field("margin", &DisplayRect::from(self.get_margin()))
+            .field("inset", &DisplayRect::from(self.get_inset()))
+            .field("aspectRatio", &self.get_aspect_ratio())
+            .field("gap", &DisplaySize::from(self.get_gap()))
+            .field("alignItems", &self.get_align_items())
+            .field("alignSelf", &self.get_align_self())
+            .field("justifyItems", &self.get_justify_items())
+            .field("justifySelf", &self.get_justify_self())
+            .field("alignContent", &self.get_align_content())
+            .field("justifyContent", &self.get_justify_content())
+            .field("textAlign", &self.get_text_align())
+            .field("flexDirection", &self.get_flex_direction())
+            .field("flexWrap", &self.get_flex_wrap())
+            .field("flexGrow", &self.get_flex_grow())
+            .field("flexShrink", &self.get_flex_shrink())
+            .field(
+                "flex_basis",
+                &dimension_to_format_type_value(self.get_flex_basis()),
+            )
+            .field("grid_area", &self.grid_area)
+            .field(
+                "grid_template_areas",
+                &self.get_grid_template_areas_as_css(),
+            )
+            .field("grid_template_rows", &self.get_grid_template_rows_css())
+            .field(
+                "grid_template_columns",
+                &self.get_grid_template_columns_css(),
+            )
+            .field("grid_auto_rows", &self.get_grid_auto_rows_css())
+            .field("grid_auto_columns", &self.get_grid_auto_columns_css())
+            .field("grid_auto_flow", &self.grid_auto_flow())
+            .field("grid_row", &self.get_grid_row_css())
+            .field("grid_column", &self.get_grid_column_css())
+            .finish()
+    }
 }
 
 struct DisplaySize<T> {
@@ -275,7 +355,7 @@ impl std::fmt::Display for DisplaySize<Dimension> {
     }
 }
 
-impl std::fmt::Debug for DisplaySize<Dimension> {
+impl Debug for DisplaySize<Dimension> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
     }
@@ -292,7 +372,7 @@ impl std::fmt::Display for DisplaySize<LengthPercentage> {
     }
 }
 
-impl std::fmt::Debug for DisplaySize<LengthPercentage> {
+impl Debug for DisplaySize<LengthPercentage> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
     }
@@ -329,7 +409,7 @@ impl std::fmt::Display for DisplayRect<LengthPercentage> {
     }
 }
 
-impl std::fmt::Debug for DisplayRect<LengthPercentage> {
+impl Debug for DisplayRect<LengthPercentage> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
     }
@@ -359,7 +439,7 @@ impl std::fmt::Display for DisplayRect<LengthPercentageAuto> {
     }
 }
 
-impl std::fmt::Debug for DisplayRect<LengthPercentageAuto> {
+impl Debug for DisplayRect<LengthPercentageAuto> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
     }
@@ -408,13 +488,16 @@ impl std::fmt::Display for Style {
                 "flex_basis",
                 &dimension_to_format_type_value(self.get_flex_basis()),
             )
-            .field("grid_template_rows", &self.grid_template_rows())
-            .field("grid_template_columns", &self.grid_template_columns())
-            .field("grid_auto_rows", &self.grid_auto_rows())
-            .field("grid_auto_columns", &self.grid_auto_columns())
-            .field("grid_auto_flow", &self.grid_auto_flow())
-            .field("grid_row", &self.grid_row())
-            .field("grid_column", &self.grid_column())
+            .field("grid_template_rows", &self.get_grid_template_rows_css())
+            .field(
+                "grid_template_columns",
+                &self.get_grid_template_columns_css(),
+            )
+            .field("grid_auto_rows", &self.get_grid_auto_rows_css())
+            .field("grid_auto_columns", &self.get_grid_auto_columns_css())
+            .field("grid_auto_flow", &self.get_grid_auto_flow())
+            .field("grid_row", &self.get_grid_row_css())
+            .field("grid_column", &self.get_grid_column_css())
             .finish()
     }
 }
@@ -446,11 +529,25 @@ impl Clone for Style {
             raw_data: ptr,
             raw_data_len: len,
             grid_template_rows: self.grid_template_rows.clone(),
+            grid_template_rows_raw: self.grid_template_rows_raw.clone(),
             grid_template_columns: self.grid_template_columns.clone(),
+            grid_template_columns_raw: self.grid_template_columns_raw.clone(),
             grid_auto_rows: self.grid_auto_rows.clone(),
+            grid_auto_rows_raw: self.grid_auto_rows_raw.clone(),
             grid_auto_columns: self.grid_auto_columns.clone(),
+            grid_auto_columns_raw: self.grid_auto_columns_raw.clone(),
+            grid_template_areas: self.grid_template_areas.clone(),
+            grid_template_areas_raw: self.grid_template_areas_raw.clone(),
+            grid_template_column_names: self.grid_template_column_names.clone(),
+            grid_template_row_names: self.grid_template_row_names.clone(),
             buffer: buffer_ref,
             data_owned: true,
+            grid_area: self.grid_area.clone(),
+            grid_column_start: self.grid_column_start.clone(),
+            grid_column_end: self.grid_column_end.clone(),
+            grid_row_start: self.grid_row_start.clone(),
+            grid_row_end: self.grid_row_end.clone(),
+            device_scale: self.device_scale.clone(),
         }
     }
 
@@ -468,12 +565,26 @@ impl Clone for Style {
             raw_data: ptr,
             raw_data_len: len,
             grid_template_rows: self.grid_template_rows.clone(),
+            grid_template_rows_raw: self.grid_template_rows_raw.clone(),
             grid_template_columns: self.grid_template_columns.clone(),
+            grid_template_columns_raw: self.grid_template_columns_raw.clone(),
             grid_auto_rows: self.grid_auto_rows.clone(),
+            grid_auto_rows_raw: self.grid_auto_rows_raw.clone(),
             grid_auto_columns: self.grid_auto_columns.clone(),
+            grid_auto_columns_raw: self.grid_auto_columns_raw.clone(),
+            grid_template_areas: self.grid_template_areas.clone(),
+            grid_template_areas_raw: self.grid_template_areas_raw.clone(),
+            grid_template_column_names: self.grid_template_column_names.clone(),
+            grid_template_row_names: self.grid_template_row_names.clone(),
             #[cfg(target_vendor = "apple")]
             buffer,
             data_owned: false,
+            grid_area: self.grid_area.clone(),
+            grid_column_start: self.grid_column_start.clone(),
+            grid_column_end: self.grid_column_end.clone(),
+            grid_row_start: self.grid_row_start.clone(),
+            grid_row_end: self.grid_row_end.clone(),
+            device_scale: self.device_scale.clone(),
         }
     }
 
@@ -492,10 +603,24 @@ impl Clone for Style {
             raw_data: ptr,
             raw_data_len: len,
             grid_template_rows: self.grid_template_rows.clone(),
+            grid_template_rows_raw: self.grid_template_rows_raw.clone(),
             grid_template_columns: self.grid_template_columns.clone(),
+            grid_template_columns_raw: self.grid_template_columns_raw.clone(),
             grid_auto_rows: self.grid_auto_rows.clone(),
+            grid_auto_rows_raw: self.grid_auto_rows_raw.clone(),
             grid_auto_columns: self.grid_auto_columns.clone(),
+            grid_auto_columns_raw: self.grid_auto_columns_raw.clone(),
+            grid_template_areas: self.grid_template_areas.clone(),
+            grid_template_areas_raw: self.grid_template_areas_raw.clone(),
+            grid_template_column_names: self.grid_template_column_names.clone(),
+            grid_template_row_names: self.grid_template_row_names.clone(),
             data_owned: true,
+            grid_area: self.grid_area.clone(),
+            grid_column_start: self.grid_column_start.clone(),
+            grid_column_end: self.grid_column_end.clone(),
+            grid_row_start: self.grid_row_start.clone(),
+            grid_row_end: self.grid_row_end.clone(),
+            device_scale: self.device_scale.clone(),
         }
     }
 }
@@ -514,6 +639,12 @@ impl Drop for Style {
 }
 
 impl Style {
+    pub fn get_device_scale(&self) -> f32 {
+        self.device_scale
+            .as_ref()
+            .map(|scale| f32::from_bits(scale.load(Ordering::Acquire)))
+            .unwrap_or(1f32)
+    }
     fn default_data() -> Vec<u8> {
         // last item + 4 bytes
         let mut buffer = vec![0_u8; 348];
@@ -613,9 +744,23 @@ impl Style {
         self.buffer = env.new_global_ref(db).unwrap();
 
         self.grid_template_rows = other.grid_template_rows.clone();
+        self.grid_template_rows_raw = other.grid_template_rows_raw.clone();
         self.grid_template_columns = other.grid_template_columns.clone();
+        self.grid_template_columns_raw = other.grid_template_columns_raw.clone();
         self.grid_auto_rows = other.grid_auto_rows.clone();
+        self.grid_auto_rows_raw = other.grid_auto_rows_raw.clone();
         self.grid_auto_columns = other.grid_auto_columns.clone();
+        self.grid_auto_columns_raw = other.grid_auto_columns_raw.clone();
+        self.grid_template_areas = other.grid_template_areas.clone();
+        self.grid_template_areas_raw = other.grid_template_areas_raw.clone();
+        self.grid_template_column_names = other.grid_template_column_names.clone();
+        self.grid_template_row_names = other.grid_template_row_names.clone();
+        self.grid_area = other.grid_area.clone();
+        self.grid_column_start = other.grid_column_start.clone();
+        self.grid_column_end = other.grid_column_end.clone();
+        self.grid_row_start = other.grid_row_start.clone();
+        self.grid_row_end = other.grid_row_end.clone();
+        self.device_scale = other.device_scale.clone();
     }
 
     #[cfg(not(any(target_vendor = "apple", target_os = "android")))]
@@ -634,10 +779,25 @@ impl Style {
         self.raw_data = copy.as_mut_ptr();
         self.raw_data_len = copy.len();
         std::mem::forget(copy);
+
         self.grid_template_rows = other.grid_template_rows.clone();
+        self.grid_template_rows_raw = other.grid_template_rows_raw.clone();
         self.grid_template_columns = other.grid_template_columns.clone();
+        self.grid_template_columns_raw = other.grid_template_columns_raw.clone();
         self.grid_auto_rows = other.grid_auto_rows.clone();
+        self.grid_auto_rows_raw = other.grid_auto_rows_raw.clone();
         self.grid_auto_columns = other.grid_auto_columns.clone();
+        self.grid_auto_columns_raw = other.grid_auto_columns_raw.clone();
+        self.grid_template_areas = other.grid_template_areas.clone();
+        self.grid_template_areas_raw = other.grid_template_areas_raw.clone();
+        self.grid_template_column_names = other.grid_template_column_names.clone();
+        self.grid_template_row_names = other.grid_template_row_names.clone();
+        self.grid_area = other.grid_area.clone();
+        self.grid_column_start = other.grid_column_start.clone();
+        self.grid_column_end = other.grid_column_end.clone();
+        self.grid_row_start = other.grid_row_start.clone();
+        self.grid_row_end = other.grid_row_end.clone();
+        self.device_scale = other.device_scale.clone();
     }
 
     #[cfg(target_vendor = "apple")]
@@ -649,10 +809,25 @@ impl Style {
             self.raw_data = buffer.as_mut_ptr();
             self.raw_data_len = buffer.len();
         }
+
         self.grid_template_rows = other.grid_template_rows.clone();
+        self.grid_template_rows_raw = other.grid_template_rows_raw.clone();
         self.grid_template_columns = other.grid_template_columns.clone();
+        self.grid_template_columns_raw = other.grid_template_columns_raw.clone();
         self.grid_auto_rows = other.grid_auto_rows.clone();
+        self.grid_auto_rows_raw = other.grid_auto_rows_raw.clone();
         self.grid_auto_columns = other.grid_auto_columns.clone();
+        self.grid_auto_columns_raw = other.grid_auto_columns_raw.clone();
+        self.grid_template_areas = other.grid_template_areas.clone();
+        self.grid_template_areas_raw = other.grid_template_areas_raw.clone();
+        self.grid_template_column_names = other.grid_template_column_names.clone();
+        self.grid_template_row_names = other.grid_template_row_names.clone();
+        self.grid_area = other.grid_area.clone();
+        self.grid_column_start = other.grid_column_start.clone();
+        self.grid_column_end = other.grid_column_end.clone();
+        self.grid_row_start = other.grid_row_start.clone();
+        self.grid_row_end = other.grid_row_end.clone();
+        self.device_scale = other.device_scale.clone();
     }
 
     #[cfg(target_os = "android")]
@@ -677,11 +852,25 @@ impl Style {
             raw_data: ptr,
             raw_data_len: len,
             grid_template_rows: Default::default(),
+            grid_template_rows_raw: None,
             grid_template_columns: Default::default(),
+            grid_template_columns_raw: None,
             grid_auto_rows: Default::default(),
+            grid_auto_rows_raw: None,
             grid_auto_columns: Default::default(),
+            grid_auto_columns_raw: None,
+            grid_template_areas: Default::default(),
+            grid_template_areas_raw: Default::default(),
+            grid_template_column_names: Default::default(),
             data_owned: true,
+            grid_area: None,
+            grid_column_start: Default::default(),
+            grid_column_end: Default::default(),
+            grid_row_start: Default::default(),
             buffer: buffer_ref,
+            grid_row_end: Default::default(),
+            grid_template_row_names: Default::default(),
+            device_scale: None,
         }
     }
 
@@ -694,14 +883,28 @@ impl Style {
         let len = raw.len();
         Self {
             grid_template_rows: Default::default(),
+            grid_template_rows_raw: None,
             grid_template_columns: Default::default(),
+            grid_template_columns_raw: None,
             grid_auto_rows: Default::default(),
+            grid_auto_rows_raw: None,
             grid_auto_columns: Default::default(),
+            grid_auto_columns_raw: None,
+            grid_template_areas: Default::default(),
+            grid_template_areas_raw: Default::default(),
+            grid_template_column_names: Default::default(),
+            grid_template_row_names: Default::default(),
             #[cfg(target_vendor = "apple")]
-            buffer: buffer,
+            buffer,
             raw_data: ptr,
             raw_data_len: len,
             data_owned: false,
+            grid_area: None,
+            grid_column_start: Default::default(),
+            grid_column_end: Default::default(),
+            grid_row_start: Default::default(),
+            grid_row_end: Default::default(),
+            device_scale: None,
         }
     }
 
@@ -714,12 +917,39 @@ impl Style {
 
         Self {
             grid_template_rows: Default::default(),
+            grid_template_rows_raw: None,
             grid_template_columns: Default::default(),
+            grid_template_columns_raw: None,
             grid_auto_rows: Default::default(),
+            grid_auto_rows_raw: None,
             grid_auto_columns: Default::default(),
+            grid_auto_columns_raw: None,
+            grid_template_areas: vec![],
+            grid_template_areas_raw: Default::default(),
+            grid_template_column_names: vec![],
+            grid_template_row_names: vec![],
+            buffer: Default::default(),
             raw_data: ptr,
             raw_data_len: len,
             data_owned: true,
+            grid_area: None,
+            grid_column_start: Default::default(),
+            grid_column_end: Default::default(),
+            grid_row_start: Default::default(),
+            grid_row_end: Default::default(),
+            device_scale: None,
+        }
+    }
+
+    pub fn set_grid_template_areas_css(&mut self, value: &str) {
+        let areas = crate::utils::parse_grid_template_areas(value);
+        if let Ok(areas) = areas {
+            if areas.is_empty() {
+                self.grid_template_areas_raw = Default::default();
+            } else {
+                self.grid_template_areas_raw = Atom::from(value);
+            }
+            self.grid_template_areas = areas;
         }
     }
 
@@ -1540,108 +1770,316 @@ impl Style {
         )
     }
 
-    pub fn get_grid_row(&self) -> Line<GridPlacement> {
-        Line {
-            start: utils::grid_placement(
-                get_style_data_i32(self.data(), StyleKeys::GRID_ROW_START_TYPE),
-                utils::get_style_data_i16(self.data(), StyleKeys::GRID_ROW_START_VALUE),
-            ),
-            end: utils::grid_placement(
-                get_style_data_i32(self.data(), StyleKeys::GRID_ROW_END_TYPE),
-                utils::get_style_data_i16(self.data(), StyleKeys::GRID_ROW_END_VALUE),
-            ),
+    pub(crate) fn resolve_grid_area_from_template_areas(
+        &mut self,
+        template_areas: &[GridTemplateArea<Atom>],
+    ) {
+        if let Some(name) = &self.grid_area {
+            if let Some(area) = template_areas.iter().find(|a| &a.name == name) {
+                // Grid lines in Taffy use 1-based indexing (CSS Grid standard)
+                // But area indices are 0-based, so add 1
+                self.grid_row_start = GridPlacement::from_line_index((area.row_start + 1) as i16);
+                self.grid_row_end = GridPlacement::from_line_index((area.row_end + 1) as i16);
+                self.grid_column_start =
+                    GridPlacement::from_line_index((area.column_start + 1) as i16);
+                self.grid_column_end = GridPlacement::from_line_index((area.column_end + 1) as i16);
+            }
         }
     }
 
-    pub fn set_grid_row(&mut self, value: Line<GridPlacement>) {
-        let data = self.data_mut();
-        let grid_row_start = utils::grid_placement_to_value(value.start);
-        set_style_data_i32(data, StyleKeys::GRID_ROW_START_TYPE, grid_row_start.0);
-
-        set_style_data_i16(data, StyleKeys::GRID_ROW_START_VALUE, grid_row_start.1);
-
-        let grid_row_end = utils::grid_placement_to_value(value.end);
-        set_style_data_i32(data, StyleKeys::GRID_ROW_END_TYPE, grid_row_end.0);
-
-        set_style_data_i16(data, StyleKeys::GRID_ROW_END_VALUE, grid_row_end.1);
+    pub fn get_grid_name(&self) -> Option<&str> {
+        self.grid_area.as_deref()
     }
 
-    pub fn get_grid_column(&self) -> Line<GridPlacement> {
-        Line {
-            start: utils::grid_placement(
-                get_style_data_i32(self.data(), StyleKeys::GRID_COLUMN_START_TYPE),
-                utils::get_style_data_i16(self.data(), StyleKeys::GRID_COLUMN_START_VALUE),
-            ),
-            end: utils::grid_placement(
-                get_style_data_i32(self.data(), StyleKeys::GRID_COLUMN_END_TYPE),
-                utils::get_style_data_i16(self.data(), StyleKeys::GRID_COLUMN_END_VALUE),
-            ),
+    pub fn set_grid_area<T>(&mut self, name: T)
+    where
+        T: Into<Atom>,
+    {
+        let area = name.into();
+        if area.is_empty() {
+            self.grid_row_start = GridPlacement::Auto;
+            self.grid_row_end = GridPlacement::Auto;
+            self.grid_column_start = GridPlacement::Auto;
+            self.grid_column_end = GridPlacement::Auto;
+            self.grid_area = None;
+            return;
+        }
+        let value = crate::utils::parse_grid_area(area.as_ref());
+        if let Ok(value) = value {
+            self.grid_row_start = value.row_start;
+            self.grid_row_end = value.row_end;
+            self.grid_column_start = value.column_start;
+            self.grid_column_end = value.column_end;
+
+            self.grid_area = crate::utils::get_grid_area(
+                Line {
+                    start: self.grid_row_start.clone(),
+                    end: self.grid_row_end.clone(),
+                },
+                Line {
+                    start: self.grid_column_start.clone(),
+                    end: self.grid_column_end.clone(),
+                },
+            )
+            .map(|value| Atom::from(value));
         }
     }
 
-    pub fn set_grid_column(&mut self, value: Line<GridPlacement>) {
-        let data = self.data_mut();
-        let grid_column_start = utils::grid_placement_to_value(value.start);
-        set_style_data_i32(data, StyleKeys::GRID_COLUMN_START_TYPE, grid_column_start.0);
+    pub(crate) fn reset_grid_area(&mut self) {
+        self.grid_row_start = GridPlacement::Auto;
+        self.grid_row_end = GridPlacement::Auto;
+        self.grid_column_start = GridPlacement::Auto;
+        self.grid_column_end = GridPlacement::Auto;
 
-        set_style_data_i16(
-            data,
-            StyleKeys::GRID_COLUMN_START_VALUE,
-            grid_column_start.1,
-        );
-
-        let grid_column_end = utils::grid_placement_to_value(value.end);
-        set_style_data_i32(data, StyleKeys::GRID_COLUMN_END_TYPE, grid_column_end.0);
-
-        set_style_data_i16(data, StyleKeys::GRID_COLUMN_END_VALUE, grid_column_end.1);
+        self.grid_area = None;
     }
 
-    pub fn set_grid_template_rows(&mut self, value: Vec<TrackSizingFunction>) {
-        self.grid_template_rows = value
+    pub fn get_grid_row(&self) -> Line<GridPlacement<Atom>> {
+        Line {
+            start: self.grid_row_start.clone(),
+            end: self.grid_row_end.clone(),
+        }
+    }
+    pub fn set_grid_row(&mut self, value: Line<GridPlacement<Atom>>) {
+        self.grid_row_start = value.start;
+        self.grid_row_end = value.end;
+    }
+    pub fn set_grid_row_start(&mut self, value: GridPlacement<Atom>) {
+        self.grid_row_start = value;
+    }
+    pub fn get_grid_row_css(&self) -> Option<String> {
+        crate::utils::to_line_css(&self.grid_row_start, &self.grid_row_end)
+    }
+    pub fn set_grid_row_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_row_start = GridPlacement::Auto;
+            self.grid_row_end = GridPlacement::Auto;
+        } else {
+            if let Ok(row) = crate::utils::parse_grid_placement_shorthand(value) {
+                self.grid_row_start = row.0;
+                self.grid_row_end = row.1;
+            }
+        }
+    }
+    pub fn get_grid_row_start_css(&self) -> String {
+        crate::utils::grid_placement_to_string(&self.grid_row_start)
+    }
+    pub fn set_grid_row_start_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_row_start = GridPlacement::Auto;
+        } else {
+            if let Ok(start) = crate::utils::parse_grid_placement(value) {
+                self.grid_row_start = start;
+            }
+        }
+    }
+    pub fn set_grid_row_end(&mut self, value: GridPlacement<Atom>) {
+        self.grid_row_end = value;
+    }
+    pub fn set_grid_row_end_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_row_end = GridPlacement::Auto;
+        } else {
+            if let Ok(start) = crate::utils::parse_grid_placement(value) {
+                self.grid_row_end = start;
+            }
+        }
     }
 
-    pub fn set_grid_template_columns(&mut self, value: Vec<TrackSizingFunction>) {
-        self.grid_template_columns = value
+    pub fn get_grid_row_end_css(&self) -> String {
+        crate::utils::grid_placement_to_string(&self.grid_row_end)
     }
 
-    pub fn set_grid_auto_rows(&mut self, value: Vec<NonRepeatedTrackSizingFunction>) {
+    pub fn get_grid_column(&self) -> Line<GridPlacement<Atom>> {
+        Line {
+            start: self.grid_column_start.clone(),
+            end: self.grid_column_end.clone(),
+        }
+    }
+
+    pub fn get_grid_column_start_css(&self) -> String {
+        crate::utils::grid_placement_to_string(&self.grid_column_start)
+    }
+    pub fn get_grid_column_end_css(&self) -> String {
+        crate::utils::grid_placement_to_string(&self.grid_column_end)
+    }
+
+    pub fn get_grid_column_css(&self) -> Option<String> {
+        crate::utils::to_line_css(&self.grid_column_start, &self.grid_column_end)
+    }
+
+    pub fn set_grid_column(&mut self, value: Line<GridPlacement<Atom>>) {
+        self.grid_column_start = value.start;
+        self.grid_column_end = value.end;
+    }
+
+    pub fn set_grid_column_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_column_start = GridPlacement::Auto;
+            self.grid_column_end = GridPlacement::Auto;
+        } else {
+            if let Ok(col) = crate::utils::parse_grid_placement_shorthand(value) {
+                self.grid_column_start = col.0;
+                self.grid_column_end = col.1;
+            }
+        }
+    }
+
+    pub fn set_grid_column_start(&mut self, value: GridPlacement<Atom>) {
+        self.grid_column_start = value;
+    }
+    pub fn set_grid_column_start_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_column_start = GridPlacement::Auto;
+        } else {
+            if let Ok(start) = crate::utils::parse_grid_placement(value) {
+                self.grid_column_start = start;
+            }
+        }
+    }
+
+    pub fn set_grid_column_end(&mut self, value: GridPlacement<Atom>) {
+        self.grid_column_end = value;
+    }
+    pub fn set_grid_column_end_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_column_end = GridPlacement::Auto;
+        } else {
+            if let Ok(start) = crate::utils::parse_grid_placement(value) {
+                self.grid_column_end = start;
+            }
+        }
+    }
+
+    pub fn set_grid_template_rows_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_template_rows = vec![];
+            self.grid_template_rows_raw = None;
+        } else {
+            if let Ok(template) = crate::utils::parse_grid_template(value, self.get_device_scale())
+            {
+                self.grid_template_rows = template;
+                self.grid_template_rows_raw = Some(Atom::from(value));
+            }
+        }
+    }
+    pub fn set_grid_template_rows(&mut self, value: Option<Vec<GridTemplateComponent<Atom>>>) {
+        self.grid_template_rows = value.unwrap_or_default()
+    }
+
+    pub fn set_grid_template_columns_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_template_columns = vec![];
+            self.grid_template_columns_raw = None;
+        } else {
+            if let Ok(template) = crate::utils::parse_grid_template(value, self.get_device_scale())
+            {
+                self.grid_template_columns = template;
+                self.grid_template_columns_raw = Some(Atom::from(value));
+            }
+        }
+    }
+    pub fn set_grid_template_columns(&mut self, value: Option<Vec<GridTemplateComponent<Atom>>>) {
+        self.grid_template_columns = value.unwrap_or_default()
+    }
+
+    pub fn set_grid_auto_rows_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_auto_rows_raw = None;
+            self.grid_auto_rows = vec![];
+        } else {
+            if let Ok(tracks) = crate::utils::parse_grid_auto_tracks(value, self.get_device_scale())
+            {
+                self.grid_auto_rows_raw = Some(Atom::from(value));
+                self.grid_auto_rows = tracks
+            }
+        }
+    }
+
+    pub fn set_grid_auto_rows(&mut self, value: Vec<TrackSizingFunction>) {
         self.grid_auto_rows = value
     }
 
-    pub fn set_grid_auto_columns(&mut self, value: Vec<NonRepeatedTrackSizingFunction>) {
+    pub fn set_grid_auto_columns_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_auto_columns_raw = None;
+            self.grid_auto_columns = vec![];
+        } else {
+            if let Ok(tracks) = crate::utils::parse_grid_auto_tracks(value, self.get_device_scale())
+            {
+                self.grid_auto_columns_raw = Some(Atom::from(value));
+                self.grid_auto_columns = tracks
+            }
+        }
+    }
+
+    pub fn set_grid_auto_columns(&mut self, value: Vec<TrackSizingFunction>) {
         self.grid_auto_columns = value
     }
 
-    #[inline(always)]
-    pub fn get_grid_template_rows(&self) -> &Vec<TrackSizingFunction> {
-        &self.grid_template_rows
+    pub fn get_grid_template_rows(&self) -> &[GridTemplateComponent<Atom>] {
+        self.grid_template_rows.as_slice()
+    }
+
+    pub fn get_grid_template_rows_css(&self) -> Option<&str> {
+        self.grid_template_rows_raw.as_deref()
     }
 
     #[inline(always)]
-    pub fn get_grid_template_columns(&self) -> &Vec<TrackSizingFunction> {
-        &self.grid_template_columns
+    pub fn get_grid_template_columns(&self) -> &[GridTemplateComponent<Atom>] {
+        self.grid_template_columns.as_slice()
     }
 
     #[inline(always)]
-    pub fn get_grid_auto_rows(&self) -> &Vec<NonRepeatedTrackSizingFunction> {
-        &self.grid_auto_rows
+    pub fn get_grid_template_columns_css(&self) -> Option<&str> {
+        self.grid_template_columns_raw.as_deref()
     }
 
     #[inline(always)]
-    pub fn get_grid_auto_columns(&self) -> &Vec<NonRepeatedTrackSizingFunction> {
-        &self.grid_auto_columns
+    pub fn get_grid_auto_rows(&self) -> &[TrackSizingFunction] {
+        self.grid_auto_rows.as_slice()
+    }
+
+    #[inline(always)]
+    pub fn get_grid_auto_rows_css(&self) -> Option<&str> {
+        self.grid_auto_rows_raw.as_deref()
+    }
+
+    #[inline(always)]
+    pub fn get_grid_auto_columns(&self) -> &[TrackSizingFunction] {
+        self.grid_auto_columns.as_slice()
+    }
+
+    #[inline(always)]
+    pub fn get_grid_auto_columns_css(&self) -> Option<&str> {
+        self.grid_auto_columns_raw.as_deref()
+    }
+
+    pub fn get_grid_template_areas(&self) -> &[GridTemplateArea<Atom>] {
+        self.grid_template_areas.as_slice()
+    }
+
+    pub fn get_grid_template_areas_as_css(&self) -> &str {
+        self.grid_template_areas_raw.as_ref()
+    }
+
+    pub fn set_grid_template_areas(&mut self, value: Vec<GridTemplateArea<Atom>>) {
+        self.grid_template_areas_raw = Atom::from(crate::utils::grid_template_areas_to_string(
+            value.as_slice(),
+        ));
+        self.grid_template_areas = value;
     }
 
     #[cfg(target_vendor = "apple")]
     #[track_caller]
-    pub fn buffer(&self) -> objc2::rc::Retained<objc2_foundation::NSMutableData> {
+    pub fn buffer(&self) -> Retained<NSMutableData> {
         self.buffer.clone()
     }
 
     #[cfg(target_vendor = "apple")]
     #[track_caller]
     pub fn buffer_raw(&self) -> *mut std::os::raw::c_void {
-        objc2::rc::Retained::into_raw(self.buffer.clone()) as *mut std::os::raw::c_void
+        Retained::into_raw(self.buffer.clone()) as *mut std::os::raw::c_void
     }
 
     #[cfg(target_os = "android")]
@@ -1672,6 +2110,8 @@ impl Default for Style {
 }
 
 impl CoreStyle for Style {
+    type CustomIdent = Atom;
+
     #[inline(always)]
     fn box_generation_mode(&self) -> BoxGenerationMode {
         match self.get_display() {
@@ -1820,34 +2260,91 @@ impl FlexboxItemStyle for Style {
     }
 }
 
+type SliceMapIter<'a, Input, Output> =
+    core::iter::Map<core::slice::Iter<'a, Input>, for<'c> fn(&'c Input) -> Output>;
+
 impl GridContainerStyle for Style {
-    type TemplateTrackList<'a>
-        = &'a [TrackSizingFunction]
+    type Repetition<'a>
+        = &'a GridTemplateRepetition<Atom>
     where
         Self: 'a;
+
+    type TemplateTrackList<'a>
+        = core::iter::Map<
+        core::slice::Iter<'a, GridTemplateComponent<Atom>>,
+        fn(
+            &'a GridTemplateComponent<Atom>,
+        ) -> GenericGridTemplateComponent<Atom, &'a GridTemplateRepetition<Atom>>,
+    >
+    where
+        Self: 'a;
+
     type AutoTrackList<'a>
-        = &'a [NonRepeatedTrackSizingFunction]
+        = core::iter::Copied<core::slice::Iter<'a, TrackSizingFunction>>
+    where
+        Self: 'a;
+    type TemplateLineNames<'a>
+        = core::iter::Map<
+        core::slice::Iter<'a, Vec<Atom>>,
+        fn(&Vec<Atom>) -> core::slice::Iter<'_, Atom>,
+    >
+    where
+        Self: 'a;
+
+    type GridTemplateAreas<'a>
+        = core::iter::Cloned<core::slice::Iter<'a, GridTemplateArea<Atom>>>
     where
         Self: 'a;
 
     #[inline(always)]
-    fn grid_template_rows(&self) -> Self::TemplateTrackList<'_> {
-        self.grid_template_rows.as_slice()
+    fn grid_template_rows(&self) -> Option<Self::TemplateTrackList<'_>> {
+        Some(
+            self.grid_template_rows
+                .iter()
+                .map(|value| value.as_component_ref()),
+        )
     }
 
     #[inline(always)]
-    fn grid_template_columns(&self) -> Self::TemplateTrackList<'_> {
-        self.grid_template_columns.as_slice()
+    fn grid_template_columns(&self) -> Option<Self::TemplateTrackList<'_>> {
+        Some(
+            self.grid_template_columns
+                .iter()
+                .map(|value| value.as_component_ref()),
+        )
     }
 
     #[inline(always)]
     fn grid_auto_rows(&self) -> Self::AutoTrackList<'_> {
-        self.grid_auto_rows.as_slice()
+        self.grid_auto_rows.iter().copied()
     }
 
     #[inline(always)]
     fn grid_auto_columns(&self) -> Self::AutoTrackList<'_> {
-        self.grid_auto_columns.as_slice()
+        self.grid_auto_columns.iter().copied()
+    }
+
+    #[inline(always)]
+    fn grid_template_areas(&self) -> Option<Self::GridTemplateAreas<'_>> {
+        Some(self.grid_template_areas.iter().cloned())
+    }
+
+    #[inline(always)]
+    fn grid_template_column_names(&self) -> Option<Self::TemplateLineNames<'_>> {
+        Some(
+            self.grid_template_column_names
+                .iter()
+                .map(|names| names.iter()),
+        )
+    }
+
+    #[inline(always)]
+    fn grid_template_row_names(&self) -> Option<Self::TemplateLineNames<'_>> {
+        Some(
+            self.grid_template_row_names
+                .iter()
+                .map(|names| names.iter()),
+        )
     }
 
     #[inline(always)]
@@ -1881,7 +2378,7 @@ impl GridContainerStyle for Style {
     }
 
     #[inline(always)]
-    fn grid_template_tracks(&self, axis: AbsoluteAxis) -> Self::TemplateTrackList<'_> {
+    fn grid_template_tracks(&self, axis: AbsoluteAxis) -> Option<Self::TemplateTrackList<'_>> {
         match axis {
             AbsoluteAxis::Horizontal => self.grid_template_columns(),
             AbsoluteAxis::Vertical => self.grid_template_rows(),
@@ -1899,12 +2396,12 @@ impl GridContainerStyle for Style {
 
 impl GridItemStyle for Style {
     #[inline(always)]
-    fn grid_row(&self) -> Line<GridPlacement> {
+    fn grid_row(&self) -> Line<GridPlacement<Atom>> {
         self.get_grid_row()
     }
 
     #[inline(always)]
-    fn grid_column(&self) -> Line<GridPlacement> {
+    fn grid_column(&self) -> Line<GridPlacement<Atom>> {
         self.get_grid_column()
     }
 
@@ -1919,7 +2416,7 @@ impl GridItemStyle for Style {
     }
 
     #[inline(always)]
-    fn grid_placement(&self, axis: AbsoluteAxis) -> Line<GridPlacement> {
+    fn grid_placement(&self, axis: AbsoluteAxis) -> Line<GridPlacement<Atom>> {
         match axis {
             AbsoluteAxis::Horizontal => self.grid_column(),
             AbsoluteAxis::Vertical => self.grid_row(),

@@ -1,17 +1,18 @@
 pub use crate::tree::{Id, Tree};
 use std::ffi::{c_float, c_longlong, c_void};
+use std::sync::atomic::Ordering;
+pub use style_atoms::Atom;
 pub use taffy::geometry::{Line, Point, Rect, Size};
 pub use taffy::style::{
     AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, CompactLength, Dimension,
-    Display, FlexDirection, FlexWrap, GridAutoFlow, GridPlacement, GridTrackRepetition,
-    JustifyContent, LengthPercentage, LengthPercentageAuto, MaxTrackSizingFunction,
-    MinTrackSizingFunction, NonRepeatedTrackSizingFunction, Position, TextAlign,
-    TrackSizingFunction,
+    Display, FlexDirection, FlexWrap, GridAutoFlow, GridPlacement, GridTemplateArea,
+    GridTemplateComponent, GridTemplateRepetition, JustifyContent, LengthPercentage,
+    LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction, Position,
+    RepetitionCount, TextAlign, TrackSizingFunction,
 };
 pub use taffy::style_helpers::*;
 pub use taffy::Layout;
 pub use taffy::Overflow;
-
 mod node;
 
 #[cfg(target_vendor = "apple")]
@@ -134,6 +135,14 @@ impl Mason {
 
     pub fn clear(&mut self) {
         self.0.clear();
+    }
+
+    pub fn set_device_scale(&mut self, scale: f32) {
+        self.0.density.store(scale.to_bits(), Ordering::Release);
+    }
+
+    pub fn get_device_scale(&self) -> f32 {
+        f32::from_bits(self.0.density.load(Ordering::Acquire))
     }
 
     pub fn with_capacity(size: usize) -> Self {

@@ -10,10 +10,10 @@ import android.view.WindowMetrics
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.Display
+import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.Position
+import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles

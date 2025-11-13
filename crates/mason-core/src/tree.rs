@@ -2,7 +2,16 @@ use crate::node::{InlineSegment, Node, NodeData, NodeRef, NodeType};
 use crate::style::{DisplayMode, Style};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use std::fmt::Debug;
-use taffy::{compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout, compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace, CacheTree, ClearState, CollapsibleMarginSet, CoreStyle, Dimension, Display, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId, PrintTree, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree};
+use std::sync::atomic::AtomicU32;
+use std::sync::Arc;
+use style_atoms::Atom;
+use taffy::{
+    compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
+    compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
+    CacheTree, ClearState, CollapsibleMarginSet, CoreStyle, Dimension, Display, GridTemplateArea,
+    Layout, LayoutBlockContainer, LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve,
+    NodeId, PrintTree, ResolveOrZero, RoundTree, Size, TraversePartialTree, TraverseTree,
+};
 
 new_key_type! {
    pub struct Id;
@@ -31,6 +40,7 @@ pub struct Tree {
     pub(crate) inline_run_nesting: usize,
     // pending child ids for the inline run - set_unrounded_layout will consume these
     pub(crate) inline_run_pending: Vec<Id>,
+    pub(crate) density: Arc<AtomicU32>,
 }
 
 impl Default for Tree {
@@ -49,6 +59,7 @@ impl Tree {
             use_rounding: true,
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
+            density: Arc::new(AtomicU32::new(1f32.to_bits())),
         }
     }
 
@@ -61,6 +72,7 @@ impl Tree {
             use_rounding: true,
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
+            density: Arc::new(AtomicU32::new(1f32.to_bits())),
         }
     }
 
@@ -147,7 +159,8 @@ impl Tree {
     }
 
     pub fn create_node(&mut self) -> NodeRef {
-        let node = Node::new();
+        let mut node = Node::new();
+        node.style.device_scale = Some(Arc::clone(&self.density));
         let guard = node.guard.clone();
         let id = self.nodes.insert(node);
         self.parents.insert(id, None);
@@ -159,6 +172,7 @@ impl Tree {
     pub fn create_anonymous_node(&mut self) -> NodeRef {
         let mut node = Node::new();
         node.is_anonymous = true;
+        node.style.device_scale = Some(Arc::clone(&self.density));
         let guard = node.guard.clone();
         let id = self.nodes.insert(node);
         self.parents.insert(id, None);
@@ -169,6 +183,7 @@ impl Tree {
 
     pub fn create_text_node(&mut self) -> NodeRef {
         let mut node = Node::new();
+        node.style.device_scale = Some(Arc::clone(&self.density));
         node.type_ = NodeType::Text;
         // we are defaulting our text element nodes to inline
         node.style.set_display_mode(DisplayMode::Inline);
@@ -183,6 +198,7 @@ impl Tree {
     pub fn create_anonymous_text_node(&mut self) -> NodeRef {
         // should always be inline by default
         let mut node = Node::new();
+        node.style.device_scale = Some(Arc::clone(&self.density));
         node.type_ = NodeType::Text;
         node.is_anonymous = true;
         node.style.set_display_mode(DisplayMode::Inline);
@@ -567,6 +583,9 @@ impl Tree {
         F: FnOnce(&mut Style),
     {
         if let Some(node) = self.nodes.get_mut(node) {
+            if node.style.device_scale.is_none() {
+                node.style.device_scale = Some(self.density.clone());
+            }
             func(&mut node.style);
             node.mark_dirty();
         }
@@ -1212,6 +1231,7 @@ impl Tree {
         // NOW call the text container's measure function
         let node = self.nodes.get(id).unwrap();
         let mut style = node.style.clone();
+
         let measure = self.node_data.get(id).unwrap().copy_measure();
         let is_text_container = node.is_text_container();
         let has_measure = node.has_measure;
@@ -1562,6 +1582,7 @@ impl LayoutPartialTree for Tree {
         = &'a Style
     where
         Self: 'a;
+    type CustomIdent = Atom;
 
     fn get_core_container_style(&self, node_id: NodeId) -> Self::CoreContainerStyle<'_> {
         &self.node_from_id(node_id).style
@@ -1596,7 +1617,6 @@ impl LayoutPartialTree for Tree {
     }
 
     fn compute_child_layout(&mut self, node_id: NodeId, inputs: LayoutInput) -> LayoutOutput {
-
         let is_inline_text = {
             let node = self.node_from_id(node_id);
             node.style.display_mode() == DisplayMode::Inline && node.is_text_container()
@@ -1609,14 +1629,48 @@ impl LayoutPartialTree for Tree {
 
         compute_cached_layout(self, node_id, adjusted_inputs, |tree, node_id, inputs| {
             let id: Id = node_id.into();
-            let node = tree.nodes.get(id).unwrap();
+
+            let mut template_areas: Option<Vec<GridTemplateArea<Atom>>> = None;
             let has_children = tree.has_children(id);
+            let (display, mode, force_inline) = {
+                let node = tree.nodes.get(id).unwrap();
+                let display = node.style.get_display();
+                if display == Display::Grid && has_children {
+                    template_areas = Some(node.style.grid_template_areas.clone())
+                }
+                (
+                    display,
+                    node.style.display_mode(),
+                    node.style.force_inline(),
+                )
+            };
+
+            
+
+            // todo remove once officially support
+            // If this node is a grid container, resolve grid areas for all children BEFORE layout
+
+            if let Some(template_areas) = template_areas {
+                if !template_areas.is_empty() {
+                    let child_ids: Vec<Id> = tree.children.get(id).cloned().unwrap_or_default();
+
+                    for child_id in child_ids {
+                        if let Some(child_node) = tree.nodes.get_mut(child_id) {
+                            child_node
+                                .style
+                                .resolve_grid_area_from_template_areas(&template_areas);
+                        }
+                    }
+                }
+            }
+
+
+
+            let node = tree.nodes.get(id).unwrap();
+
             let node_data = tree.node_data.get(id).unwrap();
-            let force_inline = node.style.force_inline();
-            let mode = node.style.display_mode();
             let has_segments = !node_data.inline_segments.is_empty();
             let is_text_container = node.is_text_container();
-            // let has_inline_descendants = tree.subtree_has_inline_descendants(id);
 
             // Detect mixed content
             let has_mixed_content = tree.subtree_has_mixed_content(id);
@@ -1633,7 +1687,7 @@ impl LayoutPartialTree for Tree {
             }
 
             match mode {
-                DisplayMode::None => match (node.style.get_display(), has_children) {
+                DisplayMode::None => match (display, has_children) {
                     (Display::None, _) => compute_hidden_layout(tree, node_id),
                     (Display::Block, true) => compute_block_layout(tree, node_id, inputs),
                     (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
@@ -1805,8 +1859,8 @@ impl taffy::LayoutBlockContainer for Tree {
 }
 
 impl RoundTree for Tree {
-    fn get_unrounded_layout(&self, node_id: NodeId) -> &Layout {
-        &self.node_from_id(node_id).unrounded_layout
+    fn get_unrounded_layout(&self, node_id: NodeId) -> Layout {
+        self.node_from_id(node_id).unrounded_layout
     }
 
     fn set_final_layout(&mut self, node_id: NodeId, layout: &Layout) {
@@ -1864,8 +1918,8 @@ impl PrintTree for Tree {
     }
 
     #[inline(always)]
-    fn get_final_layout(&self, node_id: NodeId) -> &Layout {
-        &self.nodes[node_id.into()].final_layout
+    fn get_final_layout(&self, node_id: NodeId) -> Layout {
+        self.nodes[node_id.into()].final_layout
     }
 }
 

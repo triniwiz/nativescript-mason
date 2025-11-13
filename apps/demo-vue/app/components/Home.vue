@@ -27,13 +27,13 @@
       </div> -->
 
       <div class="p-8 bg-gray-100">
-        <sspan text="Tap the button" class="text-3xl text-center text-gray-900" />
-        <Button text="Tap Here" class="mt-4 text-white normal-case bg-blue-500 rounded-full" />
+        <sspan textContent="Tap the button" class="text-3xl text-center text-gray-900" />
+        <!-- <Button text="Tap Here" class="mt-4 text-white normal-case bg-blue-500 rounded-full" />
         <sspan text="message " class="mt-4 text-xl text-center text-gray-700" textWrap="true">
           <img class="w-[100] h-[100]" src="https://picsum.photos/200/300" />
         </sspan>
 
-        <p text="Hello" class="mt-[200] text-[#65adf1] text-lg text-center bg-orange-500" />
+        <p text="Hello" class="mt-[200] text-[#65adf1] text-lg text-center bg-orange-500" /> -->
       </div>
 
     </Page>

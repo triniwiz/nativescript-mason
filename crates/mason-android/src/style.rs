@@ -1,290 +1,9 @@
-use crate::TRACK_SIZING_FUNCTION;
-use jni::objects::{JClass, JObject, JObjectArray};
+use jni::objects::{JObject, JString, JClass};
 use jni::signature::ReturnType;
-use jni::sys::{jfloat, jint, jlong, jobjectArray, jshort};
+use jni::sys::{jfloat, jint, jlong, jstring};
 use jni::JNIEnv;
-use mason_core::style::utils::min_max_from_values;
-use mason_core::{
-    CompactLength, GridTrackRepetition, Mason, NodeRef, NonRepeatedTrackSizingFunction,
-    TrackSizingFunction,
-};
-
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct CMasonMinMax {
-    pub min_type: i32,
-    pub min_value: f32,
-    pub max_type: i32,
-    pub max_value: f32,
-}
-
-impl CMasonMinMax {
-    pub fn new(min_type: i32, min_value: f32, max_type: i32, max_value: f32) -> Self {
-        Self {
-            min_type,
-            min_value,
-            max_type,
-            max_value,
-        }
-    }
-}
-
-impl From<NonRepeatedTrackSizingFunction> for CMasonMinMax {
-    fn from(value: NonRepeatedTrackSizingFunction) -> Self {
-        let min_type;
-        let mut min_value: f32 = 0.;
-
-        let max_type;
-        let mut max_value: f32 = 0.;
-
-        if value.min.is_auto() {
-            min_type = 0;
-        } else if value.min.is_min_content() {
-            min_type = 1
-        } else if value.min.is_max_content() {
-            min_type = 2
-        } else {
-            let raw = value.min.into_raw();
-            if raw.is_length_or_percentage() {
-                if raw.uses_percentage() {
-                    min_type = 4;
-                } else {
-                    min_type = 3;
-                }
-                min_value = raw.value();
-            } else {
-                unreachable!()
-            }
-        }
-
-        if value.max.is_auto() {
-            max_type = 0;
-        } else if value.max.is_min_content() {
-            max_type = 1
-        } else if value.max.is_max_content() {
-            max_type = 2
-        } else {
-            let raw = value.max.into_raw();
-            match raw.tag() {
-                CompactLength::LENGTH_TAG => {
-                    max_type = 3;
-                    max_value = raw.value();
-                }
-                CompactLength::PERCENT_TAG => {
-                    max_type = 4;
-                    max_value = raw.value();
-                }
-                CompactLength::FR_TAG => {
-                    max_type = 5;
-                    max_value = raw.value();
-                }
-                CompactLength::FIT_CONTENT_PX_TAG => {
-                    max_type = 6;
-                    max_value = raw.value();
-                }
-                CompactLength::FIT_CONTENT_PERCENT_TAG => {
-                    max_type = 7;
-                    max_value = raw.value();
-                }
-                _ => unreachable!(),
-            }
-        }
-
-        CMasonMinMax::new(min_type, min_value, max_type, max_value)
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<NonRepeatedTrackSizingFunction> for CMasonMinMax {
-    fn into(self) -> NonRepeatedTrackSizingFunction {
-        min_max_from_values(self.min_type, self.min_value, self.max_type, self.max_value)
-    }
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct CMasonNonRepeatedTrackSizingFunctionArray {
-    pub array: *mut CMasonMinMax,
-    pub length: usize,
-}
-
-impl From<Vec<CMasonMinMax>> for CMasonNonRepeatedTrackSizingFunctionArray {
-    fn from(value: Vec<CMasonMinMax>) -> Self {
-        let mut box_slice = value.into_boxed_slice();
-        let array = Self {
-            array: box_slice.as_mut_ptr(),
-            length: box_slice.len(),
-        };
-        let _ = Box::into_raw(box_slice);
-        array
-    }
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct CMasonTrackSizingFunctionArray {
-    pub array: *mut CMasonTrackSizingFunction,
-    pub length: usize,
-}
-
-impl From<Vec<CMasonTrackSizingFunction>> for CMasonTrackSizingFunctionArray {
-    fn from(value: Vec<CMasonTrackSizingFunction>) -> Self {
-        let mut box_slice = value.into_boxed_slice();
-        let array = Self {
-            array: box_slice.as_mut_ptr(),
-            length: box_slice.len(),
-        };
-        let _ = Box::into_raw(box_slice);
-        array
-    }
-}
-
-impl Drop for CMasonTrackSizingFunctionArray {
-    fn drop(&mut self) {
-        let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(self.array, self.length)) };
-    }
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub enum CMasonTrackSizingFunction {
-    Single(CMasonMinMax),
-    Repeat(i32, u16, *mut CMasonNonRepeatedTrackSizingFunctionArray),
-}
-
-impl Drop for CMasonTrackSizingFunction {
-    fn drop(&mut self) {
-        if let CMasonTrackSizingFunction::Repeat(_, _, array) = self {
-            let _ = unsafe { Box::from_raw(array) };
-        }
-    }
-}
-
-// impl From<TrackSizingFunction> for CMasonTrackSizingFunction {
-//     fn from(value: TrackSizingFunction) -> Self {
-//         match value {
-//             TrackSizingFunction::Single(value) => CMasonTrackSizingFunction::Single(value.into()),
-//             TrackSizingFunction::Repeat(repetition, tracks) => {
-//                 let mut count = 0;
-//                 let rep = match repetition {
-//                     GridTrackRepetition::AutoFill => 0,
-//                     GridTrackRepetition::AutoFit => 1,
-//                     GridTrackRepetition::Count(value) => {
-//                         count = value;
-//                         2
-//                     }
-//                 };
-//
-//                 CMasonTrackSizingFunction::Repeat(
-//                     rep,
-//                     count,
-//                     Box::into_raw(Box::new(
-//                         tracks
-//                             .into_iter()
-//                             .map(|v| v.into())
-//                             .collect::<Vec<CMasonMinMax>>()
-//                             .into(),
-//                     )),
-//                 )
-//             }
-//         }
-//     }
-// }
-
-impl Into<TrackSizingFunction> for CMasonTrackSizingFunction {
-    fn into(self) -> TrackSizingFunction {
-        match &self {
-            CMasonTrackSizingFunction::Single(value) => {
-                TrackSizingFunction::Single(min_max_from_values(
-                    value.min_type,
-                    value.min_value,
-                    value.max_type,
-                    value.max_value,
-                ))
-            }
-            CMasonTrackSizingFunction::Repeat(repetition, count, tracks) => {
-                TrackSizingFunction::Repeat(
-                    match repetition {
-                        0 => GridTrackRepetition::AutoFill,
-                        1 => GridTrackRepetition::AutoFit,
-                        2 => GridTrackRepetition::Count(*count),
-                        _ => panic!(),
-                    },
-                    {
-                        let slice = unsafe {
-                            std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length)
-                                .to_vec()
-                        };
-                        slice.into_iter().map(|v| v.into()).collect()
-                    },
-                )
-            }
-        }
-    }
-}
-
-// impl From<CMasonTrackSizingFunction> for TrackSizingFunction {
-//     fn from(value: CMasonTrackSizingFunction) -> Self {
-//         match value {
-//             CMasonTrackSizingFunction::Single(value) => {
-//                 TrackSizingFunction::Single(min_max_from_values(
-//                     value.min_type,
-//                     value.min_value,
-//                     value.max_type,
-//                     value.max_value,
-//                 ))
-//             }
-//             CMasonTrackSizingFunction::Repeat(repetition, count, tracks) => {
-//                 TrackSizingFunction::Repeat(
-//                     match repetition {
-//                         0 => GridTrackRepetition::AutoFill,
-//                         1 => GridTrackRepetition::AutoFit,
-//                         2 => GridTrackRepetition::Count(count),
-//                         _ => panic!(),
-//                     },
-//                     {
-//                         let slice = unsafe {
-//                             std::slice::from_raw_parts_mut((*tracks).array, (*tracks).length)
-//                                 .to_vec()
-//                         };
-//                         slice.into_iter().map(|v| v.into()).collect()
-//                     },
-//                 )
-//             }
-//         }
-//     }
-// }
-
-impl Into<TrackSizingFunction> for &CMasonTrackSizingFunction {
-    fn into(self) -> TrackSizingFunction {
-        match self {
-            CMasonTrackSizingFunction::Single(value) => {
-                TrackSizingFunction::Single(min_max_from_values(
-                    value.min_type,
-                    value.min_value,
-                    value.max_type,
-                    value.max_value,
-                ))
-            }
-            CMasonTrackSizingFunction::Repeat(repetition, count, tracks) => {
-                TrackSizingFunction::Repeat(
-                    match repetition {
-                        0 => GridTrackRepetition::AutoFill,
-                        1 => GridTrackRepetition::AutoFit,
-                        2 => GridTrackRepetition::Count(*count),
-                        _ => panic!(),
-                    },
-                    {
-                        let slice = unsafe {
-                            std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length)
-                                .to_vec()
-                        };
-                        slice.into_iter().map(|v| v.into()).collect()
-                    },
-                )
-            }
-        }
-    }
-}
+use mason_core::{Mason, NodeRef};
+use std::borrow::Cow;
 
 pub(crate) const JAVA_INT_TYPE: ReturnType = ReturnType::Primitive(jni::signature::Primitive::Int);
 pub(crate) const JAVA_SHORT_TYPE: ReturnType =
@@ -299,337 +18,122 @@ pub(crate) const JAVA_ARRAY_TYPE: ReturnType = ReturnType::Array;
 pub(crate) const JAVA_LONG_TYPE: ReturnType =
     ReturnType::Primitive(jni::signature::Primitive::Long);
 
-pub(crate) fn to_vec_non_repeated_track_sizing_function_jni(
-    env: &mut JNIEnv,
-    array: jobjectArray,
-) -> Vec<NonRepeatedTrackSizingFunction> {
-    unsafe {
-        if array.is_null() {
-            vec![]
-        } else {
-            let array = JObjectArray::from_raw(array);
-            let len = env.get_array_length(&array).unwrap_or_default();
-            if len == 0 {
-                return vec![];
-            }
 
-            let mut ret = Vec::with_capacity(len as usize);
-
-            let min_max = crate::MIN_MAX.get().unwrap();
-
-            for i in 0..len {
-                let object = env.get_object_array_element(&array, i).unwrap();
-                let min_type = env
-                    .call_method_unchecked(&object, min_max.min_type_id, JAVA_INT_TYPE, &[])
-                    .unwrap();
-                let min_value = env
-                    .call_method_unchecked(&object, min_max.min_value_id, JAVA_FLOAT_TYPE, &[])
-                    .unwrap();
-                let max_type = env
-                    .call_method_unchecked(&object, min_max.max_type_id, JAVA_INT_TYPE, &[])
-                    .unwrap();
-                let max_value = env
-                    .call_method_unchecked(&object, min_max.max_value_id, JAVA_FLOAT_TYPE, &[])
-                    .unwrap();
-                ret.push(min_max_from_values(
-                    min_type.i().unwrap(),
-                    min_value.f().unwrap(),
-                    max_type.i().unwrap(),
-                    max_value.f().unwrap(),
-                ));
-            }
-            ret
-        }
-    }
-}
-
-pub(crate) fn to_vec_track_sizing_function_jni(
-    env: &mut JNIEnv,
-    array: jobjectArray,
-) -> Vec<TrackSizingFunction> {
-    if !array.is_null() {
-        let array = unsafe { JObjectArray::from_raw(array) };
-        let len = env.get_array_length(&array).unwrap_or_default();
-
-        if len == 0 {
-            return vec![];
-        }
-
-        let mut ret = Vec::with_capacity(len as usize);
-
-        let track_sizing = TRACK_SIZING_FUNCTION.get().unwrap();
-
-        let min_max = crate::MIN_MAX.get().unwrap();
-
-        unsafe {
-            for i in 0..len {
-                let object = env.get_object_array_element(&array, i).unwrap();
-
-                let is_repeating = env
-                    .call_method_unchecked(
-                        &object,
-                        track_sizing.is_repeating,
-                        JAVA_BOOLEAN_TYPE,
-                        &[],
-                    )
-                    .unwrap()
-                    .z()
-                    .unwrap();
-
-                if is_repeating {
-                    let auto_repeat_grid_track_repetition = env
-                        .call_method_unchecked(
-                            &object,
-                            track_sizing.auto_repeat_grid_track_repetition_id,
-                            JAVA_INT_TYPE,
-                            &[],
-                        )
-                        .unwrap()
-                        .i()
-                        .unwrap();
-
-                    let auto_repeat_grid_track_repetition_count = env
-                        .call_method_unchecked(
-                            &object,
-                            track_sizing.auto_repeat_grid_track_repetition_count_id,
-                            JAVA_SHORT_TYPE,
-                            &[],
-                        )
-                        .unwrap()
-                        .s()
-                        .unwrap();
-
-                    let auto_repeat_value = env
-                        .call_method_unchecked(
-                            &object,
-                            track_sizing.auto_repeat_value_id,
-                            JAVA_ARRAY_TYPE,
-                            &[],
-                        )
-                        .unwrap();
-
-                    let auto_repeat_value_array =
-                        JObjectArray::from(auto_repeat_value.l().unwrap());
-
-                    let repeating_len = env
-                        .get_array_length(&auto_repeat_value_array)
-                        .unwrap_or_default();
-
-                    let mut repeat_ret = Vec::with_capacity(repeating_len as usize);
-
-                    for j in 0..repeating_len {
-                        let repeat_object = env
-                            .get_object_array_element(&auto_repeat_value_array, j)
-                            .unwrap();
-
-                        let min_type = env
-                            .call_method_unchecked(
-                                &repeat_object,
-                                min_max.min_type_id,
-                                JAVA_INT_TYPE,
-                                &[],
-                            )
-                            .unwrap();
-
-                        let min_value = env
-                            .call_method_unchecked(
-                                &repeat_object,
-                                min_max.min_value_id,
-                                JAVA_FLOAT_TYPE,
-                                &[],
-                            )
-                            .unwrap();
-
-                        let max_type = env
-                            .call_method_unchecked(
-                                &repeat_object,
-                                min_max.max_type_id,
-                                JAVA_INT_TYPE,
-                                &[],
-                            )
-                            .unwrap();
-
-                        let max_value = env
-                            .call_method_unchecked(
-                                repeat_object,
-                                min_max.max_value_id,
-                                JAVA_FLOAT_TYPE,
-                                &[],
-                            )
-                            .unwrap();
-
-                        repeat_ret.push(min_max_from_values(
-                            min_type.i().unwrap(),
-                            min_value.f().unwrap(),
-                            max_type.i().unwrap(),
-                            max_value.f().unwrap(),
-                        ));
-                    }
-
-                    ret.push(TrackSizingFunction::Repeat(
-                        match auto_repeat_grid_track_repetition {
-                            0 => GridTrackRepetition::AutoFill,
-                            1 => GridTrackRepetition::AutoFit,
-                            2 => GridTrackRepetition::Count(
-                                auto_repeat_grid_track_repetition_count as u16,
-                            ),
-                            _ => panic!(),
-                        },
-                        repeat_ret,
-                    ));
-                } else {
-                    let single_value = env
-                        .call_method_unchecked(
-                            object,
-                            track_sizing.single_value_id,
-                            JAVA_OBJECT_TYPE,
-                            &[],
-                        )
-                        .unwrap()
-                        .l()
-                        .unwrap();
-
-                    let min_type = env
-                        .call_method_unchecked(
-                            &single_value,
-                            min_max.min_type_id,
-                            JAVA_INT_TYPE,
-                            &[],
-                        )
-                        .unwrap();
-
-                    let min_value = env
-                        .call_method_unchecked(
-                            &single_value,
-                            min_max.min_value_id,
-                            JAVA_FLOAT_TYPE,
-                            &[],
-                        )
-                        .unwrap();
-
-                    let max_type = env
-                        .call_method_unchecked(
-                            &single_value,
-                            min_max.max_type_id,
-                            JAVA_INT_TYPE,
-                            &[],
-                        )
-                        .unwrap();
-
-                    let max_value = env
-                        .call_method_unchecked(
-                            single_value,
-                            min_max.max_value_id,
-                            JAVA_FLOAT_TYPE,
-                            &[],
-                        )
-                        .unwrap();
-
-                    ret.push(TrackSizingFunction::Single(min_max_from_values(
-                        min_type.i().unwrap(),
-                        min_value.f().unwrap(),
-                        max_type.i().unwrap(),
-                        max_value.f().unwrap(),
-                    )));
-                }
-            }
-        }
-
-        return ret;
-    }
-
-    vec![]
-}
-
-pub unsafe fn to_vec_track_sizing_function(
-    value: *mut CMasonTrackSizingFunctionArray,
-) -> Vec<TrackSizingFunction> {
+fn get_string_lossy(env: &mut JNIEnv, value: &JString) -> Option<String> {
     if value.is_null() {
-        return vec![];
+        None
+    } else {
+        env.get_string(value)
+            .ok()
+            .map(|java_str| java_str.to_string_lossy().to_string())
     }
-    unsafe {
-        if (*value).length == 0 {
-            return vec![];
-        }
-    }
-    let value: &CMasonTrackSizingFunctionArray = unsafe { &*value };
-
-    let slice: &mut [CMasonTrackSizingFunction] =
-        unsafe { std::slice::from_raw_parts_mut(value.array, value.length) };
-
-    slice
-        .iter()
-        .map(|v| match v {
-            CMasonTrackSizingFunction::Single(value) => {
-                let v = *value;
-                TrackSizingFunction::Single(min_max_from_values(
-                    v.min_type,
-                    v.min_value,
-                    v.max_type,
-                    v.max_value,
-                ))
-            }
-            CMasonTrackSizingFunction::Repeat(rep, count, tracks) => {
-                let ret: Vec<NonRepeatedTrackSizingFunction> = if unsafe {
-                    (*(*tracks)).length == 0
-                } {
-                    Vec::new()
-                } else {
-                    let slice = unsafe {
-                        std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length)
-                    };
-
-                    slice
-                        .iter()
-                        .map(|v| {
-                            let v = *v;
-                            min_max_from_values(v.min_type, v.min_value, v.max_type, v.max_value)
-                        })
-                        .collect()
-                };
-
-                TrackSizingFunction::Repeat(
-                    match *rep {
-                        0 => GridTrackRepetition::AutoFill,
-                        1 => GridTrackRepetition::AutoFit,
-                        2 => GridTrackRepetition::Count(*count),
-                        _ => panic!(),
-                    },
-                    ret,
-                )
-            }
-        })
-        .collect::<Vec<TrackSizingFunction>>()
 }
-
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBufferData(
     mut env: JNIEnv,
-    _: JObject,
+    _: JClass,
     mason: jlong,
     node: jlong,
-    grid_auto_rows: jobjectArray,
-    grid_auto_columns: jobjectArray,
-    grid_template_rows: jobjectArray,
-    grid_template_columns: jobjectArray,
+    grid_auto_rows: JString,
+    grid_auto_columns: JString,
+    grid_column: JString,
+    grid_column_start: JString,
+    grid_column_end: JString,
+    grid_row: JString,
+    grid_row_start: JString,
+    grid_row_end: JString,
+    grid_template_rows: JString,
+    grid_template_columns: JString,
+    grid_area: JString,
+    grid_template_areas: JString,
 ) {
     if mason == 0 || node == 0 {
         return;
     }
-    let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_rows);
-    let grid_auto_columns =
-        to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_columns);
-    let grid_template_rows = to_vec_track_sizing_function_jni(&mut env, grid_template_rows);
-    let grid_template_columns = to_vec_track_sizing_function_jni(&mut env, grid_template_columns);
+
+    let env = &mut env;
+    let grid_auto_rows = get_string_lossy(env, &grid_auto_rows);
+    let grid_auto_columns = get_string_lossy(env, &grid_auto_columns);
+
+    let grid_column = get_string_lossy(env, &grid_column);
+    let grid_column_start = get_string_lossy(env, &grid_column_start);
+    let grid_column_end = get_string_lossy(env, &grid_column_end);
+
+    let grid_row = get_string_lossy(env, &grid_row);
+    let grid_row_start = get_string_lossy(env, &grid_row_start);
+    let grid_row_end = get_string_lossy(env, &grid_row_end);
+
+
+    let grid_template_rows = get_string_lossy(env, &grid_template_rows);
+    let grid_template_columns = get_string_lossy(env, &grid_template_columns);
+
+    let grid_area = get_string_lossy(env, &grid_area);
+    let grid_template_areas = get_string_lossy(env, &grid_template_areas);
+
+
 
     unsafe {
         let mason = &mut *(mason as *mut Mason);
         let node = &*(node as *mut NodeRef);
+        let old = mason.get_device_scale();
         mason.with_style_mut(node.id().into(), |style| {
-            style.set_grid_auto_rows(grid_auto_rows);
-            style.set_grid_auto_columns(grid_auto_columns);
-            style.set_grid_template_rows(grid_template_rows);
-            style.set_grid_template_columns(grid_template_columns);
+            if let Some(grid_template_rows) = grid_template_rows.as_deref() {
+                style.set_grid_template_columns_css(grid_template_rows);
+            }
+
+            if let Some(grid_template_columns) = grid_template_columns.as_deref() {
+                style.set_grid_template_columns_css(grid_template_columns);
+            }
+
+            if let Some(grid_auto_rows) = grid_auto_rows.as_deref() {
+                style.set_grid_auto_rows_css(grid_auto_rows);
+            }
+
+            if let Some(grid_auto_columns) = grid_auto_columns.as_deref() {
+                style.set_grid_auto_columns_css(grid_auto_columns);
+            }
+
+
+            if let Some(grid_row) = grid_row.as_deref() {
+                style.set_grid_row_css(grid_row)
+            }
+
+            if let Some(start) = grid_row_start.as_deref() {
+                style.set_grid_row_start_css(start)
+            }
+
+            if let Some(end) = grid_row_end.as_deref() {
+                style.set_grid_row_start_css(end)
+            }
+
+            if let Some(grid_column) = grid_column.as_deref() {
+                style.set_grid_column_css(grid_column)
+            }
+
+            if let Some(start) = grid_column_start.as_deref() {
+                style.set_grid_column_start_css(start)
+            }
+
+            if let Some(end) = grid_column_end.as_deref() {
+                style.set_grid_column_start_css(end)
+            }
+
+            if let Some(areas) = grid_template_areas.as_deref() {
+                style.set_grid_template_areas_css(areas)
+            }
+
+            if let Some(columns) = grid_template_columns.as_deref() {
+                style.set_grid_template_columns_css(columns);
+            }
+
+            if let Some(rows) = grid_template_rows.as_deref() {
+                style.set_grid_template_rows_css(rows);
+            }
+
+            if let Some(area) = grid_area.as_deref() {
+                style.set_grid_area(area);
+            }
+
         })
     }
 }
@@ -637,7 +141,7 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeNonBuffe
 #[no_mangle]
 pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWithValues(
     mut env: JNIEnv,
-    _: JObject,
+    _: JClass,
     mason: jlong,
     node: jlong,
     display: jint,
@@ -705,35 +209,50 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
     gap_column_type: jint,
     gap_column_value: jfloat,
     aspect_ratio: jfloat,
-    grid_auto_rows: jobjectArray,
-    grid_auto_columns: jobjectArray,
+    grid_auto_rows: JString,
+    grid_auto_columns: JString,
     grid_auto_flow: jint,
-    grid_column_start_type: jint,
-    grid_column_start_value: jshort,
-    grid_column_end_type: jint,
-    grid_column_end_value: jshort,
-    grid_row_start_type: jint,
-    grid_row_start_value: jshort,
-    grid_row_end_type: jint,
-    grid_row_end_value: jshort,
-    grid_template_rows: jobjectArray,
-    grid_template_columns: jobjectArray,
+    grid_column: JString,
+    grid_column_start: JString,
+    grid_column_end: JString,
+    grid_row: JString,
+    grid_row_start: JString,
+    grid_row_end: JString,
+    grid_template_rows: JString,
+    grid_template_columns: JString,
     overflow_x: jint,
     overflow_y: jint,
     scrollbar_width: jfloat,
     text_align: jint,
     box_sizing: jint,
+    grid_area: JString,
+    grid_template_areas: JString,
 ) {
     if mason == 0 || node == 0 {
         return;
     }
-    let grid_auto_rows = to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_rows);
-    let grid_auto_columns =
-        to_vec_non_repeated_track_sizing_function_jni(&mut env, grid_auto_columns);
-    let grid_template_rows = to_vec_track_sizing_function_jni(&mut env, grid_template_rows);
-    let grid_template_columns = to_vec_track_sizing_function_jni(&mut env, grid_template_columns);
+
+    let env = &mut env;
 
     unsafe {
+        let grid_auto_rows = get_string_lossy(env, &grid_auto_rows);
+        let grid_auto_columns = get_string_lossy(env, &grid_auto_columns);
+
+        let grid_column = get_string_lossy(env, &grid_column);
+        let grid_column_start = get_string_lossy(env, &grid_column_start);
+        let grid_column_end = get_string_lossy(env, &grid_column_end);
+
+        let grid_row = get_string_lossy(env, &grid_row);
+        let grid_row_start = get_string_lossy(env, &grid_row_start);
+        let grid_row_end = get_string_lossy(env, &grid_row_end);
+
+
+        let grid_template_rows = get_string_lossy(env, &grid_template_rows);
+        let grid_template_columns = get_string_lossy(env, &grid_template_columns);
+
+        let grid_area = get_string_lossy(env, &grid_area);
+        let grid_template_areas = get_string_lossy(env, &grid_template_areas);
+
         let mason = &mut *(mason as *mut Mason);
         let node = &*(node as *mut NodeRef);
         let style = mason_core::style::utils::from_ffi(
@@ -802,24 +321,24 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Style_nativeUpdateWi
             gap_column_type,
             gap_column_value,
             aspect_ratio,
-            grid_auto_rows,
-            grid_auto_columns,
+            grid_auto_rows.as_deref(),
+            grid_auto_columns.as_deref(),
             grid_auto_flow,
-            grid_column_start_type,
-            grid_column_start_value,
-            grid_column_end_type,
-            grid_column_end_value,
-            grid_row_start_type,
-            grid_row_start_value,
-            grid_row_end_type,
-            grid_row_end_value,
-            grid_template_rows,
-            grid_template_columns,
+            grid_column.as_deref(),
+            grid_column_start.as_deref(),
+            grid_column_end.as_deref(),
+            grid_row.as_deref(),
+            grid_row_start.as_deref(),
+            grid_row_end.as_deref(),
+            grid_template_rows.as_deref(),
+            grid_template_columns.as_deref(),
             overflow_x,
             overflow_y,
             scrollbar_width,
             text_align,
             box_sizing,
+            grid_area.as_deref(),
+            grid_template_areas.as_deref(),
         );
         mason.set_style(node.id(), style);
     }
@@ -847,5 +366,328 @@ pub extern "system" fn nativeGetStyleBuffer(
         }
 
         buffer.as_raw()
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridArea(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            return mason_core::utils::get_grid_area(style.get_grid_row(), style.get_grid_column())
+                .and_then(|area| env.new_string(area).ok())
+                .map(|value| value.into_raw())
+                .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridTemplateAreas(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+
+        if let Some(style) = mason.style(node.id()) {
+            return env
+                .new_string(style.get_grid_template_areas_as_css())
+                .map(|area| area.into_raw())
+                .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridAutoRows(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            return style.get_grid_auto_rows_css()
+                .and_then(|area| env.new_string(area).ok())
+                .map(|value| value.into_raw())
+                .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridAutoColumns(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            return style.get_grid_auto_columns_css()
+                .and_then(|area| env.new_string(area).ok())
+                .map(|value| value.into_raw())
+                .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridColumn(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            return style.get_grid_column_css()
+                .and_then(|value| env.new_string(value).ok())
+                .map(|value| value.into_raw())
+                .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridColumnStart(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            let line = style.get_grid_column_start_css();
+            if line.is_empty() {
+                return 0 as _;
+            }
+            return
+                env.new_string(line).ok()
+                    .map(|value| value.into_raw())
+                    .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridColumnEnd(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            let line = style.get_grid_column_end_css();
+            if line.is_empty() {
+                return 0 as _;
+            }
+            return
+                env.new_string(line).ok()
+                    .map(|value| value.into_raw())
+                    .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+
+
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridRow(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            return style.get_grid_row_css()
+                .and_then(|value| env.new_string(value).ok())
+                .map(|value| value.into_raw())
+                .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridRowStart(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            let line = style.get_grid_row_start_css();
+            if line.is_empty() {
+                return 0 as _;
+            }
+            return
+                env.new_string(line).ok()
+                    .map(|value| value.into_raw())
+                    .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridRowEnd(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            let line = style.get_grid_row_end_css();
+            if line.is_empty() {
+                return 0 as _;
+            }
+            return
+                env.new_string(line).ok()
+                    .map(|value| value.into_raw())
+                    .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridTemplateRows(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            return style.get_grid_template_rows_css()
+                .and_then(|value| env.new_string(value).ok())
+                .map(|value| value.into_raw())
+                .unwrap_or(0 as _);
+        }
+
+        0 as _
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn StyleNativeGetGridTemplateColumns(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jstring {
+    if mason == 0 || node == 0 {
+        return 0 as _;
+    }
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *const NodeRef);
+        if let Some(style) = mason.style(node.id()) {
+            return style.get_grid_template_columns_css()
+                .and_then(|value| env.new_string(value).ok())
+                .map(|value| value.into_raw())
+                .unwrap_or(0 as _);
+        }
+
+        0 as _
     }
 }

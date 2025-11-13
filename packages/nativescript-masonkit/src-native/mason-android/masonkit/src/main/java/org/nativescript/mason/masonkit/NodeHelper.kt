@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.util.Log
+import org.nativescript.mason.masonkit.enums.*
 
 class NodeHelper(val mason: Mason) {
   companion object {
@@ -1051,24 +1052,24 @@ class NodeHelper(val mason: Mason) {
     node.style.boxSizing = sizing
   }
 
-  fun getGridAutoRows(view: android.view.View): Array<MinMax> {
+  fun getGridAutoRows(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridAutoRows
   }
 
-  fun setGridAutoRows(view: android.view.View, gridAutoRows: Array<MinMax>) {
+  fun setGridAutoRows(view: android.view.View, gridAutoRows: String) {
     val node = mason.nodeForView(view)
     node.style.gridAutoRows = gridAutoRows
 
   }
 
 
-  fun getGridAutoColumns(view: android.view.View): Array<MinMax> {
+  fun getGridAutoColumns(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridAutoColumns
   }
 
-  fun setGridAutoColumns(view: android.view.View, gridAutoColumns: Array<MinMax>) {
+  fun setGridAutoColumns(view: android.view.View, gridAutoColumns: String) {
     val node = mason.nodeForView(view)
     node.style.gridAutoColumns = gridAutoColumns
 
@@ -1087,91 +1088,91 @@ class NodeHelper(val mason: Mason) {
   }
 
 
-  fun getGridColumn(view: android.view.View): Line<GridPlacement> {
+  fun getGridColumn(view: android.view.View): String{
     val node = mason.nodeForView(view)
     return node.style.gridColumn
   }
 
-  fun setGridColumn(view: android.view.View, gridColumn: Line<GridPlacement>) {
+  fun setGridColumn(view: android.view.View, gridColumn: String) {
     val node = mason.nodeForView(view)
     node.style.gridColumn = gridColumn
 
   }
 
-  fun getGridColumnStart(view: android.view.View): GridPlacement {
+  fun getGridColumnStart(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridColumnStart
   }
 
-  fun setGridColumnStart(view: android.view.View, gridColumnStart: GridPlacement) {
+  fun setGridColumnStart(view: android.view.View, gridColumnStart: String) {
     val node = mason.nodeForView(view)
     node.style.gridColumnStart = gridColumnStart
 
   }
 
-  fun getGridColumnEnd(view: android.view.View): GridPlacement {
+  fun getGridColumnEnd(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridColumnEnd
   }
 
-  fun setGridColumnEnd(view: android.view.View, gridColumnEnd: GridPlacement) {
+  fun setGridColumnEnd(view: android.view.View, gridColumnEnd: String) {
     val node = mason.nodeForView(view)
     node.style.gridColumnEnd = gridColumnEnd
 
   }
 
-  fun getGridRow(view: android.view.View): Line<GridPlacement> {
+  fun getGridRow(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridRow
   }
 
-  fun setGridRow(view: android.view.View, gridRow: Line<GridPlacement>) {
+  fun setGridRow(view: android.view.View, gridRow: String) {
     val node = mason.nodeForView(view)
     node.style.gridRow = gridRow
 
   }
 
-  fun getGridRowStart(view: android.view.View): GridPlacement {
+  fun getGridRowStart(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridRowStart
   }
 
-  fun setGridRowStart(view: android.view.View, gridRowStart: GridPlacement) {
+  fun setGridRowStart(view: android.view.View, gridRowStart: String) {
     val node = mason.nodeForView(view)
     node.style.gridRowStart = gridRowStart
 
   }
 
-  fun getGridRowEnd(view: android.view.View): GridPlacement {
+  fun getGridRowEnd(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridRowEnd
   }
 
-  fun setGridRowEnd(view: android.view.View, gridRowEnd: GridPlacement) {
+  fun setGridRowEnd(view: android.view.View, gridRowEnd: String) {
     val node = mason.nodeForView(view)
     node.style.gridRowEnd = gridRowEnd
 
   }
 
-  fun getGridTemplateRows(view: android.view.View): Array<TrackSizingFunction> {
+  fun getGridTemplateRows(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridTemplateRows
   }
 
-  fun setGridTemplateRows(view: android.view.View, gridTemplateRows: Array<TrackSizingFunction>) {
+  fun setGridTemplateRows(view: android.view.View, gridTemplateRows: String) {
     val node = mason.nodeForView(view)
     node.style.gridTemplateRows = gridTemplateRows
 
   }
 
-  fun getGridTemplateColumns(view: android.view.View): Array<TrackSizingFunction> {
+  fun getGridTemplateColumns(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridTemplateColumns
   }
 
   fun setGridTemplateColumns(
     view: android.view.View,
-    gridTemplateColumns: Array<TrackSizingFunction>
+    gridTemplateColumns: String
   ) {
     val node = mason.nodeForView(view)
     node.style.gridTemplateColumns = gridTemplateColumns

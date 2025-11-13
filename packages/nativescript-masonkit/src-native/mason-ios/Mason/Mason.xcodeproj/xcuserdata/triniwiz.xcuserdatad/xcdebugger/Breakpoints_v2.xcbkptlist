@@ -14,8 +14,8 @@
             filePath = "Mason/text/MasonText.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "817"
-            endingLineNumber = "817"
+            startingLineNumber = "850"
+            endingLineNumber = "850"
             landmarkName = "drawSingleLine(text:in:)"
             landmarkType = "7">
          </BreakpointContent>

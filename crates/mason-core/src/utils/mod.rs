@@ -1,7 +1,13 @@
+mod grid;
 use crate::style::{DisplayMode, Overflow};
 use crate::Style;
-use taffy::{AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow, JustifyContent, LayoutInput, MaybeMath, MaybeResolve, Position, ResolveOrZero, Size, TextAlign};
-
+pub use grid::*;
+use style_atoms::Atom;
+use taffy::{
+    AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, Display, FlexDirection,
+    FlexWrap, GridAutoFlow, GridPlacement, GridTemplateArea, JustifyContent, Line, Position,
+    TextAlign,
+};
 pub const fn box_sizing_from_enum(value: i32) -> Option<BoxSizing> {
     match value {
         0 => Some(BoxSizing::BorderBox),
@@ -329,11 +335,13 @@ pub(crate) fn resolve_fallback_size(
         return known;
     }
 
-    let size = size.or_else(|| match available {
-        AvailableSpace::MinContent => style_min.or(Some(content_min)),
-        AvailableSpace::MaxContent => style_max.or(Some(content_max)),
-        AvailableSpace::Definite(w) => Some(w),
-    }).unwrap_or(0.);
+    let size = size
+        .or_else(|| match available {
+            AvailableSpace::MinContent => style_min.or(Some(content_min)),
+            AvailableSpace::MaxContent => style_max.or(Some(content_max)),
+            AvailableSpace::Definite(w) => Some(w),
+        })
+        .unwrap_or(0.);
 
     if size == 0. {
         return 0.;
@@ -345,57 +353,98 @@ pub(crate) fn resolve_fallback_size(
     (size.clamp(min, max) - padding_border).max(0.)
 }
 
+#[derive(Clone, Debug)]
+pub struct GridTemplateAreas {
+    pub areas: Vec<GridTemplateArea<Atom>>,
+    pub rows: usize,
+    pub columns: usize,
+}
 
-pub(crate) fn compute_leaf(
-    style: &Style,
-    inputs: &LayoutInput,
-) -> Size<f32> {
-
-    let padding = style
-        .get_padding()
-        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
-
-    let border = style
-        .get_border()
-        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
-
-    let size = style
-        .get_size()
-        .maybe_resolve(inputs.parent_size, |_val, _basis| 0.0);
-
-    let min_size = style
-        .get_min_size()
-        .maybe_resolve(inputs.parent_size, |_val, _basis| 0.0);
-
-    let max_size = style
-        .get_max_size()
-        .maybe_resolve(inputs.parent_size, |_val, _basis| 0.0);
-
-    let content_sizes = style.content_sizes();
-
-    let container_pb = padding + border;
-    let pbw = container_pb.horizontal_components().sum();
-    let pbh = container_pb.vertical_components().sum();
-    Size {
-        width: resolve_fallback_size(
-            inputs.known_dimensions.width,
-            inputs.available_space.width,
-            size.width,
-            min_size.width,
-            max_size.width,
-            content_sizes.0.width,
-            content_sizes.1.width,
-            pbw,
-        ),
-        height: resolve_fallback_size(
-            inputs.known_dimensions.height,
-            inputs.available_space.height,
-            size.height,
-            min_size.height,
-            max_size.height,
-            content_sizes.0.height,
-            content_sizes.1.height,
-            pbh,
-        ),
+pub fn grid_template_areas_to_string(areas: &[GridTemplateArea<Atom>]) -> String {
+    if areas.is_empty() {
+        return Default::default();
     }
+
+    let max_row = areas.iter().map(|a| a.row_end).max().unwrap_or(0) as usize;
+    let max_col = areas.iter().map(|a| a.column_end).max().unwrap_or(0) as usize;
+
+    let mut grid = vec![vec![".".to_string(); max_col]; max_row];
+
+    for area in areas {
+        for row in area.row_start as usize..area.row_end as usize {
+            for col in area.column_start as usize..area.column_end as usize {
+                grid[row][col] = area.name.to_string();
+            }
+        }
+    }
+
+    let rows: Vec<String> = grid
+        .into_iter()
+        .map(|row| format!("\"{}\"", row.join(" ")))
+        .collect();
+
+    rows.join("\n")
+}
+
+pub fn grid_placement_to_string(p: &GridPlacement<Atom>) -> String {
+    match p {
+        GridPlacement::Auto => "auto".into(),
+        GridPlacement::Line(n) => n.as_i16().to_string(),
+        GridPlacement::Span(n) => format!("span {}", n),
+        GridPlacement::NamedLine(name, _) => name.to_string(), // use only the name
+        GridPlacement::NamedSpan(name, _) => format!("span {}", name), // span with name
+    }
+}
+
+pub fn get_grid_area_from_style(style: &Style) -> Option<String> {
+    let row = style.get_grid_row();
+    let col = style.get_grid_column();
+    get_grid_area(row, col)
+}
+
+pub fn get_grid_area(
+    row: Line<GridPlacement<Atom>>,
+    column: Line<GridPlacement<Atom>>,
+) -> Option<String> {
+    let row_start = grid_placement_to_string(&row.start);
+    let row_end = grid_placement_to_string(&row.end);
+    let col_start = grid_placement_to_string(&column.start);
+    let col_end = grid_placement_to_string(&column.end);
+
+    // All auto → nothing to show
+    if row_start == "auto" && row_end == "auto" && col_start == "auto" && col_end == "auto" {
+        return None;
+    }
+
+    // If all four are the same name, return that single name (e.g. grid-area: myArea)
+    if row_start == row_end && row_end == col_start && col_start == col_end && row_start != "auto" {
+        return Some(row_start);
+    }
+
+    // Collapse start/end if equal (optional shorthand)
+    let value = if row_start == row_end && col_start == col_end {
+        format!("{} / {}", row_start, col_start)
+    } else {
+        format!("{} / {} / {} / {}", row_start, col_start, row_end, col_end)
+    };
+
+    Some(value)
+}
+
+pub fn to_line_css(start: &GridPlacement<Atom>, end: &GridPlacement<Atom>, ) -> Option<String> {
+    let start = grid_placement_to_string(start);
+    let end = grid_placement_to_string(end);
+
+    // All auto → nothing to show
+    if start == "auto" && end == "auto" {
+        return None;
+    }
+
+    // If both are the same *non-auto* value (like `1 / 1` or `header / header`)
+    if start == end && start != "auto" {
+        return Some(start);
+    }
+
+    // If start and end differ, use CSS shorthand form: "start / end"
+    Some(format!("{} / {}", start, end))
 }

@@ -11,8 +11,8 @@ import androidx.core.graphics.toColorInt
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.Display
-import org.nativescript.mason.masonkit.FlexDirection
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.FontFace
 import org.nativescript.mason.masonkit.GridPlacement
 import org.nativescript.mason.masonkit.LengthPercentage
@@ -25,8 +25,8 @@ import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.StateKeys
 import org.nativescript.mason.masonkit.StyleKeys
 import org.nativescript.mason.masonkit.Styles
-import org.nativescript.mason.masonkit.TextAlign
-import org.nativescript.mason.masonkit.TextType
+import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.TrackSizingFunction
 import org.nativescript.mason.masonkit.View
@@ -198,11 +198,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       resources.displayMetrics
     )
     NodeHelper.shared.setGridTemplateColumns(
-      root, arrayOf(
-        TrackSizingFunction.Single(MinMax.fromTypeValue(3, col, 3, col)!!),
-        TrackSizingFunction.Single(MinMax.fromTypeValue(3, col, 3, col)!!),
-        TrackSizingFunction.Single(MinMax.fromTypeValue(3, col, 3, col)!!)
-      )
+      root, "min-max(${col}px,${col}px)"
     )
 
 
@@ -239,8 +235,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         )
         a.setBackgroundColor(bg)
 
-        a.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-        a.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+        a.gridColumn = "1/3"
+        a.gridRow = "1"
 
 
         root.append(a)
@@ -257,8 +253,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         b.setBackgroundColor(bg)
 
 
-        b.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
-        b.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+        b.gridColumn = "3"
+        b.gridRow = "1/3"
 
 
         root.append(b)
@@ -274,8 +270,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         )
         c.setBackgroundColor(bg)
 
-        c.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-        c.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+        c.gridColumn = "1"
+        c.gridRow = "2"
 
 
         root.append(c)
@@ -293,8 +289,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
 
         root.append(d)
 
-        d.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-        d.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+        d.gridColumn = "2"
+        d.gridRow = "2"
 
       }
     }

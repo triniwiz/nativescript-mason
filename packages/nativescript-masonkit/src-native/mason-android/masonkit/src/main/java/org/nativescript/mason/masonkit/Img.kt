@@ -8,6 +8,7 @@ import androidx.appcompat.widget.AppCompatImageView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import org.nativescript.mason.masonkit.enums.Display
 
 class Img @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false

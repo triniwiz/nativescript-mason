@@ -1,7 +1,8 @@
 use mason_core::style::{DisplayMode, StyleKeys};
 use mason_core::{
-    AlignContent, AlignItems, Dimension, Display, FlexDirection, JustifyContent, LengthPercentage,
-    LengthPercentageAuto, Mason, MeasureOutput, Rect, Size,
+    AlignContent, AlignItems, Dimension, Display, FlexDirection,
+    JustifyContent, LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, Rect, Size
+    ,
 };
 use std::ffi::{c_longlong, c_void};
 
@@ -32,8 +33,70 @@ fn main() {
     //  inline_mix_bug()
     // flex_direction_bug()
     //flex_grow_bug()
-   // inline_size_bug()
-    wrap_bug()
+    // inline_size_bug()
+    //  wrap_bug()
+    // grid_areas();
+    grid();
+}
+fn grid() {
+    let mut mason = Mason::new();
+    mason.set_device_scale(3.0);
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_grid_template_columns_css("100 100 100");
+        style.set_grid_column_css("1/3");
+        style.set_grid_row_css("1");
+        println!("{:#?} ", style.get_device_scale());
+    });
+}
+
+fn grid_areas() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_display(Display::Grid);
+        style.set_gap(Size {
+            width: LengthPercentage::length(10f32),
+            height: LengthPercentage::length(10f32),
+        });
+        style.set_padding(Rect {
+            left: LengthPercentage::length(10f32),
+            right: LengthPercentage::length(10f32),
+            top: LengthPercentage::length(10f32),
+            bottom: LengthPercentage::length(10f32),
+        });
+        style.set_grid_template_areas_css(r#"myArea myArea . . ."#);
+    });
+
+    let items = [
+        mason.create_node(),
+        mason.create_node(),
+        mason.create_node(),
+        mason.create_node(),
+        mason.create_node(),
+        mason.create_node(),
+    ];
+
+    for (idx, item) in items.iter().enumerate() {
+        mason.with_style_mut(item.id(), |style| {
+            if idx == 0 {
+                style.set_grid_area("myArea");
+            }
+            style.set_padding(Rect {
+                left: LengthPercentage::length(10f32),
+                right: LengthPercentage::length(10f32),
+                top: LengthPercentage::length(0.),
+                bottom: LengthPercentage::length(0.),
+            });
+        });
+
+        mason.add_child(root.id(), item.id());
+    }
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+    mason.print_tree(root.id());
 }
 
 fn wrap_bug() {

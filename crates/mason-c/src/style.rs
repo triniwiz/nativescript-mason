@@ -3,9 +3,8 @@ use std::ffi::{c_float, c_int, c_short};
 use crate::{CMason, CMasonNode};
 use mason_core::style::utils::min_max_from_values;
 use mason_core::{
-    CompactLength, Dimension, GridPlacement, GridTrackRepetition, LengthPercentage,
-    LengthPercentageAuto, NonRepeatedTrackSizingFunction, Overflow, Rect, Size,
-    TrackSizingFunction,
+    CompactLength, Dimension, GridPlacement, LengthPercentage,
+    LengthPercentageAuto, Overflow, Rect, Size, TrackSizingFunction,
 };
 
 #[repr(C)]
@@ -28,8 +27,8 @@ impl CMasonMinMax {
     }
 }
 
-impl From<NonRepeatedTrackSizingFunction> for CMasonMinMax {
-    fn from(value: NonRepeatedTrackSizingFunction) -> Self {
+impl From<TrackSizingFunction> for CMasonMinMax {
+    fn from(value: TrackSizingFunction) -> Self {
         let min_type;
         let mut min_value: f32 = 0.;
 
@@ -265,11 +264,11 @@ pub struct CMasonGridPlacement {
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub struct CMasonNonRepeatedTrackSizingFunction(NonRepeatedTrackSizingFunction);
+pub struct CMasonTrackSizingFunction(TrackSizingFunction);
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct CMasonNonRepeatedTrackSizingFunctionArray {
+pub struct CMasonTrackSizingFunctionArray {
     pub array: *mut CMasonMinMax,
     pub length: usize,
 }
@@ -289,7 +288,7 @@ pub struct CMasonOverflowPoint {
     y: CMasonOverflowType,
 }
 
-impl From<Vec<CMasonMinMax>> for CMasonNonRepeatedTrackSizingFunctionArray {
+impl From<Vec<CMasonMinMax>> for CMasonTrackSizingFunctionArray {
     fn from(value: Vec<CMasonMinMax>) -> Self {
         let mut box_slice = value.into_boxed_slice();
         let array = Self {
@@ -301,7 +300,7 @@ impl From<Vec<CMasonMinMax>> for CMasonNonRepeatedTrackSizingFunctionArray {
     }
 }
 
-impl Drop for CMasonNonRepeatedTrackSizingFunctionArray {
+impl Drop for CMasonTrackSizingFunctionArray {
     fn drop(&mut self) {
         let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(self.array, self.length)) };
     }
@@ -309,7 +308,7 @@ impl Drop for CMasonNonRepeatedTrackSizingFunctionArray {
 
 #[no_mangle]
 pub extern "C" fn mason_destroy_non_repeated_track_sizing_function_array(
-    array: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    array: *mut CMasonTrackSizingFunctionArray,
 ) {
     if array.is_null() {
         return;
@@ -321,7 +320,7 @@ pub extern "C" fn mason_destroy_non_repeated_track_sizing_function_array(
 #[derive(Debug)]
 pub enum CMasonTrackSizingFunction {
     Single(CMasonMinMax),
-    Repeat(i32, u16, *mut CMasonNonRepeatedTrackSizingFunctionArray),
+    Repeat(i32, u16, *mut CMasonTrackSizingFunctionArray),
 }
 
 impl Drop for CMasonTrackSizingFunction {
@@ -334,6 +333,7 @@ impl Drop for CMasonTrackSizingFunction {
 
 impl From<TrackSizingFunction> for CMasonTrackSizingFunction {
     fn from(value: TrackSizingFunction) -> Self {
+        
         match value {
             TrackSizingFunction::Single(value) => CMasonTrackSizingFunction::Single(value.into()),
             TrackSizingFunction::Repeat(repetition, tracks) => {
@@ -463,8 +463,8 @@ pub extern "C" fn mason_destroy_track_sizing_function_array(
 }
 
 #[allow(clippy::from_over_into)]
-impl Into<NonRepeatedTrackSizingFunction> for CMasonMinMax {
-    fn into(self) -> NonRepeatedTrackSizingFunction {
+impl Into<TrackSizingFunction> for CMasonMinMax {
+    fn into(self) -> TrackSizingFunction {
         min_max_from_values(self.min_type, self.min_value, self.max_type, self.max_value)
     }
 }
@@ -906,8 +906,8 @@ pub extern "C" fn mason_style_set_with_values(
     gap_column_type: c_int,
     gap_column_value: c_float,
     aspect_ratio: c_float,
-    grid_auto_rows: *mut CMasonNonRepeatedTrackSizingFunctionArray,
-    grid_auto_columns: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    grid_auto_rows: *mut CMasonTrackSizingFunctionArray,
+    grid_auto_columns: *mut CMasonTrackSizingFunctionArray,
     grid_auto_flow: c_int,
     grid_column_start_type: c_int,
     grid_column_start_value: c_short,
@@ -1085,7 +1085,7 @@ pub extern "C" fn mason_style_get_style_buffer_apple(
 pub extern "C" fn mason_style_get_grid_auto_rows(
     mason: *mut CMason,
     node: *mut CMasonNode,
-) -> *mut CMasonNonRepeatedTrackSizingFunctionArray {
+) -> *mut CMasonTrackSizingFunctionArray {
     if mason.is_null() || node.is_null() {
         return std::ptr::null_mut();
     }
@@ -1093,8 +1093,11 @@ pub extern "C" fn mason_style_get_grid_auto_rows(
         let mason = &mut *mason;
         let node = &mut *node;
         if let Some(style) = mason.0.style(node.0.id()) {
-            let ret: Vec<CMasonMinMax> =
-                style.get_grid_auto_rows().iter().map(|v| (*v).into()).collect();
+            let ret: Vec<CMasonMinMax> = style
+                .get_grid_auto_rows()
+                .iter()
+                .map(|v| (*v).into())
+                .collect();
 
             return Box::into_raw(Box::new(ret.into()));
         }
@@ -1106,7 +1109,7 @@ pub extern "C" fn mason_style_get_grid_auto_rows(
 pub extern "C" fn mason_style_set_grid_auto_rows(
     mason: *mut CMason,
     node: *mut CMasonNode,
-    value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    value: *mut CMasonTrackSizingFunctionArray,
 ) {
     if mason.is_null() || node.is_null() {
         return;
@@ -1132,7 +1135,7 @@ pub extern "C" fn mason_style_set_grid_auto_rows(
 pub extern "C" fn mason_style_get_grid_auto_columns(
     mason: *mut CMason,
     node: *mut CMasonNode,
-) -> *mut CMasonNonRepeatedTrackSizingFunctionArray {
+) -> *mut CMasonTrackSizingFunctionArray {
     if mason.is_null() || node.is_null() {
         return std::ptr::null_mut();
     }
@@ -1157,7 +1160,7 @@ pub extern "C" fn mason_style_get_grid_auto_columns(
 pub extern "C" fn mason_style_set_grid_auto_columns(
     mason: *mut CMason,
     node: *mut CMasonNode,
-    value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
+    value: *mut CMasonTrackSizingFunctionArray,
 ) {
     if mason.is_null() || node.is_null() {
         return;
@@ -1268,8 +1271,8 @@ pub extern "C" fn mason_style_set_grid_template_columns(
 }
 
 pub fn to_vec_non_repeated_track_sizing_function(
-    value: *mut CMasonNonRepeatedTrackSizingFunctionArray,
-) -> Vec<NonRepeatedTrackSizingFunction> {
+    value: *mut CMasonTrackSizingFunctionArray,
+) -> Vec<TrackSizingFunction> {
     if value.is_null() {
         return vec![];
     }
@@ -1320,9 +1323,7 @@ pub unsafe fn to_vec_track_sizing_function(
                 ))
             }
             CMasonTrackSizingFunction::Repeat(rep, count, tracks) => {
-                let ret: Vec<NonRepeatedTrackSizingFunction> = if unsafe {
-                    (*(*tracks)).length == 0
-                } {
+                let ret: Vec<TrackSizingFunction> = if unsafe { (*(*tracks)).length == 0 } {
                     Vec::new()
                 } else {
                     let slice = unsafe {

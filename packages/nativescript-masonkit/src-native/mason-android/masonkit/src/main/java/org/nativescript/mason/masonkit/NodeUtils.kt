@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.view.View
 import android.view.ViewGroup
+import org.nativescript.mason.masonkit.enums.*
 
 internal object NodeUtils {
   fun isInlineLike(node: Node): Boolean {

@@ -26,6 +26,9 @@ import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.TextNode.FixedLineHeightSpan
 import org.nativescript.mason.masonkit.TextNode.RelativeLineHeightSpan
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.TextType
 import java.nio.ByteBuffer
 import kotlin.math.ceil
 

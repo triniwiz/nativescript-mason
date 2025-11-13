@@ -4,444 +4,448 @@ import android.os.Build
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
+import org.nativescript.mason.masonkit.enums.TextAlign
 
 interface Element {
-  val style: Style
+    val style: Style
 
-  val node: Node
+    val node: Node
 
-  fun syncStyle(state: String, textState: String) {
-    val stateValue = state.toLongOrNull()?.takeIf { it > -1 }
-    val textStateValue = textState.toLongOrNull()?.takeIf { it > -1 }
+    fun syncStyle(state: String, textState: String) {
+        val stateValue = state.toLongOrNull()?.takeIf { it > -1 }
+        val textStateValue = textState.toLongOrNull()?.takeIf { it > -1 }
 
-    textStateValue?.let { textStateValue ->
-      val value = TextStateKeys(textStateValue)
-      style.setOrAppendState(value)
+        textStateValue?.let { textStateValue ->
+            val value = TextStateKeys(textStateValue)
+            style.setOrAppendState(value)
+        }
+
+        stateValue?.let { stateValue ->
+            style.isDirty = stateValue
+            style.updateNativeStyle()
+        }
     }
 
-    stateValue?.let { stateValue ->
-      style.isDirty = stateValue
-      style.updateNativeStyle()
-    }
-  }
+    fun onNodeAttached() {}
 
-  fun onNodeAttached() {}
+    fun onNodeDetached() {}
 
-  fun onNodeDetached() {}
-
-  fun markNodeDirty() {
-    node.dirty()
-  }
-
-  fun isNodeDirty(): Boolean {
-    return node.isDirty()
-  }
-
-  fun configure(block: (Style) -> Unit) {
-    style.inBatch = true
-    block(style)
-    style.inBatch = false
-  }
-
-  val view: View
-
-  fun layout(): Layout {
-    if (node.nativePtr == 0L) {
-      return Layout.empty
-    }
-    val layouts = NativeHelpers.nativeNodeLayout(node.mason.nativePtr, node.nativePtr)
-    if (layouts.isEmpty()) {
-      return Layout.empty
-    }
-    return Layout.fromFloatArray(layouts, 0).second
-  }
-
-  fun compute() {
-    NativeHelpers.nativeNodeCompute(node.mason.nativePtr, node.nativePtr)
-    node.computeCache = SizeF(-2f, -2f)
-  }
-
-  fun compute(width: Float, height: Float) {
-    NativeHelpers.nativeNodeComputeWH(node.mason.nativePtr, node.nativePtr, width, height)
-    node.computeCache = SizeF(width, height)
-  }
-
-  fun computeMaxContent() {
-    NativeHelpers.nativeNodeComputeMaxContent(node.mason.nativePtr, node.nativePtr)
-    node.computeCache = SizeF(-2f, -2f)
-  }
-
-  fun computeMinContent() {
-    node.computeCache = SizeF(-2f, -2f)
-    NativeHelpers.nativeNodeComputeMinContent(node.mason.nativePtr, node.nativePtr)
-  }
-
-  fun computeWithViewSize() {
-    val width = view.width.toFloat()
-    val height = view.height.toFloat()
-    compute(width, height)
-    node.computeCache = SizeF(width, height)
-  }
-
-  fun computeAndLayout(): Layout {
-    return Layout.fromFloatArray(
-      NativeHelpers.nativeNodeComputeAndLayout(
-        node.mason.nativePtr,
-        node.nativePtr,
-      ), 0
-    ).second
-  }
-
-  fun computeAndLayout(width: Float, height: Float): Layout {
-    return Layout.fromFloatArray(
-      NativeHelpers.nativeNodeComputeWithSizeAndLayout(
-        node.mason.nativePtr,
-        node.nativePtr,
-        width, height
-      ), 0
-    ).second
-  }
-
-  fun computeWithSize(width: Float, height: Float) {
-    compute(width, height)
-    attachAndApply()
-  }
-
-  fun computeWithViewSize(layout: Boolean) {
-    computeWithViewSize()
-    if (layout) {
-      attachAndApply()
-    }
-  }
-
-  fun computeWithMaxContent() {
-    computeMaxContent()
-    attachAndApply()
-  }
-
-  fun computeWithMinContent() {
-    computeMinContent()
-    attachAndApply()
-  }
-
-  fun attachAndApply() {
-    applyLayoutRecursive(node, layout())
-  }
-
-  fun append(element: Element) {
-    node.appendChild(element.node)
-  }
-
-  fun append(text: String) {
-    val textNode = TextNode(node.mason).apply {
-      data = text
-      if (this@Element is TextView) {
-        container = this@Element
-      }
-
-      attributes.clear()
-      // Copy current TextView attributes to the new text node
-      attributes.putAll(getDefaultAttributes())
-    }
-    node.appendChild(textNode)
-  }
-
-  fun append(node: Node) {
-    this.node.appendChild(node)
-  }
-
-  fun append(texts: Array<String>) {
-    texts.forEach { append(it) }
-  }
-
-  fun append(elements: Array<Element>) {
-    elements.forEach { append(it) }
-  }
-
-  fun append(nodes: Array<Node>) {
-    nodes.forEach { append(it) }
-  }
-
-  fun prepend(element: Element) {
-    node.addChildAt(element.node, 0)
-  }
-
-  fun prepend(string: String) {
-    val textNode = TextNode(node.mason).apply {
-      data = string
-      if (this@Element is TextView) {
-        container = this@Element
-        // Copy current TextView attributes to the new text node
-        attributes.clear()
-        attributes.putAll(getDefaultAttributes())
-      }
-    }
-    node.addChildAt(textNode, 0)
-  }
-
-  fun prepend(node: Node) {
-    this.node.addChildAt(node, 0)
-  }
-
-  fun prepend(strings: Array<String>) {
-    strings.reversed().forEach { prepend(it) }
-  }
-
-  fun prepend(elements: Array<Element>) {
-    elements.reversed().forEach { prepend(it) }
-  }
-
-  fun prepend(nodes: Array<Node>) {
-    nodes.reversed().forEach { prepend(it) }
-  }
-
-  fun invalidateLayout() {
-    node.dirty()
-    val root = node.getRootNode() ?: node
-
-    if (root.type == NodeType.Document) {
-      // If root is document, use documentElement to compute
-
-      root.document?.documentElement?.compute(root.computeCache.width, root.computeCache.height)
-
-      root.document?.documentElement?.view?.invalidate()
-      root.document?.documentElement?.view?.requestLayout()
-      return
+    fun markNodeDirty() {
+        node.dirty()
     }
 
-    // Otherwise use the topmost element (root)
-    if (root.view is Element && root.computeCacheDirty) {
-      val width = if (root.computeCache.width == Float.MIN_VALUE) {
-        -1f
-      } else {
-        root.computeCache.width
-      }
-
-      val height = if (root.computeCache.height == Float.MIN_VALUE) {
-        -1f
-      } else {
-        root.computeCache.height
-      }
-      (root.view as Element).compute(width, height)
+    fun isNodeDirty(): Boolean {
+        return node.isDirty()
     }
 
-    (root.view as? View)?.let {
-      it.invalidate()
-      it.requestLayout()
-    }
-  }
-
-
-  fun appendView(view: View) {
-    val child = node.mason.nodeForView(view)
-    append(child)
-  }
-
-  fun appendView(views: Array<View>) {
-    // todo use a single jni call
-    views.forEach {
-      appendView(it)
+    fun configure(block: (Style) -> Unit) {
+        style.inBatch = true
+        block(style)
+        style.inBatch = false
     }
 
-  }
+    val view: View
 
-  fun prependView(view: View) {
-    val child = node.mason.nodeForView(view)
-    prepend(child)
-  }
+    fun layout(): Layout {
+        if (node.nativePtr == 0L) {
+            return Layout.empty
+        }
+        val layouts = NativeHelpers.nativeNodeLayout(node.mason.nativePtr, node.nativePtr)
+        if (layouts.isEmpty()) {
+            return Layout.empty
+        }
+        return Layout.fromFloatArray(layouts, 0).second
+    }
 
-  fun prependView(views: Array<View>) {
-    // todo use a single jni call
-    views.reversed().forEach { prependView(it) }
-  }
+    fun compute() {
+        NativeHelpers.nativeNodeCompute(node.mason.nativePtr, node.nativePtr)
+        node.computeCache = SizeF(-2f, -2f)
+    }
 
-  fun addChildAt(text: String, index: Int) {
-    node.addChildAt(TextNode(node.mason).apply {
-      data = text
-      if (this@Element is TextView) {
-        container = this@Element
-        attributes.clear()
-        // Copy current TextView attributes to the new text node
-        attributes.putAll(getDefaultAttributes())
-      }
-    }, index)
-  }
+    fun compute(width: Float, height: Float) {
+        NativeHelpers.nativeNodeComputeWH(node.mason.nativePtr, node.nativePtr, width, height)
+        node.computeCache = SizeF(width, height)
+    }
 
-  fun addChildAt(element: Element, index: Int) {
-    node.addChildAt(element.node, index)
-  }
+    fun computeMaxContent() {
+        NativeHelpers.nativeNodeComputeMaxContent(node.mason.nativePtr, node.nativePtr)
+        node.computeCache = SizeF(-2f, -2f)
+    }
 
-  fun addChildAt(node: Node, index: Int) {
-    node.addChildAt(node, index)
-  }
+    fun computeMinContent() {
+        node.computeCache = SizeF(-2f, -2f)
+        NativeHelpers.nativeNodeComputeMinContent(node.mason.nativePtr, node.nativePtr)
+    }
 
-  fun replaceChildAt(text: String, index: Int) {
-    node.replaceChildAt(TextNode(node.mason).apply {
-      data = text
-      if (this@Element is TextView) {
-        container = this@Element
-        attributes.clear()
-        // Copy current TextView attributes to the new text node
-        attributes.putAll(getDefaultAttributes())
-      }
-    }, index)
-  }
+    fun computeWithViewSize() {
+        val width = view.width.toFloat()
+        val height = view.height.toFloat()
+        compute(width, height)
+        node.computeCache = SizeF(width, height)
+    }
 
-  fun replaceChildAt(element: Element, index: Int) {
-    node.replaceChildAt(element.node, index)
-  }
+    fun computeAndLayout(): Layout {
+        return Layout.fromFloatArray(
+            NativeHelpers.nativeNodeComputeAndLayout(
+                node.mason.nativePtr,
+                node.nativePtr,
+            ), 0
+        ).second
+    }
 
-  fun replaceChildAt(node: Node, index: Int) {
-    node.replaceChildAt(node, index)
-  }
+    fun computeAndLayout(width: Float, height: Float): Layout {
+        return Layout.fromFloatArray(
+            NativeHelpers.nativeNodeComputeWithSizeAndLayout(
+                node.mason.nativePtr,
+                node.nativePtr,
+                width, height
+            ), 0
+        ).second
+    }
 
-  fun removeChildAt(index: Int) {
-    node.removeChildAt(index)
-  }
+    fun computeWithSize(width: Float, height: Float) {
+        compute(width, height)
+        attachAndApply()
+    }
+
+    fun computeWithViewSize(layout: Boolean) {
+        computeWithViewSize()
+        if (layout) {
+            attachAndApply()
+        }
+    }
+
+    fun computeWithMaxContent() {
+        computeMaxContent()
+        attachAndApply()
+    }
+
+    fun computeWithMinContent() {
+        computeMinContent()
+        attachAndApply()
+    }
+
+    fun attachAndApply() {
+        applyLayoutRecursive(node, layout())
+    }
+
+    fun append(element: Element) {
+        node.appendChild(element.node)
+    }
+
+    fun append(text: String) {
+        val textNode = TextNode(node.mason).apply {
+            data = text
+            if (this@Element is TextView) {
+                container = this@Element
+            }
+
+            attributes.clear()
+            // Copy current TextView attributes to the new text node
+            attributes.putAll(getDefaultAttributes())
+        }
+        node.appendChild(textNode)
+    }
+
+    fun append(node: Node) {
+        this.node.appendChild(node)
+    }
+
+    fun append(texts: Array<String>) {
+        texts.forEach { append(it) }
+    }
+
+    fun append(elements: Array<Element>) {
+        elements.forEach { append(it) }
+    }
+
+    fun append(nodes: Array<Node>) {
+        nodes.forEach { append(it) }
+    }
+
+    fun prepend(element: Element) {
+        node.addChildAt(element.node, 0)
+    }
+
+    fun prepend(string: String) {
+        val textNode = TextNode(node.mason).apply {
+            data = string
+            if (this@Element is TextView) {
+                container = this@Element
+                // Copy current TextView attributes to the new text node
+                attributes.clear()
+                attributes.putAll(getDefaultAttributes())
+            }
+        }
+        node.addChildAt(textNode, 0)
+    }
+
+    fun prepend(node: Node) {
+        this.node.addChildAt(node, 0)
+    }
+
+    fun prepend(strings: Array<String>) {
+        strings.reversed().forEach { prepend(it) }
+    }
+
+    fun prepend(elements: Array<Element>) {
+        elements.reversed().forEach { prepend(it) }
+    }
+
+    fun prepend(nodes: Array<Node>) {
+        nodes.reversed().forEach { prepend(it) }
+    }
+
+    fun invalidateLayout() {
+        node.dirty()
+        val root = node.getRootNode() ?: node
+
+        if (root.type == NodeType.Document) {
+            // If root is document, use documentElement to compute
+
+            root.document?.documentElement?.compute(
+                root.computeCache.width,
+                root.computeCache.height
+            )
+
+            root.document?.documentElement?.view?.invalidate()
+            root.document?.documentElement?.view?.requestLayout()
+            return
+        }
+
+        // Otherwise use the topmost element (root)
+        if (root.view is Element && root.computeCacheDirty) {
+            val width = if (root.computeCache.width == Float.MIN_VALUE) {
+                -1f
+            } else {
+                root.computeCache.width
+            }
+
+            val height = if (root.computeCache.height == Float.MIN_VALUE) {
+                -1f
+            } else {
+                root.computeCache.height
+            }
+            (root.view as Element).compute(width, height)
+        }
+
+        (root.view as? View)?.let {
+            it.invalidate()
+            it.requestLayout()
+        }
+    }
+
+
+    fun appendView(view: View) {
+        val child = node.mason.nodeForView(view)
+        append(child)
+    }
+
+    fun appendView(views: Array<View>) {
+        // todo use a single jni call
+        views.forEach {
+            appendView(it)
+        }
+
+    }
+
+    fun prependView(view: View) {
+        val child = node.mason.nodeForView(view)
+        prepend(child)
+    }
+
+    fun prependView(views: Array<View>) {
+        // todo use a single jni call
+        views.reversed().forEach { prependView(it) }
+    }
+
+    fun addChildAt(text: String, index: Int) {
+        node.addChildAt(TextNode(node.mason).apply {
+            data = text
+            if (this@Element is TextView) {
+                container = this@Element
+                attributes.clear()
+                // Copy current TextView attributes to the new text node
+                attributes.putAll(getDefaultAttributes())
+            }
+        }, index)
+    }
+
+    fun addChildAt(element: Element, index: Int) {
+        node.addChildAt(element.node, index)
+    }
+
+    fun addChildAt(node: Node, index: Int) {
+        node.addChildAt(node, index)
+    }
+
+    fun replaceChildAt(text: String, index: Int) {
+        node.replaceChildAt(TextNode(node.mason).apply {
+            data = text
+            if (this@Element is TextView) {
+                container = this@Element
+                attributes.clear()
+                // Copy current TextView attributes to the new text node
+                attributes.putAll(getDefaultAttributes())
+            }
+        }, index)
+    }
+
+    fun replaceChildAt(element: Element, index: Int) {
+        node.replaceChildAt(element.node, index)
+    }
+
+    fun replaceChildAt(node: Node, index: Int) {
+        node.replaceChildAt(node, index)
+    }
+
+    fun removeChildAt(index: Int) {
+        node.removeChildAt(index)
+    }
 
 }
 
 internal fun Element.getDefaultAttributes(): Map<String, Any> {
-  val resolvedFont = style.resolvedFontFace
+    val resolvedFont = style.resolvedFontFace
 
-  return mapOf(
-    "color" to style.resolvedColor,
-    "fontSize" to style.resolvedFontSize,
-    "fontWeight" to style.resolvedFontWeight,
-    "fontStyle" to style.resolvedFontStyle,
-    "fontFamily" to resolvedFont.fontFamily,
-    "font" to resolvedFont,
-    "textWrap" to style.resolvedTextWrap,
-    "whiteSpace" to style.resolvedWhiteSpace,
-    "textTransform" to style.resolvedTextTransform,
-    "backgroundColor" to style.resolvedBackgroundColor,
-    "decorationLine" to style.resolvedDecorationLine,
-    "decorationColor" to style.resolvedDecorationColor,
-    "decorationStyle" to style.resolvedDecorationStyle,
-    "letterSpacing" to style.resolvedLetterSpacing,
-    "lineHeight" to style.resolvedLineHeight,
-    "lineHeightType" to style.resolvedLineHeightType,
-    "textAlign" to when (style.resolvedTextAlign) {
-      TextAlign.Left, TextAlign.Start -> android.text.Layout.Alignment.ALIGN_NORMAL
-      TextAlign.Right, TextAlign.End -> android.text.Layout.Alignment.ALIGN_OPPOSITE
-      TextAlign.Center -> android.text.Layout.Alignment.ALIGN_CENTER
-      TextAlign.Justify -> {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-          android.text.Layout.Alignment.ALIGN_NORMAL // Justify handled by justificationMode
-        } else {
-          android.text.Layout.Alignment.ALIGN_NORMAL
+    return mapOf(
+        "color" to style.resolvedColor,
+        "fontSize" to style.resolvedFontSize,
+        "fontWeight" to style.resolvedFontWeight,
+        "fontStyle" to style.resolvedFontStyle,
+        "fontFamily" to resolvedFont.fontFamily,
+        "font" to resolvedFont,
+        "textWrap" to style.resolvedTextWrap,
+        "whiteSpace" to style.resolvedWhiteSpace,
+        "textTransform" to style.resolvedTextTransform,
+        "backgroundColor" to style.resolvedBackgroundColor,
+        "decorationLine" to style.resolvedDecorationLine,
+        "decorationColor" to style.resolvedDecorationColor,
+        "decorationStyle" to style.resolvedDecorationStyle,
+        "letterSpacing" to style.resolvedLetterSpacing,
+        "lineHeight" to style.resolvedLineHeight,
+        "lineHeightType" to style.resolvedLineHeightType,
+        "textAlign" to when (style.resolvedTextAlign) {
+            TextAlign.Left, TextAlign.Start -> android.text.Layout.Alignment.ALIGN_NORMAL
+            TextAlign.Right, TextAlign.End -> android.text.Layout.Alignment.ALIGN_OPPOSITE
+            TextAlign.Center -> android.text.Layout.Alignment.ALIGN_CENTER
+            TextAlign.Justify -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    android.text.Layout.Alignment.ALIGN_NORMAL // Justify handled by justificationMode
+                } else {
+                    android.text.Layout.Alignment.ALIGN_NORMAL
+                }
+            }
+
+            else -> android.text.Layout.Alignment.ALIGN_NORMAL
         }
-      }
-
-      else -> android.text.Layout.Alignment.ALIGN_NORMAL
-    }
-  )
+    )
 }
 
 internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
-  node.computedLayout = layout
+    node.computedLayout = layout
 
-  if (node.type != NodeType.Element) {
-    return
-  }
-
-  (node.view as? View)?.let { view ->
-    if (view != this) {
-      var realLayout = layout
-      var isText = false
-      var hasWidthConstraint = false
-      var hasHeightConstraint = false
-      if (view.isGone) {
+    if (node.type != NodeType.Element) {
         return
-      }
-
-      if (node.view is TextView) {
-        realLayout = node.computedLayout
-        isText = true
-        hasWidthConstraint = node.style.size.width != Dimension.Auto
-        hasHeightConstraint = node.style.size.height != Dimension.Auto
-      }
-
-      val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
-
-
-      var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
-      var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
-
-      if (isText) {
-        if (!hasWidthConstraint && realLayout.contentSize.width > realLayout.width) {
-          width = realLayout.contentSize.width.toInt()
-        }
-
-        if (!hasHeightConstraint && realLayout.contentSize.height > realLayout.height) {
-          height = realLayout.contentSize.height.toInt()
-        }
-      }
-
-      if (view !is Element) {
-        // measured already grab dim
-        width = view.measuredWidth
-        height = view.measuredHeight
-      }
-
-      val right: Int = x + width
-      val bottom: Int = y + height
-
-
-      if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
-        (view.parent as? View)?.layout(x, y, right, bottom)
-        view.layout(
-          0,
-          0,
-          realLayout.contentSize.width.toInt(),
-          realLayout.contentSize.height.toInt()
-        )
-      } else {
-        // only set padding on a text element
-        if (isText) {
-          view.setPadding(
-            realLayout.padding.left.toInt(),
-            realLayout.padding.top.toInt(),
-            realLayout.padding.right.toInt(),
-            realLayout.padding.bottom.toInt()
-          )
-        }
-        view.layout(x, y, right, bottom)
-      }
-
-      if (view is Scroll) {
-        view.scrollRoot.layout(
-          0,
-          0,
-          realLayout.contentSize.width.toInt(),
-          realLayout.contentSize.height.toInt()
-        )
-      }
-    }
-  }
-
-  if (layout.children.isNotEmpty()) {
-    val children = node.children.filter {
-      if (it.nativePtr == 0L) {
-        false
-      } else if (node.parent?.view is TextView && node.view is TextView) {
-        val flatten =
-          (node.parent?.view as TextView).shouldFlattenTextContainer(node.view as TextView)
-        !flatten
-      } else {
-        true
-      }
     }
 
-    for (i in 0 until children.count()) {
-      val child = children[i]
-      if (child.type == NodeType.Text) {
-        continue
-      }
-      val layoutChild = layout.children[i]
-      applyLayoutRecursive(child, layoutChild)
+    (node.view as? View)?.let { view ->
+        if (view != this) {
+            var realLayout = layout
+            var isText = false
+            var hasWidthConstraint = false
+            var hasHeightConstraint = false
+            if (view.isGone) {
+                return
+            }
 
+            if (node.view is TextView) {
+                realLayout = node.computedLayout
+                isText = true
+                hasWidthConstraint = node.style.size.width != Dimension.Auto
+                hasHeightConstraint = node.style.size.height != Dimension.Auto
+            }
+
+            val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
+            val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+
+
+            var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
+            var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+
+            if (isText) {
+                if (!hasWidthConstraint && realLayout.contentSize.width > realLayout.width) {
+                    width = realLayout.contentSize.width.toInt()
+                }
+
+                if (!hasHeightConstraint && realLayout.contentSize.height > realLayout.height) {
+                    height = realLayout.contentSize.height.toInt()
+                }
+            }
+
+            if (view !is Element) {
+                // measured already grab dim
+                width = view.measuredWidth
+                height = view.measuredHeight
+            }
+
+            val right: Int = x + width
+            val bottom: Int = y + height
+
+
+            if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
+                (view.parent as? View)?.layout(x, y, right, bottom)
+                view.layout(
+                    0,
+                    0,
+                    realLayout.contentSize.width.toInt(),
+                    realLayout.contentSize.height.toInt()
+                )
+            } else {
+                // only set padding on a text element
+                if (isText) {
+                    view.setPadding(
+                        realLayout.padding.left.toInt(),
+                        realLayout.padding.top.toInt(),
+                        realLayout.padding.right.toInt(),
+                        realLayout.padding.bottom.toInt()
+                    )
+                }
+                view.layout(x, y, right, bottom)
+            }
+
+            if (view is Scroll) {
+                view.scrollRoot.layout(
+                    0,
+                    0,
+                    realLayout.contentSize.width.toInt(),
+                    realLayout.contentSize.height.toInt()
+                )
+            }
+        }
     }
-  }
+
+    if (layout.children.isNotEmpty()) {
+        val children = node.children.filter {
+            if (it.nativePtr == 0L) {
+                false
+            } else if (node.parent?.view is TextView && node.view is TextView) {
+                val flatten =
+                    (node.parent?.view as TextView).shouldFlattenTextContainer(node.view as TextView)
+                !flatten
+            } else {
+                true
+            }
+        }
+
+        for (i in 0 until children.count()) {
+            val child = children[i]
+            if (child.type == NodeType.Text) {
+                continue
+            }
+            val layoutChild = layout.children[i]
+            applyLayoutRecursive(child, layoutChild)
+
+        }
+    }
 }

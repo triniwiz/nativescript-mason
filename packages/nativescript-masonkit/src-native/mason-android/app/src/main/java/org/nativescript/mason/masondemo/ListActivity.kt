@@ -8,11 +8,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import org.nativescript.mason.masonkit.AlignContent
-import org.nativescript.mason.masonkit.AlignItems
+import org.nativescript.mason.masonkit.enums.AlignContent
+import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.Display
-import org.nativescript.mason.masonkit.FlexDirection
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.Img
 import org.nativescript.mason.masonkit.Mason
 

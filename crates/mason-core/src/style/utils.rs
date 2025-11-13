@@ -1,16 +1,11 @@
 use crate::utils::{
-    align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
-    align_self_from_enum, align_self_to_enum, box_sizing_from_enum, display_from_enum,
-    display_to_enum, flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum,
-    flex_wrap_to_enum, grid_auto_flow_from_enum, grid_auto_flow_to_enum, justify_content_from_enum,
-    justify_content_to_enum, overflow_from_enum, overflow_to_enum, position_from_enum,
-    position_to_enum, text_align_from_enum, text_align_to_enum,
+    align_content_from_enum, align_items_from_enum, align_self_from_enum, box_sizing_from_enum,
+    display_from_enum, flex_direction_from_enum, flex_wrap_from_enum, grid_auto_flow_from_enum,
+    justify_content_from_enum, overflow_from_enum, position_from_enum, text_align_from_enum,
 };
-use bitflags::bitflags;
-use bitflags::Flags;
 use taffy::geometry::Point;
 
-use crate::style::{StateKeys, StyleKeys};
+use crate::style::StyleKeys;
 use crate::Style;
 use taffy::style::{
     Display, LengthPercentage, LengthPercentageAuto, MinTrackSizingFunction, TrackSizingFunction,
@@ -19,8 +14,8 @@ use taffy::style_helpers::{
     FromLength, FromPercent, TaffyAuto, TaffyFitContent, TaffyMaxContent, TaffyMinContent,
 };
 use taffy::{
-    AlignItems, CompactLength, CoreStyle, Dimension, GridContainerStyle, GridPlacement, Line,
-    MaxTrackSizingFunction, NonRepeatedTrackSizingFunction, Rect, Size,
+    CompactLength, Dimension, MaxTrackSizingFunction,
+    Rect, Size,
 };
 
 #[inline(always)]
@@ -150,8 +145,8 @@ pub fn min_max_from_values(
     min_value: f32,
     max_type: i32,
     max_value: f32,
-) -> NonRepeatedTrackSizingFunction {
-    NonRepeatedTrackSizingFunction {
+) -> TrackSizingFunction {
+    TrackSizingFunction {
         min: match min_type {
             0 => MinTrackSizingFunction::AUTO,
             1 => MinTrackSizingFunction::MIN_CONTENT,
@@ -171,23 +166,6 @@ pub fn min_max_from_values(
             7 => MaxTrackSizingFunction::fit_content(LengthPercentage::percent(max_value)),
             _ => panic!(),
         },
-    }
-}
-
-pub(crate) fn grid_placement(t: i32, v: i16) -> GridPlacement {
-    match t {
-        0 => GridPlacement::Auto,
-        1 => GridPlacement::Line(v.into()),
-        2 => GridPlacement::Span(v.try_into().unwrap()),
-        _ => panic!(),
-    }
-}
-
-pub(crate) fn grid_placement_to_value(value: GridPlacement) -> (i32, i16) {
-    match value {
-        GridPlacement::Auto => (0, 0),
-        GridPlacement::Line(line) => (1, line.as_i16()),
-        GridPlacement::Span(span) => (2, span as i16),
     }
 }
 
@@ -322,24 +300,24 @@ pub fn from_ffi(
     gap_column_type: i32,
     gap_column_value: f32,
     aspect_ratio: f32,
-    grid_auto_rows: Vec<NonRepeatedTrackSizingFunction>,
-    grid_auto_columns: Vec<NonRepeatedTrackSizingFunction>,
+    grid_auto_rows: Option<&str>,
+    grid_auto_columns: Option<&str>,
     grid_auto_flow: i32,
-    grid_column_start_type: i32,
-    grid_column_start_value: i16,
-    grid_column_end_type: i32,
-    grid_column_end_value: i16,
-    grid_row_start_type: i32,
-    grid_row_start_value: i16,
-    grid_row_end_type: i32,
-    grid_row_end_value: i16,
-    grid_template_rows: Vec<TrackSizingFunction>,
-    grid_template_columns: Vec<TrackSizingFunction>,
+    grid_column: Option<&str>,
+    grid_column_start: Option<&str>,
+    grid_column_end: Option<&str>,
+    grid_row: Option<&str>,
+    grid_row_start: Option<&str>,
+    grid_row_end: Option<&str>,
+    grid_template_rows: Option<&str>,
+    grid_template_columns: Option<&str>,
     overflow_x: i32,
     overflow_y: i32,
     scrollbar_width: f32,
     text_align: i32,
     box_sizing: i32,
+    grid_area: Option<&str>,
+    grid_template_areas: Option<&str>,
 ) -> Style {
     let mut style = Style::default();
     style.set_display(Display::Block);
@@ -413,14 +391,12 @@ pub fn from_ffi(
         grid_auto_rows,
         grid_auto_columns,
         grid_auto_flow,
-        grid_column_start_type,
-        grid_column_start_value,
-        grid_column_end_type,
-        grid_column_end_value,
-        grid_row_start_type,
-        grid_row_start_value,
-        grid_row_end_type,
-        grid_row_end_value,
+        grid_column,
+        grid_column_start,
+        grid_column_end,
+        grid_row,
+        grid_row_start,
+        grid_row_end,
         grid_template_rows,
         grid_template_columns,
         overflow_x,
@@ -428,6 +404,8 @@ pub fn from_ffi(
         scrollbar_width,
         text_align,
         box_sizing,
+        grid_area,
+        grid_template_areas,
     );
 
     style
@@ -501,25 +479,26 @@ pub fn update_from_ffi(
     gap_column_type: i32,
     gap_column_value: f32,
     aspect_ratio: f32,
-    grid_auto_rows: Vec<NonRepeatedTrackSizingFunction>,
-    grid_auto_columns: Vec<NonRepeatedTrackSizingFunction>,
+    grid_auto_rows: Option<&str>,
+    grid_auto_columns: Option<&str>,
     grid_auto_flow: i32,
-    grid_column_start_type: i32,
-    grid_column_start_value: i16,
-    grid_column_end_type: i32,
-    grid_column_end_value: i16,
-    grid_row_start_type: i32,
-    grid_row_start_value: i16,
-    grid_row_end_type: i32,
-    grid_row_end_value: i16,
-    grid_template_rows: Vec<TrackSizingFunction>,
-    grid_template_columns: Vec<TrackSizingFunction>,
+    grid_column: Option<&str>,
+    grid_column_start: Option<&str>,
+    grid_column_end: Option<&str>,
+    grid_row: Option<&str>,
+    grid_row_start: Option<&str>,
+    grid_row_end: Option<&str>,
+    grid_template_rows: Option<&str>,
+    grid_template_columns: Option<&str>,
     overflow_x: i32,
     overflow_y: i32,
     scrollbar_width: f32,
     text_align: i32,
     box_sizing: i32,
+    grid_area: Option<&str>,
+    grid_template_areas: Option<&str>,
 ) {
+
     if let Some(display) = display_from_enum(display) {
         style.set_display(display);
     }
@@ -647,27 +626,49 @@ pub fn update_from_ffi(
         Some(aspect_ratio)
     });
 
-    style.grid_template_rows = grid_template_rows;
+    if let Some(grid_template_rows) = grid_template_rows {
+        style.set_grid_template_rows_css(grid_template_rows);
+    }
 
-    style.grid_template_columns = grid_template_columns;
+    if let Some(grid_template_columns) = grid_template_columns {
+        style.set_grid_template_columns_css(grid_template_columns);
+    }
 
-    style.grid_auto_rows = grid_auto_rows;
+    if let Some(grid_auto_rows) = grid_auto_rows {
+        style.set_grid_auto_rows_css(grid_auto_rows);
+    }
 
-    style.grid_auto_columns = grid_auto_columns;
+    if let Some(grid_auto_columns) = grid_auto_columns {
+        style.set_grid_auto_columns_css(grid_auto_columns);
+    }
 
     if let Some(grid_auto_flow) = grid_auto_flow_from_enum(grid_auto_flow) {
         style.set_grid_auto_flow(grid_auto_flow);
     }
 
-    style.set_grid_row(Line {
-        start: grid_placement(grid_row_start_type, grid_row_start_value),
-        end: grid_placement(grid_row_end_type, grid_row_end_value),
-    });
+    if let Some(grid_row) = grid_row {
+        style.set_grid_row_css(grid_row)
+    }
 
-    style.set_grid_column(Line {
-        start: grid_placement(grid_column_start_type, grid_column_start_value),
-        end: grid_placement(grid_column_end_type, grid_column_end_value),
-    });
+    if let Some(start) = grid_row_start {
+        style.set_grid_row_start_css(start)
+    }
+
+    if let Some(end) = grid_row_end {
+        style.set_grid_row_end_css(end)
+    }
+
+    if let Some(grid_column) = grid_column {
+        style.set_grid_column_css(grid_column)
+    }
+
+    if let Some(start) = grid_column_start {
+        style.set_grid_column_start_css(start)
+    }
+
+    if let Some(end) = grid_column_end {
+        style.set_grid_column_end_css(end)
+    }
 
     if let Some(text_align) = text_align_from_enum(text_align) {
         style.set_text_align(text_align);
@@ -676,6 +677,17 @@ pub fn update_from_ffi(
     if let Some(box_sizing) = box_sizing_from_enum(box_sizing) {
         style.set_box_sizing(box_sizing);
     }
+
+    if let Some(areas) = grid_template_areas {
+        style.set_grid_template_areas_css(areas)
+    }
+
+    if let Some(area) = grid_area {
+        style.set_grid_area(area);
+    }
+
+
+    log::info!("set {:?}", &style);
 }
 
 #[inline(always)]

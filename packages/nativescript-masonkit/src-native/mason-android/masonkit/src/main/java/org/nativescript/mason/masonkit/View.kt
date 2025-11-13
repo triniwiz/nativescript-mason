@@ -9,6 +9,19 @@ import android.view.ViewGroup.LayoutParams
 import androidx.core.content.withStyledAttributes
 import androidx.core.util.size
 import com.google.gson.Gson
+import org.nativescript.mason.masonkit.enums.AlignContent
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.Direction
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.GridAutoFlow
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.JustifyItems
+import org.nativescript.mason.masonkit.enums.JustifySelf
+import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
 import kotlin.math.roundToInt
 
 class View @JvmOverloads constructor(
@@ -1696,7 +1709,7 @@ class View @JvmOverloads constructor(
     }
 
 
-  var gridAutoRows: Array<MinMax>
+  var gridAutoRows: String
     get() {
       return style.gridAutoRows
     }
@@ -1705,7 +1718,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridAutoColumns: Array<MinMax>
+  var gridAutoColumns: String
     get() {
       return style.gridAutoColumns
     }
@@ -1723,7 +1736,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridColumn: Line<GridPlacement>
+  var gridColumn: String
     get() {
       return style.gridColumn
     }
@@ -1732,7 +1745,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridColumnStart: GridPlacement
+  var gridColumnStart: String
     get() {
       return style.gridColumnStart
     }
@@ -1741,7 +1754,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridColumnEnd: GridPlacement
+  var gridColumnEnd: String
     get() {
       return style.gridColumnEnd
     }
@@ -1750,7 +1763,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridRow: Line<GridPlacement>
+  var gridRow: String
     get() {
       return style.gridRow
     }
@@ -1759,7 +1772,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridRowStart: GridPlacement
+  var gridRowStart: String
     get() {
       return style.gridRowStart
     }
@@ -1768,7 +1781,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridRowEnd: GridPlacement
+  var gridRowEnd: String
     get() {
       return style.gridRowEnd
     }
@@ -1777,7 +1790,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridTemplateRows: Array<TrackSizingFunction>
+  var gridTemplateRows: String
     get() {
       return style.gridTemplateRows
     }
@@ -1786,7 +1799,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridTemplateColumns: Array<TrackSizingFunction>
+  var gridTemplateColumns: String
     get() {
       return style.gridTemplateColumns
     }

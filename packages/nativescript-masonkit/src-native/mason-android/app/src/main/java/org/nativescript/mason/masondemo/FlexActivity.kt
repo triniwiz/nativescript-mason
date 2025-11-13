@@ -8,8 +8,8 @@ import android.view.ViewGroup
 import android.widget.Button
 import org.nativescript.mason.masondemo.databinding.ActivityFlexBinding
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.Display
-import org.nativescript.mason.masonkit.FlexDirection
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.NodeHelper
 import org.nativescript.mason.masonkit.Size

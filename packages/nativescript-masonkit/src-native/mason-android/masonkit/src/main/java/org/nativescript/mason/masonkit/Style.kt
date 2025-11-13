@@ -2,748 +2,29 @@ package org.nativescript.mason.masonkit
 
 import android.graphics.Color
 import dalvik.annotation.optimization.FastNative
-import org.nativescript.mason.masonkit.Display.Block
-import org.nativescript.mason.masonkit.Display.Flex
-import org.nativescript.mason.masonkit.Display.Grid
-import org.nativescript.mason.masonkit.Display.Inline
-import org.nativescript.mason.masonkit.Display.InlineBlock
-import org.nativescript.mason.masonkit.Display.InlineFlex
-import org.nativescript.mason.masonkit.Display.InlineGrid
-import org.nativescript.mason.masonkit.Display.None
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
+import org.nativescript.mason.masonkit.enums.Align
+import org.nativescript.mason.masonkit.enums.AlignContent
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.BoxSizing
+import org.nativescript.mason.masonkit.enums.Direction
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.DisplayMode
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.GridAutoFlow
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.JustifyItems
+import org.nativescript.mason.masonkit.enums.JustifySelf
+import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
+import org.nativescript.mason.masonkit.enums.TextAlign
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
 
-
-enum class TextType(val value: Int) {
-  None(0), P(1), Span(2), Code(3), H1(4), H2(5), H3(6), H4(7), H5(8), H6(9), Li(10), Blockquote(11), B(
-    12
-  ),
-  Pre(13), Strong(14), Em(15), I(16);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        None -> "text"
-        P -> "p"
-        Span -> "span"
-        Code -> "code"
-        H1 -> "h1"
-        H2 -> "h2"
-        H3 -> "h3"
-        H4 -> "h4"
-        H5 -> "h5"
-        H6 -> "h6"
-        Li -> "li"
-        Blockquote -> "blockquote"
-        B -> "b"
-        Pre -> "pre"
-        Strong -> "strong"
-        Em -> "em"
-        I -> "i"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): TextType {
-      return when (value) {
-        0 -> None
-        1 -> P
-        2 -> Span
-        3 -> Code
-        4 -> H1
-        5 -> H2
-        6 -> H3
-        7 -> H4
-        8 -> H5
-        9 -> H6
-        10 -> Li
-        11 -> Blockquote
-        12 -> B
-        13 -> Pre
-        14 -> Strong
-        15 -> Em
-        16 -> I
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class AlignItems(val value: Int) {
-  Normal(-1), Start(0), End(1), Center(2), Baseline(3), Stretch(4), FlexStart(5), FlexEnd(6);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Normal -> "normal"
-        Start -> "start"
-        End -> "end"
-        Center -> "center"
-        Baseline -> "baseline"
-        Stretch -> "stretch"
-        FlexStart -> "flex-start"
-        FlexEnd -> "flex-end"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): AlignItems {
-      return when (value) {
-        -1 -> Normal
-        0 -> Start
-        1 -> End
-        2 -> Center
-        3 -> Baseline
-        4 -> Stretch
-        5 -> FlexStart
-        6 -> FlexEnd
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class AlignSelf(val value: Int) {
-  Normal(-1), Start(0), End(1), Center(2), Baseline(3), Stretch(4), FlexStart(5), FlexEnd(6);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Normal -> "normal"
-        Start -> "start"
-        End -> "end"
-        Center -> "center"
-        Baseline -> "baseline"
-        Stretch -> "stretch"
-        FlexStart -> "flex-start"
-        FlexEnd -> "flex-end"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): AlignSelf {
-      return when (value) {
-        -1 -> Normal
-        0 -> Start
-        1 -> End
-        2 -> Center
-        3 -> Baseline
-        4 -> Stretch
-        5 -> FlexStart
-        6 -> FlexEnd
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class AlignContent(val value: Int) {
-  Normal(-1), Start(0), End(1), Center(2), Stretch(3), SpaceBetween(4), SpaceAround(5), SpaceEvenly(
-    6
-  ),
-  FlexStart(7), FlexEnd(8);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Normal -> "normal"
-        Start -> "start"
-        End -> "end"
-        Center -> "center"
-        Stretch -> "stretch"
-        SpaceBetween -> "space-between"
-        SpaceAround -> "space-around"
-        SpaceEvenly -> "space-evenly"
-        FlexStart -> "flex-start"
-        FlexEnd -> "flex-end"
-      }
-    }
-
-
-  companion object {
-    fun fromInt(value: Int): AlignContent {
-      return when (value) {
-        -1 -> Normal
-        0 -> Start
-        1 -> End
-        2 -> Center
-        3 -> Stretch
-        4 -> SpaceBetween
-        5 -> SpaceAround
-        6 -> SpaceEvenly
-        7 -> FlexStart
-        8 -> FlexEnd
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class Direction(val value: Int) {
-  Inherit(0), LTR(1), RTL(2);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Inherit -> "inherit"
-        LTR -> "LTR"
-        RTL -> "rtl"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): Direction {
-      return when (value) {
-        0 -> Inherit
-        1 -> LTR
-        2 -> RTL
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-internal enum class DisplayMode(val value: Int) {
-  None(0), Inline(1), Box(2);
-
-  companion object {
-    fun fromInt(value: Int): DisplayMode {
-      return when (value) {
-        0 -> None
-        1 -> Inline
-        2 -> Box
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class Display(val value: Int) {
-  None(0), Flex(1), Grid(2), Block(3), Inline(4), InlineBlock(5), InlineFlex(6), InlineGrid(7);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        None -> "none"
-        Flex -> "flex"
-        Grid -> "grid"
-        Block -> "block"
-        Inline -> "inline"
-        InlineBlock -> "inline-block"
-        InlineFlex -> "inline-flex"
-        InlineGrid -> "inline-grid"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): Display {
-      return when (value) {
-        0 -> None
-        1 -> Flex
-        2 -> Grid
-        3 -> Block
-        4 -> Inline
-        5 -> InlineBlock
-        6 -> InlineFlex
-        7 -> InlineGrid
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class FlexDirection(val value: Int) {
-  Row(0), Column(1), RowReverse(2), ColumnReverse(3);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Row -> "row"
-        Column -> "column"
-        RowReverse -> "row-reverse"
-        ColumnReverse -> "column-reverse"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): FlexDirection {
-      return when (value) {
-        0 -> Row
-        1 -> Column
-        2 -> RowReverse
-        3 -> ColumnReverse
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class JustifySelf(val value: Int) {
-  Normal(-1), Start(0), End(1), Center(2), Baseline(3), Stretch(4), FlexStart(5), FlexEnd(6);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Normal -> "normal"
-        Start -> "start"
-        End -> "end"
-        Center -> "center"
-        Baseline -> "baseline"
-        Stretch -> "stretch"
-        FlexStart -> "flex-start"
-        FlexEnd -> "flex-end"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): JustifySelf {
-      return when (value) {
-        -1 -> Normal
-        0 -> Start
-        1 -> End
-        2 -> Center
-        3 -> Baseline
-        4 -> Stretch
-        5 -> FlexStart
-        6 -> FlexEnd
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class JustifyItems(val value: Int) {
-  Normal(-1), Start(0), End(1), Center(2), Baseline(3), Stretch(4), FlexStart(5), FlexEnd(6);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Normal -> "normal"
-        Start -> "start"
-        End -> "end"
-        Center -> "center"
-        Baseline -> "baseline"
-        Stretch -> "stretch"
-        FlexStart -> "flex-start"
-        FlexEnd -> "flex-end"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): JustifyItems {
-      return when (value) {
-        -1 -> Normal
-        0 -> Start
-        1 -> End
-        2 -> Center
-        3 -> Baseline
-        4 -> Stretch
-        5 -> FlexStart
-        6 -> FlexEnd
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class JustifyContent(val value: Int) {
-  Normal(-1), Start(0), End(1), Center(2), Stretch(3), SpaceBetween(4), SpaceAround(5), SpaceEvenly(
-    6
-  ),
-  FlexStart(7), FlexEnd(7);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Normal -> "normal"
-        Start -> "start"
-        End -> "end"
-        Center -> "center"
-        Stretch -> "stretch"
-        SpaceBetween -> "space-between"
-        SpaceAround -> "space-around"
-        SpaceEvenly -> "space-evenly"
-        FlexStart -> "flex-start"
-        FlexEnd -> "flex-end"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): JustifyContent {
-      return when (value) {
-        -1 -> Normal
-        0 -> Start
-        1 -> End
-        2 -> Center
-        3 -> Stretch
-        4 -> SpaceBetween
-        5 -> SpaceAround
-        6 -> SpaceEvenly
-        7 -> FlexStart
-        8 -> FlexEnd
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class Overflow(val value: Int) {
-  Visible(0), Hidden(1), Scroll(2), Clip(3), Auto(4);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Visible -> "visible"
-        Hidden -> "hidden"
-        Scroll -> "scroll"
-        Clip -> "clip"
-        Auto -> "auto"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): Overflow {
-      return when (value) {
-        0 -> Visible
-        1 -> Hidden
-        2 -> Scroll
-        3 -> Clip
-        4 -> Auto
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class Position(val value: Int) {
-  Relative(0), Absolute(1);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Relative -> "relative"
-        Absolute -> "absolute"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): Position {
-      return when (value) {
-        0 -> Relative
-        1 -> Absolute
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class FlexWrap(val value: Int) {
-  NoWrap(0), Wrap(1), WrapReverse(2);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        NoWrap -> "nowrap"
-        Wrap -> "wrap"
-        WrapReverse -> "wrap-reverse"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): FlexWrap {
-      return when (value) {
-        0 -> NoWrap
-        1 -> Wrap
-        2 -> WrapReverse
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class GridAutoFlow(val value: Int) {
-  Row(0), Column(1), RowDense(2), ColumnDense(3);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Row -> "row"
-        Column -> "column"
-        RowDense -> "row-dense"
-        ColumnDense -> "column-dense"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): GridAutoFlow {
-      return when (value) {
-        0 -> Row
-        1 -> Column
-        2 -> RowDense
-        3 -> ColumnDense
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class TextAlign(val value: Int) {
-  Auto(0), Left(1), Right(2), Center(3), Justify(4), Start(5), End(6);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Auto -> "auto"
-        Left -> "left"
-        Right -> "right"
-        Center -> "center"
-        Justify -> "justify"
-        Start -> "start"
-        End -> "end"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): TextAlign {
-      return when (value) {
-        0 -> Auto
-        1 -> Left
-        2 -> Right
-        3 -> Center
-        4 -> Justify
-        5 -> Start
-        6 -> End
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class Align(val value: Int) {
-  Auto(0), Left(1), Right(2), Center(3);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Auto -> "auto"
-        Left -> "left"
-        Right -> "right"
-        Center -> "center"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): Align {
-      return when (value) {
-        0 -> Auto
-        1 -> Left
-        2 -> Right
-        3 -> Center
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-enum class BoxSizing(val value: Int) {
-  BorderBox(0), ContentBox(1);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        BorderBox -> "border-box"
-        ContentBox -> "content-box"
-      }
-    }
-
-  companion object {
-    fun fromInt(value: Int): BoxSizing {
-      return when (value) {
-        0 -> BorderBox
-        1 -> ContentBox
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-sealed class GridPlacement {
-  data object Auto : GridPlacement()
-  data class Line(var value: Short) : GridPlacement()
-  data class Span(var value: Short) : GridPlacement()
-
-
-  companion object {
-    @JvmStatic
-    fun fromTypeValue(type: Int, value: Short): GridPlacement {
-      return when (type) {
-        0 -> Auto
-        1 -> Line(value)
-        2 -> Span(value)
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-
-
-  internal val type: Int
-    get() = when (this) {
-      is Auto -> 0
-      is Line -> 1
-      is Span -> 2
-    }
-
-  internal val placementValue: Short
-    get() = when (this) {
-      is Auto -> 0
-      is Line -> value
-      is Span -> value
-    }
-
-  val jsonValue: String
-    get() {
-      return Mason.gson.toJson(this)
-    }
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Auto -> "auto"
-        is Line -> "$value"
-        is Span -> "span $value"
-      }
-    }
-}
-
-sealed class GridTrackRepetition {
-  data object AutoFill : GridTrackRepetition()
-  data object AutoFit : GridTrackRepetition()
-  data class Count(val count: Short) : GridTrackRepetition()
-
-  val type: Int
-    get() {
-      return toInt()
-    }
-
-  val value: Short
-    get() {
-      return when (this) {
-        AutoFill -> 0
-        AutoFit -> 0
-        is Count -> count
-      }
-    }
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        AutoFill -> "auto-fill"
-        AutoFit -> "auto-fit"
-        is Count -> "$value"
-      }
-    }
-
-  fun toInt(): Int {
-    return when (this) {
-      AutoFill -> 0
-      AutoFit -> 1
-      is Count -> 2
-    }
-  }
-
-  companion object {
-    @JvmStatic
-    fun fromInt(type: Int, value: Short): GridTrackRepetition {
-      return when (type) {
-        0 -> AutoFill
-        1 -> AutoFit
-        2 -> Count(value)
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
-      }
-    }
-  }
-}
-
-sealed class TrackSizingFunction(val isRepeating: Boolean = false) {
-
-  data class Single(val value: MinMax) : TrackSizingFunction()
-
-  data class AutoRepeat(val gridTrackRepetition: GridTrackRepetition, val value: Array<MinMax>) :
-    TrackSizingFunction(true) {
-
-    fun gridTrackRepetitionNativeType(): Int {
-      return gridTrackRepetition.toInt()
-    }
-
-    fun gridTrackRepetitionNativeValue(): Short {
-      return gridTrackRepetition.value
-    }
-
-    override fun equals(other: Any?): Boolean {
-      if (this === other) return true
-      if (javaClass != other?.javaClass) return false
-
-      other as AutoRepeat
-
-      if (gridTrackRepetition != other.gridTrackRepetition) return false
-      if (!value.contentEquals(other.value)) return false
-
-      return true
-    }
-
-    override fun hashCode(): Int {
-      var result = gridTrackRepetition.hashCode()
-      result = 31 * result + value.contentHashCode()
-      return result
-    }
-  }
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        is AutoRepeat -> {
-          val builder = StringBuilder("repeat(${gridTrackRepetition.cssValue}, ")
-          val last = value.lastIndex
-          value.forEachIndexed { index, minMax ->
-            if (index == last) {
-              builder.append(minMax.cssValue)
-            } else {
-              builder.append("${minMax.cssValue} ")
-            }
-          }
-          builder.append(")")
-          return builder.toString()
-        }
-
-        is Single -> value.cssValue
-      }
-    }
-}
-
-val Array<TrackSizingFunction>.jsonValue: String
-  get() {
-    return Mason.gson.toJson(this)
-  }
-
-val Array<TrackSizingFunction>.cssValue: String
-  get() {
-    if (isEmpty()) {
-      return ""
-    }
-    val builder = StringBuilder()
-    val last = this.lastIndex
-    this.forEachIndexed { index, minMax ->
-      if (index == last) {
-        builder.append(minMax.cssValue)
-      } else {
-        builder.append("${minMax.cssValue} ")
-      }
-    }
-    return builder.toString()
-  }
 
 object StyleKeys {
   const val DISPLAY = 0
@@ -921,6 +202,56 @@ object TextStyleChangeMask {
 }
 
 
+@JvmInline
+internal value class GridStateKeys internal constructor(val bits: Long) {
+  companion object {
+    val gridTemplateAreas = GridStateKeys(1L shl 0)
+    val gridAutoRows = GridStateKeys(1L shl 1)
+    val gridAutoColumns = GridStateKeys(1L shl 2)
+    val gridRowStart = GridStateKeys(1L shl 3)
+    val gridRowEnd = GridStateKeys(1L shl 4)
+    val gridColumnStart = GridStateKeys(1L shl 5)
+    val gridColumnEnd = GridStateKeys(1L shl 6)
+    val gridTemplateRows = GridStateKeys(1L shl 7)
+    val gridTemplateColumns = GridStateKeys(1L shl 8)
+  }
+
+  infix fun or(other: GridStateKeys): GridStateKeys = GridStateKeys(bits or other.bits)
+  infix fun and(other: GridStateKeys): GridStateKeys = GridStateKeys(bits and other.bits)
+  infix fun hasFlag(flag: GridStateKeys): Boolean = (bits and flag.bits) != 0L
+}
+
+internal class GridState {
+  var gridArea: String? = null
+  var gridTemplateAreas: String? = null
+  var gridAutoRows: String? = null
+  var gridAutoColumns: String? = null
+  var gridRow: String? = null
+  var gridRowStart: String? = null
+  var gridRowEnd: String? = null
+  var gridColumn: String? = null
+  var gridColumnStart: String? = null
+  var gridColumnEnd: String? = null
+  var gridTemplateRows: String? = null
+  var gridTemplateColumns: String? = null
+
+  fun clear() {
+    gridArea = null
+    gridTemplateAreas = null
+    gridAutoRows = null
+    gridAutoColumns = null
+    gridRow = null
+    gridRowStart = null
+    gridRowEnd = null
+    gridColumn = null
+    gridColumnStart = null
+    gridColumnEnd = null
+    gridTemplateRows = null
+    gridTemplateColumns = null
+  }
+}
+
+
 interface StyleChangeListener {
   fun onTextStyleChanged(change: Int)
 }
@@ -934,6 +265,8 @@ class Style internal constructor(private var node: Node) {
 
   internal var isValueInitialized: Boolean = false
   internal var isTextValueInitialized: Boolean = false
+  internal var gridDirty = -1L
+  internal var gridState = GridState()
 
   var font: FontFace = FontFace("sans-serif")
     internal set
@@ -1110,6 +443,7 @@ class Style internal constructor(private var node: Node) {
   private fun resetState() {
     isDirty = -1
     isSlowDirty = false
+    gridState.clear()
   }
 
   var inBatch: Boolean = false
@@ -1413,14 +747,14 @@ class Style internal constructor(private var node: Node) {
         }
 
         DisplayMode.Inline -> {
-          Inline
+          Display.Inline
         }
 
         DisplayMode.Box -> {
           when (Display.fromInt(values.getInt(StyleKeys.DISPLAY))) {
-            Flex -> InlineFlex
-            Grid -> InlineGrid
-            Block -> InlineBlock
+            Display.Flex -> Display.InlineFlex
+            Display.Grid -> Display.InlineGrid
+            Display.Block -> Display.InlineBlock
             else -> {
               // invalidate state
               // Block, Flex, Grid
@@ -1433,25 +767,25 @@ class Style internal constructor(private var node: Node) {
     set(value) {
       var displayMode = DisplayMode.None
       val display = when (value) {
-        None, Flex, Grid, Block -> value.value
-        Inline -> {
+        Display.None, Display.Flex, Display.Grid, Display.Block -> value.value
+        Display.Inline -> {
           displayMode = DisplayMode.Inline
-          Block.value
+          Display.Block.value
         }
 
-        InlineBlock -> {
+        Display.InlineBlock -> {
           displayMode = DisplayMode.Box
-          Block.value
+          Display.Block.value
         }
 
-        InlineFlex -> {
+        Display.InlineFlex -> {
           displayMode = DisplayMode.Box
-          Flex.value
+          Display.Flex.value
         }
 
-        InlineGrid -> {
+        Display.InlineGrid -> {
           displayMode = DisplayMode.Box
-          Grid.value
+          Display.Grid.value
         }
       }
 
@@ -2247,22 +1581,108 @@ class Style internal constructor(private var node: Node) {
     }
 
 
-  var gridAutoRows: Array<MinMax> = arrayOf()
-    set(value) {
-      field = value
-      isSlowDirty = true
-      if (!inBatch) {
-        updateNativeStyle()
+  /* legacy helpers */
+  fun setGridAutoRows(value: Array<MinMax>) {
+    gridAutoRows = value.cssValue
+  }
+
+  fun setGridAutoColumns(value: Array<MinMax>) {
+    gridAutoColumns = value.cssValue
+  }
+
+  fun setGridColumn(value: Line<GridPlacement>) {
+    gridColumn = value.cssValue
+  }
+
+  fun setGridColumnStart(value: GridPlacement) {
+    gridColumnStart = value.cssValue
+  }
+
+  fun setGridRow(value: Line<GridPlacement>) {
+    gridRow = value.cssValue
+  }
+
+  fun setGridTemplateRows(value: Array<GridTemplate>) {
+    gridTemplateRows = value.cssValue
+  }
+
+  fun setGridTemplateColumns(value: Array<GridTemplate>) {
+    gridTemplateColumns = value.cssValue
+  }
+
+  /* legacy helpers */
+
+  private fun <T> lazyCache(getCache: () -> T?, setCache: (T) -> Unit, fetch: () -> T): T {
+    val cached = getCache()
+    return cached ?: fetch().also { setCache(it) }
+  }
+
+  private var _gridArea: String? = null
+  var gridArea: String
+    get() {
+      return lazyCache(
+        { _gridArea },
+        { _gridArea = it }
+      ) {
+        nativeGetGridArea(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
-
-  var gridAutoColumns: Array<MinMax> = emptyArray()
     set(value) {
-      field = value
+      gridState.gridArea = value
+      _gridArea = null
+      _gridColumnStart = null
+      _gridColumnEnd = null
+      _gridRowStart = null
+      _gridRowEnd = null
       isSlowDirty = true
-      if (!inBatch) {
-        updateNativeStyle()
+    }
+
+  private var _gridTemplateAreas: String? = null
+  var gridTemplateAreas: String
+    get() {
+      return lazyCache(
+        { _gridTemplateAreas },
+        { _gridTemplateAreas = it }
+      ) {
+        nativeGetGridTemplateAreas(node.mason.nativePtr, node.nativePtr) ?: ""
       }
+    }
+    set(value) {
+      gridState.gridTemplateAreas = value
+      _gridTemplateAreas = null
+      isSlowDirty = true
+    }
+
+  private var _gridAutoRows: String? = null
+  var gridAutoRows: String
+    get() {
+      return lazyCache(
+        { _gridAutoRows },
+        { _gridAutoRows = it }
+      ) {
+        nativeGetGridAutoRows(node.mason.nativePtr, node.nativePtr) ?: ""
+      }
+    }
+    set(value) {
+      gridState.gridAutoRows = value
+      _gridAutoRows = null
+      isSlowDirty = true
+    }
+
+  private var _gridAutoColumns: String? = null
+  var gridAutoColumns: String
+    get() {
+      return lazyCache(
+        { _gridAutoColumns },
+        { _gridAutoColumns = it }
+      ) {
+        nativeGetGridAutoColumns(node.mason.nativePtr, node.nativePtr) ?: ""
+      }
+    }
+    set(value) {
+      gridState.gridAutoColumns = value
+      _gridAutoColumns = null
+      isSlowDirty = true
     }
 
   var gridAutoFlow: GridAutoFlow
@@ -2274,113 +1694,157 @@ class Style internal constructor(private var node: Node) {
       setOrAppendState(StateKeys.GRID_AUTO_FLOW)
     }
 
-  var gridColumn: Line<GridPlacement>
+  private var _gridColumn: String? = null
+  var gridColumn: String
     get() {
-      val startType = values.getInt(StyleKeys.GRID_COLUMN_START_TYPE)
-      val startValue = values.getShort(StyleKeys.GRID_COLUMN_START_VALUE)
-      val start = GridPlacement.fromTypeValue(startType, startValue)
-
-      val endType = values.getInt(StyleKeys.GRID_COLUMN_END_TYPE)
-      val endValue = values.getShort(StyleKeys.GRID_COLUMN_END_VALUE)
-      val end = GridPlacement.fromTypeValue(endType, endValue)
-      return Line(start, end)
-    }
-    set(value) {
-      values.putInt(StyleKeys.GRID_COLUMN_START_TYPE, value.start.type)
-      values.putShort(StyleKeys.GRID_COLUMN_START_VALUE, value.start.placementValue)
-
-      values.putInt(StyleKeys.GRID_COLUMN_END_TYPE, value.end.type)
-      values.putShort(StyleKeys.GRID_COLUMN_END_VALUE, value.end.placementValue)
-      setOrAppendState(StateKeys.GRID_COLUMN)
-    }
-
-
-  var gridColumnStart: GridPlacement
-    get() {
-      val startType = values.getInt(StyleKeys.GRID_COLUMN_START_TYPE)
-      val startValue = values.getShort(StyleKeys.GRID_COLUMN_START_VALUE)
-      return GridPlacement.fromTypeValue(startType, startValue)
-    }
-    set(value) {
-      values.putInt(StyleKeys.GRID_COLUMN_START_TYPE, value.type)
-      values.putShort(StyleKeys.GRID_COLUMN_START_VALUE, value.placementValue)
-      setOrAppendState(StateKeys.GRID_COLUMN)
-    }
-
-  var gridColumnEnd: GridPlacement
-    get() {
-      val endType = values.getInt(StyleKeys.GRID_COLUMN_END_TYPE)
-      val endValue = values.getShort(StyleKeys.GRID_COLUMN_END_VALUE)
-      return GridPlacement.fromTypeValue(endType, endValue)
-    }
-    set(value) {
-      values.putInt(StyleKeys.GRID_COLUMN_END_TYPE, value.type)
-      values.putShort(StyleKeys.GRID_COLUMN_END_VALUE, value.placementValue)
-      setOrAppendState(StateKeys.GRID_COLUMN)
-    }
-
-
-  var gridRow: Line<GridPlacement>
-    get() {
-      val startType = values.getInt(StyleKeys.GRID_ROW_START_TYPE)
-      val startValue = values.getShort(StyleKeys.GRID_ROW_START_VALUE)
-      val start = GridPlacement.fromTypeValue(startType, startValue)
-
-      val endType = values.getInt(StyleKeys.GRID_ROW_END_TYPE)
-      val endValue = values.getShort(StyleKeys.GRID_ROW_END_VALUE)
-      val end = GridPlacement.fromTypeValue(endType, endValue)
-      return Line(start, end)
-    }
-    set(value) {
-      values.putInt(StyleKeys.GRID_ROW_START_TYPE, value.start.type)
-      values.putShort(StyleKeys.GRID_ROW_START_VALUE, value.start.placementValue)
-
-      values.putInt(StyleKeys.GRID_ROW_END_TYPE, value.end.type)
-      values.putShort(StyleKeys.GRID_ROW_END_VALUE, value.end.placementValue)
-      setOrAppendState(StateKeys.GRID_ROW)
-    }
-
-  var gridRowStart: GridPlacement
-    get() {
-      val startType = values.getInt(StyleKeys.GRID_ROW_START_TYPE)
-      val startValue = values.getShort(StyleKeys.GRID_ROW_START_VALUE)
-      return GridPlacement.fromTypeValue(startType, startValue)
-    }
-    set(value) {
-      values.putInt(StyleKeys.GRID_ROW_START_TYPE, value.type)
-      values.putShort(StyleKeys.GRID_ROW_START_VALUE, value.placementValue)
-      setOrAppendState(StateKeys.GRID_ROW)
-    }
-
-  var gridRowEnd: GridPlacement
-    get() {
-      val endType = values.getInt(StyleKeys.GRID_ROW_END_TYPE)
-      val endValue = values.getShort(StyleKeys.GRID_ROW_END_VALUE)
-      return GridPlacement.fromTypeValue(endType, endValue)
-    }
-    set(value) {
-      values.putInt(StyleKeys.GRID_ROW_END_TYPE, value.type)
-      values.putShort(StyleKeys.GRID_ROW_END_VALUE, value.placementValue)
-      setOrAppendState(StateKeys.GRID_ROW)
-    }
-
-
-  var gridTemplateRows: Array<TrackSizingFunction> = emptyArray()
-    set(value) {
-      field = value
-      isSlowDirty = true
-      if (!inBatch) {
-        updateNativeStyle()
+      return lazyCache(
+        { _gridColumn },
+        { _gridColumn = it }
+      ) {
+        nativeGetGridColumn(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
-
-  var gridTemplateColumns: Array<TrackSizingFunction> = emptyArray()
     set(value) {
-      field = value
+      gridState.gridColumn = value
+      _gridColumn = null
       isSlowDirty = true
-      if (!inBatch) {
-        updateNativeStyle()
+    }
+
+  private var _gridColumnStart: String? = null
+  var gridColumnStart: String
+    get() {
+      return lazyCache(
+        {
+          _gridColumnStart
+        },
+        {
+          _gridColumnStart = it
+        }
+      ) {
+        nativeGetGridColumnStart(node.mason.nativePtr, node.nativePtr) ?: ""
       }
+    }
+    set(value) {
+      gridState.gridColumnStart = value
+      _gridColumnStart = null
+      _gridColumn = null
+      isSlowDirty = true
+    }
+
+  private var _gridColumnEnd: String? = null
+  var gridColumnEnd: String
+    get() {
+      return lazyCache(
+        {
+          _gridColumnEnd
+        },
+        {
+          _gridColumnEnd = it
+        }
+      ) {
+        nativeGetGridColumnEnd(node.mason.nativePtr, node.nativePtr) ?: ""
+      }
+    }
+    set(value) {
+      gridState.gridColumnEnd = value
+      _gridColumnEnd = null
+      _gridColumn = null
+      isSlowDirty = true
+    }
+
+  private var _gridRow: String? = null
+  var gridRow: String
+    get() {
+      return lazyCache(
+        { _gridRow },
+        { _gridRow = it }
+      ) {
+        nativeGetGridRow(node.mason.nativePtr, node.nativePtr) ?: ""
+      }
+    }
+    set(value) {
+      gridState.gridRow = value
+      _gridRow = null
+      isSlowDirty = true
+    }
+
+  private var _gridRowStart: String? = null
+  var gridRowStart: String
+    get() {
+      return lazyCache(
+        {
+          _gridRowStart
+        },
+        {
+          _gridRowStart = it
+        }
+      ) {
+        nativeGetGridRowStart(node.mason.nativePtr, node.nativePtr) ?: ""
+      }
+    }
+    set(value) {
+      gridState.gridRowStart = value
+      _gridRowStart = null
+      _gridRow = null
+      isSlowDirty = true
+    }
+
+  private var _gridRowEnd: String? = null
+  var gridRowEnd: String
+    get() {
+      return lazyCache(
+        {
+          _gridRowEnd
+        },
+        {
+          _gridRowEnd = it
+        }
+      ) {
+        nativeGetGridRowEnd(node.mason.nativePtr, node.nativePtr) ?: ""
+      }
+    }
+    set(value) {
+      gridState.gridRowEnd = value
+      _gridRowEnd = null
+      _gridRow = null
+      isSlowDirty = true
+    }
+
+
+  private var _gridTemplateRows: String? = null
+  var gridTemplateRows: String
+    get() {
+      return lazyCache(
+        { _gridTemplateRows },
+        { _gridTemplateRows = it }
+      ) {
+        nativeGetGridTemplateRows(
+          node.mason.nativePtr, node.nativePtr
+        ) ?: ""
+      }
+    }
+    set(value) {
+      gridState.gridTemplateRows = value
+      _gridTemplateRows = null
+      isSlowDirty = true
+    }
+
+  private var _gridTemplateColumns: String? = null
+  var gridTemplateColumns: String
+    get() {
+      return lazyCache(
+        { _gridTemplateColumns },
+        { _gridTemplateColumns = it }
+      ) {
+        nativeGetGridTemplateColumns(
+          node.mason.nativePtr, node.nativePtr
+        ) ?: ""
+      }
+    }
+    set(value) {
+      gridState.gridTemplateColumns = value
+      _gridTemplateColumns = null
+      isSlowDirty = true
     }
 
   internal fun updateNativeStyle() {
@@ -2389,6 +1853,27 @@ class Style internal constructor(private var node: Node) {
     }
 
     if (isSlowDirty) {
+      if (isDirty == -1L) {
+        nativeNonBufferData(
+          node.mason.nativePtr,
+          node.nativePtr,
+          gridState.gridAutoRows,
+          gridState.gridAutoColumns,
+          gridState.gridColumn,
+          gridState.gridColumnStart,
+          gridState.gridColumnEnd,
+          gridState.gridRow,
+          gridState.gridRowStart,
+          gridState.gridRowEnd,
+          gridState.gridTemplateRows,
+          gridState.gridTemplateColumns,
+          gridState.gridArea,
+          gridState.gridTemplateAreas
+        )
+        resetState()
+        (node.view as? Element)?.invalidateLayout()
+        return
+      }
       nativeUpdateWithValues(
         node.mason.nativePtr,
         node.nativePtr,
@@ -2468,26 +1953,24 @@ class Style internal constructor(private var node: Node) {
         gap.height.type,
         gap.height.value,
         aspectRatio ?: Float.NaN,
-        gridAutoRows,
-        gridAutoColumns,
+        gridState.gridAutoRows,
+        gridState.gridAutoColumns,
         gridAutoFlow.value,
-
-        gridColumn.start.type,
-        gridColumn.start.placementValue,
-        gridColumn.end.type,
-        gridColumn.end.placementValue,
-
-        gridRow.start.type,
-        gridRow.start.placementValue,
-        gridRow.end.type,
-        gridRow.end.placementValue,
-        gridTemplateRows,
-        gridTemplateColumns,
+        gridState.gridColumn,
+        gridState.gridColumnStart,
+        gridState.gridColumnEnd,
+        gridState.gridRow,
+        gridState.gridRowStart,
+        gridState.gridRowEnd,
+        gridState.gridTemplateRows,
+        gridState.gridTemplateColumns,
         overflowX.value,
         overflowY.value,
         scrollBarWidth,
         textAlign.value,
-        boxSizing.value
+        boxSizing.value,
+        gridState.gridArea,
+        gridState.gridTemplateAreas
       )
       resetState()
       (node.view as? Element)?.invalidateLayout()
@@ -2576,26 +2059,12 @@ class Style internal constructor(private var node: Node) {
         aspectRatio
       }
     }, \n"
-    ret += "gridAutoRows: ${
-      gridAutoRows.cssValue
-    }, \n"
-    ret += "gridAutoColumns: ${gridAutoColumns.cssValue}, \n"
-    ret += "gridColumn: ${
-      if (gridColumn.start == gridColumn.end) {
-        gridColumn.start.cssValue
-      } else {
-        "${gridColumn.start.cssValue} \\ ${gridColumn.end.cssValue}"
-      }
-    }, \n"
-    ret += "gridRow: ${
-      if (gridRow.start == gridRow.end) {
-        gridRow.start.cssValue
-      } else {
-        "${gridRow.start.cssValue} \\ ${gridRow.end.cssValue}"
-      }
-    }, \n"
-    ret += "gridTemplateRows: ${gridTemplateRows.cssValue}, \n"
-    ret += "gridTemplateColumns: ${gridTemplateColumns.cssValue} \n"
+    ret += "gridAutoRows: $gridAutoRows, \n"
+    ret += "gridAutoColumns: $gridAutoColumns, \n"
+    ret += "gridColumn: $gridColumn, \n"
+    ret += "gridRow: $gridRow, \n"
+    ret += "gridTemplateRows: $gridTemplateRows, \n"
+    ret += "gridTemplateColumns: $gridTemplateColumns \n"
 
     ret += "overflowX: ${overflowX.cssValue} \n"
     ret += "overflowY: ${overflowY.cssValue} \n"
@@ -2905,11 +2374,91 @@ class Style internal constructor(private var node: Node) {
     external fun nativeNonBufferData(
       mason: Long,
       node: Long,
-      gridAutoRows: Array<MinMax>,
-      gridAutoColumns: Array<MinMax>,
-      gridTemplateRows: Array<TrackSizingFunction>,
-      gridTemplateColumns: Array<TrackSizingFunction>
+      gridAutoRows: String?,
+      gridAutoColumns: String?,
+      gridColumn: String?,
+      gridColumnStart: String?,
+      gridColumnEnd: String?,
+      gridRow: String?,
+      gridRowStart: String?,
+      gridRowEnd: String?,
+      gridTemplateRows: String?,
+      gridTemplateColumns: String?,
+      gridArea: String?,
+      gridTemplateAreas: String?,
     )
+
+    @JvmStatic
+    external fun nativeGetGridArea(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridTemplateAreas(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridAutoRows(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridAutoColumns(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridColumn(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridColumnStart(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridColumnEnd(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridRow(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridRowStart(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridRowEnd(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridTemplateRows(
+      mason: Long,
+      node: Long
+    ): String?
+
+    @JvmStatic
+    external fun nativeGetGridTemplateColumns(
+      mason: Long,
+      node: Long
+    ): String?
 
     @JvmStatic
     external fun nativeUpdateWithValues(
@@ -2992,24 +2541,24 @@ class Style internal constructor(private var node: Node) {
 
       aspectRatio: Float,
 
-      gridAutoRows: Array<MinMax>,
-      gridAutoColumns: Array<MinMax>,
+      gridAutoRows: String?,
+      gridAutoColumns: String?,
       gridAutoFlow: Int,
-      gridColumnStartType: Int,
-      gridColumnStartValue: Short,
-      gridColumnEndType: Int,
-      gridColumnEndValue: Short,
-      gridRowStartType: Int,
-      gridRowStartValue: Short,
-      gridRowEndType: Int,
-      gridRowEndValue: Short,
-      gridTemplateRows: Array<TrackSizingFunction>,
-      gridTemplateColumns: Array<TrackSizingFunction>,
+      gridColumn: String?,
+      gridColumnStart: String?,
+      gridColumnEnd: String?,
+      gridRow: String?,
+      gridRowStart: String?,
+      gridRowEnd: String?,
+      gridTemplateRows: String?,
+      gridTemplateColumns: String?,
       overflowX: Int,
       overflowY: Int,
-      scrollBarWidth: Float,
+      scrollbarWidth: Float,
       textAlign: Int,
       boxSizing: Int,
+      gridArea: String?,
+      gridTemplateAreas: String?,
     )
   }
 }

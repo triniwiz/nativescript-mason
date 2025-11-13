@@ -592,6 +592,39 @@ public class MasonText: UIView, MasonElement, MasonElementObjc, StyleChangeListe
     }
   }
   
+  /// Text content - sets or gets the concatenated text from all text nodes
+  public var textContent: String {
+    get {
+      var result = ""
+      for child in node.children {
+        if let textNode = child as? MasonTextNode {
+          result += textNode.data
+        }
+      }
+      return result
+    }
+    set {
+      // Remove all existing children
+      node.children.removeAll()
+      
+      // Create a single text node with the new text
+      let textNode = MasonTextNode(mason: node.mason, data: newValue, attributes: getDefaultAttributes())
+      textNode.container = self
+      
+      // Add to children
+      node.children.append(textNode)
+      textNode.parent = node
+      
+      // Clear layout tree (text nodes don't have nativePtr)
+      if let ptr = node.nativePtr {
+        mason_node_remove_children(node.mason.nativePtr, ptr)
+      }
+      
+      invalidateInlineSegments()
+      requestLayout()
+    }
+  }
+  
   // Update attributes on all direct TextNode children when styles change
   internal func updateStyleOnTextNodes() {
     let defaultAttrs = getDefaultAttributes()
@@ -1334,39 +1367,6 @@ extension MasonText {
 
 // MARK: - Text Content Management
 extension MasonText {
-  /// Text content - sets or gets the concatenated text from all text nodes
-  public var text: String {
-    get {
-      var result = ""
-      for child in node.children {
-        if let textNode = child as? MasonTextNode {
-          result += textNode.data
-        }
-      }
-      return result
-    }
-    set {
-      // Remove all existing children
-      node.children.removeAll()
-      
-      // Create a single text node with the new text
-      let textNode = MasonTextNode(mason: node.mason, data: newValue, attributes: getDefaultAttributes())
-      textNode.container = self
-      
-      // Add to children
-      node.children.append(textNode)
-      textNode.parent = node
-      
-      // Clear layout tree (text nodes don't have nativePtr)
-      if let ptr = node.nativePtr {
-        mason_node_remove_children(node.mason.nativePtr, ptr)
-      }
-      
-      invalidateInlineSegments()
-      requestLayout()
-    }
-  }
-  
   
   /// Append text to the container
   internal func appendText(_ text: String) {

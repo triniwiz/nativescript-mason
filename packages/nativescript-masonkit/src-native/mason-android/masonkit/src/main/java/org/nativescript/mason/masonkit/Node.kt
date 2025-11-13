@@ -4,6 +4,7 @@ import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
+import org.nativescript.mason.masonkit.enums.TextType
 import java.lang.ref.WeakReference
 
 
