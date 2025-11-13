@@ -265,7 +265,6 @@ class Style internal constructor(private var node: Node) {
 
   internal var isValueInitialized: Boolean = false
   internal var isTextValueInitialized: Boolean = false
-  internal var gridDirty = -1L
   internal var gridState = GridState()
 
   var font: FontFace = FontFace("sans-serif")
@@ -1853,7 +1852,7 @@ class Style internal constructor(private var node: Node) {
     }
 
     if (isSlowDirty) {
-      if (isDirty == -1L) {
+     /* if (isDirty == -1L) {
         nativeNonBufferData(
           node.mason.nativePtr,
           node.nativePtr,
@@ -1874,6 +1873,7 @@ class Style internal constructor(private var node: Node) {
         (node.view as? Element)?.invalidateLayout()
         return
       }
+      */
       nativeUpdateWithValues(
         node.mason.nativePtr,
         node.nativePtr,

@@ -36,7 +36,113 @@ fn main() {
     // inline_size_bug()
     //  wrap_bug()
     // grid_areas();
-    grid();
+   // grid();
+    g_names();
+}
+
+fn g_names() {
+    extern "C" fn inline_g(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        MeasureOutput::make(10., 10.)
+    }
+
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+    mason.with_style_mut(root.id(), |style| {
+        style.set_display(Display::Grid);
+        style.set_gap(Size {
+            width: LengthPercentage::length(10.),
+            height: LengthPercentage::length(10.)
+        });
+        style.set_grid_template_columns_css("[col] 100px [col] 100px [col] 100px [col] 100px  ");
+        style.set_grid_template_rows_css(" [row] auto [row] auto [row] ");
+    });
+
+
+    let a = mason.create_node();
+    mason.with_style_mut(a.id(), |style| {
+        style.set_grid_template_columns_css("col / span 2");
+        style.set_grid_template_rows_css("row");
+    });
+
+
+    mason.set_measure(
+        a.id(),
+        Some(inline_g),
+        &1 as *const i32 as _,
+    );
+
+
+    let b = mason.create_node();
+    mason.with_style_mut(b.id(), |style| {
+        style.set_grid_template_columns_css("col 3 / span 2");
+        style.set_grid_template_rows_css("row");
+    });
+
+
+    mason.set_measure(
+        b.id(),
+        Some(inline_g),
+        &1 as *const i32 as _,
+    );
+
+
+    let c = mason.create_node();
+    mason.with_style_mut(c.id(), |style| {
+        style.set_grid_template_columns_css("col 3 / span 2");
+        style.set_grid_template_rows_css("row 2");
+    });
+
+
+    mason.set_measure(
+        c.id(),
+        Some(inline_g),
+        &1 as *const i32 as _,
+    );
+
+
+    let d = mason.create_node();
+    mason.with_style_mut(d.id(), |style| {
+        style.set_grid_template_columns_css(" col 2 / span 3 ");
+        style.set_grid_template_rows_css("row 2");
+    });
+
+
+    mason.set_measure(
+        d.id(),
+        Some(inline_g),
+        &1 as *const i32 as _,
+    );
+
+
+    let e = mason.create_node();
+    mason.with_style_mut(e.id(), |style| {
+        style.set_grid_template_columns_css("col 3 / span 2");
+        style.set_grid_template_rows_css("row 2");
+    });
+
+
+    mason.set_measure(
+        e.id(),
+        Some(inline_g),
+        &1 as *const i32 as _,
+    );
+
+    mason.add_child(root.id(), a.id());
+    mason.add_child(root.id(), b.id());
+    mason.add_child(root.id(), c.id());
+    mason.add_child(root.id(), d.id());
+    mason.add_child(root.id(), e.id());
+
+    mason.compute_wh(root.id(), 2000., 2000.);
+    mason.print_tree(root.id());
+
 }
 fn grid() {
     let mut mason = Mason::new();

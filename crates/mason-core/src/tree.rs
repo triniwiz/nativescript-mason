@@ -1682,7 +1682,11 @@ impl LayoutPartialTree for Tree {
 
             let all_inline = tree.subtree_all_inline_descendants(id);
 
-            if force_inline || has_segments || is_text_container || all_inline {
+            // Don't treat grid/flex containers as inline even if all children are inline
+            let should_use_inline = (force_inline || has_segments || is_text_container || all_inline)
+                && !matches!(display, Display::Grid | Display::Flex);
+
+            if should_use_inline {
                 return tree.compute_inline_layout(node_id, inputs);
             }
 

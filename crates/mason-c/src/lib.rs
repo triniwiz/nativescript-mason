@@ -61,5 +61,16 @@ pub extern "C" fn mason_print_tree(mason: *mut CMason, node: *mut CMasonNode) {
     }
 }
 
+#[no_mangle]
+pub extern "C" fn mason_set_device_scale(mason: *mut CMason, scale: f32) {
+    if mason.is_null() {
+        return;
+    }
+    unsafe {
+        let mason = &mut *mason;
+        mason.0.set_device_scale(scale);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct CMasonNode(NodeRef);

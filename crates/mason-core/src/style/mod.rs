@@ -305,7 +305,7 @@ impl Debug for Style {
             .field("grid_area", &self.grid_area)
             .field(
                 "grid_template_areas",
-                &self.get_grid_template_areas_as_css(),
+                &self.get_grid_template_areas_css(),
             )
             .field("grid_template_rows", &self.get_grid_template_rows_css())
             .field(
@@ -2059,7 +2059,7 @@ impl Style {
         self.grid_template_areas.as_slice()
     }
 
-    pub fn get_grid_template_areas_as_css(&self) -> &str {
+    pub fn get_grid_template_areas_css(&self) -> &str {
         self.grid_template_areas_raw.as_ref()
     }
 

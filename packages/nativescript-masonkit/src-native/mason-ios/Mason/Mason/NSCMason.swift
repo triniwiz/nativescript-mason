@@ -25,6 +25,10 @@ public class NSCMason: NSObject {
     mason_release(nativePtr)
   }
   
+  public func setDeviceScale(_ value: Float) {
+    mason_set_device_scale(nativePtr, value)
+  }
+  
   public func nodeForView(_ view: UIView, _ isLeaf: Bool = true) -> MasonNode{
     if let view = view as? MasonElement{
       return view.node

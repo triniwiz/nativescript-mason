@@ -255,16 +255,6 @@ public class MasonNode: NSObject {
   }
   
   
-  static func to_vec_non_repeated_track_sizing_function(_ array: Array<MinMax>) -> CMasonNonRepeatedTrackSizingFunctionArray {
-    let length = array.count
-    var cArray = array.map({ minMax in
-      minMax.cValue
-    })
-    return CMasonNonRepeatedTrackSizingFunctionArray(array: cArray.withUnsafeMutableBytes({ ptr in
-      ptr.baseAddress!.bindMemory(to: CMasonMinMax.self, capacity: length)
-    }), length: UInt(length))
-  }
-  
   public var isDirty: Bool {
     return mason_node_dirty(mason.nativePtr, nativePtr)
   }

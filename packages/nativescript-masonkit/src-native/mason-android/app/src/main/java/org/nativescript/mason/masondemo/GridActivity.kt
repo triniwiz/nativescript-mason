@@ -74,9 +74,30 @@ class GridActivity : AppCompatActivity() {
     b.gridRow = "row"
     b.append("B")
 
-    Log.d("com.test", "${rootLayout.style}")
 
-    rootLayout.append(arrayOf(a,b))
+
+    val c = Mason.shared.createView(this)
+    c.background = bg
+    c.gridColumn = "col 3 / span 2"
+    c.gridRow = "row 2"
+    c.append("C")
+
+
+    val d = Mason.shared.createView(this)
+    d.background = bg
+    d.gridColumn = " col 2 / span 3 "
+    d.gridRow = "row 2"
+    d.append("D")
+
+
+    val e = Mason.shared.createView(this)
+    e.background = bg
+    e.gridColumn = "col 3 / span 2"
+    e.gridRow = "row 2 "
+    e.append("E")
+
+
+    rootLayout.append(arrayOf(a,b,c,d,e))
   }
 
   fun wrapper5(rootLayout: View) {

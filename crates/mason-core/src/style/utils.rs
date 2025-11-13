@@ -626,6 +626,10 @@ pub fn update_from_ffi(
         Some(aspect_ratio)
     });
 
+    if let Some(area) = grid_area {
+        style.set_grid_area(area);
+    }
+
     if let Some(grid_template_rows) = grid_template_rows {
         style.set_grid_template_rows_css(grid_template_rows);
     }
@@ -681,13 +685,6 @@ pub fn update_from_ffi(
     if let Some(areas) = grid_template_areas {
         style.set_grid_template_areas_css(areas)
     }
-
-    if let Some(area) = grid_area {
-        style.set_grid_area(area);
-    }
-
-
-    log::info!("set {:?}", &style);
 }
 
 #[inline(always)]

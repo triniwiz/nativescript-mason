@@ -365,7 +365,30 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   }
   
   
-  @objc public var gridAutoRows: Array<MinMax> {
+  @objc public var gridArea: String {
+    get {
+      return style.gridArea
+    }
+    set(value) {
+      style.gridArea = value
+      checkAndUpdateStyle()
+    }
+  }
+  
+  
+  @objc public var gridTemplateAreas: String {
+    get {
+      return style.gridTemplateAreas
+    }
+    set(value) {
+      style.gridTemplateAreas = value
+      checkAndUpdateStyle()
+    }
+  }
+  
+  
+  
+  @objc public var gridAutoRows: String {
     get {
       return style.gridAutoRows
     }
@@ -376,7 +399,7 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   }
   
   
-  @objc public var gridAutoColumns: Array<MinMax>{
+  @objc public var gridAutoColumns: String{
     get{
       return style.gridAutoColumns
     }
@@ -398,7 +421,7 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   }
   
   
-  public var gridColumn: Line<GridPlacement>{
+  public var gridColumn: String{
     get{
       return style.gridColumn
     }
@@ -408,61 +431,28 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     }
   }
   
-  public var gridColumnStart: GridPlacement {
+  public var gridColumnStart: String {
     get {
-      return gridColumn.start
+      return style.gridColumnStart
     }
     
     set {
-      gridColumn = Line<GridPlacement>(newValue, gridColumn.end)
+      style.gridColumnStart = newValue
     }
   }
   
-  public var gridColumnEnd: GridPlacement {
+  public var gridColumnEnd: String {
     get {
-      return gridColumn.end
+      return style.gridColumnEnd
     }
     
     set {
-      gridColumn = Line<GridPlacement>(gridColumn.start, newValue)
+      style.gridColumnEnd = newValue
     }
   }
   
   
-  @objc public var gridColumnCompat: LineGridPlacementCompat {
-    get {
-      return style.gridColumnCompat
-    }
-    set {
-      style.gridColumnCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  @objc public var gridColumnStartCompat: GridPlacementCompat {
-    get {
-      return style.gridColumnStartCompat
-    }
-    
-    set {
-      style.gridColumnStartCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  @objc public var gridColumnEndCompat: GridPlacementCompat {
-    get {
-      return gridColumnCompat.end
-    }
-    
-    set {
-      style.gridColumnEndCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  
-  public var gridRow: Line<GridPlacement> {
+  public var gridRow: String{
     get{
       return style.gridRow
     }
@@ -472,61 +462,28 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     }
   }
   
-  public var gridRowStart: GridPlacement {
+  public var gridRowStart: String {
     get {
-      return gridRow.start
+      return style.gridRowStart
     }
     
     set {
-      gridRow = Line<GridPlacement>(newValue, gridRow.end)
+      style.gridRowStart = newValue
     }
   }
   
-  public var gridRowEnd: GridPlacement {
+  public var gridRowEnd: String {
     get {
-      return gridRow.end
+      return style.gridRowEnd
     }
     
     set {
-      gridRow = Line<GridPlacement>(gridRow.start, newValue)
+      style.gridRowEnd = newValue
     }
   }
   
   
-  @objc public var gridRowCompat: LineGridPlacementCompat {
-    get{
-      return style.gridRowCompat
-    }
-    set {
-      style.gridRowCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  @objc public var gridRowStartCompat: GridPlacementCompat {
-    get {
-      return style.gridRowStartCompat
-    }
-    
-    set {
-      style.gridRowStartCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  @objc public var gridRowEndCompat: GridPlacementCompat {
-    get {
-      return style.gridRowEndCompat
-    }
-    
-    set {
-      style.gridRowEndCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  
-  @objc public var gridTemplateRows: Array<TrackSizingFunction> {
+  @objc public var gridTemplateRows: String {
     get{
       return style.gridTemplateRows
     }
@@ -537,7 +494,7 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   }
   
   
-  @objc public var gridTemplateColumns: Array<TrackSizingFunction> {
+  @objc public var gridTemplateColumns: String {
     get{
       return style.gridTemplateColumns
     }

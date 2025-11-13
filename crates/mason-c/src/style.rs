@@ -1,10 +1,9 @@
-use std::ffi::{c_float, c_int, c_short};
+use std::ffi::{c_char, c_float, c_int, CStr, CString};
 
 use crate::{CMason, CMasonNode};
-use mason_core::style::utils::min_max_from_values;
 use mason_core::{
-    CompactLength, Dimension, GridPlacement, LengthPercentage,
-    LengthPercentageAuto, Overflow, Rect, Size, TrackSizingFunction,
+    CompactLength, Dimension, GridPlacement, LengthPercentage, LengthPercentageAuto, Mason,
+    NodeRef, Overflow, Rect, Size, TrackSizingFunction,
 };
 
 #[repr(C)]
@@ -264,17 +263,6 @@ pub struct CMasonGridPlacement {
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub struct CMasonTrackSizingFunction(TrackSizingFunction);
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct CMasonTrackSizingFunctionArray {
-    pub array: *mut CMasonMinMax,
-    pub length: usize,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum CMasonOverflowType {
     Visible,
     Hidden,
@@ -286,187 +274,6 @@ pub enum CMasonOverflowType {
 pub struct CMasonOverflowPoint {
     x: CMasonOverflowType,
     y: CMasonOverflowType,
-}
-
-impl From<Vec<CMasonMinMax>> for CMasonTrackSizingFunctionArray {
-    fn from(value: Vec<CMasonMinMax>) -> Self {
-        let mut box_slice = value.into_boxed_slice();
-        let array = Self {
-            array: box_slice.as_mut_ptr(),
-            length: box_slice.len(),
-        };
-        let _ = Box::into_raw(box_slice);
-        array
-    }
-}
-
-impl Drop for CMasonTrackSizingFunctionArray {
-    fn drop(&mut self) {
-        let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(self.array, self.length)) };
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_destroy_non_repeated_track_sizing_function_array(
-    array: *mut CMasonTrackSizingFunctionArray,
-) {
-    if array.is_null() {
-        return;
-    }
-    let _ = unsafe { Box::from_raw(array) };
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub enum CMasonTrackSizingFunction {
-    Single(CMasonMinMax),
-    Repeat(i32, u16, *mut CMasonTrackSizingFunctionArray),
-}
-
-impl Drop for CMasonTrackSizingFunction {
-    fn drop(&mut self) {
-        if let CMasonTrackSizingFunction::Repeat(_, _, array) = self {
-            let _ = unsafe { Box::from_raw(array) };
-        }
-    }
-}
-
-impl From<TrackSizingFunction> for CMasonTrackSizingFunction {
-    fn from(value: TrackSizingFunction) -> Self {
-        
-        match value {
-            TrackSizingFunction::Single(value) => CMasonTrackSizingFunction::Single(value.into()),
-            TrackSizingFunction::Repeat(repetition, tracks) => {
-                let mut count = 0;
-                let rep = match repetition {
-                    GridTrackRepetition::AutoFill => 0,
-                    GridTrackRepetition::AutoFit => 1,
-                    GridTrackRepetition::Count(value) => {
-                        count = value;
-                        2
-                    }
-                };
-
-                CMasonTrackSizingFunction::Repeat(
-                    rep,
-                    count,
-                    Box::into_raw(Box::new(
-                        tracks
-                            .into_iter()
-                            .map(|v| v.into())
-                            .collect::<Vec<CMasonMinMax>>()
-                            .into(),
-                    )),
-                )
-            }
-        }
-    }
-}
-
-impl Into<TrackSizingFunction> for CMasonTrackSizingFunction {
-    fn into(self) -> TrackSizingFunction {
-        match &self {
-            CMasonTrackSizingFunction::Single(value) => {
-                TrackSizingFunction::Single(min_max_from_values(
-                    value.min_type,
-                    value.min_value,
-                    value.max_type,
-                    value.max_value,
-                ))
-            }
-            CMasonTrackSizingFunction::Repeat(repetition, count, tracks) => {
-                TrackSizingFunction::Repeat(
-                    match repetition {
-                        0 => GridTrackRepetition::AutoFill,
-                        1 => GridTrackRepetition::AutoFit,
-                        2 => GridTrackRepetition::Count(*count),
-                        _ => panic!(),
-                    },
-                    {
-                        let slice = unsafe {
-                            std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length)
-                                .to_vec()
-                        };
-                        slice.into_iter().map(|v| v.into()).collect()
-                    },
-                )
-            }
-        }
-    }
-}
-
-impl From<&CMasonTrackSizingFunction> for TrackSizingFunction {
-    fn from(value: &CMasonTrackSizingFunction) -> Self {
-        match value {
-            CMasonTrackSizingFunction::Single(value) => {
-                TrackSizingFunction::Single(min_max_from_values(
-                    value.min_type,
-                    value.min_value,
-                    value.max_type,
-                    value.max_value,
-                ))
-            }
-            CMasonTrackSizingFunction::Repeat(repetition, count, tracks) => {
-                TrackSizingFunction::Repeat(
-                    match repetition {
-                        0 => GridTrackRepetition::AutoFill,
-                        1 => GridTrackRepetition::AutoFit,
-                        2 => GridTrackRepetition::Count(*count),
-                        _ => panic!(),
-                    },
-                    {
-                        let slice = unsafe {
-                            std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length)
-                                .to_vec()
-                        };
-                        slice.into_iter().map(|v| v.into()).collect()
-                    },
-                )
-            }
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Debug)]
-pub struct CMasonTrackSizingFunctionArray {
-    pub array: *mut CMasonTrackSizingFunction,
-    pub length: usize,
-}
-
-impl From<Vec<CMasonTrackSizingFunction>> for CMasonTrackSizingFunctionArray {
-    fn from(value: Vec<CMasonTrackSizingFunction>) -> Self {
-        let mut box_slice = value.into_boxed_slice();
-        let array = Self {
-            array: box_slice.as_mut_ptr(),
-            length: box_slice.len(),
-        };
-        let _ = Box::into_raw(box_slice);
-        array
-    }
-}
-
-impl Drop for CMasonTrackSizingFunctionArray {
-    fn drop(&mut self) {
-        let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(self.array, self.length)) };
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_destroy_track_sizing_function_array(
-    array: *mut CMasonTrackSizingFunctionArray,
-) {
-    if array.is_null() {
-        return;
-    }
-    let _ = unsafe { Box::from_raw(array) };
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<TrackSizingFunction> for CMasonMinMax {
-    fn into(self) -> TrackSizingFunction {
-        min_max_from_values(self.min_type, self.min_value, self.max_type, self.max_value)
-    }
 }
 
 impl CMasonDimensionSize {
@@ -804,25 +611,6 @@ impl Into<Size<LengthPercentage>> for CMasonLengthPercentageSize {
     }
 }
 
-impl From<GridPlacement> for CMasonGridPlacement {
-    fn from(value: GridPlacement) -> Self {
-        match value {
-            GridPlacement::Auto => CMasonGridPlacement {
-                value: 0,
-                value_type: CMasonGridPlacementType::MasonGridPlacementTypeAuto,
-            },
-            GridPlacement::Line(value) => CMasonGridPlacement {
-                value: value.as_i16(),
-                value_type: CMasonGridPlacementType::MasonGridPlacementTypeLine,
-            },
-            GridPlacement::Span(value) => CMasonGridPlacement {
-                value: value as i16,
-                value_type: CMasonGridPlacementType::MasonGridPlacementTypeSpan,
-            },
-        }
-    }
-}
-
 impl Into<GridPlacement> for CMasonGridPlacement {
     fn into(self) -> GridPlacement {
         match self.value_type {
@@ -834,6 +622,127 @@ impl Into<GridPlacement> for CMasonGridPlacement {
                 GridPlacement::Span(self.value.try_into().unwrap())
             }
         }
+    }
+}
+
+fn to_cstr<'a>(value: *const c_char) -> Option<&'a CStr> {
+    if value.is_null() {
+        None
+    } else {
+        unsafe { Some(CStr::from_ptr(value)) }
+    }
+}
+
+fn cstr_to_lossy(value: *const c_char) -> Option<std::borrow::Cow<'static, str>> {
+    to_cstr(value).map(|v| v.to_string_lossy())
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_update_non_buffer_data(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+    grid_auto_rows: *const c_char,
+    grid_auto_columns: *const c_char,
+    grid_column: *const c_char,
+    grid_column_start: *const c_char,
+    grid_column_end: *const c_char,
+    grid_row: *const c_char,
+    grid_row_start: *const c_char,
+    grid_row_end: *const c_char,
+    grid_template_rows: *const c_char,
+    grid_template_columns: *const c_char,
+    grid_area: *const c_char,
+    grid_template_areas: *const c_char,
+) {
+    if mason.is_null() || node.is_null() {
+        return;
+    }
+
+    let grid_auto_rows = cstr_to_lossy(grid_auto_rows);
+
+    let grid_auto_columns = cstr_to_lossy(grid_auto_columns);
+
+    let grid_template_rows = cstr_to_lossy(grid_template_rows);
+
+    let grid_template_columns = cstr_to_lossy(grid_template_columns);
+
+    let grid_column = cstr_to_lossy(grid_column);
+
+    let grid_column_start = cstr_to_lossy(grid_column_start);
+
+    let grid_column_end = cstr_to_lossy(grid_column_end);
+
+    let grid_row = cstr_to_lossy(grid_row);
+
+    let grid_row_start = cstr_to_lossy(grid_row_start);
+
+    let grid_row_end = cstr_to_lossy(grid_row_end);
+
+    let grid_area = cstr_to_lossy(grid_area);
+
+    let grid_template_areas = cstr_to_lossy(grid_template_areas);
+
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &*(node as *mut NodeRef);
+
+        mason.with_style_mut(node.id().into(), |style| {
+            if let Some(grid_template_rows) = grid_template_rows.as_deref() {
+                style.set_grid_template_columns_css(grid_template_rows);
+            }
+
+            if let Some(grid_template_columns) = grid_template_columns.as_deref() {
+                style.set_grid_template_columns_css(grid_template_columns);
+            }
+
+            if let Some(grid_auto_rows) = grid_auto_rows.as_deref() {
+                style.set_grid_auto_rows_css(grid_auto_rows);
+            }
+
+            if let Some(grid_auto_columns) = grid_auto_columns.as_deref() {
+                style.set_grid_auto_columns_css(grid_auto_columns);
+            }
+
+            if let Some(grid_row) = grid_row.as_deref() {
+                style.set_grid_row_css(grid_row)
+            }
+
+            if let Some(start) = grid_row_start.as_deref() {
+                style.set_grid_row_start_css(start)
+            }
+
+            if let Some(end) = grid_row_end.as_deref() {
+                style.set_grid_row_start_css(end)
+            }
+
+            if let Some(grid_column) = grid_column.as_deref() {
+                style.set_grid_column_css(grid_column)
+            }
+
+            if let Some(start) = grid_column_start.as_deref() {
+                style.set_grid_column_start_css(start)
+            }
+
+            if let Some(end) = grid_column_end.as_deref() {
+                style.set_grid_column_start_css(end)
+            }
+
+            if let Some(areas) = grid_template_areas.as_deref() {
+                style.set_grid_template_areas_css(areas)
+            }
+
+            if let Some(columns) = grid_template_columns.as_deref() {
+                style.set_grid_template_columns_css(columns);
+            }
+
+            if let Some(rows) = grid_template_rows.as_deref() {
+                style.set_grid_template_rows_css(rows);
+            }
+
+            if let Some(area) = grid_area.as_deref() {
+                style.set_grid_area(area);
+            }
+        })
     }
 }
 
@@ -906,24 +815,24 @@ pub extern "C" fn mason_style_set_with_values(
     gap_column_type: c_int,
     gap_column_value: c_float,
     aspect_ratio: c_float,
-    grid_auto_rows: *mut CMasonTrackSizingFunctionArray,
-    grid_auto_columns: *mut CMasonTrackSizingFunctionArray,
+    grid_auto_rows: *const c_char,
+    grid_auto_columns: *const c_char,
     grid_auto_flow: c_int,
-    grid_column_start_type: c_int,
-    grid_column_start_value: c_short,
-    grid_column_end_type: c_int,
-    grid_column_end_value: c_short,
-    grid_row_start_type: c_int,
-    grid_row_start_value: c_short,
-    grid_row_end_type: c_int,
-    grid_row_end_value: c_short,
-    grid_template_rows: *mut CMasonTrackSizingFunctionArray,
-    grid_template_columns: *mut CMasonTrackSizingFunctionArray,
+    grid_column: *const c_char,
+    grid_column_start: *const c_char,
+    grid_column_end: *const c_char,
+    grid_row: *const c_char,
+    grid_row_start: *const c_char,
+    grid_row_end: *const c_char,
+    grid_template_rows: *const c_char,
+    grid_template_columns: *const c_char,
     overflow_x: i32,
     overflow_y: i32,
     scrollbar_width: f32,
     text_align: i32,
     box_sizing: i32,
+    grid_area: *const c_char,
+    grid_template_areas: *const c_char,
 ) {
     if mason.is_null() || node.is_null() {
         return;
@@ -933,97 +842,118 @@ pub extern "C" fn mason_style_set_with_values(
         let mason = &mut (*mason).0;
         let node = &(*node);
 
-        let grid_auto_rows = to_vec_non_repeated_track_sizing_function(grid_auto_rows);
-        let grid_auto_columns = to_vec_non_repeated_track_sizing_function(grid_auto_columns);
-        let grid_template_rows = to_vec_track_sizing_function(grid_template_rows);
-        let grid_template_columns = to_vec_track_sizing_function(grid_template_columns);
+        let grid_auto_rows = cstr_to_lossy(grid_auto_rows);
 
-        let style = mason_core::style::utils::from_ffi(
-            display,
-            position,
-            direction,
-            flex_direction,
-            flex_wrap,
-            overflow,
-            align_items,
-            align_self,
-            align_content,
-            justify_items,
-            justify_self,
-            justify_content,
-            inset_left_type,
-            inset_left_value,
-            inset_right_type,
-            inset_right_value,
-            inset_top_type,
-            inset_top_value,
-            inset_bottom_type,
-            inset_bottom_value,
-            margin_left_type,
-            margin_left_value,
-            margin_right_type,
-            margin_right_value,
-            margin_top_type,
-            margin_top_value,
-            margin_bottom_type,
-            margin_bottom_value,
-            padding_left_type,
-            padding_left_value,
-            padding_right_type,
-            padding_right_value,
-            padding_top_type,
-            padding_top_value,
-            padding_bottom_type,
-            padding_bottom_value,
-            border_left_type,
-            border_left_value,
-            border_right_type,
-            border_right_value,
-            border_top_type,
-            border_top_value,
-            border_bottom_type,
-            border_bottom_value,
-            flex_grow,
-            flex_shrink,
-            flex_basis_type,
-            flex_basis_value,
-            width_type,
-            width_value,
-            height_type,
-            height_value,
-            min_width_type,
-            min_width_value,
-            min_height_type,
-            min_height_value,
-            max_width_type,
-            max_width_value,
-            max_height_type,
-            max_height_value,
-            gap_row_type,
-            gap_row_value,
-            gap_column_type,
-            gap_column_value,
-            aspect_ratio,
-            grid_auto_rows,
-            grid_auto_columns,
-            grid_auto_flow,
-            grid_column_start_type,
-            grid_column_start_value,
-            grid_column_end_type,
-            grid_column_end_value,
-            grid_row_start_type,
-            grid_row_start_value,
-            grid_row_end_type,
-            grid_row_end_value,
-            grid_template_rows,
-            grid_template_columns,
-            overflow_x,
-            overflow_y,
-            scrollbar_width,
-            text_align,
-            box_sizing,
-        );
-        mason.set_style(node.0.id(), style);
+        let grid_auto_columns = cstr_to_lossy(grid_auto_columns);
+
+        let grid_template_rows = cstr_to_lossy(grid_template_rows);
+
+        let grid_template_columns = cstr_to_lossy(grid_template_columns);
+
+        let grid_column = cstr_to_lossy(grid_column);
+
+        let grid_column_start = cstr_to_lossy(grid_column_start);
+
+        let grid_column_end = cstr_to_lossy(grid_column_end);
+
+        let grid_row = cstr_to_lossy(grid_row);
+
+        let grid_row_start = cstr_to_lossy(grid_row_start);
+
+        let grid_row_end = cstr_to_lossy(grid_row_end);
+
+        let grid_area = cstr_to_lossy(grid_area);
+
+        let grid_template_areas = cstr_to_lossy(grid_template_areas);
+
+        mason.with_style_mut(node.0.id(), |style| {
+            mason_core::style::utils::update_from_ffi(
+                style,
+                display,
+                position,
+                direction,
+                flex_direction,
+                flex_wrap,
+                overflow,
+                align_items,
+                align_self,
+                align_content,
+                justify_items,
+                justify_self,
+                justify_content,
+                inset_left_type,
+                inset_left_value,
+                inset_right_type,
+                inset_right_value,
+                inset_top_type,
+                inset_top_value,
+                inset_bottom_type,
+                inset_bottom_value,
+                margin_left_type,
+                margin_left_value,
+                margin_right_type,
+                margin_right_value,
+                margin_top_type,
+                margin_top_value,
+                margin_bottom_type,
+                margin_bottom_value,
+                padding_left_type,
+                padding_left_value,
+                padding_right_type,
+                padding_right_value,
+                padding_top_type,
+                padding_top_value,
+                padding_bottom_type,
+                padding_bottom_value,
+                border_left_type,
+                border_left_value,
+                border_right_type,
+                border_right_value,
+                border_top_type,
+                border_top_value,
+                border_bottom_type,
+                border_bottom_value,
+                flex_grow,
+                flex_shrink,
+                flex_basis_type,
+                flex_basis_value,
+                width_type,
+                width_value,
+                height_type,
+                height_value,
+                min_width_type,
+                min_width_value,
+                min_height_type,
+                min_height_value,
+                max_width_type,
+                max_width_value,
+                max_height_type,
+                max_height_value,
+                gap_row_type,
+                gap_row_value,
+                gap_column_type,
+                gap_column_value,
+                aspect_ratio,
+                grid_auto_rows.as_deref(),
+                grid_auto_columns.as_deref(),
+                grid_auto_flow,
+                grid_column.as_deref(),
+                grid_column_start.as_deref(),
+                grid_column_end.as_deref(),
+                grid_row.as_deref(),
+                grid_row_start.as_deref(),
+                grid_row_end.as_deref(),
+                grid_template_rows.as_deref(),
+                grid_template_columns.as_deref(),
+                overflow_x,
+                overflow_y,
+                scrollbar_width,
+                text_align,
+                box_sizing,
+                grid_area.as_deref(),
+                grid_template_areas.as_deref(),
+            );
+        });
     }
 }
 
@@ -1082,10 +1012,10 @@ pub extern "C" fn mason_style_get_style_buffer_apple(
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_get_grid_auto_rows(
+pub extern "C" fn mason_style_get_grid_area_css(
     mason: *mut CMason,
     node: *mut CMasonNode,
-) -> *mut CMasonTrackSizingFunctionArray {
+) -> *mut c_char {
     if mason.is_null() || node.is_null() {
         return std::ptr::null_mut();
     }
@@ -1093,49 +1023,20 @@ pub extern "C" fn mason_style_get_grid_auto_rows(
         let mason = &mut *mason;
         let node = &mut *node;
         if let Some(style) = mason.0.style(node.0.id()) {
-            let ret: Vec<CMasonMinMax> = style
-                .get_grid_auto_rows()
-                .iter()
-                .map(|v| (*v).into())
-                .collect();
-
-            return Box::into_raw(Box::new(ret.into()));
+            return mason_core::utils::get_grid_area(style.get_grid_row(), style.get_grid_column())
+                .and_then(|area| CString::new(area).ok())
+                .map(|value| value.into_raw())
+                .unwrap_or(0 as _);
         }
     }
     std::ptr::null_mut()
 }
 
 #[no_mangle]
-pub extern "C" fn mason_style_set_grid_auto_rows(
+pub extern "C" fn mason_style_get_grid_template_areas_css(
     mason: *mut CMason,
     node: *mut CMasonNode,
-    value: *mut CMasonTrackSizingFunctionArray,
-) {
-    if mason.is_null() || node.is_null() {
-        return;
-    }
-    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
-
-    let rows: Vec<_> = slice
-        .iter()
-        .map(|v| min_max_from_values((*v).min_type, v.min_value, v.max_type, v.max_value))
-        .collect();
-
-    unsafe {
-        let mason = &mut *mason;
-        let node = &mut *node;
-
-        mason.0.with_style_mut(node.0.id(), |style| {
-            style.set_grid_auto_rows(rows);
-        });
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_get_grid_auto_columns(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-) -> *mut CMasonTrackSizingFunctionArray {
+) -> *mut c_char {
     if mason.is_null() || node.is_null() {
         return std::ptr::null_mut();
     }
@@ -1143,214 +1044,237 @@ pub extern "C" fn mason_style_get_grid_auto_columns(
         let mason = &mut *mason;
         let node = &mut *node;
         if let Some(style) = mason.0.style(node.0.id()) {
-            let ret: Vec<CMasonMinMax> = style
-                .get_grid_auto_columns()
-                .clone()
-                .into_iter()
-                .map(|v| v.into())
-                .collect();
+            let area = style.get_grid_template_areas_css();
 
-            return Box::into_raw(Box::new(ret.into()));
-        }
-    }
-    std::ptr::null_mut()
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_set_grid_auto_columns(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-    value: *mut CMasonTrackSizingFunctionArray,
-) {
-    if mason.is_null() || node.is_null() {
-        return;
-    }
-    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
-
-    let columns: Vec<_> = slice
-        .iter()
-        .map(|v| min_max_from_values((*v).min_type, v.min_value, v.max_type, v.max_value))
-        .collect();
-
-    unsafe {
-        let mason = &mut *mason;
-        let node = &mut *node;
-        mason.0.with_style_mut(node.0.id(), |style| {
-            style.set_grid_auto_columns(columns);
-        });
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_get_grid_template_rows(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-) -> *mut CMasonTrackSizingFunctionArray {
-    if mason.is_null() || node.is_null() {
-        return std::ptr::null_mut();
-    }
-
-    unsafe {
-        let mason = &mut *mason;
-        let node = &mut *node;
-        if let Some(style) = mason.0.style(node.0.id()) {
-            let rows: Vec<_> = style
-                .get_grid_template_rows()
-                .clone()
-                .into_iter()
-                .map(|v| v.into())
-                .collect::<Vec<CMasonTrackSizingFunction>>()
-                .into();
-            return Box::into_raw(Box::new(rows.into()));
-        }
-    }
-
-    std::ptr::null_mut()
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_set_grid_template_rows(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-    value: *mut CMasonTrackSizingFunctionArray,
-) {
-    if mason.is_null() || node.is_null() {
-        return;
-    }
-    unsafe {
-        let mason = &mut *mason;
-        let node = &mut *node;
-        mason.0.with_style_mut(node.0.id(), |style| {
-            style.set_grid_template_rows(to_vec_track_sizing_function(value));
-        });
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_get_grid_template_columns(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-) -> *mut CMasonTrackSizingFunctionArray {
-    if mason.is_null() || node.is_null() {
-        return std::ptr::null_mut();
-    }
-    unsafe {
-        let mason = &mut *mason;
-        let node = &mut *node;
-        if let Some(style) = mason.0.style(node.0.id()) {
-            let column: Vec<_> = style
-                .get_grid_template_columns()
-                .clone()
-                .into_iter()
-                .map(|v| v.into())
-                .collect::<Vec<CMasonTrackSizingFunction>>()
-                .into();
-            return Box::into_raw(Box::new(column.into()));
-        }
-    }
-
-    std::ptr::null_mut()
-}
-
-#[no_mangle]
-pub extern "C" fn mason_style_set_grid_template_columns(
-    mason: *mut CMason,
-    node: *mut CMasonNode,
-    value: *mut CMasonTrackSizingFunctionArray,
-) {
-    if mason.is_null() || node.is_null() || value.is_null() {
-        return;
-    }
-    unsafe {
-        let mason = &mut *mason;
-        let node = &mut *node;
-        mason.0.with_style_mut(node.0.id(), |style| {
-            style.set_grid_template_columns(to_vec_track_sizing_function(value));
-        });
-    }
-}
-
-pub fn to_vec_non_repeated_track_sizing_function(
-    value: *mut CMasonTrackSizingFunctionArray,
-) -> Vec<TrackSizingFunction> {
-    if value.is_null() {
-        return vec![];
-    }
-
-    unsafe {
-        if (*value).length == 0 {
-            return vec![];
-        }
-    }
-
-    let slice = unsafe { std::slice::from_raw_parts_mut((*value).array, (*value).length) };
-
-    slice
-        .iter()
-        .map(|v| {
-            let v = *v;
-            min_max_from_values(v.min_type, v.min_value, v.max_type, v.max_value)
-        })
-        .collect()
-}
-
-pub unsafe fn to_vec_track_sizing_function(
-    value: *mut CMasonTrackSizingFunctionArray,
-) -> Vec<TrackSizingFunction> {
-    if value.is_null() {
-        return vec![];
-    }
-    unsafe {
-        if (*value).length == 0 {
-            return vec![];
-        }
-    }
-    let value: &CMasonTrackSizingFunctionArray = unsafe { &*value };
-
-    let slice: &mut [CMasonTrackSizingFunction] =
-        unsafe { std::slice::from_raw_parts_mut(value.array, value.length) };
-
-    slice
-        .iter()
-        .map(|v| match v {
-            CMasonTrackSizingFunction::Single(value) => {
-                let v = *value;
-                TrackSizingFunction::Single(min_max_from_values(
-                    v.min_type,
-                    v.min_value,
-                    v.max_type,
-                    v.max_value,
-                ))
+            if area.is_empty() {
+                return std::ptr::null_mut();
             }
-            CMasonTrackSizingFunction::Repeat(rep, count, tracks) => {
-                let ret: Vec<TrackSizingFunction> = if unsafe { (*(*tracks)).length == 0 } {
-                    Vec::new()
-                } else {
-                    let slice = unsafe {
-                        std::slice::from_raw_parts_mut((*(*tracks)).array, (*(*tracks)).length)
-                    };
 
-                    slice
-                        .iter()
-                        .map(|v| {
-                            let v = *v;
-                            min_max_from_values(v.min_type, v.min_value, v.max_type, v.max_value)
-                        })
-                        .collect()
-                };
+            CString::new(area)
+                .map(|v| v.into_raw())
+                .ok()
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
 
-                TrackSizingFunction::Repeat(
-                    match *rep {
-                        0 => GridTrackRepetition::AutoFill,
-                        1 => GridTrackRepetition::AutoFit,
-                        2 => GridTrackRepetition::Count(*count),
-                        _ => panic!(),
-                    },
-                    ret,
-                )
-            }
-        })
-        .collect::<Vec<TrackSizingFunction>>()
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_auto_rows_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            return style
+                .get_grid_auto_rows_css()
+                .and_then(|v| CString::new(v).map(|v| v.into_raw()).ok())
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_auto_columns_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            return style
+                .get_grid_auto_columns_css()
+                .and_then(|v| CString::new(v).map(|v| v.into_raw()).ok())
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_column_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            return style
+                .get_grid_column_css()
+                .and_then(|v| CString::new(v).map(|v| v.into_raw()).ok())
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_column_start_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            let start = style.get_grid_column_start_css();
+
+            CString::new(start)
+                .map(|v| v.into_raw())
+                .ok()
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_column_end_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            let start = style.get_grid_column_end_css();
+
+            CString::new(start)
+                .map(|v| v.into_raw())
+                .ok()
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_row_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            return style
+                .get_grid_row_css()
+                .and_then(|v| CString::new(v).map(|v| v.into_raw()).ok())
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_row_start_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            let start = style.get_grid_row_start_css();
+
+            CString::new(start)
+                .map(|v| v.into_raw())
+                .ok()
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_row_end_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            let start = style.get_grid_row_end_css();
+
+            CString::new(start)
+                .map(|v| v.into_raw())
+                .ok()
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_template_rows_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            return style
+                .get_grid_template_rows_css()
+                .and_then(|v| CString::new(v).map(|v| v.into_raw()).ok())
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
+}
+
+#[no_mangle]
+pub extern "C" fn mason_style_get_grid_template_columns_css(
+    mason: *mut CMason,
+    node: *mut CMasonNode,
+) -> *mut c_char {
+    if mason.is_null() || node.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut *mason;
+        let node = &mut *node;
+        if let Some(style) = mason.0.style(node.0.id()) {
+            return style
+                .get_grid_template_columns_css()
+                .and_then(|v| CString::new(v).map(|v| v.into_raw()).ok())
+                .unwrap_or(std::ptr::null_mut());
+        }
+    }
+    std::ptr::null_mut()
 }
 
 fn overflow_to_int(value: Overflow) -> i32 {

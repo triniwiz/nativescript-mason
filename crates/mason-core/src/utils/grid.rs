@@ -129,11 +129,6 @@ pub fn parse_track_size<'i, 't>(
             };
         }
         Ok(Token::Number { value, .. }) => {
-            log::info!(
-                "dimensions (px, fr, dip, number (dip)) {} {} ",
-                value,
-                device_scale
-            );
             return Ok(length(*value * device_scale));
         }
         _ => {}
