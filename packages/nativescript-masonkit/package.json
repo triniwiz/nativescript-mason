@@ -1,6 +1,6 @@
 {
   "name": "@triniwiz/nativescript-masonkit",
-  "version": "1.0.0-alpha.33",
+  "version": "1.0.0-alpha.34",
   "description": "Web Inspired Layout",
   "main": "index",
   "typings": "index.d.ts",
