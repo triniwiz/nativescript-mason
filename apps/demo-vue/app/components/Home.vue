@@ -4,12 +4,12 @@
       <ActionBar>
         <Label text="Home?" class="text-white bg-gray-800" />
       </ActionBar>
-      <!-- <div>
+      <div>
         <sspan>Welcome to the New Layout!</sspan>
         <p @tap="viewFeature('block')">Block</p>
         <p @tap="viewFeature('flex')">FlexBox</p>
         <p @tap="viewFeature('grid')">CSSGrid</p>
-      </div> -->
+      </div>
 
 
 
@@ -25,16 +25,6 @@
         <div class="box a">a</div>
         <div class="box b">b</div>
       </div> -->
-
-      <div class="p-8 bg-gray-100">
-        <sspan textContent="Tap the button" class="text-3xl text-center text-gray-900" />
-        <!-- <Button text="Tap Here" class="mt-4 text-white normal-case bg-blue-500 rounded-full" />
-        <sspan text="message " class="mt-4 text-xl text-center text-gray-700" textWrap="true">
-          <img class="w-[100] h-[100]" src="https://picsum.photos/200/300" />
-        </sspan>
-
-        <p text="Hello" class="mt-[200] text-[#65adf1] text-lg text-center bg-orange-500" /> -->
-      </div>
 
     </Page>
   </Frame>

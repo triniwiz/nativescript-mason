@@ -2,7 +2,21 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.util.Log
-import org.nativescript.mason.masonkit.enums.*
+import org.nativescript.mason.masonkit.enums.AlignContent
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.BoxSizing
+import org.nativescript.mason.masonkit.enums.Direction
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.GridAutoFlow
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.JustifyItems
+import org.nativescript.mason.masonkit.enums.JustifySelf
+import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
+import org.nativescript.mason.masonkit.enums.TextAlign
 
 class NodeHelper(val mason: Mason) {
   companion object {
@@ -1088,7 +1102,7 @@ class NodeHelper(val mason: Mason) {
   }
 
 
-  fun getGridColumn(view: android.view.View): String{
+  fun getGridColumn(view: android.view.View): String {
     val node = mason.nodeForView(view)
     return node.style.gridColumn
   }
@@ -1176,7 +1190,34 @@ class NodeHelper(val mason: Mason) {
   ) {
     val node = mason.nodeForView(view)
     node.style.gridTemplateColumns = gridTemplateColumns
+  }
 
+
+  fun getGridArea(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.gridArea
+  }
+
+  fun setGridArea(
+    view: android.view.View,
+    area: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.gridArea = area
+  }
+
+
+  fun getGridTemplateAreas(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.gridTemplateAreas
+  }
+
+  fun setGridTemplateAreas(
+    view: android.view.View,
+    gridTemplateColumns: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.gridTemplateAreas = gridTemplateColumns
   }
 }
 

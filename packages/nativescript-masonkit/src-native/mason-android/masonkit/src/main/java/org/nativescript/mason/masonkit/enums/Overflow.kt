@@ -1,18 +1,7 @@
 package org.nativescript.mason.masonkit.enums
 
-enum class Overflow(val value: Int) {
-  Visible(0), Hidden(1), Scroll(2), Clip(3), Auto(4);
-
-  val cssValue: String
-    get() {
-      return when (this) {
-        Visible -> "visible"
-        Hidden -> "hidden"
-        Scroll -> "scroll"
-        Clip -> "clip"
-        Auto -> "auto"
-      }
-    }
+enum class Overflow(val value: Int, val cssValue: String) {
+  Visible(0, "visible"), Hidden(1, "hidden"), Scroll(2, "scroll"), Clip(3, "clip"), Auto(4, "auto");
 
   companion object {
     fun fromInt(value: Int): Overflow {

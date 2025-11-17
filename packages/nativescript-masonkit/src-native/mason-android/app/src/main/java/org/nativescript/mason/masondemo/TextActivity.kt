@@ -66,23 +66,22 @@ class TextActivity : AppCompatActivity() {
     //  testWrap()
     //testElements()
     //testTextInsert()
-    // inlineTest()
-    // testTextReplace()
-    // testTextNodeReplace
-//    testTextAppend()
+  //   inlineTest()
+    //testTextReplace()
+    //testTextAppend()
     // testTextContainerAppend()
-    // testTextContainerReplace()
+   // testTextContainerReplace()
     /// testTextContainerReplaceInContainer()
-    // testTextNodeReplaceWithImage()
-    //  testTextNodeInsertWithImage()
-    //   testTextWrap()
+     //testTextNodeReplaceWithImage()
+     // testTextNodeInsertWithImage()
+    //testTextWrap()
     // flexDirection()
     //  flexGrow()
     // flexShrink()
     //gridTemplateColumns()
     //dynamicGridTemplateColumns()
-    //padding()
-    textAlignment()
+    padding()
+   // textAlignment()
     setContentView(body)
   }
 
@@ -936,11 +935,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
     root.append("A")
     root.append("B")
     root.append("C")
-    Mason.shared.printTree(root.node)
-
     body.append(root)
 
-    Mason.shared.printTree(body.node)
   }
 
   fun testTextContainerAppend() {
@@ -991,6 +987,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
     root.append(b)
     root.append(c)
 
+    Mason.shared.printTree(root.node)
+
     val d = Mason.shared.createTextView(this, TextType.P)
     d.append("Wednesday")
     root.addChildAt(d, 1)
@@ -1005,7 +1003,13 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         val f = Mason.shared.createTextView(this@TextActivity)
         f.append("???")
         root.addChildAt(f, 1)
-        Mason.shared.printTree(root.node)
+
+
+        Timer().schedule(2000L) {
+          runOnUiThread {
+            root.removeChildAt(2)
+          }
+        }
       }
     }
 
@@ -1082,7 +1086,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
 
   fun inlineTest() {
     val root = Mason.shared.createView(this)
-    root.setBackgroundColor(Color.GRAY)
+
     val txt = Mason.shared.createTextView(this)
     txt.append("First")
     txt.id = android.view.View.generateViewId()

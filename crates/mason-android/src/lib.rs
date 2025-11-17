@@ -1,5 +1,3 @@
-//extern crate mason_c;
-
 use android_logger::Config;
 use itertools::izip;
 use jni::objects::{GlobalRef, JClass, JFieldID, JMethodID, JObject};
@@ -10,11 +8,9 @@ use log::LevelFilter;
 use once_cell::sync::OnceCell;
 use std::ffi::c_void;
 
-use mason_core::{
-    auto, fit_content, flex, length, max_content, min_content, percent, GridTemplateRepetition,
-    Mason, NodeRef, TrackSizingFunction,
-};
-use mason_core::{JVMCache, LengthPercentage, JVM, JVM_CACHE};
+#[cfg(target_os = "android")]
+use mason_core::{JVMCache, JVM, JVM_CACHE};
+use mason_core::{Mason, NodeRef};
 
 mod node;
 pub mod style;
@@ -119,7 +115,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeClear",
                 "nativeInitWithCapacity",
                 "nativeDestroy",
-                "nativeSetDeviceScale"
+                "nativeSetDeviceScale",
             ];
 
             let mason_signatures = if ret >= ANDROID_O {

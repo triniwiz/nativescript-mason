@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-taffy = { git = "https://github.com/DioxusLabs/taffy.git", rev = "f99b57fbad456aa2756b374ff40c876e4b9574c2" }
+taffy = { workspace = true }
 bitflags = "2.9.0"
 log = "0.4.26"
 slotmap = "1.0.7"
-style_atoms = { git = "https://github.com/servo/stylo", rev = "85ae0b1", package = "stylo_atoms" }
+style_atoms = { workspace = true }
 cssparser = "0.36.0"
 
 [target.'cfg(target_os = "android")'.dependencies]

@@ -2,6 +2,7 @@ import { layout } from '@nativescript/core/utils';
 import type { GridAutoFlow, Length, LengthAuto, View } from '.';
 import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns } from './utils';
+import { isMasonView_ } from './common';
 
 enum StyleKeys {
   DISPLAY = 0,
@@ -313,10 +314,12 @@ export class Style {
   private isDirty = -1n;
   private isTextDirty = -1n;
   private inBatch = false;
+  private nativeView: any;
   static fromView(view: View, nativeView): Style {
     //console.time('fromView');
     const ret = new Style();
     ret.view_ = view;
+    ret.nativeView = nativeView;
     if (__ANDROID__) {
       let style = (nativeView as org.nativescript.mason.masonkit.Element)?.getStyle?.();
       if (!style) {
@@ -2025,25 +2028,31 @@ export class Style {
     this.setOrAppendState(StateKeys.JUSTIFY_CONTENT);
   }
   get gridAutoRows() {
-    return '';
+    if (!this.nativeView) {
+      return '';
+    }
+    return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridAutoRows(this.nativeView);
   }
 
   set gridAutoRows(value: string) {
-    if (typeof value === 'string') {
-      _setGridAutoRows(value, this.view_ as never);
-    } else {
+    if (!this.nativeView) {
+      return;
     }
+    org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoRows(this.nativeView, value);
   }
 
   get gridAutoColumns() {
-    return '';
+    if (!this.nativeView) {
+      return '';
+    }
+    return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridAutoColumns(this.nativeView);
   }
 
   set gridAutoColumns(value: string) {
-    if (typeof value === 'string') {
-      _setGridAutoColumns(value, this.view_ as never);
-    } else {
+    if (!this.nativeView) {
+      return;
     }
+    org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoColumns(this.nativeView, value);
   }
 
   get gridAutoFlow(): GridAutoFlow {
@@ -2094,250 +2103,193 @@ export class Style {
     this.columnGap = value;
   }
 
-  // gridArea: string;
-  get gridColumn() {
-    if (this.gridColumnStart === this.gridColumnEnd) {
-      return `${this.gridColumnStart}`;
+  set gridColumn(value: string) {
+    if (!this.nativeView) {
+      return;
     }
-    return `${this.gridColumnStart} / ${this.gridColumnEnd}`;
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumn(this.nativeView, value);
+    }
+  }
+
+  get gridColumn() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridColumn(this.nativeView);
+    }
+    return '';
   }
 
   get gridColumnStart(): string {
-    switch (getInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE)) {
-      case 0:
-        return 'auto';
-      case 1: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE);
-        // if (value === 1) {
-        //   return 'auto';
-        // }
-        return `${value}`;
-      }
-      case 2: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE);
-        if (value === 0) {
-          return 'span';
-        }
-        return `span ${value}`;
-      }
+    if (!this.nativeView) {
+      return '';
     }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridColumnStart(this.nativeView);
+    }
+    return '';
   }
 
   set gridColumnStart(value: string) {
-    const line = _parseGridLine(value);
-    if (line === null) {
+    if (!this.nativeView) {
       return;
     }
-
-    switch (line.type) {
-      case 'auto':
-      case 0:
-        setInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE, 0);
-        setInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE, 1);
-        break;
-      case 'line':
-      case 1:
-        if (line.value !== undefined) {
-          setInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE, 1);
-          setInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE, line.value);
-        }
-        break;
-      case 'span':
-      case 2:
-        if (line.value !== undefined) {
-          setInt32(this.style_view, StyleKeys.GRID_COLUMN_START_TYPE, 2);
-          setInt16(this.style_view, StyleKeys.GRID_COLUMN_START_VALUE, line.value);
-        }
-        break;
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnStart(this.nativeView, value);
     }
-
-    this.setOrAppendState(StateKeys.GRID_COLUMN);
   }
 
   get gridColumnEnd(): string {
-    switch (getInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE)) {
-      case 0:
-        return 'auto';
-      case 1: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE);
-        // if (value === 1) {
-        //   return 'auto';
-        // }
-        return `${value}`;
-      }
-      case 2: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE);
-        if (value === 0) {
-          return 'span';
-        }
-        return `span ${value}`;
-      }
+    if (!this.nativeView) {
+      return '';
     }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridColumnEnd(this.nativeView);
+    }
+    return '';
   }
 
   set gridColumnEnd(value: string) {
-    const line = _parseGridLine(value);
-    if (line === null) {
+    if (!this.nativeView) {
       return;
     }
-
-    switch (line.type) {
-      case 'auto':
-      case 0:
-        setInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE, 0);
-        setInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE, 1);
-        break;
-      case 'line':
-      case 1:
-        if (line.value !== undefined) {
-          setInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE, 1);
-          setInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE, line.value);
-        }
-        break;
-      case 'span':
-      case 2:
-        if (line.value !== undefined) {
-          setInt32(this.style_view, StyleKeys.GRID_COLUMN_END_TYPE, 2);
-          setInt16(this.style_view, StyleKeys.GRID_COLUMN_END_VALUE, line.value);
-        }
-        break;
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnEnd(this.nativeView, value);
     }
+  }
 
-    this.setOrAppendState(StateKeys.GRID_COLUMN);
+  set gridRow(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRow(this.nativeView, value);
+    }
   }
 
   get gridRow(): string {
-    if (this.gridRowStart === this.gridRowEnd) {
-      return `${this.gridRowStart}`;
+    if (!this.nativeView) {
+      return '';
     }
-    return `${this.gridRowStart} / ${this.gridRowEnd}`;
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridRow(this.nativeView);
+    }
+    return '';
   }
 
   get gridRowStart(): string {
-    switch (getInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE)) {
-      case 0:
-        return 'auto';
-      case 1: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE);
-        // if (value === 1) {
-        //   return 'auto';
-        // }
-        return `${value}`;
-      }
-      case 2: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE);
-        if (value === 0) {
-          return 'span';
-        }
-        return `span ${value}`;
-      }
+    if (!this.nativeView) {
+      return '';
     }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridRowStart(this.nativeView);
+    }
+    return '';
   }
 
   set gridRowStart(value: string) {
-    const line = _parseGridLine(value);
-    if (line === null) {
+    if (!this.nativeView) {
       return;
     }
-
-    switch (line.type) {
-      case 'auto':
-      case 0:
-        setInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE, 0);
-        setInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE, 1);
-        break;
-      case 'line':
-      case 1:
-        if (line.value !== undefined) {
-          setInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE, 1);
-          setInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE, line.value);
-        }
-        break;
-      case 'span':
-      case 2:
-        if (line.value !== undefined) {
-          setInt32(this.style_view, StyleKeys.GRID_ROW_START_TYPE, 2);
-          setInt16(this.style_view, StyleKeys.GRID_ROW_START_VALUE, line.value);
-        }
-        break;
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowStart(this.nativeView, value);
     }
-    this.setOrAppendState(StateKeys.GRID_ROW);
   }
 
   get gridRowEnd(): string {
-    switch (getInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE)) {
-      case 0:
-        return 'auto';
-
-      case 1: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE);
-        // if (value === 1) {
-        //   return 'auto';
-        // }
-        return `${value}`;
-      }
-      case 2: {
-        const value = getInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE);
-        if (value === 0) {
-          return 'span';
-        }
-        return `span ${value}`;
-      }
+    if (!this.nativeView) {
+      return '';
     }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridRowEnd(this.nativeView);
+    }
+    return '';
   }
 
   set gridRowEnd(value: string) {
-    const line = _parseGridLine(value);
-    if (line === null) {
+    if (!this.nativeView) {
       return;
     }
-
-    switch (line.type) {
-      case 'auto':
-      case 0:
-        setInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE, 0);
-        setInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE, 1);
-        break;
-      case 'line':
-      case 1:
-        if (line.value !== undefined) {
-          setInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE, 1);
-          setInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE, line.value);
-        }
-        break;
-      case 'span':
-      case 2:
-        if (line.value !== undefined) {
-          setInt32(this.style_view, StyleKeys.GRID_ROW_END_TYPE, 2);
-          setInt16(this.style_view, StyleKeys.GRID_ROW_END_VALUE, line.value);
-        }
-        break;
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowEnd(this.nativeView, value);
     }
-
-    this.setOrAppendState(StateKeys.GRID_ROW);
   }
 
-  set gridTemplateRows(value: string | Array<GridTemplates>) {
-    if (Array.isArray(value)) {
-      _setGridTemplateRows(value, this.view as never);
-    } else {
-      _setGridTemplateRows(_parseGridTemplates(value), this.view as never);
+  set gridArea(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridArea(this.nativeView, value);
+    }
+  }
+
+  get gridArea() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridArea(this.nativeView);
+    }
+    return '';
+  }
+
+  set gridTemplateRows(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateRows(this.nativeView, value);
     }
   }
 
   get gridTemplateRows() {
-    return _getGridTemplateRows(this.view as never);
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridTemplateRows(this.nativeView);
+    }
+    return '';
   }
 
   get gridTemplateColumns() {
-    return _getGridTemplateColumns(this.view as never);
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridTemplateColumns(this.nativeView);
+    }
+    return '';
   }
 
-  set gridTemplateColumns(value: string | Array<GridTemplates>) {
-    if (Array.isArray(value)) {
-      _setGridTemplateColumns(value, this.view as never);
-    } else {
-      _setGridTemplateColumns(_parseGridTemplates(value), this.view as never);
+  set gridTemplateColumns(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateColumns(this.nativeView, value);
+    }
+  }
+
+  get gridTemplateAreas() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridTemplateAreas(this.nativeView);
+    }
+    return '';
+  }
+
+  set gridTemplateAreas(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateAreas(this.nativeView, value);
     }
   }
 
@@ -2433,6 +2385,14 @@ export class Style {
         dirty = true;
         setInt32(this.style_view, StyleKeys.OVERFLOW_X, 2);
         break;
+      case 'clip':
+        dirty = true;
+        setInt32(this.style_view, StyleKeys.OVERFLOW_X, 3);
+        break;
+      case 'auto':
+        dirty = true;
+        setInt32(this.style_view, StyleKeys.OVERFLOW_X, 4);
+        break;
     }
     if (dirty) {
       this.setOrAppendState(StateKeys.OVERFLOW_X);
@@ -2447,6 +2407,10 @@ export class Style {
         return 'hidden';
       case 2:
         return 'scroll';
+      case 3:
+        return 'clip';
+      case 4:
+        return 'auto';
     }
   }
 
@@ -2463,6 +2427,15 @@ export class Style {
         break;
       case 'scroll':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 2);
+        org.nativescript.mason.masonkit.NodeHelper.getShared().setOverflowX(this.nativeView, org.nativescript.mason.masonkit.enums.Overflow.Scroll);
+        dirty = true;
+        break;
+      case 'clip':
+        setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 3);
+        dirty = true;
+        break;
+      case 'auto':
+        setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 4);
         dirty = true;
         break;
     }
@@ -2738,6 +2711,7 @@ export class Style {
       flexShrink: this.flexShrink,
       scrollBarWidth: this.scrollBarWidth,
       gap: this.gap,
+      gridArea: this.gridArea,
       gridAutoFlow: this.gridAutoFlow,
       gridAutoColumns: this.gridAutoColumns,
       gridAutoRows: this.gridAutoRows,

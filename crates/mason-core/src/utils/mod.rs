@@ -386,13 +386,52 @@ pub fn grid_template_areas_to_string(areas: &[GridTemplateArea<Atom>]) -> String
     rows.join("\n")
 }
 
+
+fn remove_start_end_prefixes(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let bytes = text.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        // Check for "start-" prefix
+        if i + 6 <= bytes.len() && &text[i..i + 6] == "start-" {
+            i += 6; // skip "start-"
+            continue;
+        }
+        // Check for "end-" prefix
+        if i + 4 <= bytes.len() && &text[i..i + 4] == "end-" {
+            i += 4; // skip "end-"
+            continue;
+        }
+
+        // Copy current character
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+
+    result
+}
+
+
 pub fn grid_placement_to_string(p: &GridPlacement<Atom>) -> String {
     match p {
         GridPlacement::Auto => "auto".into(),
         GridPlacement::Line(n) => n.as_i16().to_string(),
         GridPlacement::Span(n) => format!("span {}", n),
-        GridPlacement::NamedLine(name, _) => name.to_string(), // use only the name
-        GridPlacement::NamedSpan(name, _) => format!("span {}", name), // span with name
+        GridPlacement::NamedLine(name, idx) => {
+            if *idx == 0 {
+                remove_start_end_prefixes(name)
+            } else {
+                format!("{} {}", name, idx)
+            }
+        }
+        GridPlacement::NamedSpan(name, idx) => {
+            if *idx == 0 {
+                format!("span {}", remove_start_end_prefixes(name))
+            } else {
+                format!("span {} {}", idx, name)
+            }
+        }
     }
 }
 
@@ -431,7 +470,7 @@ pub fn get_grid_area(
     Some(value)
 }
 
-pub fn to_line_css(start: &GridPlacement<Atom>, end: &GridPlacement<Atom>, ) -> Option<String> {
+pub fn to_line_css(start: &GridPlacement<Atom>, end: &GridPlacement<Atom>) -> Option<String> {
     let start = grid_placement_to_string(start);
     let end = grid_placement_to_string(end);
 

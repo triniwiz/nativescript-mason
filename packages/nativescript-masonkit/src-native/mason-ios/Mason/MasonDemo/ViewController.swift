@@ -87,7 +87,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
   
   override func viewDidAppear(_ animated: Bool) {
-    NSCMason.shared.setDeviceScale(Float(UIScreen.main.scale))
     //        view?.mason.computeWithMaxContent()
     guard view.subviews.first is MasonUIView else {return}
     //      view.uiView.frame.origin.x += view.safeAreaInsets.left
@@ -279,6 +278,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
   var data:Data!
   override func viewDidLoad() {
+    NSCMason.shared.setDeviceScale(Float(UIScreen.main.scale))
     print("=== viewDidLoad() STARTING ===")
     //  super.viewDidLoad()
     //        var i = 0
@@ -371,7 +371,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     // imageExample()
     // textSample()
-     gridSample()
+    // gridSample()
     
     // testLateUpdate()
     
@@ -412,19 +412,70 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //
     //      root.node.computeWithMaxContent()
     
-    //inlineTest()
+    inlineTest()
     //  testTextInsert()
     // testInsert()
     // testInlineStyleChange()
     //testTextNodeInsertingInline()
     //testTextNodeReplaceWithImage()
     // testTextAppend()
-   //flexDirection()
+    //flexDirection()
     
-   // gridTemplateColumns()
-   // padding()
-   // fontSize()
-  //  textAlignment()
+    // gridTemplateColumns()
+    // padding()
+    // fontSize()
+    //  textAlignment()
+    //wrapper8()
+  }
+  
+  func wrapper8(){
+    let bg =  UIColor(hex: "#444444")
+    let rootLayout = mason.createView()
+    rootLayout.configure { style in
+      rootLayout.backgroundColor = .white
+      style.display = .Grid
+      style.gap = .init(uniform: .Points(10 * scale))
+      style.gridTemplateColumns = "[col] 100px [col] 100px [col] 100px [col] 100px"
+      style.gridTemplateRows = "[row] auto [row] auto [row]"
+    }
+    
+    let a = NSCMason.shared.createView()
+    a.backgroundColor = bg
+    a.gridColumn = "col / span 2"
+    a.gridRow = "row"
+    a.append(text: "A")
+    
+    let b = NSCMason.shared.createView()
+    b.backgroundColor = bg
+    b.gridColumn = "col 3 / span 2"
+    b.gridRow = "row"
+    b.append(text: "B")
+    
+    let c = NSCMason.shared.createView()
+    c.backgroundColor = bg
+    c.gridColumn = "col"
+    c.gridRow = "row 2"
+    c.append(text: "C")
+    
+    let d = NSCMason.shared.createView()
+    d.backgroundColor = bg
+    d.gridColumn = " col 2 / span 3 "
+    d.gridRow = "row 2"
+    d.append(text: "D")
+    
+    let e = NSCMason.shared.createView()
+    e.backgroundColor = bg
+    e.gridColumn = "col / span 4"
+    e.gridRow = "row 3 "
+    e.append(text: "E")
+    
+    
+    rootLayout.append(elements: [a,b,c,d,e])
+    body.append(rootLayout)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+    mason.printTree(body.node)
   }
   
   func textAlignment() {
@@ -435,18 +486,18 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     text.backgroundColor = .blue
     text.style.setLineHeight(28, false)
     text.append(text: "Hello")
-
+    
     root.append(text)
     
     let btn = UIButton()
     btn.setTitle("Hello", for: .normal)
     
     root.addView(btn)
-
+    
     body.append(root)
-   
-   
-   body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
   func fontSize(){
@@ -461,7 +512,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     outer1.style.size = .init(.Points(0), .Auto)
     outer1.append(outer2)
     
-   root.append(outer1)
+    root.append(outer1)
     
     outer2.style.fontSize = 10
     
@@ -486,7 +537,7 @@ Integer vel risus quis nulla porta sollicitudin. Vivamus vel convallis ligula, q
 Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et malesuada fames ac ante ipsum primis in faucibus. Duis volutpat, nulla faucibus consectetur porta, nulla ex sollicitudin ex, at imperdiet elit ante tristique ante. Sed finibus risus a risus imperdiet, et condimentum urna vulputate. Phasellus commodo vestibulum risus, vel iaculis elit vehicula id. Vestibulum id lorem sit amet nulla dapibus pulvinar ut at quam. Nullam non metus nisi. Quisque sed leo maximus quam accumsan egestas. Praesent aliquet diam sed iaculis lobortis. Quisque in felis non lacus lacinia lacinia in eget lorem. Aenean vel augue sit amet ligula varius dapibus. Maecenas nec iaculis purus. Maecenas ut libero quis est ornare porttitor eu in nunc. 
 """)
     root.append(text)
-  
+    
     
     DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
       DispatchQueue.main.async {
@@ -500,58 +551,58 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
     
     let h4 = NSCMason.shared.createTextView(type: MasonTextType.H4)
     h4.append(text: "This element has moderate padding.")
-
+    
     h4.backgroundColorValue = UIColor.green.toUInt32()
-     root.append(h4)
-     h4.style.padding = MasonRect(
-       MasonLengthPercentage.Points(20),
-       MasonLengthPercentage.Points(20),
-       MasonLengthPercentage.Points(50),
-       MasonLengthPercentage.Points(50)
-     )
-
+    root.append(h4)
+    h4.style.padding = MasonRect(
+      MasonLengthPercentage.Points(20),
+      MasonLengthPercentage.Points(20),
+      MasonLengthPercentage.Points(50),
+      MasonLengthPercentage.Points(50)
+    )
+    
     let h3 = NSCMason.shared.createTextView(type: MasonTextType.H3)
     h3.append(text: "The padding is huge in this element!")
-
-
+    
+    
     h3.backgroundColorValue = UIColor.cyan.toUInt32()
-     root.append(h3)
-
-     h3.style.padding = MasonRect(
+    root.append(h3)
+    
+    h3.style.padding = MasonRect(
       MasonLengthPercentage.Points(110),
       MasonLengthPercentage.Points(50),
       MasonLengthPercentage.Points(110),
       MasonLengthPercentage.Points(50)
-     )
-     body.append(root)
+    )
+    body.append(root)
     
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-   }
+  }
   
   func gridTemplateColumns() {
-     let root = NSCMason.shared.createView()
-     //root.setBackgroundColor(Color.BLUE)
+    let root = NSCMason.shared.createView()
+    //root.setBackgroundColor(Color.BLUE)
     root.append(text: "Osei")
-     root.append(text: " Fortune")
-
+    root.append(text: " Fortune")
+    
     DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
       DispatchQueue.main.async {
-         root.node.inBatch = true
-          root.style.color = UIColor.red.toUInt32()
-         root.style.fontSize = 20
-         root.style.fontStyle = FontStyle.Italic
+        root.node.inBatch = true
+        root.style.color = UIColor.red.toUInt32()
+        root.style.fontSize = 20
+        root.style.fontStyle = FontStyle.Italic
         root.style.fontWeight = "bold"
-         root.node.inBatch = false
-       }
-     }
-
-
-     body.append(root)
-  
+        root.node.inBatch = false
+      }
+    }
+    
+    
+    body.append(root)
+    
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-   }
+  }
   
   func flexDirection() {
     /*
@@ -626,9 +677,9 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       MasonDimension.Points(50)
     )
     colC.backgroundColor = .yellow
-  
     
-   colRev.append(elements: [colA, colB, colC])
+    
+    colRev.append(elements: [colA, colB, colC])
     
     root.append(colRev)
     
@@ -987,12 +1038,11 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
     
     txt.append(second)
     
-    txt.append(img)
+//txt.append(img)
     
     let view = mason.createView()
-    view.style.size = .init(.Points(100), .Points(100))
-    
-    view.backgroundColor = .systemPink
+    view.style.size = .init(.Points(200), .Points(200))
+    view.style.backgroundColor = UIColor.systemPink.toUInt32()
     
     txt.append(view)
     
@@ -1786,7 +1836,7 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
       style.gridTemplateColumns = "100 100 100"
     })
     
-
+    
     let a  = mason.createTextView()
     a.style.color = UIColor.white.toUInt32()
     a.append(text: "A")
@@ -1855,8 +1905,8 @@ Duis ornare ut nulla ac dignissim. Morbi ac orci a ante lacinia ultricies. Donec
     root.addView(f)
     
     
-   // root.computeWithMaxContent()
-//     root.computeWithSize(Float(body.bounds.size.width) * scale, Float(body.bounds.size.height) * scale)
+    // root.computeWithMaxContent()
+    //     root.computeWithSize(Float(body.bounds.size.width) * scale, Float(body.bounds.size.height) * scale)
     body.computeWithSize(Float(body.bounds.size.width) * scale, Float(body.bounds.size.height) * scale)
   }
   

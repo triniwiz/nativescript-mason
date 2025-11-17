@@ -388,7 +388,6 @@ export const displayProperty = new CssProperty<Style, Display>({
   defaultValue: 'block',
   valueChanged: (target, oldValue, newValue) => {
     const view = getViewStyle(target.viewRef);
-    console.log('Display changed from', oldValue, 'to', newValue);
     if (view && newValue) {
       view.display = newValue;
     } else {
@@ -751,118 +750,15 @@ export const gridAutoFlowProperty = new CssProperty<Style, GridAutoFlow>({
   },
 });
 
-function parseGridColumnOrRow(value: string) {
-  if (value.trim() === 'auto') {
-    return 'auto';
-  } else {
-    const split = value.split(/\s+/).filter((item) => item.trim().length !== 0);
-
-    const length = split.length;
-
-    if (length === 0) {
-      return undefined;
-    }
-
-    const first = split[0];
-    if (length === 1) {
-      const parsedValue = Number(first);
-      if (Number.isNaN(parsedValue)) {
-        return undefined;
-      }
-      return first;
-    }
-
-    if (length === 2) {
-      if (first === 'span') {
-        const second = split[1];
-
-        const parsedValue = Number(second);
-        if (Number.isNaN(parsedValue)) {
-          return undefined;
-        }
-
-        return `${first} ${second}`;
-      }
-    }
-
-    //custom-ident unsupport atm
-
-    return undefined;
-  }
-}
-
-export const gridAreaProperty = new ShorthandProperty<Style, string>({
+export const gridAreaProperty = new CssProperty<Style, string>({
   name: 'gridArea',
   cssName: 'grid-area',
-  getter: function () {
-    return `${this.gridRowStart} / ${this.gridColumnStart} / ${this.gridRowEnd} / ${this.gridColumnEnd}`;
-  },
-  converter(value) {
-    if (typeof value === 'string') {
-      const values = value.split('/').filter((item) => item.trim().length !== 0);
-
-      // grid-row-start / grid-column-start / grid-row-end / grid-column-end
-
-      const length = values.length;
-      if (length === 0) {
-        return [];
-      }
-
-      if (length === 1) {
-        const parsed = parseGridColumnOrRow(values[0]);
-        return [
-          [gridRowStartProperty, parsed],
-          [gridRowEndProperty, parsed],
-          [gridColumnStartProperty, parsed],
-          [gridColumnEndProperty, parsed],
-        ];
-      }
-
-      if (length === 2) {
-        const row = parseGridColumnOrRow(values[0]);
-
-        const column = parseGridColumnOrRow(values[1]);
-
-        return [
-          [gridRowStartProperty, row],
-          [gridRowEndProperty, row],
-          [gridColumnStartProperty, column],
-          [gridColumnEndProperty, column],
-        ];
-      }
-
-      if (length === 3) {
-        const rowStart = parseGridColumnOrRow(values[0]);
-
-        const rowEnd = parseGridColumnOrRow(values[2]);
-
-        const columnStart = parseGridColumnOrRow(values[1]);
-        return [
-          [gridRowStartProperty, rowStart],
-          [gridRowEndProperty, rowEnd],
-          [gridColumnStartProperty, columnStart],
-          [gridColumnEndProperty, columnStart],
-        ];
-      }
-
-      if (length >= 4) {
-        const rowStart = parseGridColumnOrRow(values[0]);
-
-        const rowEnd = parseGridColumnOrRow(values[2]);
-
-        const columnStart = parseGridColumnOrRow(values[1]);
-
-        const columnEnd = parseGridColumnOrRow(values[3]);
-        return [
-          [gridRowStartProperty, rowStart],
-          [gridRowEndProperty, rowEnd],
-          [gridColumnStartProperty, columnStart],
-          [gridColumnEndProperty, columnEnd],
-        ];
-      }
+  defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridArea = newValue;
     }
-
-    return [];
   },
 });
 
@@ -890,47 +786,15 @@ export const gridColumnEndProperty = new CssProperty<Style, string>({
   },
 });
 
-export const gridColumnProperty = new ShorthandProperty<Style, string>({
+export const gridColumnProperty = new CssProperty<Style, string>({
   name: 'gridColumn',
   cssName: 'grid-column',
-  getter: function () {
-    if (this.gridColumnStart === this.gridColumnEnd) {
-      return this.gridColumnStart;
+  defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridColumn = newValue;
     }
-    return `${this.gridColumnStart} / ${this.gridColumnEnd}`;
-  },
-  converter(value) {
-    if (typeof value === 'string') {
-      const values = value.split('/').filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return [];
-      }
-
-      if (length === 1) {
-        const parsed = parseGridColumnOrRow(values[0]);
-        return [
-          [gridColumnStartProperty, parsed],
-          [gridColumnEndProperty, parsed],
-        ];
-      }
-
-      if (length > 1) {
-        const start = values[0];
-        const end = values[1];
-
-        const parsedStart = parseGridColumnOrRow(start);
-        const parsedEnd = parseGridColumnOrRow(end);
-
-        return [
-          [gridColumnStartProperty, parsedStart],
-          [gridColumnEndProperty, parsedEnd],
-        ];
-      }
-    }
-
-    return [];
   },
 });
 
@@ -958,50 +822,31 @@ export const gridRowEndProperty = new CssProperty<Style, string>({
   },
 });
 
-export const gridRowProperty = new ShorthandProperty<Style, string>({
+export const gridRowProperty = new CssProperty<Style, string>({
   name: 'gridRow',
   cssName: 'grid-row',
-  getter: function () {
-    if (this.gridRowStart === this.gridRowEnd) {
-      return this.gridRowStart;
+  defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridRow = newValue;
     }
-    return `${this.gridRowStart} / ${this.gridRowEnd}`;
-  },
-  converter(value) {
-    if (typeof value === 'string') {
-      const values = value.split('/').filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return [];
-      }
-
-      if (length === 1) {
-        const parsed = parseGridColumnOrRow(values[0]);
-        return [
-          [gridRowStartProperty, parsed],
-          [gridRowEndProperty, parsed],
-        ];
-      }
-
-      if (length > 1) {
-        const start = values[0];
-        const end = values[1];
-
-        const parsedStart = parseGridColumnOrRow(start);
-        const parsedEnd = parseGridColumnOrRow(end);
-        return [
-          [gridRowStartProperty, parsedStart],
-          [gridRowEndProperty, parsedEnd],
-        ];
-      }
-    }
-
-    return [];
   },
 });
 
-export const gridTemplateRowsProperty = new CssProperty<Style, Array<GridTemplates> | string>({
+export const gridTemplateAreasProperty = new CssProperty<Style, string>({
+  name: 'gridTemplateAreas',
+  cssName: 'grid-template-areas',
+  defaultValue: null,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridTemplateAreas = newValue;
+    }
+  },
+});
+
+export const gridTemplateRowsProperty = new CssProperty<Style, string>({
   name: 'gridTemplateRows',
   cssName: 'grid-template-rows',
   defaultValue: null,
@@ -1013,7 +858,7 @@ export const gridTemplateRowsProperty = new CssProperty<Style, Array<GridTemplat
   },
 });
 
-export const gridTemplateColumnsProperty = new CssProperty<Style, Array<GridTemplates> | string>({
+export const gridTemplateColumnsProperty = new CssProperty<Style, string>({
   name: 'gridTemplateColumns',
   cssName: 'grid-template-columns',
   defaultValue: null,
@@ -2013,8 +1858,8 @@ gridRowStartProperty.register(Style);
 gridRowEndProperty.register(Style);
 
 gridTemplateRowsProperty.register(Style);
-
 gridTemplateColumnsProperty.register(Style);
+gridTemplateAreasProperty.register(Style);
 
 overflowProperty.register(Style);
 overflowXProperty.register(Style);

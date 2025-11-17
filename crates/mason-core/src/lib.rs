@@ -22,7 +22,6 @@ pub use crate::node::InlineSegment;
 pub use crate::style::Style;
 pub use node::NodeRef;
 
-mod inline;
 pub mod style;
 mod tree;
 pub mod utils;
@@ -127,6 +126,12 @@ fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
 
 #[derive(Debug)]
 pub struct Mason(Tree);
+
+impl Default for Mason {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Mason {
     pub fn new() -> Self {
@@ -265,10 +270,8 @@ impl Mason {
         if let Some(node) = self.0.node_data.get_mut(node) {
             if data.is_null() {
                 node.apple_data = None;
-            } else {
-                if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
-                    node.apple_data = Some(apple_node);
-                }
+            } else if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
+                node.apple_data = Some(apple_node);
             }
         }
     }

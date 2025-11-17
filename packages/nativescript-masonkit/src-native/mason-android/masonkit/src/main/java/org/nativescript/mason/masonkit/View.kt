@@ -1,17 +1,21 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.RectF
 import android.util.AttributeSet
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import androidx.core.content.withStyledAttributes
+import androidx.core.graphics.withSave
 import androidx.core.util.size
 import com.google.gson.Gson
 import org.nativescript.mason.masonkit.enums.AlignContent
 import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Direction
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
@@ -48,6 +52,9 @@ class View @JvmOverloads constructor(
   }
 
   init {
+    // css visible default
+    clipChildren = false
+    clipToPadding = false
     if (!override) {
       if (!::node.isInitialized) {
         node = Mason.shared.createNode().apply {
@@ -57,6 +64,52 @@ class View @JvmOverloads constructor(
         node.style.setStyleChangeListener(this)
       }
     }
+  }
+
+  override fun dispatchDraw(canvas: Canvas) {
+
+    if (!style.isValueInitialized) {
+      super.dispatchDraw(canvas)
+      return
+    }
+
+    canvas.withSave {
+      val overFlowX = style.values.getInt(StyleKeys.OVERFLOW_X)
+      val overFlowY = style.values.getInt(StyleKeys.OVERFLOW_Y)
+      val clipX = when (overFlowX) {
+        1, 3 -> true
+        4 -> {
+          node.overflowWidth > width
+        }
+
+        else -> false
+      }
+      val clipY = when (overFlowY) {
+        1, 3 -> true
+        4 -> {
+          node.overflowHeight > height
+        }
+
+        else -> false
+      }
+
+
+      val rectLeft = paddingLeft
+      val rectTop = paddingTop
+      val rectRight = width - paddingRight
+      val rectBottom = height - paddingBottom
+
+      val clipRect = RectF(
+        if (clipX) rectLeft.toFloat() else Float.NEGATIVE_INFINITY,
+        if (clipY) rectTop.toFloat() else Float.NEGATIVE_INFINITY,
+        if (clipX) rectRight.toFloat() else Float.POSITIVE_INFINITY,
+        if (clipY) rectBottom.toFloat() else Float.POSITIVE_INFINITY
+      )
+
+      canvas.clipRect(clipRect)
+      super.dispatchDraw(canvas)
+    }
+
   }
 
   internal var isScrollRoot = false
@@ -105,12 +158,43 @@ class View @JvmOverloads constructor(
       mapMeasureSpec(specHeightMode, specHeight).value
     )
 
-    node.mason.printTree(node)
     // todo cache layout
     val layout = layout()
+
+
+    var width = layout.width.toInt()
+    var height = layout.height.toInt()
+
+    var boxing = BoxSizing.BorderBox
+
+    if (style.isValueInitialized) {
+      boxing = style.boxSizing
+    }
+
+    if (style.overflowX == Overflow.Visible) {
+      width = if (boxing == BoxSizing.BorderBox) {
+        (layout.x + layout.contentSize.width
+          + layout.border.right + layout.border.left
+          + layout.padding.right + layout.padding.left).toInt()
+      } else {
+        layout.contentSize.height.toInt()
+      }
+    }
+
+    if (style.overflowY == Overflow.Visible) {
+      height = if (boxing == BoxSizing.BorderBox) {
+        (layout.y + layout.contentSize.height
+          + layout.border.top + layout.border.bottom
+          + layout.padding.top + layout.padding.bottom).toInt()
+      } else {
+        layout.contentSize.height.toInt()
+      }
+    }
+
+
     setMeasuredDimension(
-      layout.width.toInt(),
-      layout.height.toInt(),
+      width,
+      height,
     )
   }
 

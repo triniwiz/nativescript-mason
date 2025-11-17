@@ -16,6 +16,7 @@ import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
@@ -31,6 +32,8 @@ import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import java.nio.ByteBuffer
 import kotlin.math.ceil
+
+val white_space = "\\s+".toRegex()
 
 class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
@@ -132,7 +135,7 @@ class TextView @JvmOverloads constructor(
         TextType.Code -> {
           style.font = FontFace("monospace")
           style.display = Display.Inline
-          setBackgroundColor(0xFFEFEFEF.toInt())
+        //  setBackgroundColor(0xFFEFEFEF.toInt())
         }
 
         TextType.H1 -> {
@@ -567,7 +570,6 @@ class TextView @JvmOverloads constructor(
       heightConstraint = knownHeight.toInt()
     }
 
-
     if (isInline) {
       widthConstraint = Int.MAX_VALUE
     }
@@ -588,7 +590,6 @@ class TextView @JvmOverloads constructor(
     if (allowWrap && availableWidth > 0 && availableWidth != Float.MIN_VALUE) {
       widthConstraint = availableWidth.toInt()
     }
-
 
     val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
 
@@ -637,7 +638,16 @@ class TextView @JvmOverloads constructor(
         }
       }
     } else {
-      measuredWidth = layout.width.toFloat()
+      measuredWidth = if (widthConstraint == Int.MAX_VALUE) {
+        if (availableWidth == -1f) {
+          text.split(white_space)
+            .maxOfOrNull { Layout.getDesiredWidth(it, paint) } ?: 0f
+        } else {
+          Layout.getDesiredWidth(text, paint)
+        }
+      } else {
+        layout.width.toFloat()
+      }
     }
 
     // Store the actual measured dimensions (not the constraints)

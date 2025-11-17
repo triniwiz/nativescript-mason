@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-.wrapper {
+/* .wrapper {
     display: grid;
     grid-gap: 10;
     grid-template-columns: 100 100 100;
@@ -33,4 +33,4 @@
   .d {
     grid-column: 2;
     grid-row: 2;
-  }
+  } */

@@ -1,9 +1,14 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.ViewGroup
-import android.widget.FrameLayout
+import androidx.core.graphics.withSave
+import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
+import org.nativescript.mason.masonkit.enums.BoxSizing
+import org.nativescript.mason.masonkit.enums.Overflow
 
 class Scroll @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
@@ -50,15 +55,19 @@ class Scroll @JvmOverloads constructor(
     scrollRoot = View(context, mason).apply {
       isScrollRoot = true
     }
+
     super.addView(
-      scrollRoot, FrameLayout.LayoutParams(
-        FrameLayout.LayoutParams.WRAP_CONTENT,
-        FrameLayout.LayoutParams.MATCH_PARENT
+      scrollRoot, LayoutParams(
+        LayoutParams.WRAP_CONTENT,
+        LayoutParams.WRAP_CONTENT
       )
     )
   }
 
   init {
+    // handle clipping manually
+    clipChildren = false
+    clipToPadding = false
     if (!override) {
       if (!::scrollRoot.isInitialized) {
         scrollRoot = View(context, attrs, defStyleAttr).apply {
@@ -76,6 +85,50 @@ class Scroll @JvmOverloads constructor(
     }
   }
 
+  override fun dispatchDraw(canvas: Canvas) {
+    if (!style.isValueInitialized) {
+      super.dispatchDraw(canvas)
+      return
+    }
+
+    canvas.withSave {
+      val overFlowX = style.values.getInt(StyleKeys.OVERFLOW_X)
+      val overFlowY = style.values.getInt(StyleKeys.OVERFLOW_Y)
+      val clipX = when (overFlowX) {
+        1, 3 -> true
+        4 -> {
+          node.overflowWidth > width
+        }
+
+        else -> false
+      }
+      val clipY = when (overFlowY) {
+        1, 3 -> true
+        4 -> {
+          node.overflowHeight > height
+        }
+
+        else -> false
+      }
+
+
+      val rectLeft = paddingLeft
+      val rectTop = paddingTop
+      val rectRight = width - paddingRight
+      val rectBottom = height - paddingBottom
+
+      val clipRect = RectF(
+        if (clipX) rectLeft.toFloat() else Float.NEGATIVE_INFINITY,
+        if (clipY) rectTop.toFloat() else Float.NEGATIVE_INFINITY,
+        if (clipX) rectRight.toFloat() else Float.POSITIVE_INFINITY,
+        if (clipY) rectBottom.toFloat() else Float.POSITIVE_INFINITY
+      )
+
+      canvas.clipRect(clipRect)
+      super.dispatchDraw(canvas)
+    }
+  }
+
   override fun addView(child: android.view.View) {
     if (child != scrollRoot) {
       scrollRoot.addView(child)
@@ -89,7 +142,6 @@ class Scroll @JvmOverloads constructor(
     }
   }
 
-
   override fun addView(
     child: android.view.View, index: Int, params: ViewGroup.LayoutParams
   ) {
@@ -101,11 +153,63 @@ class Scroll @JvmOverloads constructor(
     }
   }
 
-//  override fun getChildCount(): Int {
-//    return scrollRoot.childCount
-//  }
-//
-//  override fun getChildAt(index: Int): android.view.View? {
-//    return scrollRoot.getChildAt(index)
-//  }
+  override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+    // todo cache layout
+    val layout = layout()
+    applyLayoutRecursive(node, layout)
+  }
+
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    val specWidth = MeasureSpec.getSize(widthMeasureSpec)
+    val specHeight = MeasureSpec.getSize(heightMeasureSpec)
+
+    val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
+    val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
+
+    val availableWidth = mapMeasureSpec(specWidthMode, specWidth).value
+    val availableHeight = mapMeasureSpec(specHeightMode, specHeight).value
+
+    compute(
+      availableWidth,
+      availableHeight
+    )
+    val layout = layout()
+
+    var width = layout.width.toInt()
+    var height = layout.height.toInt()
+
+    var boxing = BoxSizing.BorderBox
+
+    if (style.isValueInitialized) {
+      boxing = style.boxSizing
+    }
+
+    if (style.overflowX == Overflow.Visible) {
+      width = if (boxing == BoxSizing.BorderBox) {
+        (layout.x + layout.contentSize.width
+          + layout.border.right + layout.border.left
+          + layout.padding.right + layout.padding.left).toInt()
+      } else {
+        layout.contentSize.height.toInt()
+      }
+    }
+
+    if (style.overflowY == Overflow.Visible) {
+      height = if (boxing == BoxSizing.BorderBox) {
+        (layout.y + layout.contentSize.height
+          + layout.border.top + layout.border.bottom
+          + layout.padding.top + layout.padding.bottom).toInt()
+      } else {
+        layout.contentSize.height.toInt()
+      }
+    }
+
+    setMeasuredDimension(width, height)
+  }
+
+  override fun generateDefaultLayoutParams(): LayoutParams? {
+    return LayoutParams(
+      LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
+    )
+  }
 }

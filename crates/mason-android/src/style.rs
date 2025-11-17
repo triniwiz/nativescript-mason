@@ -373,7 +373,7 @@ pub extern "system" fn nativeGetStyleBuffer(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridArea(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
@@ -398,7 +398,7 @@ pub extern "system" fn StyleNativeGetGridArea(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridTemplateAreas(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
@@ -425,7 +425,7 @@ pub extern "system" fn StyleNativeGetGridTemplateAreas(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridAutoRows(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
@@ -451,7 +451,7 @@ pub extern "system" fn StyleNativeGetGridAutoRows(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridAutoColumns(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
@@ -476,7 +476,7 @@ pub extern "system" fn StyleNativeGetGridAutoColumns(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridColumn(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
@@ -501,7 +501,7 @@ pub extern "system" fn StyleNativeGetGridColumn(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridColumnStart(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
@@ -587,7 +587,7 @@ pub extern "system" fn StyleNativeGetGridRow(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridRowStart(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
@@ -616,7 +616,7 @@ pub extern "system" fn StyleNativeGetGridRowStart(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridRowEnd(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
@@ -646,7 +646,7 @@ pub extern "system" fn StyleNativeGetGridRowEnd(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridTemplateRows(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
@@ -671,7 +671,7 @@ pub extern "system" fn StyleNativeGetGridTemplateRows(
 
 #[no_mangle]
 pub extern "system" fn StyleNativeGetGridTemplateColumns(
-    mut env: JNIEnv,
+    env: JNIEnv,
     _: JClass,
     mason: jlong,
     node: jlong,
