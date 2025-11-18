@@ -1,13 +1,12 @@
 use mason_core::style::{DisplayMode, Overflow, StyleKeys};
 use mason_core::{
     AlignContent, AlignItems, Dimension, Display, FlexDirection, JustifyContent, LengthPercentage,
-    LengthPercentageAuto, Mason, MeasureOutput, Rect, Size,
+    LengthPercentageAuto, Mason, MeasureOutput, NodeRef, Rect, Size,
 };
 use std::ffi::{c_longlong, c_void};
-use style_atoms::Atom;
 use taffy::prelude::{TaffyGridLine, TaffyMaxContent};
 use taffy::style_helpers::length;
-use taffy::{AlignSelf, AvailableSpace, GridPlacement, Line, NodeId};
+use taffy::{AlignSelf, AvailableSpace, Line, NodeId};
 
 #[derive(Debug)]
 struct NodeData {
@@ -38,13 +37,182 @@ fn main() {
     //flex_grow_bug()
     // inline_size_bug()
     //  wrap_bug()
-   //  grid_areas();
+    //  grid_areas();
     // grid();
     //g_names()
     //taffy_g_names();
     // taffy_g_names_xp();
-   // grid_sizing();
-   // grid_sizing_taffy();
+    // grid_sizing();
+    // grid_sizing_taffy();
+    grid_template_areas();
+   // grid_template_areas_500();
+}
+
+
+fn grid_template_areas_500() {
+    let mut mason = Mason::new();
+    mason.set_device_scale(3.0);
+    let root = mason.create_node();
+    let grid = mason.create_node();
+    mason.with_style_mut(grid.id(), |style| {
+        style.set_display(Display::Grid);
+        style.set_gap(Size::length(10.));
+        style.set_grid_template_columns_css("20% auto");
+        style.set_grid_template_areas_css(
+            r#"
+           "header   header"
+		"sidebar  content"
+		"sidebar2 sidebar2"
+		"footer   footer"
+        "#,
+        )
+    });
+
+    let header = mason.create_node();
+    let header_txt = mason.create_text_node();
+
+    let sidebar = mason.create_node();
+    let sidebar_txt = mason.create_text_node();
+
+    let content = mason.create_node();
+    let content_txt = mason.create_text_node();
+
+    let sidebar2 = mason.create_node();
+    let sidebar2_txt = mason.create_text_node();
+
+    let footer = mason.create_node();
+    let footer_txt = mason.create_text_node();
+
+    extern "C" fn grid_template_areas_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        if available_space_width == -1f32 {
+            return MeasureOutput::make(10., 10.);
+        } else if available_space_width == -2f32 {
+            return MeasureOutput::make(30., 30.);
+        }
+
+        MeasureOutput::make(50., 50.)
+    }
+
+    let mut set_area = |node: &NodeRef, child: &NodeRef, area: &str| {
+        mason.add_child(node.id(), child.id());
+        mason.with_style_mut(node.id(), |style| {
+            style.set_grid_area(area);
+        });
+
+        mason.set_measure(child.id(), Some(grid_template_areas_inline), 0 as _);
+    };
+
+    set_area(&header, &header_txt, "header");
+    set_area(&sidebar, &sidebar_txt, "sidebar");
+    set_area(&content, &content_txt, "content");
+    set_area(&sidebar2, &sidebar2_txt, "sidebar2");
+    set_area(&footer, &footer_txt, "footer");
+
+    mason.add_children(
+        grid.id(),
+        &[
+            header.id(),
+            sidebar.id(),
+            content.id(),
+            sidebar2.id(),
+            footer.id(),
+        ],
+    );
+
+    mason.add_child(root.id(), grid.id());
+
+    mason.compute_wh(root.id(), 1080., 2000.);
+
+    mason.print_tree(root.id());
+}
+
+fn grid_template_areas() {
+    let mut mason = Mason::new();
+    mason.set_device_scale(3.0);
+    let root = mason.create_node();
+    let grid = mason.create_node();
+    mason.with_style_mut(grid.id(), |style| {
+        style.set_display(Display::Grid);
+        style.set_gap(Size::length(10.));
+        style.set_grid_template_areas_css(
+            r#"
+         "header"
+        "sidebar"
+        "content"
+        "sidebar2"
+        "footer"
+        "#,
+        )
+    });
+
+    let header = mason.create_node();
+    let header_txt = mason.create_text_node();
+
+    let sidebar = mason.create_node();
+    let sidebar_txt = mason.create_text_node();
+
+    let content = mason.create_node();
+    let content_txt = mason.create_text_node();
+
+    let sidebar2 = mason.create_node();
+    let sidebar2_txt = mason.create_text_node();
+
+    let footer = mason.create_node();
+    let footer_txt = mason.create_text_node();
+
+    extern "C" fn grid_template_areas_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        if available_space_width == -1f32 {
+            return MeasureOutput::make(10., 10.);
+        } else if available_space_width == -2f32 {
+            return MeasureOutput::make(30., 30.);
+        }
+
+        MeasureOutput::make(50., 50.)
+    }
+
+    let mut set_area = |node: &NodeRef, child: &NodeRef, area: &str| {
+        mason.add_child(node.id(), child.id());
+        mason.with_style_mut(node.id(), |style| {
+            style.set_grid_area(area);
+        });
+
+        mason.set_measure(child.id(), Some(grid_template_areas_inline), 0 as _);
+    };
+
+    set_area(&header, &header_txt, "header");
+    set_area(&sidebar, &sidebar_txt, "sidebar");
+    set_area(&content, &content_txt, "content");
+    set_area(&sidebar2, &sidebar2_txt, "sidebar2");
+    set_area(&footer, &footer_txt, "footer");
+
+    mason.add_children(
+        grid.id(),
+        &[
+            header.id(),
+            sidebar.id(),
+            content.id(),
+            sidebar2.id(),
+            footer.id(),
+        ],
+    );
+
+    mason.add_child(root.id(), grid.id());
+
+    mason.compute_wh(root.id(), 1080., 2000.);
+
+    mason.print_tree(root.id());
 }
 
 fn grid_sizing_taffy() -> Result<(), ()> {
@@ -74,11 +242,12 @@ fn grid_sizing_taffy() -> Result<(), ()> {
         style.border.right = length(1f32);
         style.border.top = length(1f32);
         style.border.bottom = length(1f32);
-        let col = mason_core::utils::parse_grid_placement_shorthand::<String>("1/2").map_err(|_| ())?;
+        let col =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("1/2").map_err(|_| ())?;
         style.grid_column.start = col.0.clone();
-        style.grid_column.end =  col.1.clone();
+        style.grid_column.end = col.1.clone();
 
-        style.grid_row.start =  col.0;
+        style.grid_row.start = col.0;
         style.grid_row.end = col.1;
 
         style.align_self = Some(AlignSelf::Stretch);
@@ -93,12 +262,14 @@ fn grid_sizing_taffy() -> Result<(), ()> {
         style.border.right = length(1f32);
         style.border.top = length(1f32);
         style.border.bottom = length(1f32);
-        let col = mason_core::utils::parse_grid_placement_shorthand::<String>("3/4").map_err(|_| ())?;
+        let col =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("3/4").map_err(|_| ())?;
         style.grid_column.start = col.0;
-        style.grid_column.end =  col.1;
+        style.grid_column.end = col.1;
 
-        let row = mason_core::utils::parse_grid_placement_shorthand::<String>("3/4").map_err(|_| ())?;
-        style.grid_row.start =  row.0;
+        let row =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("3/4").map_err(|_| ())?;
+        style.grid_row.start = row.0;
         style.grid_row.end = row.1;
 
         style.align_self = Some(AlignSelf::End);
@@ -113,12 +284,14 @@ fn grid_sizing_taffy() -> Result<(), ()> {
         style.border.right = length(1f32);
         style.border.top = length(1f32);
         style.border.bottom = length(1f32);
-        let col = mason_core::utils::parse_grid_placement_shorthand::<String>("1/3").map_err(|_| ())?;
+        let col =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("1/3").map_err(|_| ())?;
         style.grid_column.start = col.0;
-        style.grid_column.end =  col.1;
+        style.grid_column.end = col.1;
 
-        let row = mason_core::utils::parse_grid_placement_shorthand::<String>("3/6").map_err(|_| ())?;
-        style.grid_row.start =  row.0;
+        let row =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("3/6").map_err(|_| ())?;
+        style.grid_row.start = row.0;
         style.grid_row.end = row.1;
 
         style.align_self = Some(AlignSelf::Start);
@@ -127,8 +300,9 @@ fn grid_sizing_taffy() -> Result<(), ()> {
     };
     let c = taffy.new_leaf(c_style).map_err(|_| ())?;
 
-
-    let root = taffy.new_with_children(root_style, &[a, b, c]).map_err(|_| ())?;
+    let root = taffy
+        .new_with_children(root_style, &[a, b, c])
+        .map_err(|_| ())?;
 
     let rs = taffy.style(root).unwrap();
 
@@ -175,8 +349,10 @@ fn grid_sizing() {
         available_space_width: f32,
         available_space_height: f32,
     ) -> c_longlong {
-
-        println!("{:?} ... {:?}", available_space_width, available_space_height);
+        println!(
+            "{:?} ... {:?}",
+            available_space_width, available_space_height
+        );
 
         if available_space_width == -1f32 {
             return MeasureOutput::make(10., 10.);

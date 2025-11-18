@@ -375,9 +375,16 @@ pub fn parse_grid_template<S: CheapCloneStr>(
     Ok((components, all_line_names))
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct GridTemplateAreasParseResult<S: CheapCloneStr> {
+    pub areas: Vec<GridTemplateArea<S>>,
+    pub row_count: u16,
+    pub column_count: u16,
+}
+
 pub fn parse_grid_template_areas<S: CheapCloneStr>(
     input: &str,
-) -> Result<Vec<GridTemplateArea<S>>, ParseError<'_, ()>>
+) -> Result<GridTemplateAreasParseResult<S>, ParseError<'_, ()>>
 where
     S: std::hash::Hash,
 {
@@ -386,15 +393,25 @@ where
     let mut areas: Vec<GridTemplateArea<S>> = Vec::new();
     let mut map: HashMap<S, (u16, u16, u16, u16)> = HashMap::new();
 
-    let mut row_index = 0;
+    let mut row_index: u16 = 0;
+    let mut column_count: u16 = 0;
+
 
     while !parser.is_exhausted() {
         parser.skip_whitespace();
 
-        // Expect a string token for each row
         if let Ok(Token::QuotedString(row)) = parser.next_including_whitespace() {
-            // Split the row into area names
             let cols: Vec<&str> = row.split_whitespace().collect();
+            if cols.is_empty() {
+                continue;
+            }
+
+            let cols_len = cols.len() as u16;
+            if column_count == 0 {
+                column_count = cols_len;
+            } else if column_count != cols_len {
+                return Err(parser.new_custom_error(()));
+            }
 
             for (col_index, &name) in cols.iter().enumerate() {
                 if name == "." {
@@ -402,22 +419,29 @@ where
                 }
 
                 let key: S = name.into();
-                map.entry(key.clone())
-                    .and_modify(|e| {
-                        e.2 = e.2.max(col_index as u16 + 1);
-                        e.3 = e.3.max(row_index + 1);
-                    })
-                    .or_insert((
-                        row_index,
-                        row_index + 1,
-                        col_index as u16,
-                        col_index as u16 + 1,
-                    ));
+                // compute 1-based start/end lines
+                let row_start_line = row_index + 1;
+                let row_end_line = row_start_line + 1;
+                let col_start_line = col_index as u16 + 1;
+                let col_end_line = col_start_line + 1;
+
+                map.entry(key.clone()).and_modify(|extents| {
+                    // extents = (row_start, row_end, col_start, col_end)
+                    // extend to cover new cell
+                    extents.0 = extents.0.min(row_start_line);
+                    extents.1 = extents.1.max(row_end_line);
+                    extents.2 = extents.2.min(col_start_line);
+                    extents.3 = extents.3.max(col_end_line);
+                }).or_insert((
+                    row_start_line,
+                    row_end_line,
+                    col_start_line,
+                    col_end_line,
+                ));
             }
 
             row_index += 1;
         } else {
-            // Skip invalid tokens or stop parsing
             parser.next()?;
         }
     }
@@ -432,7 +456,11 @@ where
         });
     }
 
-    Ok(areas)
+    Ok(GridTemplateAreasParseResult {
+        areas,
+        row_count: row_index,
+        column_count,
+    })
 }
 
 /// Parses `grid-auto-columns` or `grid-auto-rows`
@@ -466,13 +494,15 @@ pub fn parse_grid_auto_tracks(
 pub enum StartOrEnd {
     Start,
     End,
+    None
 }
 
 impl StartOrEnd {
     pub fn value(&self) -> &'static str {
         match self {
-            StartOrEnd::Start => "start",
-            StartOrEnd::End => "end",
+            StartOrEnd::Start => "-start",
+            StartOrEnd::End => "-end",
+            StartOrEnd::None => ""
         }
     }
 }
@@ -506,7 +536,7 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
         // span <name> [<integer>]?
         if let Ok(ident) = parser.try_parse(|p| p.expect_ident_cloned()) {
-            let name = format!("{}-{}", start_or_end.value(), ident.as_ref()).into();
+            let name = format!("{}{}", ident.as_ref(), start_or_end.value()).into();
 
             if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
                 return Ok(GridPlacement::NamedSpan(name, num as u16));
@@ -518,7 +548,7 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
         // span "string" [<integer>]?
         if let Ok(string) = parser.try_parse(|p| p.expect_string_cloned()) {
-            let name = format!("{}-{}", start_or_end.value(), string.as_ref()).into();
+            let name = format!("{}{}", string.as_ref(), start_or_end.value()).into();
 
             if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
                 return Ok(GridPlacement::NamedSpan(name, num as u16));
@@ -537,7 +567,7 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
     // <ident> [<integer>]?
     if let Ok(ident) = parser.try_parse(|p| p.expect_ident_cloned()) {
-        let name = format!("{}-{}", start_or_end.value(), ident.as_ref()).into();
+        let name = format!("{}{}",ident.as_ref(),  start_or_end.value()).into();
 
         if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
             return Ok(GridPlacement::NamedLine(name, num as i16));
@@ -549,7 +579,7 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
     // "string" [<integer>]?
     if let Ok(string) = parser.try_parse(|p| p.expect_string_cloned()) {
-        let name = format!("{}-{}", start_or_end.value(), string.as_ref()).into();
+        let name = format!("{}{}", string.as_ref(), start_or_end.value()).into();
 
         if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
             return Ok(GridPlacement::NamedLine(name, num as i16));
@@ -600,20 +630,26 @@ pub struct GridAreaPosition {
 pub fn parse_grid_area(input: &str) -> Result<GridAreaPosition, ParseError<'_, ()>> {
     let mut input = ParserInput::new(input);
     let mut parser = Parser::new(&mut input);
-    let mut parts: Vec<GridPlacement<Atom>> = vec![];
+    let mut parts: Vec<GridPlacement<Atom>> = Vec::new();
 
-    let count = 0;
-    while !parser.is_exhausted() {
-        let start_or_end = if count % 2 == 0 {
-            StartOrEnd::Start
+    loop {
+        parser.skip_whitespace();
+        if parser.is_exhausted() {
+            break;
+        }
+
+
+        parts.push(parse_grid_placement_with_parser(&mut parser, StartOrEnd::None)?);
+        parser.skip_whitespace();
+
+        // placements are separated by '/', stop if there's no more separator
+        if parser.try_parse(|p| p.expect_delim('/')).is_ok() {
+            continue;
         } else {
-            StartOrEnd::End
-        };
-        parts.push(parse_grid_placement_with_parser(&mut parser, start_or_end)?);
-        parser.skip_whitespace();
-        let _ = parser.try_parse(|p| p.expect_delim('/'));
-        parser.skip_whitespace();
+            break;
+        }
     }
+
 
     Ok(match parts.len() {
         1 => GridAreaPosition {

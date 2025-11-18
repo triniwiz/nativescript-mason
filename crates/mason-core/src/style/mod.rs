@@ -28,7 +28,7 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use style_atoms::Atom;
-use taffy::prelude::TaffyGridLine;
+use taffy::prelude::{TaffyAuto, TaffyGridLine};
 use taffy::{
     AbsoluteAxis, AbstractAxis, AlignContent, AlignItems, AlignSelf, BlockContainerStyle,
     BlockItemStyle, BoxGenerationMode, BoxSizing, CoreStyle, Dimension, Display, FlexDirection,
@@ -957,14 +957,67 @@ impl Style {
     }
 
     pub fn set_grid_template_areas_css(&mut self, value: &str) {
+        if value.is_empty() {
+            self.grid_template_areas_raw = Default::default();
+            self.grid_template_areas = vec![];
+            if self.grid_template_rows_raw.is_none() {
+                self.grid_template_rows = vec![];
+            }
+
+            if self.grid_template_columns_raw.is_none() {
+                self.grid_template_columns = vec![];
+            }
+            return;
+        }
         let areas = crate::utils::parse_grid_template_areas(value);
         if let Ok(areas) = areas {
-            if areas.is_empty() {
+            if areas.areas.is_empty() {
                 self.grid_template_areas_raw = Default::default();
+                self.grid_template_areas = vec![];
+
+                // if self.grid_template_rows_raw.is_none() {
+                //     self.grid_template_rows = vec![];
+                // }
+                //
+                // if self.grid_template_columns_raw.is_none() {
+                //     self.grid_template_columns = vec![];
+                // }
             } else {
                 self.grid_template_areas_raw = value.into();
+
+                /*
+                if self.grid_template_rows_raw.is_none() && areas.row_count > 0
+                {
+                    self.grid_template_rows =
+                        vec![
+                            GridTemplateComponent::Repeat(
+                                GridTemplateRepetition{
+                                    count: RepetitionCount::Count(areas.row_count),
+                                    tracks: vec![taffy::MinMax::AUTO],
+                                    line_names: vec![],
+                                }
+                            )
+                        ];
+                }
+
+                if self.grid_template_columns_raw.is_none() && areas.column_count > 0 {
+                    self.grid_template_columns =
+                        vec![
+                            GridTemplateComponent::Repeat(
+                                GridTemplateRepetition{
+                                    count: RepetitionCount::Count(areas.column_count),
+                                    tracks: vec![taffy::MinMax::AUTO],
+                                    line_names: vec![],
+                                }
+                            )
+                        ];
+                }
+
+
+
+                */
+                self.grid_template_areas = areas.areas;
             }
-            self.grid_template_areas = areas;
         }
     }
 
@@ -1811,7 +1864,8 @@ impl Style {
         T: Into<Atom>,
     {
         let area = name.into();
-        if area.is_empty() {
+        let name = area.trim();
+        if name.is_empty() {
             self.grid_row_start = GridPlacement::Auto;
             self.grid_row_end = GridPlacement::Auto;
             self.grid_column_start = GridPlacement::Auto;
@@ -1819,6 +1873,19 @@ impl Style {
             self.grid_area = None;
             return;
         }
+
+        if !area.contains('/') {
+            let name: Atom = name.into();
+            let start = GridPlacement::NamedLine(name.clone(), 0);
+            let end = GridPlacement::NamedLine(name, 0);
+            self.grid_row_start = start.clone();
+            self.grid_row_end = end.clone();
+            self.grid_column_start = start;
+            self.grid_column_end = end;
+            self.grid_area = Some(area);
+            return;
+        }
+
         let value = crate::utils::parse_grid_area(area.as_ref());
         if let Ok(value) = value {
             self.grid_row_start = value.row_start;
@@ -1880,7 +1947,9 @@ impl Style {
     pub fn set_grid_row_start_css(&mut self, value: &str) {
         if value.is_empty() {
             self.grid_row_start = GridPlacement::Auto;
-        } else if let Ok(start) = crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::Start) {
+        } else if let Ok(start) =
+            crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::Start)
+        {
             self.grid_row_start = start;
         }
     }
@@ -1890,7 +1959,9 @@ impl Style {
     pub fn set_grid_row_end_css(&mut self, value: &str) {
         if value.is_empty() {
             self.grid_row_end = GridPlacement::Auto;
-        } else if let Ok(start) = crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::End) {
+        } else if let Ok(start) =
+            crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::End)
+        {
             self.grid_row_end = start;
         }
     }
@@ -1938,7 +2009,9 @@ impl Style {
     pub fn set_grid_column_start_css(&mut self, value: &str) {
         if value.is_empty() {
             self.grid_column_start = GridPlacement::Auto;
-        } else if let Ok(start) = crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::Start) {
+        } else if let Ok(start) =
+            crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::Start)
+        {
             self.grid_column_start = start;
         }
     }
@@ -1949,7 +2022,9 @@ impl Style {
     pub fn set_grid_column_end_css(&mut self, value: &str) {
         if value.is_empty() {
             self.grid_column_end = GridPlacement::Auto;
-        } else if let Ok(start) = crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::End) {
+        } else if let Ok(start) =
+            crate::utils::parse_grid_placement(value, crate::utils::StartOrEnd::End)
+        {
             self.grid_column_end = start;
         }
     }

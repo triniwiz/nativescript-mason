@@ -9,21 +9,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.LengthPercentage
-import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
-import org.nativescript.mason.masonkit.StateKeys
-import org.nativescript.mason.masonkit.StyleKeys
 import org.nativescript.mason.masonkit.TextStyleKeys
 import org.nativescript.mason.masonkit.View
 import org.nativescript.mason.masonkit.enums.AlignSelf
 import org.nativescript.mason.masonkit.enums.Display
-import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextType
-import java.util.Timer
-import kotlin.concurrent.schedule
 
 class GridActivity : AppCompatActivity() {
   lateinit var metrics: DisplayMetrics
@@ -40,14 +34,14 @@ class GridActivity : AppCompatActivity() {
     val body = mason.createScrollView(this)
 
 
-    Timer().schedule(1000L) {
-      runOnUiThread {
-        body.style.values.putInt(StyleKeys.OVERFLOW_X, Overflow.Scroll.value)
-        body.syncStyle("${StateKeys.OVERFLOW_X.bits}", "-1")
-//        body.style.overflowX = Overflow.Scroll
-//        body.style.overflowY = Overflow.Scroll
-      }
-    }
+//    Timer().schedule(1000L) {
+//      runOnUiThread {
+//        body.style.values.putInt(StyleKeys.OVERFLOW_X, Overflow.Scroll.value)
+//        body.syncStyle("${StateKeys.OVERFLOW_X.bits}", "-1")
+////        body.style.overflowX = Overflow.Scroll
+////        body.style.overflowY = Overflow.Scroll
+//      }
+//    }
 
 
 //    body.style.margin = Rect(
@@ -62,11 +56,177 @@ class GridActivity : AppCompatActivity() {
     //body.addView(rootLayout)
 
     // wrapper5(rootLayout)
-     wrapper6(body)
-    //   wrapper8(body)
-   // genTest(body)
+   // wrapper6(body)
+      //wrapper8(body)
+     //genTest(body)
+
+//    grid_template_areas(body)
+
+    grid_template_areas_500(body)
+
+  //  grid_template_areas_600(body)
 
     setContentView(body)
+  }
+
+  fun grid_template_areas_600(rootLayout: Scroll) {
+    val root = mason.createView(this)
+    root.configure {
+      it.display = Display.Grid
+      it.gridTemplateColumns = "120px auto 120px"
+      it.setMaxSizeWidth(Dimension.Points(600f))
+      it.gridTemplateAreas = """
+      "header  header  header"
+      "sidebar content sidebar2"
+      "footer  footer  footer"
+      """.trimIndent()
+
+
+
+      it.gap = Size(LengthPercentage.Points(20f), LengthPercentage.Points(20f))
+    }
+
+
+    val header = mason.createView(this)
+    header.append("Header")
+    header.setBackgroundColor("#999999".toColorInt())
+    header.style.gridArea = "header"
+
+    val sidebar = mason.createView(this)
+    sidebar.style.gridArea = "sidebar"
+    sidebar.setBackgroundColor("#444444".toColorInt())
+    sidebar.append("Sidebar")
+
+    val content = mason.createView(this)
+    content.style.gridArea = "content"
+
+    content.append(
+      """
+      Content
+     More content than we had before so this column is now quite tall.
+    """.trimIndent()
+    )
+
+    val sidebar2 = mason.createView(this)
+    sidebar2.setBackgroundColor("#cccccc".toColorInt())
+    sidebar2.style.gridArea = "sidebar2"
+    sidebar2.append("Sidebar 2")
+
+
+    val footer = mason.createView(this)
+    footer.style.gridArea = "footer"
+    footer.setBackgroundColor("#999999".toColorInt())
+    footer.append("Footer")
+
+    root.append(arrayOf(header, sidebar, sidebar2, content, footer))
+
+    rootLayout.append(root)
+  }
+
+  fun grid_template_areas_500(rootLayout: Scroll) {
+    val root = mason.createView(this)
+    root.configure {
+      it.display = Display.Grid
+      it.gridTemplateAreas = """
+     "header  header"
+		"sidebar content"
+		"sidebar2 sidebar2"
+		"footer  footer"
+      """.trimIndent()
+      it.gridTemplateColumns = "20% auto"
+      it.gap = Size(LengthPercentage.Points(10f), LengthPercentage.Points(10f))
+    }
+
+
+    val header = mason.createView(this)
+    Log.d("com.test", "header ???")
+    mason.printTree(header.node)
+    header.append("Header")
+    header.setBackgroundColor("#999999".toColorInt())
+    header.configure {
+      it.gridRow = "header"
+      it.gridColumn = "header"
+    }
+
+
+    val sidebar = mason.createView(this)
+    sidebar.style.gridArea = "sidebar"
+    sidebar.setBackgroundColor("#444444".toColorInt())
+    sidebar.append("Sidebar")
+
+    val content = mason.createView(this)
+    content.style.gridArea = "content"
+
+    content.append(
+      """
+      Content
+     More content than we had before so this column is now quite tall.
+    """.trimIndent()
+    )
+
+    val sidebar2 = mason.createView(this)
+    sidebar2.setBackgroundColor("#cccccc".toColorInt())
+    sidebar2.style.gridArea = "sidebar2"
+    sidebar2.append("Sidebar 2")
+
+
+    val footer = mason.createView(this)
+    footer.style.gridArea = "footer"
+    footer.setBackgroundColor("#999999".toColorInt())
+    footer.append("Footer")
+
+    root.append(arrayOf(header, sidebar, sidebar2, content, footer))
+
+    rootLayout.append(root)
+  }
+
+  fun grid_template_areas(rootLayout: Scroll) {
+    val root = mason.createView(this)
+    root.configure {
+      it.display = Display.Grid
+      it.gridTemplateAreas = """
+      "header"
+      "sidebar"
+      "content"
+      "sidebar2"
+      "footer"
+      """.trimIndent()
+      it.gap = Size(LengthPercentage.Points(10f), LengthPercentage.Points(10f))
+    }
+
+
+    val header = mason.createView(this)
+    header.append("Header")
+    header.setBackgroundColor("#999999".toColorInt())
+    header.style.gridArea = "header"
+
+    val sidebar = mason.createView(this)
+    sidebar.style.gridArea = "sidebar"
+    sidebar.append("Sidebar")
+
+    val content = mason.createView(this)
+    content.style.gridArea = "content"
+
+    content.append(
+      """
+      Content
+     More content than we had before so this column is now quite tall.
+    """.trimIndent()
+    )
+
+    val sidebar2 = mason.createView(this)
+    sidebar2.style.gridArea = "sidebar2"
+    sidebar2.append("Sidebar 2")
+
+
+    val footer = mason.createView(this)
+    footer.style.gridArea = "footer"
+    footer.setBackgroundColor("#999999".toColorInt())
+    footer.append("Footer")
+
+    root.append(arrayOf(header, sidebar, sidebar2, content, footer))
+
+    rootLayout.append(root)
   }
 
   fun genTest(rootLayout: Scroll) {
@@ -137,33 +297,8 @@ class GridActivity : AppCompatActivity() {
 
     val a = Mason.shared.createView(this)
 
-    /*
-     .a {
-    grid-column: col / span 2;
-    grid-row: row ;
-  }
-  .b {
-    grid-column: col 3 / span 2 ;
-    grid-row: row ;
-  }
-  .c {
-    grid-column: col ;
-    grid-row: row 2 ;
-  }
-  .d {
-    grid-column: col 2 / span 3 ;
-    grid-row: row 2 ;
-  }
-
-  .e {
-    grid-column: col / span 4;
-    grid-row: row 3;
-  }
-     */
-
     a.setBackgroundColor(bg)
-//    a.style.alignSelf = AlignSelf.Start
-//    a.style.justifySelf = JustifySelf.Start
+
     a.style.gridColumn = "col / span 2"
     a.style.gridRow = "row"
     a.append("A")
