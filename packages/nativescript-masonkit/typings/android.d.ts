@@ -1826,7 +1826,7 @@ declare module org {
 					public setGridTemplateColumns(this_: globalAndroid.view.View, view: string): void;
 					public setDirection(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.enums.Direction): void;
 					public setGridAutoRows(this_: globalAndroid.view.View, view: string): void;
-					public getBorder(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
+					public getBorderWidth(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Rect<org.nativescript.mason.masonkit.LengthPercentage>;
 					public getPaddingJsonValue(this_: globalAndroid.view.View): string;
 					public setMargin(this_: globalAndroid.view.View, view: number, left: number, top: number, right: number): void;
 					public setFlexBasis(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension): void;
@@ -1871,8 +1871,10 @@ declare module org {
 					public getGridArea(this_: globalAndroid.view.View): string;
 					public setGridTemplateAreas(this_: globalAndroid.view.View, view: string): void;
 					public getGridTemplateAreas(this_: globalAndroid.view.View): string;
-
-					
+					public setBackground(this_: globalAndroid.view.View, view: string): void;
+					public getBackground(this_: globalAndroid.view.View): string;
+					public setBorder(this_: globalAndroid.view.View, view: string): void;
+					public getBorder(this_: globalAndroid.view.View): string;
 				}
 				export module NodeHelper {
 					export class Companion {

@@ -2,7 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.RectF
+import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.ViewGroup
 import androidx.core.graphics.withSave
@@ -58,8 +58,7 @@ class Scroll @JvmOverloads constructor(
 
     super.addView(
       scrollRoot, LayoutParams(
-        LayoutParams.WRAP_CONTENT,
-        LayoutParams.WRAP_CONTENT
+        LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT
       )
     )
   }
@@ -76,8 +75,7 @@ class Scroll @JvmOverloads constructor(
 
         super.addView(
           scrollRoot, LayoutParams(
-            LayoutParams.WRAP_CONTENT,
-            LayoutParams.WRAP_CONTENT
+            LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT
           )
         )
 
@@ -85,47 +83,51 @@ class Scroll @JvmOverloads constructor(
     }
   }
 
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    super.onSizeChanged(w, h, oldw, oldh)
+    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
+    style.mBorderRenderer.invalidate()
+  }
+
+
+  internal val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   override fun dispatchDraw(canvas: Canvas) {
     if (!style.isValueInitialized) {
       super.dispatchDraw(canvas)
       return
     }
 
+    val width = width.toFloat()
+    val height = height.toFloat()
+
     canvas.withSave {
-      val overFlowX = style.values.getInt(StyleKeys.OVERFLOW_X)
-      val overFlowY = style.values.getInt(StyleKeys.OVERFLOW_Y)
-      val clipX = when (overFlowX) {
-        1, 3 -> true
-        4 -> {
-          node.overflowWidth > width
+      Style.applyOverflowClip(style, canvas, node)
+
+      style.mBackground?.let { background ->
+
+        // Draw background color first
+        background.color?.let { color ->
+          paint.style = Paint.Style.FILL
+          paint.color = color
+          drawRect(0f, 0f, width, height, paint)
         }
 
-        else -> false
-      }
-      val clipY = when (overFlowY) {
-        1, 3 -> true
-        4 -> {
-          node.overflowHeight > height
+        // Draw all layers
+        background.layers.forEach { layer ->
+          canvas.withSave {
+            Style.applyClip(
+              canvas, layer.clip, node
+            )
+            drawBackground(context, this@Scroll, layer, this, this.width, this.height)
+          }
         }
-
-        else -> false
       }
 
+      style.mBorderRenderer.updateCache(width, height)
+      style.mBorderRenderer.draw(this, width, height)
 
-      val rectLeft = paddingLeft
-      val rectTop = paddingTop
-      val rectRight = width - paddingRight
-      val rectBottom = height - paddingBottom
 
-      val clipRect = RectF(
-        if (clipX) rectLeft.toFloat() else Float.NEGATIVE_INFINITY,
-        if (clipY) rectTop.toFloat() else Float.NEGATIVE_INFINITY,
-        if (clipX) rectRight.toFloat() else Float.POSITIVE_INFINITY,
-        if (clipY) rectBottom.toFloat() else Float.POSITIVE_INFINITY
-      )
-
-      canvas.clipRect(clipRect)
-      super.dispatchDraw(canvas)
+      super.dispatchDraw(this)
     }
   }
 
@@ -170,8 +172,7 @@ class Scroll @JvmOverloads constructor(
     val availableHeight = mapMeasureSpec(specHeightMode, specHeight).value
 
     compute(
-      availableWidth,
-      availableHeight
+      availableWidth, availableHeight
     )
     val layout = layout()
 
@@ -186,9 +187,7 @@ class Scroll @JvmOverloads constructor(
 
     if (style.overflowX == Overflow.Visible) {
       width = if (boxing == BoxSizing.BorderBox) {
-        (layout.x + layout.contentSize.width
-          + layout.border.right + layout.border.left
-          + layout.padding.right + layout.padding.left).toInt()
+        (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
       } else {
         layout.contentSize.height.toInt()
       }
@@ -196,9 +195,7 @@ class Scroll @JvmOverloads constructor(
 
     if (style.overflowY == Overflow.Visible) {
       height = if (boxing == BoxSizing.BorderBox) {
-        (layout.y + layout.contentSize.height
-          + layout.border.top + layout.border.bottom
-          + layout.padding.top + layout.padding.bottom).toInt()
+        (layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
       } else {
         layout.contentSize.height.toInt()
       }

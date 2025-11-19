@@ -101,8 +101,68 @@ enum StyleKeys {
   ITEM_IS_REPLACED = 320,
   DISPLAY_MODE = 324,
   FORCE_INLINE = 328,
-  MIN_CONTENT = 332,
-  MAX_CONTENT = 336,
+  MIN_CONTENT_WIDTH = 332,
+  MIN_CONTENT_HEIGHT = 336,
+  MAX_CONTENT_WIDTH = 340,
+  MAX_CONTENT_HEIGHT = 344,
+
+  // ----------------------------
+  // Border Style (per side)
+  // ----------------------------
+  BORDER_LEFT_STYLE = 348,
+  BORDER_RIGHT_STYLE = 352,
+  BORDER_TOP_STYLE = 356,
+  BORDER_BOTTOM_STYLE = 360,
+
+  // ----------------------------
+  // Border Color (per side)
+  // ----------------------------
+  BORDER_LEFT_COLOR = 364,
+  BORDER_RIGHT_COLOR = 368,
+  BORDER_TOP_COLOR = 372,
+  BORDER_BOTTOM_COLOR = 376,
+
+  // ============================================================
+  // Border Radius (elliptical + squircle exponent)
+  // Each corner = 20 bytes:
+  //   x_type (4), x_value (4), y_type (4), y_value (4), exponent (4)
+  // ============================================================
+
+  // ----------------------------
+  // Top-left corner (20 bytes)
+  // ----------------------------
+  BORDER_RADIUS_TOP_LEFT_X_TYPE = 380,
+  BORDER_RADIUS_TOP_LEFT_X_VALUE = 384,
+  BORDER_RADIUS_TOP_LEFT_Y_TYPE = 388,
+  BORDER_RADIUS_TOP_LEFT_Y_VALUE = 392,
+  BORDER_RADIUS_TOP_LEFT_EXPONENT = 396,
+
+  // ----------------------------
+  // Top-right corner
+  // ----------------------------
+  BORDER_RADIUS_TOP_RIGHT_X_TYPE = 400,
+  BORDER_RADIUS_TOP_RIGHT_X_VALUE = 404,
+  BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 408,
+  BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 412,
+  BORDER_RADIUS_TOP_RIGHT_EXPONENT = 416,
+
+  // ----------------------------
+  // Bottom-right corner
+  // ----------------------------
+  BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 420,
+  BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 424,
+  BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 428,
+  BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 432,
+  BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 436,
+
+  // ----------------------------
+  // Bottom-left corner
+  // ----------------------------
+  BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 440,
+  BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 444,
+  BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448,
+  BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452,
+  BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456,
 }
 
 enum TextStyleKeys {
@@ -208,8 +268,13 @@ class StateKeys {
   static readonly ITEM_IS_REPLACED = new StateKeys(1n << 33n);
   static readonly DISPLAY_MODE = new StateKeys(1n << 34n);
   static readonly FORCE_INLINE = new StateKeys(1n << 35n);
-  static readonly MIN_CONTENT = new StateKeys(1n << 36n);
-  static readonly MAX_CONTENT = new StateKeys(1n << 37n);
+  static readonly MIN_CONTENT_WIDTH = new StateKeys(1n << 36n);
+  static readonly MIN_CONTENT_HEIGHT = new StateKeys(1n << 37n);
+  static readonly MAX_CONTENT_WIDTH = new StateKeys(1n << 38n);
+  static readonly MAX_CONTENT_HEIGHT = new StateKeys(1n << 39n);
+  static readonly BORDER_STYLE = new StateKeys(1n << 40n);
+  static readonly BORDER_RADIUS = new StateKeys(1n << 41n);
+  static readonly BORDER_COLOR = new StateKeys(1n << 42n);
 
   or(other: StateKeys): StateKeys {
     return new StateKeys(this.bits | other.bits);
@@ -1020,13 +1085,13 @@ export class Style {
     this.setOrAppendState(StateKeys.MAX_SIZE);
   }
 
-  get borderLeft(): Length {
+  get borderLeftWidth(): Length {
     const type = getInt32(this.style_view, StyleKeys.BORDER_LEFT_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.BORDER_LEFT_VALUE);
     return parseLengthPercentage(type, value);
   }
 
-  set borderLeft(value: Length) {
+  set borderLeftWidth(value: Length) {
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.BORDER_LEFT_TYPE, 0);
@@ -1052,13 +1117,13 @@ export class Style {
     this.setOrAppendState(StateKeys.BORDER);
   }
 
-  get borderRight(): Length {
+  get borderRightWidth(): Length {
     const type = getInt32(this.style_view, StyleKeys.BORDER_RIGHT_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.BORDER_RIGHT_VALUE);
     return parseLengthPercentage(type, value);
   }
 
-  set borderRight(value: Length) {
+  set borderRightWidth(value: Length) {
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.BORDER_RIGHT_TYPE, 0);
@@ -1084,13 +1149,13 @@ export class Style {
     this.setOrAppendState(StateKeys.BORDER);
   }
 
-  get borderTop(): Length {
+  get borderTopWidth(): Length {
     const type = getInt32(this.style_view, StyleKeys.BORDER_TOP_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.BORDER_TOP_VALUE);
     return parseLengthPercentage(type, value);
   }
 
-  set borderTop(value: Length) {
+  set borderTopWidth(value: Length) {
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.BORDER_TOP_TYPE, 0);
@@ -1116,13 +1181,13 @@ export class Style {
     this.setOrAppendState(StateKeys.BORDER);
   }
 
-  get borderBottom(): Length {
+  get borderBottomWidth(): Length {
     const type = getInt32(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE);
     const value = getFloat32(this.style_view, StyleKeys.BORDER_BOTTOM_VALUE);
     return parseLengthPercentage(type, value);
   }
 
-  set borderBottom(value: Length) {
+  set borderBottomWidth(value: Length) {
     switch (typeof value) {
       case 'number':
         setInt32(this.style_view, StyleKeys.BORDER_BOTTOM_TYPE, 0);
@@ -2031,14 +2096,21 @@ export class Style {
     if (!this.nativeView) {
       return '';
     }
-    return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridAutoRows(this.nativeView);
+
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridAutoRows(this.nativeView);
+    }
+
+    return '';
   }
 
   set gridAutoRows(value: string) {
     if (!this.nativeView) {
       return;
     }
-    org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoRows(this.nativeView, value);
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoRows(this.nativeView, value);
+    }
   }
 
   get gridAutoColumns() {
@@ -2664,6 +2736,44 @@ export class Style {
     }
   }
 
+  get background() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackground(this.nativeView);
+    }
+    return '';
+  }
+
+  set background(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBackground(this.nativeView, value);
+    }
+  }
+
+  get border() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBorder(this.nativeView);
+    }
+    return '';
+  }
+
+  set border(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBorder(this.nativeView, value);
+    }
+  }
+
   toJSON() {
     return {
       display: this.display,
@@ -2698,12 +2808,6 @@ export class Style {
         right: this.paddingRight,
         top: this.paddingTop,
         bottom: this.paddingBottom,
-      },
-      border: {
-        left: this.borderLeft,
-        right: this.borderRight,
-        top: this.borderTop,
-        bottom: this.borderBottom,
       },
       aspectRatio: this.aspectRatio,
       flexBasis: this.flexBasis,

@@ -8,7 +8,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masondemo.databinding.ActivityMainBinding
+import org.nativescript.mason.masonkit.Background
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.parseBackground
 
 class MainActivity : AppCompatActivity() {
   private lateinit var binding: ActivityMainBinding
@@ -44,8 +46,6 @@ class MainActivity : AppCompatActivity() {
 
     Log.d("com.test", "time ${System.currentTimeMillis() - now}")
     */
-
-
 
     binding = ActivityMainBinding.inflate(layoutInflater)
     setContentView(binding.root)

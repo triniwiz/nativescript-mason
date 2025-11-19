@@ -1,13 +1,18 @@
 package org.nativescript.mason.masonkit
 
+import android.graphics.Canvas
 import android.graphics.Color
+import android.view.View
+import androidx.core.graphics.withClip
 import dalvik.annotation.optimization.FastNative
+import org.nativescript.mason.masonkit.Border.IKeyCorner
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.enums.Align
 import org.nativescript.mason.masonkit.enums.AlignContent
 import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.BorderStyle
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Direction
 import org.nativescript.mason.masonkit.enums.Display
@@ -127,6 +132,65 @@ object StyleKeys {
   const val MIN_CONTENT_HEIGHT = 336
   const val MAX_CONTENT_WIDTH = 340
   const val MAX_CONTENT_HEIGHT = 344
+
+
+  // ----------------------------
+  // Border Style (per side)
+  // ----------------------------
+  const val BORDER_LEFT_STYLE = 348
+  const val BORDER_RIGHT_STYLE = 352
+  const val BORDER_TOP_STYLE = 356
+  const val BORDER_BOTTOM_STYLE = 360
+
+  // ----------------------------
+  // Border Color (per side)
+  // ----------------------------
+  const val BORDER_LEFT_COLOR = 364
+  const val BORDER_RIGHT_COLOR = 368
+  const val BORDER_TOP_COLOR = 372
+  const val BORDER_BOTTOM_COLOR = 376
+
+  // ============================================================
+  // Border Radius (elliptical + squircle exponent)
+  // Each corner = 20 bytes:
+  //   x_type (4), x_value (4), y_type (4), y_value (4), exponent (4)
+  // ============================================================
+
+  // ----------------------------
+  // Top-left corner (20 bytes)
+  // ----------------------------
+  const val BORDER_RADIUS_TOP_LEFT_X_TYPE = 380
+  const val BORDER_RADIUS_TOP_LEFT_X_VALUE = 384
+  const val BORDER_RADIUS_TOP_LEFT_Y_TYPE = 388
+  const val BORDER_RADIUS_TOP_LEFT_Y_VALUE = 392
+  const val BORDER_RADIUS_TOP_LEFT_EXPONENT = 396
+
+  // ----------------------------
+  // Top-right corner
+  // ----------------------------
+  const val BORDER_RADIUS_TOP_RIGHT_X_TYPE = 400
+  const val BORDER_RADIUS_TOP_RIGHT_X_VALUE = 404
+  const val BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 408
+  const val BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 412
+  const val BORDER_RADIUS_TOP_RIGHT_EXPONENT = 416
+
+  // ----------------------------
+  // Bottom-right corner
+  // ----------------------------
+  const val BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 420
+  const val BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 424
+  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 428
+  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 432
+  const val BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 436
+
+  // ----------------------------
+  // Bottom-left corner
+  // ----------------------------
+  const val BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 440
+  const val BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 444
+  const val BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448
+  const val BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452
+  const val BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456
 }
 
 @JvmInline
@@ -172,6 +236,9 @@ value class StateKeys internal constructor(val bits: Long) {
     val MIN_CONTENT_HEIGHT = StateKeys(1L shl 37)
     val MAX_CONTENT_WIDTH = StateKeys(1L shl 38)
     val MAX_CONTENT_HEIGHT = StateKeys(1L shl 39)
+    val BORDER_STYLE = StateKeys(1L shl 40)
+    val BORDER_RADIUS = StateKeys(1L shl 41)
+    val BORDER_COLOR = StateKeys(1L shl 42)
   }
 
   infix fun or(other: StateKeys): StateKeys = StateKeys(bits or other.bits)
@@ -486,6 +553,24 @@ class Style internal constructor(private var node: Node) {
         }
       )
       setOrAppendState(StateKeys.FORCE_INLINE)
+    }
+
+
+  internal var mBackground: Background? = null
+  internal var mBackgroundRaw: String = ""
+  var background: String
+    get() = mBackgroundRaw
+    set(value) {
+      if (value.isEmpty()) {
+        mBackground = null
+      } else {
+        parseBackground(value)?.let {
+          mBackground = it
+          mBackgroundRaw = value
+          (node.view as? View)?.invalidate()
+        }
+      }
+
     }
 
   var textJustify: TextJustify
@@ -1217,92 +1302,364 @@ class Style internal constructor(private var node: Node) {
     }
   }
 
-  var border: Rect<LengthPercentage>
+  internal var mBorder: String = ""
+  internal val mBorderRenderer by lazy {
+    BorderRenderer(this)
+  }
+  internal val mBorderLeft by lazy {
+    Border(this, Border.Side.Left)
+  }
+
+  internal val mBorderTop by lazy {
+    Border(this, Border.Side.Top)
+  }
+
+  internal val mBorderRight by lazy {
+    Border(this, Border.Side.Right)
+  }
+
+  internal val mBorderBottom by lazy {
+    Border(this, Border.Side.Bottom)
+  }
+
+
+  var border: String = ""
+    set(value) {
+      field = value
+      parseBorderShorthand(this, value)
+    }
+  var borderRadius: String = ""
+    set(value) {
+      field = value
+      parseBorderRadius(this, value)
+    }
+
+  internal fun getRadiusPoint(keys: IKeyCorner): Point<LengthPercentage> {
+    val x = LengthPercentage.fromTypeValue(
+      values.getInt(keys.xType), values.getFloat(keys.xValue)
+    )!!
+    val y = LengthPercentage.fromTypeValue(
+      values.getInt(keys.yType), values.getFloat(keys.yValue)
+    )!!
+    return Point(x, y)
+  }
+
+  internal fun setRadiusPoint(keys: IKeyCorner, value: Point<LengthPercentage>) {
+    values.putInt(keys.xType, value.x.type)
+    values.putFloat(keys.xValue, value.x.value)
+    values.putInt(keys.yType, value.y.type)
+    values.putFloat(keys.yValue, value.y.value)
+    setOrAppendState(StateKeys.BORDER_RADIUS)
+  }
+
+  fun setBorderStyle(value: BorderStyle) {
+    mBorderLeft.apply {
+      setState = false
+      style = value
+      setState = true
+    }
+
+    mBorderTop.apply {
+      setState = false
+      style = value
+      setState = true
+    }
+
+    mBorderRight.apply {
+      setState = false
+      style = value
+      setState = true
+    }
+
+    mBorderBottom.apply {
+      setState = false
+      style = value
+      setState = true
+    }
+
+    setOrAppendState(StateKeys.BORDER_STYLE)
+  }
+
+  var borderStyle: Rect<BorderStyle>
     get() {
       return Rect(
-        LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.BORDER_LEFT_TYPE), values.getFloat(StyleKeys.BORDER_LEFT_VALUE)
-        )!!, LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.BORDER_RIGHT_TYPE), values.getFloat(StyleKeys.BORDER_RIGHT_VALUE)
-        )!!, LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.BORDER_TOP_TYPE), values.getFloat(StyleKeys.BORDER_TOP_VALUE)
-        )!!, LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.BORDER_BOTTOM_TYPE),
-          values.getFloat(StyleKeys.BORDER_BOTTOM_VALUE)
-        )!!
+        mBorderLeft.style,
+        mBorderRight.style,
+        mBorderTop.style,
+        mBorderBottom.style,
       )
     }
     set(value) {
-      values.putInt(StyleKeys.BORDER_LEFT_TYPE, value.left.type)
-      values.putFloat(StyleKeys.BORDER_LEFT_VALUE, value.left.value)
+      mBorderLeft.apply {
+        setState = false
+        style = value.left
+        setState = true
+      }
 
-      values.putInt(StyleKeys.BORDER_RIGHT_TYPE, value.right.type)
-      values.putFloat(StyleKeys.BORDER_RIGHT_VALUE, value.right.value)
+      mBorderTop.apply {
+        setState = false
+        style = value.top
+        setState = true
+      }
 
-      values.putInt(StyleKeys.BORDER_TOP_TYPE, value.top.type)
-      values.putFloat(StyleKeys.BORDER_TOP_VALUE, value.top.value)
+      mBorderRight.apply {
+        setState = false
+        style = value.right
+        setState = true
+      }
 
-      values.putInt(StyleKeys.BORDER_BOTTOM_TYPE, value.bottom.type)
-      values.putFloat(StyleKeys.BORDER_BOTTOM_VALUE, value.bottom.value)
+      mBorderBottom.apply {
+        setState = false
+        style = value.bottom
+        setState = true
+      }
+
+      setOrAppendState(StateKeys.BORDER_STYLE)
+    }
+
+
+  var borderLeftStyle: BorderStyle
+    get() {
+      return mBorderLeft.style
+    }
+    set(value) {
+      mBorderLeft.style = value
+    }
+
+
+  var borderTopStyle: BorderStyle
+    get() {
+      return mBorderTop.style
+    }
+    set(value) {
+      mBorderTop.style = value
+    }
+
+
+  var borderRightStyle: BorderStyle
+    get() {
+      return mBorderRight.style
+    }
+    set(value) {
+      mBorderRight.style = value
+    }
+
+  var borderBottomStyle: BorderStyle
+    get() {
+      return mBorderBottom.style
+    }
+    set(value) {
+      mBorderBottom.style = value
+    }
+
+
+  var borderTopLeftRadius: Point<LengthPercentage>
+    get() = getRadiusPoint(Border.cornerTopLeftKeys)
+    set(value) = setRadiusPoint(Border.cornerTopLeftKeys, value)
+
+  var borderTopRightRadius: Point<LengthPercentage>
+    get() = getRadiusPoint(Border.cornerTopRightKeys)
+    set(value) = setRadiusPoint(Border.cornerTopRightKeys, value)
+
+  var borderBottomRightRadius: Point<LengthPercentage>
+    get() = getRadiusPoint(Border.cornerBottomRightKeys)
+    set(value) = setRadiusPoint(Border.cornerBottomRightKeys, value)
+
+  var borderBottomLeftRadius: Point<LengthPercentage>
+    get() = getRadiusPoint(Border.cornerBottomLeftKeys)
+    set(value) = setRadiusPoint(Border.cornerBottomLeftKeys, value)
+
+
+  var borderColor: Rect<Int>
+    get() {
+      return Rect(
+        left = mBorderLeft.color,
+        top = mBorderTop.color,
+        right = mBorderRight.color,
+        bottom = mBorderBottom.color
+      )
+    }
+    set(value) {
+      mBorderLeft.apply {
+        setState = false
+        color = value.left
+        setState = true
+      }
+
+      mBorderTop.apply {
+        setState = false
+        color = value.top
+        setState = true
+      }
+
+      mBorderRight.apply {
+        setState = false
+        color = value.right
+        setState = true
+      }
+
+      mBorderBottom.apply {
+        setState = false
+        color = value.bottom
+        setState = true
+      }
+
+      setOrAppendState(StateKeys.BORDER_COLOR)
+    }
+
+  fun setBorderColor(value: Int) {
+    mBorderLeft.apply {
+      setState = false
+      color = value
+      setState = true
+    }
+
+    mBorderTop.apply {
+      setState = false
+      color = value
+      setState = true
+    }
+
+    mBorderRight.apply {
+      setState = false
+      color = value
+      setState = true
+    }
+
+    mBorderBottom.apply {
+      setState = false
+      color = value
+      setState = true
+    }
+    setOrAppendState(StateKeys.BORDER_COLOR)
+  }
+
+  var borderWidth: Rect<LengthPercentage>
+    get() {
+      return Rect(
+        left = mBorderLeft.width,
+        top = mBorderTop.width,
+        right = mBorderRight.width,
+        bottom = mBorderBottom.width
+      )
+    }
+    set(value) {
+      mBorderLeft.apply {
+        setState = false
+        width = value.left
+        setState = true
+      }
+
+      mBorderTop.apply {
+        setState = false
+        width = value.top
+        setState = true
+      }
+
+      mBorderRight.apply {
+        setState = false
+        width = value.right
+        setState = true
+      }
+
+      mBorderBottom.apply {
+        setState = false
+        width = value.bottom
+        setState = true
+      }
       setOrAppendState(StateKeys.BORDER)
     }
 
-  fun setBorderLeft(value: Float, type: Int) {
-    val left = LengthPercentage.fromTypeValue(type, value)
+  var borderLeftWidth: LengthPercentage
+    get() {
+      return mBorderLeft.width
+    }
+    set(value) {
+      mBorderLeft.width = value
+    }
 
+  var borderTopWidth: LengthPercentage
+    get() {
+      return mBorderTop.width
+    }
+    set(value) {
+      mBorderTop.width = value
+    }
+
+  var borderRightWidth: LengthPercentage
+    get() {
+      return mBorderRight.width
+    }
+    set(value) {
+      mBorderRight.width = value
+    }
+
+  var borderBottomWidth: LengthPercentage
+    get() {
+      return mBorderBottom.width
+    }
+    set(value) {
+      mBorderBottom.width = value
+    }
+
+  fun setBorderLeftWidth(value: Float, type: Int) {
+    val left = LengthPercentage.fromTypeValue(type, value)
     left?.let {
-      values.putInt(StyleKeys.BORDER_LEFT_TYPE, type)
-      values.putFloat(StyleKeys.BORDER_LEFT_VALUE, value)
-      setOrAppendState(StateKeys.BORDER)
+      mBorderLeft.width = it
     }
   }
 
-  fun setBorderRight(value: Float, type: Int) {
+  fun setBorderRightWidth(value: Float, type: Int) {
     val right = LengthPercentage.fromTypeValue(type, value)
 
     right?.let {
-      values.putInt(StyleKeys.BORDER_RIGHT_TYPE, type)
-      values.putFloat(StyleKeys.BORDER_RIGHT_VALUE, value)
-      setOrAppendState(StateKeys.BORDER)
+      mBorderRight.width = it
     }
   }
 
-  fun setBorderTop(value: Float, type: Int) {
+  fun setBorderTopWidth(value: Float, type: Int) {
     val top = LengthPercentage.fromTypeValue(type, value)
 
     top?.let {
-      values.putInt(StyleKeys.BORDER_TOP_TYPE, type)
-      values.putFloat(StyleKeys.BORDER_TOP_VALUE, value)
-      setOrAppendState(StateKeys.BORDER)
+      mBorderTop.width = it
     }
   }
 
-  fun setBorderBottom(value: Float, type: Int) {
+  fun setBorderBottomWidth(value: Float, type: Int) {
     val bottom = LengthPercentage.fromTypeValue(type, value)
 
     bottom?.let {
-      values.putInt(StyleKeys.BORDER_BOTTOM_TYPE, type)
-      values.putFloat(StyleKeys.BORDER_BOTTOM_VALUE, value)
-      setOrAppendState(StateKeys.BORDER)
+      mBorderBottom.width = it
     }
   }
 
-  fun setBorderWithValueType(value: Float, type: Int) {
+  fun setBorderWidth(value: Float, type: Int) {
     val border = LengthPercentage.fromTypeValue(type, value)
 
     border?.let {
-      values.putInt(StyleKeys.BORDER_LEFT_TYPE, type)
-      values.putFloat(StyleKeys.BORDER_LEFT_VALUE, value)
+      mBorderLeft.apply {
+        setState = false
+        width = it
+        setState = true
+      }
 
-      values.putInt(StyleKeys.BORDER_RIGHT_TYPE, type)
-      values.putFloat(StyleKeys.BORDER_RIGHT_VALUE, value)
+      mBorderTop.apply {
+        setState = false
+        width = it
+        setState = true
+      }
 
-      values.putInt(StyleKeys.BORDER_TOP_TYPE, type)
-      values.putFloat(StyleKeys.BORDER_TOP_VALUE, value)
+      mBorderRight.apply {
+        setState = false
+        width = it
+        setState = true
+      }
 
-      values.putInt(StyleKeys.BORDER_BOTTOM_TYPE, type)
-      values.putFloat(StyleKeys.BORDER_BOTTOM_VALUE, value)
-      setOrAppendState(StateKeys.BORDER)
+      mBorderBottom.apply {
+        setState = false
+        width = it
+        setState = true
+      }
     }
   }
 
@@ -1619,10 +1976,7 @@ class Style internal constructor(private var node: Node) {
   private var _gridArea: String? = null
   var gridArea: String
     get() {
-      return lazyCache(
-        { _gridArea },
-        { _gridArea = it }
-      ) {
+      return lazyCache({ _gridArea }, { _gridArea = it }) {
         nativeGetGridArea(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1639,10 +1993,7 @@ class Style internal constructor(private var node: Node) {
   private var _gridTemplateAreas: String? = null
   var gridTemplateAreas: String
     get() {
-      return lazyCache(
-        { _gridTemplateAreas },
-        { _gridTemplateAreas = it }
-      ) {
+      return lazyCache({ _gridTemplateAreas }, { _gridTemplateAreas = it }) {
         nativeGetGridTemplateAreas(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1655,10 +2006,7 @@ class Style internal constructor(private var node: Node) {
   private var _gridAutoRows: String? = null
   var gridAutoRows: String
     get() {
-      return lazyCache(
-        { _gridAutoRows },
-        { _gridAutoRows = it }
-      ) {
+      return lazyCache({ _gridAutoRows }, { _gridAutoRows = it }) {
         nativeGetGridAutoRows(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1671,10 +2019,7 @@ class Style internal constructor(private var node: Node) {
   private var _gridAutoColumns: String? = null
   var gridAutoColumns: String
     get() {
-      return lazyCache(
-        { _gridAutoColumns },
-        { _gridAutoColumns = it }
-      ) {
+      return lazyCache({ _gridAutoColumns }, { _gridAutoColumns = it }) {
         nativeGetGridAutoColumns(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1696,10 +2041,7 @@ class Style internal constructor(private var node: Node) {
   private var _gridColumn: String? = null
   var gridColumn: String
     get() {
-      return lazyCache(
-        { _gridColumn },
-        { _gridColumn = it }
-      ) {
+      return lazyCache({ _gridColumn }, { _gridColumn = it }) {
         nativeGetGridColumn(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1712,14 +2054,11 @@ class Style internal constructor(private var node: Node) {
   private var _gridColumnStart: String? = null
   var gridColumnStart: String
     get() {
-      return lazyCache(
-        {
-          _gridColumnStart
-        },
-        {
-          _gridColumnStart = it
-        }
-      ) {
+      return lazyCache({
+        _gridColumnStart
+      }, {
+        _gridColumnStart = it
+      }) {
         nativeGetGridColumnStart(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1733,14 +2072,11 @@ class Style internal constructor(private var node: Node) {
   private var _gridColumnEnd: String? = null
   var gridColumnEnd: String
     get() {
-      return lazyCache(
-        {
-          _gridColumnEnd
-        },
-        {
-          _gridColumnEnd = it
-        }
-      ) {
+      return lazyCache({
+        _gridColumnEnd
+      }, {
+        _gridColumnEnd = it
+      }) {
         nativeGetGridColumnEnd(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1754,10 +2090,7 @@ class Style internal constructor(private var node: Node) {
   private var _gridRow: String? = null
   var gridRow: String
     get() {
-      return lazyCache(
-        { _gridRow },
-        { _gridRow = it }
-      ) {
+      return lazyCache({ _gridRow }, { _gridRow = it }) {
         nativeGetGridRow(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1770,14 +2103,11 @@ class Style internal constructor(private var node: Node) {
   private var _gridRowStart: String? = null
   var gridRowStart: String
     get() {
-      return lazyCache(
-        {
-          _gridRowStart
-        },
-        {
-          _gridRowStart = it
-        }
-      ) {
+      return lazyCache({
+        _gridRowStart
+      }, {
+        _gridRowStart = it
+      }) {
         nativeGetGridRowStart(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1791,14 +2121,11 @@ class Style internal constructor(private var node: Node) {
   private var _gridRowEnd: String? = null
   var gridRowEnd: String
     get() {
-      return lazyCache(
-        {
-          _gridRowEnd
-        },
-        {
-          _gridRowEnd = it
-        }
-      ) {
+      return lazyCache({
+        _gridRowEnd
+      }, {
+        _gridRowEnd = it
+      }) {
         nativeGetGridRowEnd(node.mason.nativePtr, node.nativePtr) ?: ""
       }
     }
@@ -1813,10 +2140,7 @@ class Style internal constructor(private var node: Node) {
   private var _gridTemplateRows: String? = null
   var gridTemplateRows: String
     get() {
-      return lazyCache(
-        { _gridTemplateRows },
-        { _gridTemplateRows = it }
-      ) {
+      return lazyCache({ _gridTemplateRows }, { _gridTemplateRows = it }) {
         nativeGetGridTemplateRows(
           node.mason.nativePtr, node.nativePtr
         ) ?: ""
@@ -1831,10 +2155,7 @@ class Style internal constructor(private var node: Node) {
   private var _gridTemplateColumns: String? = null
   var gridTemplateColumns: String
     get() {
-      return lazyCache(
-        { _gridTemplateColumns },
-        { _gridTemplateColumns = it }
-      ) {
+      return lazyCache({ _gridTemplateColumns }, { _gridTemplateColumns = it }) {
         nativeGetGridTemplateColumns(
           node.mason.nativePtr, node.nativePtr
         ) ?: ""
@@ -1849,6 +2170,15 @@ class Style internal constructor(private var node: Node) {
   internal fun updateNativeStyle() {
     if (node.nativePtr == 0L) {
       return
+    }
+
+    val borderState = isDirty and StateKeys.BORDER.bits
+    val borderRadius = isDirty and StateKeys.BORDER_RADIUS.bits
+    val borderStyle = isDirty and StateKeys.BORDER_STYLE.bits
+    val borderColor = isDirty and StateKeys.BORDER_COLOR.bits
+
+    if (borderState != 0L || borderRadius != 0L || borderStyle != 0L || borderColor != 0L) {
+      mBorderRenderer.invalidate()
     }
 
     if (isSlowDirty) {
@@ -1919,14 +2249,14 @@ class Style internal constructor(private var node: Node) {
         padding.bottom.value,
 
 
-        border.left.type,
-        border.left.value,
-        border.right.type,
-        border.right.value,
-        border.top.type,
-        border.top.value,
-        border.bottom.type,
-        border.bottom.value,
+        mBorderLeft.width.type,
+        mBorderLeft.width.value,
+        mBorderRight.width.type,
+        mBorderRight.width.value,
+        mBorderTop.width.type,
+        mBorderTop.width.value,
+        mBorderBottom.width.type,
+        mBorderBottom.width.value,
         flexGrow,
         flexShrink,
         flexBasis.type,
@@ -2044,7 +2374,7 @@ class Style internal constructor(private var node: Node) {
     ret += "justifyContent: ${justifyContent.cssValue}, \n"
     ret += "margin: ${margin.cssValue}, \n"
     ret += "padding: ${padding.cssValue}, \n"
-    ret += "border: ${border.cssValue}, \n"
+    ret += "border: ${borderWidth.cssValue}, \n"
     ret += "gap: ${gap.cssValue}, \n"
     ret += "flexGrow: ${flexGrow}, \n"
     ret += "flexShrink: ${flexShrink}, \n"
@@ -2362,6 +2692,64 @@ class Style internal constructor(private var node: Node) {
       Mason.initLib()
     }
 
+    internal fun applyClip(canvas: Canvas, clip: BackgroundClip, node: Node) {
+      val width = node.computedLayout.width
+      val height = node.computedLayout.height
+      val padding = node.computedLayout.padding
+      val border = node.computedLayout.border
+
+      val left = padding.left
+      val top = padding.top
+      val right = width - padding.right
+      val bottom = height - padding.bottom
+
+      // For content-box, subtract border
+      val contentLeft = left + border.left
+      val contentTop = top + border.top
+      val contentRight = right - border.right
+      val contentBottom = bottom - border.bottom
+
+
+      when (clip) {
+        BackgroundClip.BORDER_BOX -> canvas.clipRect(left, top, right, bottom)
+        BackgroundClip.PADDING_BOX -> canvas.clipRect(left, top, right, bottom)
+        BackgroundClip.CONTENT_BOX -> canvas.clipRect(
+          contentLeft, contentTop, contentRight, contentBottom
+        )
+      }
+    }
+
+    internal fun applyOverflowClip(style: Style, canvas: Canvas, node: Node) {
+      val width = node.computedLayout.width
+      val height = node.computedLayout.height
+      val padding = node.computedLayout.padding
+
+      val overflowX = style.values.getInt(StyleKeys.OVERFLOW_X)
+      val overflowY = style.values.getInt(StyleKeys.OVERFLOW_Y)
+
+      // Nothing to do if both axes are visible
+      if (overflowX == Overflow.Visible.value && overflowY == Overflow.Visible.value) return
+
+      val clipX = when (overflowX) {
+        1, 3 -> true
+        4 -> style.node.overflowWidth > width
+        else -> false
+      }
+
+      val clipY = when (overflowY) {
+        1, 3 -> true
+        4 -> style.node.overflowHeight > height
+        else -> false
+      }
+
+      val clipLeft = if (clipX) padding.left else 0f
+      val clipTop = if (clipY) padding.top else 0f
+      val clipRight = if (clipX) width - padding.right else width
+      val clipBottom = if (clipY) height - padding.bottom else height
+
+      canvas.withClip(clipLeft, clipTop, clipRight, clipBottom) {}
+    }
+
     @FastNative
     @JvmStatic
     external fun nativeGetStyleBuffer(
@@ -2390,74 +2778,62 @@ class Style internal constructor(private var node: Node) {
 
     @JvmStatic
     external fun nativeGetGridArea(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridTemplateAreas(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridAutoRows(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridAutoColumns(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridColumn(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridColumnStart(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridColumnEnd(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridRow(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridRowStart(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridRowEnd(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridTemplateRows(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic
     external fun nativeGetGridTemplateColumns(
-      mason: Long,
-      node: Long
+      mason: Long, node: Long
     ): String?
 
     @JvmStatic

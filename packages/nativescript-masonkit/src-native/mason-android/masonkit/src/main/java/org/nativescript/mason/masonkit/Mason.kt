@@ -17,8 +17,11 @@ class Mason {
 
   internal val nodes = WeakHashMap<Long, Node>()
   private val viewNodes = WeakHashMap<android.view.View, Node>()
+  var scale: Float = 1f
+    private set
 
   fun setDeviceScale(value: Float) {
+    scale = value
     nativeSetDeviceScale(nativePtr, value)
   }
 

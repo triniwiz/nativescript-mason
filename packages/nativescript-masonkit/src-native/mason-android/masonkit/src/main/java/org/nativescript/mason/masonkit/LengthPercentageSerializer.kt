@@ -19,7 +19,7 @@ class LengthPercentageSerializer : JsonSerializer<LengthPercentage> {
         json.add("unit", JsonPrimitive(Constants.PX_UNIT))
       }
       is LengthPercentage.Zero -> {
-        json.add("value", JsonPrimitive(src.points))
+        json.add("value", JsonPrimitive(0))
         json.add("unit", JsonPrimitive(Constants.PX_UNIT))
       }
       is LengthPercentage.Percent -> {

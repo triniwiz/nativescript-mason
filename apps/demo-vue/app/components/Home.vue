@@ -4,13 +4,21 @@
       <ActionBar>
         <Label text="Home?" class="text-white bg-gray-800" />
       </ActionBar>
-      <div>
+      <!-- <div>
         <sspan>Welcome to the New Layout!</sspan>
         <p @tap="viewFeature('block')">Block</p>
         <p @tap="viewFeature('flex')">FlexBox</p>
         <p @tap="viewFeature('grid')">CSSGrid</p>
+      </div> -->
+
+      <div style="height: 500px; width: 500px; background: red; border: 1px solid #444444;">
+        Hello world
       </div>
 
+
+
+      <!-- left 5% / 15% 60% repeat-x
+  url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png"); -->
 
 
       <!-- <div class="wrapper">

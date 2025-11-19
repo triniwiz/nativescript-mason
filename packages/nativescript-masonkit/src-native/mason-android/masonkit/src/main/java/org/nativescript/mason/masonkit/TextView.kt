@@ -1178,9 +1178,9 @@ class TextView @JvmOverloads constructor(
     if (!textView.style.isValueInitialized) return true
     val style = textView.node.style
     val hasBackground = textView.backgroundColorValue != 0 || textView.background != null
-    val border = style.border
+    val borderWidth = style.borderWidth
     val hasBorder =
-      border.top.value > 0f || border.right.value > 0f || border.bottom.value > 0f || border.left.value > 0f
+      borderWidth.top.value > 0f || borderWidth.right.value > 0f || borderWidth.bottom.value > 0f || borderWidth.left.value > 0f
 
     val padding = style.padding
     val hasPadding =

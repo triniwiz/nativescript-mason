@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+.bg-repeat {
+  background: red;
+}
+
+
+/* .bg-repeat {
+  background: left 5% / 15% 60% repeat-x url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png');
+} */
+
+.bg-url {
+  background: no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png');
+}
+
 /* .wrapper {
     display: grid;
     grid-gap: 10;

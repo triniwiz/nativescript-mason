@@ -17,6 +17,7 @@ import org.nativescript.mason.masonkit.TextStyleKeys
 import org.nativescript.mason.masonkit.View
 import org.nativescript.mason.masonkit.enums.AlignSelf
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextType
 
 class GridActivity : AppCompatActivity() {
@@ -32,7 +33,7 @@ class GridActivity : AppCompatActivity() {
     mason.setDeviceScale(metrics.density)
 
     val body = mason.createScrollView(this)
-
+    body.style.overflowX = Overflow.Scroll
 
 //    Timer().schedule(1000L) {
 //      runOnUiThread {
@@ -56,15 +57,15 @@ class GridActivity : AppCompatActivity() {
     //body.addView(rootLayout)
 
     // wrapper5(rootLayout)
-   // wrapper6(body)
-      //wrapper8(body)
-     //genTest(body)
+    wrapper6(body)
+    //wrapper8(body)
+    //genTest(body)
 
 //    grid_template_areas(body)
 
-    grid_template_areas_500(body)
+    //  grid_template_areas_500(body)
 
-  //  grid_template_areas_600(body)
+    //  grid_template_areas_600(body)
 
     setContentView(body)
   }
@@ -487,19 +488,12 @@ class GridActivity : AppCompatActivity() {
       it.gridTemplateRows = "repeat(4, 150)"
     }
 
-    val border = resources.getDrawable(R.drawable.border_drawable)
-
     boxA.configure {
-      boxA.background = border
       // 150%
       it.fontSize = 150
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
-      it.border = Rect(
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f))
-      )
+      it.background = "no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png')"
+      it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(toPx(20f)),
         LengthPercentage.Points(toPx(20f)),
@@ -512,15 +506,9 @@ class GridActivity : AppCompatActivity() {
     }
 
     boxB.configure {
-      boxB.background = border
       it.fontSize = 150
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
-      it.border = Rect(
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f))
-      )
+      it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(toPx(20f)),
         LengthPercentage.Points(toPx(20f)),
@@ -533,15 +521,13 @@ class GridActivity : AppCompatActivity() {
     }
 
     boxC.configure {
-      boxC.background = border
       it.fontSize = 150
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
-      it.border = Rect(
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f))
-      )
+      it.border = "1px solid #444"
+      it.background = """
+        left 5% / 15% 60% repeat-x
+  url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png");
+      """.trimIndent()
       it.padding = Rect(
         LengthPercentage.Points(toPx(20f)),
         LengthPercentage.Points(toPx(20f)),
@@ -554,15 +540,9 @@ class GridActivity : AppCompatActivity() {
     }
 
     boxD.configure {
-      boxD.background = border
       it.fontSize = 150
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
-      it.border = Rect(
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f))
-      )
+      it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(toPx(20f)),
         LengthPercentage.Points(toPx(20f)),
@@ -575,15 +555,9 @@ class GridActivity : AppCompatActivity() {
     }
 
     boxE.configure {
-      boxE.background = border
       it.fontSize = 150
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
-      it.border = Rect(
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f)),
-        LengthPercentage.Points(toPx(1f))
-      )
+      it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(toPx(20f)),
         LengthPercentage.Points(toPx(20f)),

@@ -41,6 +41,38 @@ use taffy::{
 pub mod utils;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+pub enum BorderStyle {
+    #[default]
+    None,
+    Hidden,
+    Dotted,
+    Dashed,
+    Solid,
+    Double,
+    Groove,
+    Ridge,
+    Inset,
+    Outset,
+}
+
+impl std::fmt::Display for BorderStyle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BorderStyle::None => write!(f, "none"),
+            BorderStyle::Hidden => write!(f, "hidden"),
+            BorderStyle::Dotted => write!(f, "dotted"),
+            BorderStyle::Dashed => write!(f, "dashed"),
+            BorderStyle::Solid => write!(f, "solid"),
+            BorderStyle::Double => write!(f, "double"),
+            BorderStyle::Groove => write!(f, "groove"),
+            BorderStyle::Ridge => write!(f, "ridge"),
+            BorderStyle::Inset => write!(f, "inset"),
+            BorderStyle::Outset => write!(f, "outset"),
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
 pub enum Overflow {
     #[default]
     Visible,
@@ -183,6 +215,64 @@ pub enum StyleKeys {
     MIN_CONTENT_HEIGHT = 336,
     MAX_CONTENT_WIDTH = 340,
     MAX_CONTENT_HEIGHT = 344,
+
+    // ----------------------------
+    // Border Style (per side)
+    // ----------------------------
+    BORDER_LEFT_STYLE   = 348,
+    BORDER_RIGHT_STYLE  = 352,
+    BORDER_TOP_STYLE    = 356,
+    BORDER_BOTTOM_STYLE = 360,
+
+    // ----------------------------
+    // Border Color (per side)
+    // ----------------------------
+    BORDER_LEFT_COLOR   = 364,
+    BORDER_RIGHT_COLOR  = 368,
+    BORDER_TOP_COLOR    = 372,
+    BORDER_BOTTOM_COLOR = 376,
+
+    // ============================================================
+    // Border Radius (elliptical + squircle exponent)
+    // Each corner = 20 bytes:
+    //   x_type (4), x_value (4), y_type (4), y_value (4), exponent (4)
+    // ============================================================
+
+    // ----------------------------
+    // Top-left corner (20 bytes)
+    // ----------------------------
+    BORDER_RADIUS_TOP_LEFT_X_TYPE     = 380,
+    BORDER_RADIUS_TOP_LEFT_X_VALUE    = 384,
+    BORDER_RADIUS_TOP_LEFT_Y_TYPE     = 388,
+    BORDER_RADIUS_TOP_LEFT_Y_VALUE    = 392,
+    BORDER_RADIUS_TOP_LEFT_EXPONENT   = 396,
+
+    // ----------------------------
+    // Top-right corner
+    // ----------------------------
+    BORDER_RADIUS_TOP_RIGHT_X_TYPE    = 400,
+    BORDER_RADIUS_TOP_RIGHT_X_VALUE   = 404,
+    BORDER_RADIUS_TOP_RIGHT_Y_TYPE    = 408,
+    BORDER_RADIUS_TOP_RIGHT_Y_VALUE   = 412,
+    BORDER_RADIUS_TOP_RIGHT_EXPONENT  = 416,
+
+    // ----------------------------
+    // Bottom-right corner
+    // ----------------------------
+    BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE   = 420,
+    BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE  = 424,
+    BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE   = 428,
+    BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE  = 432,
+    BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 436,
+
+    // ----------------------------
+    // Bottom-left corner
+    // ----------------------------
+    BORDER_RADIUS_BOTTOM_LEFT_X_TYPE    = 440,
+    BORDER_RADIUS_BOTTOM_LEFT_X_VALUE   = 444,
+    BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE    = 448,
+    BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE   = 452,
+    BORDER_RADIUS_BOTTOM_LEFT_EXPONENT  = 456,
 }
 
 bitflags! {
@@ -228,6 +318,9 @@ bitflags! {
         const MIN_CONTENT_HEIGHT = 1 << 37;
         const MAX_CONTENT_WIDTH = 1 << 38;
         const MAX_CONTENT_HEIGHT = 1 << 39;
+        const BORDER_STYLE    = 1 << 40;
+        const BORDER_RADIUS    = 1 << 41;
+        const BORDER_COLOR    = 1 << 42;
     }
 }
 
@@ -670,7 +763,7 @@ impl Style {
     }
     fn default_data() -> Vec<u8> {
         // last item + 4 bytes
-        let mut buffer = vec![0_u8; 348];
+        let mut buffer = vec![0_u8; 460];
 
         {
             let float_slice = unsafe {

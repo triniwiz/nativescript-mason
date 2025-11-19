@@ -11,25 +11,21 @@ import androidx.core.graphics.toColorInt
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.enums.Display
-import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.FontFace
-import org.nativescript.mason.masonkit.GridPlacement
 import org.nativescript.mason.masonkit.LengthPercentage
-import org.nativescript.mason.masonkit.Line
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.MinMax
 import org.nativescript.mason.masonkit.NodeHelper
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.StateKeys
 import org.nativescript.mason.masonkit.StyleKeys
 import org.nativescript.mason.masonkit.Styles
+import org.nativescript.mason.masonkit.TextView
+import org.nativescript.mason.masonkit.View
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
-import org.nativescript.mason.masonkit.TextView
-import org.nativescript.mason.masonkit.TrackSizingFunction
-import org.nativescript.mason.masonkit.View
 import java.util.Timer
 import kotlin.concurrent.schedule
 
@@ -66,23 +62,32 @@ class TextActivity : AppCompatActivity() {
     //  testWrap()
     //testElements()
     //testTextInsert()
-  //   inlineTest()
+    //   inlineTest()
     //testTextReplace()
     //testTextAppend()
     // testTextContainerAppend()
-   // testTextContainerReplace()
+    // testTextContainerReplace()
     /// testTextContainerReplaceInContainer()
-     //testTextNodeReplaceWithImage()
-     // testTextNodeInsertWithImage()
+    //testTextNodeReplaceWithImage()
+    // testTextNodeInsertWithImage()
     //testTextWrap()
     // flexDirection()
     //  flexGrow()
     // flexShrink()
     //gridTemplateColumns()
     //dynamicGridTemplateColumns()
-    padding()
-   // textAlignment()
+    // padding()
+    // textAlignment()
+    bg()
     setContentView(body)
+  }
+
+  fun bg() {
+    val root = Mason.shared.createView(this)
+    root.style.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+    root.style.background = "content-box radial-gradient(crimson, skyblue);"
+    body.style.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+    body.append(root)
   }
 
   fun textAlignment() {
@@ -573,7 +578,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       Dimension.Points(200F),
       Dimension.Points(200F)
     )
-    colRev.style.border = Rect(
+    colRev.style.borderWidth = Rect(
       LengthPercentage.Points(1f),
       LengthPercentage.Points(1f),
       LengthPercentage.Points(1f),
@@ -623,7 +628,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       Dimension.Points(200F),
       Dimension.Points(200F)
     )
-    rowRev.style.border = Rect(
+    rowRev.style.borderWidth = Rect(
       LengthPercentage.Points(1f),
       LengthPercentage.Points(1f),
       LengthPercentage.Points(1f),

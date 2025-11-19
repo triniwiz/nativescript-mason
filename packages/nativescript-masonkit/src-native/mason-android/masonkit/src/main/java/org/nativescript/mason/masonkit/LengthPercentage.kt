@@ -1,13 +1,20 @@
 package org.nativescript.mason.masonkit
 
 sealed class LengthPercentage {
-  data class Points(var points: Float) : LengthPercentage()
-  data class Percent(var percentage: Float) : LengthPercentage()
-  data object Zero : LengthPercentage() {
-    const val points: Float = 0f
-  }
+  data class Points(val points: Float) : LengthPercentage()
+  data class Percent(val percentage: Float) : LengthPercentage()
+  data object Zero : LengthPercentage()
 
   companion object {
+    @JvmStatic
+    fun from(value: LengthPercentage): LengthPercentage {
+      return when (value) {
+        is Percent -> Percent(value.percentage)
+        is Points -> Points(value.points)
+        Zero -> Zero
+      }
+    }
+
     @JvmStatic
     fun fromTypeValue(type: Int, value: Float): LengthPercentage? {
       return when (type) {
@@ -28,23 +35,9 @@ sealed class LengthPercentage {
   internal val value: Float
     get() = when (this) {
       is Points -> this.points
-      is Zero -> this.points
+      is Zero -> 0f
       is Percent -> this.percentage
     }
-
-  internal fun updateValue(value: Float) {
-    when (this) {
-      is Points -> {
-        this.points = value
-      }
-
-      is Percent -> {
-        this.percentage = value
-      }
-
-      else -> {}
-    }
-  }
 
   val jsonValue: String
     get() {
@@ -59,7 +52,7 @@ sealed class LengthPercentage {
         }
 
         is Zero -> {
-          "$points${Constants.PX_UNIT}"
+          "0${Constants.PX_UNIT}"
         }
 
         is Percent -> {
@@ -78,7 +71,6 @@ val Rect<LengthPercentage>.cssValue: String
   get() {
     return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
   }
-
 
 
 val Size<LengthPercentage>.jsonValue: String

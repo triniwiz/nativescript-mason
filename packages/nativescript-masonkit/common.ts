@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftColorProperty, backgroundInternalProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing } from '.';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows, GridTemplates } from './utils';
@@ -82,6 +82,20 @@ function masonLengthPercentParse(value) {
     return undefined;
   }
 }
+
+const borderProperty = new CssProperty<Style, string>({
+  name: 'border',
+  cssName: 'border',
+});
+
+borderProperty.register(Style);
+
+const backgroundProperty = new CssProperty<Style, string>({
+  name: 'background',
+  cssName: 'background',
+});
+
+backgroundProperty.register(Style);
 
 const overFlow = /^\s*(visible|hidden|clip|scroll|auto)(?:\s+(visible|hidden|clip|scroll|auto))?\s*$/;
 
@@ -1242,6 +1256,62 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           this.replaceChild({ [text_]: node.text, node }, index);
         }
       }
+    }
+  }
+
+  [borderProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.border = value;
+    }
+  }
+
+  [backgroundProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.background = value;
+    }
+  }
+
+  [borderLeftColorProperty.setNative](color) {}
+
+  [borderLeftWidthProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderLeftWidth = value;
+    }
+  }
+
+  [borderTopWidthProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderTopWidth = value;
+    }
+  }
+
+  [borderRightWidthProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderRightWidth = value;
+    }
+  }
+
+  [borderBottomWidthProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderBottomWidth = value;
     }
   }
 

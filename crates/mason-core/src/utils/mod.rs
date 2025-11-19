@@ -1,5 +1,5 @@
 mod grid;
-use crate::style::{DisplayMode, Overflow};
+use crate::style::{BorderStyle, DisplayMode, Overflow};
 use crate::Style;
 pub use grid::*;
 use style_atoms::Atom;
@@ -8,6 +8,37 @@ use taffy::{
     FlexWrap, GridAutoFlow, GridPlacement, GridTemplateArea, JustifyContent, Line, Position,
     TextAlign,
 };
+
+pub const fn border_style_from_enum(value: i32) -> Option<BorderStyle> {
+    match value {
+        0 => Some(BorderStyle::None),
+        1 => Some(BorderStyle::Hidden),
+        2 => Some(BorderStyle::Dotted),
+        3 => Some(BorderStyle::Dashed),
+        4 => Some(BorderStyle::Solid),
+        5 => Some(BorderStyle::Double),
+        6 => Some(BorderStyle::Groove),
+        7 => Some(BorderStyle::Ridge),
+        8 => Some(BorderStyle::Inset),
+        9 => Some(BorderStyle::Outset),
+        _ => None,
+    }
+}
+pub const fn border_style_to_enum(value: BorderStyle) -> i32 {
+    match value {
+        BorderStyle::None => 0,
+        BorderStyle::Hidden => 1,
+        BorderStyle::Dotted => 2,
+        BorderStyle::Dashed => 3,
+        BorderStyle::Solid => 4,
+        BorderStyle::Double => 5,
+        BorderStyle::Groove => 6,
+        BorderStyle::Ridge => 7,
+        BorderStyle::Inset => 8,
+        BorderStyle::Outset => 9,
+    }
+}
+
 pub const fn box_sizing_from_enum(value: i32) -> Option<BoxSizing> {
     match value {
         0 => Some(BoxSizing::BorderBox),
@@ -386,7 +417,6 @@ pub fn grid_template_areas_to_string(areas: &[GridTemplateArea<Atom>]) -> String
     rows.join("\n")
 }
 
-
 fn remove_start_end_prefixes(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
     let bytes = text.as_bytes();
@@ -411,7 +441,6 @@ fn remove_start_end_prefixes(text: &str) -> String {
 
     result
 }
-
 
 pub fn grid_placement_to_string(p: &GridPlacement<Atom>) -> String {
     match p {

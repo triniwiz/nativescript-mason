@@ -2,7 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.RectF
+import android.graphics.Paint
 import android.util.AttributeSet
 import android.util.SparseArray
 import android.util.TypedValue
@@ -66,50 +66,52 @@ class View @JvmOverloads constructor(
     }
   }
 
-  override fun dispatchDraw(canvas: Canvas) {
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    super.onSizeChanged(w, h, oldw, oldh)
+    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
+    style.mBorderRenderer.invalidate()
+  }
 
+  internal val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+  override fun dispatchDraw(canvas: Canvas) {
     if (!style.isValueInitialized) {
       super.dispatchDraw(canvas)
       return
     }
 
+    val width = width.toFloat()
+    val height = height.toFloat()
+
     canvas.withSave {
-      val overFlowX = style.values.getInt(StyleKeys.OVERFLOW_X)
-      val overFlowY = style.values.getInt(StyleKeys.OVERFLOW_Y)
-      val clipX = when (overFlowX) {
-        1, 3 -> true
-        4 -> {
-          node.overflowWidth > width
+      Style.applyOverflowClip(style, canvas, node)
+
+      style.mBackground?.let { background ->
+
+        // Draw background color first
+        background.color?.let { color ->
+          paint.style = Paint.Style.FILL
+          paint.color = color
+          drawRect(0f, 0f, width, height, paint)
         }
 
-        else -> false
-      }
-      val clipY = when (overFlowY) {
-        1, 3 -> true
-        4 -> {
-          node.overflowHeight > height
+        // Draw all layers
+        background.layers.forEach { layer ->
+          canvas.withSave {
+            Style.applyClip(
+              canvas, layer.clip, node
+            )
+            drawBackground(context, this@View, layer, this, this.width, this.height)
+          }
         }
-
-        else -> false
       }
 
+      style.mBorderRenderer.updateCache(width, height)
+      style.mBorderRenderer.draw(this, width, height)
 
-      val rectLeft = paddingLeft
-      val rectTop = paddingTop
-      val rectRight = width - paddingRight
-      val rectBottom = height - paddingBottom
 
-      val clipRect = RectF(
-        if (clipX) rectLeft.toFloat() else Float.NEGATIVE_INFINITY,
-        if (clipY) rectTop.toFloat() else Float.NEGATIVE_INFINITY,
-        if (clipX) rectRight.toFloat() else Float.POSITIVE_INFINITY,
-        if (clipY) rectBottom.toFloat() else Float.POSITIVE_INFINITY
-      )
-
-      canvas.clipRect(clipRect)
-      super.dispatchDraw(canvas)
+      super.dispatchDraw(this)
     }
-
   }
 
   internal var isScrollRoot = false
@@ -982,7 +984,7 @@ class View @JvmOverloads constructor(
       }
     }
 
-    node.style.border = Rect(borderLeft, borderRight, borderTop, borderBottom)
+    node.style.borderWidth = Rect(borderLeft, borderRight, borderTop, borderBottom)
 
     node.style.margin = Rect(marginLeft, marginRight, marginTop, marginBottom)
 
@@ -1267,36 +1269,36 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun getBorder(): Rect<LengthPercentage> {
-    return style.border
+  fun getBorderWidth(): Rect<LengthPercentage> {
+    return style.borderWidth
   }
 
-  fun getBorderLeft(): LengthPercentage {
-    return style.border.left
+  fun getBorderLeftWidth(): LengthPercentage {
+    return style.borderLeftWidth
   }
 
-  fun getBorderRight(): LengthPercentage {
-    return style.border.right
+  fun getBorderRightWidth(): LengthPercentage {
+    return style.borderRightWidth
   }
 
-  fun getBorderTop(): LengthPercentage {
-    return style.border.top
+  fun getBorderTopWidth(): LengthPercentage {
+    return style.borderTopWidth
   }
 
-  fun getBorderBottom(): LengthPercentage {
-    return style.border.bottom
+  fun getBorderBottomWidth(): LengthPercentage {
+    return style.borderBottomWidth
   }
 
   fun getBorderCssValue(): String {
-    return style.border.cssValue
+    return style.borderWidth.cssValue
   }
 
   fun getBorderJsonValue(): String {
-    return style.border.jsonValue
+    return style.borderWidth.jsonValue
   }
 
-  fun setBorder(left: Float, top: Float, right: Float, bottom: Float) {
-    style.border = Rect(
+  fun setBorderWidth(left: Float, top: Float, right: Float, bottom: Float) {
+    style.borderWidth = Rect(
       LengthPercentage.Points(left),
       LengthPercentage.Points(right),
       LengthPercentage.Points(top),
@@ -1308,7 +1310,7 @@ class View @JvmOverloads constructor(
   fun setBorder(
     left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
-    style.border = Rect(
+    style.borderWidth = Rect(
       left, right, top, bottom
     )
     checkAndUpdateStyle()
@@ -1324,37 +1326,37 @@ class View @JvmOverloads constructor(
     bottom: Float,
     bottomType: Int
   ) {
-    style.border = Rect(
-      LengthPercentage.fromTypeValue(leftType, left) ?: style.border.left,
-      LengthPercentage.fromTypeValue(rightType, right) ?: style.border.right,
-      LengthPercentage.fromTypeValue(topType, top) ?: style.border.top,
-      LengthPercentage.fromTypeValue(bottomType, bottom) ?: style.border.bottom
+    style.borderWidth = Rect(
+      LengthPercentage.fromTypeValue(leftType, left) ?: style.borderWidth.left,
+      LengthPercentage.fromTypeValue(rightType, right) ?: style.borderWidth.right,
+      LengthPercentage.fromTypeValue(topType, top) ?: style.borderWidth.top,
+      LengthPercentage.fromTypeValue(bottomType, bottom) ?: style.borderWidth.bottom
     )
     checkAndUpdateStyle()
   }
 
   fun setBorderLeft(value: Float, type: Int) {
-    style.setBorderLeft(value, type)
+    style.setBorderLeftWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderRight(value: Float, type: Int) {
-    style.setBorderRight(value, type)
+    style.setBorderRightWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderTop(value: Float, type: Int) {
-    style.setBorderTop(value, type)
+    style.setBorderTopWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderBottom(value: Float, type: Int) {
-    style.setBorderBottom(value, type)
+    style.setBorderBottomWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderWithValueType(value: Float, type: Int) {
-    style.setBorderWithValueType(value, type)
+    style.setBorderWidth(value, type)
     checkAndUpdateStyle()
   }
 
