@@ -67,6 +67,54 @@ public class Img: UIImageView, MasonElement, MasonElementObjc {
     }
   }
   
+  public func requestLayout() {
+    let change = style.objectFit
+    if(fit != change){
+      setObjectFit(change)
+    }
+  }
+  
+  func setObjectFit(_ fit: ObjectFit) {
+         switch fit {
+         case .Fill:
+             layer.contentsGravity = .resize         // ≈ object-fit: fill
+
+         case .Contain:
+             layer.contentsGravity = .resizeAspect  // ≈ object-fit: contain
+
+         case .Cover:
+             layer.contentsGravity = .resizeAspectFill // ≈ object-fit: cover
+
+         case .None:
+             layer.contentsGravity = .center        // ≈ object-fit: none
+
+         case .ScaleDown:
+             // CSS: min(none, contain)
+             // iOS does not have a direct equivalent → implement logic:
+             if intrinsicContentSizeFitsInsideBounds() {
+                 layer.contentsGravity = .center
+             } else {
+                 layer.contentsGravity = .resizeAspect
+             }
+         }
+         
+         layer.masksToBounds = true // required for cover/contain clipping
+     }
+
+     private func intrinsicContentSizeFitsInsideBounds() -> Bool {
+         guard let cg = layer.contents else { return true }
+         let img = cg as! CGImage
+
+         let iw = CGFloat(img.width)
+         let ih = CGFloat(img.height)
+         let vw = bounds.width
+         let vh = bounds.height
+
+         return iw <= vw && ih <= vh
+     }
+  
+  private var fit: ObjectFit = .Fill
+  
   private var currentTask: URLSessionDataTask?
   public var src: String? {
     didSet {

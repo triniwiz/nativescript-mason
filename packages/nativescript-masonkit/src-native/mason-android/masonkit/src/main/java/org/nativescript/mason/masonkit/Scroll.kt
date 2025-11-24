@@ -2,10 +2,8 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.ViewGroup
-import androidx.core.graphics.withSave
 import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
@@ -64,9 +62,6 @@ class Scroll @JvmOverloads constructor(
   }
 
   init {
-    // handle clipping manually
-    clipChildren = false
-    clipToPadding = false
     if (!override) {
       if (!::scrollRoot.isInitialized) {
         scrollRoot = View(context, attrs, defStyleAttr).apply {
@@ -81,6 +76,10 @@ class Scroll @JvmOverloads constructor(
 
       }
     }
+
+    // handle clipping manually
+    clipChildren = false
+    clipToPadding = false
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -89,45 +88,9 @@ class Scroll @JvmOverloads constructor(
     style.mBorderRenderer.invalidate()
   }
 
-
-  internal val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   override fun dispatchDraw(canvas: Canvas) {
-    if (!style.isValueInitialized) {
-      super.dispatchDraw(canvas)
-      return
-    }
-
-    val width = width.toFloat()
-    val height = height.toFloat()
-
-    canvas.withSave {
-      Style.applyOverflowClip(style, canvas, node)
-
-      style.mBackground?.let { background ->
-
-        // Draw background color first
-        background.color?.let { color ->
-          paint.style = Paint.Style.FILL
-          paint.color = color
-          drawRect(0f, 0f, width, height, paint)
-        }
-
-        // Draw all layers
-        background.layers.forEach { layer ->
-          canvas.withSave {
-            Style.applyClip(
-              canvas, layer.clip, node
-            )
-            drawBackground(context, this@Scroll, layer, this, this.width, this.height)
-          }
-        }
-      }
-
-      style.mBorderRenderer.updateCache(width, height)
-      style.mBorderRenderer.draw(this, width, height)
-
-
-      super.dispatchDraw(this)
+    ViewUtils.dispatchDraw(this, canvas, style) {
+      super.dispatchDraw(it)
     }
   }
 
@@ -185,21 +148,38 @@ class Scroll @JvmOverloads constructor(
       boxing = style.boxSizing
     }
 
-    if (style.overflowX == Overflow.Visible) {
-      width = if (boxing == BoxSizing.BorderBox) {
-        (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
-      } else {
-        layout.contentSize.height.toInt()
+    val overflow = style.overflow
+
+    width = when (overflow.x) {
+      Overflow.Visible -> {
+        if (boxing == BoxSizing.BorderBox) {
+          (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
+        } else {
+          layout.contentSize.height.toInt()
+        }
+      }
+
+      Overflow.Hidden, Overflow.Scroll, Overflow.Clip, Overflow.Auto -> {
+        width.coerceAtMost(availableWidth.toInt())
       }
     }
 
-    if (style.overflowY == Overflow.Visible) {
-      height = if (boxing == BoxSizing.BorderBox) {
-        (layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
-      } else {
-        layout.contentSize.height.toInt()
+    height = when (overflow.y) {
+      Overflow.Visible -> {
+        if (boxing == BoxSizing.BorderBox) {
+          (layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
+        } else {
+          layout.contentSize.height.toInt()
+        }
+      }
+
+      Overflow.Hidden, Overflow.Scroll, Overflow.Clip, Overflow.Auto -> {
+        height.coerceAtMost(availableHeight.toInt())
       }
     }
+
+
+    node.mason.printTree(node)
 
     setMeasuredDimension(width, height)
   }

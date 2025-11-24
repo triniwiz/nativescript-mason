@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.os.Build
+import android.util.Log
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
@@ -316,7 +317,7 @@ interface Element {
 
 internal fun Element.getDefaultAttributes(): Map<String, Any> {
   val resolvedFont = style.resolvedFontFace
-
+ // todo replace with class
   return mapOf(
     "color" to style.resolvedColor,
     "fontSize" to style.resolvedFontSize,
@@ -474,7 +475,7 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       }
 
       node.overflowWidth = contentWidth
-      node.overflowHeight = contentWidth
+      node.overflowHeight = contentHeight
 
       // only set padding on a text element
       if (view is TextView) {

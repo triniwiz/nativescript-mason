@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016C2ECE04CB00D6CFD9 /* Background.swift */; };
+		F134016F2ECE04DD00D6CFD9 /* Border.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016E2ECE04DC00D6CFD9 /* Border.swift */; };
 		F13B6C7B2DC81AC800624D17 /* NSCFontFaceSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */; };
 		F13B6C7D2DC81AE100624D17 /* NSCFontFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */; };
 		F13D4E8D2E8EEA0100456A68 /* MasonElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */; };
@@ -46,6 +48,8 @@
 		F1E4F95C296242700091913B /* MaxSizing.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95B296242700091913B /* MaxSizing.swift */; };
 		F1E4F95E296266A60091913B /* MasonLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95D296266A60091913B /* MasonLine.swift */; };
 		F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */; };
+		F1EE402B2ECF791800EAF4CC /* BackgroundParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */; };
+		F1EE402D2ECFA98F00EAF4CC /* CSSFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */; };
 		F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE93512E84BA3E00DA90BB /* Extensions.swift */; };
 		F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */; };
 		F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */; };
@@ -105,6 +109,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F134016C2ECE04CB00D6CFD9 /* Background.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Background.swift; sourceTree = "<group>"; };
+		F134016E2ECE04DC00D6CFD9 /* Border.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Border.swift; sourceTree = "<group>"; };
 		F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFaceSet.swift; sourceTree = "<group>"; };
 		F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFace.swift; sourceTree = "<group>"; };
 		F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonElement.swift; sourceTree = "<group>"; };
@@ -148,6 +154,8 @@
 		F1E4F95B296242700091913B /* MaxSizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxSizing.swift; sourceTree = "<group>"; };
 		F1E4F95D296266A60091913B /* MasonLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonLine.swift; sourceTree = "<group>"; };
 		F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSizingFunction.swift; sourceTree = "<group>"; };
+		F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundParser.swift; sourceTree = "<group>"; };
+		F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSSFilters.swift; sourceTree = "<group>"; };
 		F1EE93512E84BA3E00DA90BB /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftHelpers.swift; sourceTree = "<group>"; };
 		F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeUtils.swift; sourceTree = "<group>"; };
@@ -244,6 +252,10 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */,
+				F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */,
+				F134016E2ECE04DC00D6CFD9 /* Border.swift */,
+				F134016C2ECE04CB00D6CFD9 /* Background.swift */,
 				F1DE08982EBC1195002870F6 /* Constants.swift */,
 				F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */,
 				F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */,
@@ -552,6 +564,7 @@
 				F1E4F95E296266A60091913B /* MasonLine.swift in Sources */,
 				F1E4F958296241FD0091913B /* MinMax.swift in Sources */,
 				F1DE08992EBC1199002870F6 /* Constants.swift in Sources */,
+				F134016F2ECE04DD00D6CFD9 /* Border.swift in Sources */,
 				F18483E329357AC900EC35F4 /* NSCMason.swift in Sources */,
 				F18483E92935A19500EC35F4 /* MeasureOutput.swift in Sources */,
 				F1848391293534D800EC35F4 /* Mason.docc in Sources */,
@@ -563,6 +576,7 @@
 				F1F0AF412EB66FA9001F0C36 /* NativeHelpers.swift in Sources */,
 				F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */,
 				F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */,
+				F1EE402D2ECFA98F00EAF4CC /* CSSFilters.swift in Sources */,
 				F1E4F956296231A50091913B /* MasonCompat.swift in Sources */,
 				F13B6C7B2DC81AC800624D17 /* NSCFontFaceSet.swift in Sources */,
 				F1E4F95229622AD60091913B /* MasonRect.swift in Sources */,
@@ -571,9 +585,11 @@
 				F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */,
 				F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */,
 				F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */,
+				F1EE402B2ECF791800EAF4CC /* BackgroundParser.swift in Sources */,
 				F18E99132DCB73FC0062B4F7 /* Img.swift in Sources */,
 				F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */,
 				F18483DB29356C3A00EC35F4 /* MasonUIView.swift in Sources */,
+				F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */,
 				F18C9B862E5170CA006E5561 /* Scroll.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

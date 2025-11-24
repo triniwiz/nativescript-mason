@@ -662,20 +662,53 @@ public class MasonText: UIView, MasonElement, MasonElementObjc, StyleChangeListe
     let composed = NSMutableAttributedString()
     
     for child in node.children {
-      if let textNode = child as? MasonTextNode {
-        composed.append(textNode.attributed())
-      } else if let textView = child.view as? MasonText {
-        if shouldFlattenTextContainer(textView) {
-          let childAttributed = textView.buildAttributedString(forMeasurement: forMeasurement)
-          composed.append(childAttributed)
-        } else {
-          let placeholder = createPlaceholder(for: child)
-          composed.append(placeholder)
-        }
-      }else if(child.view != nil && child.nativePtr != nil){
-        let placeholder = createPlaceholder(for: child)
-        composed.append(placeholder)
-      }
+      // Build current attributed fragment depending on child type
+           var fragment: NSAttributedString?
+     
+           if let textNode = child as? MasonTextNode {
+             fragment = textNode.attributed()
+           } else if let textView = child.view as? MasonText {
+             if shouldFlattenTextContainer(textView) {
+               fragment = textView.buildAttributedString(forMeasurement: forMeasurement)
+             } else {
+               fragment = createPlaceholder(for: child)
+             }
+           } else if (child.view != nil && child.nativePtr != nil) {
+             fragment = createPlaceholder(for: child)
+           }
+     
+           guard let frag = fragment, frag.length > 0 else {
+             // still append empty fragments to preserve run ordering if needed
+             if let frag = fragment {
+               composed.append(frag)
+             }
+             continue
+           }
+     
+           // If previous fragment ended without whitespace and this one starts without whitespace,
+           // insert a single separating space when white-space rules allow collapsing (i.e. not Pre).
+           if composed.length > 0 {
+             let prevEndsWithSpace: Bool = {
+               guard let last = composed.string.unicodeScalars.last else { return false }
+               return CharacterSet.whitespacesAndNewlines.contains(last)
+             }()
+     
+             let newStartsWithSpace: Bool = {
+               guard let first = frag.string.unicodeScalars.first else { return false }
+               return CharacterSet.whitespacesAndNewlines.contains(first)
+             }()
+     
+             // Only insert when neither side already has whitespace and white-space mode permits collapsing
+             if !prevEndsWithSpace && !newStartsWithSpace {
+               let ws = node.style.whiteSpace
+               if ws != .Pre {
+                 let spaceAttr = NSAttributedString(string: " ", attributes: getDefaultAttributes())
+                 composed.append(spaceAttr)
+               }
+             }
+           }
+     
+           composed.append(frag)
     }
     
     // Cache the result

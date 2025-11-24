@@ -2,14 +2,12 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Paint
 import android.util.AttributeSet
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import androidx.core.content.withStyledAttributes
-import androidx.core.graphics.withSave
 import androidx.core.util.size
 import com.google.gson.Gson
 import org.nativescript.mason.masonkit.enums.AlignContent
@@ -52,9 +50,6 @@ class View @JvmOverloads constructor(
   }
 
   init {
-    // css visible default
-    clipChildren = false
-    clipToPadding = false
     if (!override) {
       if (!::node.isInitialized) {
         node = Mason.shared.createNode().apply {
@@ -64,6 +59,9 @@ class View @JvmOverloads constructor(
         node.style.setStyleChangeListener(this)
       }
     }
+    // css visible default
+    clipChildren = false
+    clipToPadding = false
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -72,45 +70,9 @@ class View @JvmOverloads constructor(
     style.mBorderRenderer.invalidate()
   }
 
-  internal val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-
   override fun dispatchDraw(canvas: Canvas) {
-    if (!style.isValueInitialized) {
-      super.dispatchDraw(canvas)
-      return
-    }
-
-    val width = width.toFloat()
-    val height = height.toFloat()
-
-    canvas.withSave {
-      Style.applyOverflowClip(style, canvas, node)
-
-      style.mBackground?.let { background ->
-
-        // Draw background color first
-        background.color?.let { color ->
-          paint.style = Paint.Style.FILL
-          paint.color = color
-          drawRect(0f, 0f, width, height, paint)
-        }
-
-        // Draw all layers
-        background.layers.forEach { layer ->
-          canvas.withSave {
-            Style.applyClip(
-              canvas, layer.clip, node
-            )
-            drawBackground(context, this@View, layer, this, this.width, this.height)
-          }
-        }
-      }
-
-      style.mBorderRenderer.updateCache(width, height)
-      style.mBorderRenderer.draw(this, width, height)
-
-
-      super.dispatchDraw(this)
+    ViewUtils.dispatchDraw(this, canvas, style) {
+      super.dispatchDraw(it)
     }
   }
 

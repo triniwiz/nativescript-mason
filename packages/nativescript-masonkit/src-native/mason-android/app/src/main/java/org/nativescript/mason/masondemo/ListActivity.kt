@@ -2,19 +2,16 @@ package org.nativescript.mason.masondemo
 
 import android.os.Bundle
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import org.nativescript.mason.masonkit.enums.AlignContent
-import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.enums.Display
-import org.nativescript.mason.masonkit.enums.FlexDirection
 import org.nativescript.mason.masonkit.Img
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.enums.AlignContent
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
 
 class ListActivity : AppCompatActivity() {
   val array = ArrayList<String>()
@@ -85,9 +82,8 @@ class ListActivity : AppCompatActivity() {
     override fun onBindViewHolder(viewHolder: ViewHolder, position: Int) {
       val url = list.array[position]
       viewHolder.textView.textContent = url
-
       viewHolder.imageView.src = url
-
+      viewHolder.imageView.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
     }
 
     override fun getItemCount() = list.array.size

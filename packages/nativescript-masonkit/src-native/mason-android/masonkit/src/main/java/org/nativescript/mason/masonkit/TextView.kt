@@ -16,7 +16,6 @@ import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.util.AttributeSet
-import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
@@ -71,6 +70,18 @@ class TextView @JvmOverloads constructor(
   init {
     if (!::node.isInitialized && !override) {
       setup(Mason.shared)
+    }
+  }
+
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    super.onSizeChanged(w, h, oldw, oldh)
+    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
+    style.mBorderRenderer.invalidate()
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    ViewUtils.onDraw(this, canvas, style) {
+      super.onDraw(it)
     }
   }
 
@@ -135,7 +146,7 @@ class TextView @JvmOverloads constructor(
         TextType.Code -> {
           style.font = FontFace("monospace")
           style.display = Display.Inline
-        //  setBackgroundColor(0xFFEFEFEF.toInt())
+          //  setBackgroundColor(0xFFEFEFEF.toInt())
         }
 
         TextType.H1 -> {

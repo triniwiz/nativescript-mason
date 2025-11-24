@@ -276,6 +276,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   deinit {
     print("Dispose controller")
   }
+  
+  func toPx(_ value: Float) -> Float {
+    return value * scale
+  }
   var data:Data!
   override func viewDidLoad() {
     NSCMason.shared.setDeviceScale(Float(UIScreen.main.scale))
@@ -412,7 +416,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //
     //      root.node.computeWithMaxContent()
     
-    inlineTest()
+   // inlineTest()
     //  testTextInsert()
     // testInsert()
     // testInlineStyleChange()
@@ -426,6 +430,332 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     // fontSize()
     //  textAlignment()
     //wrapper8()
+    //filter()
+  //  renderFloat(body)
+    let sv = mason.createScrollView()
+    sv.style.overflowY = .Scroll
+    body.append(sv)
+    objectFit(sv)
+  }
+  
+  func insertObjectFit(_ section: MasonElement, _ header: String, _ fit: ObjectFit, _ src: String) {
+    let h2 = mason.createTextView(type: .H2)
+    h2.append(text: header)
+
+    h2.configure { it in
+      it.fontWeight = "'Courier New', monospace"
+      it.fontSize = 16
+      it.margin = MasonRect(
+        .Points(
+          toPx((16 / 0.3))
+        ),
+        .Points(0),
+        .Points(toPx(16)),
+        .Points(0)
+      )
+    }
+
+
+    section.append(h2)
+    let img = mason.createImageView()
+    img.configure { it in
+      it.objectFit = fit
+     // it.border = "1px solid black"
+      it.margin = MasonRect(
+        .Points(0),
+        .Points(0),
+        .Points(toPx(16)),
+        .Points(toPx(16))
+      )
+      it.size = MasonSize(.Points(toPx(150)), .Points(toPx(100)))
+    }
+    img.src = src
+
+
+    let imgNarrow = mason.createImageView()
+    imgNarrow.configure { it in
+      it.objectFit = fit
+     // it.border = "1px solid black"
+      it.margin = MasonRect(
+        .Points(0),
+        .Points(0),
+        .Points(toPx(16)),
+        .Points(toPx(16))
+      )
+      it.size = MasonSize(.Points(toPx(100)), .Points(toPx(150)))
+    }
+    imgNarrow.src = src
+
+    section.append(img)
+    section.append(text: " ")
+    section.append(imgNarrow)
+  }
+
+  func objectFit(_ scroll: Scroll) {
+    let section = mason.createView()
+    let mdnLogoOnlyColor =
+      "https://b4eb5495-cf4e-4b34-a1f5-d7ee06ed21f7.mdnplay.dev/en-US/docs/Web/CSS/Reference/Properties/object-fit/mdn_logo_only_color.png"
+
+    insertObjectFit(section, "object-fit: fill", ObjectFit.Fill, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: contain", ObjectFit.Contain, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: cover", ObjectFit.Cover, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: none", ObjectFit.None, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: scale-down", ObjectFit.ScaleDown, mdnLogoOnlyColor)
+
+    scroll.append(section)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+
+  }
+  
+  func applyDivStyle(_ style: MasonStyle) {
+    style.margin = MasonRect(uniform: .Points(5))
+    style.size = MasonSize(
+      .Points(
+        50
+      ),
+      .Points(
+        150
+      )
+    )
+  }
+
+  func renderFloat(_ view: MasonUIView) {
+    let section = mason.createView()
+    let one = mason.createView()
+    one.append(text: "1")
+    one.configure { it in
+      it.background = "pink"
+      it.float = .Left
+      applyDivStyle(it)
+    }
+    let two = mason.createView()
+    two.append(text: "2")
+    two.configure { it in
+      it.background = "pink"
+      it.float = .Left
+      applyDivStyle(it)
+    }
+    let three = mason.createView()
+    three.append(text: "3")
+
+    three.configure { it in
+      it.background = "cyan"
+      it.float = .Right
+      applyDivStyle(it)
+    }
+
+    let p = mason.createTextView(type: .P)
+    p.append(
+      text:  """
+     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi tristique
+    sapien ac erat tincidunt, sit amet dignissim lectus vulputate. Donec id
+    iaculis velit. Aliquam vel malesuada erat. Praesent non magna ac massa
+    aliquet tincidunt vel in massa. Phasellus feugiat est vel leo finibus
+      congue.
+"""
+    )
+    section.append(elements: [one, two, three, p])
+
+    view.append(section)
+    
+    view.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+    mason.printTree(view.node)
+  }
+  
+  
+  private class TapListenerWrapper: NSObject {
+      let handler: () -> Void
+      init(_ handler: @escaping () -> Void) {
+          self.handler = handler
+      }
+
+      @objc func handleTap() {
+          handler()
+      }
+  }
+
+  private var tapKey: UInt8 = 0
+
+  func setOnClickListener(_ view: UIView, _ listener: @escaping () -> Void) {
+      // Remove any old listener if resetting
+    if objc_getAssociatedObject(view, &tapKey) is TapListenerWrapper {
+          view.gestureRecognizers?.forEach { gr in
+              if gr is UITapGestureRecognizer {
+                  view.removeGestureRecognizer(gr)
+              }
+          }
+          objc_setAssociatedObject(view, &tapKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+      }
+
+      let wrapper = TapListenerWrapper(listener)
+      let recognizer = UITapGestureRecognizer(target: wrapper, action: #selector(TapListenerWrapper.handleTap))
+
+      // Keep wrapper alive by associating it with the view
+      objc_setAssociatedObject(view, &tapKey, wrapper, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+
+      view.isUserInteractionEnabled = true
+      view.addGestureRecognizer(recognizer)
+  }
+  
+  func code(_ value: String) -> MasonText {
+    let ret = mason.createTextView(type: .Code)
+    ret.append(text: value)
+    ret.style.backgroundColor = 0xFFEFEFEF
+    return ret
+  }
+
+  
+  func filter() {
+     let rootLayout = mason.createView()
+
+
+    let img = mason.createImageView()
+     //img.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Firefox_logo%2C_2019.svg/1024px-Firefox_logo%2C_2019.svg.png"
+
+     img.style.size = MasonSize(
+       .Points(toPx(200)), .Points(toPx(200))
+     )
+
+     rootLayout.append(img)
+
+     rootLayout.style.padding = MasonRect(
+       .Points(10),
+       .Zero,
+       .Zero,
+       .Zero
+     )
+
+    img.image = UIImage(named: "firefox_logo")
+  
+    
+    let reset = mason.createView()
+    setOnClickListener(reset) {
+      img.style.filter = ""
+    }
+    reset.append(text: "Reset")
+
+    rootLayout.append(reset)
+
+     let blur = mason.createView()
+     setOnClickListener(blur) {
+       img.style.filter = "blur(5px);"
+     }
+      blur.append(text: "Blur ")
+     blur.append(code("filter: blur(5px);"))
+
+     rootLayout.append(blur)
+
+
+     let contrast = mason.createView()
+     setOnClickListener(contrast) {
+       img.style.filter = "contrast(200%);"
+     }
+    contrast.append(text: "Contrast ")
+     contrast.append(code("filter:contrast(200%);"))
+
+     rootLayout.append(contrast)
+
+    let grayscale = mason.createView()
+     grayscale.append(text: "Grayscale ")
+     grayscale.append(code("filter:grayscale(80%);"))
+
+     setOnClickListener(grayscale) {
+       img.style.filter = "grayscale(80%);"
+     }
+
+     rootLayout.append(grayscale)
+
+
+    let hueRotate = mason.createView()
+     hueRotate.append(text: "HueRotate ")
+     hueRotate.append(code("filter: hue-rotate(90deg);"))
+
+     setOnClickListener(hueRotate) {
+       img.style.filter = "hue-rotate(90deg);"
+     }
+
+     rootLayout.append(hueRotate)
+    
+    
+    
+    let invert = mason.createView()
+    invert.append(text: "Invert ")
+    invert.append(code("filter:invert(75%);"))
+
+     setOnClickListener(invert) {
+       img.style.filter = "invert(75%);"
+     }
+
+     rootLayout.append(invert)
+
+
+    let dropShadow = mason.createView()
+     dropShadow.append(text: "DropShadow ")
+     dropShadow.append(code("filter:drop-shadow(16px 16px 20px red) invert(75%);"))
+
+     setOnClickListener(dropShadow) {
+       img.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
+     }
+
+     rootLayout.append(dropShadow)
+    
+    
+    
+    let stackedDropShadow = mason.createView()
+    stackedDropShadow.append(text: "Stacked DropShadow ")
+    stackedDropShadow.append(code("filter: drop-shadow(3px 3px red) sepia(100%) drop-shadow(-3px -3px blue)"))
+
+     setOnClickListener(stackedDropShadow) {
+       img.style.filter = "drop-shadow(3px 3px red) sepia(100%) drop-shadow(-3px -3px blue)"
+     }
+
+     rootLayout.append(stackedDropShadow)
+    
+  
+
+
+ //
+ //    img.style.filter =
+ //      "blur(10px) brightness(1.2) contrast(0.8) saturate(2) hue-rotate(0.5turn) invert(50%) drop-shadow(5px 5px 10px rgba(0,0,0,0.5))"
+
+     body.append(rootLayout)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+   }
+  
+  func backgroundTest(){
+    let rootLayout = mason.createView()
+    rootLayout.style.size = .init(.Points(300), .Points(200))
+//    rootLayout.background = "pink"
+//    rootLayout.background = """
+//                            left 5% / 15% 60% repeat-x
+//                              url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png");
+//                            """
+//    rootLayout.background = """
+//white no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png')
+//"""
+//    rootLayout.background = "content-box radial-gradient(crimson, skyblue);"
+    
+//    rootLayout.background = """
+//    center / contain no-repeat url("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Firefox_logo%2C_2019.svg/1024px-Firefox_logo%2C_2019.svg.png"),
+//      #eeeeee 35% url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png");
+//    """
+//    rootLayout.style.background = """
+//  linear-gradient(45deg, rgba(255,0,0,0.5) 0%, rgba(255,0,0,0.0) 100%), 
+//      radial-gradient(circle at center, rgba(0,0,255,0.3) 0%, rgba(0,0,255,0.0) 70%), 
+//      #FFFF00
+//"""
+    
+    body.append(rootLayout)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
   func wrapper8(){

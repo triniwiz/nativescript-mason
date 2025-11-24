@@ -1,11 +1,11 @@
 mod grid;
-use crate::style::{BorderStyle, DisplayMode, Overflow};
+use crate::style::{BorderStyle, DisplayMode, ObjectFit, Overflow};
 use crate::Style;
 pub use grid::*;
 use style_atoms::Atom;
 use taffy::{
-    AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, Display, FlexDirection,
-    FlexWrap, GridAutoFlow, GridPlacement, GridTemplateArea, JustifyContent, Line, Position,
+    AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, Clear, Display, FlexDirection,
+    FlexWrap, Float, GridAutoFlow, GridPlacement, GridTemplateArea, JustifyContent, Line, Position,
     TextAlign,
 };
 
@@ -515,4 +515,61 @@ pub fn to_line_css(start: &GridPlacement<Atom>, end: &GridPlacement<Atom>) -> Op
 
     // If start and end differ, use CSS shorthand form: "start / end"
     Some(format!("{} / {}", start, end))
+}
+
+pub const fn float_from_enum(value: i32) -> Option<Float> {
+    match value {
+        0 => Some(Float::None),
+        1 => Some(Float::Left),
+        2 => Some(Float::Right),
+        _ => None,
+    }
+}
+
+pub const fn float_to_enum(value: Float) -> i32 {
+    match value {
+        Float::None => 0,
+        Float::Left => 1,
+        Float::Right => 2,
+    }
+}
+
+pub const fn clear_from_enum(value: i32) -> Option<Clear> {
+    match value {
+        0 => Some(Clear::None),
+        1 => Some(Clear::Left),
+        2 => Some(Clear::Right),
+        3 => Some(Clear::Both),
+        _ => None,
+    }
+}
+
+pub const fn clear_to_enum(value: Clear) -> i32 {
+    match value {
+        Clear::None => 0,
+        Clear::Left => 1,
+        Clear::Right => 2,
+        Clear::Both => 3,
+    }
+}
+
+pub const fn object_fit_from_enum(value: i32) -> Option<ObjectFit> {
+    match value {
+        0 => Some(ObjectFit::Contain),
+        1 => Some(ObjectFit::Cover),
+        2 => Some(ObjectFit::Fill),
+        3 => Some(ObjectFit::None),
+        4 => Some(ObjectFit::ScaleDown),
+        _ => None,
+    }
+}
+
+pub const fn object_to_enum(value: ObjectFit) -> i32 {
+    match value {
+        ObjectFit::Contain => 0,
+        ObjectFit::Cover => 1,
+        ObjectFit::Fill => 2,
+        ObjectFit::None => 3,
+        ObjectFit::ScaleDown => 4,
+    }
 }

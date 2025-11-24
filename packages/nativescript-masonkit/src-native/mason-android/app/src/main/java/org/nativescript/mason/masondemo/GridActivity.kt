@@ -8,15 +8,19 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.Element
 import org.nativescript.mason.masonkit.LengthPercentage
+import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.TextStyleKeys
+import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
 import org.nativescript.mason.masonkit.enums.AlignSelf
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.ObjectFit
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextType
 
@@ -33,7 +37,7 @@ class GridActivity : AppCompatActivity() {
     mason.setDeviceScale(metrics.density)
 
     val body = mason.createScrollView(this)
-    body.style.overflowX = Overflow.Scroll
+    body.style.overflowY = Overflow.Scroll
 
 //    Timer().schedule(1000L) {
 //      runOnUiThread {
@@ -52,22 +56,264 @@ class GridActivity : AppCompatActivity() {
 //      LengthPercentageAuto.Points(40f)
 //    )
 
-    val rootLayout = mason.createScrollView(this)
+    //val rootLayout = mason.createView(this)
 
     //body.addView(rootLayout)
 
-    // wrapper5(rootLayout)
-    wrapper6(body)
-    //wrapper8(body)
+   //  wrapper5(rootLayout)
+   //  wrapper6(body)
+   // wrapper8(body)
     //genTest(body)
 
-//    grid_template_areas(body)
+    //grid_template_areas(body)
 
-    //  grid_template_areas_500(body)
+     // grid_template_areas_500(body)
 
-    //  grid_template_areas_600(body)
+     //grid_template_areas_600(body)
 
+    //  backgroundTest(body)
+    filter(body)
+    // objectFit(body)
     setContentView(body)
+  }
+
+  fun insertObjectFit(section: View, header: String, fit: ObjectFit, src: String) {
+    val h2 = mason.createTextView(this, TextType.H2)
+    h2.append(header)
+
+    h2.configure {
+      it.fontFamily = "'Courier New', monospace"
+      it.fontSize = 16
+      it.margin = Rect(
+        LengthPercentageAuto.Points(
+          toPx((16f / 0.3f))
+        ),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(toPx(16f)),
+        LengthPercentageAuto.Points(0f)
+      )
+    }
+
+
+    section.append(h2)
+    val img = mason.createImageView(this)
+    img.configure {
+      it.objectFit = fit
+      it.border = "1px solid black"
+      it.margin = Rect(
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(toPx(16f)),
+        LengthPercentageAuto.Points(toPx(16f))
+      )
+      it.size = Size(Dimension.Points(toPx(150f)), Dimension.Points(toPx(100f)))
+    }
+    img.src = src
+
+
+    val imgNarrow = mason.createImageView(this)
+    imgNarrow.configure {
+      it.objectFit = fit
+      it.border = "1px solid black"
+      it.margin = Rect(
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(toPx(16f)),
+        LengthPercentageAuto.Points(toPx(16f))
+      )
+      it.size = Size(Dimension.Points(toPx(100f)), Dimension.Points(toPx(150f)))
+    }
+    imgNarrow.src = src
+
+    section.append(img)
+    section.append(" ")
+    section.append(imgNarrow)
+  }
+
+  fun objectFit(body: Scroll) {
+    val section = mason.createView(this);
+    val mdnLogoOnlyColor =
+      "https://b4eb5495-cf4e-4b34-a1f5-d7ee06ed21f7.mdnplay.dev/en-US/docs/Web/CSS/Reference/Properties/object-fit/mdn_logo_only_color.png"
+
+    insertObjectFit(section, "object-fit: fill", ObjectFit.Fill, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: contain", ObjectFit.Contain, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: cover", ObjectFit.Cover, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: none", ObjectFit.None, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: scale-down", ObjectFit.ScaleDown, mdnLogoOnlyColor)
+
+    body.append(section)
+
+  }
+
+  fun code(value: String): TextView {
+    val ret = mason.createTextView(this, TextType.Code)
+    ret.append(value)
+    ret.style.backgroundColor = 0xFFEFEFEF.toInt()
+    return ret
+  }
+
+  var selected: Element? = null
+  val defaultBorder = "1px solid #51565d"
+  val selectedBorder = "1px solid red"
+
+  private fun select(element: Element?) {
+    selected?.style?.let {
+      it.border = defaultBorder
+    }
+    selected = element
+    element?.style?.let {
+      it.border = selectedBorder
+    }
+  }
+
+  private fun defaultStyle(element: Element) {
+    element.configure {
+      it.padding = Rect.uniform(LengthPercentage.Points(toPx(10f)))
+      it.border = defaultBorder
+      it.margin = Rect(
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(toPx(5f)),
+        LengthPercentageAuto.Points(toPx(5f))
+      )
+    }
+  }
+
+  fun filter(body: Scroll) {
+    val rootLayout = mason.createView(this)
+    rootLayout.style.padding = Rect.uniform(
+      LengthPercentage.Points(toPx(10f))
+    )
+
+    /*
+
+
+    val text = mason.createTextView(this)
+    text.style.color = Color.RED
+    text.append("Helloooooo")
+
+    rootLayout.append(text)
+
+
+    val img = mason.createImageView(this)
+    //img.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Firefox_logo%2C_2019.svg/1024px-Firefox_logo%2C_2019.svg.png"
+
+    img.style.size = Size(
+      Dimension.Points(toPx(160f)), Dimension.Points(toPx(160f))
+    )
+
+    rootLayout.append(img)
+
+    img.setImageResource(R.drawable.firefox_logo)
+
+
+
+    val reset = mason.createView(this)
+    reset.setOnClickListener {
+      img.style.filter = ""
+      text.style.filter = ""
+      select(null)
+    }
+
+    reset.append("Reset ")
+
+    rootLayout.append(reset)
+
+
+    val blur = mason.createView(this)
+    defaultStyle(blur)
+    blur.setOnClickListener {
+      select(blur)
+      img.style.filter = "blur(5px);"
+      text.style.filter = "blur(5px);"
+    }
+    blur.append("blur ")
+    blur.append(code("filter: blur(5px);"))
+
+    rootLayout.append(blur)
+
+
+    val contrast = mason.createView(this)
+    defaultStyle(contrast)
+    contrast.setOnClickListener {
+      select(contrast)
+      img.style.filter = "contrast(200%);"
+      text.style.filter = "contrast(200%);"
+    }
+    contrast.append("contrast ")
+    contrast.append(code("filter:contrast(200%);"))
+
+    rootLayout.append(contrast)
+
+    val grayscale = mason.createView(this)
+    defaultStyle(grayscale)
+    grayscale.style.border = defaultBorder
+    grayscale.append("grayscale ")
+    grayscale.append(code("filter:grayscale(80%);"))
+
+    grayscale.setOnClickListener {
+      select(grayscale)
+      img.style.filter = "grayscale(80%);"
+      text.style.filter = "grayscale(80%);"
+    }
+
+    rootLayout.append(grayscale)
+
+
+    val hueRotate = mason.createView(this)
+    defaultStyle(hueRotate)
+    hueRotate.append("hueRotate ")
+    hueRotate.append(code("filter: hue-rotate(90deg);"))
+
+    hueRotate.setOnClickListener {
+      select(hueRotate)
+      img.style.filter = "hue-rotate(90deg);"
+      text.style.filter = "hue-rotate(90deg);"
+    }
+
+    rootLayout.append(hueRotate)
+
+    */
+
+
+    val dropShadow = mason.createView(this)
+    defaultStyle(dropShadow)
+    dropShadow.append("dropShadow ")
+    dropShadow.append(code("filter:drop-shadow(16px 16px 20px red) invert(75%);"))
+
+    dropShadow.setOnClickListener {
+      select(dropShadow)
+     // img.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
+     // text.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
+    }
+
+    rootLayout.append(dropShadow)
+
+
+    body.append(rootLayout)
+  }
+
+  fun backgroundTest(body: Scroll) {
+    val rootLayout = mason.createView(this)
+    rootLayout.style.size = Size(
+      Dimension.Points(toPx(500f)), Dimension.Points(toPx(500f))
+    )
+//    rootLayout.background = "pink"
+//    rootLayout.background = """
+//                            left 5% / 15% 60% repeat-x
+//                              url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png");
+//                            """
+//    rootLayout.style.background = """
+//no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png')
+//"""
+    //rootLayout.style.background = "content-box radial-gradient(crimson, skyblue);"
+    rootLayout.style.background =
+      "radial-gradient(circle at center, rgba(0,0,255,0.3) 0%, rgba(0,0,255,0.0) 70%);"
+    body.append(rootLayout)
   }
 
   fun grid_template_areas_600(rootLayout: Scroll) {
@@ -440,8 +686,7 @@ class GridActivity : AppCompatActivity() {
     return parent
   }
 
-  fun wrapper6(rootLayout: Scroll) {
-    /*
+  fun wrapper6(rootLayout: Scroll) {/*
     display: grid;
   background: no-repeat url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/12005/grid.png);
   grid-gap: 10px;
@@ -492,7 +737,8 @@ class GridActivity : AppCompatActivity() {
       // 150%
       it.fontSize = 150
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
-      it.background = "no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png')"
+      it.background =
+        "no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png')"
       it.border = "1px solid #444"
       it.padding = Rect(
         LengthPercentage.Points(toPx(20f)),

@@ -46,6 +46,17 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     fatalError("init(coder:) has not been implemented")
   }
   
+  
+  public override func draw(_ rect: CGRect) {
+    guard let context = UIGraphicsGetCurrentContext() else { return }
+    guard let background = style.mBackground else {return}
+    if let color = background.color {
+                context.setFillColor(color.cgColor)
+                context.fill(rect)
+            }
+    background.draw(on: self, in: context, rect: rect)
+  }
+  
   @objc public static func createGridView(_ mason: NSCMason) -> MasonUIView{
     let view = MasonUIView(mason: mason)
     view.configure { style in
@@ -128,6 +139,16 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   func checkAndUpdateStyle() {
     if (!node.inBatch) {
       node.style.updateNativeStyle()
+    }
+  }
+  
+  @objc public var background: String {
+    get{
+      return style.background
+    }
+    set(value) {
+      style.background = value
+      checkAndUpdateStyle()
     }
   }
   

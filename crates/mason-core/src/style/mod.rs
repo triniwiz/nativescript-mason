@@ -8,10 +8,12 @@ use crate::style::utils::{
 use crate::utils::{
     align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
     align_self_from_enum, align_self_to_enum, boxing_size_from_enum, boxing_size_to_enum,
-    display_from_enum, display_mode_from_enum, display_mode_to_enum, display_to_enum,
-    flex_direction_from_enum, flex_direction_to_enum, flex_wrap_from_enum, flex_wrap_to_enum,
-    grid_auto_flow_from_enum, grid_auto_flow_to_enum, overflow_from_enum, overflow_to_enum,
-    position_from_enum, position_to_enum, text_align_from_enum, text_align_to_enum,
+    clear_from_enum, clear_to_enum, display_from_enum, display_mode_from_enum,
+    display_mode_to_enum, display_to_enum, flex_direction_from_enum, flex_direction_to_enum,
+    flex_wrap_from_enum, flex_wrap_to_enum, float_from_enum, float_to_enum,
+    grid_auto_flow_from_enum, grid_auto_flow_to_enum, object_to_enum, overflow_from_enum,
+    overflow_to_enum, position_from_enum, position_to_enum, text_align_from_enum,
+    text_align_to_enum,
 };
 #[cfg(target_os = "android")]
 use crate::JVM;
@@ -28,14 +30,15 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use style_atoms::Atom;
-use taffy::prelude::{TaffyAuto, TaffyGridLine};
+use taffy::prelude::TaffyGridLine;
 use taffy::{
     AbsoluteAxis, AbstractAxis, AlignContent, AlignItems, AlignSelf, BlockContainerStyle,
-    BlockItemStyle, BoxGenerationMode, BoxSizing, CoreStyle, Dimension, Display, FlexDirection,
-    FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, GenericGridTemplateComponent, GridAutoFlow,
-    GridContainerStyle, GridItemStyle, GridPlacement, GridTemplateArea, GridTemplateComponent,
-    GridTemplateRepetition, JustifyContent, JustifyItems, JustifySelf, LengthPercentage,
-    LengthPercentageAuto, Line, Point, Position, Rect, Size, TextAlign, TrackSizingFunction,
+    BlockItemStyle, BoxGenerationMode, BoxSizing, Clear, CoreStyle, Dimension, Display,
+    FlexDirection, FlexWrap, FlexboxContainerStyle, FlexboxItemStyle, Float,
+    GenericGridTemplateComponent, GridAutoFlow, GridContainerStyle, GridItemStyle, GridPlacement,
+    GridTemplateArea, GridTemplateComponent, GridTemplateRepetition, JustifyContent, JustifyItems,
+    JustifySelf, LengthPercentage, LengthPercentageAuto, Line, Point, Position, Rect, Size,
+    TextAlign, TrackSizingFunction,
 };
 
 pub mod utils;
@@ -107,6 +110,28 @@ impl std::fmt::Display for DisplayMode {
             DisplayMode::None => write!(f, "NONE"),
             DisplayMode::Inline => write!(f, "INLINE"),
             DisplayMode::Box => write!(f, "BOX"),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub enum ObjectFit {
+    Contain,
+    Cover,
+    #[default]
+    Fill,
+    None,
+    ScaleDown,
+}
+
+impl std::fmt::Display for ObjectFit {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ObjectFit::Contain => write!(f, "container"),
+            ObjectFit::Cover => write!(f, "cover"),
+            ObjectFit::Fill => write!(f, "fill"),
+            ObjectFit::None => write!(f, "none"),
+            ObjectFit::ScaleDown => write!(f, "scale-down"),
         }
     }
 }
@@ -219,17 +244,17 @@ pub enum StyleKeys {
     // ----------------------------
     // Border Style (per side)
     // ----------------------------
-    BORDER_LEFT_STYLE   = 348,
-    BORDER_RIGHT_STYLE  = 352,
-    BORDER_TOP_STYLE    = 356,
+    BORDER_LEFT_STYLE = 348,
+    BORDER_RIGHT_STYLE = 352,
+    BORDER_TOP_STYLE = 356,
     BORDER_BOTTOM_STYLE = 360,
 
     // ----------------------------
     // Border Color (per side)
     // ----------------------------
-    BORDER_LEFT_COLOR   = 364,
-    BORDER_RIGHT_COLOR  = 368,
-    BORDER_TOP_COLOR    = 372,
+    BORDER_LEFT_COLOR = 364,
+    BORDER_RIGHT_COLOR = 368,
+    BORDER_TOP_COLOR = 372,
     BORDER_BOTTOM_COLOR = 376,
 
     // ============================================================
@@ -241,38 +266,49 @@ pub enum StyleKeys {
     // ----------------------------
     // Top-left corner (20 bytes)
     // ----------------------------
-    BORDER_RADIUS_TOP_LEFT_X_TYPE     = 380,
-    BORDER_RADIUS_TOP_LEFT_X_VALUE    = 384,
-    BORDER_RADIUS_TOP_LEFT_Y_TYPE     = 388,
-    BORDER_RADIUS_TOP_LEFT_Y_VALUE    = 392,
-    BORDER_RADIUS_TOP_LEFT_EXPONENT   = 396,
+    BORDER_RADIUS_TOP_LEFT_X_TYPE = 380,
+    BORDER_RADIUS_TOP_LEFT_X_VALUE = 384,
+    BORDER_RADIUS_TOP_LEFT_Y_TYPE = 388,
+    BORDER_RADIUS_TOP_LEFT_Y_VALUE = 392,
+    BORDER_RADIUS_TOP_LEFT_EXPONENT = 396,
 
     // ----------------------------
     // Top-right corner
     // ----------------------------
-    BORDER_RADIUS_TOP_RIGHT_X_TYPE    = 400,
-    BORDER_RADIUS_TOP_RIGHT_X_VALUE   = 404,
-    BORDER_RADIUS_TOP_RIGHT_Y_TYPE    = 408,
-    BORDER_RADIUS_TOP_RIGHT_Y_VALUE   = 412,
-    BORDER_RADIUS_TOP_RIGHT_EXPONENT  = 416,
+    BORDER_RADIUS_TOP_RIGHT_X_TYPE = 400,
+    BORDER_RADIUS_TOP_RIGHT_X_VALUE = 404,
+    BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 408,
+    BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 412,
+    BORDER_RADIUS_TOP_RIGHT_EXPONENT = 416,
 
     // ----------------------------
     // Bottom-right corner
     // ----------------------------
-    BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE   = 420,
-    BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE  = 424,
-    BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE   = 428,
-    BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE  = 432,
+    BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 420,
+    BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 424,
+    BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 428,
+    BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 432,
     BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 436,
 
     // ----------------------------
     // Bottom-left corner
     // ----------------------------
-    BORDER_RADIUS_BOTTOM_LEFT_X_TYPE    = 440,
-    BORDER_RADIUS_BOTTOM_LEFT_X_VALUE   = 444,
-    BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE    = 448,
-    BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE   = 452,
-    BORDER_RADIUS_BOTTOM_LEFT_EXPONENT  = 456,
+    BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 440,
+    BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 444,
+    BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448,
+    BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452,
+    BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456,
+
+    // ----------------------------
+    // Float
+    // ----------------------------
+    FLOAT = 460,
+    CLEAR = 464,
+
+    // ----------------------------
+    // Object Fit
+    // ----------------------------
+    OBJECT_FIT = 468,
 }
 
 bitflags! {
@@ -321,6 +357,9 @@ bitflags! {
         const BORDER_STYLE    = 1 << 40;
         const BORDER_RADIUS    = 1 << 41;
         const BORDER_COLOR    = 1 << 42;
+        const FLOAT = 1 << 43;
+        const CLEAR = 1 << 44;
+        const OBJECT_FIT = 1 << 45;
     }
 }
 
@@ -763,7 +802,7 @@ impl Style {
     }
     fn default_data() -> Vec<u8> {
         // last item + 4 bytes
-        let mut buffer = vec![0_u8; 460];
+        let mut buffer = vec![0_u8; 472];
 
         {
             let float_slice = unsafe {
@@ -778,6 +817,8 @@ impl Style {
         let int_slice = unsafe {
             std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut i32, buffer.len() / 4)
         };
+
+        int_slice[StyleKeys::OBJECT_FIT as usize / 4] = object_to_enum(ObjectFit::Fill);
 
         int_slice[StyleKeys::DISPLAY as usize / 4] = display_to_enum(Display::Block);
 
@@ -1047,6 +1088,21 @@ impl Style {
             grid_row_end: Default::default(),
             device_scale: None,
         }
+    }
+
+    pub fn get_float(&self) -> Float {
+        float_from_enum(get_style_data_i32(self.data(), StyleKeys::FLOAT))
+            .expect("Internal misuse: float enum out of range (expected 0–2)")
+    }
+    pub fn set_float(&mut self, value: Float) {
+        set_style_data_i32(self.data_mut(), StyleKeys::FLOAT, float_to_enum(value))
+    }
+    pub fn get_clear(&self) -> Clear {
+        clear_from_enum(get_style_data_i32(self.data(), StyleKeys::CLEAR))
+            .expect("Internal misuse: clear enum out of range (expected 0–3)")
+    }
+    pub fn set_clear(&mut self, value: Clear) {
+        set_style_data_i32(self.data_mut(), StyleKeys::CLEAR, clear_to_enum(value))
     }
 
     pub fn set_grid_template_areas_css(&mut self, value: &str) {
@@ -2382,6 +2438,16 @@ impl BlockItemStyle for Style {
     #[inline(always)]
     fn is_table(&self) -> bool {
         self.get_item_is_table()
+    }
+
+    #[inline(always)]
+    fn float(&self) -> Float {
+        self.get_float()
+    }
+
+    #[inline(always)]
+    fn clear(&self) -> Clear {
+        self.get_clear()
     }
 }
 

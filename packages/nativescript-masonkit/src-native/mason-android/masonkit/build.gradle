@@ -27,72 +27,75 @@ def isRelease = gradle.startParameter.taskNames.any {
   it.toLowerCase().contains("release")
 }
 
-  def rustProfile = isRelease ? "release" : null
+def rustProfile = isRelease ? "release" : null
 
-  android {
-    namespace 'org.nativescript.mason.masonkit'
-    compileSdk 36
-    defaultConfig {
-      minSdk 21
-      targetSdk 36
-      multiDexEnabled true
-      testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-      consumerProguardFiles "consumer-rules.pro"
-    }
-
-    buildTypes {
-      release {
-        minifyEnabled false
-        proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-      }
-    }
-    compileOptions {
-      sourceCompatibility JavaVersion.VERSION_17
-      targetCompatibility JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-      jvmTarget = '17'
-    }
+android {
+  namespace 'org.nativescript.mason.masonkit'
+  compileSdk 36
+  defaultConfig {
+    minSdk 21
+    targetSdk 36
+    multiDexEnabled true
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    consumerProguardFiles "consumer-rules.pro"
+    // using for blur pre RenderNode
+    renderscriptTargetApi 28
+    renderscriptSupportModeEnabled true
   }
 
-  apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
-
-  cargo {
-    module = "../../../../../"
-    libname = "masonnative"
-
-    apiLevels = [
-      "arm"   : 21,
-      "arm64" : 21,
-      "x86"   : 21,
-      "x86_64": 21
-    ]
-
-    if (rustProfile == "release") {
-      profile = "release"     // gradle plugin will pass --release
-    }
-
-
-    targets = rustTargets
-    targetDirectory = "../../../../../target"
-    verbose = true
-    extraCargoBuildArguments = ['-p', 'mason-android']
-
-    exec = { spec, toolchain ->
-      spec.environment("RUSTFLAGS", "-C link-arg=-Wl,--hash-style=sysv -C link-arg=-Wl,-z,max-page-size=16384")
+  buildTypes {
+    release {
+      minifyEnabled false
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
     }
   }
-
-  tasks.configureEach { task ->
-    if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
-      task.dependsOn 'cargoBuild'
-    }
-
-    if (name == "mergeDebugJniLibFolders" || name == "mergeReleaseJniLibFolders") {
-      outputs.upToDateWhen { false }
-      dependsOn("cargoBuild")
-    }
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
   }
+  kotlinOptions {
+    jvmTarget = '17'
+  }
+}
+
+apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
+
+cargo {
+  module = "../../../../../"
+  libname = "masonnative"
+
+  apiLevels = [
+    "arm"   : 21,
+    "arm64" : 21,
+    "x86"   : 21,
+    "x86_64": 21
+  ]
+
+  if (rustProfile == "release") {
+    profile = "release"     // gradle plugin will pass --release
+  }
+
+
+  targets = rustTargets
+  targetDirectory = "../../../../../target"
+  verbose = true
+  extraCargoBuildArguments = ['-p', 'mason-android']
+
+  exec = { spec, toolchain ->
+    spec.environment("RUSTFLAGS", "-C link-arg=-Wl,--hash-style=sysv -C link-arg=-Wl,-z,max-page-size=16384")
+  }
+}
+
+tasks.configureEach { task ->
+  if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
+    task.dependsOn 'cargoBuild'
+  }
+
+  if (name == "mergeDebugJniLibFolders" || name == "mergeReleaseJniLibFolders") {
+    outputs.upToDateWhen { false }
+    dependsOn("cargoBuild")
+  }
+}
 
 //afterEvaluate {
 //    tasks.withType(CargoBuildTask).configureEach { buildTask ->
@@ -104,14 +107,15 @@ def isRelease = gradle.startParameter.taskNames.any {
 //}
 
 
-  dependencies {
-    implementation 'androidx.core:core-ktx:1.16.0'
-    implementation 'androidx.appcompat:appcompat:1.7.1'
-    implementation 'com.google.code.gson:gson:2.13.2'
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
-    implementation 'com.github.bumptech.glide:glide:4.16.0'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
-  }
+dependencies {
+  implementation 'androidx.core:core-ktx:1.12.0'
+  implementation 'androidx.appcompat:appcompat:1.6.1'
+  implementation 'androidx.activity:activity:1.10.1'
+  implementation 'com.google.code.gson:gson:2.13.2'
+  testImplementation 'junit:junit:4.13.2'
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+  implementation 'com.github.bumptech.glide:glide:4.16.0'
+  annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
+}
 

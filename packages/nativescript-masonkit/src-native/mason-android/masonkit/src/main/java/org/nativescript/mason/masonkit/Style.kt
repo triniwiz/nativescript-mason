@@ -23,6 +23,7 @@ import org.nativescript.mason.masonkit.enums.GridAutoFlow
 import org.nativescript.mason.masonkit.enums.JustifyContent
 import org.nativescript.mason.masonkit.enums.JustifyItems
 import org.nativescript.mason.masonkit.enums.JustifySelf
+import org.nativescript.mason.masonkit.enums.ObjectFit
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
@@ -133,7 +134,6 @@ object StyleKeys {
   const val MAX_CONTENT_WIDTH = 340
   const val MAX_CONTENT_HEIGHT = 344
 
-
   // ----------------------------
   // Border Style (per side)
   // ----------------------------
@@ -191,6 +191,14 @@ object StyleKeys {
   const val BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448
   const val BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452
   const val BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456
+
+  // ----------------------------
+  // Float
+  // ----------------------------
+  const val FLOAT = 460
+  const val CLEAR = 464
+
+  const val OBJECT_FIT = 468
 }
 
 @JvmInline
@@ -239,6 +247,9 @@ value class StateKeys internal constructor(val bits: Long) {
     val BORDER_STYLE = StateKeys(1L shl 40)
     val BORDER_RADIUS = StateKeys(1L shl 41)
     val BORDER_COLOR = StateKeys(1L shl 42)
+    val FLOAT = StateKeys(1L shl 43)
+    val CLEAR = StateKeys(1L shl 44)
+    val OBJECT_FIT = StateKeys(1L shl 45)
   }
 
   infix fun or(other: StateKeys): StateKeys = StateKeys(bits or other.bits)
@@ -328,8 +339,7 @@ internal object StyleState {
   const val SET: Byte = 1
 }
 
-class Style internal constructor(private var node: Node) {
-
+class Style internal constructor(internal var node: Node) {
   internal var isValueInitialized: Boolean = false
   internal var isTextValueInitialized: Boolean = false
   internal var gridState = GridState()
@@ -555,6 +565,46 @@ class Style internal constructor(private var node: Node) {
       setOrAppendState(StateKeys.FORCE_INLINE)
     }
 
+
+  var objectFit: ObjectFit
+    get() {
+      return ObjectFit.fromInt(values.getInt(StyleKeys.OBJECT_FIT))
+    }
+    set(value) {
+      values.putInt(StyleKeys.OBJECT_FIT, value.value)
+      setOrAppendState(StateKeys.OBJECT_FIT)
+    }
+
+
+  var float: org.nativescript.mason.masonkit.enums.Float
+    get() {
+      return org.nativescript.mason.masonkit.enums.Float.fromInt(values.getInt(StyleKeys.FLOAT))
+    }
+    set(value) {
+      values.putInt(StyleKeys.FLOAT, value.value)
+      setOrAppendState(StateKeys.FLOAT)
+    }
+
+  var clear: org.nativescript.mason.masonkit.enums.Clear
+    get() {
+      return org.nativescript.mason.masonkit.enums.Clear.fromInt(values.getInt(StyleKeys.CLEAR))
+    }
+    set(value) {
+      values.putInt(StyleKeys.CLEAR, value.value)
+      setOrAppendState(StateKeys.CLEAR)
+    }
+
+  internal var mFilter: CSSFilters.CSSFilter? = null
+
+  var filter: String = ""
+    set(value) {
+      field = value
+      val hadFilters = mFilter?.filters?.isNotEmpty() ?: false
+      mFilter = CSSFilters.parse(value)
+      if (mFilter?.filters?.isNotEmpty() == true || (value.isEmpty() && hadFilters)) {
+        (node.view as? View)?.invalidate()
+      }
+    }
 
   internal var mBackground: Background? = null
   internal var mBackgroundRaw: String = ""

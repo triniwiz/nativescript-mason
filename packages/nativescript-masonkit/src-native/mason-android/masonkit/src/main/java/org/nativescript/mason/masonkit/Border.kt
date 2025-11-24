@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PointF
@@ -321,7 +322,6 @@ private fun LengthPercentage.toPx(viewSize: Float): Float {
   }
 }
 
-
 class BorderRenderer(private val style: Style) {
 
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -572,7 +572,6 @@ class BorderRenderer(private val style: Style) {
   enum class Side { Left, Top, Right, Bottom }
 }
 
-
 private val lengthPercentageRegex = Regex("""^(\d+(\.\d+)?)(px|%)$""")
 private val colorRegex = Regex("""^(#\w{3,8}|[a-zA-Z]+)$""")
 
@@ -590,13 +589,24 @@ fun parseLengthPercentage(value: String): LengthPercentage? {
 
 private val SPLIT_REGEX = Regex("""\s+""")
 fun parseBorderShorthand(style: Style, value: String) {
-  var width: LengthPercentage? = null
+  // default to medium 3px
+  val scale = style.node.mason.scale
+  var width: LengthPercentage? = Points(scale * 3)
   var borderStyle: BorderStyle? = null
-  var color: Int? = null
+  // default to black
+  var color: Int? = Color.BLACK
 
   value.split(SPLIT_REGEX).forEach { part ->
     when {
-      parseLengthPercentage(part) != null -> width = parseLengthPercentage(part)
+      parseLengthPercentage(part) != null -> {
+        width = when (part) {
+          "thin" -> Points(scale * 1)
+          "medium" -> Points(scale * 3)
+          "thick" -> Points(scale * 5)
+          else -> parseLengthPercentage(part)
+        }
+      }
+
       BorderStyle.cssNames.contains(part.lowercase()) -> borderStyle = BorderStyle.fromName(part)
       colorRegex.matches(part) -> color = parseColor(part)
     }

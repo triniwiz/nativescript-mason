@@ -140,6 +140,73 @@ struct StyleKeys {
   static let MIN_CONTENT_HEIGHT = 336
   static let MAX_CONTENT_WIDTH = 340
   static let MAX_CONTENT_HEIGHT = 344
+  
+  
+  // ----------------------------
+  // Border Style (per side)
+  // ----------------------------
+  static let BORDER_LEFT_STYLE = 348
+  static let BORDER_RIGHT_STYLE = 352
+  static let BORDER_TOP_STYLE = 356
+  static let BORDER_BOTTOM_STYLE = 360
+
+  // ----------------------------
+  // Border Color (per side)
+  // ----------------------------
+  static let BORDER_LEFT_COLOR = 364
+  static let BORDER_RIGHT_COLOR = 368
+  static let BORDER_TOP_COLOR = 372
+  static let BORDER_BOTTOM_COLOR = 376
+
+  // ============================================================
+  // Border Radius (elliptical + squircle exponent)
+  // Each corner = 20 bytes:
+  //   x_type (4), x_value (4), y_type (4), y_value (4), exponent (4)
+  // ============================================================
+
+  // ----------------------------
+  // Top-left corner (20 bytes)
+  // ----------------------------
+  static let BORDER_RADIUS_TOP_LEFT_X_TYPE = 380
+  static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 384
+  static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 388
+  static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 392
+  static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 396
+
+  // ----------------------------
+  // Top-right corner
+  // ----------------------------
+  static let BORDER_RADIUS_TOP_RIGHT_X_TYPE = 400
+  static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 404
+  static let BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 408
+  static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 412
+  static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 416
+
+  // ----------------------------
+  // Bottom-right corner
+  // ----------------------------
+  static let BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 420
+  static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 424
+  static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 428
+  static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 432
+  static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 436
+
+  // ----------------------------
+  // Bottom-left corner
+  // ----------------------------
+  static let BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 440
+  static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 444
+  static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448
+  static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452
+  static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456
+
+  // ----------------------------
+  // Float
+  // ----------------------------
+  static let FLOAT = 460
+  static let CLEAR = 464
+  
+  static let OBJECT_FIT = 468
 }
 
 
@@ -190,6 +257,9 @@ internal struct StateKeys: OptionSet {
   static let minContentHeight = StateKeys(rawValue: 1 << 37)
   static let maxContentWidth  = StateKeys(rawValue: 1 << 38)
   static let maxContentHeight = StateKeys(rawValue: 1 << 39)
+  static let float = StateKeys(rawValue: 1 << 40)
+  static let clear = StateKeys(rawValue: 1 << 41)
+  static let objectFit = StateKeys(rawValue: 1 << 42)
 }
 
 
@@ -630,6 +700,42 @@ public class MasonStyle: NSObject {
     setOrAppendState(state)
   }
   
+  
+  // MARK: - ObjectFit
+  public var objectFit: ObjectFit {
+    get {
+      return ObjectFit(rawValue: getInt32(StyleKeys.OBJECT_FIT))!
+    }
+    set {
+      setInt32(StyleKeys.OBJECT_FIT, newValue.rawValue)
+      setOrAppendState(.objectFit)
+    }
+  }
+  
+  
+  // MARK: - Float
+  public var float: MasonFloat {
+    get {
+      return MasonFloat(rawValue: getInt32(StyleKeys.FLOAT))!
+    }
+    set {
+      setInt32(StyleKeys.FLOAT, newValue.rawValue)
+      setOrAppendState(.float)
+    }
+  }
+  
+  
+  public var clear: Clear {
+    get {
+      return Clear(rawValue: getInt32(StyleKeys.CLEAR))!
+    }
+    set {
+      setInt32(StyleKeys.CLEAR, newValue.rawValue)
+      setOrAppendState(.clear)
+    }
+  }
+  
+  
   // MARK: - Text Style Properties
   public var color: UInt32 {
     get {
@@ -644,6 +750,42 @@ public class MasonStyle: NSObject {
   
   public func setColor(ui color: UIColor) {
     self.color = color.toUInt32()
+  }
+  
+  
+  lazy var mFilter: CSSFilters.CSSFilter = {
+    CSSFilters.CSSFilter()
+  }()
+  
+  public var filter: String = "" {
+    didSet {
+      if(filter.isEmpty && !mFilter.filters.isEmpty){
+        mFilter.reset()
+        return
+      }
+      
+      mFilter.parse(css: filter)
+      
+      if(!mFilter.filters.isEmpty){
+        if let view = node.view {
+          mFilter.apply(to: view)
+        }
+      }
+    }
+  }
+  
+  
+  internal var mBackground: Background? = nil
+  public var background: String = "" {
+    didSet {
+      if(background.isEmpty){
+        mBackground = nil
+        return
+      }
+      guard let bg = parseBackground(background) else {return}
+      mBackground = bg
+      node.view?.setNeedsDisplay()
+    }
   }
   
   public var backgroundColor: UInt32 {
@@ -925,6 +1067,26 @@ public class MasonStyle: NSObject {
       if let name = newWeightName {
         weightName = name
       }
+    }
+  }
+  
+  public var fontFamily: String {
+    get {
+      return font.fontFamily
+    }
+    set {
+      let oldFamily = font.fontFamily
+          if (oldFamily != newValue) {
+            let oldFont = font
+            // Create new font with updated family
+            font = NSCFontFace(family: newValue)
+            font.weight = oldFont.weight
+            font.style = oldFont.style
+            font.fontDescriptors.display = oldFont.fontDescriptors.display
+          
+            setUInt8(TextStyleKeys.FONT_FAMILY_STATE, StyleState.SET, text: true)
+            notifyTextStyleChanged(TextStyleChangeMasks.fontFamily.rawValue)
+          }
     }
   }
   

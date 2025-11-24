@@ -5,4 +5,11 @@ data class Rect<T>(
   val right: T,
   val top: T,
   val bottom: T
-)
+) {
+  companion object {
+    @JvmStatic
+    fun <T> uniform(value: T): Rect<T> {
+      return Rect(value, value, value, value)
+    }
+  }
+}

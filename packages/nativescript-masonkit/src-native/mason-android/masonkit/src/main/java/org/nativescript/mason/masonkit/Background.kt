@@ -15,10 +15,19 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 
+
+private val IMAGE_REGEX = Regex("""url\(["']?(.*?)["']?\)""")
+private val IMAGE_REPLACE_REGEX = Regex("""url\(['"].*?['"]\)""")
+private val GRADIENT_REGEX = Regex("""(linear|radial)-gradient\((.*?)\)\s*;?""")
+private val GRADIENT_DIRECTION_REGEX = Regex("""to .*""")
+private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat")
+private val PARSE_LAYER_REGEX = Regex("""\s+""")
+private val POSITION_KEYS = listOf("top", "bottom", "left", "right", "center")
+private val COLOR_KEYWORDS = listOf("red", "blue", "green", "black", "white", "yellow", "gray")
+private val CLIP_REGEX = Regex("""^(content-box|border-box|padding-box)\s+""")
+
 enum class BackgroundClip {
-  BORDER_BOX,
-  PADDING_BOX,
-  CONTENT_BOX
+  BORDER_BOX, PADDING_BOX, CONTENT_BOX
 }
 
 data class BackgroundLayer(
@@ -33,15 +42,11 @@ data class BackgroundLayer(
 )
 
 data class Background(
-  var color: Int? = null,
-  var layers: MutableList<BackgroundLayer> = mutableListOf()
+  var color: Int? = null, var layers: MutableList<BackgroundLayer> = mutableListOf()
 )
 
 enum class BackgroundRepeat(val value: String) {
-  REPEAT("repeat"),
-  REPEAT_X("repeat-x"),
-  REPEAT_Y("repeat-y"),
-  NO_REPEAT("no-repeat")
+  REPEAT("repeat"), REPEAT_X("repeat-x"), REPEAT_Y("repeat-y"), NO_REPEAT("no-repeat")
 }
 
 data class Gradient(
@@ -53,12 +58,7 @@ data class Gradient(
 private val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
 fun drawBackground(
-  context: Context,
-  view: View?,
-  layer: BackgroundLayer,
-  canvas: Canvas,
-  width: Int,
-  height: Int
+  context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 ) {
   layer.gradient?.let { drawGradient(layer, canvas, width, height) }
 
@@ -70,19 +70,16 @@ fun drawBackground(
     }
 
     // Load bitmap asynchronously
-    Glide.with(context)
-      .asBitmap()
-      .load(imageUrl)
-      .into(object : CustomTarget<Bitmap>() {
-        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-          layer.bitmap = resource
-          // Draw once loaded
-          // drawBitmapLayer(resource, layer, canvas, width, height)
-          view?.invalidate()
-        }
+    Glide.with(context).asBitmap().load(imageUrl).into(object : CustomTarget<Bitmap>() {
+      override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+        layer.bitmap = resource
+        // Draw once loaded
+        // drawBitmapLayer(resource, layer, canvas, width, height)
+        view?.invalidate()
+      }
 
-        override fun onLoadCleared(placeholder: Drawable?) {}
-      })
+      override fun onLoadCleared(placeholder: Drawable?) {}
+    })
   }
 }
 
@@ -105,12 +102,7 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 
       "radial" -> {
         RadialGradient(
-          width / 2f,
-          height / 2f,
-          maxOf(width, height) / 2f,
-          colors,
-          null,
-          Shader.TileMode.CLAMP
+          width / 2f, height / 2f, maxOf(width, height) / 2f, colors, null, Shader.TileMode.CLAMP
         )
       }
 
@@ -124,11 +116,7 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 }
 
 private fun drawBitmapLayer(
-  bitmap: Bitmap,
-  layer: BackgroundLayer,
-  canvas: Canvas,
-  width: Int,
-  height: Int
+  bitmap: Bitmap, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 ) {
   val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
@@ -253,9 +241,6 @@ fun parseColor(value: String): Int? {
   }
 }
 
-private val IMAGE_REGEX = Regex("""url\(["']?(.*?)["']?\)""")
-fun parseImage(value: String): String? = IMAGE_REGEX.find(value)?.groups?.get(1)?.value
-
 fun parseRepeat(value: String): BackgroundRepeat = when (value.lowercase()) {
   "repeat" -> BackgroundRepeat.REPEAT
   "repeat-x" -> BackgroundRepeat.REPEAT_X
@@ -283,9 +268,6 @@ fun parsePosition(parts: List<String>): Pair<Float, Float> {
   return x to y
 }
 
-private val GRADIENT_REGEX = Regex("""(linear|radial)-gradient\((.*?)\)\s*;?""")
-private val GRADIENT_DIRECTION_REGEX = Regex("""to .*""")
-
 fun parseGradient(part: String): Gradient? {
   val match = GRADIENT_REGEX.find(part) ?: return null
   val type = match.groupValues[1]
@@ -296,16 +278,6 @@ fun parseGradient(part: String): Gradient? {
   return Gradient(type, direction, stops)
 }
 
-private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat")
-private val PARSE_LAYER_REGEX = Regex("""\s+""")
-private val POSITION_KEYS = listOf("top", "bottom", "left", "right", "center")
-private val COLOR_KEYWORDS = listOf("red", "blue", "green", "black", "white", "yellow", "gray")
-private val COLOR_MAP = mapOf(
-  "crimson" to 0xFFDC143C.toInt(),
-  "skyblue" to 0xFF87CEEB.toInt()
-)
-private val CLIP_REGEX = Regex("""^(content-box|border-box|padding-box)\s+""")
-// private val CLIP_REGEX = Regex("""\b(content-box|padding-box|border-box)\b""")
 fun parseBackgroundLayers(css: String): List<BackgroundLayer> {
   val layers = mutableListOf<BackgroundLayer>()
   var depth = 0
@@ -346,7 +318,7 @@ fun parseLayer(layerValue: String): BackgroundLayer {
   // 2. Extract image URL (remove it from value)
   IMAGE_REGEX.find(value)?.groups?.get(1)?.value?.let {
     layer.image = it
-    value = value.replace(Regex("""url\(['"].*?['"]\)"""), "").trim()
+    value = value.replace(IMAGE_REPLACE_REGEX, "").trim()
   }
 
   // 3. Gradient
@@ -392,17 +364,6 @@ fun splitLayers(css: String): List<String> {
 
 fun parseBackground(css: String): Background? {
   val bg = Background()
-
-//  val layers = splitLayers(css).mapNotNull { layerStr ->
-//    val trimmed = layerStr.trim()
-//    if (trimmed.isEmpty()) return@mapNotNull null
-//
-//    val layer = parseLayer(trimmed)
-//
-//    if (layer.image != null || layer.gradient != null || layer.size != null || layer.position != null) {
-//      layer
-//    } else null
-//  }
 
   val layers = parseBackgroundLayers(css)
 
