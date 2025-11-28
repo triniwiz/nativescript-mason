@@ -9,7 +9,7 @@
 import Foundation
 import UIKit
 
-enum NSCFontStyle: Codable, Equatable {
+enum NSCFontStyle: Codable, Equatable, Hashable {
   case normal
   case italic
   case oblique(Int?)
@@ -409,7 +409,7 @@ let srcPattern = #"src:\s*url\(([^)]+)\)\s*format\('([^']+)'\);"#
 @objcMembers
 @objc(NSCFontFace)
 public class NSCFontFace: NSObject {
-  private var uiFont: UIFont? = nil
+  internal var uiFont: UIFont? = nil
   public internal(set) var font: CGFont? = nil
   internal var fontFamily: String
   public internal(set) var fontData: NSData? = nil
@@ -744,14 +744,19 @@ public class NSCFontFace: NSObject {
     }
     
     set {
-      fontDescriptors.weight = newValue
+      let old = fontDescriptors.weight
+      if(old == newValue){
+        return
+      }
       
+      fontDescriptors.weight = newValue
+
       if let font = uiFont {
         var descriptor = font.fontDescriptor
-        let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: fontDescriptors.weight.uiFontWeight]
+        let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: NSNumber(value: fontDescriptors.weight.uiFontWeight.rawValue)]
         
         
-        descriptor.addingAttributes([.traits: traits])
+        descriptor = descriptor.addingAttributes([.traits: traits])
         
         switch(fontDescriptors.weight){
         case .semiBold, .bold, .extraBold, .black:
@@ -763,10 +768,10 @@ public class NSCFontFace: NSObject {
         }
         
         let fontValue = UIFont(descriptor: descriptor, size: 16)
+        
         self.font = CTFontCopyGraphicsFont(fontValue, nil)
         self.uiFont = fontValue
       }
-      
     }
     
   }

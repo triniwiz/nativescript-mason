@@ -42,20 +42,11 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     style.setStyleChangeListener(listener: self)
   }
   
+  
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
   
-  
-  public override func draw(_ rect: CGRect) {
-    guard let context = UIGraphicsGetCurrentContext() else { return }
-    guard let background = style.mBackground else {return}
-    if let color = background.color {
-                context.setFillColor(color.cgColor)
-                context.fill(rect)
-            }
-    background.draw(on: self, in: context, rect: rect)
-  }
   
   @objc public static func createGridView(_ mason: NSCMason) -> MasonUIView{
     let view = MasonUIView(mason: mason)
@@ -576,8 +567,8 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     return node.style.paddingCompat.bottom
   }
   
-  @objc public func setBorder(_ left: Float,_ top: Float,_ right: Float, _ bottom: Float) {
-    node.style.border = MasonRect(
+  @objc public func setBorderWidth(_ left: Float,_ top: Float,_ right: Float, _ bottom: Float) {
+    style.borderWidth = MasonRect(
       MasonLengthPercentage.Points(left),
       MasonLengthPercentage.Points(right),
       MasonLengthPercentage.Points(top),
@@ -585,44 +576,44 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     )
   }
   
-  @objc public func getBorder() -> MasonLengthPercentageRectCompat{
-    return node.style.borderCompat
+  @objc public func getBorderWidth() -> MasonLengthPercentageRectCompat{
+    return node.style.borderWidthCompat
   }
   
-  @objc public func setBorderLeft(_ left: Float, _ type: Int) {
-    node.style.setBorderLeft(left, type)
+  @objc public func setBorderLeftWidth(_ left: Float, _ type: Int) {
+    node.style.setBorderLeftWidth(left, type)
     checkAndUpdateStyle()
   }
   
-  @objc public func setBorderRight(_ right: Float, _ type: Int) {
-    node.style.setBorderRight(right, type)
+  @objc public func setBorderRightWidth(_ right: Float, _ type: Int) {
+    node.style.setBorderRightWidth(right, type)
     checkAndUpdateStyle()
   }
   
-  @objc public func setBorderTop(_ top: Float, _ type: Int) {
-    node.style.setBorderTop(top, type)
+  @objc public func setBorderTopWidth(_ top: Float, _ type: Int) {
+    node.style.setBorderTopWidth(top, type)
     checkAndUpdateStyle()
   }
   
-  @objc public func setBorderBottom(_ bottom: Float, _ type: Int) {
-    node.style.setBorderBottom(bottom, type)
+  @objc public func setBorderBottomWidth(_ bottom: Float, _ type: Int) {
+    node.style.setBorderBottomWidth(bottom, type)
     checkAndUpdateStyle()
   }
   
   @objc public func getBorderLeft() -> MasonLengthPercentageCompat {
-    return node.style.borderCompat.left
+    return node.style.borderWidthCompat.left
   }
   
   @objc public func getBorderRight() -> MasonLengthPercentageCompat {
-    return node.style.borderCompat.right
+    return node.style.borderWidthCompat.right
   }
   
   @objc public func getBorderBottom() -> MasonLengthPercentageCompat {
-    return node.style.borderCompat.bottom
+    return node.style.borderWidthCompat.bottom
   }
   
   @objc public func getBorderTop() -> MasonLengthPercentageCompat {
-    return node.style.borderCompat.top
+    return node.style.borderWidthCompat.top
   }
   
   @objc public func setMargin(_ left: Float, _ top: Float,_ right: Float,_ bottom: Float) {

@@ -421,21 +421,43 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     // testInsert()
     // testInlineStyleChange()
     //testTextNodeInsertingInline()
-    //testTextNodeReplaceWithImage()
+   // testTextNodeReplaceWithImage()
     // testTextAppend()
     //flexDirection()
     
     // gridTemplateColumns()
     // padding()
     // fontSize()
-    //  textAlignment()
+      textAlignment()
     //wrapper8()
     //filter()
   //  renderFloat(body)
-    let sv = mason.createScrollView()
-    sv.style.overflowY = .Scroll
-    body.append(sv)
-    objectFit(sv)
+//    let sv = mason.createScrollView()
+   // sv.style.overflowY = .Scroll
+//    body.append(sv)
+//    objectFit(sv)
+        //filter()
+    
+  }
+  
+  func bold(){
+    let a = mason.createView()
+    a.style.fontFamily = "'Courier New', monospace"
+    a.append(text: "Hi")
+    a.style.fontWeight = "bold"
+    
+    let b = mason.createTextView(type:.Span )
+    
+    b.append(text: "???")
+    
+    b.style.fontWeight = "black"
+    
+    a.append(b)
+    
+    
+    body.append(a)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
   func insertObjectFit(_ section: MasonElement, _ header: String, _ fit: ObjectFit, _ src: String) {
@@ -443,29 +465,28 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     h2.append(text: header)
 
     h2.configure { it in
-      it.fontWeight = "'Courier New', monospace"
+      it.fontFamily = "'Courier New', monospace"
       it.fontSize = 16
       it.margin = MasonRect(
-        .Points(
-          toPx((16 / 0.3))
-        ),
         .Points(0),
-        .Points(toPx(16)),
-        .Points(0)
+        .Points(0),
+        .Points(16),
+        .Points(
+          16 / 0.3
+        )
       )
     }
-
 
     section.append(h2)
     let img = mason.createImageView()
     img.configure { it in
       it.objectFit = fit
-     // it.border = "1px solid black"
+      it.border = "1px solid black"
       it.margin = MasonRect(
         .Points(0),
         .Points(0),
-        .Points(toPx(16)),
-        .Points(toPx(16))
+        .Points(10),
+        .Points(10)
       )
       it.size = MasonSize(.Points(toPx(150)), .Points(toPx(100)))
     }
@@ -475,19 +496,19 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let imgNarrow = mason.createImageView()
     imgNarrow.configure { it in
       it.objectFit = fit
-     // it.border = "1px solid black"
+      it.border = "1px solid black"
       it.margin = MasonRect(
         .Points(0),
         .Points(0),
-        .Points(toPx(16)),
-        .Points(toPx(16))
+        .Points(10),
+        .Points(10)
       )
       it.size = MasonSize(.Points(toPx(100)), .Points(toPx(150)))
     }
     imgNarrow.src = src
 
     section.append(img)
-    section.append(text: " ")
+    section.append(text: "\u{00A0}")
     section.append(imgNarrow)
   }
 
@@ -509,6 +530,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     scroll.append(section)
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+    
+    mason.printTree(body.node)
 
   }
   
@@ -609,6 +633,23 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     ret.style.backgroundColor = 0xFFEFEFEF
     return ret
   }
+  
+  var selected: MasonElement? = nil
+  let defaultBorder = "1px solid #51565d"
+  let selectedBorder = "1px solid red"
+  
+   func defaultStyle(_ element: MasonElement) {
+    element.configure { it in
+      it.padding = MasonRect(uniform: .Points(toPx(10)))
+      it.border = defaultBorder
+      it.margin = MasonRect(
+        .Points(0),
+        .Points(0),
+        .Points(toPx(5)),
+        .Points(toPx(5))
+      )
+    }
+  }
 
   
   func filter() {
@@ -643,6 +684,9 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     rootLayout.append(reset)
 
      let blur = mason.createView()
+    
+    defaultStyle(blur)
+    blur.background = "red"
      setOnClickListener(blur) {
        img.style.filter = "blur(5px);"
      }
@@ -813,16 +857,16 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     root.backgroundColor = .red
     let text = NSCMason.shared.createTextView(type:.P)
     text.fontSize = 18
-    text.backgroundColor = .blue
-    text.style.setLineHeight(28, false)
+    text.style.background = "blue"
+    //text.style.setLineHeight(28, false)
     text.append(text: "Hello")
     
     root.append(text)
     
     let btn = UIButton()
     btn.setTitle("Hello", for: .normal)
-    
-    root.addView(btn)
+//    
+//    root.addView(btn)
     
     body.append(root)
     
@@ -975,12 +1019,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       MasonDimension.Points(200),
       MasonDimension.Points(200)
     )
-    colRev.style.border =  MasonRect(
-      MasonLengthPercentage.Points(1),
-      MasonLengthPercentage.Points(1),
-      MasonLengthPercentage.Points(1),
-      MasonLengthPercentage.Points(1)
-    )
+    colRev.style.border =  "1px"
     
     colRev.style.display = Display.Flex
     
@@ -1028,12 +1067,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       MasonDimension.Points(200)
     )
     
-    rowRev.style.border = MasonRect(
-      MasonLengthPercentage.Points(1),
-      MasonLengthPercentage.Points(1),
-      MasonLengthPercentage.Points(1),
-      MasonLengthPercentage.Points(1)
-    )
+    rowRev.style.border = "1px"
     
     rowRev.style.display = Display.Flex
     

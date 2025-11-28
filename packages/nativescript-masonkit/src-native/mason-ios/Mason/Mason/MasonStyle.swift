@@ -382,7 +382,7 @@ internal struct GridState {
 @objc(MasonStyle)
 @objcMembers
 public class MasonStyle: NSObject {
-  public internal(set) var font: NSCFontFace = NSCFontFace(family: "serif")
+  public internal(set) var font = NSCFontFace(family: "serif")
   private var gridState = GridState()
   
   // Weight tracking
@@ -491,34 +491,16 @@ public class MasonStyle: NSObject {
   
   public init(node: MasonNode) {
     self.node = node
+    super.init()
+    mBackground = Background(style: self)
   }
   
   internal func invalidateStyle(_ state: Int64) {
     if state <= -1 {
       return
     }
-    var invalidate = false
-    let value = TextStyleChangeMasks(rawValue: state)
-    let colorDirty = value.contains(.color)
-    let sizeDirty = value.contains(.fontSize)
-    let weightDirty = value.contains(.fontWeight)
-    let styleDirty = value.contains(.fontStyle)
-    if (value.contains(.textTransform) || value.contains(.textWrap) || value.contains(
-      .whiteSpace
-    ) || value.contains(
-      .textOverflow
-    ) || colorDirty || value.contains(.backgroundColor) || value.contains(
-      .decorationColor
-    ) || value.contains(.decorationLine) || sizeDirty || weightDirty || styleDirty || value.contains(.lineHeight) || value.contains(.letterSpacing)
-    ) {
-      invalidate = true
-    }
-    
-    notifyTextStyleChanged(state)
-    
-    isTextDirty = -1
-    
-    if (invalidate && isDirty == -1) {
+
+    if (isDirty != -1) {
       (node.view as? MasonElement)?.invalidateLayout()
     }
   }
@@ -595,14 +577,14 @@ public class MasonStyle: NSObject {
   }
   
   
-  private func getUInt8(_ index: Int, text: Bool = false) -> UInt8 {
+  internal func getUInt8(_ index: Int, text: Bool = false) -> UInt8 {
     if(text){
       return textValues.bytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee
     }
     return values.bytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee
   }
   
-  private func setUInt8(_ index: Int, _ value: UInt8, text: Bool = false, buffer: NSMutableData? = nil) {
+  internal func setUInt8(_ index: Int, _ value: UInt8, text: Bool = false, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee = value
       return
@@ -615,7 +597,7 @@ public class MasonStyle: NSObject {
   }
   
   
-  private func getInt16(_ index: Int, text: Bool = false) -> Int16 {
+  internal func getInt16(_ index: Int, text: Bool = false) -> Int16 {
     if(text){
       return textValues.bytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee
     }
@@ -631,14 +613,14 @@ public class MasonStyle: NSObject {
   }
   
   
-  private func getUInt32(_ index: Int, text: Bool = false) -> UInt32 {
+  internal func getUInt32(_ index: Int, text: Bool = false) -> UInt32 {
     if(text){
       return textValues.bytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee
     }
     return values.bytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee
   }
   
-  private func setUInt32(_ index: Int, _ value: UInt32, text: Bool = false, buffer: NSMutableData? = nil) {
+  internal func setUInt32(_ index: Int, _ value: UInt32, text: Bool = false, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee = value
       return
@@ -657,7 +639,7 @@ public class MasonStyle: NSObject {
     return values.bytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee
   }
   
-  private func setInt32(_ index: Int, _ value: Int32, text: Bool = false, buffer: NSMutableData? = nil) {
+  internal func setInt32(_ index: Int, _ value: Int32, text: Bool = false, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
       return
@@ -670,14 +652,14 @@ public class MasonStyle: NSObject {
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
   }
   
-  private func getFloat(_ index: Int, text: Bool = false) -> Float {
+  internal func getFloat(_ index: Int, text: Bool = false) -> Float {
     if(text){
       return textValues.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
     }
     return values.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
   }
   
-  private func setFloat(_ index: Int, _ value: Float, text: Bool = false, buffer: NSMutableData? = nil) {
+  internal func setFloat(_ index: Int, _ value: Float, text: Bool = false, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
       return
@@ -698,6 +680,13 @@ public class MasonStyle: NSObject {
   private func updateFloatField(offset: Int, value: Float, state: StateKeys){
     setFloat(offset, value)
     setOrAppendState(state)
+  }
+  
+  
+  // Mark: - resetAllBorders
+  
+  internal func resetAllBorders(){
+    mBorderRender.resetAllBorders()
   }
   
   
@@ -775,16 +764,13 @@ public class MasonStyle: NSObject {
   }
   
   
-  internal var mBackground: Background? = nil
-  public var background: String = "" {
-    didSet {
-      if(background.isEmpty){
-        mBackground = nil
-        return
-      }
-      guard let bg = parseBackground(background) else {return}
-      mBackground = bg
-      node.view?.setNeedsDisplay()
+  internal var mBackground: Background!
+  public var background: String  {
+    set {
+      mBackground.parseBackground(newValue)
+    }
+    get {
+      return mBackground.css
     }
   }
   
@@ -1022,36 +1008,37 @@ public class MasonStyle: NSObject {
   }
   
   internal func setFontWeight(_ weight: Int,_ name: String?){
+    var newWeight: NSCFontWeight? = nil
     if weight >= 100 && weight <= 1000 {
       var newWeightName: String? = name
       switch weight {
       case 100..<200:
         self.weight = .thin
-        font.weight = .thin
+        newWeight = .thin
         newWeightName = "100"
       case 200..<300:
         self.weight = .ultraLight
-        font.weight = .extraLight
+        newWeight = .extraLight
         newWeightName = "200"
       case 300..<400:
         self.weight = .light
-        font.weight = .light
+        newWeight = .light
         newWeightName = "300"
       case 400..<500:
         self.weight = .regular
-        font.weight = .normal
+        newWeight = .normal
         newWeightName = "400"
       case 500..<600:
         self.weight = .medium
-        font.weight = .medium
+        newWeight = .medium
         newWeightName = "500"
       case 600..<700:
         self.weight = .semibold
-        font.weight = .semiBold
+        newWeight = .semiBold
         newWeightName = "600"
       case 700..<800:
         self.weight = .bold
-        font.weight = .bold
+        newWeight = .bold
         newWeightName = "700"
       case 800..<900:
         self.weight = .heavy
@@ -1066,6 +1053,12 @@ public class MasonStyle: NSObject {
       }
       if let name = newWeightName {
         weightName = name
+      }
+      
+      if let newWeight = newWeight {
+        node.style.setInt32(TextStyleKeys.FONT_WEIGHT, Int32(newWeight.rawValue) ,text: true)
+        setUInt8(TextStyleKeys.FONT_WEIGHT_STATE, StyleState.SET, text: true)
+        font.weight = newWeight
       }
     }
   }
@@ -1083,7 +1076,9 @@ public class MasonStyle: NSObject {
             font.weight = oldFont.weight
             font.style = oldFont.style
             font.fontDescriptors.display = oldFont.fontDescriptors.display
-          
+            
+            font.loadSync { _ in }
+
             setUInt8(TextStyleKeys.FONT_FAMILY_STATE, StyleState.SET, text: true)
             notifyTextStyleChanged(TextStyleChangeMasks.fontFamily.rawValue)
           }
@@ -1225,7 +1220,6 @@ public class MasonStyle: NSObject {
       }
     }
     set {
-      
       var displayMode = DisplayMode.None
       var value: Int32
       switch (newValue){
@@ -1814,37 +1808,45 @@ public class MasonStyle: NSObject {
   }
   
   
-  public var border: MasonRect<MasonLengthPercentage> {
+  internal lazy var mBorderRender: CSSBorderRenderer  = {
+    CSSBorderRenderer(style: self)
+  }()
+  
+  
+  public var border: String {
     get {
-      var type = getInt32(StyleKeys.BORDER_LEFT_TYPE)
-      var value = getFloat(StyleKeys.BORDER_LEFT_VALUE)
-      
-      let left = MasonLengthPercentage.fromValueType(value, Int(type))!
-      
-      type = getInt32(StyleKeys.BORDER_RIGHT_TYPE)
-      
-      value = getFloat(StyleKeys.BORDER_RIGHT_VALUE)
-      
-      let right = MasonLengthPercentage.fromValueType(value, Int(type))!
-      
-      
-      type = getInt32(StyleKeys.BORDER_TOP_TYPE)
-      
-      value = getFloat(StyleKeys.BORDER_TOP_VALUE)
-      
-      let top = MasonLengthPercentage.fromValueType(value, Int(type))!
-      
-      
-      type = getInt32(StyleKeys.BORDER_BOTTOM_TYPE)
-      
-      value = getFloat(StyleKeys.BORDER_BOTTOM_VALUE)
-      
-      let bottom = MasonLengthPercentage.fromValueType(value, Int(type))!
-      
-      
-      return MasonRect(left, right, top, bottom)
+      return mBorderRender.css
     }
     set {
+      mBorderRender.parseBorderShorthand(newValue)
+    }
+  }
+  
+  
+  
+  internal var mBorderLeft: CSSBorderRenderer.BorderSide {
+    return mBorderRender.left
+  }
+
+  internal var mBorderTop: CSSBorderRenderer.BorderSide {
+    return mBorderRender.top
+  }
+
+  internal var mBorderRight: CSSBorderRenderer.BorderSide {
+    return mBorderRender.right
+  }
+
+  internal var mBorderBottom: CSSBorderRenderer.BorderSide {
+    return mBorderRender.bottom
+  }
+  
+  
+  public var borderWidth: MasonRect<MasonLengthPercentage> {
+    get {
+      return MasonRect(mBorderRender.left.width, mBorderRender.right.width, mBorderRender.top.width, mBorderRender.bottom.width)
+    }
+    set {
+      
       setInt32(StyleKeys.BORDER_LEFT_TYPE, newValue.left.type)
       setFloat(StyleKeys.BORDER_LEFT_VALUE, newValue.left.value)
       
@@ -1861,23 +1863,23 @@ public class MasonStyle: NSObject {
     }
   }
   
-  public var borderCompat: MasonLengthPercentageRectCompat {
+  public var borderWidthCompat: MasonLengthPercentageRectCompat {
     get {
-      guard let border = border.compatLength else {
-        let compat = MasonLengthPercentageRectCompat(border)
-        border.compatLength = compat
+      guard let borderWidth = borderWidth.compatLength else {
+        let compat = MasonLengthPercentageRectCompat(borderWidth)
+        borderWidth.compatLength = compat
         return compat
       }
       
-      return border
+      return borderWidth
     }
     
     set {
-      border = newValue.intoMasonRect()
+      borderWidth = newValue.intoMasonRect()
     }
   }
   
-  public func setBorderLeft(_ value: Float, _ type: Int) {
+  public func setBorderLeftWidth(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentage(value, type) else {return}
     
     setInt32(StyleKeys.BORDER_LEFT_TYPE, left.type)
@@ -1886,7 +1888,7 @@ public class MasonStyle: NSObject {
     setOrAppendState(.border)
   }
   
-  public func setBorderRight(_ value: Float, _ type: Int) {
+  public func setBorderRightWidth(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentage(value, type) else {return}
     
     setInt32(StyleKeys.BORDER_RIGHT_TYPE, right.type)
@@ -1895,7 +1897,7 @@ public class MasonStyle: NSObject {
     setOrAppendState(.border)
   }
   
-  public func setBorderTop(_ value: Float, _ type: Int) {
+  public func setBorderTopWidth(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentage(value, type) else {return}
     
     setInt32(StyleKeys.BORDER_TOP_TYPE, top.type)
@@ -1904,7 +1906,7 @@ public class MasonStyle: NSObject {
     setOrAppendState(.border)
   }
   
-  public func setBorderBottom(_ value: Float, _ type: Int) {
+  public func setBorderBottomWidth(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentage(value, type) else {return}
     
     setInt32(StyleKeys.BORDER_TOP_TYPE, bottom.type)
@@ -1913,7 +1915,7 @@ public class MasonStyle: NSObject {
     setOrAppendState(.border)
   }
   
-  public func setBorderWithValueType(_ value: Float, _ type: Int) {
+  public func setBorderWidth(_ value: Float, _ type: Int) {
     guard let padding = getLengthPercentage(value, type) else {return}
     
     self.padding = MasonRect(padding, padding, padding, padding)
@@ -2651,14 +2653,14 @@ public class MasonStyle: NSObject {
         padding.bottom.type,
         padding.bottom.value,
         
-        border.left.type,
-        border.left.value,
-        border.right.type,
-        border.right.value,
-        border.top.type,
-        border.top.value,
-        border.bottom.type,
-        border.bottom.value,
+        mBorderRender.left.width.type,
+        mBorderRender.left.width.value,
+        mBorderRender.right.width.type,
+        mBorderRender.right.width.value,
+        mBorderRender.top.width.type,
+        mBorderRender.top.width.value,
+        mBorderRender.bottom.width.type,
+        mBorderRender.bottom.width.value,
         
         flexGrow,
         flexShrink,
@@ -2747,7 +2749,7 @@ public class MasonStyle: NSObject {
             "justifyContent: \(justifyContent.cssValue)",
             "margin: \(margin.cssValue)",
             "padding: \(padding.cssValue)",
-            "border: \(border.cssValue)",
+            "border: \(border)",
             "gap: \(gap.cssValue)",
             "flexGrow: \(flexGrow)",
             "flexShrink: \(flexShrink)",

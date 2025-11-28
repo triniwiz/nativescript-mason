@@ -15,6 +15,10 @@ internal struct Constants {
   static let UNSET_COLOR = UInt32(0xDEADBEEF)
 
   static let VIEW_PLACEHOLDER = "[[view_placeholder]]"
+  
+  static let FONT_STYLE = "[[font_style]]"
+  
+  static let FONT_WEIGHT = "[[font_weight]]"
 
   static let DEFAULT_FONT_SIZE: Int32 = 16
 }

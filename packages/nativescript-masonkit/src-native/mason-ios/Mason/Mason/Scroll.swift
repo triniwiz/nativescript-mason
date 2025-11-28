@@ -59,7 +59,6 @@ public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement, MasonElem
     isOpaque = false
   }
   
-  
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }

@@ -32,7 +32,7 @@ enum class BorderStyle(val value: Int, val css: String) {
       return value.lowercase() in cssNames
     }
 
-    fun fromName(value: String): BorderStyle {
+    fun fromName(value: String): BorderStyle? {
       return when (value) {
         "none" -> None
         "hidden" -> Hidden
@@ -44,7 +44,7 @@ enum class BorderStyle(val value: Int, val css: String) {
         "ridge" -> Ridge
         "inset" -> Inset
         "outset" -> Outset
-        else -> throw IllegalArgumentException("Unknown enum value: $value")
+        else -> null
       }
     }
 

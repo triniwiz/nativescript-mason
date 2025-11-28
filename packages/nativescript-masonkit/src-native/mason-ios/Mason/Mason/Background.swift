@@ -12,6 +12,18 @@ import CoreGraphics
 // MARK: - Background
 extension Background {
   
+  
+  func draw(on layer: CALayer, in context: CGContext, rect: CGRect) {
+    if let color = self.color {
+      context.setFillColor(color.cgColor)
+      context.fill(rect)
+    }
+    
+    for bgLayer in layers {
+      drawLayer(bgLayer, on: nil, on: layer, in: context, rect: rect)
+    }
+  }
+  
   func draw(on view: UIView, in context: CGContext, rect: CGRect) {
     if let color = self.color {
       context.setFillColor(color.cgColor)
@@ -24,7 +36,7 @@ extension Background {
   }
   
   
-  private func drawLayer(_ layer: BackgroundLayer, on view: UIView, in context: CGContext, rect: CGRect) {
+  private func drawLayer(_ layer: BackgroundLayer, on view: UIView? = nil, on caLayer: CALayer? = nil, in context: CGContext, rect: CGRect) {
     
     // Draw layer color (before gradient or image)
     if let color = layer.backgroundColor {
@@ -46,8 +58,17 @@ extension Background {
       } else {
         loadImageCached(url: urlStr) { image in
           layer.bitmap = image
-          DispatchQueue.main.async {
-            view.setNeedsDisplay()
+          if let view = view {
+            DispatchQueue.main.async {
+              view.setNeedsDisplay()
+              caLayer?.needsDisplay()
+            }
+          }
+          
+          if let caLayer = caLayer {
+            DispatchQueue.main.async {
+              caLayer.needsDisplay()
+            }
           }
         }
       }
@@ -180,8 +201,10 @@ func drawBackground(
     
     loadImageAsync(url: imageUrl) { image in
       layer.bitmap = image
-      DispatchQueue.main.async {
-        view?.setNeedsDisplay()
+      if let view = view {
+        DispatchQueue.main.async {
+          view.setNeedsDisplay()
+        }
       }
     }
   }

@@ -25,6 +25,7 @@ pub use node::NodeRef;
 pub mod style;
 mod tree;
 pub mod utils;
+mod tree_inline;
 
 #[cfg(target_os = "android")]
 pub static JVM: std::sync::OnceLock<jni::JavaVM> = std::sync::OnceLock::new();

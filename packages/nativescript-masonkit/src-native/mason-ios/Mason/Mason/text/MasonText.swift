@@ -218,6 +218,56 @@ enum DrawState: BitwiseCopyable {
 }
 
 
+
+public class MasonTextLayer: CALayer {
+  weak var textView: MasonText? = nil
+  
+  public override init() {
+    super.init()
+    needsDisplayOnBoundsChange = true
+  }
+  
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    needsDisplayOnBoundsChange = true
+  }
+  
+  
+  public override func draw(in context: CGContext) {
+    guard let textView = textView else {
+      return
+    }
+    
+    textView.style.mBackground.draw(on: self, in: context, rect: bounds)
+    
+    
+    textView.drawState = .drawing
+    // Build attributed string for drawing (uses cache if valid)
+    let text = textView.buildAttributedString(forMeasurement: false)
+    
+    context.textMatrix = .identity
+    context.saveGState()
+    context.translateBy(x: 0, y: bounds.height)
+    context.scaleBy(x: 1.0, y: -1.0)
+    
+    // Handle nowrap case
+    if textView.textWrap == .NoWrap {
+      textView.drawSingleLine(text: text, in: context)
+      context.restoreGState()
+      textView.drawState = .idle
+      return
+    }
+    // Multi-line text
+    textView.drawMultiLine(text: text, in: context)
+    context.restoreGState()
+    textView.drawState = .idle
+    
+    
+    textView.style.mBorderRender.draw(in: context, rect: bounds)
+  }
+}
+
+
 // MARK: - MasonText Main Class
 @objc(MasonText)
 @objcMembers
@@ -226,6 +276,28 @@ public class MasonText: UIView, MasonElement, MasonElementObjc, StyleChangeListe
   public let node: MasonNode
   public let type: MasonTextType
   internal var drawState: DrawState = .idle
+  
+  private var frameCache: [Int: CTFrame] = [:] // keyed by hash of attributed string + width
+  
+  private func cachedFrame(for text: NSAttributedString, width: CGFloat) -> CTFrame {
+    let key = text.hash ^ width.hashValue
+    if let cached = frameCache[key] {
+      return cached
+    }
+    
+    let framesetter = CTFramesetterCreateWithAttributedString(text)
+    let path = CGPath(rect: CGRect(x: 0, y: 0, width: width, height: .greatestFiniteMagnitude), transform: nil)
+    let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
+    
+    frameCache[key] = frame
+    return frame
+  }
+  
+  public override class var layerClass: AnyClass { MasonTextLayer.self }
+  
+  var textLayer: MasonTextLayer {
+    return layer as! MasonTextLayer
+  }
   
   public var textValues: NSMutableData {
     get {
@@ -369,9 +441,11 @@ public class MasonText: UIView, MasonElement, MasonElementObjc, StyleChangeListe
   
   private func initText(){
     isOpaque = false
+    textLayer.textView = self
+    textLayer.contentsScale = UIScreen.main.scale
     style.setStyleChangeListener(listener: self)
     node.view = self
-    node.measureFunc = { known, available in
+    node.measureFunc = { [self] known, available in
       return MasonText.measure(self, known, available)
     }
     node.setMeasureFunction(node.measureFunc!)
@@ -443,9 +517,11 @@ public class MasonText: UIView, MasonElement, MasonElementObjc, StyleChangeListe
     }
     
     style.font.loadSync { _ in }
-    
     node.inBatch = false
   }
+  
+  
+  
   
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
@@ -643,8 +719,8 @@ public class MasonText: UIView, MasonElement, MasonElementObjc, StyleChangeListe
   
   // monotonically increasing version for invalidation; cachedAttributedString is valid when
   // attributedStringVersion == segmentsInvalidateVersion
-  private var attributedStringVersion: Int = 0
-  private var segmentsInvalidateVersion: Int = 0
+  private var segmentsInvalidateVersion: UInt64 = 0
+  private var attributedStringVersion: UInt64 = 0
   
   internal func buildAttributedString(forMeasurement: Bool = false) -> NSAttributedString {
     // Return cached version if valid
@@ -655,75 +731,155 @@ public class MasonText: UIView, MasonElement, MasonElementObjc, StyleChangeListe
     if isBuilding {
       return NSMutableAttributedString()
     }
-    
     isBuilding = true
     defer { isBuilding = false }
     
     let composed = NSMutableAttributedString()
     
-    for child in node.children {
-      // Build current attributed fragment depending on child type
-           var fragment: NSAttributedString?
-     
-           if let textNode = child as? MasonTextNode {
-             fragment = textNode.attributed()
-           } else if let textView = child.view as? MasonText {
-             if shouldFlattenTextContainer(textView) {
-               fragment = textView.buildAttributedString(forMeasurement: forMeasurement)
-             } else {
-               fragment = createPlaceholder(for: child)
-             }
-           } else if (child.view != nil && child.nativePtr != nil) {
-             fragment = createPlaceholder(for: child)
-           }
-     
-           guard let frag = fragment, frag.length > 0 else {
-             // still append empty fragments to preserve run ordering if needed
-             if let frag = fragment {
-               composed.append(frag)
-             }
-             continue
-           }
-     
-           // If previous fragment ended without whitespace and this one starts without whitespace,
-           // insert a single separating space when white-space rules allow collapsing (i.e. not Pre).
-           if composed.length > 0 {
-             let prevEndsWithSpace: Bool = {
-               guard let last = composed.string.unicodeScalars.last else { return false }
-               return CharacterSet.whitespacesAndNewlines.contains(last)
-             }()
-     
-             let newStartsWithSpace: Bool = {
-               guard let first = frag.string.unicodeScalars.first else { return false }
-               return CharacterSet.whitespacesAndNewlines.contains(first)
-             }()
-     
-             // Only insert when neither side already has whitespace and white-space mode permits collapsing
-             if !prevEndsWithSpace && !newStartsWithSpace {
-               let ws = node.style.whiteSpace
-               if ws != .Pre {
-                 let spaceAttr = NSAttributedString(string: " ", attributes: getDefaultAttributes())
-                 composed.append(spaceAttr)
-               }
-             }
-           }
-     
-           composed.append(frag)
+    // Track the end-state of the previously appended fragment so we don't need to
+    // inspect `composed` (which may be different across nested calls).
+    var prevEndedWithWhitespace: Bool = false
+    var prevHadAttachment: Bool = false
+    
+    for (childIndex, child) in node.children.enumerated() {
+      var fragment: NSAttributedString?
+      
+      if let textNode = child as? MasonTextNode {
+        fragment = textNode.attributed()
+      } else if let textView = child.view as? MasonText {
+        if shouldFlattenTextContainer(textView) {
+          fragment = textView.buildAttributedString(forMeasurement: forMeasurement)
+        } else {
+          fragment = createPlaceholder(for: child)
+        }
+      } else if (child.view != nil && child.nativePtr != nil) {
+        fragment = createPlaceholder(for: child)
+      }
+      
+      // If fragment exists, convert leading/trailing ASCII space runs to NBSP where needed
+      // Don't mutate fragment. We'll decide and INSERT an explicit separator run
+      // between fragments below when needed. This keeps source text intact and avoids
+      // index/attribute mismatches from in-place replacements.
+      
+      guard let frag = fragment, frag.length > 0 else {
+        if let frag = fragment {
+          // append empty/placeholder fragment and update state
+          composed.append(frag)
+          // update prevEndedWithWhitespace / prevHadAttachment from the fragment if possible
+          if frag.length > 0 {
+            let first = (frag.string as NSString).substring(with: NSRange(location: 0, length: 1))
+            prevEndedWithWhitespace = CharacterSet.whitespacesAndNewlines.contains(first.unicodeScalars.first!)
+            prevHadAttachment = (frag.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment) != nil
+          } else {
+            prevEndedWithWhitespace = false
+            prevHadAttachment = false
+          }
+        }
+        continue
+      }
+      
+      // Compute new-starts-with-space and new-has-attachment from the fragment itself
+      let newStartsWithSpace: Bool = {
+        let firstChar = (frag.string as NSString).substring(with: NSRange(location: 0, length: 1))
+        return CharacterSet.whitespacesAndNewlines.contains(firstChar.unicodeScalars.first!)
+      }()
+      
+      let newHasAttachment: Bool = {
+        if frag.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment != nil { return true }
+        let firstChar = (frag.string as NSString).substring(with: NSRange(location: 0, length: 1))
+        return firstChar == "\u{FFFC}"
+      }()
+      
+      // Also consult source nodes for user-intent whitespace when fragment normalization may have removed it
+      let prevSourceEndsWithSpace: Bool = {
+        guard childIndex > 0 else { return false }
+        let prev = node.children[childIndex - 1]
+        if let tn = prev as? MasonTextNode, let last = tn.data.last {
+          return CharacterSet.whitespacesAndNewlines.contains(last.unicodeScalars.first!)
+        }
+        return false
+      }()
+      let currSourceStartsWithSpace: Bool = {
+        if let tn = child as? MasonTextNode, let first = tn.data.first {
+          return CharacterSet.whitespacesAndNewlines.contains(first.unicodeScalars.first!)
+        }
+        return false
+      }()
+      
+      let prevHasWhitespace = prevEndedWithWhitespace || prevSourceEndsWithSpace
+      let currStartsWithWhitespace = newStartsWithSpace || currSourceStartsWithSpace
+      
+      // Decide and append separator between runs based on source intent (ASCII spaces)
+      let prevSourceEndsWithASCII: Bool = {
+        guard childIndex > 0 else { return false }
+        if let prev = node.children[childIndex - 1] as? MasonTextNode, let last = prev.data.last {
+          return last == " "
+        }
+        return false
+      }()
+      
+      let currSourceStartsWithASCII: Bool = {
+        if let tn = child as? MasonTextNode, let first = tn.data.first {
+          return first == " "
+        }
+        return false
+      }()
+      
+      // If either side's SOURCE contains an ASCII space, force a NBSP so it won't be collapsed.
+      if prevSourceEndsWithASCII || currSourceStartsWithASCII {
+        // pick attributes from the current fragment, fallback to last composed run or defaults
+        var sepAttrs = (frag.length > 0 ? frag.attributes(at: 0, effectiveRange: nil) : (composed.length > 0 ? composed.attributes(at: max(0, composed.length - 1), effectiveRange: nil) : getDefaultAttributes()))
+        // ensure font & paragraph exist so CT will measure the separator correctly
+        if sepAttrs[.font] == nil { sepAttrs[.font] = getDefaultAttributes()[.font] }
+        if sepAttrs[.paragraphStyle] == nil { sepAttrs[.paragraphStyle] = getDefaultAttributes()[.paragraphStyle] }
+        composed.append(NSAttributedString(string: "\u{00A0}", attributes: sepAttrs))
+      } else {
+        // fallback: preserve a regular collapsing space only when neither side has whitespace
+        if !prevHasWhitespace && !currStartsWithWhitespace && node.style.whiteSpace != .Pre {
+          var sepAttrs = (frag.length > 0 ? frag.attributes(at: 0, effectiveRange: nil) : (composed.length > 0 ? composed.attributes(at: max(0, composed.length - 1), effectiveRange: nil) : getDefaultAttributes()))
+          if sepAttrs[.font] == nil { sepAttrs[.font] = getDefaultAttributes()[.font] }
+          if sepAttrs[.paragraphStyle] == nil { sepAttrs[.paragraphStyle] = getDefaultAttributes()[.paragraphStyle] }
+          composed.append(NSAttributedString(string: " ", attributes: sepAttrs))
+        }
+      }
+      
+      // append fragment
+      composed.append(frag)
+      // update prevEndedWithWhitespace from frag's trailing char
+      prevEndedWithWhitespace = {
+        let lastChar = (frag.string as NSString).substring(with: NSRange(location: frag.length - 1, length: 1))
+        return CharacterSet.whitespacesAndNewlines.contains(lastChar.unicodeScalars.first!)
+      }()
+      prevHadAttachment = newHasAttachment
     }
     
     // Cache the result
     cachedAttributedString = composed
-    // mark cached string as up-to-date with the current invalidate version
     attributedStringVersion = segmentsInvalidateVersion
-    
     return composed
   }
   
   
 }
 
+extension NSAttributedString {
+  var containsAttachments: Bool {
+    var found = false
+    self.enumerateAttribute(.attachment, in: NSRange(location: 0, length: length)) { value, _, stop in
+      if value != nil {
+        found = true
+        stop.pointee = true
+      }
+    }
+    return found
+  }
+}
+
+
+
 // MARK: - Layout & Measurement
 extension MasonText {
+  
   private static func measure(_ view: MasonText, _ known: CGSize?, _ available: CGSize) -> CGSize {
     // Build attributed string with measurement flag
     let text = view.buildAttributedString(forMeasurement: true)
@@ -738,15 +894,15 @@ extension MasonText {
     
     var maxWidth = CGFloat.greatestFiniteMagnitude
     
-
+    
     var allowWrap = true
-      if view.node.style.isTextValueInitialized {
-        let ws = view.node.style.whiteSpace
-        // No wrap for pre / nowrap
-        if ws == .Pre || ws == .NoWrap { allowWrap = false }
-        // Explicit override
-        if view.node.style.textWrap == .NoWrap { allowWrap = false }
-      }
+    if view.node.style.isTextValueInitialized {
+      let ws = view.node.style.whiteSpace
+      // No wrap for pre / nowrap
+      if ws == .Pre || ws == .NoWrap { allowWrap = false }
+      // Explicit override
+      if view.node.style.textWrap == .NoWrap { allowWrap = false }
+    }
     
     
     if allowWrap, available.width.isFinite && available.width > 0 {
@@ -773,11 +929,27 @@ extension MasonText {
     )
     
     
+    
+    if text.length > 0 && size.width <= 0 {
+      let line = CTLineCreateWithAttributedString(text)
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      let lineWidth = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, nil))
+      if lineWidth > 0 {
+        size.width = lineWidth
+      }
+    }
+    
+    
     // IMPORTANT: Collect and push segments to Rust BEFORE returning size
-    view.collectAndCacheSegments(from: frame)
+    view.collectAndCacheSegments(from: frame, constraintSize)
     
     let scale = CGFloat(NSCMason.scale)
-    size.width = (size.width * scale).rounded(.up)
+    if(!isInLine && maxWidth < CGFloat.greatestFiniteMagnitude){
+      size.width = maxWidth * scale
+    }else {
+      size.width = (size.width * scale).rounded(.up)
+    }
     size.height = size.height * scale
     
     if let known = known {
@@ -800,36 +972,18 @@ extension MasonText {
 
 // MARK: - Drawing
 extension MasonText {
-  public override func draw(_ rect: CGRect) {
-    
-    drawState = .drawing
-    // Build attributed string for drawing (uses cache if valid)
-    let text = buildAttributedString(forMeasurement: false)
-    
-    guard let context = UIGraphicsGetCurrentContext() else {
-      drawState = .idle
-      return
+  internal  func fakeBoldStroke(for weight: CGFloat, fontSize: CGFloat) -> CGFloat {
+    switch weight {
+    case ..<500: return 0
+    case 500..<600: return fontSize * 0.03
+    case 600..<700: return fontSize * 0.06
+    case 700..<800: return fontSize * 0.1
+    case 800..<900: return fontSize * 0.125
+    default: return fontSize * 0.15
     }
-    
-    context.textMatrix = .identity
-    context.saveGState()
-    context.translateBy(x: 0, y: bounds.height)
-    context.scaleBy(x: 1.0, y: -1.0)
-    
-    // Handle nowrap case
-    if textWrap == .NoWrap {
-      drawSingleLine(text: text, in: context)
-      context.restoreGState()
-      drawState = .idle
-      return
-    }
-    // Multi-line text
-    drawMultiLine(text: text, in: context)
-    context.restoreGState()
-    drawState = .idle
   }
   
-  private func drawSingleLine(text: NSAttributedString, in context: CGContext) {
+  internal func drawSingleLine(text: NSAttributedString, in context: CGContext) {
     var drawBounds = bounds
     let computedPadding = node.computedLayout.padding
     if !computedPadding.isEmpty() {
@@ -845,7 +999,7 @@ extension MasonText {
       context.clip(to: drawBounds)
     }
     
-  
+    
     
     let line = CTLineCreateWithAttributedString(text)
     
@@ -855,36 +1009,36 @@ extension MasonText {
     let _ = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
     
     let ctBounds = CGRect(
-        x: drawBounds.minX,
-        y: bounds.height - drawBounds.maxY,
-        width: drawBounds.width,
-        height: drawBounds.height
-      )
+      x: drawBounds.minX,
+      y: bounds.height - drawBounds.maxY,
+      width: drawBounds.width,
+      height: drawBounds.height
+    )
     
     
-
+    
     var originX = drawBounds.origin.x
-       
+    
     
     // Alignment from paragraph style
-//     var flush: CGFloat = 0.0 // 0=left, 0.5=center, 1=right
-//     if let para = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
-//       switch para.alignment {
-//       case .center: flush = 0.5
-//       case .right:  flush = 1.0
-//       default:      flush = 0.0
-//       }
-//     }
-//
-//    // Horizontal offset inside ctBounds respecting alignment
-//        let penOffset = CGFloat(CTLineGetPenOffsetForFlush(line, Double(flush), Double(ctBounds.width)))
-//
-//        // Baseline at top of ctBounds (single line)
-//        let baselineOrigin = CGPoint(x: ctBounds.minX + penOffset, y: ctBounds.maxY - ascent)
-//        context.textPosition = baselineOrigin
-
+    //     var flush: CGFloat = 0.0 // 0=left, 0.5=center, 1=right
+    //     if let para = text.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle {
+    //       switch para.alignment {
+    //       case .center: flush = 0.5
+    //       case .right:  flush = 1.0
+    //       default:      flush = 0.0
+    //       }
+    //     }
+    //
+    //    // Horizontal offset inside ctBounds respecting alignment
+    //        let penOffset = CGFloat(CTLineGetPenOffsetForFlush(line, Double(flush), Double(ctBounds.width)))
+    //
+    //        // Baseline at top of ctBounds (single line)
+    //        let baselineOrigin = CGPoint(x: ctBounds.minX + penOffset, y: ctBounds.maxY - ascent)
+    //        context.textPosition = baselineOrigin
     
-   let baselineOrigin = CGPoint(x: originX, y: drawBounds.origin.y)
+    
+    let baselineOrigin = CGPoint(x: originX, y: drawBounds.origin.y)
     
     
     
@@ -932,15 +1086,39 @@ extension MasonText {
     }
   }
   
-  private func drawMultiLine(text: NSAttributedString, in context: CGContext) {
+  
+  func drawRunWithFakeBold(_ run: CTRun, in context: CGContext, at lineOrigin: CGPoint, boldAmount: CGFloat = 1.0) {
+    let glyphCount = CTRunGetGlyphCount(run)
+    guard glyphCount > 0 else { return }
+    
+    var positions = [CGPoint](repeating: .zero, count: glyphCount)
+    CTRunGetPositions(run, CFRange(location: 0, length: 0), &positions)
+    
+    // Draw multiple offsets to simulate bold
+    let offsets: [CGPoint] = [
+      .zero,
+      CGPoint(x: boldAmount, y: 0),
+      CGPoint(x: 0, y: boldAmount),
+      CGPoint(x: boldAmount, y: boldAmount)
+    ]
+    
+    for offset in offsets {
+      context.textPosition = CGPoint(
+        x: lineOrigin.x + offset.x,
+        y: lineOrigin.y + offset.y
+      )
+      CTRunDraw(run, context, CFRange(location: 0, length: 0))
+    }
+  }
+  
+  
+  
+  internal func drawMultiLine(text: NSAttributedString, in context: CGContext) {
     guard text.length > 0 else { return }
     
     let framesetter = CTFramesetterCreateWithAttributedString(text)
     
     var drawBounds = bounds
-    
-    
-    // Apply padding
     let computedPadding = node.computedLayout.padding
     if !computedPadding.isEmpty() {
       let scale = NSCMason.scale
@@ -953,62 +1131,78 @@ extension MasonText {
       drawBounds = drawBounds.inset(by: padding)
     }
     
-    guard drawBounds.width > 0 else {
-      return
-    }
+    guard drawBounds.width > 0 else { return }
     
-    // Get the natural size the text wants to be
     let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
       framesetter,
-      CFRangeMake(0, text.length),
+      CFRange(location: 0, length: text.length),
       nil,
       CGSize(width: drawBounds.width, height: .greatestFiniteMagnitude),
       nil
     )
     
-    // Create a frame with the FULL height needed for text layout
-    // This ensures CoreText can layout all the text properly
     let layoutBounds = CGRect(
       x: drawBounds.origin.x,
       y: drawBounds.origin.y,
       width: drawBounds.width,
-      height: max(drawBounds.height, suggestedSize.height) // Use larger height
+      height: max(drawBounds.height, suggestedSize.height)
     )
     
     let path = CGPath(rect: layoutBounds, transform: nil)
-    let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
+    let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
     
-    // Clip to the ACTUAL bounds (like CSS overflow: hidden)
     context.saveGState()
     context.clip(to: drawBounds)
     
-    // Draw text (will be clipped to drawBounds)
-    CTFrameDraw(frame, context)
+    let linesCF = CTFrameGetLines(frame)
+    let linesCount = CFArrayGetCount(linesCF)
+    
+    guard linesCount > 0 else { context.restoreGState(); return }
+    
+    var origins = Array(repeating: CGPoint.zero, count: linesCount)
+    CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
+    
+    for i in 0..<linesCount {
+      let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+      let lineOrigin = origins[i]
+      
+      context.textPosition = CGPoint(x: lineOrigin.x, y: lineOrigin.y)
+      
+      let runsCF = CTLineGetGlyphRuns(line)
+      let runCount = CFArrayGetCount(runsCF)
+      
+      for j in 0..<runCount {
+        let run = unsafeBitCast(CFArrayGetValueAtIndex(runsCF, j), to: CTRun.self)
+        
+        guard let attributes = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else {continue}
+        if let ctFont = attributes[.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
+          let font = ctFont as! CTFont
+          let traits = CTFontCopyTraits(font) as? [CFString: Any]
+          let symbolicTraits = CTFontGetSymbolicTraits(font)
+          let isBold = symbolicTraits.contains(.traitBold)
+          let weight = attributes[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat ?? traits?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
+          
+          
+          if !isBold && weight >= 0.4 {
+            drawRunWithFakeBold(run, in: context, at: lineOrigin)
+          } else {
+            CTRunDraw(run, context, CFRange(location: 0, length: 0))
+          }
+        }
+      }
+    }
     
     context.restoreGState()
     
-    // Draw inline attachments if visible
-    guard let lines = CTFrameGetLines(frame) as? [CTLine], !lines.isEmpty else {
-      return
-    }
-    
-    var origins = [CGPoint](repeating: .zero, count: lines.count)
-    CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
-    
-    // Only draw inline attachments that are within the visible bounds
-    for (lineIndex, line) in lines.enumerated() {
-      let origin = origins[lineIndex]
-      if origin.y >= drawBounds.minY && origin.y <= drawBounds.maxY {
-        drawInlineAttachments(
-          for: line,
-          origin: origin,
-          frameBounds: layoutBounds,
-          clipRect: drawBounds,
-          in: context
-        )
-      }
+    guard text.containsAttachments else { return }
+    for i in 0..<linesCount {
+      let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+      let lineOrigin = origins[i]
+      
+      drawInlineAttachments(for: line, origin: lineOrigin, frameBounds: layoutBounds, clipRect: drawBounds, in: context)
     }
   }
+  
   
   private func drawInlineAttachments(
     for line: CTLine,
@@ -1079,7 +1273,7 @@ extension MasonText {
   
   /// Collect inline segments and push to Rust
   /// This is called during measure to provide segments before Rust's inline layout runs
-  private func collectAndCacheSegments(from frame: CTFrame) {
+  private func collectAndCacheSegments(from frame: CTFrame, _ constraints: CGSize) {
     
     let lines = CTFrameGetLines(frame) as? [CTLine] ?? []
     
@@ -1288,9 +1482,9 @@ extension MasonText {
     // Check for view-like properties that require inline-block behavior
     let hasBackground =  textView.backgroundColorValue != 0 || textView.backgroundColor?.cgColor.alpha ?? 0 > 0 //style.backgroundColor.alpha > 0.0
     
-    let border = style.border
-    let hasBorder = border.top.value > 0.0 || border.right.value > 0.0 ||
-    border.bottom.value > 0.0 || border.left.value > 0.0
+    let border = style.mBorderRender
+    let hasBorder = border.top.width.value > 0.0 || border.right.width.value > 0.0 ||
+    border.bottom.width.value > 0.0 || border.left.width.value > 0.0
     
     let padding = style.padding
     let hasPadding = padding.top.value > 0.0 || padding.right.value > 0.0 ||

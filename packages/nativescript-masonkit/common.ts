@@ -1277,8 +1277,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  [borderLeftColorProperty.setNative](color) {}
-
   [borderLeftWidthProperty.setNative](value: CoreTypes.LengthType) {
     // @ts-ignore
     const style = this._styleHelper;
@@ -1573,6 +1571,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   get maxHeight(): LengthAuto {
     return this.style.maxHeight;
   }
+
+  _redrawNativeBackground(value: any): void {}
 
   [marginLeftProperty.setNative](value) {
     // @ts-ignore

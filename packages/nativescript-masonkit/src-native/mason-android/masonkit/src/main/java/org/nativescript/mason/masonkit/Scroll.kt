@@ -83,9 +83,9 @@ class Scroll @JvmOverloads constructor(
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-    super.onSizeChanged(w, h, oldw, oldh)
     style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
+    super.onSizeChanged(w, h, oldw, oldh)
   }
 
   override fun dispatchDraw(canvas: Canvas) {
@@ -137,6 +137,8 @@ class Scroll @JvmOverloads constructor(
     compute(
       availableWidth, availableHeight
     )
+
+    node.mason.printTree(node)
     val layout = layout()
 
     var width = layout.width.toInt()
@@ -177,9 +179,6 @@ class Scroll @JvmOverloads constructor(
         height.coerceAtMost(availableHeight.toInt())
       }
     }
-
-
-    node.mason.printTree(node)
 
     setMeasuredDimension(width, height)
   }

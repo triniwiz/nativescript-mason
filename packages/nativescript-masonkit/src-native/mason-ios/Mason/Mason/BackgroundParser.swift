@@ -44,10 +44,76 @@ class BackgroundLayer {
   var backgroundColor: UIColor? = nil
 }
 
+public class BackgroundCALayer: CALayer {
+  weak var background: Background?{
+    didSet {
+      setNeedsDisplay()
+    }
+  }
+  
+  public override func draw(in ctx: CGContext) {
+    super.draw(in: ctx)
+    guard let renderer = background else { return }
+    renderer.draw(on: self, in: ctx, rect: bounds)
+  }
+  
+  
+  public func invalidate() {
+    setNeedsDisplay()
+  }
+  
+  public override func layoutSublayers() {
+    super.layoutSublayers()
+    setNeedsDisplay()
+  }
+}
+
 // MARK: - Background
 class Background {
+  var css: String = ""
   var color: UIColor? = nil
   var layers: [BackgroundLayer] = []
+  let style: MasonStyle!
+  
+  init(style: MasonStyle) {
+    self.style = style
+  }
+  
+  
+  public func reset(){
+    let invalidate = color != nil || !layers.isEmpty
+    color = nil
+    layers.removeAll()
+    if(invalidate){
+      style.node.view?.setNeedsDisplay()
+    }
+  }
+  
+  // MARK: - Parse Background
+  public func parseBackground(_ css: String) {
+    if css.isEmpty {
+      self.css = css
+      reset()
+    }
+    var layerStrings = splitBackgroundLayers(css)
+    
+    var color: UIColor? = nil
+
+    // Check if the last token is just a color
+    if let last = layerStrings.last, parseColor(last) != nil {
+      color = parseColor(last)
+      layerStrings.removeLast()
+    }
+    
+    let layers = layerStrings.map { parseLayer($0) }
+    if color == nil && layers.isEmpty { return }
+    
+    self.color = color
+    self.layers = layers
+    self.css = css
+
+    style.node.view?.setNeedsDisplay()
+  }
 }
 
 // MARK: - Color Map
@@ -129,26 +195,6 @@ func splitGradientParts(_ content: String) -> [String] {
   return parts
 }
 
-// MARK: - Parse Background (entry)
-func parseBackground(_ css: String) -> Background? {
-  let bg = Background()
-  
-  var layerStrings = splitBackgroundLayers(css)
-  
-  // Check if the last token is just a color
-  if let last = layerStrings.last, parseColor(last) != nil {
-    bg.color = parseColor(last)
-    layerStrings.removeLast()
-  }
-  
-  let layers = layerStrings.map { parseLayer($0) }
-  bg.layers.append(contentsOf: layers)
-  
-  
-  
-  if bg.color == nil && bg.layers.isEmpty { return nil }
-  return bg
-}
 
 // MARK: - Parse Multiple Layers (deprecated wrapper)
 // kept for compatibility with older call sites

@@ -1373,11 +1373,14 @@ class Style internal constructor(internal var node: Node) {
   }
 
 
-  var border: String = ""
+  var border: String
+    get() {
+      return mBorder
+    }
     set(value) {
-      field = value
       parseBorderShorthand(this, value)
     }
+
   var borderRadius: String = ""
     set(value) {
       field = value

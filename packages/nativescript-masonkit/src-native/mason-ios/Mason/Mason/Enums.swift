@@ -401,10 +401,19 @@ public func MasonLengthPercentageFromPercent(value: Float) -> MasonLengthPercent
 public let MasonLengthPercentageZero = MasonLengthPercentage.Points(0)
 
 
-public enum MasonLengthPercentage: Codable {
+public enum MasonLengthPercentage: Codable, Equatable {
   case Points(Float)
   case Percent(Float)
   case Zero
+  
+  
+  func resolve(relativeTo: Float) -> Float {
+    switch (self) {
+    case .Points(let points): return points
+    case .Percent(let percent): return (percent * 100) * relativeTo
+    case .Zero: return 0
+    }
+  }
   
   
   static func fromValueType(_ value: Float, _ type: Int) -> MasonLengthPercentage? {
@@ -430,7 +439,6 @@ public enum MasonLengthPercentage: Codable {
   
   internal var value: Float {
     get {
-      
       switch (self) {
       case .Points(let points): return points
       case .Percent(let percent): return percent

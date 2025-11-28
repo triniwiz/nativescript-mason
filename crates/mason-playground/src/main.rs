@@ -44,10 +44,125 @@ fn main() {
     // taffy_g_names_xp();
     // grid_sizing();
     // grid_sizing_taffy();
-    grid_template_areas();
-   // grid_template_areas_500();
+    // grid_template_areas();
+    // grid_template_areas_500();
+
+    //inline();
+    mixed();
 }
 
+fn mixed() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_padding(Rect {
+            top: length(10.),
+            right: length(10.),
+            bottom: length(10.),
+            left: length(10.),
+        })
+    });
+
+    let header = mason.create_text_node();
+    mason.with_style_mut(header.id(), |style| {
+        style.set_display(Display::Block);
+        style.set_display_mode(DisplayMode::None);
+        style.set_size(Size {
+            width: length(100.),
+            height: length(200.),
+        });
+
+        style.set_margin(Rect {
+            top: length(20.),
+            right: length(20.),
+            bottom: length(20.),
+            left: length(20.),
+        })
+    });
+    let inline_a = mason.create_node();
+
+    mason.with_style_mut(inline_a.id(), |style| {
+        style.set_display_mode(DisplayMode::Inline);
+        style.set_size(Size {
+            width: length(50.),
+            height: length(300.),
+        })
+    });
+
+    let inline_b = mason.create_node();
+
+    mason.with_style_mut(inline_b.id(), |style| {
+        style.set_display_mode(DisplayMode::Inline);
+        style.set_size(Size {
+            width: length(500.),
+            height: length(500.),
+        })
+    });
+
+    mason.add_child(root.id(), header.id());
+
+    mason.add_child(root.id(), inline_a.id());
+    mason.add_child(root.id(), inline_b.id());
+
+    mason.compute_wh(root.id(), 1200.0, 3000.);
+
+    mason.print_tree(root.id());
+}
+
+fn inline() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_padding(Rect {
+            top: length(10.),
+            right: length(10.),
+            bottom: length(10.),
+            left: length(10.),
+        })
+    });
+
+    let inline_a = mason.create_text_node();
+    mason.with_style_mut(inline_a.id(), |style| {
+        style.set_size(Size {
+            width: length(100.),
+            height: length(200.),
+        });
+
+        style.set_margin(Rect {
+            top: length(20.),
+            right: length(20.),
+            bottom: length(20.),
+            left: length(20.),
+        })
+    });
+    let inline_b = mason.create_text_node();
+
+    mason.with_style_mut(inline_b.id(), |style| {
+        style.set_size(Size {
+            width: length(50.),
+            height: length(300.),
+        })
+    });
+
+    let c = mason.create_node();
+
+    mason.with_style_mut(c.id(), |style| {
+        style.set_size(Size {
+            width: length(500.),
+            height: length(500.),
+        })
+    });
+
+    mason.add_child(root.id(), inline_a.id());
+    mason.add_child(root.id(), inline_b.id());
+    //mason.add_child(root.id(), c.id());
+
+    mason.compute_wh(root.id(), 1200.0, 3000.);
+
+    mason.print_tree(root.id());
+}
 
 fn grid_template_areas_500() {
     let mut mason = Mason::new();

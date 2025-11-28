@@ -65,9 +65,9 @@ class View @JvmOverloads constructor(
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-    super.onSizeChanged(w, h, oldw, oldh)
     style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
+    super.onSizeChanged(w, h, oldw, oldh)
   }
 
   override fun dispatchDraw(canvas: Canvas) {

@@ -60,20 +60,20 @@ class GridActivity : AppCompatActivity() {
 
     //body.addView(rootLayout)
 
-   //  wrapper5(rootLayout)
-   //  wrapper6(body)
-   // wrapper8(body)
+    //  wrapper5(rootLayout)
+    //  wrapper6(body)
+    // wrapper8(body)
     //genTest(body)
 
     //grid_template_areas(body)
 
-     // grid_template_areas_500(body)
+    // grid_template_areas_500(body)
 
-     //grid_template_areas_600(body)
+    //grid_template_areas_600(body)
 
     //  backgroundTest(body)
-    filter(body)
-    // objectFit(body)
+   // filter(body)
+     objectFit(body)
     setContentView(body)
   }
 
@@ -85,15 +85,14 @@ class GridActivity : AppCompatActivity() {
       it.fontFamily = "'Courier New', monospace"
       it.fontSize = 16
       it.margin = Rect(
-        LengthPercentageAuto.Points(
-          toPx((16f / 0.3f))
-        ),
+        LengthPercentageAuto.Zero,
         LengthPercentageAuto.Points(0f),
-        LengthPercentageAuto.Points(toPx(16f)),
-        LengthPercentageAuto.Points(0f)
+        LengthPercentageAuto.Points(16f),
+        LengthPercentageAuto.Points(
+          16f / 0.3f
+        )
       )
     }
-
 
     section.append(h2)
     val img = mason.createImageView(this)
@@ -103,8 +102,8 @@ class GridActivity : AppCompatActivity() {
       it.margin = Rect(
         LengthPercentageAuto.Points(0f),
         LengthPercentageAuto.Points(0f),
-        LengthPercentageAuto.Points(toPx(16f)),
-        LengthPercentageAuto.Points(toPx(16f))
+        LengthPercentageAuto.Points(16f),
+        LengthPercentageAuto.Points(16f)
       )
       it.size = Size(Dimension.Points(toPx(150f)), Dimension.Points(toPx(100f)))
     }
@@ -118,8 +117,8 @@ class GridActivity : AppCompatActivity() {
       it.margin = Rect(
         LengthPercentageAuto.Points(0f),
         LengthPercentageAuto.Points(0f),
-        LengthPercentageAuto.Points(toPx(16f)),
-        LengthPercentageAuto.Points(toPx(16f))
+        LengthPercentageAuto.Points(16f),
+        LengthPercentageAuto.Points(16f)
       )
       it.size = Size(Dimension.Points(toPx(100f)), Dimension.Points(toPx(150f)))
     }
@@ -161,13 +160,9 @@ class GridActivity : AppCompatActivity() {
   val selectedBorder = "1px solid red"
 
   private fun select(element: Element?) {
-    selected?.style?.let {
-      it.border = defaultBorder
-    }
+    element?.style?.border = selectedBorder
+    selected?.style?.border = defaultBorder
     selected = element
-    element?.style?.let {
-      it.border = selectedBorder
-    }
   }
 
   private fun defaultStyle(element: Element) {
@@ -189,8 +184,6 @@ class GridActivity : AppCompatActivity() {
       LengthPercentage.Points(toPx(10f))
     )
 
-    /*
-
 
     val text = mason.createTextView(this)
     text.style.color = Color.RED
@@ -209,7 +202,6 @@ class GridActivity : AppCompatActivity() {
     rootLayout.append(img)
 
     img.setImageResource(R.drawable.firefox_logo)
-
 
 
     val reset = mason.createView(this)
@@ -236,6 +228,8 @@ class GridActivity : AppCompatActivity() {
 
     rootLayout.append(blur)
 
+
+    /*
 
     val contrast = mason.createView(this)
     defaultStyle(contrast)
@@ -277,8 +271,6 @@ class GridActivity : AppCompatActivity() {
 
     rootLayout.append(hueRotate)
 
-    */
-
 
     val dropShadow = mason.createView(this)
     defaultStyle(dropShadow)
@@ -287,11 +279,13 @@ class GridActivity : AppCompatActivity() {
 
     dropShadow.setOnClickListener {
       select(dropShadow)
-     // img.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
-     // text.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
+      img.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
+      text.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
     }
 
     rootLayout.append(dropShadow)
+
+    */
 
 
     body.append(rootLayout)

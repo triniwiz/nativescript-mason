@@ -50,6 +50,7 @@
 		F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */; };
 		F1EE402B2ECF791800EAF4CC /* BackgroundParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */; };
 		F1EE402D2ECFA98F00EAF4CC /* CSSFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */; };
+		F1EE40332ED666E500EAF4CC /* BorderParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE40322ED666DA00EAF4CC /* BorderParser.swift */; };
 		F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE93512E84BA3E00DA90BB /* Extensions.swift */; };
 		F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */; };
 		F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */; };
@@ -156,6 +157,7 @@
 		F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSizingFunction.swift; sourceTree = "<group>"; };
 		F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundParser.swift; sourceTree = "<group>"; };
 		F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSSFilters.swift; sourceTree = "<group>"; };
+		F1EE40322ED666DA00EAF4CC /* BorderParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderParser.swift; sourceTree = "<group>"; };
 		F1EE93512E84BA3E00DA90BB /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftHelpers.swift; sourceTree = "<group>"; };
 		F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeUtils.swift; sourceTree = "<group>"; };
@@ -252,6 +254,7 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F1EE40322ED666DA00EAF4CC /* BorderParser.swift */,
 				F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */,
 				F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */,
 				F134016E2ECE04DC00D6CFD9 /* Border.swift */,
@@ -582,6 +585,7 @@
 				F1E4F95229622AD60091913B /* MasonRect.swift in Sources */,
 				F18483DD29356C7800EC35F4 /* MasonStyle.swift in Sources */,
 				F18C9B882E5199CA006E5561 /* MasonPoint.swift in Sources */,
+				F1EE40332ED666E500EAF4CC /* BorderParser.swift in Sources */,
 				F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */,
 				F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */,
 				F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */,

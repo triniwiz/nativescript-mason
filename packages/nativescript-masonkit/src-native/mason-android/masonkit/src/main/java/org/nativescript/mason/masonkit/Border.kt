@@ -211,10 +211,13 @@ class Border(val owner: Style, side: Side) {
       )!!
     }
     set(value) {
-      owner.values.putInt(keys.widthType, value.type)
-      owner.values.putFloat(keys.widthValue, value.value)
-      if (setState) {
-        owner.setOrAppendState(StateKeys.BORDER)
+      val old = width
+      if (old != value) {
+        owner.values.putInt(keys.widthType, value.type)
+        owner.values.putFloat(keys.widthValue, value.value)
+        if (setState) {
+          owner.setOrAppendState(StateKeys.BORDER)
+        }
       }
     }
 
@@ -223,9 +226,12 @@ class Border(val owner: Style, side: Side) {
       return owner.values.getInt(keys.color)
     }
     set(value) {
-      owner.values.putInt(keys.color, value)
-      if (setState) {
-        owner.setOrAppendState(StateKeys.BORDER_COLOR)
+      val old = color
+      if (old != value) {
+        owner.values.putInt(keys.color, value)
+        if (setState) {
+          owner.setOrAppendState(StateKeys.BORDER_COLOR)
+        }
       }
     }
 
@@ -234,9 +240,12 @@ class Border(val owner: Style, side: Side) {
       return BorderStyle.fromInt(owner.values.getInt(keys.style))
     }
     set(value) {
-      owner.values.putInt(keys.style, value.value)
-      if (setState) {
-        owner.setOrAppendState(StateKeys.BORDER_STYLE)
+      val old = style
+      if (old != value) {
+        owner.values.putInt(keys.style, value.value)
+        if (setState) {
+          owner.setOrAppendState(StateKeys.BORDER_STYLE)
+        }
       }
     }
 
@@ -357,15 +366,45 @@ class BorderRenderer(private val style: Style) {
   private var bottomRightExponent = 0f
   private var bottomLeftExponent = 0f
 
+  private var lastHash = 0
 
   private var cacheInvalidated = true
+
+  private fun computeHash(): Int {
+    var result = 17
+    result = 31 * result + style.mBorderLeft.width.hashCode()
+    result = 31 * result + style.mBorderTop.width.hashCode()
+    result = 31 * result + style.mBorderRight.width.hashCode()
+    result = 31 * result + style.mBorderBottom.width.hashCode()
+
+    result = 31 * result + style.mBorderLeft.color
+    result = 31 * result + style.mBorderTop.color
+    result = 31 * result + style.mBorderRight.color
+    result = 31 * result + style.mBorderBottom.color
+
+    result = 31 * result + style.borderTopLeftRadius.hashCode()
+    result = 31 * result + style.borderTopRightRadius.hashCode()
+    result = 31 * result + style.borderBottomRightRadius.hashCode()
+    result = 31 * result + style.borderBottomLeftRadius.hashCode()
+
+    result = 31 * result + style.mBorderLeft.corner1Exponent.hashCode()
+    result = 31 * result + style.mBorderLeft.corner2Exponent.hashCode()
+    result = 31 * result + style.mBorderRight.corner1Exponent.hashCode()
+    result = 31 * result + style.mBorderRight.corner2Exponent.hashCode()
+
+    return result
+  }
 
   fun invalidate() {
     cacheInvalidated = true
   }
 
   fun updateCache(viewWidth: Float, viewHeight: Float) {
-    if (!cacheInvalidated) return
+    val newHash = computeHash()
+    if (!cacheInvalidated && newHash == lastHash) return
+
+    lastHash = newHash
+    cacheInvalidated = false
 
     // Widths
     leftWidth = style.mBorderLeft.width.toPx(viewWidth)
@@ -401,12 +440,12 @@ class BorderRenderer(private val style: Style) {
     bottomRightExponent = style.mBorderBottom.corner2Exponent    // Bottom-Right
     bottomLeftExponent = style.mBorderBottom.corner1Exponent    // Bottom-Left
 
-    cacheInvalidated = false
   }
 
   /** Draws the border into the canvas */
   fun draw(canvas: Canvas, width: Float, height: Float) {
-    path.reset()
+    // resets when building
+   // path.reset()
 
     // Build path with corners and sides
     buildBorderPath(width, height)
@@ -589,14 +628,48 @@ fun parseLengthPercentage(value: String): LengthPercentage? {
 
 private val SPLIT_REGEX = Regex("""\s+""")
 fun parseBorderShorthand(style: Style, value: String) {
+  if (value.isEmpty()) {
+    style.mBorder = ""
+    var batch = false
+
+    if (!style.inBatch) {
+      style.inBatch = true
+      batch = true
+    }
+
+    style.mBorderLeft.width = Zero
+    style.mBorderTop.width = Zero
+    style.mBorderRight.width = Zero
+    style.mBorderBottom.width = Zero
+
+    style.mBorderLeft.style = BorderStyle.None
+    style.mBorderTop.style = BorderStyle.None
+    style.mBorderRight.style = BorderStyle.None
+    style.mBorderBottom.style = BorderStyle.None
+
+
+    style.mBorderLeft.color = Color.TRANSPARENT
+    style.mBorderTop.color = Color.TRANSPARENT
+    style.mBorderRight.color = Color.TRANSPARENT
+    style.mBorderBottom.color = Color.TRANSPARENT
+
+    if (batch) {
+      style.mBorderRenderer.invalidate()
+      style.inBatch = false
+    }
+
+    return
+  }
   // default to medium 3px
+  var valid = false
   val scale = style.node.mason.scale
   var width: LengthPercentage? = Points(scale * 3)
-  var borderStyle: BorderStyle? = null
+  var borderStyle: BorderStyle? = BorderStyle.Solid
   // default to black
   var color: Int? = Color.BLACK
 
-  value.split(SPLIT_REGEX).forEach { part ->
+  val split = value.split(SPLIT_REGEX)
+  split.forEach { part ->
     when {
       parseLengthPercentage(part) != null -> {
         width = when (part) {
@@ -605,32 +678,62 @@ fun parseBorderShorthand(style: Style, value: String) {
           "thick" -> Points(scale * 5)
           else -> parseLengthPercentage(part)
         }
+        valid = width != null
       }
 
-      BorderStyle.cssNames.contains(part.lowercase()) -> borderStyle = BorderStyle.fromName(part)
-      colorRegex.matches(part) -> color = parseColor(part)
+      BorderStyle.cssNames.contains(part.lowercase()) -> {
+        borderStyle = BorderStyle.fromName(part)
+        valid = borderStyle != null
+      }
+
+      colorRegex.matches(part) -> {
+        color = parseColor(part)
+        valid = color != null
+      }
     }
   }
 
+  if (!valid) {
+    return
+  }
+  style.mBorder = value
+
+  var batch = false
+  var dirty = false
+
   width?.let {
-    style.mBorderLeft.width = it
-    style.mBorderTop.width = it
-    style.mBorderRight.width = it
-    style.mBorderBottom.width = it
+    if (!style.inBatch) {
+      style.inBatch = true
+      batch = true
+    }
+    dirty = true
+    style.borderWidth = Rect.uniform(it)
   }
 
   borderStyle?.let {
-    style.mBorderLeft.style = it
-    style.mBorderTop.style = it
-    style.mBorderRight.style = it
-    style.mBorderBottom.style = it
+    if (!style.inBatch) {
+      style.inBatch = true
+      batch = true
+    }
+    dirty = true
+    style.borderStyle = Rect.uniform(it)
   }
 
   color?.let {
-    style.mBorderLeft.color = it
-    style.mBorderTop.color = it
-    style.mBorderRight.color = it
-    style.mBorderBottom.color = it
+    if (!style.inBatch) {
+      style.inBatch = true
+      batch = true
+    }
+    dirty = true
+    style.borderColor = Rect.uniform(it)
+  }
+
+  if (dirty) {
+    style.mBorderRenderer.invalidate()
+  }
+
+  if (batch) {
+    style.inBatch = false
   }
 }
 
