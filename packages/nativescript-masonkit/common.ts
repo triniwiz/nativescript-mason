@@ -83,6 +83,13 @@ function masonLengthPercentParse(value) {
   }
 }
 
+const filterProperty = new CssProperty<Style, string>({
+  name: 'filter',
+  cssName: 'filter',
+});
+
+filterProperty.register(Style);
+
 const borderProperty = new CssProperty<Style, string>({
   name: 'border',
   cssName: 'border',
@@ -1256,6 +1263,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           this.replaceChild({ [text_]: node.text, node }, index);
         }
       }
+    }
+  }
+
+  [filterProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.filter = value;
     }
   }
 

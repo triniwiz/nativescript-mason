@@ -1875,6 +1875,8 @@ declare module org {
 					public getBackground(this_: globalAndroid.view.View): string;
 					public setBorder(this_: globalAndroid.view.View, view: string): void;
 					public getBorder(this_: globalAndroid.view.View): string;
+					public setFilter(this_: globalAndroid.view.View, view: string): void;
+					public getFilter(this_: globalAndroid.view.View): string;
 				}
 				export module NodeHelper {
 					export class Companion {

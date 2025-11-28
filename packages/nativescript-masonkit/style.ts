@@ -2101,6 +2101,10 @@ export class Style {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridAutoRows(this.nativeView);
     }
 
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridAutoRows;
+    }
+
     return '';
   }
 
@@ -2111,20 +2115,38 @@ export class Style {
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoRows(this.nativeView, value);
     }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridAutoRows = value;
+    }
   }
 
   get gridAutoColumns() {
     if (!this.nativeView) {
       return '';
     }
-    return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridAutoColumns(this.nativeView);
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridAutoColumns(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridAutoColumns;
+    }
+
+    return '';
   }
 
   set gridAutoColumns(value: string) {
     if (!this.nativeView) {
       return;
     }
-    org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoColumns(this.nativeView, value);
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setGridAutoColumns(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridAutoColumns = value;
+    }
   }
 
   get gridAutoFlow(): GridAutoFlow {
@@ -2182,6 +2204,10 @@ export class Style {
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumn(this.nativeView, value);
     }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridColumn = value;
+    }
   }
 
   get gridColumn() {
@@ -2191,6 +2217,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridColumn(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridColumn;
+    }
+
     return '';
   }
 
@@ -2201,6 +2232,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridColumnStart(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridColumnStart;
+    }
+
     return '';
   }
 
@@ -2211,6 +2247,10 @@ export class Style {
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnStart(this.nativeView, value);
     }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridColumnStart = value;
+    }
   }
 
   get gridColumnEnd(): string {
@@ -2220,6 +2260,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridColumnEnd(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridColumnEnd;
+    }
+
     return '';
   }
 
@@ -2230,6 +2275,10 @@ export class Style {
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridColumnEnd(this.nativeView, value);
     }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridColumnEnd = value;
+    }
   }
 
   set gridRow(value: string) {
@@ -2238,6 +2287,10 @@ export class Style {
     }
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRow(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridRow = value;
     }
   }
 
@@ -2248,6 +2301,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridRow(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridRow;
+    }
+
     return '';
   }
 
@@ -2258,6 +2316,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridRowStart(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridRowStart;
+    }
+
     return '';
   }
 
@@ -2268,6 +2331,10 @@ export class Style {
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowStart(this.nativeView, value);
     }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridRowStart = value;
+    }
   }
 
   get gridRowEnd(): string {
@@ -2277,6 +2344,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridRowEnd(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridRowEnd;
+    }
+
     return '';
   }
 
@@ -2287,6 +2359,10 @@ export class Style {
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridRowEnd(this.nativeView, value);
     }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridRowEnd = value;
+    }
   }
 
   set gridArea(value: string) {
@@ -2295,6 +2371,10 @@ export class Style {
     }
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridArea(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridArea = value;
     }
   }
 
@@ -2305,6 +2385,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridArea(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridArea;
+    }
+
     return '';
   }
 
@@ -2315,6 +2400,10 @@ export class Style {
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateRows(this.nativeView, value);
     }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridTemplateRows = value;
+    }
   }
 
   get gridTemplateRows() {
@@ -2324,6 +2413,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridTemplateRows(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridTemplateRows;
+    }
+
     return '';
   }
 
@@ -2334,6 +2428,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridTemplateColumns(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridTemplateColumns;
+    }
+
     return '';
   }
 
@@ -2344,6 +2443,10 @@ export class Style {
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateColumns(this.nativeView, value);
     }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridTemplateColumns = value;
+    }
   }
 
   get gridTemplateAreas() {
@@ -2353,6 +2456,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getGridTemplateAreas(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.gridTemplateAreas;
+    }
+
     return '';
   }
 
@@ -2362,6 +2470,10 @@ export class Style {
     }
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setGridTemplateAreas(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.gridTemplateAreas = value;
     }
   }
 
@@ -2743,6 +2855,11 @@ export class Style {
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackground(this.nativeView);
     }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.background;
+    }
+
     return '';
   }
 
@@ -2753,6 +2870,10 @@ export class Style {
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setBackground(this.nativeView, value);
     }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.background = value;
+    }
   }
 
   get border() {
@@ -2761,6 +2882,10 @@ export class Style {
     }
     if (__ANDROID__) {
       return org.nativescript.mason.masonkit.NodeHelper.getShared().getBorder(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.border;
     }
     return '';
   }
@@ -2771,6 +2896,38 @@ export class Style {
     }
     if (__ANDROID__) {
       org.nativescript.mason.masonkit.NodeHelper.getShared().setBorder(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.border = value;
+    }
+  }
+
+  get filter() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getFilter(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.filter;
+    }
+
+    return '';
+  }
+
+  set filter(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setFilter(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.filter = value;
     }
   }
 
@@ -2823,6 +2980,7 @@ export class Style {
       gridRow: this.gridRow,
       gridTemplateRows: this.gridTemplateRows,
       gridTemplateColumns: this.gridTemplateColumns,
+      filter: this.filter,
     };
   }
 }

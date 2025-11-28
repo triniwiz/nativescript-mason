@@ -11,10 +11,11 @@
         <p @tap="viewFeature('grid')">CSSGrid</p>
       </div> -->
 
-      <div style="height: 500px; width: 500px; background: red; border: 1px solid #444444;">
+      <div style="width: 300px; height: 300px;">
+      <div style="margin: 10; height: 150px; width: 150px; background: red; border: 1px solid #444444; filter: blur(5px);">
         Hello world
       </div>
-
+      </div>
 
 
       <!-- left 5% / 15% 60% repeat-x
