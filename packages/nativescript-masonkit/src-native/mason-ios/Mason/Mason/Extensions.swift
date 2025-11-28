@@ -59,6 +59,25 @@ extension UIColor {
     return argb
   }
   
+  
+  func lighter(by amount: CGFloat = 0.25) -> UIColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        getRed(&r, green: &g, blue: &b, alpha: &a)
+        return UIColor(red: min(r + amount, 1),
+                       green: min(g + amount, 1),
+                       blue: min(b + amount, 1),
+                       alpha: a)
+    }
+
+    func darker(by amount: CGFloat = 0.25) -> UIColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        getRed(&r, green: &g, blue: &b, alpha: &a)
+        return UIColor(red: max(r - amount, 0),
+                       green: max(g - amount, 0),
+                       blue: max(b - amount, 0),
+                       alpha: a)
+    }
+  
 }
 
 

@@ -8,7 +8,7 @@ name = "masonnative"
 crate-type = ["cdylib"]
 
 [dependencies]
-mason-c = { path = "../mason-c" }
+#mason-c = { path = "../mason-c" }
 mason-core = { path = "../mason-core" }
 #jni = { git = "https://github.com/jni-rs/jni-rs.git", rev = "1a4a345b1e65aca405e856046ff2661d37edde6d" }
 jni = "0.21.1"

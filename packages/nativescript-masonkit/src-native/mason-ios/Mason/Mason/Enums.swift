@@ -401,9 +401,19 @@ public func MasonLengthPercentageFromPercent(value: Float) -> MasonLengthPercent
 public let MasonLengthPercentageZero = MasonLengthPercentage.Points(0)
 
 
-public enum MasonLengthPercentage: Codable {
+public enum MasonLengthPercentage: Codable, Equatable {
   case Points(Float)
   case Percent(Float)
+  case Zero
+  
+  
+  func resolve(relativeTo: Float) -> Float {
+    switch (self) {
+    case .Points(let points): return points
+    case .Percent(let percent): return (percent * 100) * relativeTo
+    case .Zero: return 0
+    }
+  }
   
   
   static func fromValueType(_ value: Float, _ type: Int) -> MasonLengthPercentage? {
@@ -422,16 +432,17 @@ public enum MasonLengthPercentage: Codable {
       switch (self) {
       case .Points: return 0
       case .Percent: return 1
+      case .Zero: return 0
       }
     }
   }
   
   internal var value: Float {
     get {
-      
       switch (self) {
       case .Points(let points): return points
       case .Percent(let percent): return percent
+      case .Zero: return 0
       }
     }
   }
@@ -444,6 +455,8 @@ public enum MasonLengthPercentage: Codable {
         return "\(points)px"
       case .Percent(let percent):
         return "\(percent)%"
+      case .Zero:
+        return "0px"
       }
     }
   }
@@ -491,6 +504,10 @@ public enum MasonLengthPercentage: Codable {
       var container = encoder.container(keyedBy: CodingKeys.self)
       try container.encode(value, forKey: .value)
       try container.encode("%", forKey: .unit)
+    case .Zero:
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      try container.encode(0, forKey: .value)
+      try container.encode("px", forKey: .unit)
     }
   }
   
@@ -2322,3 +2339,176 @@ public enum DecorationStyle: Int, RawRepresentable, CustomStringConvertible  {
     return cssValue
   }
  }
+
+
+
+@objc(MasonFloat)
+public enum MasonFloat: Int, RawRepresentable, CustomStringConvertible {
+  case None
+  case Left
+  case Right
+  
+  public typealias RawValue = Int32
+  
+  public var rawValue: RawValue {
+    switch self {
+    case .None:
+      return 0
+    case .Left:
+      return 1
+    case .Right:
+      return 2
+    }
+  }
+  
+  
+  public init?(rawValue: RawValue) {
+    switch rawValue {
+    case 0:
+      self = .None
+    case 1:
+      self = .Left
+    case 2:
+      self = .Right
+    default:
+      return nil
+    }
+  }
+  
+  var cssValue: String {
+    switch self {
+    case .None:
+      return "none"
+    case .Left:
+      return "left"
+    case .Right:
+      return "right"
+    }
+  }
+  
+  public var description: String {
+    return cssValue
+  }
+}
+
+
+
+@objc(MasonClear)
+public enum Clear: Int, RawRepresentable, CustomStringConvertible {
+  case None
+  case Left
+  case Right
+  case Both
+  
+  public typealias RawValue = Int32
+  
+  public var rawValue: RawValue {
+    switch self {
+    case .None:
+      return 0
+    case .Left:
+      return 1
+    case .Right:
+      return 2
+    case .Both:
+      return 3
+    }
+  }
+  
+  
+  public init?(rawValue: RawValue) {
+    switch rawValue {
+    case 0:
+      self = .None
+    case 1:
+      self = .Left
+    case 2:
+      self = .Right
+    case 3:
+      self = .Both
+    default:
+      return nil
+    }
+  }
+  
+  var cssValue: String {
+    switch self {
+    case .None:
+      return "none"
+    case .Left:
+      return "left"
+    case .Right:
+      return "right"
+    case .Both:
+      return "both"
+    }
+  }
+  
+  public var description: String {
+    return cssValue
+  }
+}
+
+
+@objc(MasonObjectFit)
+public enum ObjectFit: Int, RawRepresentable, CustomStringConvertible {
+  case Contain
+   case Cover
+   case Fill
+   case None
+   case ScaleDown
+  
+  public typealias RawValue = Int32
+  
+  public var rawValue: RawValue {
+    switch self {
+    case .Contain:
+      return 0
+    case .Cover:
+      return 1
+    case .Fill:
+      return 2
+    case .None:
+      return 3
+    case .ScaleDown:
+      return 3
+    }
+  }
+  
+  
+  public init?(rawValue: RawValue) {
+    switch rawValue {
+    case 0:
+      self = .Contain
+    case 1:
+      self = .Cover
+    case 2:
+      self = .Fill
+    case 3:
+      self = .None
+    case 4:
+      self = .ScaleDown
+    default:
+      return nil
+    }
+  }
+  
+  var cssValue: String {
+    switch self {
+    case .Contain:
+      return "contain"
+    case .Cover:
+      return "cover"
+    case .Fill:
+      return "fill"
+    case .None:
+      return "none"
+    case .ScaleDown:
+      return "scale-down"
+    }
+  }
+  
+  public var description: String {
+    return cssValue
+  }
+}

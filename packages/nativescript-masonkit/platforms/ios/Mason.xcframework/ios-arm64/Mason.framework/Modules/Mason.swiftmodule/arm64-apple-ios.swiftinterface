@@ -2,6 +2,9 @@
 // swift-compiler-version: Apple Swift version 6.1.2 effective-5.10 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)
 // swift-module-flags: -target arm64-apple-ios15.6 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -module-name Mason
 // swift-module-flags-ignorable: -no-verify-emitted-module-interface -interface-compiler-version 6.1.2
+import CoreImage.CIFilterBuiltins
+import CoreGraphics
+import CoreImage
 import CoreText
 import Foundation
 @_exported import Mason
@@ -114,6 +117,119 @@ import _SwiftConcurrencyShims
   @objc public init(mason instance: Mason.NSCMason)
   @objc deinit
 }
+public struct Line<T> {
+  public init(_ start: T, _ end: T)
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(LineGridPlacementCompat) public class LineGridPlacementCompat : ObjectiveC.NSObject {
+  @objc public var start: Mason.GridPlacementCompat {
+    get
+  }
+  @objc public var end: Mason.GridPlacementCompat {
+    get
+  }
+  @objc deinit
+}
+@objcMembers @objc(MinMax) public class MinMax : ObjectiveC.NSObject, Swift.Codable {
+  @objc public init(_ min: Mason.MinSizing, _ max: Mason.MaxSizing)
+  @objc public static func Points(points: Swift.Float) -> Mason.MinMax
+  @objc public static func Percent(percent: Swift.Float) -> Mason.MinMax
+  @objc public static func Flex(flex: Swift.Float) -> Mason.MinMax
+  @objc public static func FitContent(fit: Swift.Float) -> Mason.MinMax
+  @objc public static func FitContentPercent(fit: Swift.Float) -> Mason.MinMax
+  @objc public static let Auto: Mason.MinMax
+  @objc public static func fromTypeValue(_ minType: Swift.Int, _ minValue: Swift.Float, _ maxType: Swift.Int, _ maxValue: Swift.Float) -> Mason.MinMax?
+  @objc public var cssValue: Swift.String {
+    @objc get
+  }
+  @objc public var jsonValue: Swift.String? {
+    @objc get
+  }
+  required public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
+  @objc deinit
+}
+final public class CSSBorderRenderer {
+  @objc @_inheritsConvenienceInitializers public class BorderLayer : QuartzCore.CALayer {
+    @objc override dynamic public func draw(in ctx: CoreGraphics.CGContext)
+    public func invalidate()
+    @objc override dynamic public func layoutSublayers()
+    @objc override dynamic public init()
+    @objc override dynamic public init(layer: Any)
+    @objc required dynamic public init?(coder: Foundation.NSCoder)
+    @objc deinit
+  }
+  public enum BorderStyle : Swift.Equatable {
+    case none
+    case hidden
+    case dotted(dot: CoreFoundation.CGFloat = 1, gap: CoreFoundation.CGFloat = 3)
+    case dashed(dash: CoreFoundation.CGFloat = 6, gap: CoreFoundation.CGFloat = 6)
+    case solid
+    case double(spacing: CoreFoundation.CGFloat = 3)
+    case groove
+    case ridge
+    case inset
+    case outset
+    public init?(rawValue: Swift.Int32)
+    public var rawValue: Swift.Int32 {
+      get
+    }
+    public init?(name: Swift.String)
+    public static func == (a: Mason.CSSBorderRenderer.BorderStyle, b: Mason.CSSBorderRenderer.BorderStyle) -> Swift.Bool
+  }
+  public struct BorderSide : Swift.CustomStringConvertible {
+    public var description: Swift.String {
+      get
+    }
+    public var width: Mason.MasonLengthPercentage {
+      get
+      set
+    }
+    public func setColor(color: Swift.UInt32)
+    public var color: UIKit.UIColor {
+      get
+      set
+    }
+    public var style: Mason.CSSBorderRenderer.BorderStyle {
+      get
+      set
+    }
+    public init(style: Mason.MasonStyle, side sideType: Mason.CSSBorderRenderer.Side)
+  }
+  public struct CornerRadius : Swift.Equatable {
+    public var horizontal: Mason.MasonLengthPercentage
+    public var vertical: Mason.MasonLengthPercentage
+    public var exponent: CoreFoundation.CGFloat
+    public static var zero: Mason.CSSBorderRenderer.CornerRadius {
+      get
+    }
+    public static func == (a: Mason.CSSBorderRenderer.CornerRadius, b: Mason.CSSBorderRenderer.CornerRadius) -> Swift.Bool
+  }
+  public struct BorderRadius {
+    public var topLeft: Mason.CSSBorderRenderer.CornerRadius
+    public var topRight: Mason.CSSBorderRenderer.CornerRadius
+    public var bottomRight: Mason.CSSBorderRenderer.CornerRadius
+    public var bottomLeft: Mason.CSSBorderRenderer.CornerRadius
+    public static var zero: Mason.CSSBorderRenderer.BorderRadius {
+      get
+    }
+  }
+  final public var top: Mason.CSSBorderRenderer.BorderSide
+  final public var right: Mason.CSSBorderRenderer.BorderSide
+  final public var bottom: Mason.CSSBorderRenderer.BorderSide
+  final public var left: Mason.CSSBorderRenderer.BorderSide
+  final public var radius: Mason.CSSBorderRenderer.BorderRadius
+  public init(style: Mason.MasonStyle)
+  final public func draw(in ctx: CoreGraphics.CGContext, rect: CoreFoundation.CGRect)
+  public enum Side {
+    case top, right, bottom, left
+    public static func == (a: Mason.CSSBorderRenderer.Side, b: Mason.CSSBorderRenderer.Side) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+  @objc deinit
+}
 @objc(MasonTextType) public enum MasonTextType : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case None
   case P
@@ -142,9 +258,17 @@ public enum InlineSegmentPayload {
   case text(width: Swift.Float, ascent: Swift.Float, descent: Swift.Float)
   case inline(id: Swift.OpaquePointer, width: Swift.Float, height: Swift.Float, baseline: Swift.Float)
 }
+@objc @_hasMissingDesignatedInitializers public class MasonTextLayer : QuartzCore.CALayer {
+  @objc override dynamic public init()
+  @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
+  @objc deinit
+}
 @_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let type: Mason.MasonTextType
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public class var layerClass: Swift.AnyClass {
+    @objc get
+  }
   @objc @_Concurrency.MainActor @preconcurrency public var textValues: Foundation.NSMutableData {
     @objc get
   }
@@ -216,10 +340,11 @@ public enum InlineSegmentPayload {
     @objc get
     @objc set
   }
+  @objc @_Concurrency.MainActor @preconcurrency public var textContent: Swift.String {
+    @objc get
+    @objc set
+  }
   @objc deinit
-}
-extension Mason.MasonText {
-  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
 }
 extension Mason.MasonText {
   @objc @discardableResult
@@ -227,12 +352,6 @@ extension Mason.MasonText {
 }
 extension Mason.MasonText {
   @objc @_Concurrency.MainActor @preconcurrency dynamic public func addChild(_ child: Mason.MasonNode)
-}
-extension Mason.MasonText {
-  @objc @_Concurrency.MainActor @preconcurrency dynamic public var text: Swift.String {
-    @objc get
-    @objc set
-  }
 }
 @objc public protocol MasonCharacterData {
   @objc var data: Swift.String { get set }
@@ -276,37 +395,6 @@ extension Mason.MasonText {
 extension Mason.MasonTextNode {
   @objc dynamic public func attributed() -> Foundation.NSAttributedString
 }
-public struct Line<T> {
-  public init(_ start: T, _ end: T)
-}
-@_hasMissingDesignatedInitializers @objcMembers @objc(LineGridPlacementCompat) public class LineGridPlacementCompat : ObjectiveC.NSObject {
-  @objc public var start: Mason.GridPlacementCompat {
-    get
-  }
-  @objc public var end: Mason.GridPlacementCompat {
-    get
-  }
-  @objc deinit
-}
-@objcMembers @objc(MinMax) public class MinMax : ObjectiveC.NSObject, Swift.Codable {
-  @objc public init(_ min: Mason.MinSizing, _ max: Mason.MaxSizing)
-  @objc public static func Points(points: Swift.Float) -> Mason.MinMax
-  @objc public static func Percent(percent: Swift.Float) -> Mason.MinMax
-  @objc public static func Flex(flex: Swift.Float) -> Mason.MinMax
-  @objc public static func FitContent(fit: Swift.Float) -> Mason.MinMax
-  @objc public static func FitContentPercent(fit: Swift.Float) -> Mason.MinMax
-  @objc public static let Auto: Mason.MinMax
-  @objc public static func fromTypeValue(_ minType: Swift.Int, _ minValue: Swift.Float, _ maxType: Swift.Int, _ maxValue: Swift.Float) -> Mason.MinMax?
-  @objc public var cssValue: Swift.String {
-    @objc get
-  }
-  @objc public var jsonValue: Swift.String? {
-    @objc get
-  }
-  required public init(from decoder: any Swift.Decoder) throws
-  public func encode(to encoder: any Swift.Encoder) throws
-  @objc deinit
-}
 @_inheritsConvenienceInitializers @objc(NSCMason) @objcMembers public class NSCMason : ObjectiveC.NSObject {
   @objc public var nativePtr: Swift.OpaquePointer? {
     get
@@ -314,6 +402,7 @@ public struct Line<T> {
   @objc public static var shared: Mason.NSCMason
   @objc override dynamic public init()
   @objc deinit
+  @objc public func setDeviceScale(_ value: Swift.Float)
   @objc public func nodeForView(_ view: UIKit.UIView, _ isLeaf: Swift.Bool = true) -> Mason.MasonNode
   @objc public func configureStyleForView(_ view: UIKit.UIView, _ block: (Mason.MasonStyle) -> Swift.Void)
   @objc public func styleForView(_ view: UIKit.UIView) -> Mason.MasonStyle
@@ -606,11 +695,11 @@ extension Mason.MasonElement {
     @objc get
   }
   @objc public static func Single(_ value: Mason.MinMax) -> Mason.TrackSizingFunction
-  @objc deinit
   @objc public static func AutoRepeat(_ gridTrackRepetition: Mason.GridTrackRepetition, _ value: Swift.Array<Mason.MinMax>) -> Mason.TrackSizingFunction
   @objc public var cssValue: Swift.String {
     @objc get
   }
+  @objc deinit
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionCompat) public class MasonDimensionCompat : ObjectiveC.NSObject, Swift.Codable {
   @objc public init(points: Swift.Float)
@@ -778,11 +867,31 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc set
   }
   @objc public init(node: Mason.MasonNode)
+  @objc public var objectFit: Mason.ObjectFit {
+    @objc get
+    @objc set
+  }
+  @objc public var float: Mason.MasonFloat {
+    @objc get
+    @objc set
+  }
+  @objc public var clear: Mason.Clear {
+    @objc get
+    @objc set
+  }
   @objc public var color: Swift.UInt32 {
     @objc get
     @objc set
   }
   @objc public func setColor(ui color: UIKit.UIColor)
+  @objc public var filter: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var background: Swift.String {
+    @objc get
+    @objc set
+  }
   @objc public var backgroundColor: Swift.UInt32 {
     @objc get
     @objc set
@@ -816,6 +925,10 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc set
   }
   @objc public var fontStyle: Mason.FontStyle {
+    @objc get
+    @objc set
+  }
+  @objc public var fontFamily: Swift.String {
     @objc get
     @objc set
   }
@@ -975,19 +1088,23 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
   @objc public func setPaddingTop(_ value: Swift.Float, _ type: Swift.Int)
   @objc public func setPaddingBottom(_ value: Swift.Float, _ type: Swift.Int)
   @objc public func setPaddingWithValueType(_ value: Swift.Float, _ type: Swift.Int)
-  public var border: Mason.MasonRect<Mason.MasonLengthPercentage> {
-    get
-    set
-  }
-  @objc public var borderCompat: Mason.MasonLengthPercentageRectCompat {
+  @objc public var border: Swift.String {
     @objc get
     @objc set
   }
-  @objc public func setBorderLeft(_ value: Swift.Float, _ type: Swift.Int)
-  @objc public func setBorderRight(_ value: Swift.Float, _ type: Swift.Int)
-  @objc public func setBorderTop(_ value: Swift.Float, _ type: Swift.Int)
-  @objc public func setBorderBottom(_ value: Swift.Float, _ type: Swift.Int)
-  @objc public func setBorderWithValueType(_ value: Swift.Float, _ type: Swift.Int)
+  public var borderWidth: Mason.MasonRect<Mason.MasonLengthPercentage> {
+    get
+    set
+  }
+  @objc public var borderWidthCompat: Mason.MasonLengthPercentageRectCompat {
+    @objc get
+    @objc set
+  }
+  @objc public func setBorderLeftWidth(_ value: Swift.Float, _ type: Swift.Int)
+  @objc public func setBorderRightWidth(_ value: Swift.Float, _ type: Swift.Int)
+  @objc public func setBorderTopWidth(_ value: Swift.Float, _ type: Swift.Int)
+  @objc public func setBorderBottomWidth(_ value: Swift.Float, _ type: Swift.Int)
+  @objc public func setBorderWidth(_ value: Swift.Float, _ type: Swift.Int)
   @objc public var flexGrow: Swift.Float {
     @objc get
     @objc set
@@ -1077,11 +1194,19 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     get
     set
   }
-  @objc public var gridAutoRows: [Mason.MinMax] {
+  @objc public var gridArea: Swift.String {
     @objc get
     @objc set
   }
-  @objc public var gridAutoColumns: [Mason.MinMax] {
+  @objc public var gridTemplateAreas: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var gridAutoRows: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var gridAutoColumns: Swift.String {
     @objc get
     @objc set
   }
@@ -1089,65 +1214,35 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc get
     @objc set
   }
-  public var gridColumn: Mason.Line<Mason.GridPlacement> {
-    get
-    set
-  }
-  public var gridColumnStart: Mason.GridPlacement {
-    get
-    set
-  }
-  public var gridColumnEnd: Mason.GridPlacement {
-    get
-    set
-  }
-  @objc public var gridColumnCompat: Mason.LineGridPlacementCompat {
+  @objc public var gridColumn: Swift.String {
     @objc get
     @objc set
   }
-  @objc public var gridColumnStartCompat: Mason.GridPlacementCompat {
+  @objc public var gridColumnStart: Swift.String {
     @objc get
     @objc set
   }
-  @objc public var gridColumnEndCompat: Mason.GridPlacementCompat {
+  @objc public var gridColumnEnd: Swift.String {
     @objc get
     @objc set
   }
-  public var gridRow: Mason.Line<Mason.GridPlacement> {
-    get
-    set
-  }
-  public var gridRowStart: Mason.GridPlacement {
-    get
-    set
-  }
-  public var gridRowEnd: Mason.GridPlacement {
-    get
-    set
-  }
-  @objc public var gridRowCompat: Mason.LineGridPlacementCompat {
+  @objc public var gridRow: Swift.String {
     @objc get
     @objc set
   }
-  @objc public var gridRowStartCompat: Mason.GridPlacementCompat {
+  @objc public var gridRowStart: Swift.String {
     @objc get
     @objc set
   }
-  @objc public var gridRowEndCompat: Mason.GridPlacementCompat {
+  @objc public var gridRowEnd: Swift.String {
     @objc get
     @objc set
   }
-  @objc public var gridTemplateRowsCSS: Swift.String {
-    @objc get
-  }
-  @objc public var gridTemplateRows: [Mason.TrackSizingFunction] {
+  @objc public var gridTemplateRows: Swift.String {
     @objc get
     @objc set
   }
-  @objc public var gridTemplateColumnsCSS: Swift.String {
-    @objc get
-  }
-  @objc public var gridTemplateColumns: [Mason.TrackSizingFunction] {
+  @objc public var gridTemplateColumns: Swift.String {
     @objc get
     @objc set
   }
@@ -1278,6 +1373,15 @@ extension UIKit.UIColor {
   @objc dynamic public func mason_replaceChildAt(element: any Mason.MasonElementObjc, _ index: Swift.Int)
   @objc dynamic public func mason_replaceChildAt(node: Mason.MasonNode, _ index: Swift.Int)
 }
+@objc @_inheritsConvenienceInitializers public class BackgroundCALayer : QuartzCore.CALayer {
+  @objc override dynamic public func draw(in ctx: CoreGraphics.CGContext)
+  public func invalidate()
+  @objc override dynamic public func layoutSublayers()
+  @objc override dynamic public init()
+  @objc override dynamic public init(layer: Any)
+  @objc required dynamic public init?(coder: Foundation.NSCoder)
+  @objc deinit
+}
 @objc(MasonLoadingState) public enum LoadingState : Swift.Int, Swift.RawRepresentable {
   case Loading
   case Loaded
@@ -1288,7 +1392,12 @@ extension UIKit.UIColor {
   }
   public init?(rawValue: Mason.LoadingState.RawValue)
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonImg) @_Concurrency.MainActor @preconcurrency public class Img : UIKit.UIImageView, Mason.MasonElement, Mason.MasonElementObjc {
+@objc @_hasMissingDesignatedInitializers public class MasonImageLayer : QuartzCore.CALayer {
+  @objc override dynamic public init()
+  @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonImg) @_Concurrency.MainActor @preconcurrency public class Img : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @_Concurrency.MainActor @preconcurrency @objc public var uiView: UIKit.UIView {
@@ -1299,10 +1408,15 @@ extension UIKit.UIColor {
   }
   @objc @_Concurrency.MainActor @preconcurrency public var didLayout: (() -> Swift.Void)?
   @objc @_Concurrency.MainActor @preconcurrency public var onStateChange: ((Mason.LoadingState, (any Swift.Error)?) -> Swift.Void)?
-  @_Concurrency.MainActor @preconcurrency @objc override dynamic public var image: UIKit.UIImage? {
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public class var layerClass: Swift.AnyClass {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var image: UIKit.UIImage? {
     @objc get
     @objc set
   }
+  @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func setNeedsDisplay()
   @objc @_Concurrency.MainActor @preconcurrency public var src: Swift.String? {
     @objc get
     @objc set
@@ -1393,9 +1507,10 @@ public enum MasonDimension : Swift.Codable, Swift.Equatable {
 public func MasonLengthPercentageFromPoints(value: Swift.Float) -> Mason.MasonLengthPercentage
 public func MasonLengthPercentageFromPercent(value: Swift.Float) -> Mason.MasonLengthPercentage
 public let MasonLengthPercentageZero: Mason.MasonLengthPercentage
-public enum MasonLengthPercentage : Swift.Codable {
+public enum MasonLengthPercentage : Swift.Codable, Swift.Equatable {
   case Points(Swift.Float)
   case Percent(Swift.Float)
+  case Zero
   public var cssValue: Swift.String {
     get
   }
@@ -1404,6 +1519,7 @@ public enum MasonLengthPercentage : Swift.Codable {
   }
   public init(from decoder: any Swift.Decoder) throws
   public func encode(to encoder: any Swift.Encoder) throws
+  public static func == (a: Mason.MasonLengthPercentage, b: Mason.MasonLengthPercentage) -> Swift.Bool
 }
 public func MasonLengthPercentageAutoFromPoints(value: Swift.Float) -> Mason.MasonLengthPercentageAuto
 public func MasonLengthPercentageAutoFromPercent(value: Swift.Float) -> Mason.MasonLengthPercentageAuto
@@ -1765,6 +1881,48 @@ public enum TextOverflow : Swift.CustomStringConvertible {
     get
   }
 }
+@objc(MasonFloat) public enum MasonFloat : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+  case None
+  case Left
+  case Right
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.MasonFloat.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.MasonFloat.RawValue)
+  public var description: Swift.String {
+    get
+  }
+}
+@objc(MasonClear) public enum Clear : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+  case None
+  case Left
+  case Right
+  case Both
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.Clear.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.Clear.RawValue)
+  public var description: Swift.String {
+    get
+  }
+}
+@objc(MasonObjectFit) public enum ObjectFit : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+  case Contain
+  case Cover
+  case Fill
+  case None
+  case ScaleDown
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.ObjectFit.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.ObjectFit.RawValue)
+  public var description: Swift.String {
+    get
+  }
+}
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonUIView) @_Concurrency.MainActor @preconcurrency public class MasonUIView : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
@@ -1784,6 +1942,10 @@ public enum TextOverflow : Swift.CustomStringConvertible {
   @objc @_Concurrency.MainActor @preconcurrency public func addSubviews(_ views: [UIKit.UIView])
   @objc @_Concurrency.MainActor @preconcurrency public func addSubviews(_ views: [UIKit.UIView], at index: Swift.Int)
   @objc @_Concurrency.MainActor @preconcurrency public var inBatch: Swift.Bool {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var background: Swift.String {
     @objc get
     @objc set(value)
   }
@@ -1867,11 +2029,19 @@ public enum TextOverflow : Swift.CustomStringConvertible {
     @objc get
     @objc set(value)
   }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridAutoRows: Swift.Array<Mason.MinMax> {
+  @objc @_Concurrency.MainActor @preconcurrency public var gridArea: Swift.String {
     @objc get
     @objc set(value)
   }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridAutoColumns: Swift.Array<Mason.MinMax> {
+  @objc @_Concurrency.MainActor @preconcurrency public var gridTemplateAreas: Swift.String {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var gridAutoRows: Swift.String {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var gridAutoColumns: Swift.String {
     @objc get
     @objc set(value)
   }
@@ -1879,59 +2049,35 @@ public enum TextOverflow : Swift.CustomStringConvertible {
     @objc get
     @objc set(value)
   }
-  @_Concurrency.MainActor @preconcurrency public var gridColumn: Mason.Line<Mason.GridPlacement> {
-    get
-    set(value)
-  }
-  @_Concurrency.MainActor @preconcurrency public var gridColumnStart: Mason.GridPlacement {
-    get
-    set
-  }
-  @_Concurrency.MainActor @preconcurrency public var gridColumnEnd: Mason.GridPlacement {
-    get
-    set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridColumnCompat: Mason.LineGridPlacementCompat {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridColumnStartCompat: Mason.GridPlacementCompat {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridColumnEndCompat: Mason.GridPlacementCompat {
-    @objc get
-    @objc set
-  }
-  @_Concurrency.MainActor @preconcurrency public var gridRow: Mason.Line<Mason.GridPlacement> {
-    get
-    set(value)
-  }
-  @_Concurrency.MainActor @preconcurrency public var gridRowStart: Mason.GridPlacement {
-    get
-    set
-  }
-  @_Concurrency.MainActor @preconcurrency public var gridRowEnd: Mason.GridPlacement {
-    get
-    set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridRowCompat: Mason.LineGridPlacementCompat {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridRowStartCompat: Mason.GridPlacementCompat {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridRowEndCompat: Mason.GridPlacementCompat {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridTemplateRows: Swift.Array<Mason.TrackSizingFunction> {
+  @objc @_Concurrency.MainActor @preconcurrency public var gridColumn: Swift.String {
     @objc get
     @objc set(value)
   }
-  @objc @_Concurrency.MainActor @preconcurrency public var gridTemplateColumns: Swift.Array<Mason.TrackSizingFunction> {
+  @objc @_Concurrency.MainActor @preconcurrency public var gridColumnStart: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var gridColumnEnd: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var gridRow: Swift.String {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var gridRowStart: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var gridRowEnd: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var gridTemplateRows: Swift.String {
+    @objc get
+    @objc set(value)
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var gridTemplateColumns: Swift.String {
     @objc get
     @objc set(value)
   }
@@ -1945,12 +2091,12 @@ public enum TextOverflow : Swift.CustomStringConvertible {
   @objc @_Concurrency.MainActor @preconcurrency public func getPaddingRight() -> Mason.MasonLengthPercentageCompat
   @objc @_Concurrency.MainActor @preconcurrency public func getPaddingTop() -> Mason.MasonLengthPercentageCompat
   @objc @_Concurrency.MainActor @preconcurrency public func getPaddingBottom() -> Mason.MasonLengthPercentageCompat
-  @objc @_Concurrency.MainActor @preconcurrency public func setBorder(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
-  @objc @_Concurrency.MainActor @preconcurrency public func getBorder() -> Mason.MasonLengthPercentageRectCompat
-  @objc @_Concurrency.MainActor @preconcurrency public func setBorderLeft(_ left: Swift.Float, _ type: Swift.Int)
-  @objc @_Concurrency.MainActor @preconcurrency public func setBorderRight(_ right: Swift.Float, _ type: Swift.Int)
-  @objc @_Concurrency.MainActor @preconcurrency public func setBorderTop(_ top: Swift.Float, _ type: Swift.Int)
-  @objc @_Concurrency.MainActor @preconcurrency public func setBorderBottom(_ bottom: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor @preconcurrency public func setBorderWidth(_ left: Swift.Float, _ top: Swift.Float, _ right: Swift.Float, _ bottom: Swift.Float)
+  @objc @_Concurrency.MainActor @preconcurrency public func getBorderWidth() -> Mason.MasonLengthPercentageRectCompat
+  @objc @_Concurrency.MainActor @preconcurrency public func setBorderLeftWidth(_ left: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor @preconcurrency public func setBorderRightWidth(_ right: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor @preconcurrency public func setBorderTopWidth(_ top: Swift.Float, _ type: Swift.Int)
+  @objc @_Concurrency.MainActor @preconcurrency public func setBorderBottomWidth(_ bottom: Swift.Float, _ type: Swift.Int)
   @objc @_Concurrency.MainActor @preconcurrency public func getBorderLeft() -> Mason.MasonLengthPercentageCompat
   @objc @_Concurrency.MainActor @preconcurrency public func getBorderRight() -> Mason.MasonLengthPercentageCompat
   @objc @_Concurrency.MainActor @preconcurrency public func getBorderBottom() -> Mason.MasonLengthPercentageCompat
@@ -2024,6 +2170,8 @@ extension Mason.NSCFontWeight : Swift.Equatable {}
 extension Mason.NSCFontWeight : Swift.Hashable {}
 extension Mason.NSCFontFaceStatus : Swift.Equatable {}
 extension Mason.NSCFontFaceStatus : Swift.Hashable {}
+extension Mason.CSSBorderRenderer.Side : Swift.Equatable {}
+extension Mason.CSSBorderRenderer.Side : Swift.Hashable {}
 extension Mason.MasonTextType : Swift.Equatable {}
 extension Mason.MasonTextType : Swift.Hashable {}
 extension Mason.MasonNodeType : Swift.Equatable {}
@@ -2088,3 +2236,9 @@ extension Mason.TextJustify : Swift.Equatable {}
 extension Mason.TextJustify : Swift.Hashable {}
 extension Mason.DecorationStyle : Swift.Equatable {}
 extension Mason.DecorationStyle : Swift.Hashable {}
+extension Mason.MasonFloat : Swift.Equatable {}
+extension Mason.MasonFloat : Swift.Hashable {}
+extension Mason.Clear : Swift.Equatable {}
+extension Mason.Clear : Swift.Hashable {}
+extension Mason.ObjectFit : Swift.Equatable {}
+extension Mason.ObjectFit : Swift.Hashable {}

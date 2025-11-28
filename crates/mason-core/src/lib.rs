@@ -1,17 +1,18 @@
 pub use crate::tree::{Id, Tree};
 use std::ffi::{c_float, c_longlong, c_void};
+use std::sync::atomic::Ordering;
+pub use style_atoms::Atom;
 pub use taffy::geometry::{Line, Point, Rect, Size};
 pub use taffy::style::{
     AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, CompactLength, Dimension,
-    Display, FlexDirection, FlexWrap, GridAutoFlow, GridPlacement, GridTrackRepetition,
-    JustifyContent, LengthPercentage, LengthPercentageAuto, MaxTrackSizingFunction,
-    MinTrackSizingFunction, NonRepeatedTrackSizingFunction, Position, TextAlign,
-    TrackSizingFunction,
+    Display, FlexDirection, FlexWrap, GridAutoFlow, GridPlacement, GridTemplateArea,
+    GridTemplateComponent, GridTemplateRepetition, JustifyContent, LengthPercentage,
+    LengthPercentageAuto, MaxTrackSizingFunction, MinTrackSizingFunction, Position,
+    RepetitionCount, TextAlign, TrackSizingFunction,
 };
 pub use taffy::style_helpers::*;
 pub use taffy::Layout;
 pub use taffy::Overflow;
-
 mod node;
 
 #[cfg(target_vendor = "apple")]
@@ -21,10 +22,10 @@ pub use crate::node::InlineSegment;
 pub use crate::style::Style;
 pub use node::NodeRef;
 
-mod inline;
 pub mod style;
 mod tree;
 pub mod utils;
+mod tree_inline;
 
 #[cfg(target_os = "android")]
 pub static JVM: std::sync::OnceLock<jni::JavaVM> = std::sync::OnceLock::new();
@@ -127,6 +128,12 @@ fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
 #[derive(Debug)]
 pub struct Mason(Tree);
 
+impl Default for Mason {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Mason {
     pub fn new() -> Self {
         Self::with_capacity(128)
@@ -134,6 +141,14 @@ impl Mason {
 
     pub fn clear(&mut self) {
         self.0.clear();
+    }
+
+    pub fn set_device_scale(&mut self, scale: f32) {
+        self.0.density.store(scale.to_bits(), Ordering::Release);
+    }
+
+    pub fn get_device_scale(&self) -> f32 {
+        f32::from_bits(self.0.density.load(Ordering::Acquire))
     }
 
     pub fn with_capacity(size: usize) -> Self {
@@ -256,10 +271,8 @@ impl Mason {
         if let Some(node) = self.0.node_data.get_mut(node) {
             if data.is_null() {
                 node.apple_data = None;
-            } else {
-                if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
-                    node.apple_data = Some(apple_node);
-                }
+            } else if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
+                node.apple_data = Some(apple_node);
             }
         }
     }

@@ -9,7 +9,7 @@ import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.Overflow
+import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles

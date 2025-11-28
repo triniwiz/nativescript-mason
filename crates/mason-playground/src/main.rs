@@ -1,9 +1,12 @@
-use mason_core::style::{DisplayMode, StyleKeys};
+use mason_core::style::{DisplayMode, Overflow, StyleKeys};
 use mason_core::{
     AlignContent, AlignItems, Dimension, Display, FlexDirection, JustifyContent, LengthPercentage,
-    LengthPercentageAuto, Mason, MeasureOutput, Rect, Size,
+    LengthPercentageAuto, Mason, MeasureOutput, NodeRef, Rect, Size,
 };
 use std::ffi::{c_longlong, c_void};
+use taffy::prelude::{TaffyGridLine, TaffyMaxContent};
+use taffy::style_helpers::length;
+use taffy::{AlignSelf, AvailableSpace, Line, NodeId};
 
 #[derive(Debug)]
 struct NodeData {
@@ -32,8 +35,886 @@ fn main() {
     //  inline_mix_bug()
     // flex_direction_bug()
     //flex_grow_bug()
-   // inline_size_bug()
-    wrap_bug()
+    // inline_size_bug()
+    //  wrap_bug()
+    //  grid_areas();
+    // grid();
+    //g_names()
+    //taffy_g_names();
+    // taffy_g_names_xp();
+    // grid_sizing();
+    // grid_sizing_taffy();
+    // grid_template_areas();
+    // grid_template_areas_500();
+
+    //inline();
+    mixed();
+}
+
+fn mixed() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_padding(Rect {
+            top: length(10.),
+            right: length(10.),
+            bottom: length(10.),
+            left: length(10.),
+        })
+    });
+
+    let header = mason.create_text_node();
+    mason.with_style_mut(header.id(), |style| {
+        style.set_display(Display::Block);
+        style.set_display_mode(DisplayMode::None);
+        style.set_size(Size {
+            width: length(100.),
+            height: length(200.),
+        });
+
+        style.set_margin(Rect {
+            top: length(20.),
+            right: length(20.),
+            bottom: length(20.),
+            left: length(20.),
+        })
+    });
+    let inline_a = mason.create_node();
+
+    mason.with_style_mut(inline_a.id(), |style| {
+        style.set_display_mode(DisplayMode::Inline);
+        style.set_size(Size {
+            width: length(50.),
+            height: length(300.),
+        })
+    });
+
+    let inline_b = mason.create_node();
+
+    mason.with_style_mut(inline_b.id(), |style| {
+        style.set_display_mode(DisplayMode::Inline);
+        style.set_size(Size {
+            width: length(500.),
+            height: length(500.),
+        })
+    });
+
+    mason.add_child(root.id(), header.id());
+
+    mason.add_child(root.id(), inline_a.id());
+    mason.add_child(root.id(), inline_b.id());
+
+    mason.compute_wh(root.id(), 1200.0, 3000.);
+
+    mason.print_tree(root.id());
+}
+
+fn inline() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_padding(Rect {
+            top: length(10.),
+            right: length(10.),
+            bottom: length(10.),
+            left: length(10.),
+        })
+    });
+
+    let inline_a = mason.create_text_node();
+    mason.with_style_mut(inline_a.id(), |style| {
+        style.set_size(Size {
+            width: length(100.),
+            height: length(200.),
+        });
+
+        style.set_margin(Rect {
+            top: length(20.),
+            right: length(20.),
+            bottom: length(20.),
+            left: length(20.),
+        })
+    });
+    let inline_b = mason.create_text_node();
+
+    mason.with_style_mut(inline_b.id(), |style| {
+        style.set_size(Size {
+            width: length(50.),
+            height: length(300.),
+        })
+    });
+
+    let c = mason.create_node();
+
+    mason.with_style_mut(c.id(), |style| {
+        style.set_size(Size {
+            width: length(500.),
+            height: length(500.),
+        })
+    });
+
+    mason.add_child(root.id(), inline_a.id());
+    mason.add_child(root.id(), inline_b.id());
+    //mason.add_child(root.id(), c.id());
+
+    mason.compute_wh(root.id(), 1200.0, 3000.);
+
+    mason.print_tree(root.id());
+}
+
+fn grid_template_areas_500() {
+    let mut mason = Mason::new();
+    mason.set_device_scale(3.0);
+    let root = mason.create_node();
+    let grid = mason.create_node();
+    mason.with_style_mut(grid.id(), |style| {
+        style.set_display(Display::Grid);
+        style.set_gap(Size::length(10.));
+        style.set_grid_template_columns_css("20% auto");
+        style.set_grid_template_areas_css(
+            r#"
+           "header   header"
+		"sidebar  content"
+		"sidebar2 sidebar2"
+		"footer   footer"
+        "#,
+        )
+    });
+
+    let header = mason.create_node();
+    let header_txt = mason.create_text_node();
+
+    let sidebar = mason.create_node();
+    let sidebar_txt = mason.create_text_node();
+
+    let content = mason.create_node();
+    let content_txt = mason.create_text_node();
+
+    let sidebar2 = mason.create_node();
+    let sidebar2_txt = mason.create_text_node();
+
+    let footer = mason.create_node();
+    let footer_txt = mason.create_text_node();
+
+    extern "C" fn grid_template_areas_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        if available_space_width == -1f32 {
+            return MeasureOutput::make(10., 10.);
+        } else if available_space_width == -2f32 {
+            return MeasureOutput::make(30., 30.);
+        }
+
+        MeasureOutput::make(50., 50.)
+    }
+
+    let mut set_area = |node: &NodeRef, child: &NodeRef, area: &str| {
+        mason.add_child(node.id(), child.id());
+        mason.with_style_mut(node.id(), |style| {
+            style.set_grid_area(area);
+        });
+
+        mason.set_measure(child.id(), Some(grid_template_areas_inline), 0 as _);
+    };
+
+    set_area(&header, &header_txt, "header");
+    set_area(&sidebar, &sidebar_txt, "sidebar");
+    set_area(&content, &content_txt, "content");
+    set_area(&sidebar2, &sidebar2_txt, "sidebar2");
+    set_area(&footer, &footer_txt, "footer");
+
+    mason.add_children(
+        grid.id(),
+        &[
+            header.id(),
+            sidebar.id(),
+            content.id(),
+            sidebar2.id(),
+            footer.id(),
+        ],
+    );
+
+    mason.add_child(root.id(), grid.id());
+
+    mason.compute_wh(root.id(), 1080., 2000.);
+
+    mason.print_tree(root.id());
+}
+
+fn grid_template_areas() {
+    let mut mason = Mason::new();
+    mason.set_device_scale(3.0);
+    let root = mason.create_node();
+    let grid = mason.create_node();
+    mason.with_style_mut(grid.id(), |style| {
+        style.set_display(Display::Grid);
+        style.set_gap(Size::length(10.));
+        style.set_grid_template_areas_css(
+            r#"
+         "header"
+        "sidebar"
+        "content"
+        "sidebar2"
+        "footer"
+        "#,
+        )
+    });
+
+    let header = mason.create_node();
+    let header_txt = mason.create_text_node();
+
+    let sidebar = mason.create_node();
+    let sidebar_txt = mason.create_text_node();
+
+    let content = mason.create_node();
+    let content_txt = mason.create_text_node();
+
+    let sidebar2 = mason.create_node();
+    let sidebar2_txt = mason.create_text_node();
+
+    let footer = mason.create_node();
+    let footer_txt = mason.create_text_node();
+
+    extern "C" fn grid_template_areas_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        if available_space_width == -1f32 {
+            return MeasureOutput::make(10., 10.);
+        } else if available_space_width == -2f32 {
+            return MeasureOutput::make(30., 30.);
+        }
+
+        MeasureOutput::make(50., 50.)
+    }
+
+    let mut set_area = |node: &NodeRef, child: &NodeRef, area: &str| {
+        mason.add_child(node.id(), child.id());
+        mason.with_style_mut(node.id(), |style| {
+            style.set_grid_area(area);
+        });
+
+        mason.set_measure(child.id(), Some(grid_template_areas_inline), 0 as _);
+    };
+
+    set_area(&header, &header_txt, "header");
+    set_area(&sidebar, &sidebar_txt, "sidebar");
+    set_area(&content, &content_txt, "content");
+    set_area(&sidebar2, &sidebar2_txt, "sidebar2");
+    set_area(&footer, &footer_txt, "footer");
+
+    mason.add_children(
+        grid.id(),
+        &[
+            header.id(),
+            sidebar.id(),
+            content.id(),
+            sidebar2.id(),
+            footer.id(),
+        ],
+    );
+
+    mason.add_child(root.id(), grid.id());
+
+    mason.compute_wh(root.id(), 1080., 2000.);
+
+    mason.print_tree(root.id());
+}
+
+fn grid_sizing_taffy() -> Result<(), ()> {
+    let mut taffy = taffy::TaffyTree::<NodeContext>::new();
+
+    let mut root_style = taffy::Style::default();
+    root_style.overflow.x = taffy::Overflow::Scroll;
+    root_style.display = Display::Grid;
+    root_style.gap.width = length(10f32);
+    root_style.gap.height = length(10f32);
+
+    let grid_template_columns =
+        mason_core::utils::parse_grid_template("repeat(6, 150px)", 1f32).map_err(|_| ())?;
+
+    root_style.grid_template_columns = grid_template_columns.0;
+    root_style.grid_template_column_names = grid_template_columns.1;
+
+    let grid_template_rows =
+        mason_core::utils::parse_grid_template("repeat(4, 150px)", 1f32).map_err(|_| ())?;
+
+    root_style.grid_template_rows = grid_template_rows.0;
+    root_style.grid_template_row_names = grid_template_rows.1;
+
+    let a_style = {
+        let mut style = taffy::Style::default();
+        style.border.left = length(1f32);
+        style.border.right = length(1f32);
+        style.border.top = length(1f32);
+        style.border.bottom = length(1f32);
+        let col =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("1/2").map_err(|_| ())?;
+        style.grid_column.start = col.0.clone();
+        style.grid_column.end = col.1.clone();
+
+        style.grid_row.start = col.0;
+        style.grid_row.end = col.1;
+
+        style.align_self = Some(AlignSelf::Stretch);
+
+        style
+    };
+    let a = taffy.new_leaf(a_style).map_err(|_| ())?;
+
+    let b_style = {
+        let mut style = taffy::Style::default();
+        style.border.left = length(1f32);
+        style.border.right = length(1f32);
+        style.border.top = length(1f32);
+        style.border.bottom = length(1f32);
+        let col =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("3/4").map_err(|_| ())?;
+        style.grid_column.start = col.0;
+        style.grid_column.end = col.1;
+
+        let row =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("3/4").map_err(|_| ())?;
+        style.grid_row.start = row.0;
+        style.grid_row.end = row.1;
+
+        style.align_self = Some(AlignSelf::End);
+
+        style
+    };
+    let b = taffy.new_leaf(b_style).map_err(|_| ())?;
+
+    let c_style = {
+        let mut style = taffy::Style::default();
+        style.border.left = length(1f32);
+        style.border.right = length(1f32);
+        style.border.top = length(1f32);
+        style.border.bottom = length(1f32);
+        let col =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("1/3").map_err(|_| ())?;
+        style.grid_column.start = col.0;
+        style.grid_column.end = col.1;
+
+        let row =
+            mason_core::utils::parse_grid_placement_shorthand::<String>("3/6").map_err(|_| ())?;
+        style.grid_row.start = row.0;
+        style.grid_row.end = row.1;
+
+        style.align_self = Some(AlignSelf::Start);
+
+        style
+    };
+    let c = taffy.new_leaf(c_style).map_err(|_| ())?;
+
+    let root = taffy
+        .new_with_children(root_style, &[a, b, c])
+        .map_err(|_| ())?;
+
+    let rs = taffy.style(root).unwrap();
+
+    taffy
+        .set_node_context(a, Some(NodeContext::Text))
+        .map_err(|_| ())?;
+
+    taffy
+        .set_node_context(b, Some(NodeContext::Text))
+        .map_err(|_| ())?;
+
+    taffy
+        .set_node_context(c, Some(NodeContext::Text))
+        .map_err(|_| ())?;
+
+    taffy
+        .compute_layout_with_measure(
+            root,
+            Size::length(3000f32),
+            |known, available_space, id, context, style| {
+                if context.is_some() {
+                    println!("{:?} ... {:?}", known, available_space);
+                }
+                if available_space.width == AvailableSpace::MinContent {
+                    return Size::length(100.);
+                } else if available_space.width == AvailableSpace::MaxContent {
+                    return Size::length(1000.);
+                }
+
+                Size::length(50.)
+            },
+        )
+        .map_err(|_| ())?;
+
+    taffy.print_tree(root);
+    Ok(())
+}
+
+fn grid_sizing() {
+    extern "C" fn grid_sizing_inline(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        println!(
+            "{:?} ... {:?}",
+            available_space_width, available_space_height
+        );
+
+        if available_space_width == -1f32 {
+            return MeasureOutput::make(10., 10.);
+        } else if available_space_width == -2f32 {
+            return MeasureOutput::make(30., 30.);
+        }
+
+        MeasureOutput::make(50., 50.)
+    }
+
+    let mut mason = Mason::new();
+    mason.set_device_scale(3.0);
+    let root = mason.create_node();
+    mason.with_style_mut(root.id(), |style| {
+        style.set_overflow_x(Overflow::Scroll);
+        style.set_display(Display::Grid);
+        style.set_gap(Size {
+            width: length(10f32),
+            height: length(10f32),
+        });
+        style.set_grid_template_columns_css("repeat(6, 150px)");
+        style.set_grid_template_rows_css("repeat(4, 150px)");
+    });
+
+    let a = mason.create_node();
+    mason.with_style_mut(a.id(), |style| {
+        style.set_border(Rect {
+            left: length(1f32),
+            top: length(1f32),
+            right: length(1f32),
+            bottom: length(1f32),
+        });
+        style.set_grid_column_css("1/3");
+        style.set_grid_row_css("1/3");
+        style.set_align_self(Some(AlignSelf::Stretch));
+    });
+
+    mason.set_measure(a.id(), Some(grid_sizing_inline), 0 as _);
+
+    mason.add_child(root.id(), a.id());
+
+    mason.compute_wh(root.id(), 3000., 3000.);
+    mason.print_tree(root.id());
+}
+
+#[derive(Debug, Copy, Clone)]
+enum NodeContext {
+    Text,
+}
+
+fn create_node<'a>(
+    tree: &mut taffy::TaffyTree<NodeContext>,
+    parent: Option<NodeId>,
+    grid_column: Option<&'a str>,
+    grid_row: Option<&'a str>,
+) -> Result<(), ()> {
+    let mut style = taffy::Style::default();
+
+    if let Some(grid_column) = grid_column {
+        style.grid_column = {
+            let value =
+                mason_core::utils::parse_grid_placement_shorthand(grid_column).map_err(|_| ())?;
+            Line {
+                start: value.0,
+                end: value.1,
+            }
+        };
+    }
+
+    if let Some(grid_row) = grid_row {
+        style.grid_row = {
+            let value =
+                mason_core::utils::parse_grid_placement_shorthand(grid_row).map_err(|_| ())?;
+            Line {
+                start: value.0,
+                end: value.1,
+            }
+        };
+    }
+
+    let id = tree.new_leaf(style).map_err(|_| ())?;
+    if let Some(parent) = parent {
+        tree.add_child(parent, id).map_err(|_| ())?;
+    }
+    tree.set_node_context(id, Some(NodeContext::Text))
+        .map_err(|_| ())?;
+    Ok(())
+}
+
+fn taffy_g_names() -> Result<(), ()> {
+    let mut taffy = taffy::TaffyTree::<NodeContext>::new();
+
+    let mut body_style = taffy::Style::default();
+    body_style.display = Display::Block;
+
+    let body = taffy.new_leaf(body_style).map_err(|_| ())?;
+
+    let mut root_style = taffy::Style::default();
+    root_style.display = Display::Grid;
+
+    root_style.gap = Size {
+        width: LengthPercentage::length(10.),
+        height: LengthPercentage::length(10.),
+    };
+
+    let grid_template_columns = mason_core::utils::parse_grid_template(
+        "[col] 100px [col] 100px [col] 100px [col] 100px  ",
+        1f32,
+    )
+    .map_err(|_| ())?;
+
+    root_style.grid_template_columns = grid_template_columns.0;
+    root_style.grid_template_column_names = grid_template_columns.1;
+
+    let grid_template_rows =
+        mason_core::utils::parse_grid_template(" [row] auto [row] auto [row] ", 1f32)
+            .map_err(|_| ())?;
+
+    root_style.grid_template_rows = grid_template_rows.0;
+    root_style.grid_template_row_names = grid_template_rows.1;
+
+    let root = taffy
+        .new_with_children(root_style.clone(), &[])
+        .map_err(|_| ())?;
+
+    taffy.add_child(body, root).map_err(|_| ())?;
+
+    create_node(&mut taffy, Some(root), Some("col / span 2"), Some("row"))?;
+
+    create_node(&mut taffy, Some(root), Some("col 3 / span 2"), Some("row"))?;
+
+    create_node(&mut taffy, Some(root), Some("col"), Some("row 2"))?;
+
+    create_node(
+        &mut taffy,
+        Some(root),
+        Some(" col 2 / span 3 "),
+        Some("row 2"),
+    )?;
+
+    create_node(&mut taffy, Some(root), Some("col / span 4"), Some("row 3"))?;
+
+    taffy.mark_dirty(root).map_err(|_| ())?;
+    taffy.mark_dirty(body).map_err(|_| ())?;
+
+    taffy
+        .compute_layout_with_measure(
+            body,
+            Size {
+                width: AvailableSpace::MaxContent,
+                height: AvailableSpace::MaxContent,
+            },
+            |known, available, id, context, c| {
+                if known.width.is_some() && known.height.is_some() {
+                    return Size {
+                        width: known.width.unwrap(),
+                        height: known.height.unwrap(),
+                    };
+                }
+
+                Size {
+                    width: 10.,
+                    height: 10.,
+                }
+            },
+        )
+        .map_err(|_| ())?;
+
+    taffy.print_tree(body);
+
+    Ok(())
+}
+
+fn taffy_g_names_xp() -> Result<(), ()> {
+    let mut taffy = taffy::TaffyTree::<NodeContext>::new();
+
+    let mut body_style = taffy::Style::default();
+    body_style.display = Display::Block;
+    let body = taffy.new_leaf(body_style).map_err(|_| ())?;
+
+    let mut root_style = taffy::Style::default();
+    root_style.display = Display::Grid;
+    root_style.align_content = Some(AlignContent::Start);
+    root_style.justify_content = Some(JustifyContent::Start);
+    root_style.gap = Size {
+        width: LengthPercentage::length(10.),
+        height: LengthPercentage::length(10.),
+    };
+
+    // Parse the grid template normally
+    let grid_template_columns = mason_core::utils::parse_grid_template(
+        "[col] 100px [col] 100px [col] 100px [col] 100px",
+        1f32,
+    )
+    .map_err(|_| ())?;
+
+    root_style.grid_template_columns = grid_template_columns.0;
+    root_style.grid_template_column_names = grid_template_columns.1;
+
+    let grid_template_rows =
+        mason_core::utils::parse_grid_template("[row] auto [row] auto [row]", 1f32)
+            .map_err(|_| ())?;
+
+    root_style.grid_template_rows = grid_template_rows.0;
+    root_style.grid_template_row_names = grid_template_rows.1;
+
+    let root = taffy
+        .new_with_children(root_style.clone(), &[])
+        .map_err(|_| ())?;
+    taffy.add_child(body, root).map_err(|_| ())?;
+
+    // TEST WITH NUMERIC INDICES INSTEAD OF NAMED LINES
+    // Create item a: should span columns 1-3 (line 1 to line 3)
+    let mut a_style = taffy::Style::default();
+    a_style.grid_column = Line {
+        start: taffy::GridPlacement::from_line_index(1), // Start at line 1
+        end: taffy::GridPlacement::from_line_index(3),   // End at line 3 (spans 2 columns)
+    };
+    a_style.grid_row = Line {
+        start: taffy::GridPlacement::from_line_index(1),
+        end: taffy::GridPlacement::Auto,
+    };
+    let a = taffy.new_leaf(a_style).map_err(|_| ())?;
+    taffy.add_child(root, a).map_err(|_| ())?;
+
+    // Create item b: should span columns 3-5 (line 3 to line 5)
+    let mut b_style = taffy::Style::default();
+    b_style.grid_column = Line {
+        start: taffy::GridPlacement::from_line_index(3),
+        end: taffy::GridPlacement::from_line_index(5),
+    };
+    b_style.grid_row = Line {
+        start: taffy::GridPlacement::from_line_index(1),
+        end: taffy::GridPlacement::Auto,
+    };
+    let b = taffy.new_leaf(b_style).map_err(|_| ())?;
+    taffy.add_child(root, b).map_err(|_| ())?;
+
+    // Create item c: should be in column 1 (line 1 to line 2)
+    let mut c_style = taffy::Style::default();
+    c_style.grid_column = Line {
+        start: taffy::GridPlacement::from_line_index(1),
+        end: taffy::GridPlacement::from_line_index(2),
+    };
+    c_style.grid_row = Line {
+        start: taffy::GridPlacement::from_line_index(2),
+        end: taffy::GridPlacement::Auto,
+    };
+    let c = taffy.new_leaf(c_style).map_err(|_| ())?;
+    taffy.add_child(root, c).map_err(|_| ())?;
+
+    // Create item d: should span columns 2-5 (line 2 to line 5)
+    let mut d_style = taffy::Style::default();
+    d_style.grid_column = Line {
+        start: taffy::GridPlacement::from_line_index(2),
+        end: taffy::GridPlacement::from_line_index(5),
+    };
+    d_style.grid_row = Line {
+        start: taffy::GridPlacement::from_line_index(2),
+        end: taffy::GridPlacement::Auto,
+    };
+    let d = taffy.new_leaf(d_style).map_err(|_| ())?;
+    taffy.add_child(root, d).map_err(|_| ())?;
+
+    // Create item e: should span all 4 columns (line 1 to line 5)
+    let mut e_style = taffy::Style::default();
+    e_style.grid_column = Line {
+        start: taffy::GridPlacement::from_line_index(1),
+        end: taffy::GridPlacement::from_line_index(5),
+    };
+    e_style.grid_row = Line {
+        start: taffy::GridPlacement::from_line_index(3),
+        end: taffy::GridPlacement::Auto,
+    };
+    let e = taffy.new_leaf(e_style).map_err(|_| ())?;
+    taffy.add_child(root, e).map_err(|_| ())?;
+
+    taffy.mark_dirty(root).map_err(|_| ())?;
+    taffy.mark_dirty(body).map_err(|_| ())?;
+
+    taffy
+        .compute_layout_with_measure(
+            body,
+            Size {
+                width: AvailableSpace::Definite(500.),
+                height: AvailableSpace::MaxContent,
+            },
+            |known, available, id, context, c| {
+                if known.width.is_some() && known.height.is_some() {
+                    return Size {
+                        width: known.width.unwrap(),
+                        height: known.height.unwrap(),
+                    };
+                }
+                Size {
+                    width: 10.,
+                    height: 10.,
+                }
+            },
+        )
+        .map_err(|_| ())?;
+
+    taffy.print_tree(body);
+
+    Ok(())
+}
+
+fn g_names() {
+    extern "C" fn inline_g(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        let id = data as *const i32;
+        MeasureOutput::make(10., 10.)
+    }
+
+    let mut mason = Mason::new();
+    let body = mason.create_node();
+
+    let root = mason.create_node();
+    mason.with_style_mut(root.id(), |style| {
+        style.set_display(Display::Grid);
+        style.set_gap(Size {
+            width: LengthPercentage::length(10.),
+            height: LengthPercentage::length(10.),
+        });
+        style.set_grid_template_columns_css("[col] 100px [col] 100px [col] 100px [col] 100px  ");
+        style.set_grid_template_rows_css(" [row] auto [row] auto [row] ");
+    });
+
+    let a = mason.create_node();
+    mason.with_style_mut(a.id(), |style| {
+        style.set_grid_column_css("col / span 2");
+        style.set_grid_row_css("row");
+    });
+    let a_text = mason.create_node();
+
+    mason.set_measure(a.id(), Some(inline_g), &1 as *const i32 as _);
+
+    //mason.add_child(a.id(), a_text.id());
+
+    let b = mason.create_node();
+    mason.with_style_mut(b.id(), |style| {
+        style.set_grid_column_css("col 3 / span 2");
+        style.set_grid_row_css("row");
+    });
+
+    mason.set_measure(b.id(), Some(inline_g), &1 as *const i32 as _);
+
+    let c = mason.create_node();
+    mason.with_style_mut(c.id(), |style| {
+        style.set_grid_column_css("col");
+        style.set_grid_row_css("row 2");
+    });
+
+    mason.set_measure(c.id(), Some(inline_g), &1 as *const i32 as _);
+
+    let d = mason.create_node();
+    mason.with_style_mut(d.id(), |style| {
+        style.set_grid_column_css(" col 2 / span 3 ");
+        style.set_grid_row_css("row 2");
+    });
+
+    mason.set_measure(d.id(), Some(inline_g), &1 as *const i32 as _);
+
+    let e = mason.create_node();
+    mason.with_style_mut(e.id(), |style| {
+        style.set_grid_column_css("col / span 4");
+        style.set_grid_row_css("row 3");
+    });
+
+    mason.set_measure(e.id(), Some(inline_g), &1 as *const i32 as _);
+
+    mason.add_child(root.id(), a.id());
+    mason.add_child(root.id(), b.id());
+    mason.add_child(root.id(), c.id());
+    mason.add_child(root.id(), d.id());
+    mason.add_child(root.id(), e.id());
+
+    mason.add_child(body.id(), root.id());
+
+    mason.compute_size(body.id(), Size::MAX_CONTENT);
+    //mason.compute_wh(body.id(), 2000., 2000.);
+
+    mason.print_tree(body.id());
+}
+fn grid() {
+    let mut mason = Mason::new();
+    mason.set_device_scale(3.0);
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_grid_template_columns_css("100 100 100");
+        style.set_grid_column_css("1/3");
+        style.set_grid_row_css("1");
+    });
+}
+
+fn grid_areas() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_display(Display::Grid);
+        style.set_gap(Size {
+            width: LengthPercentage::length(10f32),
+            height: LengthPercentage::length(10f32),
+        });
+        style.set_padding(Rect {
+            left: LengthPercentage::length(10f32),
+            right: LengthPercentage::length(10f32),
+            top: LengthPercentage::length(10f32),
+            bottom: LengthPercentage::length(10f32),
+        });
+        style.set_grid_template_areas_css(r#"myArea myArea . . ."#);
+    });
+
+    let items = [
+        mason.create_node(),
+        mason.create_node(),
+        mason.create_node(),
+        mason.create_node(),
+        mason.create_node(),
+        mason.create_node(),
+    ];
+
+    for (idx, item) in items.iter().enumerate() {
+        mason.with_style_mut(item.id(), |style| {
+            if idx == 0 {
+                style.set_grid_area("myArea");
+            }
+            style.set_padding(Rect {
+                left: LengthPercentage::length(10f32),
+                right: LengthPercentage::length(10f32),
+                top: LengthPercentage::length(0.),
+                bottom: LengthPercentage::length(0.),
+            });
+        });
+
+        mason.add_child(root.id(), item.id());
+    }
+
+    mason.compute_wh(root.id(), 1000., 1000.);
+    mason.print_tree(root.id());
 }
 
 fn wrap_bug() {

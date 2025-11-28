@@ -140,6 +140,73 @@ struct StyleKeys {
   static let MIN_CONTENT_HEIGHT = 336
   static let MAX_CONTENT_WIDTH = 340
   static let MAX_CONTENT_HEIGHT = 344
+  
+  
+  // ----------------------------
+  // Border Style (per side)
+  // ----------------------------
+  static let BORDER_LEFT_STYLE = 348
+  static let BORDER_RIGHT_STYLE = 352
+  static let BORDER_TOP_STYLE = 356
+  static let BORDER_BOTTOM_STYLE = 360
+
+  // ----------------------------
+  // Border Color (per side)
+  // ----------------------------
+  static let BORDER_LEFT_COLOR = 364
+  static let BORDER_RIGHT_COLOR = 368
+  static let BORDER_TOP_COLOR = 372
+  static let BORDER_BOTTOM_COLOR = 376
+
+  // ============================================================
+  // Border Radius (elliptical + squircle exponent)
+  // Each corner = 20 bytes:
+  //   x_type (4), x_value (4), y_type (4), y_value (4), exponent (4)
+  // ============================================================
+
+  // ----------------------------
+  // Top-left corner (20 bytes)
+  // ----------------------------
+  static let BORDER_RADIUS_TOP_LEFT_X_TYPE = 380
+  static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 384
+  static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 388
+  static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 392
+  static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 396
+
+  // ----------------------------
+  // Top-right corner
+  // ----------------------------
+  static let BORDER_RADIUS_TOP_RIGHT_X_TYPE = 400
+  static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 404
+  static let BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 408
+  static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 412
+  static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 416
+
+  // ----------------------------
+  // Bottom-right corner
+  // ----------------------------
+  static let BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 420
+  static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 424
+  static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 428
+  static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 432
+  static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 436
+
+  // ----------------------------
+  // Bottom-left corner
+  // ----------------------------
+  static let BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 440
+  static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 444
+  static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448
+  static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452
+  static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456
+
+  // ----------------------------
+  // Float
+  // ----------------------------
+  static let FLOAT = 460
+  static let CLEAR = 464
+  
+  static let OBJECT_FIT = 468
 }
 
 
@@ -190,6 +257,9 @@ internal struct StateKeys: OptionSet {
   static let minContentHeight = StateKeys(rawValue: 1 << 37)
   static let maxContentWidth  = StateKeys(rawValue: 1 << 38)
   static let maxContentHeight = StateKeys(rawValue: 1 << 39)
+  static let float = StateKeys(rawValue: 1 << 40)
+  static let clear = StateKeys(rawValue: 1 << 41)
+  static let objectFit = StateKeys(rawValue: 1 << 42)
 }
 
 
@@ -279,10 +349,41 @@ internal struct StyleState {
 }
 
 
+internal struct GridState {
+  var gridArea: String? = nil
+  var gridTemplateAreas: String? = nil
+  var gridAutoRows: String? = nil
+  var gridAutoColumns: String? = nil
+  var gridRow: String? = nil
+  var gridRowStart: String? = nil
+  var gridRowEnd: String? = nil
+  var gridColumn: String? = nil
+  var gridColumnStart: String? = nil
+  var gridColumnEnd: String? = nil
+  var gridTemplateRows: String? = nil
+  var gridTemplateColumns: String? = nil
+  
+  mutating func clear() {
+    gridArea = nil
+    gridTemplateAreas = nil
+    gridAutoRows = nil
+    gridAutoColumns = nil
+    gridRow = nil
+    gridRowStart = nil
+    gridRowEnd = nil
+    gridColumn = nil
+    gridColumnStart = nil
+    gridColumnEnd = nil
+    gridTemplateRows = nil
+    gridTemplateColumns = nil
+  }
+}
+
 @objc(MasonStyle)
 @objcMembers
 public class MasonStyle: NSObject {
-  public internal(set) var font: NSCFontFace = NSCFontFace(family: "serif")
+  public internal(set) var font = NSCFontFace(family: "serif")
+  private var gridState = GridState()
   
   // Weight tracking
   internal var weight = UIFont.Weight.regular
@@ -291,7 +392,14 @@ public class MasonStyle: NSObject {
   
   internal var isDirty: Int64 = -1
   internal var isTextDirty:Int64 = -1
-  internal var isSlowDirty = false
+  internal var isSlowDirty = false {
+    didSet {
+      if (!inBatch) {
+        updateTextStyle()
+        updateNativeStyle()
+      }
+    }
+  }
   let node: MasonNode
   var inBatch = false {
     didSet {
@@ -383,34 +491,16 @@ public class MasonStyle: NSObject {
   
   public init(node: MasonNode) {
     self.node = node
+    super.init()
+    mBackground = Background(style: self)
   }
   
   internal func invalidateStyle(_ state: Int64) {
     if state <= -1 {
       return
     }
-    var invalidate = false
-    let value = TextStyleChangeMasks(rawValue: state)
-    let colorDirty = value.contains(.color)
-    let sizeDirty = value.contains(.fontSize)
-    let weightDirty = value.contains(.fontWeight)
-    let styleDirty = value.contains(.fontStyle)
-    if (value.contains(.textTransform) || value.contains(.textWrap) || value.contains(
-      .whiteSpace
-    ) || value.contains(
-      .textOverflow
-    ) || colorDirty || value.contains(.backgroundColor) || value.contains(
-      .decorationColor
-    ) || value.contains(.decorationLine) || sizeDirty || weightDirty || styleDirty || value.contains(.lineHeight) || value.contains(.letterSpacing)
-    ) {
-      invalidate = true
-    }
-    
-    notifyTextStyleChanged(state)
-    
-    isTextDirty = -1
-    
-    if (invalidate && isDirty == -1) {
+
+    if (isDirty != -1) {
       (node.view as? MasonElement)?.invalidateLayout()
     }
   }
@@ -487,14 +577,14 @@ public class MasonStyle: NSObject {
   }
   
   
-  private func getUInt8(_ index: Int, text: Bool = false) -> UInt8 {
+  internal func getUInt8(_ index: Int, text: Bool = false) -> UInt8 {
     if(text){
       return textValues.bytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee
     }
     return values.bytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee
   }
   
-  private func setUInt8(_ index: Int, _ value: UInt8, text: Bool = false, buffer: NSMutableData? = nil) {
+  internal func setUInt8(_ index: Int, _ value: UInt8, text: Bool = false, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee = value
       return
@@ -507,7 +597,7 @@ public class MasonStyle: NSObject {
   }
   
   
-  private func getInt16(_ index: Int, text: Bool = false) -> Int16 {
+  internal func getInt16(_ index: Int, text: Bool = false) -> Int16 {
     if(text){
       return textValues.bytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee
     }
@@ -523,14 +613,14 @@ public class MasonStyle: NSObject {
   }
   
   
-  private func getUInt32(_ index: Int, text: Bool = false) -> UInt32 {
+  internal func getUInt32(_ index: Int, text: Bool = false) -> UInt32 {
     if(text){
       return textValues.bytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee
     }
     return values.bytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee
   }
   
-  private func setUInt32(_ index: Int, _ value: UInt32, text: Bool = false, buffer: NSMutableData? = nil) {
+  internal func setUInt32(_ index: Int, _ value: UInt32, text: Bool = false, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee = value
       return
@@ -549,7 +639,7 @@ public class MasonStyle: NSObject {
     return values.bytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee
   }
   
-  private func setInt32(_ index: Int, _ value: Int32, text: Bool = false, buffer: NSMutableData? = nil) {
+  internal func setInt32(_ index: Int, _ value: Int32, text: Bool = false, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
       return
@@ -562,14 +652,14 @@ public class MasonStyle: NSObject {
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
   }
   
-  private func getFloat(_ index: Int, text: Bool = false) -> Float {
+  internal func getFloat(_ index: Int, text: Bool = false) -> Float {
     if(text){
       return textValues.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
     }
     return values.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
   }
   
-  private func setFloat(_ index: Int, _ value: Float, text: Bool = false, buffer: NSMutableData? = nil) {
+  internal func setFloat(_ index: Int, _ value: Float, text: Bool = false, buffer: NSMutableData? = nil) {
     if let buffer = buffer {
       buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
       return
@@ -592,6 +682,49 @@ public class MasonStyle: NSObject {
     setOrAppendState(state)
   }
   
+  
+  // Mark: - resetAllBorders
+  
+  internal func resetAllBorders(){
+    mBorderRender.resetAllBorders()
+  }
+  
+  
+  // MARK: - ObjectFit
+  public var objectFit: ObjectFit {
+    get {
+      return ObjectFit(rawValue: getInt32(StyleKeys.OBJECT_FIT))!
+    }
+    set {
+      setInt32(StyleKeys.OBJECT_FIT, newValue.rawValue)
+      setOrAppendState(.objectFit)
+    }
+  }
+  
+  
+  // MARK: - Float
+  public var float: MasonFloat {
+    get {
+      return MasonFloat(rawValue: getInt32(StyleKeys.FLOAT))!
+    }
+    set {
+      setInt32(StyleKeys.FLOAT, newValue.rawValue)
+      setOrAppendState(.float)
+    }
+  }
+  
+  
+  public var clear: Clear {
+    get {
+      return Clear(rawValue: getInt32(StyleKeys.CLEAR))!
+    }
+    set {
+      setInt32(StyleKeys.CLEAR, newValue.rawValue)
+      setOrAppendState(.clear)
+    }
+  }
+  
+  
   // MARK: - Text Style Properties
   public var color: UInt32 {
     get {
@@ -606,6 +739,39 @@ public class MasonStyle: NSObject {
   
   public func setColor(ui color: UIColor) {
     self.color = color.toUInt32()
+  }
+  
+  
+  lazy var mFilter: CSSFilters.CSSFilter = {
+    CSSFilters.CSSFilter()
+  }()
+  
+  public var filter: String = "" {
+    didSet {
+      if(filter.isEmpty && !mFilter.filters.isEmpty){
+        mFilter.reset()
+        return
+      }
+      
+      mFilter.parse(css: filter)
+      
+      if(!mFilter.filters.isEmpty){
+        if let view = node.view {
+          mFilter.apply(to: view)
+        }
+      }
+    }
+  }
+  
+  
+  internal var mBackground: Background!
+  public var background: String  {
+    set {
+      mBackground.parseBackground(newValue)
+    }
+    get {
+      return mBackground.css
+    }
   }
   
   public var backgroundColor: UInt32 {
@@ -842,36 +1008,37 @@ public class MasonStyle: NSObject {
   }
   
   internal func setFontWeight(_ weight: Int,_ name: String?){
+    var newWeight: NSCFontWeight? = nil
     if weight >= 100 && weight <= 1000 {
       var newWeightName: String? = name
       switch weight {
       case 100..<200:
         self.weight = .thin
-        font.weight = .thin
+        newWeight = .thin
         newWeightName = "100"
       case 200..<300:
         self.weight = .ultraLight
-        font.weight = .extraLight
+        newWeight = .extraLight
         newWeightName = "200"
       case 300..<400:
         self.weight = .light
-        font.weight = .light
+        newWeight = .light
         newWeightName = "300"
       case 400..<500:
         self.weight = .regular
-        font.weight = .normal
+        newWeight = .normal
         newWeightName = "400"
       case 500..<600:
         self.weight = .medium
-        font.weight = .medium
+        newWeight = .medium
         newWeightName = "500"
       case 600..<700:
         self.weight = .semibold
-        font.weight = .semiBold
+        newWeight = .semiBold
         newWeightName = "600"
       case 700..<800:
         self.weight = .bold
-        font.weight = .bold
+        newWeight = .bold
         newWeightName = "700"
       case 800..<900:
         self.weight = .heavy
@@ -887,6 +1054,34 @@ public class MasonStyle: NSObject {
       if let name = newWeightName {
         weightName = name
       }
+      
+      if let newWeight = newWeight {
+        node.style.setInt32(TextStyleKeys.FONT_WEIGHT, Int32(newWeight.rawValue) ,text: true)
+        setUInt8(TextStyleKeys.FONT_WEIGHT_STATE, StyleState.SET, text: true)
+        font.weight = newWeight
+      }
+    }
+  }
+  
+  public var fontFamily: String {
+    get {
+      return font.fontFamily
+    }
+    set {
+      let oldFamily = font.fontFamily
+          if (oldFamily != newValue) {
+            let oldFont = font
+            // Create new font with updated family
+            font = NSCFontFace(family: newValue)
+            font.weight = oldFont.weight
+            font.style = oldFont.style
+            font.fontDescriptors.display = oldFont.fontDescriptors.display
+            
+            font.loadSync { _ in }
+
+            setUInt8(TextStyleKeys.FONT_FAMILY_STATE, StyleState.SET, text: true)
+            notifyTextStyleChanged(TextStyleChangeMasks.fontFamily.rawValue)
+          }
     }
   }
   
@@ -935,7 +1130,7 @@ public class MasonStyle: NSObject {
         font.weight = .black
       default:
         if let weight = Int(newValue, radix: 10) {
-         setFontWeight(weight, nil)
+          setFontWeight(weight, nil)
         }
       }
       if previous != weightName {
@@ -1025,7 +1220,6 @@ public class MasonStyle: NSObject {
       }
     }
     set {
-      
       var displayMode = DisplayMode.None
       var value: Int32
       switch (newValue){
@@ -1614,37 +1808,45 @@ public class MasonStyle: NSObject {
   }
   
   
-  public var border: MasonRect<MasonLengthPercentage> {
+  internal lazy var mBorderRender: CSSBorderRenderer  = {
+    CSSBorderRenderer(style: self)
+  }()
+  
+  
+  public var border: String {
     get {
-      var type = getInt32(StyleKeys.BORDER_LEFT_TYPE)
-      var value = getFloat(StyleKeys.BORDER_LEFT_VALUE)
-      
-      let left = MasonLengthPercentage.fromValueType(value, Int(type))!
-      
-      type = getInt32(StyleKeys.BORDER_RIGHT_TYPE)
-      
-      value = getFloat(StyleKeys.BORDER_RIGHT_VALUE)
-      
-      let right = MasonLengthPercentage.fromValueType(value, Int(type))!
-      
-      
-      type = getInt32(StyleKeys.BORDER_TOP_TYPE)
-      
-      value = getFloat(StyleKeys.BORDER_TOP_VALUE)
-      
-      let top = MasonLengthPercentage.fromValueType(value, Int(type))!
-      
-      
-      type = getInt32(StyleKeys.BORDER_BOTTOM_TYPE)
-      
-      value = getFloat(StyleKeys.BORDER_BOTTOM_VALUE)
-      
-      let bottom = MasonLengthPercentage.fromValueType(value, Int(type))!
-      
-      
-      return MasonRect(left, right, top, bottom)
+      return mBorderRender.css
     }
     set {
+      mBorderRender.parseBorderShorthand(newValue)
+    }
+  }
+  
+  
+  
+  internal var mBorderLeft: CSSBorderRenderer.BorderSide {
+    return mBorderRender.left
+  }
+
+  internal var mBorderTop: CSSBorderRenderer.BorderSide {
+    return mBorderRender.top
+  }
+
+  internal var mBorderRight: CSSBorderRenderer.BorderSide {
+    return mBorderRender.right
+  }
+
+  internal var mBorderBottom: CSSBorderRenderer.BorderSide {
+    return mBorderRender.bottom
+  }
+  
+  
+  public var borderWidth: MasonRect<MasonLengthPercentage> {
+    get {
+      return MasonRect(mBorderRender.left.width, mBorderRender.right.width, mBorderRender.top.width, mBorderRender.bottom.width)
+    }
+    set {
+      
       setInt32(StyleKeys.BORDER_LEFT_TYPE, newValue.left.type)
       setFloat(StyleKeys.BORDER_LEFT_VALUE, newValue.left.value)
       
@@ -1661,23 +1863,23 @@ public class MasonStyle: NSObject {
     }
   }
   
-  public var borderCompat: MasonLengthPercentageRectCompat {
+  public var borderWidthCompat: MasonLengthPercentageRectCompat {
     get {
-      guard let border = border.compatLength else {
-        let compat = MasonLengthPercentageRectCompat(border)
-        border.compatLength = compat
+      guard let borderWidth = borderWidth.compatLength else {
+        let compat = MasonLengthPercentageRectCompat(borderWidth)
+        borderWidth.compatLength = compat
         return compat
       }
       
-      return border
+      return borderWidth
     }
     
     set {
-      border = newValue.intoMasonRect()
+      borderWidth = newValue.intoMasonRect()
     }
   }
   
-  public func setBorderLeft(_ value: Float, _ type: Int) {
+  public func setBorderLeftWidth(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentage(value, type) else {return}
     
     setInt32(StyleKeys.BORDER_LEFT_TYPE, left.type)
@@ -1686,7 +1888,7 @@ public class MasonStyle: NSObject {
     setOrAppendState(.border)
   }
   
-  public func setBorderRight(_ value: Float, _ type: Int) {
+  public func setBorderRightWidth(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentage(value, type) else {return}
     
     setInt32(StyleKeys.BORDER_RIGHT_TYPE, right.type)
@@ -1695,7 +1897,7 @@ public class MasonStyle: NSObject {
     setOrAppendState(.border)
   }
   
-  public func setBorderTop(_ value: Float, _ type: Int) {
+  public func setBorderTopWidth(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentage(value, type) else {return}
     
     setInt32(StyleKeys.BORDER_TOP_TYPE, top.type)
@@ -1704,7 +1906,7 @@ public class MasonStyle: NSObject {
     setOrAppendState(.border)
   }
   
-  public func setBorderBottom(_ value: Float, _ type: Int) {
+  public func setBorderBottomWidth(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentage(value, type) else {return}
     
     setInt32(StyleKeys.BORDER_TOP_TYPE, bottom.type)
@@ -1713,7 +1915,7 @@ public class MasonStyle: NSObject {
     setOrAppendState(.border)
   }
   
-  public func setBorderWithValueType(_ value: Float, _ type: Int) {
+  public func setBorderWidth(_ value: Float, _ type: Int) {
     guard let padding = getLengthPercentage(value, type) else {return}
     
     self.padding = MasonRect(padding, padding, padding, padding)
@@ -2147,38 +2349,88 @@ public class MasonStyle: NSObject {
   }
   
   
-  func gridAutoToCss(_ value: Array<MinMax>) -> String {
-    if(value.isEmpty){
-      return ""
-    }
-    var ret = ""
-    let last = value.count - 1
-    for (i, row) in value.enumerated() {
-      if(i == last){
-        ret += "\(row.cssValue)"
-      }else {
-        ret += "\(row.cssValue) "
-      }
-      
-    }
-    return ret
-  }
-  
-  public var gridAutoRows: Array<MinMax> = []{
-    didSet{
-      isSlowDirty = true
-      if (!inBatch) {
-        updateNativeStyle()
-      }
+  private func lazyCache<T>(
+    getCache: () -> T?,
+    setCache: (T) -> Void,
+    fetch: () -> T
+  ) -> T {
+    if let cached = getCache() {
+      return cached
+    } else {
+      let value = fetch()
+      setCache(value)
+      return value
     }
   }
   
-  public var gridAutoColumns: Array<MinMax> = []{
-    didSet{
+  
+  private var _gridArea: String?
+  public var gridArea: String{
+    set {
+      gridState.gridArea = newValue
+      _gridArea = nil
+      _gridColumnStart = nil
+      _gridColumnEnd = nil
+      _gridRowStart = nil
+      _gridRowEnd = nil
       isSlowDirty = true
-      if (!inBatch) {
-        updateNativeStyle()
-      }
+    }
+    get {
+      lazyCache(getCache: {_gridArea}, setCache: {it in _gridArea = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_area_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
+    }
+  }
+  
+  private var _gridTemplateAreas: String?
+  public var gridTemplateAreas: String{
+    set {
+      gridState.gridTemplateAreas = newValue
+      _gridTemplateAreas = nil
+      isSlowDirty = true
+    }
+    get {
+      lazyCache(getCache: {_gridTemplateAreas}, setCache: {it in _gridTemplateAreas = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_template_areas_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
+    }
+  }
+  
+  
+  private var _gridAutoRows: String?
+  public var gridAutoRows: String{
+    set {
+      gridState.gridAutoRows = newValue
+      _gridAutoRows = nil
+      isSlowDirty = true
+    }
+    get {
+      lazyCache(getCache: {_gridAutoRows}, setCache: {it in _gridAutoRows = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_auto_rows_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
+    }
+  }
+  
+  
+  private var _gridAutoColumns: String?
+  public var gridAutoColumns: String{
+    set {
+      gridState.gridAutoColumns = newValue
+      _gridAutoColumns = nil
+      isSlowDirty = true
+    }
+    get {
+      lazyCache(getCache: {_gridAutoColumns}, setCache: {it in _gridAutoColumns = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_auto_columns_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
     }
   }
   
@@ -2193,228 +2445,137 @@ public class MasonStyle: NSObject {
     }
   }
   
-  public var gridColumn: Line<GridPlacement> {
+  private var _gridColumn: String?
+  public var gridColumn: String {
     get{
-      var type = getInt32(StyleKeys.GRID_COLUMN_START_TYPE)
-      
-      var value = getInt16(StyleKeys.GRID_COLUMN_START_VALUE)
-      
-      let start = GridPlacement.fromValueType(value, Int(type))!
-      
-      type = getInt32(StyleKeys.GRID_COLUMN_END_TYPE)
-      
-      value = getInt16(StyleKeys.GRID_COLUMN_END_VALUE)
-      
-      let end = GridPlacement.fromValueType(value, Int(type))!
-      
-      return Line(start, end)
+      lazyCache(getCache: {_gridColumn}, setCache: {it in _gridColumn = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_column_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
     }
     set {
-      setInt32(StyleKeys.GRID_COLUMN_START_TYPE, newValue.start.type)
-      setInt16(StyleKeys.GRID_COLUMN_START_VALUE, newValue.start.placementValue)
-      
-      setInt32(StyleKeys.GRID_COLUMN_END_TYPE, newValue.end.type)
-      setInt16(StyleKeys.GRID_COLUMN_END_VALUE, newValue.end.placementValue)
-      
-      setOrAppendState(.gridColumn)
+      gridState.gridColumn = newValue
+      _gridColumn = nil
+      isSlowDirty = true
     }
   }
   
   
-  public var gridColumnStart: GridPlacement {
-    get {
-      let type = getInt32(StyleKeys.GRID_COLUMN_START_TYPE)
-      
-      let value = getInt16(StyleKeys.GRID_COLUMN_START_VALUE)
-      
-      return GridPlacement.fromValueType(value, Int(type))!
-    }
-    
-    set {
-      setInt32(StyleKeys.GRID_COLUMN_START_TYPE, newValue.type)
-      setInt16(StyleKeys.GRID_COLUMN_START_VALUE, newValue.placementValue)
-      setOrAppendState(.gridColumn)
-    }
-  }
-  
-  public var gridColumnEnd: GridPlacement {
-    get {
-      let type = getInt32(StyleKeys.GRID_COLUMN_END_TYPE)
-      
-      let value = getInt16(StyleKeys.GRID_COLUMN_END_VALUE)
-      
-      return GridPlacement.fromValueType(value, Int(type))!
-    }
-    
-    set {
-      setInt32(StyleKeys.GRID_COLUMN_END_TYPE, newValue.type)
-      setInt16(StyleKeys.GRID_COLUMN_END_VALUE, newValue.placementValue)
-      setOrAppendState(.gridColumn)
-    }
-  }
-  
-  public var gridColumnCompat: LineGridPlacementCompat {
-    get {
-      return LineGridPlacementCompat(gridColumn.start, gridColumn.end)
-    }
-    set {
-      gridColumn = Line<GridPlacement>(newValue.start.placement, newValue.end.placement)
-    }
-  }
-  
-  public var gridColumnStartCompat: GridPlacementCompat {
-    get {
-      return gridColumnCompat.start
-    }
-    
-    set {
-      gridColumnStart = newValue.placement
-    }
-  }
-  
-  public var gridColumnEndCompat: GridPlacementCompat {
-    get {
-      return gridColumnCompat.end
-    }
-    
-    set {
-      gridColumnEnd = newValue.placement
-    }
-  }
-  
-  
-  
-  public var gridRow:  Line<GridPlacement> {
+  private var _gridColumnStart: String?
+  public var gridColumnStart: String {
     get{
-      var type = getInt32(StyleKeys.GRID_ROW_START_TYPE)
-      
-      var value = getInt16(StyleKeys.GRID_ROW_START_VALUE)
-      
-      let start = GridPlacement.fromValueType(value, Int(type))!
-      
-      type = getInt32(StyleKeys.GRID_ROW_END_TYPE)
-      
-      value = getInt16(StyleKeys.GRID_ROW_END_VALUE)
-      
-      let end = GridPlacement.fromValueType(value, Int(type))!
-      
-      return Line(start, end)
+      lazyCache(getCache: {_gridColumnStart}, setCache: {it in _gridColumnStart = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_column_start_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
     }
     set {
-      setInt32(StyleKeys.GRID_ROW_START_TYPE, newValue.start.type)
-      setInt16(StyleKeys.GRID_ROW_START_VALUE, newValue.start.placementValue)
-      
-      setInt32(StyleKeys.GRID_ROW_END_TYPE, newValue.end.type)
-      setInt16(StyleKeys.GRID_ROW_END_VALUE,  newValue.end.placementValue)
-      
-      setOrAppendState(.gridRow)
-    }
-  }
-  
-  public var gridRowStart: GridPlacement {
-    get {
-      let type = getInt32(StyleKeys.GRID_ROW_START_TYPE)
-      
-      let value = getInt16(StyleKeys.GRID_ROW_START_VALUE)
-      
-      return GridPlacement.fromValueType(value, Int(type))!
-    }
-    
-    set {
-      setInt32(StyleKeys.GRID_ROW_START_TYPE, newValue.type)
-      setInt16(StyleKeys.GRID_ROW_START_VALUE, newValue.placementValue)
-      
-      setOrAppendState(.gridRow)
-    }
-  }
-  
-  public var gridRowEnd: GridPlacement {
-    get {
-      let type = getInt32(StyleKeys.GRID_ROW_END_TYPE)
-      let value = getInt16(StyleKeys.GRID_ROW_END_VALUE)
-      
-      return GridPlacement.fromValueType(value, Int(type))!
-    }
-    
-    set {
-      setInt32(StyleKeys.GRID_ROW_END_TYPE,  newValue.type)
-      setInt16(StyleKeys.GRID_ROW_END_VALUE, newValue.placementValue)
-      
-      setOrAppendState(.gridRow)
-    }
-  }
-  
-  
-  public var gridRowCompat: LineGridPlacementCompat {
-    get {
-      return LineGridPlacementCompat(gridRow.start, gridRow.end)
-    }
-    
-    set {
-      gridRow = Line<GridPlacement>(newValue.start.placement, newValue.end.placement)
-    }
-  }
-  
-  public var gridRowStartCompat: GridPlacementCompat {
-    get {
-      return gridRowCompat.start
-    }
-    
-    set {
-      gridRowStart = newValue.placement
-    }
-  }
-  
-  public var gridRowEndCompat: GridPlacementCompat {
-    get {
-      return gridRowCompat.end
-    }
-    
-    set {
-      gridRowEnd = newValue.placement
-    }
-  }
-  
-  func gridTemplateToCss(_ value: Array<TrackSizingFunction>) -> String {
-    if(value.isEmpty){
-      return ""
-    }
-    var ret = ""
-    let last = value.count - 1
-    for (i, row) in value.enumerated() {
-      if(i == last){
-        ret += "\(row.cssValue)"
-      }else {
-        ret += "\(row.cssValue) "
-      }
-      
-    }
-    return ret
-  }
-  
-  public var gridTemplateRowsCSS: String {
-    return gridTemplateToCss(gridTemplateRows)
-  }
-  
-  public var gridTemplateRows: Array<TrackSizingFunction> = []{
-    didSet{
+      gridState.gridColumnStart = newValue
+      _gridColumnStart = nil
       isSlowDirty = true
-      if (!inBatch) {
-        updateNativeStyle()
-      }
     }
   }
   
-  public var gridTemplateColumnsCSS: String {
-    return gridTemplateToCss(gridTemplateColumns)
+  private var _gridColumnEnd: String?
+  public var gridColumnEnd: String {
+    get{
+      lazyCache(getCache: {_gridColumnEnd}, setCache: {it in _gridColumnEnd = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_column_end_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
+    }
+    set {
+      gridState.gridColumnEnd = newValue
+      _gridColumnEnd = nil
+      isSlowDirty = true
+    }
   }
   
-  public var gridTemplateColumns: Array<TrackSizingFunction> = []{
-    didSet{
+  
+  private var _gridRow: String?
+  public var gridRow: String {
+    get{
+      lazyCache(getCache: {_gridRow}, setCache: {it in _gridRow = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_row_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
+    }
+    set {
+      gridState.gridRow = newValue
+      _gridRow = nil
       isSlowDirty = true
-      if (!inBatch) {
-        updateNativeStyle()
-      }
+    }
+  }
+  
+  
+  private var _gridRowStart: String?
+  public var gridRowStart: String {
+    get{
+      lazyCache(getCache: {_gridRowStart}, setCache: {it in _gridRowStart = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_row_start_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
+    }
+    set {
+      gridState.gridRowStart = newValue
+      _gridRowStart = nil
+      isSlowDirty = true
+    }
+  }
+  
+  private var _gridRowEnd: String?
+  public var gridRowEnd: String {
+    get{
+      lazyCache(getCache: {_gridRowEnd}, setCache: {it in _gridRowEnd = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_row_end_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
+    }
+    set {
+      gridState.gridRowEnd = newValue
+      _gridRowEnd = nil
+      isSlowDirty = true
+    }
+  }
+  
+  
+  private var _gridTemplateRows: String?
+  public var gridTemplateRows: String {
+    get{
+      lazyCache(getCache: {_gridTemplateRows}, setCache: {it in _gridTemplateRows = it}, fetch: {
+        NativeHelpers.toSwiftString {
+          mason_style_get_grid_template_rows_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
+    }
+    set {
+      gridState.gridTemplateRows = newValue
+      _gridTemplateRows = nil
+      isSlowDirty = true
+    }
+  }
+  
+  
+  
+  private var _gridTemplateColumns: String?
+  public var gridTemplateColumns: String {
+    get{
+      lazyCache(getCache: {_gridTemplateColumns}, setCache: {it in _gridTemplateColumns = it}, fetch: {
+        return NativeHelpers.toSwiftString {
+          mason_style_get_grid_template_columns_css(node.mason.nativePtr, node.nativePtr)
+        } ?? ""
+      })
+    }
+    set {
+      gridState.gridTemplateColumns = newValue
+      _gridTemplateColumns = nil
+      isSlowDirty = true
     }
   }
   
@@ -2422,178 +2583,138 @@ public class MasonStyle: NSObject {
   public func updateNativeStyle() {
     if(inBatch){return}
     if (isSlowDirty) {
-      var gridAutoRows = gridAutoRows.map({ minMax in
-        minMax.cValue
-      })
       
-      let gridAutoRowsCount = UInt(gridAutoRows.count)
-      
-      var gridAutoColumns = gridAutoColumns.map({ minMax in
-        minMax.cValue
-      })
-      
-      let gridAutoColumnsCount = UInt(gridAutoRows.count)
-      
-      
-      var gridTemplateRows =  gridTemplateRows.map { value in
-        value.cValue
+      if(isDirty == -1){
+        mason_style_update_non_buffer_data(
+          node.mason.nativePtr,
+          node.nativePtr,
+          gridState.gridAutoRows,
+          gridState.gridAutoColumns,
+          gridState.gridColumn,
+          gridState.gridColumnStart,
+          gridState.gridColumnEnd,
+          
+          gridState.gridRow,
+          gridState.gridRowStart,
+          gridState.gridRowEnd,
+          
+          gridState.gridTemplateRows,
+          gridState.gridTemplateColumns,
+          gridState.gridArea,
+          gridState.gridTemplateAreas,
+        )
+        
+        isSlowDirty = false
+        (node.view as? MasonElement)?.requestLayout()
+        return
       }
       
-      let gridTemplateRowsCount = UInt(gridTemplateRows.count)
-      
-      var gridTemplateColumns =  gridTemplateColumns.map { value in
-        value.cValue
-      }
-      
-      let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
-      
-      gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRowsBuffer in
+      mason_style_set_with_values(
+        node.mason.nativePtr,
+        node.nativePtr,
+        display.rawValue,
+        position.rawValue,
+        direction.rawValue,
+        flexDirection.rawValue,
+        flexWrap.rawValue,
+        //overflow.rawValue,
+        Overflow.RawValue(0),
+        alignItems.rawValue,
+        alignSelf.rawValue,
+        alignContent.rawValue,
+        justifyItems.rawValue,
+        justifySelf.rawValue,
+        justifyContent.rawValue,
         
-        var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray()
+        inset.left.type,
+        inset.left.value,
+        inset.right.type,
+        inset.right.value,
+        inset.top.type,
+        inset.top.value,
+        inset.bottom.type,
+        inset.bottom.value,
         
-        if(gridAutoRowsCount > 0){
-          gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRowsBuffer.baseAddress, length: gridAutoRowsCount)
-        }
+        margin.left.type,
+        margin.left.value,
+        margin.right.type,
+        margin.right.value,
+        margin.top.type,
+        margin.top.value,
+        margin.bottom.type,
+        margin.bottom.value,
         
+        padding.left.type,
+        padding.left.value,
+        padding.right.type,
+        padding.right.value,
+        padding.top.type,
+        padding.top.value,
+        padding.bottom.type,
+        padding.bottom.value,
         
-        gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumnsBuffer in
-          
-          var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray()
-          
-          if(gridAutoColumnsCount > 0){
-            gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumnsBuffer.baseAddress, length: gridAutoColumnsCount)
-          }
-          
-          
-          
-          gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRowsBuffer in
-            
-            var gridTemplateRows = CMasonTrackSizingFunctionArray()
-            
-            if(gridTemplateRowsCount > 0){
-              gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRowsBuffer.baseAddress, length: gridTemplateRowsCount)
-            }
-            
-            
-            
-            gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumnsBuffer in
-              
-              var gridTemplateColumns = CMasonTrackSizingFunctionArray()
-              
-              if(gridTemplateColumnsCount > 0){
-                gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumnsBuffer.baseAddress, length: gridTemplateColumnsCount)
-              }
-              
-              mason_style_set_with_values(
-                node.mason.nativePtr,
-                node.nativePtr,
-                display.rawValue,
-                position.rawValue,
-                direction.rawValue,
-                flexDirection.rawValue,
-                flexWrap.rawValue,
-                //overflow.rawValue,
-                Overflow.RawValue(0),
-                alignItems.rawValue,
-                alignSelf.rawValue,
-                alignContent.rawValue,
-                justifyItems.rawValue,
-                justifySelf.rawValue,
-                justifyContent.rawValue,
-                
-                inset.left.type,
-                inset.left.value,
-                inset.right.type,
-                inset.right.value,
-                inset.top.type,
-                inset.top.value,
-                inset.bottom.type,
-                inset.bottom.value,
-                
-                margin.left.type,
-                margin.left.value,
-                margin.right.type,
-                margin.right.value,
-                margin.top.type,
-                margin.top.value,
-                margin.bottom.type,
-                margin.bottom.value,
-                
-                padding.left.type,
-                padding.left.value,
-                padding.right.type,
-                padding.right.value,
-                padding.top.type,
-                padding.top.value,
-                padding.bottom.type,
-                padding.bottom.value,
-                
-                border.left.type,
-                border.left.value,
-                border.right.type,
-                border.right.value,
-                border.top.type,
-                border.top.value,
-                border.bottom.type,
-                border.bottom.value,
-                
-                flexGrow,
-                flexShrink,
-                
-                flexBasis.type,
-                flexBasis.value,
-                
-                size.width.type,
-                size.width.value,
-                size.height.type,
-                size.height.value,
-                
-                minSize.width.type,
-                minSize.width.value,
-                minSize.height.type,
-                minSize.height.value,
-                
-                maxSize.width.type,
-                maxSize.width.value,
-                maxSize.height.type,
-                maxSize.height.value,
-                
-                gap.width.type,
-                gap.width.value,
-                gap.height.type,
-                gap.height.value,
-                
-                aspectRatio ?? Float.nan,
-                &gridAutoRows,
-                &gridAutoColumns,
-                gridAutoFlow.rawValue,
-                gridColumn.start.type,
-                gridColumn.start.placementValue,
-                gridColumn.end.type,
-                gridColumn.end.placementValue,
-                
-                gridRow.start.type,
-                gridRow.start.placementValue,
-                gridRow.end.type,
-                gridRow.end.placementValue,
-                &gridTemplateRows,
-                &gridTemplateColumns,
-                overflowX.rawValue,
-                overflowY.rawValue,
-                scrollBarWidth.value,
-                textAlign.rawValue,
-                boxSizing.rawValue
-              )
-            }
-          }
-          
-        }
+        mBorderRender.left.width.type,
+        mBorderRender.left.width.value,
+        mBorderRender.right.width.type,
+        mBorderRender.right.width.value,
+        mBorderRender.top.width.type,
+        mBorderRender.top.width.value,
+        mBorderRender.bottom.width.type,
+        mBorderRender.bottom.width.value,
         
-      }
+        flexGrow,
+        flexShrink,
+        
+        flexBasis.type,
+        flexBasis.value,
+        
+        size.width.type,
+        size.width.value,
+        size.height.type,
+        size.height.value,
+        
+        minSize.width.type,
+        minSize.width.value,
+        minSize.height.type,
+        minSize.height.value,
+        
+        maxSize.width.type,
+        maxSize.width.value,
+        maxSize.height.type,
+        maxSize.height.value,
+        
+        gap.width.type,
+        gap.width.value,
+        gap.height.type,
+        gap.height.value,
+        
+        aspectRatio ?? Float.nan,
+        gridState.gridAutoRows,
+        gridState.gridAutoColumns,
+        gridAutoFlow.rawValue,
+        gridState.gridColumn,
+        gridState.gridColumnStart,
+        gridState.gridColumnEnd,
+        
+        gridState.gridRow,
+        gridState.gridRowStart,
+        gridState.gridRowEnd,
+        
+        gridState.gridTemplateRows,
+        gridState.gridTemplateColumns,
+        overflowX.rawValue,
+        overflowY.rawValue,
+        scrollBarWidth.value,
+        textAlign.rawValue,
+        boxSizing.rawValue,
+        gridState.gridArea,
+        gridState.gridTemplateAreas,
+      )
       
       isSlowDirty = false
       isDirty = -1
       (node.view as? MasonElement)?.requestLayout()
+      return
     }
     
     if (isDirty != -1) {
@@ -2605,45 +2726,54 @@ public class MasonStyle: NSObject {
   
   
   public override var description: String {
-    var aspectRatio = "undefined"
-    if(self.aspectRatio != nil){
-      aspectRatio = String(aspectRatio)
-    }
-    var ret = "(MasonStyle)("
-    
-    ret += "display: \(display.cssValue), "
-    ret += "position: \(position.cssValue), "
-    ret += "flexDirection: \(flexDirection.cssValue), "
-    ret += "overflow: \(overflowX ==  overflowY ? overflowX.cssValue : "\(overflowX.cssValue) \(overflowY.cssValue)"), "
-    ret += "flexWrap: \(flexWrap.cssValue), "
-    ret += "alignItems: \(alignItems.cssValue), "
-    ret += "alignSelf: \(alignSelf.cssValue), "
-    ret += "alignContent: \(alignContent.cssValue), "
-    ret += "justifyItems: \(justifyItems.cssValue), "
-    ret += "justifySelf: \(justifySelf.cssValue), "
-    ret += "justifyContent: \(justifyContent.cssValue), "
-    ret += "position: \(position.cssValue), "
-    ret += "margin: \(margin.cssValue), "
-    ret += "padding: \(padding.cssValue), "
-    ret += "border: \(border.cssValue), "
-    ret += "gap: \(gap.cssValue), "
-    ret += "flexGrow: \(flexGrow.description),"
-    ret += "flexShrink: \(flexShrink.description),"
-    ret += "flexBasis: \(flexBasis.cssValue),"
-    ret += "size: \(size.cssValue),"
-    ret += "minSize: \(minSize.cssValue),"
-    ret += "maxSize: \(maxSize.cssValue),"
-    ret += "aspectRatio: \(aspectRatio),"
-    ret += "gridAutoRows: \(gridAutoRows),"
-    ret += "gridAutoColumns: \(gridAutoColumns),"
-    ret += "gridColumn: \(gridColumn.start.cssValue) \\ \(gridColumn.end.cssValue),"
-    ret += "gridRow: \(gridRow.start.cssValue) \\ \(gridRow.end.cssValue),"
-    ret += "gridTemplateRows: \(gridTemplateRows),"
-    ret += "gridTemplateColumns: \(gridTemplateColumns),"
-    ret += "scrollBarWidth: \(scrollBarWidth),"
-    ret += ")"
-    
-    return ret
+    var aspectRatioDesc = "undefined"
+        if let aspectRatio = self.aspectRatio {
+            aspectRatioDesc = String(describing: aspectRatio)
+        }
+
+        let overflowDesc = overflowX == overflowY
+            ? overflowX.cssValue
+            : "\(overflowX.cssValue) \(overflowY.cssValue)"
+
+        let parts: [String] = [
+            "display: \(display.cssValue)",
+            "position: \(position.cssValue)",
+            "flexDirection: \(flexDirection.cssValue)",
+            "overflow: \(overflowDesc)",
+            "flexWrap: \(flexWrap.cssValue)",
+            "alignItems: \(alignItems.cssValue)",
+            "alignSelf: \(alignSelf.cssValue)",
+            "alignContent: \(alignContent.cssValue)",
+            "justifyItems: \(justifyItems.cssValue)",
+            "justifySelf: \(justifySelf.cssValue)",
+            "justifyContent: \(justifyContent.cssValue)",
+            "margin: \(margin.cssValue)",
+            "padding: \(padding.cssValue)",
+            "border: \(border)",
+            "gap: \(gap.cssValue)",
+            "flexGrow: \(flexGrow)",
+            "flexShrink: \(flexShrink)",
+            "flexBasis: \(flexBasis.cssValue)",
+            "size: \(size.cssValue)",
+            "minSize: \(minSize.cssValue)",
+            "maxSize: \(maxSize.cssValue)",
+            "aspectRatio: \(aspectRatioDesc)",
+            "gridAutoRows: \(gridAutoRows)",
+            "gridAutoColumns: \(gridAutoColumns)",
+            "gridColumn: \(gridColumn)",
+            "gridRow: \(gridRow)",
+            "gridTemplateRows: \(gridTemplateRows)",
+            "gridTemplateColumns: \(gridTemplateColumns)",
+            "scrollBarWidth: \(scrollBarWidth)"
+        ]
+
+        let joined = parts.joined(separator: ",\n  ")
+
+        return """
+        (MasonStyle) {
+          \(joined)
+        }
+        """
   }
 }
 

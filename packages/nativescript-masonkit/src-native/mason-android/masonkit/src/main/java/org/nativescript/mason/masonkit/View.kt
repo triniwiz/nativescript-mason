@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.graphics.Canvas
 import android.util.AttributeSet
 import android.util.SparseArray
 import android.util.TypedValue
@@ -9,6 +10,20 @@ import android.view.ViewGroup.LayoutParams
 import androidx.core.content.withStyledAttributes
 import androidx.core.util.size
 import com.google.gson.Gson
+import org.nativescript.mason.masonkit.enums.AlignContent
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.BoxSizing
+import org.nativescript.mason.masonkit.enums.Direction
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.GridAutoFlow
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.JustifyItems
+import org.nativescript.mason.masonkit.enums.JustifySelf
+import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
 import kotlin.math.roundToInt
 
 class View @JvmOverloads constructor(
@@ -43,6 +58,21 @@ class View @JvmOverloads constructor(
 
         node.style.setStyleChangeListener(this)
       }
+    }
+    // css visible default
+    clipChildren = false
+    clipToPadding = false
+  }
+
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
+    style.mBorderRenderer.invalidate()
+    super.onSizeChanged(w, h, oldw, oldh)
+  }
+
+  override fun dispatchDraw(canvas: Canvas) {
+    ViewUtils.dispatchDraw(this, canvas, style) {
+      super.dispatchDraw(it)
     }
   }
 
@@ -92,12 +122,43 @@ class View @JvmOverloads constructor(
       mapMeasureSpec(specHeightMode, specHeight).value
     )
 
-    node.mason.printTree(node)
     // todo cache layout
     val layout = layout()
+
+
+    var width = layout.width.toInt()
+    var height = layout.height.toInt()
+
+    var boxing = BoxSizing.BorderBox
+
+    if (style.isValueInitialized) {
+      boxing = style.boxSizing
+    }
+
+    if (style.overflowX == Overflow.Visible) {
+      width = if (boxing == BoxSizing.BorderBox) {
+        (layout.x + layout.contentSize.width
+          + layout.border.right + layout.border.left
+          + layout.padding.right + layout.padding.left).toInt()
+      } else {
+        layout.contentSize.height.toInt()
+      }
+    }
+
+    if (style.overflowY == Overflow.Visible) {
+      height = if (boxing == BoxSizing.BorderBox) {
+        (layout.y + layout.contentSize.height
+          + layout.border.top + layout.border.bottom
+          + layout.padding.top + layout.padding.bottom).toInt()
+      } else {
+        layout.contentSize.height.toInt()
+      }
+    }
+
+
     setMeasuredDimension(
-      layout.width.toInt(),
-      layout.height.toInt(),
+      width,
+      height,
     )
   }
 
@@ -885,7 +946,7 @@ class View @JvmOverloads constructor(
       }
     }
 
-    node.style.border = Rect(borderLeft, borderRight, borderTop, borderBottom)
+    node.style.borderWidth = Rect(borderLeft, borderRight, borderTop, borderBottom)
 
     node.style.margin = Rect(marginLeft, marginRight, marginTop, marginBottom)
 
@@ -1170,36 +1231,36 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun getBorder(): Rect<LengthPercentage> {
-    return style.border
+  fun getBorderWidth(): Rect<LengthPercentage> {
+    return style.borderWidth
   }
 
-  fun getBorderLeft(): LengthPercentage {
-    return style.border.left
+  fun getBorderLeftWidth(): LengthPercentage {
+    return style.borderLeftWidth
   }
 
-  fun getBorderRight(): LengthPercentage {
-    return style.border.right
+  fun getBorderRightWidth(): LengthPercentage {
+    return style.borderRightWidth
   }
 
-  fun getBorderTop(): LengthPercentage {
-    return style.border.top
+  fun getBorderTopWidth(): LengthPercentage {
+    return style.borderTopWidth
   }
 
-  fun getBorderBottom(): LengthPercentage {
-    return style.border.bottom
+  fun getBorderBottomWidth(): LengthPercentage {
+    return style.borderBottomWidth
   }
 
   fun getBorderCssValue(): String {
-    return style.border.cssValue
+    return style.borderWidth.cssValue
   }
 
   fun getBorderJsonValue(): String {
-    return style.border.jsonValue
+    return style.borderWidth.jsonValue
   }
 
-  fun setBorder(left: Float, top: Float, right: Float, bottom: Float) {
-    style.border = Rect(
+  fun setBorderWidth(left: Float, top: Float, right: Float, bottom: Float) {
+    style.borderWidth = Rect(
       LengthPercentage.Points(left),
       LengthPercentage.Points(right),
       LengthPercentage.Points(top),
@@ -1211,7 +1272,7 @@ class View @JvmOverloads constructor(
   fun setBorder(
     left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
-    style.border = Rect(
+    style.borderWidth = Rect(
       left, right, top, bottom
     )
     checkAndUpdateStyle()
@@ -1227,37 +1288,37 @@ class View @JvmOverloads constructor(
     bottom: Float,
     bottomType: Int
   ) {
-    style.border = Rect(
-      LengthPercentage.fromTypeValue(leftType, left) ?: style.border.left,
-      LengthPercentage.fromTypeValue(rightType, right) ?: style.border.right,
-      LengthPercentage.fromTypeValue(topType, top) ?: style.border.top,
-      LengthPercentage.fromTypeValue(bottomType, bottom) ?: style.border.bottom
+    style.borderWidth = Rect(
+      LengthPercentage.fromTypeValue(leftType, left) ?: style.borderWidth.left,
+      LengthPercentage.fromTypeValue(rightType, right) ?: style.borderWidth.right,
+      LengthPercentage.fromTypeValue(topType, top) ?: style.borderWidth.top,
+      LengthPercentage.fromTypeValue(bottomType, bottom) ?: style.borderWidth.bottom
     )
     checkAndUpdateStyle()
   }
 
   fun setBorderLeft(value: Float, type: Int) {
-    style.setBorderLeft(value, type)
+    style.setBorderLeftWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderRight(value: Float, type: Int) {
-    style.setBorderRight(value, type)
+    style.setBorderRightWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderTop(value: Float, type: Int) {
-    style.setBorderTop(value, type)
+    style.setBorderTopWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderBottom(value: Float, type: Int) {
-    style.setBorderBottom(value, type)
+    style.setBorderBottomWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderWithValueType(value: Float, type: Int) {
-    style.setBorderWithValueType(value, type)
+    style.setBorderWidth(value, type)
     checkAndUpdateStyle()
   }
 
@@ -1696,7 +1757,7 @@ class View @JvmOverloads constructor(
     }
 
 
-  var gridAutoRows: Array<MinMax>
+  var gridAutoRows: String
     get() {
       return style.gridAutoRows
     }
@@ -1705,7 +1766,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridAutoColumns: Array<MinMax>
+  var gridAutoColumns: String
     get() {
       return style.gridAutoColumns
     }
@@ -1723,7 +1784,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridColumn: Line<GridPlacement>
+  var gridColumn: String
     get() {
       return style.gridColumn
     }
@@ -1732,7 +1793,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridColumnStart: GridPlacement
+  var gridColumnStart: String
     get() {
       return style.gridColumnStart
     }
@@ -1741,7 +1802,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridColumnEnd: GridPlacement
+  var gridColumnEnd: String
     get() {
       return style.gridColumnEnd
     }
@@ -1750,7 +1811,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridRow: Line<GridPlacement>
+  var gridRow: String
     get() {
       return style.gridRow
     }
@@ -1759,7 +1820,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridRowStart: GridPlacement
+  var gridRowStart: String
     get() {
       return style.gridRowStart
     }
@@ -1768,7 +1829,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridRowEnd: GridPlacement
+  var gridRowEnd: String
     get() {
       return style.gridRowEnd
     }
@@ -1777,7 +1838,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridTemplateRows: Array<TrackSizingFunction>
+  var gridTemplateRows: String
     get() {
       return style.gridTemplateRows
     }
@@ -1786,7 +1847,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridTemplateColumns: Array<TrackSizingFunction>
+  var gridTemplateColumns: String
     get() {
       return style.gridTemplateColumns
     }

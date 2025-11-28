@@ -7,7 +7,7 @@
     android:background="@color/gray"
     mason:mason_flexDirection="row">
 
-    <Button
+<!--    <Button
         android:id="@+id/btn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -15,7 +15,7 @@
         mason:mason_height="100dp"
         mason:mason_minHeight="0"
         mason:mason_minWidth="0"
-        mason:mason_width="100dp" />
+        mason:mason_width="100dp" />-->
 
     <!--<TextView
       android:text="Hello World"

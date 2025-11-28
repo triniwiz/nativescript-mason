@@ -13,8 +13,10 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MasonDemo"
-        tools:targetApi="31">
+        android:theme="@style/Theme.MasonDemo">
+        <activity
+            android:name=".FloatActivity"
+            android:exported="false" />
         <activity
             android:name=".TextActivity"
             android:exported="false" />

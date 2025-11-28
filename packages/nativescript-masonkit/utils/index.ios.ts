@@ -539,17 +539,17 @@ export function _setGridColumnStart(value, instance: View, initial = false) {
     return;
   }
 
-  switch (val.type) {
-    case 0 /* GridPlacementCompatType.Auto */:
-      instance.ios.gridColumnStartCompat = GridPlacementCompat.Auto;
-      break;
-    case 1 /* GridPlacementCompatType.Line */:
-      instance.ios.gridColumnStartCompat = GridPlacementCompat.alloc().initWithLine(val.value);
-      break;
-    case 2 /* GridPlacementCompatType.Span */:
-      instance.ios.gridColumnStartCompat = GridPlacementCompat.alloc().initWithSpan(val.value);
-      break;
-  }
+  // switch (val.type) {
+  //   case 0 /* GridPlacementCompatType.Auto */:
+  //     instance.ios.gridColumnStartCompat = GridPlacementCompat.Auto;
+  //     break;
+  //   case 1 /* GridPlacementCompatType.Line */:
+  //     instance.ios.gridColumnStartCompat = GridPlacementCompat.alloc().initWithLine(val.value);
+  //     break;
+  //   case 2 /* GridPlacementCompatType.Span */:
+  //     instance.ios.gridColumnStartCompat = GridPlacementCompat.alloc().initWithSpan(val.value);
+  //     break;
+  // }
 }
 
 export function _setGridColumnEnd(value, instance: View, initial = false) {
@@ -563,17 +563,17 @@ export function _setGridColumnEnd(value, instance: View, initial = false) {
     return;
   }
 
-  switch (val.type) {
-    case 0 /* GridPlacementCompatType.Auto */:
-      instance.ios.gridColumnEndCompat = GridPlacementCompat.Auto;
-      break;
-    case 1 /* GridPlacementCompatType.Line */:
-      instance.ios.gridColumnEndCompat = GridPlacementCompat.alloc().initWithLine(val.value);
-      break;
-    case 2 /* GridPlacementCompatType.Span */:
-      instance.ios.gridColumnEndCompat = GridPlacementCompat.alloc().initWithSpan(val.value);
-      break;
-  }
+  // switch (val.type) {
+  //   case 0 /* GridPlacementCompatType.Auto */:
+  //     instance.ios.gridColumnEndCompat = GridPlacementCompat.Auto;
+  //     break;
+  //   case 1 /* GridPlacementCompatType.Line */:
+  //     instance.ios.gridColumnEndCompat = GridPlacementCompat.alloc().initWithLine(val.value);
+  //     break;
+  //   case 2 /* GridPlacementCompatType.Span */:
+  //     instance.ios.gridColumnEndCompat = GridPlacementCompat.alloc().initWithSpan(val.value);
+  //     break;
+  // }
 }
 
 export function _setGridRowStart(value, instance: View, initial = false) {
@@ -587,17 +587,17 @@ export function _setGridRowStart(value, instance: View, initial = false) {
     return;
   }
 
-  switch (val.type) {
-    case 0 /* GridPlacementCompatType.Auto */:
-      instance.ios.gridRowStartCompat = GridPlacementCompat.Auto;
-      break;
-    case 1 /* GridPlacementCompatType.Line */:
-      instance.ios.gridRowStartCompat = GridPlacementCompat.alloc().initWithLine(val.value);
-      break;
-    case 2 /* GridPlacementCompatType.Span */:
-      instance.ios.gridRowStartCompat = GridPlacementCompat.alloc().initWithSpan(val.value);
-      break;
-  }
+  // switch (val.type) {
+  //   case 0 /* GridPlacementCompatType.Auto */:
+  //     instance.ios.gridRowStartCompat = GridPlacementCompat.Auto;
+  //     break;
+  //   case 1 /* GridPlacementCompatType.Line */:
+  //     instance.ios.gridRowStartCompat = GridPlacementCompat.alloc().initWithLine(val.value);
+  //     break;
+  //   case 2 /* GridPlacementCompatType.Span */:
+  //     instance.ios.gridRowStartCompat = GridPlacementCompat.alloc().initWithSpan(val.value);
+  //     break;
+  // }
 }
 
 export function _setGridRowEnd(value, instance: View, initial = false) {
@@ -611,17 +611,17 @@ export function _setGridRowEnd(value, instance: View, initial = false) {
     return;
   }
 
-  switch (val.type) {
-    case 0 /* GridPlacementCompatType.Auto */:
-      instance.ios.gridRowEndCompat = GridPlacementCompat.Auto;
-      break;
-    case 1 /* GridPlacementCompatType.Line */:
-      instance.ios.gridRowEndCompat = GridPlacementCompat.alloc().initWithLine(val.value);
-      break;
-    case 2 /* GridPlacementCompatType.Span */:
-      instance.ios.gridRowEndCompat = GridPlacementCompat.alloc().initWithSpan(val.value);
-      break;
-  }
+  // switch (val.type) {
+  //   case 0 /* GridPlacementCompatType.Auto */:
+  //     instance.ios.gridRowEndCompat = GridPlacementCompat.Auto;
+  //     break;
+  //   case 1 /* GridPlacementCompatType.Line */:
+  //     instance.ios.gridRowEndCompat = GridPlacementCompat.alloc().initWithLine(val.value);
+  //     break;
+  //   case 2 /* GridPlacementCompatType.Span */:
+  //     instance.ios.gridRowEndCompat = GridPlacementCompat.alloc().initWithSpan(val.value);
+  //     break;
+  // }
 }
 
 export function _setRowGap(value, instance: View, initial = false) {
@@ -922,7 +922,7 @@ export function _setGridTemplateRows(value: Array<GridTemplates>, instance: View
     }
   }
 
-  instance.ios.gridTemplateRows = array;
+  // instance.ios.gridTemplateRows = array;
 }
 
 export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: View, initial = false) {
@@ -971,7 +971,7 @@ export function _setGridTemplateColumns(value: Array<GridTemplates>, instance: V
       array.addObject(trackSizingFunction);
     }
   }
-  instance.ios.gridTemplateColumns = array;
+  // instance.ios.gridTemplateColumns = array;
 }
 
 export function _parseGridAutoRowsColumns(value: string): Array<MinMaxType> {
@@ -1022,7 +1022,7 @@ export function _setGridAutoRows(value, instance: View, initial = false) {
     array.addObject(minMax);
   }
 
-  instance.ios.gridAutoRows = array;
+  // instance.ios.gridAutoRows = array;
 }
 
 export function _setGridAutoColumns(value, instance: View, initial = false) {
@@ -1041,7 +1041,7 @@ export function _setGridAutoColumns(value, instance: View, initial = false) {
     array.addObject(minMax);
   }
 
-  instance.ios.gridAutoColumns = array;
+  // instance.ios.gridAutoColumns = array;
 }
 
 export function _getGridTemplateRows(instance: View) {

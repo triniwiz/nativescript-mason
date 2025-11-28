@@ -42,9 +42,11 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     style.setStyleChangeListener(listener: self)
   }
   
+  
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
+  
   
   @objc public static func createGridView(_ mason: NSCMason) -> MasonUIView{
     let view = MasonUIView(mason: mason)
@@ -128,6 +130,16 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   func checkAndUpdateStyle() {
     if (!node.inBatch) {
       node.style.updateNativeStyle()
+    }
+  }
+  
+  @objc public var background: String {
+    get{
+      return style.background
+    }
+    set(value) {
+      style.background = value
+      checkAndUpdateStyle()
     }
   }
   
@@ -365,7 +377,30 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   }
   
   
-  @objc public var gridAutoRows: Array<MinMax> {
+  @objc public var gridArea: String {
+    get {
+      return style.gridArea
+    }
+    set(value) {
+      style.gridArea = value
+      checkAndUpdateStyle()
+    }
+  }
+  
+  
+  @objc public var gridTemplateAreas: String {
+    get {
+      return style.gridTemplateAreas
+    }
+    set(value) {
+      style.gridTemplateAreas = value
+      checkAndUpdateStyle()
+    }
+  }
+  
+  
+  
+  @objc public var gridAutoRows: String {
     get {
       return style.gridAutoRows
     }
@@ -376,7 +411,7 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   }
   
   
-  @objc public var gridAutoColumns: Array<MinMax>{
+  @objc public var gridAutoColumns: String{
     get{
       return style.gridAutoColumns
     }
@@ -398,7 +433,7 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   }
   
   
-  public var gridColumn: Line<GridPlacement>{
+  public var gridColumn: String{
     get{
       return style.gridColumn
     }
@@ -408,61 +443,28 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     }
   }
   
-  public var gridColumnStart: GridPlacement {
+  public var gridColumnStart: String {
     get {
-      return gridColumn.start
+      return style.gridColumnStart
     }
     
     set {
-      gridColumn = Line<GridPlacement>(newValue, gridColumn.end)
+      style.gridColumnStart = newValue
     }
   }
   
-  public var gridColumnEnd: GridPlacement {
+  public var gridColumnEnd: String {
     get {
-      return gridColumn.end
+      return style.gridColumnEnd
     }
     
     set {
-      gridColumn = Line<GridPlacement>(gridColumn.start, newValue)
+      style.gridColumnEnd = newValue
     }
   }
   
   
-  @objc public var gridColumnCompat: LineGridPlacementCompat {
-    get {
-      return style.gridColumnCompat
-    }
-    set {
-      style.gridColumnCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  @objc public var gridColumnStartCompat: GridPlacementCompat {
-    get {
-      return style.gridColumnStartCompat
-    }
-    
-    set {
-      style.gridColumnStartCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  @objc public var gridColumnEndCompat: GridPlacementCompat {
-    get {
-      return gridColumnCompat.end
-    }
-    
-    set {
-      style.gridColumnEndCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  
-  public var gridRow: Line<GridPlacement> {
+  public var gridRow: String{
     get{
       return style.gridRow
     }
@@ -472,61 +474,28 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     }
   }
   
-  public var gridRowStart: GridPlacement {
+  public var gridRowStart: String {
     get {
-      return gridRow.start
+      return style.gridRowStart
     }
     
     set {
-      gridRow = Line<GridPlacement>(newValue, gridRow.end)
+      style.gridRowStart = newValue
     }
   }
   
-  public var gridRowEnd: GridPlacement {
+  public var gridRowEnd: String {
     get {
-      return gridRow.end
+      return style.gridRowEnd
     }
     
     set {
-      gridRow = Line<GridPlacement>(gridRow.start, newValue)
+      style.gridRowEnd = newValue
     }
   }
   
   
-  @objc public var gridRowCompat: LineGridPlacementCompat {
-    get{
-      return style.gridRowCompat
-    }
-    set {
-      style.gridRowCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  @objc public var gridRowStartCompat: GridPlacementCompat {
-    get {
-      return style.gridRowStartCompat
-    }
-    
-    set {
-      style.gridRowStartCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  @objc public var gridRowEndCompat: GridPlacementCompat {
-    get {
-      return style.gridRowEndCompat
-    }
-    
-    set {
-      style.gridRowEndCompat = newValue
-      checkAndUpdateStyle()
-    }
-  }
-  
-  
-  @objc public var gridTemplateRows: Array<TrackSizingFunction> {
+  @objc public var gridTemplateRows: String {
     get{
       return style.gridTemplateRows
     }
@@ -537,7 +506,7 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
   }
   
   
-  @objc public var gridTemplateColumns: Array<TrackSizingFunction> {
+  @objc public var gridTemplateColumns: String {
     get{
       return style.gridTemplateColumns
     }
@@ -598,8 +567,8 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     return node.style.paddingCompat.bottom
   }
   
-  @objc public func setBorder(_ left: Float,_ top: Float,_ right: Float, _ bottom: Float) {
-    node.style.border = MasonRect(
+  @objc public func setBorderWidth(_ left: Float,_ top: Float,_ right: Float, _ bottom: Float) {
+    style.borderWidth = MasonRect(
       MasonLengthPercentage.Points(left),
       MasonLengthPercentage.Points(right),
       MasonLengthPercentage.Points(top),
@@ -607,44 +576,44 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     )
   }
   
-  @objc public func getBorder() -> MasonLengthPercentageRectCompat{
-    return node.style.borderCompat
+  @objc public func getBorderWidth() -> MasonLengthPercentageRectCompat{
+    return node.style.borderWidthCompat
   }
   
-  @objc public func setBorderLeft(_ left: Float, _ type: Int) {
-    node.style.setBorderLeft(left, type)
+  @objc public func setBorderLeftWidth(_ left: Float, _ type: Int) {
+    node.style.setBorderLeftWidth(left, type)
     checkAndUpdateStyle()
   }
   
-  @objc public func setBorderRight(_ right: Float, _ type: Int) {
-    node.style.setBorderRight(right, type)
+  @objc public func setBorderRightWidth(_ right: Float, _ type: Int) {
+    node.style.setBorderRightWidth(right, type)
     checkAndUpdateStyle()
   }
   
-  @objc public func setBorderTop(_ top: Float, _ type: Int) {
-    node.style.setBorderTop(top, type)
+  @objc public func setBorderTopWidth(_ top: Float, _ type: Int) {
+    node.style.setBorderTopWidth(top, type)
     checkAndUpdateStyle()
   }
   
-  @objc public func setBorderBottom(_ bottom: Float, _ type: Int) {
-    node.style.setBorderBottom(bottom, type)
+  @objc public func setBorderBottomWidth(_ bottom: Float, _ type: Int) {
+    node.style.setBorderBottomWidth(bottom, type)
     checkAndUpdateStyle()
   }
   
   @objc public func getBorderLeft() -> MasonLengthPercentageCompat {
-    return node.style.borderCompat.left
+    return node.style.borderWidthCompat.left
   }
   
   @objc public func getBorderRight() -> MasonLengthPercentageCompat {
-    return node.style.borderCompat.right
+    return node.style.borderWidthCompat.right
   }
   
   @objc public func getBorderBottom() -> MasonLengthPercentageCompat {
-    return node.style.borderCompat.bottom
+    return node.style.borderWidthCompat.bottom
   }
   
   @objc public func getBorderTop() -> MasonLengthPercentageCompat {
-    return node.style.borderCompat.top
+    return node.style.borderWidthCompat.top
   }
   
   @objc public func setMargin(_ left: Float, _ top: Float,_ right: Float,_ bottom: Float) {

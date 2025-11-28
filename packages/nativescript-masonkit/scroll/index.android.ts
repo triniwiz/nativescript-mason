@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { isMasonView_, style_, text_, textProperty, ViewBase } from '../common';
+import { isMasonView_, style_, ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 

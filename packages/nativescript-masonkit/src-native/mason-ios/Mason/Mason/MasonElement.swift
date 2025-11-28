@@ -220,8 +220,13 @@ extension MasonElement {
     
     if let font = fontFace.font {
       // Font
-      let ctFont = ctFont(from: font, fontSize: CGFloat(style.resolvedFontSize), weight: style.resolvedFontWeight.uiFontWeight, style: style.resolvedInternalFontStyle)
+      let fontSize = style.resolvedFontSize
+      let weight = style.resolvedFontWeight
+      let style = style.resolvedInternalFontStyle
+      let ctFont = ctFont(from: font, fontSize: CGFloat(fontSize), weight: weight.uiFontWeight, style: style)
       attrs[.font] = ctFont
+      attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] = weight.uiFontWeight.rawValue
+      attrs[NSAttributedString.Key(Constants.FONT_STYLE)] = style
     }
     
     
@@ -734,7 +739,7 @@ class MasonElementHelpers: NSObject {
       
       let point = CGPoint(x: x, y: y)
       
-      var size = CGSizeMake(width, height)
+      let size = CGSizeMake(width, height)
     
       view.frame = CGRect(origin: point, size: size)
       

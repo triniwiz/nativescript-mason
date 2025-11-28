@@ -1,6 +1,43 @@
-use crate::style::{DisplayMode, Overflow};
+mod grid;
+use crate::style::{BorderStyle, DisplayMode, ObjectFit, Overflow};
 use crate::Style;
-use taffy::{AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow, JustifyContent, LayoutInput, MaybeMath, MaybeResolve, Position, ResolveOrZero, Size, TextAlign};
+pub use grid::*;
+use style_atoms::Atom;
+use taffy::{
+    AlignContent, AlignItems, AlignSelf, AvailableSpace, BoxSizing, Clear, Display, FlexDirection,
+    FlexWrap, Float, GridAutoFlow, GridPlacement, GridTemplateArea, JustifyContent, Line, Position,
+    TextAlign,
+};
+
+pub const fn border_style_from_enum(value: i32) -> Option<BorderStyle> {
+    match value {
+        0 => Some(BorderStyle::None),
+        1 => Some(BorderStyle::Hidden),
+        2 => Some(BorderStyle::Dotted),
+        3 => Some(BorderStyle::Dashed),
+        4 => Some(BorderStyle::Solid),
+        5 => Some(BorderStyle::Double),
+        6 => Some(BorderStyle::Groove),
+        7 => Some(BorderStyle::Ridge),
+        8 => Some(BorderStyle::Inset),
+        9 => Some(BorderStyle::Outset),
+        _ => None,
+    }
+}
+pub const fn border_style_to_enum(value: BorderStyle) -> i32 {
+    match value {
+        BorderStyle::None => 0,
+        BorderStyle::Hidden => 1,
+        BorderStyle::Dotted => 2,
+        BorderStyle::Dashed => 3,
+        BorderStyle::Solid => 4,
+        BorderStyle::Double => 5,
+        BorderStyle::Groove => 6,
+        BorderStyle::Ridge => 7,
+        BorderStyle::Inset => 8,
+        BorderStyle::Outset => 9,
+    }
+}
 
 pub const fn box_sizing_from_enum(value: i32) -> Option<BoxSizing> {
     match value {
@@ -329,11 +366,13 @@ pub(crate) fn resolve_fallback_size(
         return known;
     }
 
-    let size = size.or_else(|| match available {
-        AvailableSpace::MinContent => style_min.or(Some(content_min)),
-        AvailableSpace::MaxContent => style_max.or(Some(content_max)),
-        AvailableSpace::Definite(w) => Some(w),
-    }).unwrap_or(0.);
+    let size = size
+        .or_else(|| match available {
+            AvailableSpace::MinContent => style_min.or(Some(content_min)),
+            AvailableSpace::MaxContent => style_max.or(Some(content_max)),
+            AvailableSpace::Definite(w) => Some(w),
+        })
+        .unwrap_or(0.);
 
     if size == 0. {
         return 0.;
@@ -345,57 +384,192 @@ pub(crate) fn resolve_fallback_size(
     (size.clamp(min, max) - padding_border).max(0.)
 }
 
+#[derive(Clone, Debug)]
+pub struct GridTemplateAreas {
+    pub areas: Vec<GridTemplateArea<Atom>>,
+    pub rows: usize,
+    pub columns: usize,
+}
 
-pub(crate) fn compute_leaf(
-    style: &Style,
-    inputs: &LayoutInput,
-) -> Size<f32> {
+pub fn grid_template_areas_to_string(areas: &[GridTemplateArea<Atom>]) -> String {
+    if areas.is_empty() {
+        return Default::default();
+    }
 
-    let padding = style
-        .get_padding()
-        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
+    let max_row = areas.iter().map(|a| a.row_end).max().unwrap_or(0) as usize;
+    let max_col = areas.iter().map(|a| a.column_end).max().unwrap_or(0) as usize;
 
-    let border = style
-        .get_border()
-        .resolve_or_zero(inputs.parent_size, |_val, _basis| 0.0);
+    let mut grid = vec![vec![".".to_string(); max_col]; max_row];
 
-    let size = style
-        .get_size()
-        .maybe_resolve(inputs.parent_size, |_val, _basis| 0.0);
+    for area in areas {
+        for row in area.row_start as usize..area.row_end as usize {
+            for col in area.column_start as usize..area.column_end as usize {
+                grid[row][col] = area.name.to_string();
+            }
+        }
+    }
 
-    let min_size = style
-        .get_min_size()
-        .maybe_resolve(inputs.parent_size, |_val, _basis| 0.0);
+    let rows: Vec<String> = grid
+        .into_iter()
+        .map(|row| format!("\"{}\"", row.join(" ")))
+        .collect();
 
-    let max_size = style
-        .get_max_size()
-        .maybe_resolve(inputs.parent_size, |_val, _basis| 0.0);
+    rows.join("\n")
+}
 
-    let content_sizes = style.content_sizes();
+fn remove_start_end_prefixes(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let bytes = text.as_bytes();
+    let mut i = 0;
 
-    let container_pb = padding + border;
-    let pbw = container_pb.horizontal_components().sum();
-    let pbh = container_pb.vertical_components().sum();
-    Size {
-        width: resolve_fallback_size(
-            inputs.known_dimensions.width,
-            inputs.available_space.width,
-            size.width,
-            min_size.width,
-            max_size.width,
-            content_sizes.0.width,
-            content_sizes.1.width,
-            pbw,
-        ),
-        height: resolve_fallback_size(
-            inputs.known_dimensions.height,
-            inputs.available_space.height,
-            size.height,
-            min_size.height,
-            max_size.height,
-            content_sizes.0.height,
-            content_sizes.1.height,
-            pbh,
-        ),
+    while i < bytes.len() {
+        // Check for "start-" prefix
+        if i + 6 <= bytes.len() && &text[i..i + 6] == "start-" {
+            i += 6; // skip "start-"
+            continue;
+        }
+        // Check for "end-" prefix
+        if i + 4 <= bytes.len() && &text[i..i + 4] == "end-" {
+            i += 4; // skip "end-"
+            continue;
+        }
+
+        // Copy current character
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+
+    result
+}
+
+pub fn grid_placement_to_string(p: &GridPlacement<Atom>) -> String {
+    match p {
+        GridPlacement::Auto => "auto".into(),
+        GridPlacement::Line(n) => n.as_i16().to_string(),
+        GridPlacement::Span(n) => format!("span {}", n),
+        GridPlacement::NamedLine(name, idx) => {
+            if *idx == 0 {
+                remove_start_end_prefixes(name)
+            } else {
+                format!("{} {}", name, idx)
+            }
+        }
+        GridPlacement::NamedSpan(name, idx) => {
+            if *idx == 0 {
+                format!("span {}", remove_start_end_prefixes(name))
+            } else {
+                format!("span {} {}", idx, name)
+            }
+        }
+    }
+}
+
+pub fn get_grid_area_from_style(style: &Style) -> Option<String> {
+    let row = style.get_grid_row();
+    let col = style.get_grid_column();
+    get_grid_area(row, col)
+}
+
+pub fn get_grid_area(
+    row: Line<GridPlacement<Atom>>,
+    column: Line<GridPlacement<Atom>>,
+) -> Option<String> {
+    let row_start = grid_placement_to_string(&row.start);
+    let row_end = grid_placement_to_string(&row.end);
+    let col_start = grid_placement_to_string(&column.start);
+    let col_end = grid_placement_to_string(&column.end);
+
+    // All auto → nothing to show
+    if row_start == "auto" && row_end == "auto" && col_start == "auto" && col_end == "auto" {
+        return None;
+    }
+
+    // If all four are the same name, return that single name (e.g. grid-area: myArea)
+    if row_start == row_end && row_end == col_start && col_start == col_end && row_start != "auto" {
+        return Some(row_start);
+    }
+
+    // Collapse start/end if equal (optional shorthand)
+    let value = if row_start == row_end && col_start == col_end {
+        format!("{} / {}", row_start, col_start)
+    } else {
+        format!("{} / {} / {} / {}", row_start, col_start, row_end, col_end)
+    };
+
+    Some(value)
+}
+
+pub fn to_line_css(start: &GridPlacement<Atom>, end: &GridPlacement<Atom>) -> Option<String> {
+    let start = grid_placement_to_string(start);
+    let end = grid_placement_to_string(end);
+
+    // All auto → nothing to show
+    if start == "auto" && end == "auto" {
+        return None;
+    }
+
+    // If both are the same *non-auto* value (like `1 / 1` or `header / header`)
+    if start == end && start != "auto" {
+        return Some(start);
+    }
+
+    // If start and end differ, use CSS shorthand form: "start / end"
+    Some(format!("{} / {}", start, end))
+}
+
+pub const fn float_from_enum(value: i32) -> Option<Float> {
+    match value {
+        0 => Some(Float::None),
+        1 => Some(Float::Left),
+        2 => Some(Float::Right),
+        _ => None,
+    }
+}
+
+pub const fn float_to_enum(value: Float) -> i32 {
+    match value {
+        Float::None => 0,
+        Float::Left => 1,
+        Float::Right => 2,
+    }
+}
+
+pub const fn clear_from_enum(value: i32) -> Option<Clear> {
+    match value {
+        0 => Some(Clear::None),
+        1 => Some(Clear::Left),
+        2 => Some(Clear::Right),
+        3 => Some(Clear::Both),
+        _ => None,
+    }
+}
+
+pub const fn clear_to_enum(value: Clear) -> i32 {
+    match value {
+        Clear::None => 0,
+        Clear::Left => 1,
+        Clear::Right => 2,
+        Clear::Both => 3,
+    }
+}
+
+pub const fn object_fit_from_enum(value: i32) -> Option<ObjectFit> {
+    match value {
+        0 => Some(ObjectFit::Contain),
+        1 => Some(ObjectFit::Cover),
+        2 => Some(ObjectFit::Fill),
+        3 => Some(ObjectFit::None),
+        4 => Some(ObjectFit::ScaleDown),
+        _ => None,
+    }
+}
+
+pub const fn object_to_enum(value: ObjectFit) -> i32 {
+    match value {
+        ObjectFit::Contain => 0,
+        ObjectFit::Cover => 1,
+        ObjectFit::Fill => 2,
+        ObjectFit::None => 3,
+        ObjectFit::ScaleDown => 4,
     }
 }

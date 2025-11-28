@@ -26,8 +26,13 @@ import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.TextNode.FixedLineHeightSpan
 import org.nativescript.mason.masonkit.TextNode.RelativeLineHeightSpan
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.TextType
 import java.nio.ByteBuffer
 import kotlin.math.ceil
+
+val white_space = "\\s+".toRegex()
 
 class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
@@ -65,6 +70,18 @@ class TextView @JvmOverloads constructor(
   init {
     if (!::node.isInitialized && !override) {
       setup(Mason.shared)
+    }
+  }
+
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
+    style.mBorderRenderer.invalidate()
+    super.onSizeChanged(w, h, oldw, oldh)
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    ViewUtils.onDraw(this, canvas, style) {
+      super.onDraw(it)
     }
   }
 
@@ -129,7 +146,7 @@ class TextView @JvmOverloads constructor(
         TextType.Code -> {
           style.font = FontFace("monospace")
           style.display = Display.Inline
-          setBackgroundColor(0xFFEFEFEF.toInt())
+          //  setBackgroundColor(0xFFEFEFEF.toInt())
         }
 
         TextType.H1 -> {
@@ -564,7 +581,6 @@ class TextView @JvmOverloads constructor(
       heightConstraint = knownHeight.toInt()
     }
 
-
     if (isInline) {
       widthConstraint = Int.MAX_VALUE
     }
@@ -585,7 +601,6 @@ class TextView @JvmOverloads constructor(
     if (allowWrap && availableWidth > 0 && availableWidth != Float.MIN_VALUE) {
       widthConstraint = availableWidth.toInt()
     }
-
 
     val alignment = getLayoutAlignment()  // Use the alignment from textAlign property
 
@@ -634,7 +649,16 @@ class TextView @JvmOverloads constructor(
         }
       }
     } else {
-      measuredWidth = layout.width.toFloat()
+      measuredWidth = if (widthConstraint == Int.MAX_VALUE) {
+        if (availableWidth == -1f) {
+          text.split(white_space)
+            .maxOfOrNull { Layout.getDesiredWidth(it, paint) } ?: 0f
+        } else {
+          Layout.getDesiredWidth(text, paint)
+        }
+      } else {
+        layout.width.toFloat()
+      }
     }
 
     // Store the actual measured dimensions (not the constraints)
@@ -1165,9 +1189,9 @@ class TextView @JvmOverloads constructor(
     if (!textView.style.isValueInitialized) return true
     val style = textView.node.style
     val hasBackground = textView.backgroundColorValue != 0 || textView.background != null
-    val border = style.border
+    val borderWidth = style.borderWidth
     val hasBorder =
-      border.top.value > 0f || border.right.value > 0f || border.bottom.value > 0f || border.left.value > 0f
+      borderWidth.top.value > 0f || borderWidth.right.value > 0f || borderWidth.bottom.value > 0f || borderWidth.left.value > 0f
 
     val padding = style.padding
     val hasPadding =

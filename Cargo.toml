@@ -12,3 +12,7 @@ incremental = false
 strip = true
 debug-assertions = false
 overflow-checks = false
+
+[workspace.dependencies]
+taffy = { git = "https://github.com/DioxusLabs/taffy.git", rev = "fff4ea6e71e4f6ec29d0ea560a77545ad611470a" }
+style_atoms = { git = "https://github.com/servo/stylo", rev = "85ae0b1", package = "stylo_atoms" }

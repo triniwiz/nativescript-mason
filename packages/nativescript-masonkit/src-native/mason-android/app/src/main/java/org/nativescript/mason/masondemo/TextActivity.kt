@@ -11,25 +11,21 @@ import androidx.core.graphics.toColorInt
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.Display
-import org.nativescript.mason.masonkit.FlexDirection
 import org.nativescript.mason.masonkit.FontFace
-import org.nativescript.mason.masonkit.GridPlacement
 import org.nativescript.mason.masonkit.LengthPercentage
-import org.nativescript.mason.masonkit.Line
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.MinMax
 import org.nativescript.mason.masonkit.NodeHelper
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.StateKeys
 import org.nativescript.mason.masonkit.StyleKeys
 import org.nativescript.mason.masonkit.Styles
-import org.nativescript.mason.masonkit.TextAlign
-import org.nativescript.mason.masonkit.TextType
 import org.nativescript.mason.masonkit.TextView
-import org.nativescript.mason.masonkit.TrackSizingFunction
 import org.nativescript.mason.masonkit.View
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.TextType
 import java.util.Timer
 import kotlin.concurrent.schedule
 
@@ -66,24 +62,32 @@ class TextActivity : AppCompatActivity() {
     //  testWrap()
     //testElements()
     //testTextInsert()
-    // inlineTest()
-    // testTextReplace()
-    // testTextNodeReplace
-//    testTextAppend()
+    //   inlineTest()
+    //testTextReplace()
+    //testTextAppend()
     // testTextContainerAppend()
     // testTextContainerReplace()
     /// testTextContainerReplaceInContainer()
-    // testTextNodeReplaceWithImage()
-    //  testTextNodeInsertWithImage()
-    //   testTextWrap()
+    //testTextNodeReplaceWithImage()
+    // testTextNodeInsertWithImage()
+    //testTextWrap()
     // flexDirection()
     //  flexGrow()
     // flexShrink()
     //gridTemplateColumns()
     //dynamicGridTemplateColumns()
-    //padding()
-    textAlignment()
+    // padding()
+    // textAlignment()
+    bg()
     setContentView(body)
+  }
+
+  fun bg() {
+    val root = Mason.shared.createView(this)
+    root.style.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+    root.style.background = "content-box radial-gradient(crimson, skyblue);"
+    body.style.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+    body.append(root)
   }
 
   fun textAlignment() {
@@ -198,11 +202,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       resources.displayMetrics
     )
     NodeHelper.shared.setGridTemplateColumns(
-      root, arrayOf(
-        TrackSizingFunction.Single(MinMax.fromTypeValue(3, col, 3, col)!!),
-        TrackSizingFunction.Single(MinMax.fromTypeValue(3, col, 3, col)!!),
-        TrackSizingFunction.Single(MinMax.fromTypeValue(3, col, 3, col)!!)
-      )
+      root, "min-max(${col}px,${col}px)"
     )
 
 
@@ -239,8 +239,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         )
         a.setBackgroundColor(bg)
 
-        a.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-        a.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
+        a.gridColumn = "1/3"
+        a.gridRow = "1"
 
 
         root.append(a)
@@ -257,8 +257,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         b.setBackgroundColor(bg)
 
 
-        b.gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
-        b.gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
+        b.gridColumn = "3"
+        b.gridRow = "1/3"
 
 
         root.append(b)
@@ -274,8 +274,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         )
         c.setBackgroundColor(bg)
 
-        c.gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-        c.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+        c.gridColumn = "1"
+        c.gridRow = "2"
 
 
         root.append(c)
@@ -293,8 +293,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
 
         root.append(d)
 
-        d.gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-        d.gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
+        d.gridColumn = "2"
+        d.gridRow = "2"
 
       }
     }
@@ -578,7 +578,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       Dimension.Points(200F),
       Dimension.Points(200F)
     )
-    colRev.style.border = Rect(
+    colRev.style.borderWidth = Rect(
       LengthPercentage.Points(1f),
       LengthPercentage.Points(1f),
       LengthPercentage.Points(1f),
@@ -628,7 +628,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
       Dimension.Points(200F),
       Dimension.Points(200F)
     )
-    rowRev.style.border = Rect(
+    rowRev.style.borderWidth = Rect(
       LengthPercentage.Points(1f),
       LengthPercentage.Points(1f),
       LengthPercentage.Points(1f),
@@ -940,11 +940,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
     root.append("A")
     root.append("B")
     root.append("C")
-    Mason.shared.printTree(root.node)
-
     body.append(root)
 
-    Mason.shared.printTree(body.node)
   }
 
   fun testTextContainerAppend() {
@@ -995,6 +992,8 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
     root.append(b)
     root.append(c)
 
+    Mason.shared.printTree(root.node)
+
     val d = Mason.shared.createTextView(this, TextType.P)
     d.append("Wednesday")
     root.addChildAt(d, 1)
@@ -1009,7 +1008,13 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
         val f = Mason.shared.createTextView(this@TextActivity)
         f.append("???")
         root.addChildAt(f, 1)
-        Mason.shared.printTree(root.node)
+
+
+        Timer().schedule(2000L) {
+          runOnUiThread {
+            root.removeChildAt(2)
+          }
+        }
       }
     }
 
@@ -1086,7 +1091,7 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
 
   fun inlineTest() {
     val root = Mason.shared.createView(this)
-    root.setBackgroundColor(Color.GRAY)
+
     val txt = Mason.shared.createTextView(this)
     txt.append("First")
     txt.id = android.view.View.generateViewId()

@@ -4,13 +4,13 @@ import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
+import org.nativescript.mason.masonkit.enums.TextType
 import java.lang.ref.WeakReference
 
 
 open class Node internal constructor(
   internal val mason: Mason, internal var nativePtr: Long, nodeType: NodeType = NodeType.Element
 ) {
-  internal var isFlattened: Boolean = false
   internal var computeCacheDirty = false
 
   internal var isImage = false
@@ -25,6 +25,11 @@ open class Node internal constructor(
     }
   var computedLayout: Layout = Layout.empty
     internal set
+
+  // cache overflow size
+  internal var overflowWidth = 0
+  internal var overflowHeight = 0
+
   internal var knownWidth: Float? = null
   internal var knownHeight: Float? = null
   internal var availableWidth: Float? = null
@@ -628,6 +633,7 @@ open class Node internal constructor(
           if (!style.inBatch) {
             (containerNode as? Element)?.invalidateLayout()
           }
+          NodeUtils.invalidateLayout(this)
           return
         }
       }
@@ -655,6 +661,7 @@ open class Node internal constructor(
       if (!style.inBatch) {
         (view as? Element)?.invalidateLayout()
       }
+      NodeUtils.invalidateLayout(this)
       return
     }
 
@@ -677,6 +684,7 @@ open class Node internal constructor(
             if (!style.inBatch) {
               (view as? Element)?.invalidateLayout()
             }
+            NodeUtils.invalidateLayout(this)
             return
           }
 
@@ -777,6 +785,7 @@ open class Node internal constructor(
           if (!style.inBatch) {
             (view as? Element)?.invalidateLayout()
           }
+          NodeUtils.invalidateLayout(this)
           return
         }
       }
@@ -788,9 +797,11 @@ open class Node internal constructor(
     children.add(pos, child)
     child.parent = this
     if (child.nativePtr != 0L) {
-      NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
-    } else {
-      NodeUtils.addView(this, child.view as? View)
+      if (child.view is View) {
+        NodeUtils.addView(this, child.view as? View)
+      } else {
+        NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
+      }
     }
 
     // Single invalidation pass
@@ -800,6 +811,7 @@ open class Node internal constructor(
     if (!style.inBatch) {
       (view as? Element)?.invalidateLayout()
     }
+    NodeUtils.invalidateLayout(this)
   }
 
   fun removeChildAt(index: Int): Node? {
@@ -826,7 +838,9 @@ open class Node internal constructor(
       }
     } else {
       NodeUtils.removeView(reference.parent!!, removed.view as View)
+      NativeHelpers.nativeNodeRemoveChild(mason.nativePtr, nativePtr, removed.nativePtr)
       removed.parent = null
+      NodeUtils.invalidateLayout(this, true)
     }
     return removed
   }
@@ -916,7 +930,6 @@ open class Node internal constructor(
     if (nativePtr != 0L) {
       NativeHelpers.nativeNodeRemoveChildren(mason.nativePtr, nativePtr)
     }
-
     dirty()
   }
 }

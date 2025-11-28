@@ -1,20 +1,46 @@
-import com.android.build.gradle.tasks.MergeSourceSetFolders
-import com.nishtahir.CargoBuildTask
-
 plugins {
   id 'com.android.library'
   id 'org.jetbrains.kotlin.android'
 }
 
+
+def detectHostArch = {
+  def arch = System.getProperty("os.arch").toLowerCase(Locale.ROOT)
+  if (arch.contains("aarch64") || arch.contains("arm64")) return "arm64"
+  if (arch.contains("x86_64") || arch.contains("amd64")) return "x86_64"
+  if (arch.contains("x86")) return "x86"
+  if (arch.contains("arm")) return "arm"
+  throw new GradleException("Unsupported host architecture: $arch")
+}
+
+def rustTargets = {
+  def prop = project.findProperty("rust.targets")
+  if (!prop || prop == "host") {
+    return [detectHostArch()]
+  }
+  if (prop == "all") {
+    return ["arm", "arm64", "x86", "x86_64"]
+  }
+  return prop.split(",") as List<String>
+}()
+def isRelease = gradle.startParameter.taskNames.any {
+  it.toLowerCase().contains("release")
+}
+
+def rustProfile = isRelease ? "release" : null
+
 android {
   namespace 'org.nativescript.mason.masonkit'
-  compileSdk 35
+  compileSdk 36
   defaultConfig {
     minSdk 21
-    targetSdk 35
+    targetSdk 36
     multiDexEnabled true
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     consumerProguardFiles "consumer-rules.pro"
+    // using for blur pre RenderNode
+    renderscriptTargetApi 28
+    renderscriptSupportModeEnabled true
   }
 
   buildTypes {
@@ -44,11 +70,15 @@ cargo {
     "x86"   : 21,
     "x86_64": 21
   ]
- targets = ["arm", "arm64", "x86", "x86_64"]
- // targets = ["arm64"]
-  profile = "release"
+
+  if (rustProfile == "release") {
+    profile = "release"     // gradle plugin will pass --release
+  }
+
+
+  targets = rustTargets
   targetDirectory = "../../../../../target"
-  verbose = false
+  verbose = true
   extraCargoBuildArguments = ['-p', 'mason-android']
 
   exec = { spec, toolchain ->
@@ -78,9 +108,9 @@ tasks.configureEach { task ->
 
 
 dependencies {
-
-  implementation 'androidx.core:core-ktx:1.16.0'
-  implementation 'androidx.appcompat:appcompat:1.7.1'
+  implementation 'androidx.core:core-ktx:1.12.0'
+  implementation 'androidx.appcompat:appcompat:1.6.1'
+  implementation 'androidx.activity:activity:1.10.1'
   implementation 'com.google.code.gson:gson:2.13.2'
   testImplementation 'junit:junit:4.13.2'
   androidTestImplementation 'androidx.test.ext:junit:1.2.1'

@@ -155,6 +155,8 @@ public class MasonLengthPercentageCompat: NSObject, Codable {
             lengthType = .Points
         case .Percent(_):
             lengthType = .Percent
+        case .Zero:
+          lengthType = .Points
         }
     }
     
@@ -171,6 +173,8 @@ public class MasonLengthPercentageCompat: NSObject, Codable {
                 return points
             case .Percent(let percent):
                 return percent
+            case .Zero:
+                return 0
             }
         }
     }

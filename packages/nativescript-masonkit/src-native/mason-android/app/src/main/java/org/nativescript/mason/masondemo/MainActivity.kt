@@ -2,7 +2,6 @@ package org.nativescript.mason.masondemo
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -44,8 +43,6 @@ class MainActivity : AppCompatActivity() {
 
     Log.d("com.test", "time ${System.currentTimeMillis() - now}")
     */
-
-
 
     binding = ActivityMainBinding.inflate(layoutInflater)
     setContentView(binding.root)
@@ -89,6 +86,11 @@ class MainActivity : AppCompatActivity() {
 
     binding.btnText.setOnClickListener {
       val intent = Intent(this, TextActivity::class.java)
+      startActivity(intent)
+    }
+
+    binding.btnFloat.setOnClickListener {
+      val intent = Intent(this, FloatActivity::class.java)
       startActivity(intent)
     }
 

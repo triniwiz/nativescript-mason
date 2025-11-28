@@ -1,9 +1,13 @@
 package org.nativescript.mason.masonkit
 
 import android.os.Build
+import android.util.Log
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
+import org.nativescript.mason.masonkit.enums.BoxSizing
+import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.TextAlign
 
 interface Element {
   val style: Style
@@ -196,13 +200,20 @@ interface Element {
   }
 
   fun invalidateLayout() {
+    invalidateLayout(false)
+  }
+
+  fun invalidateLayout(invalidateRoot: Boolean) {
     node.dirty()
     val root = node.getRootNode() ?: node
 
     if (root.type == NodeType.Document) {
       // If root is document, use documentElement to compute
 
-      root.document?.documentElement?.compute(root.computeCache.width, root.computeCache.height)
+      root.document?.documentElement?.compute(
+        root.computeCache.width,
+        root.computeCache.height
+      )
 
       root.document?.documentElement?.view?.invalidate()
       root.document?.documentElement?.view?.requestLayout()
@@ -226,6 +237,9 @@ interface Element {
     }
 
     (root.view as? View)?.let {
+      if (invalidateRoot) {
+        root.dirty()
+      }
       it.invalidate()
       it.requestLayout()
     }
@@ -303,7 +317,7 @@ interface Element {
 
 internal fun Element.getDefaultAttributes(): Map<String, Any> {
   val resolvedFont = style.resolvedFontFace
-
+ // todo replace with class
   return mapOf(
     "color" to style.resolvedColor,
     "fontSize" to style.resolvedFontSize,
@@ -347,37 +361,48 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
 
   (node.view as? View)?.let { view ->
     if (view != this) {
-      var realLayout = layout
-      var isText = false
       var hasWidthConstraint = false
       var hasHeightConstraint = false
       if (view.isGone) {
         return
       }
 
-      if (node.view is TextView) {
-        realLayout = node.computedLayout
-        isText = true
+      var overflow: Point<Overflow> = Point(Overflow.Visible, Overflow.Visible)
+      var overFlowX = false
+      var overFlowY = false
+      var boxing = BoxSizing.BorderBox
+      if (node.style.isValueInitialized) {
+        boxing = node.style.boxSizing
         hasWidthConstraint = node.style.size.width != Dimension.Auto
         hasHeightConstraint = node.style.size.height != Dimension.Auto
-      }
 
-      val x = realLayout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
-      val y = realLayout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+        overflow = node.style.overflow
 
-
-      var width = realLayout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
-      var height = realLayout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
-
-      if (isText) {
-        if (!hasWidthConstraint && realLayout.contentSize.width > realLayout.width) {
-          width = realLayout.contentSize.width.toInt()
+        overFlowX = when (overflow.x) {
+          Overflow.Visible -> true
+          Overflow.Hidden -> false
+          Overflow.Scroll -> true
+          Overflow.Clip -> false
+          Overflow.Auto -> true
         }
 
-        if (!hasHeightConstraint && realLayout.contentSize.height > realLayout.height) {
-          height = realLayout.contentSize.height.toInt()
+        overFlowY = when (overflow.y) {
+          Overflow.Visible -> true
+          Overflow.Hidden -> false
+          Overflow.Scroll -> true
+          Overflow.Clip -> false
+          Overflow.Auto -> true
         }
       }
+
+
+      val x = layout.x.takeIf { !it.isNaN() }?.toInt() ?: 0
+      val y = layout.y.takeIf { !it.isNaN() }?.toInt() ?: 0
+
+
+      var width = layout.width.takeIf { !it.isNaN() }?.toInt() ?: 0
+      var height = layout.height.takeIf { !it.isNaN() }?.toInt() ?: 0
+
 
       if (view !is Element) {
         // measured already grab dim
@@ -385,37 +410,115 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
         height = view.measuredHeight
       }
 
-      val right: Int = x + width
-      val bottom: Int = y + height
+      var right: Int = x + width
+      var bottom: Int = y + height
+
+      var clipX = false
+      var clipY = false
+      var contentWidth = 0
+      var contentHeight = 0
+
+      if (overFlowX) {
+        contentWidth = if (boxing == BoxSizing.BorderBox) {
+          x + (layout.contentSize.width
+            + layout.border.left + layout.border.right
+            + layout.padding.left + layout.padding.right).toInt()
+        } else {
+          layout.contentSize.width.toInt()
+        }
+
+        when (overflow.x) {
+          Overflow.Visible -> {
+            if (contentWidth > right) {
+              right = contentWidth
+            }
+          }
+
+          Overflow.Auto -> {
+            if (contentWidth > right) {
+              clipX = true
+            }
+          }
+
+          Overflow.Scroll, Overflow.Clip, Overflow.Hidden -> {
+            clipX = true
+          }
+        }
+      }
+
+      if (overFlowY) {
+        contentHeight = if (boxing == BoxSizing.BorderBox) {
+          y + (layout.contentSize.height
+            + layout.border.top + layout.border.bottom
+            + layout.padding.top + layout.padding.bottom).toInt()
+        } else {
+          layout.contentSize.height.toInt()
+        }
+
+        when (overflow.y) {
+          Overflow.Visible -> {
+            if (contentHeight > bottom) {
+              bottom = contentHeight
+            }
+          }
+
+          Overflow.Auto -> {
+            if (contentHeight > bottom) {
+              clipY = true
+            }
+          }
+
+          Overflow.Scroll, Overflow.Clip, Overflow.Hidden -> {
+            clipY = true
+          }
+        }
+      }
+
+      node.overflowWidth = contentWidth
+      node.overflowHeight = contentHeight
+
+      // only set padding on a text element
+      if (view is TextView) {
+        view.setPadding(
+          layout.padding.left.toInt(),
+          layout.padding.top.toInt(),
+          layout.padding.right.toInt(),
+          layout.padding.bottom.toInt()
+        )
+      }
 
 
       if (view is org.nativescript.mason.masonkit.View && view.isScrollRoot) {
-        (view.parent as? View)?.layout(x, y, right, bottom)
+        if (this !== view.parent) {
+          (view.parent as? View)?.layout(x, y, right, bottom)
+        }
+
         view.layout(
           0,
           0,
-          realLayout.contentSize.width.toInt(),
-          realLayout.contentSize.height.toInt()
+          if (clipX) {
+            contentWidth
+          } else {
+            right
+          },
+          if (clipY) {
+            contentHeight
+          } else {
+            bottom
+          }
         )
       } else {
-        // only set padding on a text element
-        if (isText) {
-          view.setPadding(
-            realLayout.padding.left.toInt(),
-            realLayout.padding.top.toInt(),
-            realLayout.padding.right.toInt(),
-            realLayout.padding.bottom.toInt()
-          )
-        }
-        view.layout(x, y, right, bottom)
-      }
-
-      if (view is Scroll) {
-        view.scrollRoot.layout(
-          0,
-          0,
-          realLayout.contentSize.width.toInt(),
-          realLayout.contentSize.height.toInt()
+        view.layout(
+          x, y, if (clipX) {
+            contentWidth
+          } else {
+            right
+          },
+          if (clipY) {
+            contentHeight
+          } else {
+            bottom
+          }
         )
       }
     }

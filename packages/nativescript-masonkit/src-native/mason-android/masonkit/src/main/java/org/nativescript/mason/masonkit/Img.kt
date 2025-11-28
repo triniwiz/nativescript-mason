@@ -2,12 +2,19 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatImageView
+import androidx.core.graphics.withClip
+import androidx.core.graphics.withMatrix
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.ObjectFit
+import kotlin.math.max
 
 class Img @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
@@ -48,6 +55,8 @@ class Img @JvmOverloads constructor(
     style.display = Display.Inline
   }
 
+  internal val mImgMatrix = Matrix()
+
   init {
     if (!override) {
       if (!::node.isInitialized) {
@@ -58,6 +67,7 @@ class Img @JvmOverloads constructor(
         style.display = Display.Inline
       }
     }
+    scaleType = ScaleType.MATRIX
   }
 
   override fun onNodeAttached() {
@@ -129,6 +139,104 @@ class Img @JvmOverloads constructor(
         .into(target)
 
     }
+
+  val srcF = android.graphics.RectF()
+  val dstF = android.graphics.RectF()
+
+  override fun onDraw(canvas: Canvas) {
+
+    // map the drawable's intrinsic rect -> destination region with a Matrix so positioning
+    // uses float math and behaves like imageMatrix
+    val d = drawable
+    val iw = d?.intrinsicWidth ?: 0
+    val ih = d?.intrinsicHeight ?: 0
+
+    val cw = width - paddingLeft - paddingRight
+    val ch = height - paddingTop - paddingBottom
+
+    val dstLeft = paddingLeft.toFloat()
+    val dstTop = paddingTop.toFloat()
+    srcF.set(0f, 0f, iw.toFloat(), ih.toFloat())
+    dstF.set(dstLeft, dstTop, dstLeft + cw.toFloat(), dstTop + ch.toFloat())
+
+    mImgMatrix.reset()
+    when (style.objectFit) {
+      ObjectFit.Cover -> {
+        if (iw > 0 && ih > 0) {
+          val scale = max(cw.toFloat() / iw, ch.toFloat() / ih)
+
+          val dx = dstLeft + (cw - iw * scale) / 2f
+          val dy = dstTop + (ch - ih * scale) / 2f
+
+          mImgMatrix.reset()
+          mImgMatrix.setScale(scale, scale)
+          mImgMatrix.postTranslate(dx, dy)
+        } else {
+          mImgMatrix.reset()
+          mImgMatrix.postTranslate(dstLeft, dstTop)
+        }
+      }
+
+      ObjectFit.Contain -> {
+        if (iw > 0 && ih > 0) {
+          val scale = kotlin.math.min(cw.toFloat() / iw, ch.toFloat() / ih)
+          val dx = dstLeft + (cw - iw * scale) / 2f
+          val dy = dstTop + (ch - ih * scale) / 2f
+          mImgMatrix.setScale(scale, scale)
+          mImgMatrix.postTranslate(dx, dy)
+        } else {
+          mImgMatrix.postTranslate(dstLeft, dstTop)
+        }
+      }
+
+      ObjectFit.Fill -> {
+        mImgMatrix.setRectToRect(srcF, dstF, Matrix.ScaleToFit.FILL)
+      }
+
+      ObjectFit.None -> {
+        mImgMatrix.postTranslate(dstLeft, dstTop)
+      }
+
+      ObjectFit.ScaleDown -> {
+        if (iw > 0 && ih > 0) {
+          val containScale = kotlin.math.min(cw.toFloat() / iw, ch.toFloat() / ih)
+          val scale = kotlin.math.min(1f, containScale)
+          val dx = dstLeft + (cw - iw * scale) / 2f
+          val dy = dstTop + (ch - ih * scale) / 2f
+          mImgMatrix.setScale(scale, scale)
+          mImgMatrix.postTranslate(dx, dy)
+        } else {
+          mImgMatrix.postTranslate(dstLeft, dstTop)
+        }
+      }
+    }
+
+    imageMatrix = mImgMatrix
+
+    val suppress = (getTag(R.id.tag_suppress_ops) as? Boolean) == true
+    val callSuper = suppress || !(iw > 0 && ih > 0 && cw > 0 && ch > 0)
+
+    if (!callSuper) {
+      // clip to the image content box so object-fit results don't paint outside the view bounds
+      val clipLeft = paddingLeft.toFloat()
+      val clipTop = paddingTop.toFloat()
+      val clipRight = clipLeft + cw.toFloat()
+      val clipBottom = clipTop + ch.toFloat()
+
+      canvas.withClip(clipLeft, clipTop, clipRight, clipBottom) {
+        canvas.withMatrix(mImgMatrix) {
+          d.setBounds(0, 0, iw, ih)
+          d.draw(this)
+        }
+      }
+    }
+
+    ViewUtils.onDraw(this, canvas, style) {
+      if (callSuper) {
+        super.onDraw(it)
+      }
+    }
+  }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
 
@@ -205,7 +313,6 @@ class Img @JvmOverloads constructor(
     if (width != null && height != null) {
       drawable?.setBounds(0, 0, knownDimensions.width!!.toInt(), knownDimensions.height!!.toInt())
     }
-
 
     return ret
   }

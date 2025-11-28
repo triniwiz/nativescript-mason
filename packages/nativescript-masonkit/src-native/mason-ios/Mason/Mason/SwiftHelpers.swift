@@ -49,7 +49,6 @@ public class SwiftHelpers: NSObject {
   }
   
   public static func computeWithSize(_ element : MasonElementObjc, _ width: Float, _ height: Float){
-    print("SwiftHelpers: computeWithSize")
     guard let element = element as? MasonElement else {return}
     element.computeWithSize(width, height)
   }

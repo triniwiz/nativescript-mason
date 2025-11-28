@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.view.View
 import android.view.ViewGroup
+import org.nativescript.mason.masonkit.enums.Display
 
 internal object NodeUtils {
   fun isInlineLike(node: Node): Boolean {
@@ -63,13 +64,13 @@ internal object NodeUtils {
     )
   }
 
-  fun invalidateLayout(node: Node) {
+  fun invalidateLayout(node: Node, invalidateRoot: Boolean = false) {
     if (node.type == NodeType.Text) {
       (node as? TextNode)?.container?.invalidateLayout()
       return
     }
     (node.view as? Element)?.let {
-      it.invalidateLayout()
+      it.invalidateLayout(invalidateRoot)
     }
   }
 

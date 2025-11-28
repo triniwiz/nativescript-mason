@@ -11,6 +11,15 @@
         <p @tap="viewFeature('grid')">CSSGrid</p>
       </div> -->
 
+      <div style="width: 300px; height: 300px;">
+      <div style="margin: 10; height: 150px; width: 150px; background: red; border: 1px solid #444444; filter: blur(5px);">
+        Hello world
+      </div>
+      </div>
+
+
+      <!-- left 5% / 15% 60% repeat-x
+  url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png"); -->
 
 
       <!-- <div class="wrapper">
@@ -25,16 +34,6 @@
         <div class="box a">a</div>
         <div class="box b">b</div>
       </div> -->
-
-      <div class="p-8 bg-gray-100">
-        <sspan text="Tap the button" class="text-3xl text-center text-gray-900" />
-        <Button text="Tap Here" class="mt-4 text-white normal-case bg-blue-500 rounded-full" />
-        <sspan text="message " class="mt-4 text-xl text-center text-gray-700" textWrap="true">
-          <img class="w-[100] h-[100]" src="https://picsum.photos/200/300" />
-        </sspan>
-
-        <p text="Hello" class="mt-[200] text-[#65adf1] text-lg text-center bg-orange-500" />
-      </div>
 
     </Page>
   </Frame>

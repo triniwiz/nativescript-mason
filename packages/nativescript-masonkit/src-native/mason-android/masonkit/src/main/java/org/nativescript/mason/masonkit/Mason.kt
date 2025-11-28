@@ -1,9 +1,9 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
-import android.util.Log
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
+import org.nativescript.mason.masonkit.enums.TextType
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 
@@ -17,6 +17,13 @@ class Mason {
 
   internal val nodes = WeakHashMap<Long, Node>()
   private val viewNodes = WeakHashMap<android.view.View, Node>()
+  var scale: Float = 1f
+    private set
+
+  fun setDeviceScale(value: Float) {
+    scale = value
+    nativeSetDeviceScale(nativePtr, value)
+  }
 
   fun clear() {
     nativeClear(nativePtr)
@@ -68,7 +75,6 @@ class Mason {
 
     return node
   }
-
 
   @JvmOverloads
   fun createTextNode(children: Array<Node>? = null, isAnonymous: Boolean = false): Node {
@@ -241,5 +247,10 @@ class Mason {
 
     @JvmStatic
     private external fun nativePrintTree(mason: Long, node: Long)
+
+    @JvmStatic
+    @CriticalNative
+    private external fun nativeSetDeviceScale(mason: Long, scale: Float)
+
   }
 }

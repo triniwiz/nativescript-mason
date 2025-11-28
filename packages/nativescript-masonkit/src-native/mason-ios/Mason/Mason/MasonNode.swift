@@ -71,12 +71,6 @@ public class MasonNode: NSObject {
     //  return
     // }
     
-    let textState = TextStyleChangeMasks(rawValue: state)
-    if(textState.contains(.fontWeight)){
-      let weight = node.style.getInt32(TextStyleKeys.FONT_WEIGHT, text: true)
-      node.style.setFontWeight(Int(weight), nil)
-    }
-
     // Direct invalidation if this is a MasonText
     if let view = node.view as? MasonText {
       // Notify all text style changes to ensure paint is fully updated
@@ -254,16 +248,6 @@ public class MasonNode: NSObject {
     mason_node_destroy(nativePtr)
   }
   
-  
-  static func to_vec_non_repeated_track_sizing_function(_ array: Array<MinMax>) -> CMasonNonRepeatedTrackSizingFunctionArray {
-    let length = array.count
-    var cArray = array.map({ minMax in
-      minMax.cValue
-    })
-    return CMasonNonRepeatedTrackSizingFunctionArray(array: cArray.withUnsafeMutableBytes({ ptr in
-      ptr.baseAddress!.bindMemory(to: CMasonMinMax.self, capacity: length)
-    }), length: UInt(length))
-  }
   
   public var isDirty: Bool {
     return mason_node_dirty(mason.nativePtr, nativePtr)
@@ -779,17 +763,23 @@ extension MasonNode {
           }
         }
         
-        (containerNode.view as? MasonElement)?.invalidateLayout()
-        (afterContainer?.view as? MasonElement)?.invalidateLayout()
-        (child.view as? MasonElement)?.invalidateLayout()
         
-        NodeUtils.syncNode(self, children)
+     //   NodeUtils.syncNode(self, children)
         NodeUtils.addView(self, child.view)
         // Single pass invalidation of descendants with text styles
         MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
         
         
         NodeUtils.syncNode(self, children)
+        
+        
+        
+        (containerNode.view as? MasonElement)?.invalidateLayout()
+        (afterContainer?.view as? MasonElement)?.invalidateLayout()
+        (child.view as? MasonElement)?.invalidateLayout()
+        
+        
+        
         if !style.inBatch { (view as? MasonElement)?.invalidateLayout() }
         return
       }
