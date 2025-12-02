@@ -774,6 +774,57 @@ public class MasonStyle: NSObject {
     }
   }
   
+  
+  public var backgroundImage: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-image", value: newValue)
+    }
+    get {
+      return ""
+    }
+  }
+  
+  public var backgroundRepeat: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-repeat", value: newValue)
+    }
+    get {
+      return ""
+    }
+  }
+  
+  
+  public var backgroundPosition: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-position", value: newValue)
+    }
+    get {
+      return ""
+    }
+  }
+  
+  
+  public var backgroundSize: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-size", value: newValue)
+    }
+    get {
+      return ""
+    }
+  }
+  
+  
+  
+  public var backgroundClip: String {
+    set {
+      mBackground.applyBackgroundProperty(name: "background-clip", value: newValue)
+    }
+    get {
+      return ""
+    }
+  }
+
+  
   public var backgroundColor: UInt32 {
     get {
       return getUInt32(TextStyleKeys.BACKGROUND_COLOR, text: true)

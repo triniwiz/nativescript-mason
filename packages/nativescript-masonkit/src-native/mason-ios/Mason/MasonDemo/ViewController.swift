@@ -428,7 +428,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     // gridTemplateColumns()
     // padding()
     // fontSize()
-      textAlignment()
+   //   textAlignment()
     //wrapper8()
     //filter()
   //  renderFloat(body)
@@ -437,7 +437,26 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //    body.append(sv)
 //    objectFit(sv)
         //filter()
+    buttons()
+  }
+  
+  func buttons(){
+    let container = mason.createView()
+    container.setPadding(30, 30, 30, 30)
     
+    let a = mason.createButton()
+    a.text = "Hello World"
+    a.style.color = UIColor.blue.toUInt32()
+    a.style.background = "orange"
+    a.style.size = .init(.Points(300), .Points(300))
+    
+    a.style.border = "1px solid black"
+    
+    container.append(a)
+    
+    body.append(container)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
   func bold(){
@@ -794,6 +813,36 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //    rootLayout.style.background = """
 //  linear-gradient(45deg, rgba(255,0,0,0.5) 0%, rgba(255,0,0,0.0) 100%), 
 //      radial-gradient(circle at center, rgba(0,0,255,0.3) 0%, rgba(0,0,255,0.0) 70%), 
+//      #FFFF00
+//"""
+    
+    body.append(rootLayout)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+  }
+  
+  
+  
+  func backgroundShortHandTest(){
+    let rootLayout = mason.createView()
+    rootLayout.style.size = .init(.Points(300), .Points(200))
+//    rootLayout.background = "pink"
+//    rootLayout.background = """
+//                            left 5% / 15% 60% repeat-x
+//                              url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png");
+//                            """
+//    rootLayout.background = """
+//white no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png')
+//"""
+//    rootLayout.background = "content-box radial-gradient(crimson, skyblue);"
+    
+//    rootLayout.background = """
+//    center / contain no-repeat url("https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Firefox_logo%2C_2019.svg/1024px-Firefox_logo%2C_2019.svg.png"),
+//      #eeeeee 35% url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png");
+//    """
+//    rootLayout.style.background = """
+//  linear-gradient(45deg, rgba(255,0,0,0.5) 0%, rgba(255,0,0,0.0) 100%),
+//      radial-gradient(circle at center, rgba(0,0,255,0.3) 0%, rgba(0,0,255,0.0) 70%),
 //      #FFFF00
 //"""
     

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F1047C672EDE8E3B00599B56 /* Button.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1047C662EDE8E0E00599B56 /* Button.swift */; };
 		F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016C2ECE04CB00D6CFD9 /* Background.swift */; };
 		F134016F2ECE04DD00D6CFD9 /* Border.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016E2ECE04DC00D6CFD9 /* Border.swift */; };
 		F13B6C7B2DC81AC800624D17 /* NSCFontFaceSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */; };
@@ -110,6 +111,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F1047C662EDE8E0E00599B56 /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		F134016C2ECE04CB00D6CFD9 /* Background.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Background.swift; sourceTree = "<group>"; };
 		F134016E2ECE04DC00D6CFD9 /* Border.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Border.swift; sourceTree = "<group>"; };
 		F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFaceSet.swift; sourceTree = "<group>"; };
@@ -254,6 +256,7 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F1047C662EDE8E0E00599B56 /* Button.swift */,
 				F1EE40322ED666DA00EAF4CC /* BorderParser.swift */,
 				F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */,
 				F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */,
@@ -568,6 +571,7 @@
 				F1E4F958296241FD0091913B /* MinMax.swift in Sources */,
 				F1DE08992EBC1199002870F6 /* Constants.swift in Sources */,
 				F134016F2ECE04DD00D6CFD9 /* Border.swift in Sources */,
+				F1047C672EDE8E3B00599B56 /* Button.swift in Sources */,
 				F18483E329357AC900EC35F4 /* NSCMason.swift in Sources */,
 				F18483E92935A19500EC35F4 /* MeasureOutput.swift in Sources */,
 				F1848391293534D800EC35F4 /* Mason.docc in Sources */,

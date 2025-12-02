@@ -111,8 +111,148 @@ class Background {
     self.color = color
     self.layers = layers
     self.css = css
+    
+    
+    let newValue = color?.toUInt32() ?? 0
+    style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, newValue, text: true)
+    style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
+    // change view as well ??
+   // style.node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
+    
+    if(!style.inBatch){
+      style.node.view?.setNeedsDisplay()
+    }
+  }
+  
+  
+  
+  private func applyBackgroundImage(_ value: String) {
+      let chunks = splitBackgroundLayers(value)
 
-    style.node.view?.setNeedsDisplay()
+      self.layers = chunks.map { chunk in
+          let layer = BackgroundLayer()
+          if let imageURL = parseImage(chunk) {
+              layer.image = imageURL
+          }
+          return layer
+      }
+    
+    if(!style.inBatch){
+      style.node.view?.setNeedsDisplay()
+    }
+  }
+  
+  
+  private func applyBackgroundRepeat(_ value: String) {
+      let part = value.trimmingCharacters(in: .whitespaces).lowercased()
+
+      let repeats = splitBackgroundLayers(part)
+
+      if layers.count < repeats.count {
+          layers += Array(repeating: BackgroundLayer(), count: repeats.count - layers.count)
+      }
+
+      for (idx, rep) in repeats.enumerated() {
+          layers[idx].repeatType = BackgroundRepeat(rawValue: rep) ?? .noRepeat
+      }
+
+    if(!style.inBatch){
+      style.node.view?.setNeedsDisplay()
+    }
+  }
+  
+  
+  private func applyBackgroundPosition(_ value: String) {
+      let parts = splitBackgroundLayers(value)
+
+      if layers.count < parts.count {
+          layers += Array(repeating: BackgroundLayer(), count: parts.count - layers.count)
+      }
+
+      for (idx, p) in parts.enumerated() {
+          layers[idx].position = parsePosition(p)
+      }
+
+    if(!style.inBatch){
+      style.node.view?.setNeedsDisplay()
+    }
+  }
+  
+  private func applyBackgroundSize(_ value: String) {
+      let parts = splitBackgroundLayers(value)
+
+      if layers.count < parts.count {
+          layers += Array(repeating: BackgroundLayer(), count: parts.count - layers.count)
+      }
+
+      for (idx, p) in parts.enumerated() {
+          layers[idx].size = parseSize(p)
+      }
+
+    if(!style.inBatch){
+      style.node.view?.setNeedsDisplay()
+    }
+  }
+
+  private func applyBackgroundClip(_ value: String) {
+      let v = value.trimmingCharacters(in: .whitespaces).lowercased()
+
+      let clip: BackgroundClip
+      switch v {
+      case "border-box": clip = .borderBox
+      case "padding-box": clip = .paddingBox
+      case "content-box": clip = .contentBox
+      default: return
+      }
+
+      for layer in layers {
+          layer.clip = clip
+      }
+
+    if(!style.inBatch){
+      style.node.view?.setNeedsDisplay()
+    }
+  }
+
+  public func applyBackgroundProperty(name: String, value: String) {
+      let key = name.lowercased().trimmingCharacters(in: .whitespaces)
+
+      switch key {
+
+      case "background":
+          parseBackground(value)
+          return
+
+      case "background-color":
+          if let c = parseColor(value) {
+              self.color = c
+              style.node.view?.setNeedsDisplay()
+          }
+          return
+
+      case "background-image":
+          applyBackgroundImage(value)
+          return
+
+      case "background-repeat":
+          applyBackgroundRepeat(value)
+          return
+
+      case "background-position":
+          applyBackgroundPosition(value)
+          return
+
+      case "background-size":
+          applyBackgroundSize(value)
+          return
+
+      case "background-clip":
+          applyBackgroundClip(value)
+          return
+
+      default:
+          return
+      }
   }
 }
 
@@ -423,6 +563,7 @@ func parseColor(_ value: String) -> UIColor? {
   if let mapped = colorMap[v.lowercased()] { return mapped }
   return UIColor(css: v)
 }
+
 
 extension UIColor {
   convenience init?(css: String) {

@@ -115,6 +115,12 @@ public class NSCMason: NSObject {
     return view
   }
   
+  public func createButton()-> Button {
+    let btn = Button(mason: self)
+    
+    return btn
+  }
+  
   public func createNode() -> MasonNode {
     return MasonNode(mason: self)
   }
