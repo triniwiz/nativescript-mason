@@ -26,7 +26,9 @@ class NodeUtils {
   static func addView(_ node: MasonNode, _ view: UIView?){
     guard let view = view else { return }
     guard let parent = node.view else { return }
-    if(parent is MasonText){return}
+    if(parent is TextContainer){
+      return
+    }
     node.suppressChildOperations {
       parent.addSubview(view)
     }
@@ -35,7 +37,7 @@ class NodeUtils {
   static func addView(_ node: MasonNode, _ view: UIView?, _ index: Int){
     guard let view = view else { return }
     guard let parent = node.view else { return }
-    if(parent is MasonText){return}
+    if(parent is TextContainer){return}
     node.suppressChildOperations {
       parent.insertSubview(view, at: index)
     }
@@ -45,7 +47,7 @@ class NodeUtils {
   static func removeView(_ node: MasonNode, _ view: UIView?){
     guard let view = view else { return }
     guard let parent = node.view else { return }
-    if(parent is MasonText){return}
+    if(parent is TextContainer){return}
     node.suppressChildOperations {
       // only remove if child belongs to parent
       if(parent == view.superview){

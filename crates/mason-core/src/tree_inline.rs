@@ -65,6 +65,7 @@ impl Tree {
                             width: AvailableSpace::Definite(available_width),
                             height: AvailableSpace::MaxContent,
                         },
+                        sizing_mode: SizingMode::InherentSize,
                         parent_size: inputs.parent_size,
                         ..inputs
                     },
@@ -500,10 +501,18 @@ impl Tree {
                 |known_dimensions, available_space| {
                     // Pass known_dimensions from inputs, not available_space
 
+                    let style_known = if inputs.sizing_mode == SizingMode::InherentSize {
+                        style
+                            .size()
+                            .maybe_resolve(inputs.parent_size, |_v, _b| 0.0)
+                    } else {
+                        Size::NONE
+                    };
+
                     let measure_known = if ignore_known_for_inline_leaf {
                         Size::NONE
                     } else {
-                        known_dimensions
+                        known_dimensions.or(style_known)
                     };
 
                     measure.measure(measure_known, available_space)

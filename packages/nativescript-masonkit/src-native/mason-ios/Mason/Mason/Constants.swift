@@ -16,6 +16,8 @@ internal struct Constants {
 
   static let VIEW_PLACEHOLDER = "[[view_placeholder]]"
   
+  static let VIEW_PLACEHOLDER_KEY = NSAttributedString.Key(Constants.VIEW_PLACEHOLDER)
+  
   static let FONT_STYLE = "[[font_style]]"
   
   static let FONT_WEIGHT = "[[font_weight]]"

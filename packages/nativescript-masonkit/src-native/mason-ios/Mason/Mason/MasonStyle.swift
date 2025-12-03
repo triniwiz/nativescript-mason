@@ -346,6 +346,7 @@ protocol StyleChangeListener{
 internal struct StyleState {
   static let INHERIT: UInt8 = 0
   static let SET: UInt8 = 1
+  static let INITIAL: UInt8 = 2
 }
 
 
@@ -460,7 +461,7 @@ public class MasonStyle: NSObject {
     setUInt8(TextStyleKeys.FONT_FAMILY_STATE, StyleState.INHERIT,text: true,  buffer: buffer)
     
     setUInt32(TextStyleKeys.BACKGROUND_COLOR, 0 ,text: true,  buffer: buffer)
-    setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT,text: true,  buffer: buffer)
+    setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.INITIAL,text: true,  buffer: buffer)
     
     setUInt32(TextStyleKeys.DECORATION_COLOR, Constants.UNSET_COLOR,text: true,  buffer: buffer)
     setUInt8(TextStyleKeys.DECORATION_COLOR_STATE, StyleState.INHERIT,text: true,  buffer: buffer)

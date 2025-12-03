@@ -72,7 +72,7 @@ public class MasonNode: NSObject {
     // }
     
     // Direct invalidation if this is a MasonText
-    if let view = node.view as? MasonText {
+    if let view = node.view as? TextContainer {
       // Notify all text style changes to ensure paint is fully updated
       view.onTextStyleChanged(change: state)
     }
@@ -261,6 +261,179 @@ public class MasonNode: NSObject {
   public func getRoot() -> UIView? {
     return getRootNode().view
   }
+  
+  private func getDecorationColor() -> UIColor {
+    let decColor = style.resolvedDecorationColor
+    if decColor == Constants.UNSET_COLOR {
+      return UIColor.colorFromARGB(style.resolvedColor)
+    }
+    return UIColor.colorFromARGB(decColor)
+  }
+  
+  /// Helper to get default text attributes for new text nodes
+  public func getDefaultAttributes() -> [NSAttributedString.Key: Any] {
+    var attrs: [NSAttributedString.Key: Any] = [:]
+    
+    if(style.font.font == nil){
+      style.font.loadSync { _ in }
+    }
+    
+    let paragraphStyle = NSMutableParagraphStyle()
+    
+    var type = MasonTextType.None
+    
+    if let view = view as? MasonText {
+      type = view.type
+    }
+    
+    let scale = NSCMason.scale
+    
+    switch(type){
+    case .H1:
+      paragraphStyle.paragraphSpacing = CGFloat( 8 * scale)
+      break
+    case .H2:
+      paragraphStyle.paragraphSpacing = CGFloat( 7 * scale)
+      break
+    case .H3:
+      paragraphStyle.paragraphSpacing = CGFloat( 6 * scale)
+      break
+    case .H4:
+      paragraphStyle.paragraphSpacing = CGFloat( 5 * scale)
+      break
+    case .H5:
+      paragraphStyle.paragraphSpacing = CGFloat( 4 * scale)
+      break
+    case .H6:
+      paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
+      break
+    case .Blockquote:
+      paragraphStyle.headIndent = CGFloat(40)
+      paragraphStyle.firstLineHeadIndent =  CGFloat(40)
+      break
+    default:
+      //noop
+      break
+    }
+    
+    let fontFace = style.resolvedFontFace
+    
+    if(fontFace.font == nil){
+      fontFace.loadSync { _ in}
+    }
+    
+    if let font = fontFace.font {
+      // Font
+      let fontSize = style.resolvedFontSize
+      let weight = style.resolvedFontWeight
+      let style = style.resolvedInternalFontStyle
+      let ctFont = ctFont(from: font, fontSize: CGFloat(fontSize), weight: weight.uiFontWeight, style: style)
+      attrs[.font] = ctFont
+      attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] = weight.uiFontWeight.rawValue
+      attrs[NSAttributedString.Key(Constants.FONT_STYLE)] = style
+    }
+    
+    
+    // Color
+    attrs[.foregroundColor] =  UIColor.colorFromARGB(style.resolvedColor)
+    
+    
+    let backgroundColorValue = style.resolvedBackgroundColor
+    // Background color
+    if backgroundColorValue != 0 {
+      attrs[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
+    }
+    
+    
+    switch(style.resolvedDecorationLine){
+    case .None: break
+      // noop
+    case .Underline:
+      attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
+      attrs[.underlineColor] = getDecorationColor()
+    case .Overline:
+      // todo
+      break
+    case .LineThrough:
+      attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+      attrs[.strikethroughColor] = getDecorationColor()
+      
+    }
+    
+    
+    let ws = style.resolvedWhiteSpace
+    let noWrap = (style.resolvedTextWrap == .NoWrap)
+    // Allow wrap unless textWrap=NoWrap or white-space forbids it
+    let allowWrap = !(noWrap || ws == .Pre || ws == .NoWrap)
+
+    switch ws {
+    case .Normal, .PreWrap, .PreLine, .BreakSpaces:
+      paragraphStyle.lineBreakMode = allowWrap ? .byWordWrapping : .byClipping
+    case .Pre, .NoWrap:
+      paragraphStyle.lineBreakMode = .byClipping
+    }
+
+    if #available(iOS 14.0, *) {
+      paragraphStyle.lineBreakStrategy = allowWrap ? [.standard, .hangulWordPriority, .pushOut] : []
+    }
+    
+    // Preserve spacing better when wrapping
+    paragraphStyle.allowsDefaultTighteningForTruncation = false
+    
+    // letter spacing
+    let letterSpacing = style.resolvedLetterSpacing
+    if(letterSpacing > 0){
+      attrs[.kern] = letterSpacing
+    }
+    
+    let lineHeightType = style.resolvedLineHeightType
+    let lineHeight = style.resolvedLineHeight
+    if(lineHeightType == 1){
+      let height = CGFloat(lineHeight)
+      paragraphStyle.minimumLineHeight = height
+      paragraphStyle.maximumLineHeight = height
+    }else {
+      if(lineHeight > 0){
+        paragraphStyle.lineHeightMultiple = CGFloat(lineHeight)
+      }
+    }
+    
+    // text alignment
+    switch style.resolvedTextAlign {
+    case .Auto:
+      paragraphStyle.alignment = .natural
+    case .Left:
+      paragraphStyle.alignment = .left
+    case .Right:
+      paragraphStyle.alignment = .right
+    case .Center:
+      paragraphStyle.alignment = .center
+    case .Justify:
+      paragraphStyle.alignment = .justified
+    case .Start:
+      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+      if(isLTR){
+        paragraphStyle.alignment = .left
+      }else {
+        paragraphStyle.alignment = .right
+      }
+      break
+    case .End:
+      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+      if(isLTR){
+        paragraphStyle.alignment = .right
+      }else {
+        paragraphStyle.alignment = .left
+      }
+      break
+    }
+    
+    // Paragraph style
+    attrs[.paragraphStyle] = paragraphStyle
+    
+    
+    return attrs
+  }
 }
 
 
@@ -301,7 +474,7 @@ extension MasonNode {
   
   public func appendChild(_ child: MasonNode) {
     if (child is MasonTextNode) {
-      let container = if (view is MasonText) {
+      let container = if (view is TextContainer) {
         self
       } else {
         getOrCreateAnonymousTextContainer()
@@ -311,7 +484,7 @@ extension MasonNode {
       if let child = child as? MasonTextNode, let it = container.view as? MasonText {
         child.attributes = it.getDefaultAttributes()
         child.container = it
-        it.invalidateInlineSegments()
+        it.engine.invalidateInlineSegments()
       }
       NodeUtils.invalidateLayout(self)
     } else {
@@ -331,7 +504,7 @@ extension MasonNode {
     if checkLast,
        let lastChild = children.last,
        lastChild.isAnonymous,
-       lastChild.view is MasonText {
+       lastChild.view is TextContainer {
       return lastChild
     }
     
@@ -346,7 +519,7 @@ extension MasonNode {
       textView.node.parent = self
       
       
-      if(append && !(view is MasonText)){
+      if(append && !(view is TextContainer)){
         view?.addSubview(textView)
       }
       
@@ -402,13 +575,13 @@ extension MasonNode {
         
         container.node.children[idx] = textChild
         textChild.attributes.removeAll()
-        textChild.attributes.merge(container.getDefaultAttributes()) { _, new in new }
+        textChild.attributes.merge(container.node.getDefaultAttributes()) { _, new in new }
         textChild.container = container
         referenceText.container = nil
         
-        container.invalidateInlineSegments()
+        container.engine.invalidateInlineSegments()
         if !style.inBatch {
-          container.invalidateLayout()
+          (container.node.view as? MasonElement)?.invalidateLayout()
         }
         
       } else {
@@ -419,7 +592,7 @@ extension MasonNode {
           textChild.attributes.removeAll()
           textChild.attributes.merge(textView.getDefaultAttributes()) { _, new in new }
           textChild.container = textView
-          textView.invalidateInlineSegments()
+          textView.engine.invalidateInlineSegments()
         }
         
         guard let idx = children.firstIndex(where: { $0 === reference }) else { return }
@@ -484,7 +657,7 @@ extension MasonNode {
               afterContainer?.parent = self
               
               if let viewGroup = view,
-                 let refContainerView = referenceText.container,
+                 let refContainerView = referenceText.container?.node.view,
                  let idxChild = viewGroup.subviews.firstIndex(of: refContainerView),
                  idxChild > -1,
                  let afterView = afterContainer?.view {
@@ -503,7 +676,7 @@ extension MasonNode {
               afterContainer?.parent = self
               
               if let viewGroup = view,
-                 let refContainerView = referenceText.container,
+                 let refContainerView = referenceText.container?.node.view,
                  let idxChild = viewGroup.subviews.firstIndex(of: refContainerView),
                  idxChild > -1,
                  let afterView = afterContainer?.view {
@@ -523,8 +696,8 @@ extension MasonNode {
             containerNode.children.remove(at: idxInContainer)
           }
           
-          referenceText.container?.invalidateInlineSegments()
-          referenceText.container?.setNeedsDisplay()
+          referenceText.container?.engine.invalidateInlineSegments()
+          referenceText.container?.node.view?.setNeedsDisplay()
           referenceText.parent = nil
           referenceText.container = nil
           
@@ -608,7 +781,7 @@ extension MasonNode {
     NodeUtils.syncNode(self, children)
     
     if !style.inBatch {
-      if child.view is MasonText {
+      if child.view is TextContainer {
         (child.view as? MasonText)?.invalidate()
       }
       (view as? MasonElement)?.invalidateLayout()
@@ -644,7 +817,7 @@ extension MasonNode {
               textChild.attributes.removeAll()
               textChild.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
               textChild.container = tv
-              tv.invalidateInlineSegments()
+              tv.engine.invalidateInlineSegments()
             }
             
             if !style.inBatch {
@@ -665,7 +838,7 @@ extension MasonNode {
         textChild.attributes.removeAll()
         textChild.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
         textChild.container = tv
-        tv.invalidateInlineSegments()
+        tv.engine.invalidateInlineSegments()
       }
       
       let refPos = children.firstIndex(of: reference) ?? 0
@@ -715,7 +888,7 @@ extension MasonNode {
               tnText.container = tv
             }
           }
-          tv.invalidateInlineSegments()
+          tv.engine.invalidateInlineSegments()
         }
         (containerNode.view as? MasonElement)?.invalidateLayout()
         
@@ -734,7 +907,7 @@ extension MasonNode {
             }
           }
           if let tv = afterContainer?.view as? MasonText {
-            tv.invalidateInlineSegments()
+            tv.engine.invalidateInlineSegments()
             tv.invalidateLayout()
           }
         }
@@ -818,7 +991,7 @@ extension MasonNode {
             reference.layoutParent?.children.firstIndex(of: reference) else {return nil}
     guard let removed = reference.layoutParent?.children.remove(at: idx) else {return nil}
     if let removed = removed as? MasonTextNode {
-      removed.container?.invalidateInlineSegments()
+      removed.container?.engine.invalidateInlineSegments()
       removed.container = nil
       if (reference.layoutParent?.children.isEmpty == true) {
         if let layoutParent = reference.layoutParent?.layoutParent {
@@ -902,7 +1075,13 @@ extension MasonNode {
     }
     
     let constraintSize = CGSize(width: width, height: height)
-    let result = node.view?.sizeThatFits(constraintSize)
+    var result = node.view?.sizeThatFits(constraintSize)
+    
+    if let size = result {
+      result?.width = size.width * CGFloat(NSCMason.scale)
+      result?.height = size.height * CGFloat(NSCMason.scale)
+    }
+    
     
     node.cachedWidth = result?.width ?? 0
     node.cachedHeight = result?.height ?? 0

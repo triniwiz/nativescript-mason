@@ -1,10 +1,10 @@
 use mason_core::style::{DisplayMode, Overflow, StyleKeys};
 use mason_core::{
-    AlignContent, AlignItems, Dimension, Display, FlexDirection, JustifyContent, LengthPercentage,
-    LengthPercentageAuto, Mason, MeasureOutput, NodeRef, Rect, Size,
+    AlignContent, AlignItems, Dimension, Display, FlexDirection, InlineSegment, JustifyContent,
+    LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, NodeRef, Rect, Size,
 };
 use std::ffi::{c_longlong, c_void};
-use taffy::prelude::{TaffyGridLine, TaffyMaxContent};
+use taffy::prelude::{auto, TaffyGridLine, TaffyMaxContent};
 use taffy::style_helpers::length;
 use taffy::{AlignSelf, AvailableSpace, Line, NodeId};
 
@@ -48,7 +48,59 @@ fn main() {
     // grid_template_areas_500();
 
     //inline();
-    mixed();
+    //  mixed();
+    inline_block();
+}
+
+fn inline_block() {
+    extern "C" fn inline_block_measure(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        println!(
+            "inline block measure {} {} ... {} {}",
+            width, height, available_space_width, available_space_height
+        );
+        MeasureOutput::make(100., 150.)
+    }
+
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_size(Size {
+            width: length(300.),
+            height: length(300.),
+        });
+    });
+
+    let inline_a = mason.create_text_node();
+    mason.with_style_mut(inline_a.id(), |style| {
+        style.set_display_mode(DisplayMode::Box);
+        style.set_size(Size {
+            width: length(150.),
+            height: auto(),
+        });
+    });
+
+    let segments = vec![InlineSegment::Text {
+        width: 50.,
+        descent: 20.,
+        ascent: 30.,
+    }];
+
+    mason.set_segments(inline_a.id(), segments);
+
+    mason.set_measure(inline_a.id(), Some(inline_block_measure), 0 as _);
+
+    mason.add_child(root.id(), inline_a.id());
+
+    mason.compute_wh(root.id(), 1200.0, 3000.);
+
+    mason.print_tree(root.id());
 }
 
 fn mixed() {

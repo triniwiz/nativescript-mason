@@ -28,7 +28,7 @@ enum MasonError: Error {
 @objcMembers
 public class MasonTextNode: MasonNode, MasonCharacterData {
    
-  internal var container: MasonText?
+  internal var container: TextContainer?
   
   public var data: String
   
@@ -150,7 +150,7 @@ extension MasonTextNode {
         var processed = text
         
         // Apply text transform
-        let transform = container.textTransform
+      let transform = container.node.style.textTransform
         switch transform {
         case .None:
             break
@@ -170,7 +170,7 @@ extension MasonTextNode {
         }
         
         // Apply whitespace processing
-        let whiteSpace = container.whiteSpace
+      let whiteSpace = container.node.style.whiteSpace
         switch whiteSpace {
         case .Normal:
             processed = normalizeNewlines(processed)

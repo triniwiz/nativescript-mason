@@ -9,9 +9,15 @@ import UIKit
 
 
 @objc(MasonButton)
-public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListener {
+public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer {
   public let node: MasonNode
   public let mason: NSCMason
+  
+  public lazy var engine = {
+    TextEngine(container: self)
+  }()
+  
+  
   public var uiView: UIView {
     return self
   }
@@ -20,101 +26,69 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
     return node.style
   }
   
-  
-  private func updateTitle(){
-    cachedText = NSAttributedString(string: text, attributes: getDefaultAttributes())
-    button.setAttributedTitle(cachedText, for: .normal)
-  }
-  
-  internal var cachedText: NSAttributedString? = nil
-  
-  internal var button = UIButton(type: .system)
-  
-  public var text: String = "" {
-    didSet {
-      updateTitle()
+  /// Text content - sets or gets the concatenated text from all text nodes
+  public var textContent: String {
+    get {
+      engine.textContent
+    }
+    set {
+      engine.textContent = newValue
     }
   }
   
-  
-  internal let bgLayer = CALayer()
+  public func requestLayout() {
+    engine.invalidateInlineSegments()
+    // handle text nesting
+    if(node.parent?.view is TextContainer){
+      if(!engine.shouldFlattenTextContainer(self)){
+        setNeedsDisplay()
+      }
+      if let parent = node.parent?.view as? MasonText{
+        parent.requestLayout()
+      }
+      return
+    }
+    let root = node.getRootNode()
+    let view = if(root.type == .document){
+      root.document?.documentElement as? MasonElement
+    }else {
+      root.view as? MasonElement
+    }
     
+    if let view = view {
+      if(view.computeCacheDirty){
+        let computed = view.computeCache()
+        view.computeWithSize(Float(computed.width), Float(computed.height))
+      }
+      setNeedsDisplay()
+    }
+  }
+
+  
   public override func draw(_ rect: CGRect) {
     
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
     
-    style.mBackground.draw(on: bgLayer, in: context, rect: bounds)
-    
+    style.mBackground.draw(on: self, in: context, rect: bounds)
+    engine.drawText(context: context, rect: bounds)
     style.mBorderRender.draw(in: context, rect: bounds)
     
-  }
-  
-  public override func layoutSubviews() {
-    super.layoutSubviews()
-    bgLayer.frame = bounds
-    button.frame = bounds
   }
   
   
   private func setup(){
     isOpaque = false
-    node.style.display = Display.InlineBlock
-    node.view = self
     style.setStyleChangeListener(listener: self)
-    bgLayer.needsDisplayOnBoundsChange = true
-    layer.addSublayer(bgLayer)
-    addSubview(button)
-    
-    node.measureFunc = { known, available in
-      var ret = CGSize.zero
-      var hasKnownWidth = false
-      var hasKnownHeight = false
-      if let known = known {
-        if(!known.width.isNaN && !known.height.isNaN){
-          self.node.cachedWidth = known.width
-          self.node.cachedHeight = known.height
-          return known
-        }
-        
-        if(!known.width.isNaN){
-          ret.width = known.width
-          hasKnownHeight = true
-        }
-        
-        if(!known.height.isNaN){
-          ret.height = known.height
-          hasKnownWidth = true
-        }
-      }
-      
-      var contentSize: CGSize = .init(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
-      
-      if(hasKnownWidth){
-        contentSize.width = known?.width ?? .zero
-      }
-      
-      if(hasKnownHeight){
-        contentSize.height = known?.height ?? .zero
-      }
-      
-      
-      
-      if(!hasKnownWidth || !hasKnownHeight){
-        ret = self.sizeThatFits(.init(width: contentSize.width, height: contentSize.height))
-      }
-          
-      
-      ret.width = ret.width * CGFloat(NSCMason.scale)
-      ret.height = ret.height * CGFloat(NSCMason.scale)
-      
-      
-      self.node.cachedWidth = ret.width
-      self.node.cachedHeight = ret.height
-      
-      return ret
-      
+    configure { style in
+      style.display = Display.InlineBlock
+      style.textAlign = .Center
+    }
+    node.view = self
+   
+    node.measureFunc = { [self] known, available in
+      return TextEngine.measure(engine, true, isBlock: true , known, available)
     }
     node.setMeasureFunction(node.measureFunc!)
   }
@@ -130,7 +104,7 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
     let defaultAttrs = getDefaultAttributes()
     
     for child in node.children {
-      if let child = (child as? MasonTextNode), child.container == self {
+      if let child = (child as? MasonTextNode), child.container?.isEqual(self) ?? false {
         // Only update TextNodes that belong to THIS TextView
         // Don't touch TextNodes that belong to child TextViews
         child.attributes = defaultAttrs
@@ -165,7 +139,7 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
     
     if (dirty) {
       updateStyleOnTextNodes()
-      updateTitle()
+      engine.invalidateInlineSegments()
       if (layout) {
         if (node.isAnonymous) {
           node.layoutParent?.markDirty()
@@ -179,7 +153,7 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
   
   
   public override init(frame: CGRect) {
-    node = NSCMason.shared.createNode()
+    node = NSCMason.shared.createTextNode()
     mason = NSCMason.shared
     super.init(frame: frame)
     setup()
@@ -187,7 +161,7 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
   
   
   init(mason doc: NSCMason) {
-    node = doc.createNode()
+    node = doc.createTextNode()
     mason = doc
     super.init(frame: .zero)
     setup()
@@ -195,7 +169,7 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
   
   
   required init?(coder: NSCoder) {
-    node = NSCMason.shared.createNode()
+    node = NSCMason.shared.createTextNode()
     mason = NSCMason.shared
     super.init(coder: coder)
     setup()
@@ -203,4 +177,61 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
   
   
   
+}
+
+
+
+extension Button {
+    
+    // MARK: - Press Handling
+    
+    private var isPressed: Bool {
+        return isHighlighted
+    }
+    
+    // Override to track touch down
+    public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesBegan(touches, with: event)
+        isHighlighted = true
+        handlePressDown()
+    }
+
+    // Override to track touch move inside/outside
+    public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesMoved(touches, with: event)
+        guard let touch = touches.first else { return }
+        let inside = bounds.contains(touch.location(in: self))
+        isHighlighted = inside
+    }
+
+    // Override to track touch up
+    public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesEnded(touches, with: event)
+        let wasPressed = isPressed
+        isHighlighted = false
+        if wasPressed {
+            handlePressUp()
+        }
+    }
+
+    public override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesCancelled(touches, with: event)
+        isHighlighted = false
+        handlePressCancel()
+    }
+
+    // MARK: - Press Callbacks
+
+    private func handlePressDown() {
+        engine.handlePressDown()
+    }
+
+    private func handlePressUp() {
+        engine.handlePressUp()
+        sendActions(for: .touchUpInside)
+    }
+
+    private func handlePressCancel() {
+        engine.handlePressCancel()
+    }
 }

@@ -15,7 +15,11 @@ extension Background {
   
   func draw(on layer: CALayer, in context: CGContext, rect: CGRect) {
     if let color = self.color {
-      context.setFillColor(color.cgColor)
+      if(isActive){
+        context.setFillColor(color.darker(by: 0.15).cgColor)
+      }else {
+        context.setFillColor(color.cgColor)
+      }
       context.fill(rect)
     }
     
@@ -26,7 +30,11 @@ extension Background {
   
   func draw(on view: UIView, in context: CGContext, rect: CGRect) {
     if let color = self.color {
-      context.setFillColor(color.cgColor)
+      if(isActive){
+        context.setFillColor(color.darker(by: 0.15).cgColor)
+      }else {
+        context.setFillColor(color.cgColor)
+      }
       context.fill(rect)
     }
     

@@ -442,17 +442,39 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   
   func buttons(){
     let container = mason.createView()
-    container.setPadding(30, 30, 30, 30)
-    
+    container.background = "red"
+    container.configure { style in
+      container.setPadding(30, 30, 30, 30)
+    //  style.size = .init(.Points(300), .Auto)
+    }
     let a = mason.createButton()
-    a.text = "Hello World"
-    a.style.color = UIColor.blue.toUInt32()
-    a.style.background = "orange"
-    a.style.size = .init(.Points(300), .Points(300))
+    a.append(text: "Hello World")
     
-    a.style.border = "1px solid black"
+    let ns = mason.createImageView()
+    ns.configure { it in
+      it.size = MasonSize(.Points(50), .Points(50))
+    }
+    ns.image = UIImage(named: "NativeScript_Logo_White_Blue_Rounded")
+    
+    a.append(ns)
+    
+    a.style.color = UIColor.blue.toUInt32()
+//    a.style.background = "orange"
+   // a.style.size = .init(.Points(400), .Auto)
+    
+//    a.style.border = "1px solid black"
     
     container.append(a)
+    
+    
+    
+    let btn = UIButton(type: .system)
+    let img = UIImage(named: "NativeScript_Logo_White_Blue_Rounded")?.mason_resize(to: .init(width: 50, height: 50))
+    btn.setTitle("Hello 2", for: .normal)
+    btn.titleEdgeInsets = UIEdgeInsets(top: 0, left:0, bottom: 0, right: 0)
+    btn.setImage(img, for: .normal)
+    
+   // container.addView(btn)
     
     body.append(container)
     

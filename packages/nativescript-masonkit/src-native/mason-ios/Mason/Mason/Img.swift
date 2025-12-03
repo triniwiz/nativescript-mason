@@ -55,8 +55,9 @@ public class MasonImageLayer: CALayer {
     needsDisplayOnBoundsChange = true
   }
   
+  
   public override func draw(in context: CGContext) {
-    guard bounds.width > 0, bounds.height > 0 else {
+    guard bounds.width > 0, bounds.height > 0  else {
       return
     }
     

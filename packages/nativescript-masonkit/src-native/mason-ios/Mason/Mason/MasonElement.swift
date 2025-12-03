@@ -158,177 +158,9 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
 
 extension MasonElement {
   
-  private func getDecorationColor() -> UIColor {
-    let decColor = style.resolvedDecorationColor
-    if decColor == Constants.UNSET_COLOR {
-      return UIColor.colorFromARGB(style.resolvedColor)
-    }
-    return UIColor.colorFromARGB(decColor)
-  }
-  
   /// Helper to get default text attributes for new text nodes
   public func getDefaultAttributes() -> [NSAttributedString.Key: Any] {
-    var attrs: [NSAttributedString.Key: Any] = [:]
-    
-    if(style.font.font == nil){
-      style.font.loadSync { _ in }
-    }
-    
-    let paragraphStyle = NSMutableParagraphStyle()
-    
-    var type = MasonTextType.None
-    
-    if let view = uiView as? MasonText {
-      type = view.type
-    }
-    
-    let scale = NSCMason.scale
-    
-    switch(type){
-    case .H1:
-      paragraphStyle.paragraphSpacing = CGFloat( 8 * scale)
-      break
-    case .H2:
-      paragraphStyle.paragraphSpacing = CGFloat( 7 * scale)
-      break
-    case .H3:
-      paragraphStyle.paragraphSpacing = CGFloat( 6 * scale)
-      break
-    case .H4:
-      paragraphStyle.paragraphSpacing = CGFloat( 5 * scale)
-      break
-    case .H5:
-      paragraphStyle.paragraphSpacing = CGFloat( 4 * scale)
-      break
-    case .H6:
-      paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
-      break
-    case .Blockquote:
-      paragraphStyle.headIndent = CGFloat(40)
-      paragraphStyle.firstLineHeadIndent =  CGFloat(40)
-      break
-    default:
-      //noop
-      break
-    }
-    
-    let fontFace = style.resolvedFontFace
-    
-    if(fontFace.font == nil){
-      fontFace.loadSync { _ in}
-    }
-    
-    if let font = fontFace.font {
-      // Font
-      let fontSize = style.resolvedFontSize
-      let weight = style.resolvedFontWeight
-      let style = style.resolvedInternalFontStyle
-      let ctFont = ctFont(from: font, fontSize: CGFloat(fontSize), weight: weight.uiFontWeight, style: style)
-      attrs[.font] = ctFont
-      attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] = weight.uiFontWeight.rawValue
-      attrs[NSAttributedString.Key(Constants.FONT_STYLE)] = style
-    }
-    
-    
-    // Color
-    attrs[.foregroundColor] =  UIColor.colorFromARGB(style.resolvedColor)
-    
-    
-    let backgroundColorValue = style.resolvedBackgroundColor
-    // Background color
-    if backgroundColorValue != 0 {
-      attrs[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
-    }
-    
-    
-    switch(style.resolvedDecorationLine){
-    case .None: break
-      // noop
-    case .Underline:
-      attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
-      attrs[.underlineColor] = getDecorationColor()
-    case .Overline:
-      // todo
-      break
-    case .LineThrough:
-      attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
-      attrs[.strikethroughColor] = getDecorationColor()
-      
-    }
-    
-    
-    let ws = style.resolvedWhiteSpace
-    let noWrap = (style.resolvedTextWrap == .NoWrap)
-    // Allow wrap unless textWrap=NoWrap or white-space forbids it
-    let allowWrap = !(noWrap || ws == .Pre || ws == .NoWrap)
-
-    switch ws {
-    case .Normal, .PreWrap, .PreLine, .BreakSpaces:
-      paragraphStyle.lineBreakMode = allowWrap ? .byWordWrapping : .byClipping
-    case .Pre, .NoWrap:
-      paragraphStyle.lineBreakMode = .byClipping
-    }
-
-    if #available(iOS 14.0, *) {
-      paragraphStyle.lineBreakStrategy = allowWrap ? [.standard, .hangulWordPriority, .pushOut] : []
-    }
-    
-    // Preserve spacing better when wrapping
-    paragraphStyle.allowsDefaultTighteningForTruncation = false
-    
-    // letter spacing
-    let letterSpacing = style.resolvedLetterSpacing
-    if(letterSpacing > 0){
-      attrs[.kern] = letterSpacing
-    }
-    
-    let lineHeightType = style.resolvedLineHeightType
-    let lineHeight = style.resolvedLineHeight
-    if(lineHeightType == 1){
-      let height = CGFloat(lineHeight)
-      paragraphStyle.minimumLineHeight = height
-      paragraphStyle.maximumLineHeight = height
-    }else {
-      if(lineHeight > 0){
-        paragraphStyle.lineHeightMultiple = CGFloat(lineHeight)
-      }
-    }
-    
-    // text alignment
-    switch style.resolvedTextAlign {
-    case .Auto:
-      paragraphStyle.alignment = .natural
-    case .Left:
-      paragraphStyle.alignment = .left
-    case .Right:
-      paragraphStyle.alignment = .right
-    case .Center:
-      paragraphStyle.alignment = .center
-    case .Justify:
-      paragraphStyle.alignment = .justified
-    case .Start:
-      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
-      if(isLTR){
-        paragraphStyle.alignment = .left
-      }else {
-        paragraphStyle.alignment = .right
-      }
-      break
-    case .End:
-      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
-      if(isLTR){
-        paragraphStyle.alignment = .right
-      }else {
-        paragraphStyle.alignment = .left
-      }
-      break
-    }
-    
-    // Paragraph style
-    attrs[.paragraphStyle] = paragraphStyle
-    
-    
-    return attrs
+    return node.getDefaultAttributes()
   }
   
   
@@ -417,7 +249,7 @@ extension MasonElement {
       return
     }
     
-    if(!(self is MasonText)){
+    if(!(self is TextContainer)){
       uiView.addSubview(view)
     }
     
@@ -442,7 +274,7 @@ extension MasonElement {
     if(view.superview == uiView){
       return
     }
-    if(!(self is MasonText)){
+    if(!(self is TextContainer)){
       if(at <= -1){
         uiView.addSubview(view)
       }else {
@@ -482,8 +314,8 @@ extension MasonElement {
   }
   
   public func append(text: String){
-    if(uiView is MasonText){
-      node.appendChild(MasonTextNode(mason: node.mason, data: text, attributes: (uiView as! MasonText).getDefaultAttributes()))
+    if(uiView is TextContainer){
+      node.appendChild(MasonTextNode(mason: node.mason, data: text, attributes: (uiView as! TextContainer).defaultAttributes))
     }else {
       node.appendChild(MasonTextNode(mason: node.mason, data: text))
     }
@@ -672,7 +504,7 @@ extension MasonElement {
     for childNode in nodes {
       childNode.parent = node
       if let childView = childNode.view {
-        if(!(self.uiView is MasonText)){
+        if(!(self.uiView is TextContainer)){
           node.view?.addSubview(childView)
         }
       }
@@ -764,8 +596,8 @@ class MasonElementHelpers: NSObject {
         let node = $0
         if(node.nativePtr == nil){
           return false
-        }else if(node.parent?.view is MasonText && node.view is MasonText){
-          let flatten = (node.parent!.view as! MasonText).shouldFlattenTextContainer(node.view as! MasonText)
+        }else if(node.parent?.view is TextContainer && node.view is TextContainer){
+          let flatten = (node.parent!.view as! MasonText).engine.shouldFlattenTextContainer(node.view as! TextContainer)
           return !flatten
         }else {
           return true

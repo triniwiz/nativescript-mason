@@ -74,7 +74,11 @@ class Background {
   var color: UIColor? = nil
   var layers: [BackgroundLayer] = []
   let style: MasonStyle!
-  
+  internal var isActive: Bool = false {
+    didSet {
+      style.node.view?.setNeedsDisplay()
+    }
+  }
   init(style: MasonStyle) {
     self.style = style
   }

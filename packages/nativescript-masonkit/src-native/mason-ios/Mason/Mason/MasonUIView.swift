@@ -523,7 +523,6 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
       MasonLengthPercentage.Points(top),
       MasonLengthPercentage.Points(bottom)
     )
-    checkAndUpdateStyle()
   }
   
   @objc public func getPadding() -> MasonLengthPercentageRectCompat{

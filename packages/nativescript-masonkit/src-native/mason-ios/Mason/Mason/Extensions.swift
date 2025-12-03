@@ -101,6 +101,47 @@ extension UIFont {
     }
 }
 
+let attachmentKey = NSAttributedString.Key(Constants.VIEW_PLACEHOLDER)
+extension NSAttributedString {
+  var containsAttachments: Bool {
+    var found = false
+    self.enumerateAttribute(attachmentKey, in: NSRange(location: 0, length: length)) { value, _, stop in
+      if value != nil {
+        found = true
+        stop.pointee = true
+      }
+    }
+    return found
+  }
+}
+
+public extension UIImage {
+  func mason_resize(to size: CGSize) -> UIImage? {
+      guard let cgImage = self.cgImage else { return nil }
+
+      let width = Int(size.width)
+      let height = Int(size.height)
+
+      guard let colorSpace = cgImage.colorSpace,
+            let context = CGContext(
+              data: nil,
+              width: width,
+              height: height,
+              bitsPerComponent: cgImage.bitsPerComponent,
+              bytesPerRow: 0,
+              space: colorSpace,
+              bitmapInfo: cgImage.bitmapInfo.rawValue
+            ) else { return nil }
+
+      context.interpolationQuality = .high  // use .none for fastest
+      context.draw(cgImage, in: CGRect(origin: .zero, size: size))
+
+      guard let scaledImage = context.makeImage() else { return nil }
+      return UIImage(cgImage: scaledImage)
+  }
+}
+
+
 
 func markNodeDirty<T: MasonElement>(_ element: T) {
     element.markNodeDirty()
