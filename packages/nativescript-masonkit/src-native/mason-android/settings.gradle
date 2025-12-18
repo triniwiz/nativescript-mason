@@ -1,22 +1,26 @@
 pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        google()
-        mavenCentral()
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
+  repositories {
+    gradlePluginPortal()
+    google()
+    mavenCentral()
+    maven {
+      url "https://plugins.gradle.org/m2/"
     }
+    maven { url 'https://jitpack.io' }
+  }
+  plugins {
+    id 'org.mozilla.rust-android-gradle.rust-android' version '27893e31a2'
+  }
 }
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
+  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+  repositories {
+    google()
+    mavenCentral()
+    maven {
+      url "https://plugins.gradle.org/m2/"
     }
+  }
 }
 rootProject.name = "MasonDemo"
 include ':app'

@@ -1,0 +1,18 @@
+[package]
+name = "mason-android"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "masonnative"
+crate-type = ["cdylib"]
+
+[dependencies]
+#mason-c = { path = "../mason-c" }
+mason-core = { path = "../mason-core" }
+#jni = { git = "https://github.com/jni-rs/jni-rs.git", rev = "1a4a345b1e65aca405e856046ff2661d37edde6d" }
+jni = "0.21.1"
+log = "0.4.20"
+android_logger = "0.14.1"
+once_cell = "1.16.0"
+itertools = "0.14.0"

@@ -9,13 +9,13 @@ import Foundation
 
 @objcMembers
 @objc(MasonDimensionRectCompat)
-public class MasonDimensionRectCompat: NSObject {
+public class MasonDimensionRectCompat: NSObject, Codable {
     public var left: MasonDimensionCompat
     public var right: MasonDimensionCompat
     public var top: MasonDimensionCompat
     public var bottom: MasonDimensionCompat
     
-    public init(_ left: MasonDimensionCompat, _ right: MasonDimensionCompat, _ top: MasonDimensionCompat, _ bottom: MasonDimensionCompat) {
+    public init(_ left: MasonDimensionCompat, _ top: MasonDimensionCompat,  _ right: MasonDimensionCompat,_ bottom: MasonDimensionCompat) {
         self.left = left
         self.right = right
         self.top = top
@@ -30,19 +30,19 @@ public class MasonDimensionRectCompat: NSObject {
     }
     
     func intoMasonRect()-> MasonRect<MasonDimension> {
-        return MasonRect(left.dimension, right.dimension, top.dimension, bottom.dimension)
+        return MasonRect(top.dimension, right.dimension, bottom.dimension, left.dimension)
     }
 }
 
 @objcMembers
 @objc(MasonLengthPercentageAutoRectCompat)
-public class MasonLengthPercentageAutoRectCompat: NSObject {
+public class MasonLengthPercentageAutoRectCompat: NSObject, Codable {
     public var left: MasonLengthPercentageAutoCompat
     public var right: MasonLengthPercentageAutoCompat
     public var top: MasonLengthPercentageAutoCompat
     public var bottom: MasonLengthPercentageAutoCompat
     
-    public init(_ left: MasonLengthPercentageAutoCompat, _ right: MasonLengthPercentageAutoCompat, _ top: MasonLengthPercentageAutoCompat, _ bottom: MasonLengthPercentageAutoCompat) {
+    public init(_ left: MasonLengthPercentageAutoCompat, _ top: MasonLengthPercentageAutoCompat, _ right: MasonLengthPercentageAutoCompat, _ bottom: MasonLengthPercentageAutoCompat) {
         self.left = left
         self.right = right
         self.top = top
@@ -57,13 +57,13 @@ public class MasonLengthPercentageAutoRectCompat: NSObject {
     }
     
     func intoMasonRect()-> MasonRect<MasonLengthPercentageAuto> {
-        return MasonRect(left.length, right.length, top.length, bottom.length)
+        return MasonRect(top.length, right.length, bottom.length, left.length)
     }
 }
 
 @objcMembers
 @objc(MasonLengthPercentageRectCompat)
-public class MasonLengthPercentageRectCompat: NSObject {
+public class MasonLengthPercentageRectCompat: NSObject, Codable {
     public var left: MasonLengthPercentageCompat
     public var right: MasonLengthPercentageCompat
     public var top: MasonLengthPercentageCompat
@@ -84,22 +84,25 @@ public class MasonLengthPercentageRectCompat: NSObject {
     }
     
     func intoMasonRect()-> MasonRect<MasonLengthPercentage> {
-        return MasonRect(left.length, right.length, top.length, bottom.length)
+        return MasonRect(top.length, right.length, bottom.length, left.length)
     }
 }
 
 
-public struct MasonRect<T> {
+
+public struct MasonRect<T: Codable>: Codable {
     var left: T
     var right: T
     var top: T
     var bottom: T
+  
     
     internal var compatDimension: MasonDimensionRectCompat? = nil
     internal var compatLengthAuto: MasonLengthPercentageAutoRectCompat? = nil
     internal var compatLength: MasonLengthPercentageRectCompat? = nil
+  
     
-    public init(_ left: T, _ right: T, _ top: T, _ bottom: T) {
+    public init(_ top: T, _ right: T, _ bottom: T, _ left: T) {
         self.left = left
         self.right = right
         self.top = top
@@ -126,6 +129,18 @@ public struct MasonRect<T> {
         
         return ret
     }
+}
+
+extension MasonRect where T == Float {
+  func isEmpty() ->Bool{
+    return left == 0 && right == 0 && right == 0 && bottom == 0
+  }
+}
+
+extension MasonSize where T == Float {
+  func isEmpty() ->Bool{
+    return width == 0 && height == 0
+  }
 }
 
 public let MasonDimensionRectAuto = MasonRect<MasonDimension>(uniform: .Auto)

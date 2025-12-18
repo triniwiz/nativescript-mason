@@ -12,12 +12,10 @@ import Foundation
 public class MinMax: NSObject, Codable {
     let min: MinSizing
     let max: MaxSizing
-    let cValue: CMasonMinMax
     
     public init(_ min: MinSizing, _ max: MaxSizing) {
         self.min = min
         self.max = max
-        self.cValue = CMasonMinMax(min_type: min.type, min_value: min.value, max_type: max.type, max_value: max.value)
     }
     
     public static func Points(points: Float) -> MinMax {
@@ -218,7 +216,6 @@ public class MinMax: NSObject, Codable {
     required public init(from decoder: Decoder) throws {
         min = .Auto
         max = .Auto
-        cValue = CMasonMinMax()
         let container = try decoder.singleValueContainer()
         let value = try container.decode(String.self)
         switch(value){

@@ -2,21 +2,35 @@ package org.nativescript.mason.masondemo
 
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.Drawable
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
-import android.view.Gravity
-import android.widget.TextView
-import androidx.core.graphics.drawable.DrawableCompat
-import org.nativescript.mason.masondemo.databinding.ActivityGridBinding
-import org.nativescript.mason.masonkit.*
+import android.util.TypedValue
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
+import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.Element
+import org.nativescript.mason.masonkit.LengthPercentage
+import org.nativescript.mason.masonkit.LengthPercentageAuto
+import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.Rect
+import org.nativescript.mason.masonkit.Scroll
+import org.nativescript.mason.masonkit.Size
+import org.nativescript.mason.masonkit.Styles
+import org.nativescript.mason.masonkit.TextStyleKeys
+import org.nativescript.mason.masonkit.TextView
+import org.nativescript.mason.masonkit.View
+import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.ObjectFit
+import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.TextType
+import org.nativescript.mason.masonkit.enums.VerticalAlign
 
 class GridActivity : AppCompatActivity() {
-  lateinit var binding: ActivityGridBinding
   lateinit var metrics: DisplayMetrics
-
+  val mason = Mason.shared
   fun toPx(dip: Float): Float {
     return dip * metrics.density
   }
@@ -24,128 +38,939 @@ class GridActivity : AppCompatActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     metrics = resources.displayMetrics
-    binding = ActivityGridBinding.inflate(layoutInflater)
-    setContentView(binding.root)
+    mason.setDeviceScale(metrics.density)
 
-   // wrapper5()
-      wrapper6()
+    val body = mason.createScrollView(this)
+//    body.style.overflowY = Overflow.Scroll
+
+//    Timer().schedule(1000L) {
+//      runOnUiThread {
+//        body.style.values.putInt(StyleKeys.OVERFLOW_X, Overflow.Scroll.value)
+//        body.syncStyle("${StateKeys.OVERFLOW_X.bits}", "-1")
+////        body.style.overflowX = Overflow.Scroll
+////        body.style.overflowY = Overflow.Scroll
+//      }
+//    }
+
+
+//    body.style.margin = Rect(
+//      LengthPercentageAuto.Points(40f),
+//      LengthPercentageAuto.Points(40f),
+//      LengthPercentageAuto.Points(40f),
+//      LengthPercentageAuto.Points(40f)
+//    )
+
+    //val rootLayout = mason.createView(this)
+
+    //body.addView(rootLayout)
+
+    //  wrapper5(rootLayout)
+    //  wrapper6(body)
+    // wrapper8(body)
+    //genTest(body)
+
+    //grid_template_areas(body)
+
+    // grid_template_areas_500(body)
+
+    //grid_template_areas_600(body)
+
+    //  backgroundTest(body)
+    // filter(body)
+    //  objectFit(body)
+    //  buttons(body)
+    // verticalAlignment(body)
+    verticalAlignImages(body)
+    setContentView(body)
   }
 
-  fun wrapper5() {
-    binding.gridRoot.apply {
-      background = ColorDrawable(Color.WHITE)
-      display = Display.Grid
-      setGap(toPx(10F), toPx(10F))
-      gridTemplateColumns = arrayOf(
-        TrackSizingFunction.AutoRepeat(
-          GridTrackRepetition.Count(3),
-          arrayOf(MinMax.Points(toPx(100F)))
+  fun verticalAlignImages(body: Scroll) {
+    val root = mason.createTextView(this, TextType.P)
+    val height = TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_SP, (16 * 3f), // 3 em
+      resources.displayMetrics
+    )
+    val margin = TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_SP, (16 * 0.5f), // .5 em
+      resources.displayMetrics
+    )
+    root.configure {
+      it.fontFamily = "monospace"
+      it.size = Size(Dimension.Percent(0.8f), Dimension.Points(height))
+      it.decorationLine = Styles.DecorationLine.Overline
+      it.margin = Rect(
+        LengthPercentageAuto.Points(16f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Zero,
+        LengthPercentageAuto.Points(16f),
+      )
+      it.padding = Rect(
+        LengthPercentage.Zero,
+        LengthPercentage.Points(
+          margin
+        ),
+        LengthPercentage.Zero,
+        LengthPercentage.Points(
+          margin
         )
       )
     }
 
+    root.append("text-top:    ")
+
+    body.append(root)
+
+    val top = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Top
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    top.setImageResource(R.drawable.star)
+
+    root.append(top)
+
+    root.append("middle:      ")
+    val middle = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Middle
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    middle.setImageResource(R.drawable.star)
+    root.append(middle)
+
+
+    root.append("bottom:      ")
+    val bottom = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Bottom
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    bottom.setImageResource(R.drawable.star)
+    root.append(bottom)
+
+    root.append("super:      ")
+    val supa = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Super
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    supa.setImageResource(R.drawable.star)
+    root.append(supa)
+
+    root.append("sub:      ")
+    val sub = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Sub
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    sub.setImageResource(R.drawable.star)
+    root.append(sub)
+
+    val footer = mason.createTextView(this, TextType.P)
+    footer.configure {
+      it.fontFamily = "monospace"
+      it.size = Size(Dimension.Percent(0.8f), Dimension.Points(height))
+      it.decorationLine = Styles.DecorationLine.Overline
+      it.margin = Rect(
+        LengthPercentageAuto.Zero,
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Zero,
+        LengthPercentageAuto.Auto,
+      )
+      it.padding = Rect(
+        LengthPercentage.Zero,
+        LengthPercentage.Points(
+          margin
+        ),
+        LengthPercentage.Zero,
+        LengthPercentage.Points(
+          margin
+        )
+      )
+    }
+
+
+    footer.append("text-top:      ")
+    val textTop = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.TextTop
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    textTop.setImageResource(R.drawable.star)
+    footer.append(textTop)
+
+
+
+    footer.append("text-bottom:      ")
+    val textBottom = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.TextBottom
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    textBottom.setImageResource(R.drawable.star)
+    footer.append(textBottom)
+
+
+
+    footer.append("0.2em:      ")
+    val zeroP2 = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.length(
+        TypedValue.applyDimension(
+          TypedValue.COMPLEX_UNIT_SP, (16 * 0.2f), resources.displayMetrics
+        )
+      )
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    zeroP2.setImageResource(R.drawable.star)
+    footer.append(zeroP2)
+
+
+    footer.append("-1em:      ")
+    val minusP2 = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.length(
+        TypedValue.applyDimension(
+          TypedValue.COMPLEX_UNIT_SP, -16f, resources.displayMetrics
+        )
+      )
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    minusP2.setImageResource(R.drawable.star)
+    footer.append(minusP2)
+
+
+    footer.append("20%:      ")
+    val twentyPercent = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.percent(0.2f)
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    twentyPercent.setImageResource(R.drawable.star)
+    footer.append(twentyPercent)
+
+
+    footer.append("-100%:      ")
+    val minusPercent = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.percent(-1f)
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    minusPercent.setImageResource(R.drawable.star)
+    footer.append(minusPercent)
+
+    body.append(footer)
+  }
+
+  fun verticalAlignment(body: Scroll) {
+    val root = mason.createView(this)
+    body.append(root)
+
+    val frameImage = R.drawable.frame_image
+    val normal = mason.createView(this)
+    val normalImg = mason.createImageView(this)
+    normal.append("An ")
+    normalImg.style.size = Size(Dimension.Points(toPx(32f)), Dimension.Points(toPx(32f)))
+    normal.append(normalImg)
+    normal.append(" image with a default alignment.")
+    normalImg.setImageResource(frameImage)
+    root.append(normal)
+
+
+    val top = mason.createView(this)
+    val topImg = mason.createImageView(this)
+    top.append("An ")
+    topImg.style.size = Size(Dimension.Points(toPx(32f)), Dimension.Points(toPx(32f)))
+    topImg.style.verticalAlign = VerticalAlign.TextTop
+    top.append(topImg)
+    top.append(" image with a text-top alignment.")
+    topImg.setImageResource(frameImage)
+    root.append(top)
+
+
+    val bottom = mason.createView(this)
+    val bottomImg = mason.createImageView(this)
+    bottom.append("An ")
+    bottomImg.style.size = Size(Dimension.Points(toPx(32f)), Dimension.Points(toPx(32f)))
+    bottomImg.style.verticalAlign = VerticalAlign.TextBottom
+    bottom.append(bottomImg)
+    bottom.append(" image with a text-bottom alignment.")
+    bottomImg.setImageResource(frameImage)
+    root.append(bottom)
+
+
+    val middle = mason.createView(this)
+    val middleImg = mason.createImageView(this)
+    middle.append("An ")
+    middleImg.style.size = Size(Dimension.Points(toPx(32f)), Dimension.Points(toPx(32f)))
+    middleImg.style.verticalAlign = VerticalAlign.Middle
+    middle.append(middleImg)
+    middle.append(" image with a middle alignment.")
+    middleImg.setImageResource(frameImage)
+    root.append(middle)
+
+  }
+
+
+  fun buttons(body: Scroll) {
+    val container = mason.createView(this)
+    container.style.background = "red"
+    container.configure {
+      container.style.setPadding(30, 30, 30, 30)
+      container.style.size = Size(Dimension.Auto, Dimension.Points(600f))
+    }
+    val a = mason.createButton(this)
+    a.append("Hello")
+
+    val ns = mason.createImageView(this)
+    ns.configure {
+      it.size = Size(Dimension.Points(50f), Dimension.Points(50f))
+    }
+
+    ns.setImageResource(R.drawable.nativescript_logo_white_blue_rounded)
+
+    a.append(" World!")
+
+    a.append(ns)
+
+    a.style.color = Color.BLUE
+    a.style.background = "orange"
+    a.style.textAlign = TextAlign.Center
+    a.style.size = Size(Dimension.Points(150f), Dimension.Auto)
+
+    a.style.border = "1px solid black"
+
+    container.append(a)
+
+    body.append(container)
+  }
+
+  fun insertObjectFit(section: View, header: String, fit: ObjectFit, src: String) {
+    val h2 = mason.createTextView(this, TextType.H2)
+    h2.append(header)
+
+    h2.configure {
+      it.fontFamily = "'Courier New', monospace"
+      it.fontSize = 16
+      it.margin = Rect(
+        LengthPercentageAuto.Zero,
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(16f),
+        LengthPercentageAuto.Points(
+          16f / 0.3f
+        )
+      )
+    }
+
+    section.append(h2)
+    val img = mason.createImageView(this)
+    img.configure {
+      it.objectFit = fit
+      it.border = "1px solid black"
+      it.margin = Rect(
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(16f),
+        LengthPercentageAuto.Points(16f)
+      )
+      it.size = Size(Dimension.Points(toPx(150f)), Dimension.Points(toPx(100f)))
+    }
+    img.src = src
+
+
+    val imgNarrow = mason.createImageView(this)
+    imgNarrow.configure {
+      it.objectFit = fit
+      it.border = "1px solid black"
+      it.margin = Rect(
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(16f),
+        LengthPercentageAuto.Points(16f)
+      )
+      it.size = Size(Dimension.Points(toPx(100f)), Dimension.Points(toPx(150f)))
+    }
+    imgNarrow.src = src
+
+    section.append(img)
+    section.append(" ")
+    section.append(imgNarrow)
+  }
+
+  fun objectFit(body: Scroll) {
+    val section = mason.createView(this);
+    val mdnLogoOnlyColor =
+      "https://b4eb5495-cf4e-4b34-a1f5-d7ee06ed21f7.mdnplay.dev/en-US/docs/Web/CSS/Reference/Properties/object-fit/mdn_logo_only_color.png"
+
+    insertObjectFit(section, "object-fit: fill", ObjectFit.Fill, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: contain", ObjectFit.Contain, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: cover", ObjectFit.Cover, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: none", ObjectFit.None, mdnLogoOnlyColor)
+
+    insertObjectFit(section, "object-fit: scale-down", ObjectFit.ScaleDown, mdnLogoOnlyColor)
+
+    body.append(section)
+
+  }
+
+  fun code(value: String): TextView {
+    val ret = mason.createTextView(this, TextType.Code)
+    ret.append(value)
+    ret.style.backgroundColor = 0xFFEFEFEF.toInt()
+    return ret
+  }
+
+  var selected: Element? = null
+  val defaultBorder = "1px solid #51565d"
+  val selectedBorder = "1px solid red"
+
+  private fun select(element: Element?) {
+    element?.style?.border = selectedBorder
+    selected?.style?.border = defaultBorder
+    selected = element
+  }
+
+  private fun defaultStyle(element: Element) {
+    element.configure {
+      it.padding = Rect.uniform(LengthPercentage.Points(toPx(10f)))
+      it.border = defaultBorder
+      it.margin = Rect(
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(toPx(5f)),
+        LengthPercentageAuto.Points(toPx(5f))
+      )
+    }
+  }
+
+  fun filter(body: Scroll) {
+    val rootLayout = mason.createView(this)
+    rootLayout.style.padding = Rect.uniform(
+      LengthPercentage.Points(toPx(10f))
+    )
+
+
+    val text = mason.createTextView(this)
+    text.style.color = Color.RED
+    text.append("Helloooooo")
+
+    rootLayout.append(text)
+
+
+    val img = mason.createImageView(this)
+    //img.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Firefox_logo%2C_2019.svg/1024px-Firefox_logo%2C_2019.svg.png"
+
+    img.style.size = Size(
+      Dimension.Points(toPx(160f)), Dimension.Points(toPx(160f))
+    )
+
+    rootLayout.append(img)
+
+    img.setImageResource(R.drawable.firefox_logo)
+
+
+    val reset = mason.createView(this)
+    reset.setOnClickListener {
+      img.style.filter = ""
+      text.style.filter = ""
+      select(null)
+    }
+
+    reset.append("Reset ")
+
+    rootLayout.append(reset)
+
+
+    val blur = mason.createView(this)
+    defaultStyle(blur)
+    blur.setOnClickListener {
+      select(blur)
+      img.style.filter = "blur(5px);"
+      text.style.filter = "blur(5px);"
+    }
+    blur.append("blur ")
+    blur.append(code("filter: blur(5px);"))
+
+    rootLayout.append(blur)
+
+
+    /*
+
+    val contrast = mason.createView(this)
+    defaultStyle(contrast)
+    contrast.setOnClickListener {
+      select(contrast)
+      img.style.filter = "contrast(200%);"
+      text.style.filter = "contrast(200%);"
+    }
+    contrast.append("contrast ")
+    contrast.append(code("filter:contrast(200%);"))
+
+    rootLayout.append(contrast)
+
+    val grayscale = mason.createView(this)
+    defaultStyle(grayscale)
+    grayscale.style.border = defaultBorder
+    grayscale.append("grayscale ")
+    grayscale.append(code("filter:grayscale(80%);"))
+
+    grayscale.setOnClickListener {
+      select(grayscale)
+      img.style.filter = "grayscale(80%);"
+      text.style.filter = "grayscale(80%);"
+    }
+
+    rootLayout.append(grayscale)
+
+
+    val hueRotate = mason.createView(this)
+    defaultStyle(hueRotate)
+    hueRotate.append("hueRotate ")
+    hueRotate.append(code("filter: hue-rotate(90deg);"))
+
+    hueRotate.setOnClickListener {
+      select(hueRotate)
+      img.style.filter = "hue-rotate(90deg);"
+      text.style.filter = "hue-rotate(90deg);"
+    }
+
+    rootLayout.append(hueRotate)
+
+
+    val dropShadow = mason.createView(this)
+    defaultStyle(dropShadow)
+    dropShadow.append("dropShadow ")
+    dropShadow.append(code("filter:drop-shadow(16px 16px 20px red) invert(75%);"))
+
+    dropShadow.setOnClickListener {
+      select(dropShadow)
+      img.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
+      text.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
+    }
+
+    rootLayout.append(dropShadow)
+
+    */
+
+
+    body.append(rootLayout)
+  }
+
+  fun backgroundTest(body: Scroll) {
+    val rootLayout = mason.createView(this)
+    rootLayout.style.size = Size(
+      Dimension.Points(toPx(500f)), Dimension.Points(toPx(500f))
+    )
+//    rootLayout.background = "pink"
+//    rootLayout.background = """
+//                            left 5% / 15% 60% repeat-x
+//                              url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png");
+//                            """
+//    rootLayout.style.background = """
+//no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png')
+//"""
+    //rootLayout.style.background = "content-box radial-gradient(crimson, skyblue);"
+    rootLayout.style.background =
+      "radial-gradient(circle at center, rgba(0,0,255,0.3) 0%, rgba(0,0,255,0.0) 70%);"
+    body.append(rootLayout)
+  }
+
+  fun grid_template_areas_600(rootLayout: Scroll) {
+    val root = mason.createView(this)
+    root.configure {
+      it.display = Display.Grid
+      it.gridTemplateColumns = "120px auto 120px"
+      it.setMaxSizeWidth(Dimension.Points(600f))
+      it.gridTemplateAreas = """
+      "header  header  header"
+      "sidebar content sidebar2"
+      "footer  footer  footer"
+      """.trimIndent()
+
+
+
+      it.gap = Size(LengthPercentage.Points(20f), LengthPercentage.Points(20f))
+    }
+
+
+    val header = mason.createView(this)
+    header.append("Header")
+    header.setBackgroundColor("#999999".toColorInt())
+    header.style.gridArea = "header"
+
+    val sidebar = mason.createView(this)
+    sidebar.style.gridArea = "sidebar"
+    sidebar.setBackgroundColor("#444444".toColorInt())
+    sidebar.append("Sidebar")
+
+    val content = mason.createView(this)
+    content.style.gridArea = "content"
+
+    content.append(
+      """
+      Content
+     More content than we had before so this column is now quite tall.
+    """.trimIndent()
+    )
+
+    val sidebar2 = mason.createView(this)
+    sidebar2.setBackgroundColor("#cccccc".toColorInt())
+    sidebar2.style.gridArea = "sidebar2"
+    sidebar2.append("Sidebar 2")
+
+
+    val footer = mason.createView(this)
+    footer.style.gridArea = "footer"
+    footer.setBackgroundColor("#999999".toColorInt())
+    footer.append("Footer")
+
+    root.append(arrayOf(header, sidebar, sidebar2, content, footer))
+
+    rootLayout.append(root)
+  }
+
+  fun grid_template_areas_500(rootLayout: Scroll) {
+    val root = mason.createView(this)
+    root.configure {
+      it.display = Display.Grid
+      it.gridTemplateAreas = """
+     "header  header"
+		"sidebar content"
+		"sidebar2 sidebar2"
+		"footer  footer"
+      """.trimIndent()
+      it.gridTemplateColumns = "20% auto"
+      it.gap = Size(LengthPercentage.Points(10f), LengthPercentage.Points(10f))
+    }
+
+
+    val header = mason.createView(this)
+    Log.d("com.test", "header ???")
+    mason.printTree(header.node)
+    header.append("Header")
+    header.setBackgroundColor("#999999".toColorInt())
+    header.configure {
+      it.gridRow = "header"
+      it.gridColumn = "header"
+    }
+
+
+    val sidebar = mason.createView(this)
+    sidebar.style.gridArea = "sidebar"
+    sidebar.setBackgroundColor("#444444".toColorInt())
+    sidebar.append("Sidebar")
+
+    val content = mason.createView(this)
+    content.style.gridArea = "content"
+
+    content.append(
+      """
+      Content
+     More content than we had before so this column is now quite tall.
+    """.trimIndent()
+    )
+
+    val sidebar2 = mason.createView(this)
+    sidebar2.setBackgroundColor("#cccccc".toColorInt())
+    sidebar2.style.gridArea = "sidebar2"
+    sidebar2.append("Sidebar 2")
+
+
+    val footer = mason.createView(this)
+    footer.style.gridArea = "footer"
+    footer.setBackgroundColor("#999999".toColorInt())
+    footer.append("Footer")
+
+    root.append(arrayOf(header, sidebar, sidebar2, content, footer))
+
+    rootLayout.append(root)
+  }
+
+  fun grid_template_areas(rootLayout: Scroll) {
+    val root = mason.createView(this)
+    root.configure {
+      it.display = Display.Grid
+      it.gridTemplateAreas = """
+      "header"
+      "sidebar"
+      "content"
+      "sidebar2"
+      "footer"
+      """.trimIndent()
+      it.gap = Size(LengthPercentage.Points(10f), LengthPercentage.Points(10f))
+    }
+
+
+    val header = mason.createView(this)
+    header.append("Header")
+    header.setBackgroundColor("#999999".toColorInt())
+    header.style.gridArea = "header"
+
+    val sidebar = mason.createView(this)
+    sidebar.style.gridArea = "sidebar"
+    sidebar.append("Sidebar")
+
+    val content = mason.createView(this)
+    content.style.gridArea = "content"
+
+    content.append(
+      """
+      Content
+     More content than we had before so this column is now quite tall.
+    """.trimIndent()
+    )
+
+    val sidebar2 = mason.createView(this)
+    sidebar2.style.gridArea = "sidebar2"
+    sidebar2.append("Sidebar 2")
+
+
+    val footer = mason.createView(this)
+    footer.style.gridArea = "footer"
+    footer.setBackgroundColor("#999999".toColorInt())
+    footer.append("Footer")
+
+    root.append(arrayOf(header, sidebar, sidebar2, content, footer))
+
+    rootLayout.append(root)
+  }
+
+  fun genTest(rootLayout: Scroll) {
+    val root = mason.createView(this)
+    root.configure {
+      it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+      it.display = Display.Grid
+      it.gridTemplateColumns = "repeat(5, 1fr)"
+      it.gridTemplateRows = "repeat(5, 1fr)"
+      it.gap = Size(LengthPercentage.Points(10f), LengthPercentage.Points(10f))
+    }
+
+    val div1 = mason.createView(this)
+    div1.append("A")
+    div1.setBackgroundColor(Color.RED)
+    div1.configure {
+      it.gridArea = "1 / 1 / 2 / 2"
+    }
+
+    val div2 = mason.createView(this)
+    div2.append("B")
+    div2.configure {
+      it.gridArea = "2 / 2 / 3 / 3"
+    }
+
+
+    val div3 = mason.createView(this)
+    div3.append("C")
+    div3.configure {
+      it.gridArea = "3 / 3 / 4 / 4"
+    }
+
+    val div4 = mason.createView(this)
+    div4.append("D")
+    div4.configure {
+      it.gridArea = "4 / 4 / 5 / 5"
+    }
+
+
+    val div5 = mason.createView(this)
+    div5.append("D")
+    div5.configure {
+      it.gridArea = "5 / 5 / 6 / 6"
+    }
+
+    root.append(arrayOf(div1, div2, div3, div4, div5))
+
+    rootLayout.addView(root)
+  }
+
+  fun wrapper8(rootLayout: Scroll) {
+    val bg = "#444444".toColorInt()
+    rootLayout.configure {
+      it.color = Color.WHITE
+      //it.boxSizing = BoxSizing.ContentBox
+      rootLayout.setBackgroundColor(Color.WHITE)
+      it.display = Display.Grid
+      it.gap = Size(LengthPercentage.Points(10f), LengthPercentage.Points(10f))
+//      it.margin = Rect(
+//        LengthPercentageAuto.Points(toPx(40f)),
+//        LengthPercentageAuto.Points(toPx(40f)),
+//        LengthPercentageAuto.Points(toPx(40f)),
+//        LengthPercentageAuto.Points(toPx(40f))
+//      )
+      it.gridTemplateColumns = "[col] 100px [col] 100px [col] 100px [col] 100px  "
+      it.gridTemplateRows = " [row] auto [row] auto [row] "
+    }
+
+    val a = Mason.shared.createView(this)
+
+    a.setBackgroundColor(bg)
+
+    a.style.gridColumn = "col / span 2"
+    a.style.gridRow = "row"
+    a.append("A")
+
+
+    val b = Mason.shared.createView(this)
+//    b.style.alignSelf = AlignSelf.Start
+//    b.style.justifySelf = JustifySelf.Start
+    b.setBackgroundColor(bg)
+    b.style.gridColumn = "col 3 / span 2"
+    b.style.gridRow = "row"
+    b.append("B")
+
+
+    val c = Mason.shared.createView(this)
+//    c.style.alignSelf = AlignSelf.Start
+//    c.style.justifySelf = JustifySelf.Start
+    c.setBackgroundColor(bg)
+    c.style.gridColumn = "col"
+    c.style.gridRow = "row 2"
+    c.append("C")
+
+
+    val d = Mason.shared.createView(this)
+//    d.style.alignSelf = AlignSelf.Start
+//    d.style.justifySelf = JustifySelf.Start
+    d.setBackgroundColor(bg)
+    d.style.gridColumn = " col 2 / span 3 "
+    d.style.gridRow = "row 2"
+    d.append("D")
+
+
+    val e = Mason.shared.createView(this)
+//    e.style.alignSelf = AlignSelf.Start
+//    e.style.justifySelf = JustifySelf.Start
+    e.setBackgroundColor(bg)
+    e.style.gridColumn = "col / span 4"
+    e.style.gridRow = "row 3 "
+    e.append("E")
+
+
+    rootLayout.append(arrayOf(a, b, c, d, e))
+  }
+
+  fun wrapper5(rootLayout: View) {
+    rootLayout.style.color = Color.WHITE
+    rootLayout.configure {
+      rootLayout.background = ColorDrawable(Color.WHITE)
+      it.display = Display.Grid
+      rootLayout.setGap(toPx(10F), toPx(10F))
+//      it.margin = Rect(
+//        LengthPercentageAuto.Points(toPx(40f)),
+//        LengthPercentageAuto.Points(toPx(40f)),
+//        LengthPercentageAuto.Points(toPx(40f)),
+//        LengthPercentageAuto.Points(toPx(40f))
+//      )
+      it.gridTemplateColumns = "100 100 100"
+    }
+
     val bg = ColorDrawable(Color.parseColor("#444444"))
 
-    val boxA = TextView(this)
-    boxA.text = "A"
-    boxA.setTextColor(Color.WHITE)
+    val boxA = mason.createView(this)
+    boxA.append("A")
 
 
-    val boxB = TextView(this)
-    boxB.text = "B"
-    boxB.setTextColor(Color.WHITE)
+    val boxB = mason.createView(this)
+    boxB.append("B")
 
-    val boxC = TextView(this)
-    boxC.text = "C"
-    boxC.setTextColor(Color.WHITE)
+    val boxC = mason.createView(this)
+    boxC.append("C")
 
-    val boxD = TextView(this)
-    boxD.text = "D"
-    boxD.setTextColor(Color.WHITE)
+    val boxD = mason.createView(this)
+    boxD.append("D")
 
-    binding.gridRoot.addView(
-      boxA
-    )
+    val boxE = mason.createView(this)
+    boxE.append("E")
 
-    binding.gridRoot.addView(
-      boxB
-    )
 
-    binding.gridRoot.addView(
-      boxC
-    )
+    val boxF = mason.createView(this)
+    boxF.append("F")
 
-    binding.gridRoot.addView(
-      boxD
-    )
 
-    boxA.apply {
-      background = bg
-      val node = binding.gridRoot.nodeForView(this)
+    rootLayout.append(arrayOf(boxA, boxB, boxC, boxD))
 
-      node.configure {
-        it.style.apply {
-          gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-        }
-      }
+    boxA.configure {
+      boxA.background = bg
+      it.padding = Rect(
+        LengthPercentage.Points(toPx(2f)),
+        LengthPercentage.Points(toPx(2f)),
+        LengthPercentage.Points(toPx(2f)),
+        LengthPercentage.Points(toPx(2f))
+      )
+      it.gridColumn = "1/3"
+      it.gridRow = "1"
+
     }
 
-    boxB.apply {
-      background = bg
-      val node = binding.gridRoot.nodeForView(this)
-      node.configure {
-        it.style.apply {
-          gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(3))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-        }
-      }
+    boxB.configure {
+      boxB.background = bg
+      it.gridColumn = "3"
+      it.gridRow = "1/3"
     }
 
-    boxC.apply {
-      background = bg
-      val node = binding.gridRoot.nodeForView(this)
-      node.configure {
-        it.style.apply {
-          gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(1))
-          gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-        }
-      }
+    boxC.configure {
+      boxC.background = bg
+      it.gridColumn = "1"
+      it.gridRow = "2"
     }
 
-    boxD.apply {
-      background = bg
-      val node = binding.gridRoot.nodeForView(this)
-      node.configure {
-        it.style.apply {
-          gridColumn = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-          gridRow = Line(GridPlacement.Line(2), GridPlacement.Line(2))
-        }
-      }
+    boxD.configure {
+      boxD.background = bg
+      it.gridColumn = "2"
+      it.gridRow = "2"
     }
 
   }
 
-  fun createParentWith2Kids(kidAText: String, kidBText: String): View {
-    val parent = View(this)
+  fun createParentWith2Kids(kidAText: String, kidBText: String, alignSelf: AlignSelf): View {
 
-    val kida = TextView(this)
+    val parent = mason.createView(this)
+    parent.style.alignSelf = alignSelf
 
-    kida.text = kidAText
+//    val a = TextView(this)
+//    a.setText(kidAText)
+//
+//    val b = TextView(this)
+//    b.setText(kidBText)
 
-    val kidb = TextView(this)
+    val a = mason.createTextView(this, TextType.P)
+    a.append(kidAText)
 
-    kidb.text = kidBText
+    val b = mason.createTextView(this, TextType.Code)
+    b.append(kidBText)
 
-    parent.addView(kida)
-
-    parent.addView(kidb)
+    parent.appendView(a)
+    parent.appendView(b)
 
     return parent
   }
 
-  fun wrapper6() {
-    /*
+  fun wrapper6(rootLayout: Scroll) {/*
     display: grid;
   background: no-repeat url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/12005/grid.png);
   grid-gap: 10px;
@@ -155,116 +980,126 @@ class GridActivity : AppCompatActivity() {
   color: #444;
      */
 
-    val wrapper6 = View(this)
+    val percentage: Byte = 1
 
-    binding.gridRoot.addView(wrapper6)
+    rootLayout.style.fontSize = 80
+    rootLayout.style.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
 
-    val boxA = createParentWith2Kids("This is box A.", "align-self: stretch")
-    val boxB = createParentWith2Kids("This is box B.", "align-self: end")
-    val boxC = createParentWith2Kids("This is box C.", "align-self: start")
-    val boxD = createParentWith2Kids("This is box D.", "align-self: center")
-    val boxE = createParentWith2Kids(
-      "Each of the boxes on the left has a grid area of 3 columns and 3 rows (we're counting the gutter col/row). So each covers the same size area as box A.",
-      "The align-self property is used to align the content inside the grid-area."
-    )
+    val wrapper6 = mason.createView(this)
+
+    val boxA = createParentWith2Kids("This is box A.", "align-self: stretch", AlignSelf.Stretch)
+    val boxB = createParentWith2Kids("This is box B.", "align-self: end", AlignSelf.End)
+    val boxC = createParentWith2Kids("This is box C.", "align-self: start", AlignSelf.Start)
+    val boxD = createParentWith2Kids("This is box D.", "align-self: center", AlignSelf.Center)
+    val boxE = mason.createView(this)
+    val boxEA = mason.createTextView(this, TextType.P)
+    boxEA.append("Each of the boxes on the left has a grid area of 3 columns and 3 rows (we're counting the gutter col/row). So each covers the same size area as box A.")
+
+    val boxEB = mason.createTextView(this, TextType.P)
+    boxEB.append("The align-self property is used to align the content inside the grid-area.")
+
+    boxE.append(boxEA)
+    boxE.append(boxEB)
+
+    wrapper6.append(boxA)
+    wrapper6.append(boxB)
+    wrapper6.append(boxC)
+    wrapper6.append(boxD)
+    wrapper6.append(boxE)
 
 
-    wrapper6.addView(boxA)
-    wrapper6.addView(boxB)
-    wrapper6.addView(boxC)
-    wrapper6.addView(boxD)
-    wrapper6.addView(boxE)
-
-
-    wrapper6.apply {
+    wrapper6.configure {
+      it.color = "#444444".toColorInt()
       //  background = ColorDrawable(Color.WHITE)
-      display = Display.Grid
-      setGap(toPx(10F), toPx(10F))
-      gridTemplateColumns = arrayOf(
-        TrackSizingFunction.AutoRepeat(
-          GridTrackRepetition.Count(6),
-          arrayOf(MinMax.Points(toPx(150F)))
-        )
+      it.display = Display.Grid
+      it.gap = Size(LengthPercentage.Points(toPx(10F)), LengthPercentage.Points(toPx(10F)))
+      it.gridTemplateColumns = "repeat(6, 150)"
+      it.gridTemplateRows = "repeat(4, 150)"
+    }
+
+    boxA.configure {
+      // 150%
+      it.fontSize = 150
+      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.background =
+        "no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png')"
+      it.border = "1px solid #444"
+      it.padding = Rect(
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f))
       )
+      it.gridColumn = "1/3"
+      it.gridRow = "1/3"
+      it.alignSelf = AlignSelf.Stretch
+    }
 
-      gridTemplateRows = arrayOf(
-        TrackSizingFunction.AutoRepeat(
-          GridTrackRepetition.Count(4),
-          arrayOf(MinMax.Points(toPx(150F)))
-        )
+    boxB.configure {
+      it.fontSize = 150
+      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.border = "1px solid #444"
+      it.padding = Rect(
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f))
       )
+      it.gridColumn = "3/5"
+      it.gridRow = "1/3"
+      it.alignSelf = AlignSelf.End
     }
 
-    val bg = ColorDrawable(Color.parseColor("#444444"))
-
-    boxA.apply {
-      background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
-      this.clipChildren = false
-      node.configure {
-        it.style.apply {
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          alignSelf = AlignSelf.Stretch
-        }
-      }
+    boxC.configure {
+      it.fontSize = 150
+      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.border = "1px solid #444"
+      it.background = """
+        left 5% / 15% 60% repeat-x
+  url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png");
+      """.trimIndent()
+      it.padding = Rect(
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f))
+      )
+      it.gridColumn = "1/3"
+      it.gridRow = "3/6"
+      it.alignSelf = AlignSelf.Start
     }
 
-    boxB.apply {
-      //background = bg
-      background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
-      node.configure {
-        it.style.apply {
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          alignSelf = AlignSelf.End
-        }
-      }
+    boxD.configure {
+      it.fontSize = 150
+      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.border = "1px solid #444"
+      it.padding = Rect(
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f))
+      )
+      it.gridColumn = "3/5"
+      it.gridRow = "3/6"
+      it.alignSelf = AlignSelf.Center
     }
 
-    boxC.apply {
-      // background = bg
-      background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
-      node.configure {
-        it.style.apply {
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(1), GridPlacement.Line(3))
-          gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
-          alignSelf = AlignSelf.Start
-        }
-      }
+    boxE.configure {
+      it.fontSize = 150
+      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+      it.border = "1px solid #444"
+      it.padding = Rect(
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f)),
+        LengthPercentage.Points(toPx(20f))
+      )
+      it.gridColumn = "5/7"
+      it.gridRow = "1/6"
+      it.alignSelf = AlignSelf.Stretch
     }
 
-    boxD.apply {
-      // background = bg
-      background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
-      node.configure {
-        it.style.apply {
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(3), GridPlacement.Line(5))
-          gridRow = Line(GridPlacement.Line(3), GridPlacement.Line(6))
-          alignSelf = AlignSelf.Center
-        }
-      }
-    }
 
-    boxE.apply {
-      //background = bg
-      background = resources.getDrawable(R.drawable.border_drawable)
-      val node = wrapper6.nodeForView(this)
-      node.configure {
-        it.style.apply {
-          flexDirection = FlexDirection.Column
-          gridColumn = Line(GridPlacement.Line(5), GridPlacement.Line(7))
-          gridRow = Line(GridPlacement.Line(1), GridPlacement.Line(6))
-          alignSelf = AlignSelf.Stretch
-        }
-      }
-    }
+    rootLayout.addView(wrapper6)
   }
 }

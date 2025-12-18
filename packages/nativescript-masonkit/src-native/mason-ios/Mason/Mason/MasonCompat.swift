@@ -9,7 +9,7 @@ import Foundation
 
 @objcMembers
 @objc(MasonDimensionCompat)
-public class MasonDimensionCompat: NSObject {
+public class MasonDimensionCompat: NSObject, Codable {
     internal let dimension: MasonDimension
     internal let dimensionType: MasonDimensionCompatType
     public init(points: Float) {
@@ -72,7 +72,7 @@ public class MasonDimensionCompat: NSObject {
 
 @objcMembers
 @objc(MasonLengthPercentageAutoCompat)
-public class MasonLengthPercentageAutoCompat: NSObject {
+public class MasonLengthPercentageAutoCompat: NSObject, Codable {
     internal let length: MasonLengthPercentageAuto
     internal let lengthType: MasonLengthPercentageAutoCompatType
     public init(points: Float) {
@@ -135,7 +135,7 @@ public class MasonLengthPercentageAutoCompat: NSObject {
 
 @objcMembers
 @objc(MasonLengthPercentageCompat)
-public class MasonLengthPercentageCompat: NSObject {
+public class MasonLengthPercentageCompat: NSObject, Codable {
     internal let length: MasonLengthPercentage
     internal let lengthType: MasonLengthPercentageCompatType
     public init(points: Float) {
@@ -155,6 +155,8 @@ public class MasonLengthPercentageCompat: NSObject {
             lengthType = .Points
         case .Percent(_):
             lengthType = .Percent
+        case .Zero:
+          lengthType = .Points
         }
     }
     
@@ -171,6 +173,8 @@ public class MasonLengthPercentageCompat: NSObject {
                 return points
             case .Percent(let percent):
                 return percent
+            case .Zero:
+                return 0
             }
         }
     }

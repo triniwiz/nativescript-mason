@@ -8,34 +8,37 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef enum CMasonDimensionType {
-  MasonDimensionAuto,
-  MasonDimensionPoints,
-  MasonDimensionPercent,
-} CMasonDimensionType;
-
-typedef enum CMasonGridPlacementType {
-  MasonGridPlacementTypeAuto,
-  MasonGridPlacementTypeLine,
-  MasonGridPlacementTypeSpan,
-} CMasonGridPlacementType;
-
-typedef enum CMasonLengthPercentageAutoType {
-  MasonLengthPercentageAutoAuto,
-  MasonLengthPercentageAutoPoints,
-  MasonLengthPercentageAutoPercent,
-} CMasonLengthPercentageAutoType;
-
-typedef enum CMasonLengthPercentageType {
-  MasonLengthPercentagePoints,
-  MasonLengthPercentagePercent,
-} CMasonLengthPercentageType;
-
 typedef struct CMason CMason;
 
 typedef struct CMasonNode CMasonNode;
 
-typedef struct CMasonStyle CMasonStyle;
+typedef struct CMasonInlineTextSegment {
+  float width;
+  float ascent;
+  float descent;
+} CMasonInlineTextSegment;
+
+typedef struct CMasonInlineChildSegment {
+  const struct CMasonNode *node;
+  float descent;
+} CMasonInlineChildSegment;
+
+typedef enum CMasonSegment_Tag {
+  Text,
+  InlineChild,
+} CMasonSegment_Tag;
+
+typedef struct CMasonSegment {
+  CMasonSegment_Tag tag;
+  union {
+    struct {
+      struct CMasonInlineTextSegment text;
+    };
+    struct {
+      struct CMasonInlineChildSegment inline_child;
+    };
+  };
+} CMasonSegment;
 
 typedef struct NodeArray {
   void **array;
@@ -57,6 +60,11 @@ typedef struct AvailableSpace {
   };
 } AvailableSpace;
 
+typedef struct CMasonBuffer {
+  uint8_t *data;
+  uintptr_t size;
+} CMasonBuffer;
+
 typedef struct CMasonMinMax {
   int32_t min_type;
   float min_value;
@@ -64,69 +72,22 @@ typedef struct CMasonMinMax {
   float max_value;
 } CMasonMinMax;
 
-typedef struct CMasonNonRepeatedTrackSizingFunctionArray {
-  struct CMasonMinMax *array;
-  uintptr_t length;
-} CMasonNonRepeatedTrackSizingFunctionArray;
-
-typedef enum CMasonTrackSizingFunction_Tag {
-  Single,
-  Repeat,
-} CMasonTrackSizingFunction_Tag;
-
-typedef struct Repeat_Body {
-  int32_t _0;
-  uint16_t _1;
-  struct CMasonNonRepeatedTrackSizingFunctionArray *_2;
-} Repeat_Body;
-
-typedef struct CMasonTrackSizingFunction {
-  CMasonTrackSizingFunction_Tag tag;
-  union {
-    struct {
-      struct CMasonMinMax single;
-    };
-    Repeat_Body repeat;
-  };
-} CMasonTrackSizingFunction;
-
-typedef struct CMasonTrackSizingFunctionArray {
-  struct CMasonTrackSizingFunction *array;
-  uintptr_t length;
-} CMasonTrackSizingFunctionArray;
-
-typedef struct CMasonLengthPercentageAuto {
-  float value;
-  enum CMasonLengthPercentageAutoType value_type;
-} CMasonLengthPercentageAuto;
-
-typedef struct CMasonLengthPercentage {
-  float value;
-  enum CMasonLengthPercentageType value_type;
-} CMasonLengthPercentage;
-
-typedef struct CMasonDimension {
-  float value;
-  enum CMasonDimensionType value_type;
-} CMasonDimension;
-
-typedef struct CMasonLengthPercentageSize {
-  struct CMasonLengthPercentage width;
-  struct CMasonLengthPercentage height;
-} CMasonLengthPercentageSize;
-
-typedef struct CMasonGridPlacement {
-  int16_t value;
-  enum CMasonGridPlacementType value_type;
-} CMasonGridPlacement;
-
 struct CMason *mason_init(void);
 
-struct CMason *mason_init_with_capacity(uintptr_t capacity);
-
-void mason_destroy(struct CMason *mason);
-
 void mason_clear(struct CMason *mason);
+
+void mason_release(struct CMason *mason);
+
+void mason_print_tree(struct CMason *mason, struct CMasonNode *node);
+
+void mason_set_device_scale(struct CMason *mason, float scale);
+
+void mason_node_set_segments(struct CMason *mason,
+                             struct CMasonNode *node,
+                             struct CMasonSegment *segments,
+                             uintptr_t segments_len);
+
+void mason_node_clear_segments(struct CMason *mason, struct CMasonNode *node);
 
 bool mason_node_is_equal(struct CMasonNode *node_a, struct CMasonNode *node_b);
 
@@ -134,11 +95,12 @@ void mason_node_array_destroy(struct NodeArray *array);
 
 void mason_node_destroy(struct CMasonNode *node);
 
-struct CMasonNode *mason_node_new_node(struct CMason *mason, struct CMasonStyle *style);
+struct CMasonNode *mason_node_new_image_node(struct CMason *mason);
+
+struct CMasonNode *mason_node_new_node(struct CMason *mason, bool anonymous);
 
 #if !defined(TARGET_OS_ANDROID)
 struct CMasonNode *mason_node_new_node_with_context(struct CMason *mason,
-                                                    struct CMasonStyle *style,
                                                     void *measure_data,
                                                     long long (*measure)(const void*,
                                                                          float,
@@ -148,9 +110,24 @@ struct CMasonNode *mason_node_new_node_with_context(struct CMason *mason,
 #endif
 
 struct CMasonNode *mason_node_new_node_with_children(struct CMason *mason,
-                                                     struct CMasonStyle *style,
-                                                     struct CMasonNode *const *children,
+                                                     struct CMasonNode **children,
                                                      uintptr_t children_size);
+
+struct CMasonNode *mason_node_new_text_node(struct CMason *mason, bool anonymous);
+
+#if !defined(TARGET_OS_ANDROID)
+struct CMasonNode *mason_node_new_text_node_with_context(struct CMason *mason,
+                                                         void *measure_data,
+                                                         long long (*measure)(const void*,
+                                                                              float,
+                                                                              float,
+                                                                              float,
+                                                                              float));
+#endif
+
+struct CMasonNode *mason_node_new_text_node_with_children(struct CMason *mason,
+                                                          struct CMasonNode **children,
+                                                          uintptr_t children_size);
 
 void *mason_node_layout(struct CMason *mason,
                         struct CMasonNode *node,
@@ -172,283 +149,6 @@ void mason_node_compute_min_content(struct CMason *mason, struct CMasonNode *nod
 
 void mason_node_compute(struct CMason *mason, struct CMasonNode *node);
 
-void mason_node_set_style(struct CMason *mason, struct CMasonNode *node, struct CMasonStyle *style);
-
-void mason_node_update_and_set_style(struct CMason *mason,
-                                     struct CMasonNode *node,
-                                     struct CMasonStyle *style);
-
-void mason_node_update_and_set_style_with_values(struct CMason *mason,
-                                                 struct CMasonNode *node,
-                                                 struct CMasonStyle *style,
-                                                 int display,
-                                                 int position,
-                                                 int direction,
-                                                 int flex_direction,
-                                                 int flex_wrap,
-                                                 int overflow,
-                                                 int align_items,
-                                                 int align_self,
-                                                 int align_content,
-                                                 int justify_items,
-                                                 int justify_self,
-                                                 int justify_content,
-                                                 int inset_left_type,
-                                                 float inset_left_value,
-                                                 int inset_right_type,
-                                                 float inset_right_value,
-                                                 int inset_top_type,
-                                                 float inset_top_value,
-                                                 int inset_bottom_type,
-                                                 float inset_bottom_value,
-                                                 int margin_left_type,
-                                                 float margin_left_value,
-                                                 int margin_right_type,
-                                                 float margin_right_value,
-                                                 int margin_top_type,
-                                                 float margin_top_value,
-                                                 int margin_bottom_type,
-                                                 float margin_bottom_value,
-                                                 int padding_left_type,
-                                                 float padding_left_value,
-                                                 int padding_right_type,
-                                                 float padding_right_value,
-                                                 int padding_top_type,
-                                                 float padding_top_value,
-                                                 int padding_bottom_type,
-                                                 float padding_bottom_value,
-                                                 int border_left_type,
-                                                 float border_left_value,
-                                                 int border_right_type,
-                                                 float border_right_value,
-                                                 int border_top_type,
-                                                 float border_top_value,
-                                                 int border_bottom_type,
-                                                 float border_bottom_value,
-                                                 float flex_grow,
-                                                 float flex_shrink,
-                                                 int flex_basis_type,
-                                                 float flex_basis_value,
-                                                 int width_type,
-                                                 float width_value,
-                                                 int height_type,
-                                                 float height_value,
-                                                 int min_width_type,
-                                                 float min_width_value,
-                                                 int min_height_type,
-                                                 float min_height_value,
-                                                 int max_width_type,
-                                                 float max_width_value,
-                                                 int max_height_type,
-                                                 float max_height_value,
-                                                 int gap_row_type,
-                                                 float gap_row_value,
-                                                 int gap_column_type,
-                                                 float gap_column_value,
-                                                 float aspect_ratio,
-                                                 struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_rows,
-                                                 struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_columns,
-                                                 int grid_auto_flow,
-                                                 int grid_column_start_type,
-                                                 short grid_column_start_value,
-                                                 int grid_column_end_type,
-                                                 short grid_column_end_value,
-                                                 int grid_row_start_type,
-                                                 short grid_row_start_value,
-                                                 int grid_row_end_type,
-                                                 short grid_row_end_value,
-                                                 struct CMasonTrackSizingFunctionArray *grid_template_rows,
-                                                 struct CMasonTrackSizingFunctionArray *grid_template_columns,
-                                                 int32_t overflow_x,
-                                                 int32_t overflow_y,
-                                                 float scrollbar_width);
-
-void *mason_node_update_style_with_values_compute_and_layout(struct CMason *mason,
-                                                             struct CMasonNode *node,
-                                                             struct CMasonStyle *style,
-                                                             int display,
-                                                             int position_type,
-                                                             int direction,
-                                                             int flex_direction,
-                                                             int flex_wrap,
-                                                             int overflow,
-                                                             int align_items,
-                                                             int align_self,
-                                                             int align_content,
-                                                             int justify_items,
-                                                             int justify_self,
-                                                             int justify_content,
-                                                             int inset_left_type,
-                                                             float inset_left_value,
-                                                             int inset_right_type,
-                                                             float inset_right_value,
-                                                             int inset_top_type,
-                                                             float inset_top_value,
-                                                             int inset_bottom_type,
-                                                             float inset_bottom_value,
-                                                             int margin_left_type,
-                                                             float margin_left_value,
-                                                             int margin_right_type,
-                                                             float margin_right_value,
-                                                             int margin_top_type,
-                                                             float margin_top_value,
-                                                             int margin_bottom_type,
-                                                             float margin_bottom_value,
-                                                             int padding_left_type,
-                                                             float padding_left_value,
-                                                             int padding_right_type,
-                                                             float padding_right_value,
-                                                             int padding_top_type,
-                                                             float padding_top_value,
-                                                             int padding_bottom_type,
-                                                             float padding_bottom_value,
-                                                             int border_left_type,
-                                                             float border_left_value,
-                                                             int border_right_type,
-                                                             float border_right_value,
-                                                             int border_top_type,
-                                                             float border_top_value,
-                                                             int border_bottom_type,
-                                                             float border_bottom_value,
-                                                             float flex_grow,
-                                                             float flex_shrink,
-                                                             int flex_basis_type,
-                                                             float flex_basis_value,
-                                                             int width_type,
-                                                             float width_value,
-                                                             int height_type,
-                                                             float height_value,
-                                                             int min_width_type,
-                                                             float min_width_value,
-                                                             int min_height_type,
-                                                             float min_height_value,
-                                                             int max_width_type,
-                                                             float max_width_value,
-                                                             int max_height_type,
-                                                             float max_height_value,
-                                                             int32_t gap_row_type,
-                                                             float gap_row_value,
-                                                             int32_t gap_column_type,
-                                                             float gap_column_value,
-                                                             float aspect_ratio,
-                                                             struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_rows,
-                                                             struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_columns,
-                                                             int32_t grid_auto_flow,
-                                                             int32_t grid_column_start_type,
-                                                             int16_t grid_column_start_value,
-                                                             int32_t grid_column_end_type,
-                                                             int16_t grid_column_end_value,
-                                                             int32_t grid_row_start_type,
-                                                             int16_t grid_row_start_value,
-                                                             int32_t grid_row_end_type,
-                                                             int16_t grid_row_end_value,
-                                                             struct CMasonTrackSizingFunctionArray *grid_template_rows,
-                                                             struct CMasonTrackSizingFunctionArray *grid_template_columns,
-                                                             int32_t overflow_x,
-                                                             int32_t overflow_y,
-                                                             float scrollbar_width,
-                                                             void *(*layout)(const float*));
-
-void *mason_node_update_style_with_values_size_compute_and_layout(struct CMason *mason,
-                                                                  struct CMasonNode *node,
-                                                                  struct CMasonStyle *style,
-                                                                  float width,
-                                                                  float height,
-                                                                  int display,
-                                                                  int position,
-                                                                  int direction,
-                                                                  int flex_direction,
-                                                                  int flex_wrap,
-                                                                  int overflow,
-                                                                  int align_items,
-                                                                  int align_self,
-                                                                  int align_content,
-                                                                  int justify_items,
-                                                                  int justify_self,
-                                                                  int justify_content,
-                                                                  int inset_left_type,
-                                                                  float inset_left_value,
-                                                                  int inset_right_type,
-                                                                  float inset_right_value,
-                                                                  int inset_top_type,
-                                                                  float inset_top_value,
-                                                                  int inset_bottom_type,
-                                                                  float inset_bottom_value,
-                                                                  int margin_left_type,
-                                                                  float margin_left_value,
-                                                                  int margin_right_type,
-                                                                  float margin_right_value,
-                                                                  int margin_top_type,
-                                                                  float margin_top_value,
-                                                                  int margin_bottom_type,
-                                                                  float margin_bottom_value,
-                                                                  int padding_left_type,
-                                                                  float padding_left_value,
-                                                                  int padding_right_type,
-                                                                  float padding_right_value,
-                                                                  int padding_top_type,
-                                                                  float padding_top_value,
-                                                                  int padding_bottom_type,
-                                                                  float padding_bottom_value,
-                                                                  int border_left_type,
-                                                                  float border_left_value,
-                                                                  int border_right_type,
-                                                                  float border_right_value,
-                                                                  int border_top_type,
-                                                                  float border_top_value,
-                                                                  int border_bottom_type,
-                                                                  float border_bottom_value,
-                                                                  float flex_grow,
-                                                                  float flex_shrink,
-                                                                  int flex_basis_type,
-                                                                  float flex_basis_value,
-                                                                  int width_type,
-                                                                  float width_value,
-                                                                  int height_type,
-                                                                  float height_value,
-                                                                  int min_width_type,
-                                                                  float min_width_value,
-                                                                  int min_height_type,
-                                                                  float min_height_value,
-                                                                  int max_width_type,
-                                                                  float max_width_value,
-                                                                  int max_height_type,
-                                                                  float max_height_value,
-                                                                  int32_t gap_row_type,
-                                                                  float gap_row_value,
-                                                                  int32_t gap_column_type,
-                                                                  float gap_column_value,
-                                                                  float aspect_ratio,
-                                                                  struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_rows,
-                                                                  struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_columns,
-                                                                  int32_t grid_auto_flow,
-                                                                  int32_t grid_column_start_type,
-                                                                  int16_t grid_column_start_value,
-                                                                  int32_t grid_column_end_type,
-                                                                  int16_t grid_column_end_value,
-                                                                  int32_t grid_row_start_type,
-                                                                  int16_t grid_row_start_value,
-                                                                  int32_t grid_row_end_type,
-                                                                  int16_t grid_row_end_value,
-                                                                  struct CMasonTrackSizingFunctionArray *grid_template_rows,
-                                                                  struct CMasonTrackSizingFunctionArray *grid_template_columns,
-                                                                  int32_t overflow_x,
-                                                                  int32_t overflow_y,
-                                                                  float scrollbar_width,
-                                                                  void *(*layout)(const float*));
-
-void *mason_node_update_set_style_compute_and_layout(struct CMason *mason,
-                                                     struct CMasonNode *node,
-                                                     struct CMasonStyle *style,
-                                                     void *(*layout)(const float*));
-
-void *mason_node_update_set_style_compute_with_size_and_layout(struct CMason *mason,
-                                                               struct CMasonNode *node,
-                                                               struct CMasonStyle *style,
-                                                               float width,
-                                                               float height,
-                                                               void *(*layout)(const float*));
-
 struct CMasonNode *mason_node_get_child_at(struct CMason *mason,
                                            struct CMasonNode *node,
                                            uintptr_t index);
@@ -463,16 +163,23 @@ void mason_node_add_children(struct CMason *mason,
                              struct CMasonNode *const *children,
                              uintptr_t children_size);
 
+void mason_node_prepend_children(struct CMason *mason,
+                                 struct CMasonNode *node,
+                                 struct CMasonNode *const *children,
+                                 uintptr_t children_size);
+
+void mason_node_prepend(struct CMason *mason, struct CMasonNode *node, struct CMasonNode *child);
+
 void mason_node_add_child(struct CMason *mason, struct CMasonNode *node, struct CMasonNode *child);
 
 struct CMasonNode *mason_node_replace_child_at(struct CMason *mason,
                                                struct CMasonNode *node,
-                                               void *child,
+                                               struct CMasonNode *child,
                                                uintptr_t index);
 
 void mason_node_add_child_at(struct CMason *mason,
                              struct CMasonNode *node,
-                             void *child,
+                             struct CMasonNode *child,
                              uintptr_t index);
 
 void mason_node_insert_child_before(struct CMason *mason,
@@ -513,514 +220,148 @@ void mason_node_set_context(struct CMason *mason,
                             long long (*measure)(const void*, float, float, float, float));
 #endif
 
+#if !defined(TARGET_OS_ANDROID)
 void mason_node_remove_context(struct CMason *mason, struct CMasonNode *node);
+#endif
+
+#if !defined(TARGET_OS_ANDROID)
+void mason_node_set_apple_node(struct CMason *mason, struct CMasonNode *node, void *apple_node);
+#endif
+
+void mason_style_update_non_buffer_data(struct CMason *mason,
+                                        struct CMasonNode *node,
+                                        const char *grid_auto_rows,
+                                        const char *grid_auto_columns,
+                                        const char *grid_column,
+                                        const char *grid_column_start,
+                                        const char *grid_column_end,
+                                        const char *grid_row,
+                                        const char *grid_row_start,
+                                        const char *grid_row_end,
+                                        const char *grid_template_rows,
+                                        const char *grid_template_columns,
+                                        const char *grid_area,
+                                        const char *grid_template_areas);
+
+void mason_style_set_with_values(struct CMason *mason,
+                                 struct CMasonNode *node,
+                                 int display,
+                                 int position,
+                                 int direction,
+                                 int flex_direction,
+                                 int flex_wrap,
+                                 int overflow,
+                                 int align_items,
+                                 int align_self,
+                                 int align_content,
+                                 int justify_items,
+                                 int justify_self,
+                                 int justify_content,
+                                 int inset_left_type,
+                                 float inset_left_value,
+                                 int inset_right_type,
+                                 float inset_right_value,
+                                 int inset_top_type,
+                                 float inset_top_value,
+                                 int inset_bottom_type,
+                                 float inset_bottom_value,
+                                 int margin_left_type,
+                                 float margin_left_value,
+                                 int margin_right_type,
+                                 float margin_right_value,
+                                 int margin_top_type,
+                                 float margin_top_value,
+                                 int margin_bottom_type,
+                                 float margin_bottom_value,
+                                 int padding_left_type,
+                                 float padding_left_value,
+                                 int padding_right_type,
+                                 float padding_right_value,
+                                 int padding_top_type,
+                                 float padding_top_value,
+                                 int padding_bottom_type,
+                                 float padding_bottom_value,
+                                 int border_left_type,
+                                 float border_left_value,
+                                 int border_right_type,
+                                 float border_right_value,
+                                 int border_top_type,
+                                 float border_top_value,
+                                 int border_bottom_type,
+                                 float border_bottom_value,
+                                 float flex_grow,
+                                 float flex_shrink,
+                                 int flex_basis_type,
+                                 float flex_basis_value,
+                                 int width_type,
+                                 float width_value,
+                                 int height_type,
+                                 float height_value,
+                                 int min_width_type,
+                                 float min_width_value,
+                                 int min_height_type,
+                                 float min_height_value,
+                                 int max_width_type,
+                                 float max_width_value,
+                                 int max_height_type,
+                                 float max_height_value,
+                                 int gap_row_type,
+                                 float gap_row_value,
+                                 int gap_column_type,
+                                 float gap_column_value,
+                                 float aspect_ratio,
+                                 const char *grid_auto_rows,
+                                 const char *grid_auto_columns,
+                                 int grid_auto_flow,
+                                 const char *grid_column,
+                                 const char *grid_column_start,
+                                 const char *grid_column_end,
+                                 const char *grid_row,
+                                 const char *grid_row_start,
+                                 const char *grid_row_end,
+                                 const char *grid_template_rows,
+                                 const char *grid_template_columns,
+                                 int32_t overflow_x,
+                                 int32_t overflow_y,
+                                 float scrollbar_width,
+                                 int32_t text_align,
+                                 int32_t box_sizing,
+                                 const char *grid_area,
+                                 const char *grid_template_areas);
 
-void mason_destroy_non_repeated_track_sizing_function_array(struct CMasonNonRepeatedTrackSizingFunctionArray *array);
+void mason_style_release_style_buffer(struct CMasonBuffer *buffer);
 
-void mason_destroy_track_sizing_function_array(struct CMasonTrackSizingFunctionArray *array);
+struct CMasonBuffer *mason_style_get_style_buffer(struct CMason *mason, struct CMasonNode *node);
 
-struct CMasonStyle *mason_style_init(void);
+void *mason_style_get_style_buffer_apple(struct CMason *mason, struct CMasonNode *node);
 
-void mason_style_destroy(struct CMasonStyle *style);
+char *mason_style_get_grid_area_css(struct CMason *mason, struct CMasonNode *node);
 
-int mason_style_get_display(struct CMasonStyle *style);
+char *mason_style_get_grid_template_areas_css(struct CMason *mason, struct CMasonNode *node);
 
-void mason_style_set_display(struct CMasonStyle *style, int display);
+char *mason_style_get_grid_auto_rows_css(struct CMason *mason, struct CMasonNode *node);
 
-void mason_style_set_position(struct CMasonStyle *style, int position);
+char *mason_style_get_grid_auto_columns_css(struct CMason *mason, struct CMasonNode *node);
 
-int mason_style_get_position(struct CMasonStyle *style);
+char *mason_style_get_grid_column_css(struct CMason *mason, struct CMasonNode *node);
 
-void mason_style_set_direction(struct CMasonStyle *_style, int _direction);
+char *mason_style_get_grid_column_start_css(struct CMason *mason, struct CMasonNode *node);
 
-int mason_style_get_direction(struct CMasonStyle *_style);
+char *mason_style_get_grid_column_end_css(struct CMason *mason, struct CMasonNode *node);
 
-void mason_style_set_flex_direction(struct CMasonStyle *style, int direction);
+char *mason_style_get_grid_row_css(struct CMason *mason, struct CMasonNode *node);
 
-int mason_style_get_flex_direction(struct CMasonStyle *style);
+char *mason_style_get_grid_row_start_css(struct CMason *mason, struct CMasonNode *node);
 
-void mason_style_set_flex_wrap(struct CMasonStyle *style, int wrap);
+char *mason_style_get_grid_row_end_css(struct CMason *mason, struct CMasonNode *node);
 
-int mason_style_get_flex_wrap(struct CMasonStyle *style);
+char *mason_style_get_grid_template_rows_css(struct CMason *mason, struct CMasonNode *node);
 
-void mason_style_set_align_items(struct CMasonStyle *style, int align);
+char *mason_style_get_grid_template_columns_css(struct CMason *mason, struct CMasonNode *node);
 
-int mason_style_get_align_items(struct CMasonStyle *style);
-
-void mason_style_set_align_self(struct CMasonStyle *style, int align);
-
-int mason_style_get_align_self(struct CMasonStyle *style);
-
-void mason_style_set_align_content(struct CMasonStyle *style, int align);
-
-int mason_style_get_align_content(struct CMasonStyle *style);
-
-void mason_style_set_justify_items(struct CMasonStyle *style, int align);
-
-int mason_style_get_justify_items(struct CMasonStyle *style);
-
-void mason_style_set_justify_self(struct CMasonStyle *style, int align);
-
-int mason_style_get_justify_self(struct CMasonStyle *style);
-
-void mason_style_set_justify_content(struct CMasonStyle *style, int justify);
-
-int mason_style_get_justify_content(struct CMasonStyle *style);
-
-void mason_style_set_inset(struct CMasonStyle *style,
-                           float value,
-                           enum CMasonLengthPercentageAutoType value_type);
-
-void mason_style_set_inset_lrtb(struct CMasonStyle *style,
-                                float left_value,
-                                enum CMasonLengthPercentageAutoType left_value_type,
-                                float right_value,
-                                enum CMasonLengthPercentageAutoType right_value_type,
-                                float top_value,
-                                enum CMasonLengthPercentageAutoType top_value_type,
-                                float bottom_value,
-                                enum CMasonLengthPercentageAutoType bottom_value_type);
-
-void mason_style_set_inset_left(struct CMasonStyle *style,
-                                float value,
-                                enum CMasonLengthPercentageAutoType value_type);
-
-struct CMasonLengthPercentageAuto mason_style_get_inset_left(struct CMasonStyle *style);
-
-void mason_style_set_inset_right(struct CMasonStyle *style,
-                                 float value,
-                                 enum CMasonLengthPercentageAutoType value_type);
-
-struct CMasonLengthPercentageAuto mason_style_get_inset_right(struct CMasonStyle *style);
-
-void mason_style_set_inset_top(struct CMasonStyle *style,
-                               float value,
-                               enum CMasonLengthPercentageAutoType value_type);
-
-struct CMasonLengthPercentageAuto mason_style_get_inset_top(struct CMasonStyle *style);
-
-void mason_style_set_inset_bottom(struct CMasonStyle *style,
-                                  float value,
-                                  enum CMasonLengthPercentageAutoType value_type);
-
-struct CMasonLengthPercentageAuto mason_style_get_inset_bottom(struct CMasonStyle *style);
-
-void mason_style_set_margin(struct CMasonStyle *style,
-                            float left_value,
-                            enum CMasonLengthPercentageAutoType left_value_type,
-                            float right_value,
-                            enum CMasonLengthPercentageAutoType right_value_type,
-                            float top_value,
-                            enum CMasonLengthPercentageAutoType top_value_type,
-                            float bottom_value,
-                            enum CMasonLengthPercentageAutoType bottom_value_type);
-
-void mason_style_set_margin_left(struct CMasonStyle *style,
-                                 float value,
-                                 enum CMasonLengthPercentageAutoType value_type);
-
-struct CMasonLengthPercentageAuto mason_style_get_margin_left(struct CMasonStyle *style);
-
-void mason_style_set_margin_right(struct CMasonStyle *style,
-                                  float value,
-                                  enum CMasonLengthPercentageAutoType value_type);
-
-struct CMasonLengthPercentageAuto mason_style_get_margin_right(struct CMasonStyle *style);
-
-void mason_style_set_margin_top(struct CMasonStyle *style,
-                                float value,
-                                enum CMasonLengthPercentageAutoType value_type);
-
-struct CMasonLengthPercentageAuto mason_style_get_margin_top(struct CMasonStyle *style);
-
-void mason_style_set_margin_bottom(struct CMasonStyle *style,
-                                   float value,
-                                   enum CMasonLengthPercentageAutoType value_type);
-
-struct CMasonLengthPercentageAuto mason_style_get_margin_bottom(struct CMasonStyle *style);
-
-void mason_style_set_padding(struct CMasonStyle *style,
-                             float left_value,
-                             enum CMasonLengthPercentageType left_value_type,
-                             float right_value,
-                             enum CMasonLengthPercentageType right_value_type,
-                             float top_value,
-                             enum CMasonLengthPercentageType top_value_type,
-                             float bottom_value,
-                             enum CMasonLengthPercentageType bottom_value_type);
-
-void mason_style_set_padding_left(struct CMasonStyle *style,
-                                  float value,
-                                  enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_padding_left(struct CMasonStyle *style);
-
-void mason_style_set_padding_right(struct CMasonStyle *style,
-                                   float value,
-                                   enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_padding_right(struct CMasonStyle *style);
-
-void mason_style_set_padding_top(struct CMasonStyle *style,
-                                 float value,
-                                 enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_padding_top(struct CMasonStyle *style);
-
-void mason_style_set_padding_bottom(struct CMasonStyle *style,
-                                    float value,
-                                    enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_padding_bottom(struct CMasonStyle *style);
-
-void mason_style_set_border(struct CMasonStyle *style,
-                            float left_value,
-                            enum CMasonLengthPercentageType left_value_type,
-                            float right_value,
-                            enum CMasonLengthPercentageType right_value_type,
-                            float top_value,
-                            enum CMasonLengthPercentageType top_value_type,
-                            float bottom_value,
-                            enum CMasonLengthPercentageType bottom_value_type);
-
-void mason_style_set_border_left(struct CMasonStyle *style,
-                                 float value,
-                                 enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_border_left(struct CMasonStyle *style);
-
-void mason_style_set_border_right(struct CMasonStyle *style,
-                                  float value,
-                                  enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_border_right(struct CMasonStyle *style);
-
-void mason_style_set_border_top(struct CMasonStyle *style,
-                                float value,
-                                enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_border_top(struct CMasonStyle *style);
-
-void mason_style_set_border_bottom(struct CMasonStyle *style,
-                                   float value,
-                                   enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_border_bottom(struct CMasonStyle *style);
-
-void mason_style_set_flex_grow(struct CMasonStyle *style, float grow);
-
-float mason_style_get_flex_grow(struct CMasonStyle *style);
-
-void mason_style_set_flex_shrink(struct CMasonStyle *style, float shrink);
-
-float mason_style_get_flex_shrink(struct CMasonStyle *style);
-
-void mason_style_set_flex_basis(struct CMasonStyle *style,
-                                float value,
-                                enum CMasonDimensionType value_type);
-
-struct CMasonDimension mason_style_get_flex_basis(struct CMasonStyle *style);
-
-void mason_style_set_width(struct CMasonStyle *style,
-                           float value,
-                           enum CMasonDimensionType value_type);
-
-struct CMasonDimension mason_style_get_width(struct CMasonStyle *style);
-
-void mason_style_set_height(struct CMasonStyle *style,
-                            float value,
-                            enum CMasonDimensionType value_type);
-
-struct CMasonDimension mason_style_get_height(struct CMasonStyle *style);
-
-void mason_style_set_min_width(struct CMasonStyle *style,
-                               float value,
-                               enum CMasonDimensionType value_type);
-
-struct CMasonDimension mason_style_get_min_width(struct CMasonStyle *style);
-
-void mason_style_set_min_height(struct CMasonStyle *style,
-                                float value,
-                                enum CMasonDimensionType value_type);
-
-struct CMasonDimension mason_style_get_min_height(struct CMasonStyle *style);
-
-void mason_style_set_max_width(struct CMasonStyle *style,
-                               float value,
-                               enum CMasonDimensionType value_type);
-
-struct CMasonDimension mason_style_get_max_width(struct CMasonStyle *style);
-
-void mason_style_set_max_height(struct CMasonStyle *style,
-                                float value,
-                                enum CMasonDimensionType value_type);
-
-struct CMasonDimension mason_style_get_max_height(struct CMasonStyle *style);
-
-struct CMasonLengthPercentageSize mason_style_get_gap(struct CMasonStyle *style);
-
-void mason_style_set_gap(struct CMasonStyle *style,
-                         float width_value,
-                         enum CMasonLengthPercentageType width_type,
-                         float height_value,
-                         enum CMasonLengthPercentageType height_type);
-
-void mason_style_set_row_gap(struct CMasonStyle *style,
-                             float value,
-                             enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_row_gap(struct CMasonStyle *style);
-
-void mason_style_set_column_gap(struct CMasonStyle *style,
-                                float value,
-                                enum CMasonLengthPercentageType value_type);
-
-struct CMasonLengthPercentage mason_style_get_column_gap(struct CMasonStyle *style);
-
-void mason_style_set_aspect_ratio(struct CMasonStyle *style, float ratio);
-
-float mason_style_get_aspect_ratio(struct CMasonStyle *style);
-
-struct CMasonNonRepeatedTrackSizingFunctionArray *mason_style_get_grid_auto_rows(struct CMasonStyle *style);
-
-void mason_style_set_grid_auto_rows(struct CMasonStyle *style,
-                                    struct CMasonNonRepeatedTrackSizingFunctionArray *value);
-
-struct CMasonNonRepeatedTrackSizingFunctionArray *mason_style_get_grid_auto_columns(struct CMasonStyle *style);
-
-void mason_style_set_grid_auto_columns(struct CMasonStyle *style,
-                                       struct CMasonNonRepeatedTrackSizingFunctionArray *value);
-
-int32_t mason_style_get_grid_auto_flow(struct CMasonStyle *style);
-
-void mason_style_set_grid_auto_flow(struct CMasonStyle *style, int32_t value);
-
-void mason_style_set_grid_area(struct CMasonStyle *style,
-                               struct CMasonGridPlacement row_start,
-                               struct CMasonGridPlacement row_end,
-                               struct CMasonGridPlacement column_start,
-                               struct CMasonGridPlacement column_end);
-
-struct CMasonGridPlacement mason_style_get_grid_column_start(struct CMasonStyle *style);
-
-void mason_style_set_grid_column(struct CMasonStyle *style,
-                                 struct CMasonGridPlacement start,
-                                 struct CMasonGridPlacement end);
-
-void mason_style_set_grid_column_start(struct CMasonStyle *style, struct CMasonGridPlacement value);
-
-struct CMasonGridPlacement mason_style_get_grid_column_end(struct CMasonStyle *style);
-
-void mason_style_set_grid_column_end(struct CMasonStyle *style, struct CMasonGridPlacement value);
-
-struct CMasonGridPlacement mason_style_get_grid_row_start(struct CMasonStyle *style);
-
-void mason_style_set_grid_row(struct CMasonStyle *style,
-                              struct CMasonGridPlacement start,
-                              struct CMasonGridPlacement end);
-
-void mason_style_set_grid_row_start(struct CMasonStyle *style, struct CMasonGridPlacement value);
-
-struct CMasonGridPlacement mason_style_get_grid_row_end(struct CMasonStyle *style);
-
-void mason_style_set_grid_row_end(struct CMasonStyle *style, struct CMasonGridPlacement value);
-
-struct CMasonTrackSizingFunctionArray *mason_style_get_grid_template_rows(struct CMasonStyle *style);
-
-void mason_style_set_grid_template_rows(struct CMasonStyle *style,
-                                        struct CMasonTrackSizingFunctionArray *value);
-
-struct CMasonTrackSizingFunctionArray *mason_style_get_grid_template_columns(struct CMasonStyle *style);
-
-void mason_style_set_grid_template_columns(struct CMasonStyle *style,
-                                           struct CMasonTrackSizingFunctionArray *value);
-
-void mason_style_set_scrollbar_width(struct CMasonStyle *style, float value);
-
-float mason_style_get_scrollbar_width(struct CMasonStyle *style);
-
-void mason_style_set_overflow(struct CMasonStyle *style, int32_t value);
-
-void mason_style_set_overflow_x(struct CMasonStyle *style, int32_t value);
-
-int32_t mason_style_get_overflow_x(struct CMasonStyle *style);
-
-void mason_style_set_overflow_y(struct CMasonStyle *style, int32_t value);
-
-int32_t mason_style_get_overflow_y(struct CMasonStyle *style);
-
-struct CMasonStyle *mason_style_init_with_values(int display,
-                                                 int position_type,
-                                                 int direction,
-                                                 int flex_direction,
-                                                 int flex_wrap,
-                                                 int overflow,
-                                                 int align_items,
-                                                 int align_self,
-                                                 int align_content,
-                                                 int justify_items,
-                                                 int justify_self,
-                                                 int justify_content,
-                                                 int inset_left_type,
-                                                 float inset_left_value,
-                                                 int inset_right_type,
-                                                 float inset_right_value,
-                                                 int inset_top_type,
-                                                 float inset_top_value,
-                                                 int inset_bottom_type,
-                                                 float inset_bottom_value,
-                                                 int margin_left_type,
-                                                 float margin_left_value,
-                                                 int margin_right_type,
-                                                 float margin_right_value,
-                                                 int margin_top_type,
-                                                 float margin_top_value,
-                                                 int margin_bottom_type,
-                                                 float margin_bottom_value,
-                                                 int padding_left_type,
-                                                 float padding_left_value,
-                                                 int padding_right_type,
-                                                 float padding_right_value,
-                                                 int padding_top_type,
-                                                 float padding_top_value,
-                                                 int padding_bottom_type,
-                                                 float padding_bottom_value,
-                                                 int border_left_type,
-                                                 float border_left_value,
-                                                 int border_right_type,
-                                                 float border_right_value,
-                                                 int border_top_type,
-                                                 float border_top_value,
-                                                 int border_bottom_type,
-                                                 float border_bottom_value,
-                                                 float flex_grow,
-                                                 float flex_shrink,
-                                                 int flex_basis_type,
-                                                 float flex_basis_value,
-                                                 int width_type,
-                                                 float width_value,
-                                                 int height_type,
-                                                 float height_value,
-                                                 int min_width_type,
-                                                 float min_width_value,
-                                                 int min_height_type,
-                                                 float min_height_value,
-                                                 int max_width_type,
-                                                 float max_width_value,
-                                                 int max_height_type,
-                                                 float max_height_value,
-                                                 int32_t gap_row_type,
-                                                 float gap_row_value,
-                                                 int32_t gap_column_type,
-                                                 float gap_column_value,
-                                                 float aspect_ratio,
-                                                 struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_rows,
-                                                 struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_columns,
-                                                 int32_t grid_auto_flow,
-                                                 int32_t grid_column_start_type,
-                                                 int16_t grid_column_start_value,
-                                                 int32_t grid_column_end_type,
-                                                 int16_t grid_column_end_value,
-                                                 int32_t grid_row_start_type,
-                                                 int16_t grid_row_start_value,
-                                                 int32_t grid_row_end_type,
-                                                 int16_t grid_row_end_value,
-                                                 const struct CMasonTrackSizingFunctionArray *grid_template_rows,
-                                                 const struct CMasonTrackSizingFunctionArray *grid_template_columns,
-                                                 int32_t overflow_x,
-                                                 int32_t overflow_y,
-                                                 float scrollbar_width);
-
-void mason_style_update_with_values(struct CMasonStyle *style,
-                                    int display,
-                                    int position_type,
-                                    int direction,
-                                    int flex_direction,
-                                    int flex_wrap,
-                                    int overflow,
-                                    int align_items,
-                                    int align_self,
-                                    int align_content,
-                                    int justify_items,
-                                    int justify_self,
-                                    int justify_content,
-                                    int inset_left_type,
-                                    float inset_left_value,
-                                    int inset_right_type,
-                                    float inset_right_value,
-                                    int inset_top_type,
-                                    float inset_top_value,
-                                    int inset_bottom_type,
-                                    float inset_bottom_value,
-                                    int margin_left_type,
-                                    float margin_left_value,
-                                    int margin_right_type,
-                                    float margin_right_value,
-                                    int margin_top_type,
-                                    float margin_top_value,
-                                    int margin_bottom_type,
-                                    float margin_bottom_value,
-                                    int padding_left_type,
-                                    float padding_left_value,
-                                    int padding_right_type,
-                                    float padding_right_value,
-                                    int padding_top_type,
-                                    float padding_top_value,
-                                    int padding_bottom_type,
-                                    float padding_bottom_value,
-                                    int border_left_type,
-                                    float border_left_value,
-                                    int border_right_type,
-                                    float border_right_value,
-                                    int border_top_type,
-                                    float border_top_value,
-                                    int border_bottom_type,
-                                    float border_bottom_value,
-                                    float flex_grow,
-                                    float flex_shrink,
-                                    int flex_basis_type,
-                                    float flex_basis_value,
-                                    int width_type,
-                                    float width_value,
-                                    int height_type,
-                                    float height_value,
-                                    int min_width_type,
-                                    float min_width_value,
-                                    int min_height_type,
-                                    float min_height_value,
-                                    int max_width_type,
-                                    float max_width_value,
-                                    int max_height_type,
-                                    float max_height_value,
-                                    int32_t gap_row_type,
-                                    float gap_row_value,
-                                    int32_t gap_column_type,
-                                    float gap_column_value,
-                                    float aspect_ratio,
-                                    struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_rows,
-                                    struct CMasonNonRepeatedTrackSizingFunctionArray *grid_auto_columns,
-                                    int32_t grid_auto_flow,
-                                    int32_t grid_column_start_type,
-                                    int16_t grid_column_start_value,
-                                    int32_t grid_column_end_type,
-                                    int16_t grid_column_end_value,
-                                    int32_t grid_row_start_type,
-                                    int16_t grid_row_start_value,
-                                    int32_t grid_row_end_type,
-                                    int16_t grid_row_end_value,
-                                    struct CMasonTrackSizingFunctionArray *grid_template_rows,
-                                    struct CMasonTrackSizingFunctionArray *grid_template_columns,
-                                    int32_t overflow_x,
-                                    int32_t overflow_y,
-                                    float scrollbar_width);
-
-struct CMasonMinMax mason_util_create_non_repeated_track_sizing_function_with_type_value(int32_t track_type,
-                                                                                         float track_value);
-
-char *mason_util_parse_non_repeated_track_sizing_function(struct CMasonNonRepeatedTrackSizingFunctionArray *value);
-
-char *mason_util_parse_auto_repeating_track_sizing_function(struct CMasonTrackSizingFunctionArray *value);
+struct CMasonMinMax mason_util_create_track_sizing_function_with_type_value(int32_t track_type,
+                                                                            float track_value);
 
 void mason_util_destroy_string(char *string);
 
-#endif /* MASON_C_H */
+#endif  /* MASON_C_H */

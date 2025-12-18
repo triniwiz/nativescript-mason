@@ -2,8 +2,8 @@ package org.nativescript.mason.masonkit
 
 sealed class AvailableSpace {
   data class Definite(val points: Float) : AvailableSpace()
-  object MinContent : AvailableSpace()
-  object MaxContent : AvailableSpace()
+  data object MinContent : AvailableSpace()
+  data object MaxContent : AvailableSpace()
 
   companion object {
     @JvmStatic
@@ -27,7 +27,7 @@ sealed class AvailableSpace {
   internal val value: Float
     get() = when (this) {
       is Definite -> this.points
-      is MinContent -> 0f
-      is MaxContent -> 0f
+      is MinContent -> -1f
+      is MaxContent -> -2f
     }
 }

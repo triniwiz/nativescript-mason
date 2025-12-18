@@ -5,10 +5,10 @@
   android:id="@+id/rootView"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
-  mason:mason_flexDirection="column"
+  android:orientation="vertical"
   mason:mason_alignItems="center"
-  tools:context=".MainActivity"
-  android:orientation="vertical">
+  mason:mason_flexDirection="column"
+  tools:context=".MainActivity">
 
   <Button
     android:id="@+id/btnAnimation"
@@ -26,31 +26,43 @@
     android:id="@+id/btnFlex"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Open Flex"
-    />
+    android:text="Open Flex" />
 
   <Button
     android:id="@+id/btnGrid"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Open Grid"/>
+    android:text="Open Grid" />
 
   <Button
     android:id="@+id/btnList"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Open List"/>
+    android:text="Open List" />
 
   <Button
     android:id="@+id/btnScroll"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Open Scroll"/>
+    android:text="Open Scroll" />
 
   <Button
     android:id="@+id/btnImage"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Open Image"/>
+    android:text="Open Image" />
+
+
+  <Button
+    android:id="@+id/btnText"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Open Text" />
+
+  <Button
+    android:id="@+id/btnFloat"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Open Float" />
 
 </LinearLayout>

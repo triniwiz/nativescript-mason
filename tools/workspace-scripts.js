@@ -18,26 +18,26 @@ module.exports = {
     // demos
     apps: {
       '...Vanilla...': {
-        script: `npx cowsay "Nothing wrong with vanilla 🍦"`,
-        description: ` 🔻 Vanilla`,
+        script: 'npx cowsay "Nothing wrong with vanilla 🍦"',
+        description: ' 🔻 Vanilla',
       },
       demo: {
         clean: {
-          script: 'nx run demo:clean',
+          script: 'nx clean demo',
           description: '⚆  Clean  🧹',
         },
         ios: {
-          script: 'nx run demo:ios',
+          script: 'nx debug demo ios',
           description: '⚆  Run iOS  ',
         },
         android: {
-          script: 'nx run demo:android',
+          script: 'nx debug demo android',
           description: '⚆  Run Android  🤖',
         },
       },
       '...Angular...': {
-        script: `npx cowsay "Test all the Angles!"`,
-        description: ` 🔻 Angular`,
+        script: 'npx cowsay "Test all the Angles!"',
+        description: ' 🔻 Angular',
       },
       'demo-angular': {
         clean: {
@@ -53,7 +53,27 @@ module.exports = {
           description: '⚆  Run Android  🤖',
         },
       },
+
+      '...Vue...': {
+        script: 'npx cowsay "You like the vue here..."',
+        description: ' 🔻 Vue',
+      },
+      'demo-vue': {
+        clean: {
+          script: 'nx clean demo-vue',
+          description: '⚆  Clean  🧹',
+        },
+        ios: {
+          script: 'nx debug demo-vue ios',
+          description: '⚆  Run iOS  ',
+        },
+        android: {
+          script: 'nx debug demo-vue android',
+          description: '⚆  Run Android  🤖',
+        },
+      },
     },
+
     '⚙️': {
       script: `npx cowsay "@triniwiz/* packages will keep your ⚙️ cranking"`,
       description: '_____________  @triniwiz/*  _____________',
@@ -83,7 +103,7 @@ module.exports = {
         description: 'Focus on @triniwiz/nativescript-masonkit',
       },
       reset: {
-        script: 'nx g @triniwiz/plugin-tools:focus-packages',
+        script: 'nx g @nativescript/plugin-tools:focus-packages',
         description: 'Reset Focus',
       },
     },

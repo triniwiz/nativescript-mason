@@ -12,7 +12,8 @@
         "production": true,
         "uglify": true,
         "release": true,
-        "forDevice": true
+        "forDevice": true,
+        "tsConfig": "apps/demo-angular/tsconfig.json"
       },
       "dependsOn": [
         {
@@ -20,63 +21,25 @@
           "projects": "dependencies"
         }
       ]
-    },
-    "ios": {
-      "executor": "@nativescript/nx:build",
-      "options": {
-        "platform": "ios"
-      },
-      "dependsOn": [
-        {
-          "target": "build.all",
-          "projects": "dependencies"
-        }
-      ]
-    },
-    "android": {
-      "executor": "@nativescript/nx:build",
-      "options": {
-        "platform": "android"
-      },
-      "dependsOn": [
-        {
-          "target": "build.all",
-          "projects": "dependencies"
-        }
-      ],
-      "configurations": {
-        "detox": {
-          "executor": "@nativescript/nx:build",
-          "options": {
-            "platform": "android",
-            "detox": true
-          },
-          "dependsOn": [
-            {
-              "target": "build.all",
-              "projects": "dependencies"
-            }
-          ]
-        }
-      }
-    },
-    "e2e": {
-      "executor": "@nrwl/workspace:run-commands",
-      "options": {
-        "commands": ["maestro test ./e2e/"],
-        "cwd": "apps/demo-angular"
-      }
     },
     "clean": {
-      "executor": "@nativescript/nx:build",
-      "options": {
-        "clean": true
-      }
+      "executor": "@nativescript/nx:clean",
+      "options": {}
     },
     "lint": {
-      "executor": "@nrwl/linter:eslint",
+      "executor": "@nx/eslint:lint",
       "options": {
         "lintFilePatterns": ["apps/demo-angular/**/*.ts"]
+      }
+    },
+    "debug": {
+      "executor": "@nativescript/nx:debug",
+      "options": {
+        "noHmr": true,
+        "uglify": false,
+        "release": false,
+        "forDevice": false,
+        "prepare": false
       }
     }
   }

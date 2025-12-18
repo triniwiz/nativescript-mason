@@ -7,6 +7,8 @@ val LengthPercentageZeroSize =
 val LengthPercentageAutoZeroSize =
   Size<LengthPercentageAuto>(LengthPercentageAuto.Zero, LengthPercentageAuto.Zero)
 
+val zeroRect = Rect(0F, 0F, 0F, 0F)
+
 val zeroSize = Size(0F, 0F)
 
 val nanSize = Size(Float.NaN, Float.NaN)
@@ -14,7 +16,7 @@ val nanSize = Size(Float.NaN, Float.NaN)
 val autoSize: Size<Dimension> = Size(Dimension.Auto, Dimension.Auto)
 
 
-fun logArgs(vararg args: Any){
+fun logArgs(vararg args: Any) {
   val builder = StringBuilder()
   args.forEach {
     builder.append("$it\n")

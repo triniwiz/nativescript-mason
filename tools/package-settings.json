@@ -12,5 +12,6 @@
     "url": "https://github.com/triniwiz/nativescript-mason/issues"
   },
   "license": "Apache-2.0",
-  "homepage": "https://github.com/triniwiz/nativescript-mason"
+  "homepage": "https://github.com/triniwiz/nativescript-mason",
+  "name": "@triniwiz"
 }

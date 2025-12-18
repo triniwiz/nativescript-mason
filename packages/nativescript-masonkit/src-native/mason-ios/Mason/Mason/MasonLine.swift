@@ -27,7 +27,7 @@ public struct Line<T>{
         switch(startType){
         case 0: start = .Auto
         case 1: start = .Line(startValue)
-        case 2:  start = .Span(startValue)
+        case 2: start = .Span(startValue)
         default:
             break
         }
@@ -87,7 +87,7 @@ public class LineGridPlacementCompat: NSObject{
         switch(endType){
         case 0: end = .Auto
         case 1: end = .Line(startValue)
-        case 2:  end = .Span(startValue)
+        case 2: end = .Span(startValue)
         default:
             break
         }

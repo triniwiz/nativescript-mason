@@ -1,5 +1,11 @@
-import { runNativeScriptAngularApp, platformNativeScript } from '@nativescript/angular';
+import { runNativeScriptAngularApp, platformNativeScript, registerElement } from '@nativescript/angular';
 import { AppModule } from './app.module';
+import { View, Text, Scroll, Img } from '@triniwiz/nativescript-masonkit';
+
+registerElement('View', () => View);
+registerElement('Text', () => Text);
+registerElement('Scroll', () => Scroll);
+registerElement('Img', () => Img);
 
 const handler = java.lang.Thread.getDefaultUncaughtExceptionHandler();
 java.lang.Thread.setDefaultUncaughtExceptionHandler(
@@ -10,7 +16,7 @@ java.lang.Thread.setDefaultUncaughtExceptionHandler(
         handler.uncaughtException(t, e);
       }
     },
-  }),
+  })
 );
 
 runNativeScriptAngularApp({

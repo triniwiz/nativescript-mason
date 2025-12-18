@@ -1,0 +1,21 @@
+{
+  "images": [
+    {
+      "filename": "NativeScript_Logo_White_Blue_Rounded.png",
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "idiom": "universal",
+      "scale": "3x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

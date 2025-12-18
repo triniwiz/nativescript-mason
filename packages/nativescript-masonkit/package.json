@@ -1,13 +1,13 @@
 {
   "name": "@triniwiz/nativescript-masonkit",
-  "version": "1.0.0-alpha.7",
+  "version": "1.0.0-beta.0",
   "description": "Web Inspired Layout",
   "main": "index",
   "typings": "index.d.ts",
   "nativescript": {
     "platforms": {
-      "ios": "6.0.0",
-      "android": "6.0.0"
+      "ios": "8.0.0",
+      "android": "8.0.0"
     }
   },
   "repository": {
@@ -31,5 +31,8 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/triniwiz/nativescript-mason",
   "readmeFilename": "README.md",
-  "bootstrapper": "@nativescript/plugin-seed"
+  "bootstrapper": "@nativescript/plugin-seed",
+  "optionalDependencies": {
+    "nativescript-vue": "^3.0.0"
+  }
 }

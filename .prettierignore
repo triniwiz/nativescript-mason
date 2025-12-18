@@ -5,3 +5,6 @@
 native-src
 tools/scripts/**/*
 packages/nativescript-masonkit/typings/*
+
+/.nx/cache
+/.nx/workspace-data

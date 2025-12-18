@@ -6,7 +6,8 @@
     "paths": {
       "~/*": ["src/*"],
       "@demo/shared": ["../../tools/demo/index.ts"],
-      "@triniwiz/nativescript-masonkit": ["../../packages/nativescript-masonkit/index.d.ts"]
+      "@triniwiz/nativescript-masonkit": ["../../packages/nativescript-masonkit/index.d.ts"],
+      "@triniwiz/*": ["../../packages/*"]
     }
   }
 }

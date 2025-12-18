@@ -1,304 +1,113 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
-import androidx.annotation.Keep
-import androidx.core.view.marginLeft
-import androidx.core.view.updateLayoutParams
+import androidx.core.content.withStyledAttributes
+import androidx.core.util.size
 import com.google.gson.Gson
-import java.lang.ref.WeakReference
+import org.nativescript.mason.masonkit.enums.AlignContent
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.BoxSizing
+import org.nativescript.mason.masonkit.enums.Direction
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.GridAutoFlow
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.JustifyItems
+import org.nativescript.mason.masonkit.enums.JustifySelf
+import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
 import kotlin.math.roundToInt
 
-interface MeasureFunc {
-  fun measure(knownDimensions: Size<Float?>, availableSpace: Size<Float?>): Size<Float>
-}
-
-internal class MeasureFuncImpl(
-  private val measureFunc: WeakReference<MeasureFunc>
-) {
-  @Keep
-  fun measure(knownDimensionsSpec: Long, availableSpaceSpec: Long): Long {
-    val knownWidth = MeasureOutput.getWidth(knownDimensionsSpec)
-    val knownHeight = MeasureOutput.getHeight(knownDimensionsSpec)
-
-    val availableWidth = MeasureOutput.getWidth(availableSpaceSpec)
-    val availableHeight = MeasureOutput.getHeight(availableSpaceSpec)
-
-    val result = measureFunc.get()?.measure(
-      Size(
-        if (knownWidth.isNaN()) null else knownWidth,
-        if (knownHeight.isNaN()) null else knownHeight
-      ), Size(
-        if (availableWidth.isNaN()) null else availableWidth,
-        if (availableHeight.isNaN()) null else availableHeight
-      )
-    )
-
-    return MeasureOutput.make(result?.width ?: Float.NaN, result?.height ?: Float.NaN)
-  }
-}
-
 class View @JvmOverloads constructor(
-  context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : ViewGroup(context, attrs, defStyleAttr) {
+  context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
+) : ViewGroup(context, attrs, defStyleAttr), Element,
+  StyleChangeListener {
 
-  var node = Node()
-    private set
+  override lateinit var node: Node
+
+  // private set
+  override val style: Style
+    get() = node.style
+
+  override val view: android.view.View
+    get() = this
 
   private val nodes = mutableMapOf<android.view.View, Node>()
 
+  constructor(context: Context, mason: Mason) : this(context) {
+    node = mason.createNode().apply {
+      view = this@View
+    }
+    node.style.setStyleChangeListener(this)
+  }
+
   init {
-    node.data = this
+    if (!override) {
+      if (!::node.isInitialized) {
+        node = Mason.shared.createNode().apply {
+          view = this@View
+        }
 
-//    val layoutParams = if (attrs != null) {
-//      LayoutParams(context, attrs)
-//    } else {
-//      generateDefaultLayoutParams()
-//    }
-//
-//    applyLayoutParams(layoutParams as LayoutParams, node, this)
+        node.style.setStyleChangeListener(this)
+      }
+    }
+    // css visible default
+    clipChildren = false
+    clipToPadding = false
   }
 
-
-  val masonPtr: Long
-    get() {
-      return Mason.instance.getNativePtr()
-    }
-
-  val masonNodePtr: Long
-    get() {
-      return node.getNativePtr()
-    }
-
-  val masonStylePtr: Long
-    get() {
-      return style.getNativePtr()
-    }
-
-
-  val masonPtrs: String
-    get() {
-      return Mason.instance.getNativePtr()
-        .toString() + ":" + masonNodePtr.toString() + ":" + masonStylePtr.toString();
-    }
-
-  var style: Style
-    get() {
-      return node.style
-    }
-    set(value) {
-      node.style = value
-    }
-
-  fun markNodeDirty() {
-    node.dirty()
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
+    style.mBorderRenderer.invalidate()
+    super.onSizeChanged(w, h, oldw, oldh)
   }
 
-  fun isNodeDirty(): Boolean {
-    return node.isDirty()
+  override fun dispatchDraw(canvas: Canvas) {
+    ViewUtils.dispatchDraw(this, canvas, style) {
+      super.dispatchDraw(it)
+    }
   }
+
+  internal var isScrollRoot = false
 
   fun updateNodeAndStyle() {
-    node.updateNodeStyle()
+    node.style.updateNativeStyle()
   }
 
-  fun setStyleFromString(style: String) {
-    try {
-      val parsedStyle = gson.fromJson(style, Style::class.java)
-      this.style = parsedStyle
-    } catch (_: Exception) {
-    }
+  override fun onTextStyleChanged(change: Int) {
+    Node.invalidateDescendantTextViews(node, change)
   }
+
+//  fun setStyleFromString(style: String) {
+//    try {
+//      val parsedStyle = gson.fromJson(style, Style::class.java)
+//      this.style = parsedStyle
+//    } catch (_: Exception) {
+//    }
+//  }
 
   fun getStyleAsString(): String? {
-    return gson.toJson(style)
+    try {
+      return gson.toJson(style)
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+    return null
   }
 
-  fun nodeForView(view: android.view.View): Node {
-    val that = this
-    return nodes[view] ?: run {
-      val node = Node(view !is View).apply {
-        data = view
-        owner = that.node
-      }
-      nodes[view] = node
-      node
-    }
-  }
-
-  private fun applyLayoutRecursive(node: Node, xOffset: Float, yOffset: Float) {
-
-    val view = node.data as? android.view.View
-
-    if (view != null && view !== this) {
-      if (view.visibility == GONE) {
-        return
-      }
-
-      var layout = node.layout()
-      val size = node.style.getNativeSize();
-
-      var widthIsNaN = layout.width.isNaN()
-      var heightIsNaN = layout.height.isNaN()
-
-      var measuredWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
-      var measuredHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
-
-      val widthIsZero = size.width.isZero
-
-      val heightIsZero = size.height.isZero
-
-      var hasPercentDimensions = false
-
-      if (measuredWidth == 0 && !widthIsZero) {
-        when (size.width) {
-          is Dimension.Auto -> {
-            widthIsNaN = true
-          }
-
-          is Dimension.Percent -> {
-            hasPercentDimensions = true
-          }
-
-          else -> {}
-        }
-      }
-
-      if (measuredHeight == 0 && !heightIsZero) {
-        when (size.height) {
-          is Dimension.Auto -> {
-            heightIsNaN = true
-          }
-
-          is Dimension.Percent -> {
-            hasPercentDimensions = true
-          }
-
-          else -> {}
-        }
-      }
-
-      if (hasPercentDimensions) {
-        node.owner?.dirty()
-        node.dirty()
-        node.rootComputeWithViewSize()
-
-        layout = node.layout()
-
-        widthIsNaN = layout.width.isNaN()
-        heightIsNaN = layout.height.isNaN()
-      }
-
-      measuredWidth = if (widthIsNaN) 0 else layout.width.roundToInt()
-      measuredHeight = if (heightIsNaN) 0 else layout.height.roundToInt()
-
-      if (view !is View) {
-        if (widthIsZero) {
-          measuredWidth = 0
-          widthIsNaN = false
-        }
-
-        if (heightIsZero) {
-          measuredHeight = 0
-          heightIsNaN = false
-        }
-
-
-        view.measure(
-          MeasureSpec.makeMeasureSpec(
-            measuredWidth,
-            MeasureSpec.EXACTLY
-          ), MeasureSpec.makeMeasureSpec(
-            measuredHeight,
-            MeasureSpec.EXACTLY
-          )
-        )
-        measuredWidth = view.measuredWidth
-        measuredHeight = view.measuredHeight
-      }
-
-      val left = (xOffset + if (layout.x.isNaN()) 0F else layout.x).roundToInt()
-      val top = (yOffset + if (layout.y.isNaN()) 0F else layout.y).roundToInt()
-
-      val right =
-        left + measuredWidth
-      val bottom =
-        top + measuredHeight
-
-      view.layout(left, top, right, bottom)
-    }
-
-    val childrenCount = node.getChildCount()
-
-    for (i in 0 until childrenCount) {
-      if (view == this) {
-        node.getChildAt(i)?.let {
-          applyLayoutRecursive(it, xOffset, yOffset)
-        }
-      } else if (view is View) {
-        continue
-      } else {
-        node.getChildAt(i)?.let {
-          val layout = it.layout()
-          applyLayoutRecursive(
-            it, xOffset + layout.x, yOffset + layout.y
-          )
-        }
-      }
-    }
-  }
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    if (parent !is View) {
-      createLayout(
-        MeasureSpec.makeMeasureSpec(r - l, MeasureSpec.EXACTLY),
-        MeasureSpec.makeMeasureSpec(b - t, MeasureSpec.EXACTLY)
-      )
-    }
-
-    applyLayoutRecursive(node, 0F, 0F)
-
-  }
-
-  private fun setSizeFromMeasureSpec(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-    if (node.style.size.width == Dimension.Auto && node.style.size.height == Dimension.Auto) {
-      val widthSize = MeasureSpec.getSize(widthMeasureSpec)
-      val heightSize = MeasureSpec.getSize(heightMeasureSpec)
-
-      var width: Dimension = Dimension.Points(widthSize.toFloat())
-      var height: Dimension = Dimension.Points(heightSize.toFloat())
-
-      val paramsWidth = layoutParams.width
-      val paramsHeight = layoutParams.height
-
-      if (widthSize == 0 && paramsWidth == ViewGroup.LayoutParams.WRAP_CONTENT) {
-        width = Dimension.Auto
-      }
-
-      if (heightSize == 0 && paramsHeight == ViewGroup.LayoutParams.WRAP_CONTENT) {
-        height = Dimension.Auto
-      }
-
-      if (widthSize == 0 && paramsWidth == ViewGroup.LayoutParams.MATCH_PARENT) {
-        width = Dimension.Auto
-      }
-
-      if (heightSize == 0 && paramsHeight == ViewGroup.LayoutParams.MATCH_PARENT) {
-        height = Dimension.Auto
-      }
-
-      node.style.size = Size(width, height)
-
-    }
-  }
-
-  private fun createLayout(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-    setSizeFromMeasureSpec(widthMeasureSpec, heightMeasureSpec)
+    // todo cache layout
+    val layout = layout()
+    applyLayoutRecursive(node, layout)
   }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -308,240 +117,229 @@ class View @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-    if (parent !is View) {
-      createLayout(
-        specWidth,
-        specHeight
-      )
+    compute(
+      mapMeasureSpec(specWidthMode, specWidth).value,
+      mapMeasureSpec(specHeightMode, specHeight).value
+    )
+
+    // todo cache layout
+    val layout = layout()
+
+
+    var width = layout.width.toInt()
+    var height = layout.height.toInt()
+
+    var boxing = BoxSizing.BorderBox
+
+    if (style.isValueInitialized) {
+      boxing = style.boxSizing
     }
 
-    val layout = if (parent !is View) {
-      val masonHeight = node.style.size.height
-      val masonWidth = node.style.size.width
-
-      if (masonWidth is Dimension.Auto && masonHeight is Dimension.Auto) {
-        node.computeMaxContent()
+    if (style.overflowX == Overflow.Visible) {
+      width = if (boxing == BoxSizing.BorderBox) {
+        (layout.x + layout.contentSize.width
+          + layout.border.right + layout.border.left
+          + layout.padding.right + layout.padding.left).toInt()
       } else {
-
-        // MeasureSpec.EXACTLY View will be of the given size
-        // MeasureSpec.AT_MOST View can't be larger than the given size
-        // MeasureSpec.UNSPECIFIED View can be of any size
-
-        var width = specWidth.toFloat();
-
-        if (specWidthMode != MeasureSpec.EXACTLY) {
-          width = when (masonWidth) {
-            is Dimension.Percent -> {
-              masonWidth.value * (parent as android.view.View).measuredWidth
-            }
-
-            is Dimension.Auto -> {
-              -2.0f
-            }
-
-            is Dimension.Points -> {
-              masonWidth.value
-            }
-          }
-
-          if (specWidthMode == MeasureSpec.AT_MOST && width > specWidth.toFloat()) {
-            width = specWidth.toFloat();
-          }
-        }
-
-        var height = specHeight.toFloat();
-
-        if (specHeightMode != MeasureSpec.EXACTLY) {
-          height = when (masonHeight) {
-            is Dimension.Percent -> {
-              masonHeight.value * (parent as android.view.View).measuredHeight
-            }
-
-            is Dimension.Auto -> {
-              -2.0f
-            }
-
-            is Dimension.Points -> {
-              masonHeight.value
-            }
-          }
-
-          if (specHeightMode == MeasureSpec.AT_MOST && height > specHeight.toFloat()) {
-            height = specHeight.toFloat();
-          }
-        }
-        node.compute(width, height)
-      }
-      node.layout()
-    } else {
-      node.layout()
-    }
-
-    val resolvedWidth =
-      android.view.View.resolveSizeAndState(layout.width.roundToInt(), widthMeasureSpec, 0)
-    val resolvedHeight =
-      android.view.View.resolveSizeAndState(layout.height.roundToInt(), heightMeasureSpec, 0)
-
-    if (parent !is View) {
-      this.layoutParams.width = layout.width.roundToInt();
-      this.layoutParams.height = layout.height.roundToInt();
-
-      val margin = node.style.getNativeMargins()
-      val parentWidth = (this.parent as ViewGroup).measuredWidth;
-      val parentHeight = (this.parent as ViewGroup).measuredHeight;
-
-      this.updateLayoutParams<MarginLayoutParams> {
-        this.topMargin = margin.top.let {
-          var ret = it.value
-          if (it.type == 2) {
-            ret = it.value * parentHeight.toFloat();
-          }
-          ret.toInt()
-        }
-
-        this.leftMargin = margin.left.let {
-          var ret = it.value
-          if (it.type == 2) {
-            ret = it.value * parentWidth.toFloat();
-          }
-          ret.toInt()
-        }
-
-        this.rightMargin = margin.right.let {
-          var ret = it.value
-          if (it.type == 2) {
-            ret = it.value * parentWidth.toFloat();
-          }
-          ret.toInt()
-        }
-
-        this.bottomMargin = margin.bottom.let {
-          var ret = it.value
-          if (it.type == 2) {
-            ret = it.value.toInt() * parentHeight.toFloat();
-          }
-          ret.toInt()
-        }
+        layout.contentSize.height.toInt()
       }
     }
+
+    if (style.overflowY == Overflow.Visible) {
+      height = if (boxing == BoxSizing.BorderBox) {
+        (layout.y + layout.contentSize.height
+          + layout.border.top + layout.border.bottom
+          + layout.padding.top + layout.padding.bottom).toInt()
+      } else {
+        layout.contentSize.height.toInt()
+      }
+    }
+
 
     setMeasuredDimension(
-      resolvedWidth,
-      resolvedHeight,
+      width,
+      height,
     )
   }
 
-  override fun addView(child: android.view.View, index: Int, params: ViewGroup.LayoutParams) {
-    super.addView(child, index, params)
+  // Public addView methods delegate to Node
+  override fun addView(child: android.view.View?) {
+    child ?: return
 
-    if (nodes.containsKey(child)) {
+    // Get or create a node for any view
+    val childNode = if (child is Element) {
+      (child as Element).node
+    } else {
+      node.mason.nodeForView(child)
+    }
+
+
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super<ViewGroup>.addView(child)
       return
     }
 
-    val childNode = if (child is View) {
-      child.node
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child)
+      return
+    }
+
+    node.appendChild(childNode)
+  }
+
+  override fun addView(child: android.view.View?, index: Int) {
+    child ?: return
+
+    val childNode = if (child is Element) {
+      (child as Element).node
     } else {
-      if (nodes.containsKey(child)) {
-        nodes[child]!!
-      } else {
-        Node(true);
-      }
-    }.apply {
-      data = child
+      node.mason.nodeForView(child)
     }
 
-    nodes[child] = childNode
 
-    if (index == -1) {
-      node.addChild(childNode)
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super<ViewGroup>.addView(child, index)
+      return
+    }
+
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child, index)
+      return
+    }
+
+    node.addChildAt(childNode, index)
+  }
+
+  override fun addView(child: android.view.View?, params: ViewGroup.LayoutParams?) {
+    child ?: return
+
+    val childNode = if (child is Element) {
+      (child as Element).node
     } else {
-      node.addChildAt(childNode, index)
+      node.mason.nodeForView(child)
     }
-  }
 
-  fun addViews(children: Array<android.view.View>) {
-    addViews(children, -1)
-  }
-
-  fun addViews(children: Array<android.view.View>, index: Int) {
-    children.forEachIndexed { childIndex, child ->
-      if (index < 0) {
-        addView(child)
-      } else {
-        addView(child, index + childIndex, child.layoutParams)
-      }
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super<ViewGroup>.addView(child, params)
+      return
     }
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child, params)
+      return
+    }
+
+    node.appendChild(childNode)
   }
 
-  fun addView(child: android.view.View, node: Node) {
-    nodes[child] = node
-    addView(child)
+  override fun addView(child: android.view.View?, index: Int, params: ViewGroup.LayoutParams?) {
+    child ?: return
+
+    val childNode = if (child is Element) {
+      (child as Element).node
+    } else {
+      node.mason.nodeForView(child)
+    }
+
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super<ViewGroup>.addView(child, index, params)
+      return
+    }
+
+
+    if (childNode.parent == node) {
+      super<ViewGroup>.addView(child, index, params)
+      return
+    }
+
+    node.addChildAt(childNode, index)
   }
 
-  override fun removeView(view: android.view.View) {
-    removeViewFromMasonTree(view, false)
-    super.removeView(view)
+  override fun removeView(view: android.view.View?) {
+    view ?: return
+
+    val childNode = if (view is Element) {
+      (view as Element).node
+    } else {
+      node.mason.nodeForView(view)
+    }
+
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super.removeView(view)
+      return
+    }
+
+    if (childNode.parent == node) {
+      super.removeView(view)
+      return
+    }
+
+    node.removeChild(childNode)
   }
 
   override fun removeViewAt(index: Int) {
-    removeViewFromMasonTree(getChildAt(index), false)
-    super.removeViewAt(index)
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super.removeViewAt(index)
+      return
+    }
+    node.removeChildAt(index)
+  }
+
+  override fun removeAllViews() {
+    // If suppression is active we are in a platform-driven addView (from Node) — avoid mutating nodes.
+    if (node.suppressChildOps > 0) {
+      super.removeAllViews()
+      return
+    }
+    node.removeChildren()
   }
 
   override fun removeViewInLayout(view: android.view.View) {
-    removeViewFromMasonTree(view, true)
+    if (node.suppressChildOps > 0) {
+      removeViewFromMasonTree(view, true)
+    }
     super.removeViewInLayout(view)
   }
 
   override fun removeViews(start: Int, count: Int) {
-    for (i in start until start + count) {
-      removeViewFromMasonTree(getChildAt(i), false)
+    if (node.suppressChildOps > 0) {
+      for (i in start until start + count) {
+        removeViewFromMasonTree(getChildAt(i), false)
+      }
     }
     super.removeViews(start, count)
   }
 
   override fun removeViewsInLayout(start: Int, count: Int) {
-    for (i in start until start + count) {
-      removeViewFromMasonTree(getChildAt(i), true)
+    if (node.suppressChildOps > 0) {
+      for (i in start until start + count) {
+        removeViewFromMasonTree(getChildAt(i), true)
+      }
     }
     super.removeViewsInLayout(start, count)
   }
 
-  override fun removeAllViews() {
-    val childCount = nodes.count()
-    for (i in 0 until childCount) {
-      removeViewFromMasonTree(getChildAt(i), false)
-    }
-    super.removeAllViews()
-  }
-
-  fun invalidate(view: android.view.View?) {
-    if (nodes.containsKey(view)) {
-      nodes[view]?.dirty()
-      return
-    }
-    val childCount = nodes.count()
-    for (i in 0 until childCount) {
-      node.getChildAt(i)?.let {
-        if (it.data is View) {
-          (it.data as View).invalidate()
-        }
-      }
-    }
-    invalidate()
-  }
-
   override fun removeAllViewsInLayout() {
-    val childCount = nodes.count()
-    for (i in 0 until childCount) {
-      removeViewFromMasonTree(getChildAt(i), true)
+    if (node.suppressChildOps > 0) {
+      val childCount = nodes.count()
+      for (i in 0 until childCount) {
+        removeViewFromMasonTree(getChildAt(i), true)
+      }
     }
     super.removeAllViewsInLayout()
   }
 
   private fun removeViewFromMasonTree(view: android.view.View, inLayout: Boolean) {
     nodes[view]?.let { node ->
-      val owner = node.owner as Node
+      val owner = node.parent as Node
       val count = owner.getChildCount()
       for (i in 0 until count) {
         owner.getChildAt(i)?.let {
@@ -551,10 +349,10 @@ class View @JvmOverloads constructor(
           }
         }
       }
-      node.data = null
+      node.view = null
       nodes.remove(view)
       if (inLayout) {
-        node.computeMaxContent()
+        computeMaxContent()
       }
     }
   }
@@ -608,7 +406,7 @@ class View @JvmOverloads constructor(
     var insetTop: LengthPercentageAuto = LengthPercentageAuto.Auto
     var insetBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
 
-    for (i in 0 until layoutParameters.numericAttributes.size()) {
+    for (i in 0 until layoutParameters.numericAttributes.size) {
       val attribute: Int = layoutParameters.numericAttributes.keyAt(i)
       val value: Float = layoutParameters.numericAttributes.valueAt(i)
 
@@ -747,7 +545,8 @@ class View @JvmOverloads constructor(
         }
 
         R.styleable.mason_mason_overflow -> {
-          node.style.overflow = Overflow.fromInt(value.roundToInt())
+          val overflow = Overflow.fromInt(value.roundToInt())
+          node.style.overflow = Point(overflow, overflow)
         }
 
         R.styleable.mason_mason_paddingLeft -> {
@@ -832,7 +631,7 @@ class View @JvmOverloads constructor(
       }
     }
 
-    for (i in 0 until layoutParameters.stringAttributes.size()) {
+    for (i in 0 until layoutParameters.stringAttributes.size) {
       val attribute: Int = layoutParameters.stringAttributes.keyAt(i)
       val value: String = layoutParameters.stringAttributes.valueAt(i)
 
@@ -1147,7 +946,7 @@ class View @JvmOverloads constructor(
       }
     }
 
-    node.style.border = Rect(borderLeft, borderRight, borderTop, borderBottom)
+    node.style.borderWidth = Rect(borderLeft, borderRight, borderTop, borderBottom)
 
     node.style.margin = Rect(marginLeft, marginRight, marginTop, marginBottom)
 
@@ -1164,22 +963,9 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-
-  fun configure(block: (Node) -> Unit) {
-    node.configure(block)
-  }
-
-  var inBatch: Boolean
-    get() {
-      return node.inBatch
-    }
-    set(value) {
-      node.inBatch = value
-    }
-
   private fun checkAndUpdateStyle() {
-    if (!node.inBatch) {
-      node.updateNodeStyle()
+    if (!node.style.inBatch) {
+      node.style.updateNativeStyle()
     }
   }
 
@@ -1228,7 +1014,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var overflow: Overflow
+  var overflow: Point<Overflow>
     get() {
       return style.overflow
     }
@@ -1330,12 +1116,7 @@ class View @JvmOverloads constructor(
     }
 
 
-  fun setScrollBarWidth(value: Float) {
-    style.setScrollBarWidth(value)
-    checkAndUpdateStyle()
-  }
-
-  var scrollBarWidth: Dimension
+  var scrollBarWidth: Float
     get() {
       return style.scrollBarWidth
     }
@@ -1397,35 +1178,29 @@ class View @JvmOverloads constructor(
   }
 
   fun setPadding(
-    left: LengthPercentage,
-    top: LengthPercentage,
-    right: LengthPercentage,
-    bottom: LengthPercentage
+    left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
     style.padding = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
 
   fun setPadding(
     left: Float,
-    left_type: Int,
+    leftType: Int,
     top: Float,
-    top_type: Int,
+    topType: Int,
     right: Float,
-    right_type: Int,
+    rightType: Int,
     bottom: Float,
-    bottom_type: Int
+    bottomType: Int
   ) {
     style.padding = Rect(
-      LengthPercentage.fromTypeValue(left_type, left) ?: style.padding.left,
-      LengthPercentage.fromTypeValue(right_type, right) ?: style.padding.right,
-      LengthPercentage.fromTypeValue(top_type, top) ?: style.padding.top,
-      LengthPercentage.fromTypeValue(bottom_type, bottom) ?: style.padding.bottom
+      LengthPercentage.fromTypeValue(leftType, left) ?: style.padding.left,
+      LengthPercentage.fromTypeValue(rightType, right) ?: style.padding.right,
+      LengthPercentage.fromTypeValue(topType, top) ?: style.padding.top,
+      LengthPercentage.fromTypeValue(bottomType, bottom) ?: style.padding.bottom
     )
     checkAndUpdateStyle()
   }
@@ -1456,36 +1231,36 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun getBorder(): Rect<LengthPercentage> {
-    return style.border
+  fun getBorderWidth(): Rect<LengthPercentage> {
+    return style.borderWidth
   }
 
-  fun getBorderLeft(): LengthPercentage {
-    return style.border.left
+  fun getBorderLeftWidth(): LengthPercentage {
+    return style.borderLeftWidth
   }
 
-  fun getBorderRight(): LengthPercentage {
-    return style.border.right
+  fun getBorderRightWidth(): LengthPercentage {
+    return style.borderRightWidth
   }
 
-  fun getBorderTop(): LengthPercentage {
-    return style.border.top
+  fun getBorderTopWidth(): LengthPercentage {
+    return style.borderTopWidth
   }
 
-  fun getBorderBottom(): LengthPercentage {
-    return style.border.bottom
+  fun getBorderBottomWidth(): LengthPercentage {
+    return style.borderBottomWidth
   }
 
   fun getBorderCssValue(): String {
-    return style.border.cssValue
+    return style.borderWidth.cssValue
   }
 
   fun getBorderJsonValue(): String {
-    return style.border.jsonValue
+    return style.borderWidth.jsonValue
   }
 
-  fun setBorder(left: Float, top: Float, right: Float, bottom: Float) {
-    style.border = Rect(
+  fun setBorderWidth(left: Float, top: Float, right: Float, bottom: Float) {
+    style.borderWidth = Rect(
       LengthPercentage.Points(left),
       LengthPercentage.Points(right),
       LengthPercentage.Points(top),
@@ -1495,61 +1270,55 @@ class View @JvmOverloads constructor(
   }
 
   fun setBorder(
-    left: LengthPercentage,
-    top: LengthPercentage,
-    right: LengthPercentage,
-    bottom: LengthPercentage
+    left: LengthPercentage, top: LengthPercentage, right: LengthPercentage, bottom: LengthPercentage
   ) {
-    style.border = Rect(
-      left,
-      right,
-      top,
-      bottom
+    style.borderWidth = Rect(
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
 
   fun setBorder(
     left: Float,
-    left_type: Int,
+    leftType: Int,
     top: Float,
-    top_type: Int,
+    topType: Int,
     right: Float,
-    right_type: Int,
+    rightType: Int,
     bottom: Float,
-    bottom_type: Int
+    bottomType: Int
   ) {
-    style.border = Rect(
-      LengthPercentage.fromTypeValue(left_type, left) ?: style.border.left,
-      LengthPercentage.fromTypeValue(right_type, right) ?: style.border.right,
-      LengthPercentage.fromTypeValue(top_type, top) ?: style.border.top,
-      LengthPercentage.fromTypeValue(bottom_type, bottom) ?: style.border.bottom
+    style.borderWidth = Rect(
+      LengthPercentage.fromTypeValue(leftType, left) ?: style.borderWidth.left,
+      LengthPercentage.fromTypeValue(rightType, right) ?: style.borderWidth.right,
+      LengthPercentage.fromTypeValue(topType, top) ?: style.borderWidth.top,
+      LengthPercentage.fromTypeValue(bottomType, bottom) ?: style.borderWidth.bottom
     )
     checkAndUpdateStyle()
   }
 
   fun setBorderLeft(value: Float, type: Int) {
-    style.setBorderLeft(value, type)
+    style.setBorderLeftWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderRight(value: Float, type: Int) {
-    style.setBorderRight(value, type)
+    style.setBorderRightWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderTop(value: Float, type: Int) {
-    style.setBorderTop(value, type)
+    style.setBorderTopWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderBottom(value: Float, type: Int) {
-    style.setBorderBottom(value, type)
+    style.setBorderBottomWidth(value, type)
     checkAndUpdateStyle()
   }
 
   fun setBorderWithValueType(value: Float, type: Int) {
-    style.setBorderWithValueType(value, type)
+    style.setBorderWidth(value, type)
     checkAndUpdateStyle()
   }
 
@@ -1598,29 +1367,26 @@ class View @JvmOverloads constructor(
     bottom: LengthPercentageAuto
   ) {
     style.margin = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
 
   fun setMargin(
     left: Float,
-    left_type: Int,
+    leftType: Int,
     top: Float,
-    top_type: Int,
+    topType: Int,
     right: Float,
-    right_type: Int,
+    rightType: Int,
     bottom: Float,
-    bottom_type: Int
+    bottomType: Int
   ) {
     style.margin = Rect(
-      LengthPercentageAuto.fromTypeValue(left_type, left) ?: style.margin.left,
-      LengthPercentageAuto.fromTypeValue(right_type, right) ?: style.margin.right,
-      LengthPercentageAuto.fromTypeValue(top_type, top) ?: style.margin.top,
-      LengthPercentageAuto.fromTypeValue(bottom_type, bottom) ?: style.margin.bottom
+      LengthPercentageAuto.fromTypeValue(leftType, left) ?: style.margin.left,
+      LengthPercentageAuto.fromTypeValue(rightType, right) ?: style.margin.right,
+      LengthPercentageAuto.fromTypeValue(topType, top) ?: style.margin.top,
+      LengthPercentageAuto.fromTypeValue(bottomType, bottom) ?: style.margin.bottom
     )
     checkAndUpdateStyle()
   }
@@ -1696,29 +1462,26 @@ class View @JvmOverloads constructor(
     bottom: LengthPercentageAuto
   ) {
     style.inset = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
     checkAndUpdateStyle()
   }
 
   fun setInset(
     left: Float,
-    left_type: Int,
+    leftType: Int,
     top: Float,
-    top_type: Int,
+    topType: Int,
     right: Float,
-    right_type: Int,
+    rightType: Int,
     bottom: Float,
-    bottom_type: Int
+    bottomType: Int
   ) {
     style.inset = Rect(
-      LengthPercentageAuto.fromTypeValue(left_type, left) ?: style.inset.left,
-      LengthPercentageAuto.fromTypeValue(right_type, right) ?: style.inset.right,
-      LengthPercentageAuto.fromTypeValue(top_type, top) ?: style.inset.top,
-      LengthPercentageAuto.fromTypeValue(bottom_type, bottom) ?: style.inset.bottom
+      LengthPercentageAuto.fromTypeValue(leftType, left) ?: style.inset.left,
+      LengthPercentageAuto.fromTypeValue(rightType, right) ?: style.inset.right,
+      LengthPercentageAuto.fromTypeValue(topType, top) ?: style.inset.top,
+      LengthPercentageAuto.fromTypeValue(bottomType, bottom) ?: style.inset.bottom
     )
     checkAndUpdateStyle()
   }
@@ -1786,13 +1549,13 @@ class View @JvmOverloads constructor(
 
   fun setMinSize(
     width: Float,
-    width_type: Int,
+    widthType: Int,
     height: Float,
-    height_type: Int,
+    heightType: Int,
   ) {
     style.minSize = Size(
-      Dimension.fromTypeValue(width_type, width) ?: style.minSize.width,
-      Dimension.fromTypeValue(height_type, height) ?: style.minSize.height
+      Dimension.fromTypeValue(widthType, width) ?: style.minSize.width,
+      Dimension.fromTypeValue(heightType, height) ?: style.minSize.height
     )
     checkAndUpdateStyle()
   }
@@ -1845,13 +1608,13 @@ class View @JvmOverloads constructor(
 
   fun setSize(
     width: Float,
-    width_type: Int,
+    widthType: Int,
     height: Float,
-    height_type: Int,
+    heightType: Int,
   ) {
     style.size = Size(
-      Dimension.fromTypeValue(width_type, width) ?: style.size.width,
-      Dimension.fromTypeValue(height_type, height) ?: style.size.height
+      Dimension.fromTypeValue(widthType, width) ?: style.size.width,
+      Dimension.fromTypeValue(heightType, height) ?: style.size.height
     )
     checkAndUpdateStyle()
   }
@@ -1904,13 +1667,13 @@ class View @JvmOverloads constructor(
 
   fun setMaxSize(
     width: Float,
-    width_type: Int,
+    widthType: Int,
     height: Float,
-    height_type: Int,
+    heightType: Int,
   ) {
     style.maxSize = Size(
-      Dimension.fromTypeValue(width_type, width) ?: style.size.width,
-      Dimension.fromTypeValue(height_type, height) ?: style.size.height
+      Dimension.fromTypeValue(widthType, width) ?: style.size.width,
+      Dimension.fromTypeValue(heightType, height) ?: style.size.height
     )
     checkAndUpdateStyle()
   }
@@ -1955,13 +1718,13 @@ class View @JvmOverloads constructor(
 
   fun setGap(
     width: Float,
-    width_type: Int,
+    widthType: Int,
     height: Float,
-    height_type: Int,
+    heightType: Int,
   ) {
     style.gap = Size(
-      LengthPercentage.fromTypeValue(width_type, width) ?: style.gap.width,
-      LengthPercentage.fromTypeValue(height_type, height) ?: style.gap.height
+      LengthPercentage.fromTypeValue(widthType, width) ?: style.gap.width,
+      LengthPercentage.fromTypeValue(heightType, height) ?: style.gap.height
     )
     checkAndUpdateStyle()
   }
@@ -1994,7 +1757,7 @@ class View @JvmOverloads constructor(
     }
 
 
-  var gridAutoRows: Array<MinMax>
+  var gridAutoRows: String
     get() {
       return style.gridAutoRows
     }
@@ -2003,7 +1766,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridAutoColumns: Array<MinMax>
+  var gridAutoColumns: String
     get() {
       return style.gridAutoColumns
     }
@@ -2021,7 +1784,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridColumn: Line<GridPlacement>
+  var gridColumn: String
     get() {
       return style.gridColumn
     }
@@ -2030,7 +1793,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridColumnStart: GridPlacement
+  var gridColumnStart: String
     get() {
       return style.gridColumnStart
     }
@@ -2039,7 +1802,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridColumnEnd: GridPlacement
+  var gridColumnEnd: String
     get() {
       return style.gridColumnEnd
     }
@@ -2048,7 +1811,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridRow: Line<GridPlacement>
+  var gridRow: String
     get() {
       return style.gridRow
     }
@@ -2057,7 +1820,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridRowStart: GridPlacement
+  var gridRowStart: String
     get() {
       return style.gridRowStart
     }
@@ -2066,7 +1829,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridRowEnd: GridPlacement
+  var gridRowEnd: String
     get() {
       return style.gridRowEnd
     }
@@ -2075,7 +1838,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridTemplateRows: Array<TrackSizingFunction>
+  var gridTemplateRows: String
     get() {
       return style.gridTemplateRows
     }
@@ -2084,7 +1847,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  var gridTemplateColumns: Array<TrackSizingFunction>
+  var gridTemplateColumns: String
     get() {
       return style.gridTemplateColumns
     }
@@ -2143,186 +1906,90 @@ class View @JvmOverloads constructor(
     }
 
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs) {
-      val a = context.obtainStyledAttributes(attrs, R.styleable.mason)
+      context.withStyledAttributes(attrs, R.styleable.mason) {
 
-      if (width >= 0) {
-        numericAttributes.append(R.styleable.mason_mason_width, width.toFloat())
-      }
+        if (width >= 0) {
+          numericAttributes.append(R.styleable.mason_mason_width, width.toFloat())
+        }
 
-      if (height >= 0) {
-        numericAttributes.append(
-          R.styleable.mason_mason_height, height.toFloat()
-        )
-      }
+        if (height >= 0) {
+          numericAttributes.append(
+            R.styleable.mason_mason_height, height.toFloat()
+          )
+        }
 
-      val attributeCount = a.indexCount
-      for (i in 0 until attributeCount) {
-        val attribute = a.getIndex(i)
-        val typedValue = TypedValue()
-        a.getValue(attribute, typedValue)
-        when (typedValue.type) {
-          TypedValue.TYPE_DIMENSION -> {
-            numericAttributes.put(
-              attribute, a.getDimensionPixelSize(attribute, 0).toFloat()
-            )
-          }
+        val attributeCount = indexCount
+        for (i in 0 until attributeCount) {
+          val attribute = getIndex(i)
+          val typedValue = TypedValue()
+          getValue(attribute, typedValue)
+          when (typedValue.type) {
+            TypedValue.TYPE_DIMENSION -> {
+              numericAttributes.put(
+                attribute, getDimensionPixelSize(attribute, 0).toFloat()
+              )
+            }
 
-          TypedValue.TYPE_STRING -> {
-            stringAttributes.put(attribute, a.getString(attribute))
-          }
+            TypedValue.TYPE_STRING -> {
+              stringAttributes.put(attribute, getString(attribute))
+            }
 
-          else -> {
-            numericAttributes.put(attribute, a.getFloat(attribute, 0f))
+            else -> {
+              numericAttributes.put(attribute, getFloat(attribute, 0f))
+            }
           }
         }
-      }
 
-      a.recycle()
+      }
     }
 
   }
 
   companion object {
+    internal fun mapMeasureSpec(mode: Int, value: Int): AvailableSpace {
+      return when (mode) {
+        MeasureSpec.EXACTLY -> AvailableSpace.Definite(value.toFloat())
+        MeasureSpec.UNSPECIFIED -> {
+          if (value != 0) {
+            AvailableSpace.Definite(value.toFloat())
+          } else {
+            AvailableSpace.MaxContent
+          }
+        }
+
+        MeasureSpec.AT_MOST -> {
+          if (value != 0) {
+            AvailableSpace.Definite(value.toFloat())
+          } else {
+            AvailableSpace.MaxContent
+          }
+        }
+
+        else -> AvailableSpace.MinContent
+      }
+    }
+
     internal val gson = Gson()
 
     @JvmStatic
-    fun createGridView(context: Context): View {
-      return View(context).apply {
+    fun createGridView(mason: Mason, context: Context): View {
+      return View(context, mason).apply {
         style.display = Display.Grid
       }
     }
 
     @JvmStatic
-    fun createFlexView(context: Context): View {
-      return View(context).apply {
+    fun createFlexView(mason: Mason, context: Context): View {
+      return View(context, mason).apply {
         style.display = Display.Flex
       }
     }
 
     @JvmStatic
-    fun createBlockView(context: Context): View {
-      return View(context).apply {
+    fun createBlockView(mason: Mason, context: Context): View {
+      return View(context, mason).apply {
         style.display = Display.Block
       }
     }
   }
-
-  internal class ViewMeasureFunc(private val node: WeakReference<Node>) : MeasureFunc {
-    private fun measure(
-      width: Float, height: Float, availableWidth: Float, availableHeight: Float
-    ): Size<Float> {
-
-      val view = node.get()?.data as? android.view.View
-
-      if (view == null) {
-        return zeroSize
-      } else if (view is View && view.childCount > 0) {
-        return zeroSize
-      }
-
-      var widthIsNaN = width.isNaN()
-      var heightIsNaN = height.isNaN()
-
-      if (!widthIsNaN && !heightIsNaN) {
-        return Size(width, height)
-      }
-
-      var retWidth = width
-      var retHeight = height
-
-      node.get()?.let { node ->
-        val size = node.style.getNativeSize();
-        val widthIsZero = size.width.isZero
-        val heightIsZero = size.height.isZero
-
-        // return early if the size is zero
-        if (widthIsZero && heightIsZero) {
-          retWidth = 0F
-          retHeight = 0F
-          return@let
-        }
-
-        if (widthIsNaN || (width.equals(0.0f) && !widthIsZero)) {
-          when (size.width) {
-            is Dimension.Points -> {
-              retWidth = size.width.value
-              if (!retWidth.isNaN()) widthIsNaN = false
-            }
-
-            is Dimension.Percent -> {
-              val parentLayout = node.owner?.layout()
-              parentLayout?.let {
-                retWidth =
-                  if (it.width.isNaN()) 0.0f else parentLayout.width * size.width.value
-                widthIsNaN = false
-              }
-            }
-
-            else -> {}
-          }
-        }
-
-        if (heightIsNaN || (height.equals(0.0f) && !heightIsZero)) {
-          when (size.height) {
-            is Dimension.Points -> {
-              retHeight = size.height.value
-              if (!retHeight.isNaN()) heightIsNaN = false
-            }
-
-            is Dimension.Percent -> {
-              val parentLayout = node.owner?.layout()
-              parentLayout?.let {
-                retHeight =
-                  if (it.height.isNaN()) 0.0f else parentLayout.height * size.height.value
-                heightIsNaN = false
-              }
-            }
-
-            else -> {}
-          }
-        }
-
-        if (view !is View) {
-          val widthSpec = if (widthIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
-          val heightSpec = if (heightIsNaN) MeasureSpec.UNSPECIFIED else MeasureSpec.EXACTLY
-
-
-          view.measure(
-            MeasureSpec.makeMeasureSpec(
-              if (retWidth.isNaN()) 0 else retWidth.roundToInt(), widthSpec
-            ), MeasureSpec.makeMeasureSpec(
-              if (retHeight.isNaN()) 0 else retHeight.roundToInt(), heightSpec
-            )
-          )
-
-          retWidth = view.measuredWidth.toFloat()
-          retHeight = view.measuredHeight.toFloat()
-        }
-
-        if (retWidth.equals(0f)) {
-          retWidth = Float.NaN
-        }
-
-        if (retHeight.equals(0f)) {
-          retHeight = Float.NaN
-        }
-
-      }
-
-      return Size(retWidth, retHeight)
-    }
-
-    override fun measure(
-      knownDimensions: Size<Float?>, availableSpace: Size<Float?>
-    ): Size<Float> {
-      val width = knownDimensions.width ?: Float.NaN
-      val height = knownDimensions.height ?: Float.NaN
-
-      val availableWidth = availableSpace.width ?: Float.NaN
-      val availableHeight = availableSpace.height ?: Float.NaN
-
-      return measure(width, height, availableWidth, availableHeight)
-    }
-  }
-
 }
