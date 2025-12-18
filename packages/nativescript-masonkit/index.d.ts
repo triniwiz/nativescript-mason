@@ -39,6 +39,8 @@ export type JustifyContent = AlignContent;
 
 export type GridAutoFlow = 'row' | 'column' | 'row dense' | 'column dense' | 'dense';
 
+export type VerticalAlign = 'baseline' | 'sub' | 'super' | 'text-top' | 'text-bottom' | 'middle' | 'top' | 'bottom' | Length | number;
+
 declare module '@nativescript/core/ui/styling/style' {
   interface Style {
     boxSizing: BoxSizing;
@@ -88,6 +90,7 @@ declare module '@nativescript/core/ui/styling/style' {
     overflowX: Overflow;
     overflowY: Overflow;
     scrollBarWidth: Length;
+    verticalAlign: VerticalAlign;
   }
 }
 
@@ -139,6 +142,7 @@ interface Style {
   overflowX: Overflow;
   overflowY: Overflow;
   scrollBarWidth: Length;
+  verticalAlign: VerticalAlign;
 }
 
 interface IViewBase {
@@ -188,6 +192,7 @@ interface IViewBase {
   overflowX: Overflow;
   overflowY: Overflow;
   scrollBarWidth: number | CoreTypes.LengthType;
+  verticalAlign: VerticalAlign;
 }
 
 class VBase extends ViewBase implements IViewBase {

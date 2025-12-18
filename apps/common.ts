@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftColorProperty, backgroundInternalProperty, verticalAlignmentProperty } from '@nativescript/core';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftColorProperty, backgroundInternalProperty } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing, VerticalAlign } from '.';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows, GridTemplates } from './utils';
@@ -1059,29 +1059,6 @@ export const verticalAlignProperty = new CssProperty<Style, VerticalAlign>({
         view.verticalAlign = newValue;
       } else {
         // Revert to old value if newValue is invalid
-        view.view.style.verticalAlign = oldValue;
-      }
-    }
-  },
-});
-
-verticalAlignProperty.register(Style);
-
-verticalAlignmentProperty.overrideHandlers({
-  name: 'verticalAlignment',
-  cssName: 'vertical-align',
-  valueConverter: function (value) {
-    return value as never;
-  },
-  valueChanged(target, oldValue, newValue) {
-    const view = getViewStyle(target.viewRef);
-    if (view) {
-      if (newValue) {
-        // @ts-ignore
-        view.verticalAlign = newValue;
-      } else {
-        // Revert to old value if newValue is invalid
-        // @ts-ignore
         view.view.style.verticalAlign = oldValue;
       }
     }

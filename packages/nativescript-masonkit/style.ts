@@ -1,5 +1,5 @@
 import { layout } from '@nativescript/core/utils';
-import type { GridAutoFlow, Length, LengthAuto, View } from '.';
+import type { GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns } from './utils';
 import { isMasonView_ } from './common';
@@ -334,6 +334,8 @@ class TextStateKeys {
   static readonly TEXT_OVERFLOW = new TextStateKeys(1n << 14n);
   static readonly LINE_HEIGHT = new TextStateKeys(1n << 15n);
   static readonly TEXT_ALIGN = new TextStateKeys(1n << 16n);
+  static readonly VERTICAL_ALIGN = new TextStateKeys(1n << 17n);
+  static readonly DECORATION_THICKNESS = new TextStateKeys(1n << 18n);
 
   or(other: TextStateKeys): TextStateKeys {
     return new TextStateKeys(this.bits | other.bits);
@@ -2994,6 +2996,140 @@ export class Style {
     if (__APPLE__) {
       (this.nativeView as MasonElementObjc).style.filter = value;
     }
+  }
+
+  get verticalAlign() {
+    const isPercent = getUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET) == 1;
+    const value = getFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET);
+    if (isPercent) {
+      return `${value * 100}%`;
+    }
+    if (value > 0) {
+      return `${value}px`;
+    }
+    switch (getUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET)) {
+      case 0:
+        return 'baseline';
+      case 1:
+        return 'top';
+      case 2:
+        return 'text-top';
+      case 3:
+        return 'middle';
+      case 4:
+        return 'bottom';
+      case 5:
+        return 'text-bottom';
+      case 6:
+        return 'sub';
+      case 7:
+        return 'super';
+      default:
+        // throw ??
+        return 'baseline';
+    }
+  }
+
+  set verticalAlign(value: VerticalAlign) {
+    switch (value) {
+      case 'baseline':
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
+        break;
+      case 'top':
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 1);
+        break;
+      case 'text-top':
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 2);
+        break;
+      case 'middle':
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 3);
+        break;
+      case 'bottom':
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 4);
+        break;
+      case 'text-bottom':
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 5);
+        break;
+      case 'sub':
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 6);
+        break;
+      case 'super':
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+        setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0);
+        setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 7);
+        break;
+      default: {
+        switch (typeof value) {
+          case 'number':
+            setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+            setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value * layout.getDisplayDensity());
+            setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
+            break;
+          case 'string':
+            {
+              try {
+                const parsed = CorePercentLength.parse(value);
+                if (typeof parsed === 'object' && parsed !== null && 'unit' in parsed) {
+                  switch (parsed.unit) {
+                    case '%':
+                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1);
+                      setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, parsed.value);
+                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
+                      break;
+                    case 'px':
+                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+                      setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, parsed.value);
+                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
+                      break;
+                    case 'dip':
+                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+                      setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, parsed.value * layout.getDisplayDensity());
+                      setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
+                      break;
+                  }
+                }
+              } catch (error) {}
+            }
+            break;
+          case 'object':
+            if (value !== null && 'unit' in value) {
+              switch (value.unit) {
+                case '%':
+                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1);
+                  setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value);
+                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
+                  break;
+                case 'px':
+                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+                  setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value);
+                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
+                  break;
+                case 'dip':
+                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0);
+                  setFloat32(this.style_view, StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value * layout.getDisplayDensity());
+                  setUint8(this.style_view, StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0);
+                  break;
+              }
+            }
+            break;
+        }
+      }
+    }
+    this.setOrAppendTextState(TextStateKeys.VERTICAL_ALIGN);
   }
 
   toJSON() {
