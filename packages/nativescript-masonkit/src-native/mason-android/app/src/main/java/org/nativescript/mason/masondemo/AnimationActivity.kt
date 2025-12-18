@@ -1,31 +1,68 @@
 package org.nativescript.mason.masondemo
 
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
-import androidx.appcompat.app.AppCompatActivity
+import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
-import org.nativescript.mason.masondemo.databinding.ActivityAnimationBinding
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.LengthPercentage
+import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.Rect
+import org.nativescript.mason.masonkit.Size
 
 class AnimationActivity : AppCompatActivity() {
-  lateinit var binding: ActivityAnimationBinding
+  val mason = Mason()
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    binding = ActivityAnimationBinding.inflate(layoutInflater)
-    setContentView(binding.root)
+    val root = mason.createView(this)
+    enableEdgeToEdge()
+
+    ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+      val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+      root.style.padding = Rect(
+        LengthPercentage.Points(systemBars.left.toFloat()),
+        LengthPercentage.Points(systemBars.right.toFloat()),
+        LengthPercentage.Points(systemBars.top.toFloat()),
+        LengthPercentage.Points(systemBars.bottom.toFloat())
+      )
+      insets
+    }
+
+    root.style.size =
+      Size(
+        Dimension.Points(resources.displayMetrics.widthPixels.toFloat()),
+        Dimension.Points(resources.displayMetrics.heightPixels.toFloat())
+      )
+
+    val animatedView = mason.createView(this)
+
+    animatedView.configure {
+      it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+    }
+    animatedView.setBackgroundColor(Color.BLUE)
+
+    root.addView(animatedView)
+
+    setContentView(root)
+
 
     ValueAnimator()
       .apply {
         startDelay = 2000
-        setFloatValues(100F,30F)
+        duration = 3000
+        setFloatValues(1F, 0F, 1F)
+        repeatCount = ValueAnimator.INFINITE
+        repeatMode = ValueAnimator.REVERSE
         addUpdateListener { animator ->
-          binding.root.configure {
-            it.style.size.height = Dimension.Percent(animator.animatedValue as Float / 100)
-          }
+//          animatedView.style.setSizeHeight(Dimension.Percent(animator.animatedValue as Float))
+          animatedView.style.size = Size(
+            Dimension.Percent(animator.animatedValue as Float),
+            Dimension.Percent(animator.animatedValue as Float)
+          )
         }
       }.start()
-
   }
 }

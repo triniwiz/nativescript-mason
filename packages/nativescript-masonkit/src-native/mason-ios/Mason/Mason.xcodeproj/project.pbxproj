@@ -3,11 +3,19 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 55;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		F14AA651293B650900B1510E /* Reexports.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14AA650293B650900B1510E /* Reexports.swift */; };
+		AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
+		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F1047C672EDE8E3B00599B56 /* Button.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1047C662EDE8E0E00599B56 /* Button.swift */; };
+		F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016C2ECE04CB00D6CFD9 /* Background.swift */; };
+		F134016F2ECE04DD00D6CFD9 /* Border.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016E2ECE04DC00D6CFD9 /* Border.swift */; };
+		F13B6C7B2DC81AC800624D17 /* NSCFontFaceSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */; };
+		F13B6C7D2DC81AE100624D17 /* NSCFontFace.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */; };
+		F13D4E8D2E8EEA0100456A68 /* MasonElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */; };
+		F13D4E932E96EDF300456A68 /* MasonDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13D4E922E96EDEF00456A68 /* MasonDocument.swift */; };
 		F1848391293534D800EC35F4 /* Mason.docc in Sources */ = {isa = PBXBuildFile; fileRef = F1848390293534D800EC35F4 /* Mason.docc */; };
 		F1848397293534D800EC35F4 /* Mason.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; };
 		F184839C293534D800EC35F4 /* MasonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F184839B293534D800EC35F4 /* MasonTests.swift */; };
@@ -21,14 +29,18 @@
 		F18483C42935351300EC35F4 /* MasonDemoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483C32935351300EC35F4 /* MasonDemoTests.swift */; };
 		F18483CE2935351300EC35F4 /* MasonDemoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483CD2935351300EC35F4 /* MasonDemoUITests.swift */; };
 		F18483D02935351300EC35F4 /* MasonDemoUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483CF2935351300EC35F4 /* MasonDemoUITestsLaunchTests.swift */; };
-		F18483DB29356C3A00EC35F4 /* MasonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483DA29356C3A00EC35F4 /* MasonView.swift */; };
+		F18483DB29356C3A00EC35F4 /* MasonUIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483DA29356C3A00EC35F4 /* MasonUIView.swift */; };
 		F18483DD29356C7800EC35F4 /* MasonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483DC29356C7800EC35F4 /* MasonStyle.swift */; };
 		F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483DE29356CBF00EC35F4 /* Enums.swift */; };
 		F18483E129356CD400EC35F4 /* MasonNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E029356CD400EC35F4 /* MasonNode.swift */; };
-		F18483E329357AC900EC35F4 /* TSCMason.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E229357AC900EC35F4 /* TSCMason.swift */; };
+		F18483E329357AC900EC35F4 /* NSCMason.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E229357AC900EC35F4 /* NSCMason.swift */; };
 		F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E62935935600EC35F4 /* MasonLayout.swift */; };
 		F18483E92935A19500EC35F4 /* MeasureOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18483E82935A19500EC35F4 /* MeasureOutput.swift */; };
 		F18483EB2937047C00EC35F4 /* mason_native.h in Headers */ = {isa = PBXBuildFile; fileRef = F18483EA2937047C00EC35F4 /* mason_native.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		F18C9B862E5170CA006E5561 /* Scroll.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18C9B852E5170B8006E5561 /* Scroll.swift */; };
+		F18C9B882E5199CA006E5561 /* MasonPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18C9B872E5199C5006E5561 /* MasonPoint.swift */; };
+		F18E99132DCB73FC0062B4F7 /* Img.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18E99122DCB73F80062B4F7 /* Img.swift */; };
+		F1DE08992EBC1199002870F6 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1DE08982EBC1195002870F6 /* Constants.swift */; };
 		F1E4F95229622AD60091913B /* MasonRect.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95129622AD60091913B /* MasonRect.swift */; };
 		F1E4F95429622ADF0091913B /* MasonSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95329622ADF0091913B /* MasonSize.swift */; };
 		F1E4F956296231A50091913B /* MasonCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F955296231A50091913B /* MasonCompat.swift */; };
@@ -37,9 +49,23 @@
 		F1E4F95C296242700091913B /* MaxSizing.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95B296242700091913B /* MaxSizing.swift */; };
 		F1E4F95E296266A60091913B /* MasonLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95D296266A60091913B /* MasonLine.swift */; };
 		F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */; };
+		F1EE402B2ECF791800EAF4CC /* BackgroundParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */; };
+		F1EE402D2ECFA98F00EAF4CC /* CSSFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */; };
+		F1EE40332ED666E500EAF4CC /* BorderParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE40322ED666DA00EAF4CC /* BorderParser.swift */; };
+		F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1EE93512E84BA3E00DA90BB /* Extensions.swift */; };
+		F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */; };
+		F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */; };
+		F1F0AF412EB66FA9001F0C36 /* NativeHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		AA904E4D2DAF0EE300F22BE4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F1848383293534D800EC35F4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F184838B293534D800EC35F4;
+			remoteInfo = Mason;
+		};
 		F1848398293534D800EC35F4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = F1848383293534D800EC35F4 /* Project object */;
@@ -70,8 +96,28 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		AA904E4F2DAF0EE300F22BE4 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		F14AA650293B650900B1510E /* Reexports.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reexports.swift; sourceTree = "<group>"; };
+		F1047C662EDE8E0E00599B56 /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
+		F134016C2ECE04CB00D6CFD9 /* Background.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Background.swift; sourceTree = "<group>"; };
+		F134016E2ECE04DC00D6CFD9 /* Border.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Border.swift; sourceTree = "<group>"; };
+		F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFaceSet.swift; sourceTree = "<group>"; };
+		F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFace.swift; sourceTree = "<group>"; };
+		F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonElement.swift; sourceTree = "<group>"; };
+		F13D4E922E96EDEF00456A68 /* MasonDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonDocument.swift; sourceTree = "<group>"; };
 		F184838C293534D800EC35F4 /* Mason.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Mason.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F184838F293534D800EC35F4 /* Mason.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Mason.h; sourceTree = "<group>"; };
 		F1848390293534D800EC35F4 /* Mason.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Mason.docc; sourceTree = "<group>"; };
@@ -90,14 +136,19 @@
 		F18483C92935351300EC35F4 /* MasonDemoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MasonDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F18483CD2935351300EC35F4 /* MasonDemoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonDemoUITests.swift; sourceTree = "<group>"; };
 		F18483CF2935351300EC35F4 /* MasonDemoUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonDemoUITestsLaunchTests.swift; sourceTree = "<group>"; };
-		F18483DA29356C3A00EC35F4 /* MasonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonView.swift; sourceTree = "<group>"; };
+		F18483DA29356C3A00EC35F4 /* MasonUIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonUIView.swift; sourceTree = "<group>"; };
 		F18483DC29356C7800EC35F4 /* MasonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonStyle.swift; sourceTree = "<group>"; };
 		F18483DE29356CBF00EC35F4 /* Enums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enums.swift; sourceTree = "<group>"; };
 		F18483E029356CD400EC35F4 /* MasonNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonNode.swift; sourceTree = "<group>"; };
-		F18483E229357AC900EC35F4 /* TSCMason.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSCMason.swift; sourceTree = "<group>"; };
+		F18483E229357AC900EC35F4 /* NSCMason.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCMason.swift; sourceTree = "<group>"; };
 		F18483E62935935600EC35F4 /* MasonLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonLayout.swift; sourceTree = "<group>"; };
 		F18483E82935A19500EC35F4 /* MeasureOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasureOutput.swift; sourceTree = "<group>"; };
 		F18483EA2937047C00EC35F4 /* mason_native.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mason_native.h; path = include/mason_native.h; sourceTree = "<group>"; };
+		F18C9B852E5170B8006E5561 /* Scroll.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scroll.swift; sourceTree = "<group>"; };
+		F18C9B872E5199C5006E5561 /* MasonPoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonPoint.swift; sourceTree = "<group>"; };
+		F18E99122DCB73F80062B4F7 /* Img.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Img.swift; sourceTree = "<group>"; };
+		F18E99142DCB95F80062B4F7 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.1.sdk/System/Library/Frameworks/Accelerate.framework; sourceTree = DEVELOPER_DIR; };
+		F1DE08982EBC1195002870F6 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		F1E4F95129622AD60091913B /* MasonRect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonRect.swift; sourceTree = "<group>"; };
 		F1E4F95329622ADF0091913B /* MasonSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonSize.swift; sourceTree = "<group>"; };
 		F1E4F955296231A50091913B /* MasonCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonCompat.swift; sourceTree = "<group>"; };
@@ -106,7 +157,18 @@
 		F1E4F95B296242700091913B /* MaxSizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaxSizing.swift; sourceTree = "<group>"; };
 		F1E4F95D296266A60091913B /* MasonLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonLine.swift; sourceTree = "<group>"; };
 		F1E4F95F296271FB0091913B /* TrackSizingFunction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSizingFunction.swift; sourceTree = "<group>"; };
+		F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundParser.swift; sourceTree = "<group>"; };
+		F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSSFilters.swift; sourceTree = "<group>"; };
+		F1EE40322ED666DA00EAF4CC /* BorderParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BorderParser.swift; sourceTree = "<group>"; };
+		F1EE93512E84BA3E00DA90BB /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftHelpers.swift; sourceTree = "<group>"; };
+		F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeUtils.swift; sourceTree = "<group>"; };
+		F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHelpers.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		F1EE934D2E849EE700DA90BB /* text */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = text; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		F1848389293534D800EC35F4 /* Frameworks */ = {
@@ -128,6 +190,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA904E4B2DAF0EE300F22BE4 /* Mason.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -155,6 +218,14 @@
 			path = Pods;
 			sourceTree = "<group>";
 		};
+		AA904E4A2DAF0EE300F22BE4 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F18E99142DCB95F80062B4F7 /* Accelerate.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		F1848382293534D800EC35F4 = {
 			isa = PBXGroup;
 			children = (
@@ -166,6 +237,7 @@
 				F18483CC2935351300EC35F4 /* MasonDemoUITests */,
 				F184838D293534D800EC35F4 /* Products */,
 				0C9E8EC0DFD2DE1A229D4FBD /* Pods */,
+				AA904E4A2DAF0EE300F22BE4 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -184,16 +256,34 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F1047C662EDE8E0E00599B56 /* Button.swift */,
+				F1EE40322ED666DA00EAF4CC /* BorderParser.swift */,
+				F1EE402C2ECFA98E00EAF4CC /* CSSFilters.swift */,
+				F1EE402A2ECF791600EAF4CC /* BackgroundParser.swift */,
+				F134016E2ECE04DC00D6CFD9 /* Border.swift */,
+				F134016C2ECE04CB00D6CFD9 /* Background.swift */,
+				F1DE08982EBC1195002870F6 /* Constants.swift */,
+				F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */,
+				F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */,
+				F1F0AF032EA6C3CA001F0C36 /* SwiftHelpers.swift */,
+				F13D4E922E96EDEF00456A68 /* MasonDocument.swift */,
+				F13D4E8C2E8EE9ED00456A68 /* MasonElement.swift */,
+				F1EE93512E84BA3E00DA90BB /* Extensions.swift */,
+				F1EE934D2E849EE700DA90BB /* text */,
+				F18C9B872E5199C5006E5561 /* MasonPoint.swift */,
+				F18C9B852E5170B8006E5561 /* Scroll.swift */,
+				F18E99122DCB73F80062B4F7 /* Img.swift */,
+				F13B6C7C2DC81AE000624D17 /* NSCFontFace.swift */,
+				F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */,
 				F184838F293534D800EC35F4 /* Mason.h */,
 				F1848390293534D800EC35F4 /* Mason.docc */,
-				F18483DA29356C3A00EC35F4 /* MasonView.swift */,
+				F18483DA29356C3A00EC35F4 /* MasonUIView.swift */,
 				F18483DC29356C7800EC35F4 /* MasonStyle.swift */,
 				F18483DE29356CBF00EC35F4 /* Enums.swift */,
 				F18483E029356CD400EC35F4 /* MasonNode.swift */,
-				F18483E229357AC900EC35F4 /* TSCMason.swift */,
+				F18483E229357AC900EC35F4 /* NSCMason.swift */,
 				F18483E62935935600EC35F4 /* MasonLayout.swift */,
 				F18483E82935A19500EC35F4 /* MeasureOutput.swift */,
-				F14AA650293B650900B1510E /* Reexports.swift */,
 				F1E4F95129622AD60091913B /* MasonRect.swift */,
 				F1E4F95329622ADF0091913B /* MasonSize.swift */,
 				F1E4F955296231A50091913B /* MasonCompat.swift */,
@@ -264,6 +354,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = F18483A0293534D800EC35F4 /* Build configuration list for PBXNativeTarget "Mason" */;
 			buildPhases = (
+				F1046CFF2D8BABAF00228EE2 /* Build Mason Rust */,
 				F1848387293534D800EC35F4 /* Headers */,
 				F1848388293534D800EC35F4 /* Sources */,
 				F1848389293534D800EC35F4 /* Frameworks */,
@@ -272,6 +363,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F1EE934D2E849EE700DA90BB /* text */,
 			);
 			name = Mason;
 			productName = Mason;
@@ -303,11 +397,13 @@
 				F18483A62935351200EC35F4 /* Sources */,
 				F18483A72935351200EC35F4 /* Frameworks */,
 				F18483A82935351200EC35F4 /* Resources */,
+				AA904E4F2DAF0EE300F22BE4 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				F18483ED2937115F00EC35F4 /* PBXTargetDependency */,
+				AA904E4E2DAF0EE300F22BE4 /* PBXTargetDependency */,
 			);
 			name = MasonDemo;
 			productName = MasonDemo;
@@ -362,7 +458,7 @@
 				TargetAttributes = {
 					F184838B293534D800EC35F4 = {
 						CreatedOnToolsVersion = 14.0;
-						LastSwiftMigration = 1400;
+						LastSwiftMigration = 1640;
 					};
 					F1848395293534D800EC35F4 = {
 						CreatedOnToolsVersion = 14.0;
@@ -443,28 +539,66 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		F1046CFF2D8BABAF00228EE2 /* Build Mason Rust */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Mason Rust";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n\"$SRCROOT/pre-build.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		F1848388293534D800EC35F4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F13B6C7D2DC81AE100624D17 /* NSCFontFace.swift in Sources */,
+				F13D4E932E96EDF300456A68 /* MasonDocument.swift in Sources */,
 				F1E4F95E296266A60091913B /* MasonLine.swift in Sources */,
 				F1E4F958296241FD0091913B /* MinMax.swift in Sources */,
-				F18483E329357AC900EC35F4 /* TSCMason.swift in Sources */,
+				F1DE08992EBC1199002870F6 /* Constants.swift in Sources */,
+				F134016F2ECE04DD00D6CFD9 /* Border.swift in Sources */,
+				F1047C672EDE8E3B00599B56 /* Button.swift in Sources */,
+				F18483E329357AC900EC35F4 /* NSCMason.swift in Sources */,
 				F18483E92935A19500EC35F4 /* MeasureOutput.swift in Sources */,
 				F1848391293534D800EC35F4 /* Mason.docc in Sources */,
 				F1E4F95C296242700091913B /* MaxSizing.swift in Sources */,
 				F1E4F95429622ADF0091913B /* MasonSize.swift in Sources */,
 				F18483E129356CD400EC35F4 /* MasonNode.swift in Sources */,
+				F13D4E8D2E8EEA0100456A68 /* MasonElement.swift in Sources */,
 				F1E4F95A296242660091913B /* MinSizing.swift in Sources */,
+				F1F0AF412EB66FA9001F0C36 /* NativeHelpers.swift in Sources */,
 				F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */,
-				F14AA651293B650900B1510E /* Reexports.swift in Sources */,
 				F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */,
+				F1EE402D2ECFA98F00EAF4CC /* CSSFilters.swift in Sources */,
 				F1E4F956296231A50091913B /* MasonCompat.swift in Sources */,
+				F13B6C7B2DC81AC800624D17 /* NSCFontFaceSet.swift in Sources */,
 				F1E4F95229622AD60091913B /* MasonRect.swift in Sources */,
 				F18483DD29356C7800EC35F4 /* MasonStyle.swift in Sources */,
+				F18C9B882E5199CA006E5561 /* MasonPoint.swift in Sources */,
+				F1EE40332ED666E500EAF4CC /* BorderParser.swift in Sources */,
+				F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */,
+				F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */,
+				F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */,
+				F1EE402B2ECF791800EAF4CC /* BackgroundParser.swift in Sources */,
+				F18E99132DCB73FC0062B4F7 /* Img.swift in Sources */,
 				F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */,
-				F18483DB29356C3A00EC35F4 /* MasonView.swift in Sources */,
+				F18483DB29356C3A00EC35F4 /* MasonUIView.swift in Sources */,
+				F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */,
+				F18C9B862E5170CA006E5561 /* Scroll.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -506,6 +640,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		AA904E4E2DAF0EE300F22BE4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F184838B293534D800EC35F4 /* Mason */;
+			targetProxy = AA904E4D2DAF0EE300F22BE4 /* PBXContainerItemProxy */;
+		};
 		F1848399293534D800EC35F4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = F184838B293534D800EC35F4 /* Mason */;
@@ -680,10 +819,10 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				EXPORTED_SYMBOLS_FILE = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/include";
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/include\"/**";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				KEEP_PRIVATE_EXTERNS = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -692,9 +831,27 @@
 				);
 				MACH_O_TYPE = mh_dylib;
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-L\"$(SRCROOT)/libs/$(CURRENT_ARCH)$(EFFECTIVE_PLATFORM_NAME)\"",
+				MODULEMAP_FILE = "";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios/debug\"",
+					"-Wl,-no_compact_unwind",
 					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios-sim/debug\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=x86_64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/x86_64-apple-ios/debug\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
 				);
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-error=non-modular-include-in-framework-module";
 				PRODUCT_BUNDLE_IDENTIFIER = org.nativescript.mason.Mason;
@@ -720,10 +877,10 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				EXPORTED_SYMBOLS_FILE = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/include";
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/include\"/**";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				KEEP_PRIVATE_EXTERNS = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -732,9 +889,27 @@
 				);
 				MACH_O_TYPE = mh_dylib;
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-L\"$(SRCROOT)/libs/$(CURRENT_ARCH)$(EFFECTIVE_PLATFORM_NAME)\"",
+				MODULEMAP_FILE = "";
+				"OTHER_LDFLAGS[sdk=iphoneos*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios/release\"",
+					"-Wl,-no_compact_unwind",
 					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/aarch64-apple-ios-sim/release\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*][arch=x86_64]" = (
+					"$(inherited)",
+					"-L\"$(SRCROOT)/../../../../../target/x86_64-apple-ios/release\"",
+					"-Wl,-no_compact_unwind",
+					"-lmasonnative",
+					"-ObjC",
 				);
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-error=non-modular-include-in-framework-module";
 				PRODUCT_BUNDLE_IDENTIFIER = org.nativescript.mason.Mason;

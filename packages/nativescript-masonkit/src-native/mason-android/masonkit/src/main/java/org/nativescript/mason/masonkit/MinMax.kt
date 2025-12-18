@@ -1,7 +1,5 @@
 package org.nativescript.mason.masonkit;
 
-import android.util.Log
-
 sealed class MinMax(
   val min: MinSizing,
   val max: MaxSizing
@@ -21,9 +19,9 @@ sealed class MinMax(
   data class FitContentPercent(var percent: Float) :
     MinMax(MinSizing.Auto, MaxSizing.FitContentPercent(percent))
 
-  object Auto : MinMax(MinSizing.Auto, MaxSizing.Auto)
-  object MinContent : MinMax(MinSizing.MinContent, MaxSizing.MinContent)
-  object MaxContent : MinMax(MinSizing.MaxContent, MaxSizing.MaxContent)
+  data object Auto : MinMax(MinSizing.Auto, MaxSizing.Auto)
+  data object MinContent : MinMax(MinSizing.MinContent, MaxSizing.MinContent)
+  data object MaxContent : MinMax(MinSizing.MaxContent, MaxSizing.MaxContent)
 
   data class Values(
     val minVal: MinSizing,
@@ -54,111 +52,71 @@ sealed class MinMax(
         else -> null
       }
 
-      if (min == null || max == null) {
-        return null
-      }
-      return Values(min, max)
+      return if (min != null && max != null) Values(min, max) else null
     }
   }
 
-  val minType: Int
-    get() {
-      return min.type
-    }
-
-  val minValue: Float
-    get() {
-      return min.value
-    }
-
-  val maxType: Int
-    get() {
-      return max.type
-    }
-
-  val maxValue: Float
-    get() {
-      return max.value
-    }
-
+  val minType: Int get() = min.type
+  val minValue: Float get() = min.value
+  val maxType: Int get() = max.type
+  val maxValue: Float get() = max.value
 
   val cssValue: String
-    get() {
-      return when (this) {
-        Auto -> "auto"
-        is Fraction -> "${maxValue}fr"
-        MaxContent -> "max-content"
-        MinContent -> "min-content"
-        is Percent -> "${minValue * 100}%"
-        is Points -> "${minValue}px"
-        is FitContent -> "fit-content(${maxValue}px)"
-        is FitContentPercent -> "fit-content(${maxValue * 100}%)"
-        is Values -> {
-          if (minVal == MinSizing.Auto && maxVal == MaxSizing.Auto) {
-            return "auto"
-          } else if (minVal == MinSizing.MinContent && maxVal == MaxSizing.MinContent) {
-            return "min-content"
-          } else if (minVal == MinSizing.MaxContent && maxVal == MaxSizing.MaxContent) {
-            return "max-content"
-          } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.Fraction) {
-            return "${maxValue}fr"
-          } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.FitContent) {
-            return "fit-content(${maxValue}px)"
-          } else if (minVal == MinSizing.Auto && maxVal is MaxSizing.FitContentPercent) {
-            return "fit-content(${maxValue * 100}%)"
-          } else if (minType == maxType && minValue == maxValue) {
-            when (minVal) {
-              is MinSizing.Percent -> "${minVal.percentage * 100}%"
-              is MinSizing.Points -> "${minVal.points}px"
-              else -> ""
-            }
-          } else {
-            return "minmax(${
-              when (minVal) {
-                MinSizing.Auto -> "auto"
-                MinSizing.MaxContent -> "max-content"
-                MinSizing.MinContent -> "min-content"
-                is MinSizing.Percent -> "${minVal.percentage * 100}%"
-                is MinSizing.Points -> "${minVal.points}px"
-              }
-            },${
-              when (maxVal) {
-                MaxSizing.Auto -> "auto"
-                MaxSizing.MaxContent -> "max-content"
-                MaxSizing.MinContent -> "min-content"
-                is MaxSizing.Percent -> "${maxVal.percentage * 100}%"
-                is MaxSizing.Points -> "${maxVal.points}px"
-                is MaxSizing.FitContent -> "fit-content(${maxValue}px)" // should not return type maybe invalid
-                is MaxSizing.FitContentPercent -> "fit-content(${maxValue * 100}%)" // should not return type maybe invalid
-                is MaxSizing.Fraction -> "${maxValue}fr"
-              }
-            })"
+    get() = when (this) {
+      Auto -> "auto"
+      is Fraction -> "${maxValue}fr"
+      MaxContent -> "max-content"
+      MinContent -> "min-content"
+      is Percent -> "${"%.2f".format(minValue * 100)}%"
+      is Points -> "${minValue}px"
+      is FitContent -> "fit-content(${maxValue}px)"
+      is FitContentPercent -> "fit-content(${"%.2f".format(maxValue * 100)}%)"
+      is Values -> when {
+        minVal == MinSizing.Auto && maxVal == MaxSizing.Auto -> "auto"
+        minVal == MinSizing.MinContent && maxVal == MaxSizing.MinContent -> "min-content"
+        minVal == MinSizing.MaxContent && maxVal == MaxSizing.MaxContent -> "max-content"
+        minVal == MinSizing.Auto && maxVal is MaxSizing.Fraction -> "${maxValue}fr"
+        minVal == MinSizing.Auto && maxVal is MaxSizing.FitContent -> "fit-content(${maxValue}px)"
+        minVal == MinSizing.Auto && maxVal is MaxSizing.FitContentPercent ->
+          "fit-content(${"%.2f".format(maxValue * 100)}%)"
+
+        minType == maxType && minValue == maxValue -> when (minVal) {
+          is MinSizing.Percent -> "${"%.2f".format(minVal.percentage * 100)}%"
+          is MinSizing.Points -> "${minVal.points}px"
+          else -> ""
+        }
+
+        else -> {
+          val minStr = when (minVal) {
+            MinSizing.Auto -> "auto"
+            MinSizing.MaxContent -> "max-content"
+            MinSizing.MinContent -> "min-content"
+            is MinSizing.Percent -> "${"%.2f".format(minVal.percentage * 100)}%"
+            is MinSizing.Points -> "${minVal.points}px"
           }
+
+          val maxStr = when (maxVal) {
+            MaxSizing.Auto -> "auto"
+            MaxSizing.MaxContent -> "max-content"
+            MaxSizing.MinContent -> "min-content"
+            is MaxSizing.Percent -> "${"%.2f".format(maxVal.percentage * 100)}%"
+            is MaxSizing.Points -> "${maxVal.points}px"
+            is MaxSizing.Fraction -> "${maxValue}fr"
+            // CSS doesn’t allow fit-content inside minmax, use fallback
+            is MaxSizing.FitContent, is MaxSizing.FitContentPercent -> "auto"
+          }
+
+          "minmax($minStr, $maxStr)"
         }
       }
     }
 }
 
-
 val Array<MinMax>.jsonValue: String
-  get() {
-    return Mason.gson.toJson(this)
-  }
+  get() = Mason.gson.toJson(this)
 
 val Array<MinMax>.cssValue: String
-  get() {
-    if (isEmpty()) {
-      return ""
-    }
-    val builder = StringBuilder()
-    val last = this.lastIndex
-    this.forEachIndexed { index, minMax ->
-      if (index == last) {
-        builder.append(minMax.cssValue)
-      } else {
-        builder.append("${minMax.cssValue} ")
-      }
-    }
-    builder.append(")")
-    return builder.toString()
-  }
+  get() = joinToString(" ") { it.cssValue }
+
+
+typealias TrackSizingFunction = MinMax

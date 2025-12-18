@@ -10,1209 +10,1096 @@ import UIKit
 
 
 private func measure(_ node: UnsafeRawPointer?, _ knownDimensionsWidth: Float, _ knownDimensionsHeight: Float, _ availableSpaceWidth: Float, _ availableSpaceHeight: Float) -> Int64 {
-    let node: MasonNode = Unmanaged.fromOpaque(node!).takeUnretainedValue()
-    
-    guard let size = node.measureFunc?(CGSize(width: CGFloat(knownDimensionsWidth), height: CGFloat(knownDimensionsHeight)), CGSize(width: CGFloat(availableSpaceWidth), height: CGFloat(availableSpaceHeight))) else {
-        return MeasureOutput.make(Float.nan, Float.nan)
+  let node: MasonNode = Unmanaged.fromOpaque(node!).takeUnretainedValue()
+  
+  guard let size = node.measureFunc?(CGSize(width: CGFloat(knownDimensionsWidth), height: CGFloat(knownDimensionsHeight)), CGSize(width: CGFloat(availableSpaceWidth), height: CGFloat(availableSpaceHeight))) else {
+    return MeasureOutput.make(Float.nan, Float.nan)
+  }
+  
+  return MeasureOutput.make(width: size.width, height: size.height)
+}
+
+@objc(MasonNodeType)
+public enum MasonNodeType: Int32, RawRepresentable {
+  case element
+  case text
+  case document
+  
+  public typealias RawValue = Int32
+  public var rawValue: Int32 {
+    switch self {
+    case .element:
+      return 0
+    case .text:
+      return 1
+    case .document:
+      return 2
     }
-    
-    return MeasureOutput.make(width: size.width, height: size.height)
+  }
+  
+  public init?(rawValue: Int32) {
+    switch rawValue {
+    case 0:
+      self = .element
+    case 1:
+      self = .text
+    case 2:
+      self = .document
+    default:
+      return nil
+    }
+  }
 }
-
-
-private func create_layout(_ floats: UnsafePointer<Float>?) -> UnsafeMutableRawPointer? {
-    let layout = MasonLayout.fromFloatPoint(floats!).1
-    return Unmanaged.passRetained(layout).toOpaque()
-}
-
 
 @objc(MasonNode)
 @objcMembers
 public class MasonNode: NSObject {
-    public internal (set) var nativePtr: UnsafeMutableRawPointer!
+  public internal(set) var mason: NSCMason
+  
+  internal var isAnonymous = false
+  
+  internal var cachedWidth: CGFloat = 0
+  internal var cachedHeight: CGFloat = 0
+  
+  public var onNodeAttached: (() -> Void)? = nil
+  public var onNodeDetached: (() -> Void)? = nil
+  
+  
+  static func invalidateDescendantTextViews(_ node: MasonNode, _ state: Int64) {
+    // Early exit if node has no initialized text values
+    // if (!node.style.isTextValueInitialized) {
+    //  return
+    // }
     
-    public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
-    
-    internal var measureFunc: MeasureFunc? = nil
-    
-    public var style: MasonStyle {
-        willSet {
-            mason_node_set_style(TSCMason.instance.nativePtr, nativePtr, newValue.nativePtr)
-        }
+    // Direct invalidation if this is a MasonText
+    if let view = node.view as? TextContainer {
+      // Notify all text style changes to ensure paint is fully updated
+      view.onTextStyleChanged(change: state)
     }
-    
-    public var includeInLayout = false
-    var isUIView = false
-    public var isEnabled = false
-    public var data: AnyObject? = nil {
-        didSet {
-            guard let data = data else {
-                isUIView = false
-                return
-            }
-            isUIView = data.isMember(of: UIView.self)
-        }
-    }
-    public internal (set) var owner: MasonNode? = nil
-    public internal (set) var children: [MasonNode] = []
-    // todo create weakmap
-    internal var nodes: [UnsafeMutableRawPointer: MasonNode] = [:]
-    
-    var inBatch = false
-    
-    
-    internal init(_ nativePtr: UnsafeMutableRawPointer) {
-        self.nativePtr = nativePtr
-        style = MasonStyle()
-    }
-    
-    public override init() {
-        style = MasonStyle()
-        nativePtr = mason_node_new_node(TSCMason.instance.nativePtr, style.nativePtr)
-    }
-    
-    public init(style: MasonStyle) {
-        self.style = style
-        nativePtr = mason_node_new_node(TSCMason.instance.nativePtr, style.nativePtr)
-    }
-    
-    public init(style: MasonStyle, children: [MasonNode]) {
-        var childrenMap = children.map { node in
-            node.nativePtr!
-        }
-        
-        nativePtr = mason_node_new_node_with_children(TSCMason.instance.nativePtr, style.nativePtr, &childrenMap, UInt(childrenMap.count))
-        
-        self.style = style
-        self.children = children
-        
-        super.init()
-        
-        children.forEach { node in
-            node.owner = self
-        }
-    }
-    
-    
-    public init(style: MasonStyle, measureFunc: @escaping MeasureFunc) {
-        self.style = style
-        self.measureFunc = measureFunc
-        self.nativePtr = nil
-        
-        super.init()
-        
-        nativePtr = mason_node_new_node_with_context(TSCMason.instance.nativePtr, style.nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
-        
-    }
-    
-    deinit {
-        mason_node_destroy(nativePtr)
-    }
-    
-    
-    
-    static func to_vec_non_repeated_track_sizing_function(_ array: Array<MinMax>) -> CMasonNonRepeatedTrackSizingFunctionArray {
-        let length = array.count
-        var cArray = array.map({ minMax in
-            minMax.cValue
-        })
-        return CMasonNonRepeatedTrackSizingFunctionArray(array: cArray.withUnsafeMutableBytes({ ptr in
-            ptr.baseAddress!.bindMemory(to: CMasonMinMax.self, capacity: length)
-        }), length: UInt(length))
-    }
-    
-    public func updateNodeStyle() {
-        if(inBatch){return}
-        if (style.isDirty) {
-            var gridAutoRows = style.gridAutoRows.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoRowsCount = UInt(gridAutoRows.count)
-            
-            var gridAutoColumns = style.gridAutoColumns.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoColumnsCount = UInt(gridAutoRows.count)
-            
-            
-            var gridTemplateRows =  style.gridTemplateRows.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateRowsCount = UInt(gridTemplateRows.count)
-            
-            var gridTemplateColumns =  style.gridTemplateColumns.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
-            
-            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRowsBuffer in
-                
-                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray()
-                
-                if(gridAutoRowsCount > 0){
-                    gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRowsBuffer.baseAddress, length: gridAutoRowsCount)
-                }
-                
-                
-                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumnsBuffer in
-                    
-                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray()
-                    
-                    if(gridAutoColumnsCount > 0){
-                        gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumnsBuffer.baseAddress, length: gridAutoColumnsCount)
-                    }
-                    
-                    
-                    
-                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRowsBuffer in
-                        
-                        var gridTemplateRows = CMasonTrackSizingFunctionArray()
-                        
-                        if(gridTemplateRowsCount > 0){
-                            gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRowsBuffer.baseAddress, length: gridTemplateRowsCount)
-                        }
-                        
-                        
-                        
-                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumnsBuffer in
-                            
-                            var gridTemplateColumns = CMasonTrackSizingFunctionArray()
-                            
-                            if(gridTemplateColumnsCount > 0){
-                                gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumnsBuffer.baseAddress, length: gridTemplateColumnsCount)
-                            }
-                            
-                            mason_node_update_and_set_style_with_values(
-                                TSCMason.instance.nativePtr,
-                                nativePtr,
-                                style.nativePtr,
-                                style.display.rawValue,
-                                style.position.rawValue,
-                                style.direction.rawValue,
-                                style.flexDirection.rawValue,
-                                style.flexWrap.rawValue,
-                                style.overflow.rawValue,
-                                style.alignItems.rawValue,
-                                style.alignSelf.rawValue,
-                                style.alignContent.rawValue,
-                                style.justifyItems.rawValue,
-                                style.justifySelf.rawValue,
-                                style.justifyContent.rawValue,
-                                
-                                style.inset.left.type,
-                                style.inset.left.value,
-                                style.inset.right.type,
-                                style.inset.right.value,
-                                style.inset.top.type,
-                                style.inset.top.value,
-                                style.inset.bottom.type,
-                                style.inset.bottom.value,
-                                
-                                style.margin.left.type,
-                                style.margin.left.value,
-                                style.margin.right.type,
-                                style.margin.right.value,
-                                style.margin.top.type,
-                                style.margin.top.value,
-                                style.margin.bottom.type,
-                                style.margin.bottom.value,
-                                
-                                style.padding.left.type,
-                                style.padding.left.value,
-                                style.padding.right.type,
-                                style.padding.right.value,
-                                style.padding.top.type,
-                                style.padding.top.value,
-                                style.padding.bottom.type,
-                                style.padding.bottom.value,
-                                
-                                style.border.left.type,
-                                style.border.left.value,
-                                style.border.right.type,
-                                style.border.right.value,
-                                style.border.top.type,
-                                style.border.top.value,
-                                style.border.bottom.type,
-                                style.border.bottom.value,
-                                
-                                style.flexGrow,
-                                style.flexShrink,
-                                
-                                style.flexBasis.type,
-                                style.flexBasis.value,
-                                
-                                style.size.width.type,
-                                style.size.width.value,
-                                style.size.height.type,
-                                style.size.height.value,
-                                
-                                style.minSize.width.type,
-                                style.minSize.width.value,
-                                style.minSize.height.type,
-                                style.minSize.height.value,
-                                
-                                style.maxSize.width.type,
-                                style.maxSize.width.value,
-                                style.maxSize.height.type,
-                                style.maxSize.height.value,
-                                
-                                style.gap.width.type,
-                                style.gap.width.value,
-                                style.gap.height.type,
-                                style.gap.height.value,
-                                
-                                style.aspectRatio ?? Float.nan,
-                                &gridAutoRows,
-                                &gridAutoColumns,
-                                style.gridAutoFlow.rawValue,
-                                style.gridColumn.start.type,
-                                style.gridColumn.start.placementValue,
-                                style.gridColumn.end.type,
-                                style.gridColumn.end.placementValue,
-                                
-                                style.gridRow.start.type,
-                                style.gridRow.start.placementValue,
-                                style.gridRow.end.type,
-                                style.gridRow.end.placementValue,
-                                &gridTemplateRows,
-                                &gridTemplateColumns,
-                                style.overflowX.rawValue,
-                                style.overflowY.rawValue,
-                                style.scrollBarWidth.value
-                            )
-                        }
-                    }
-                    
-                }
-                
-            }
-            
-            style.isDirty = false
-        }
-        
-    }
-    
-    @discardableResult public func layout() -> MasonLayout {
-        
-        let points = mason_node_layout(TSCMason.instance.nativePtr,
-                                       nativePtr, create_layout)
-        
-        
-        let layout: MasonLayout = Unmanaged.fromOpaque(points!).takeRetainedValue()
-        return layout
-    }
-    
-    public var isDirty: Bool {
-        return mason_node_dirty(TSCMason.instance.nativePtr, nativePtr)
-    }
-    
-    public func markDirty(){
-        mason_node_mark_dirty(TSCMason.instance.nativePtr, nativePtr)
-    }
-    
-    @discardableResult func computeAndLayout(size: MasonSize<Float>? = nil) -> MasonLayout {
-        var points: UnsafeMutableRawPointer? = nil
-        if (size != nil) {
-            
-            var gridAutoRows = style.gridAutoRows.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoRowsCount = UInt(gridAutoRows.count)
-            
-            var gridAutoColumns = style.gridAutoColumns.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoColumnsCount = UInt(gridAutoRows.count)
-            
-            
-            var gridTemplateRows =  style.gridTemplateRows.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateRowsCount = UInt(gridTemplateRows.count)
-            
-            var gridTemplateColumns =  style.gridTemplateColumns.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
-            
-            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRows in
-                
-                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRows.baseAddress, length: gridAutoRowsCount)
-                
-                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumns in
-                    
-                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumns.baseAddress, length: gridAutoColumnsCount)
-                    
-                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
-                        
-                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress, length: gridTemplateRowsCount)
-                        
-                        
-                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
-                            
-                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress, length: gridTemplateColumnsCount)
-                            
-                            
-                            points = mason_node_update_style_with_values_size_compute_and_layout(
-                                TSCMason.instance.nativePtr,
-                                nativePtr,
-                                style.nativePtr,
-                                size!.width, size!.height,
-                                style.display.rawValue,
-                                style.position.rawValue,
-                                style.direction.rawValue,
-                                style.flexDirection.rawValue,
-                                style.flexWrap.rawValue,
-                                style.overflow.rawValue,
-                                style.alignItems.rawValue,
-                                style.alignSelf.rawValue,
-                                style.alignContent.rawValue,
-                                style.justifyItems.rawValue,
-                                style.justifySelf.rawValue,
-                                style.justifyContent.rawValue,
-                                
-                                style.inset.left.type,
-                                style.inset.left.value,
-                                style.inset.right.type,
-                                style.inset.right.value,
-                                style.inset.top.type,
-                                style.inset.top.value,
-                                style.inset.bottom.type,
-                                style.inset.bottom.value,
-                                
-                                style.margin.left.type,
-                                style.margin.left.value,
-                                style.margin.right.type,
-                                style.margin.right.value,
-                                style.margin.top.type,
-                                style.margin.top.value,
-                                style.margin.bottom.type,
-                                style.margin.bottom.value,
-                                
-                                style.padding.left.type,
-                                style.padding.left.value,
-                                style.padding.right.type,
-                                style.padding.right.value,
-                                style.padding.top.type,
-                                style.padding.top.value,
-                                style.padding.bottom.type,
-                                style.padding.bottom.value,
-                                
-                                style.border.left.type,
-                                style.border.left.value,
-                                style.border.right.type,
-                                style.border.right.value,
-                                style.border.top.type,
-                                style.border.top.value,
-                                style.border.bottom.type,
-                                style.border.bottom.value,
-                                
-                                style.flexGrow,
-                                style.flexShrink,
-                                
-                                style.flexBasis.type,
-                                style.flexBasis.value,
-                                
-                                style.size.width.type,
-                                style.size.width.value,
-                                style.size.height.type,
-                                style.size.height.value,
-                                
-                                style.minSize.width.type,
-                                style.minSize.width.value,
-                                style.minSize.height.type,
-                                style.minSize.height.value,
-                                
-                                style.maxSize.width.type,
-                                style.maxSize.width.value,
-                                style.maxSize.height.type,
-                                style.maxSize.height.value,
-                                
-                                style.gap.width.type,
-                                style.gap.width.value,
-                                style.gap.height.type,
-                                style.gap.height.value,
-                                
-                                style.aspectRatio ?? Float.nan,
-                                &gridAutoRows,
-                                &gridAutoColumns,
-                                style.gridAutoFlow.rawValue,
-                                style.gridColumn.start.type,
-                                style.gridColumn.start.placementValue,
-                                style.gridColumn.end.type,
-                                style.gridColumn.end.placementValue,
-                                
-                                style.gridRow.start.type,
-                                style.gridRow.start.placementValue,
-                                style.gridRow.end.type,
-                                style.gridRow.end.placementValue,
-                                &gridTemplateRows,
-                                &gridTemplateColumns,
-                                style.overflowX.rawValue,
-                                style.overflowY.rawValue,
-                                style.scrollBarWidth.value,
-                                create_layout
-                            )
-                            
-                            
-                        }
-                    }
-                }
-            }
-            
-            
-        }else {
-            
-            var gridAutoRows = style.gridAutoRows.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoRowsCount = UInt(gridAutoRows.count)
-            
-            var gridAutoColumns = style.gridAutoColumns.map({ minMax in
-                minMax.cValue
-            })
-            
-            let gridAutoColumnsCount = UInt(gridAutoRows.count)
-            
-            
-            var gridTemplateRows =  style.gridTemplateRows.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateRowsCount = UInt(gridTemplateRows.count)
-            
-            var gridTemplateColumns =  style.gridTemplateColumns.map { value in
-                value.cValue
-            }
-            
-            let gridTemplateColumnsCount = UInt(gridTemplateColumns.count)
-            
-            gridAutoRows.withUnsafeMutableBufferPointer { gridAutoRows in
-                
-                var gridAutoRows = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoRows.baseAddress, length: gridAutoRowsCount)
-                
-                gridAutoColumns.withUnsafeMutableBufferPointer { gridAutoColumns in
-                    
-                    var gridAutoColumns = CMasonNonRepeatedTrackSizingFunctionArray(array: gridAutoColumns.baseAddress, length: gridAutoColumnsCount)
-                    
-                    gridTemplateRows.withUnsafeMutableBufferPointer{ gridTemplateRows in
-                        
-                        var gridTemplateRows = CMasonTrackSizingFunctionArray(array: gridTemplateRows.baseAddress, length: gridTemplateRowsCount)
-                        
-                        
-                        gridTemplateColumns.withUnsafeMutableBufferPointer { gridTemplateColumns in
-                            
-                            var gridTemplateColumns = CMasonTrackSizingFunctionArray(array: gridTemplateColumns.baseAddress, length: gridTemplateColumnsCount)
-                            
-                            
-                            points = mason_node_update_style_with_values_compute_and_layout(
-                                TSCMason.instance.nativePtr, nativePtr, style.nativePtr,
-                                style.display.rawValue,
-                                style.position.rawValue,
-                                style.direction.rawValue,
-                                style.flexDirection.rawValue,
-                                style.flexWrap.rawValue,
-                                style.overflow.rawValue,
-                                style.alignItems.rawValue,
-                                style.alignSelf.rawValue,
-                                style.alignContent.rawValue,
-                                style.justifyItems.rawValue,
-                                style.justifySelf.rawValue,
-                                style.justifyContent.rawValue,
-                                
-                                style.inset.left.type,
-                                style.inset.left.value,
-                                style.inset.right.type,
-                                style.inset.right.value,
-                                style.inset.top.type,
-                                style.inset.top.value,
-                                style.inset.bottom.type,
-                                style.inset.bottom.value,
-                                
-                                style.margin.left.type,
-                                style.margin.left.value,
-                                style.margin.right.type,
-                                style.margin.right.value,
-                                style.margin.top.type,
-                                style.margin.top.value,
-                                style.margin.bottom.type,
-                                style.margin.bottom.value,
-                                
-                                style.padding.left.type,
-                                style.padding.left.value,
-                                style.padding.right.type,
-                                style.padding.right.value,
-                                style.padding.top.type,
-                                style.padding.top.value,
-                                style.padding.bottom.type,
-                                style.padding.bottom.value,
-                                
-                                style.border.left.type,
-                                style.border.left.value,
-                                style.border.right.type,
-                                style.border.right.value,
-                                style.border.top.type,
-                                style.border.top.value,
-                                style.border.bottom.type,
-                                style.border.bottom.value,
-                                
-                                style.flexGrow,
-                                style.flexShrink,
-                                
-                                style.flexBasis.type,
-                                style.flexBasis.value,
-                                
-                                style.size.width.type,
-                                style.size.width.value,
-                                style.size.height.type,
-                                style.size.height.value,
-                                
-                                style.minSize.width.type,
-                                style.minSize.width.value,
-                                style.minSize.height.type,
-                                style.minSize.height.value,
-                                
-                                style.maxSize.width.type,
-                                style.maxSize.width.value,
-                                style.maxSize.height.type,
-                                style.maxSize.height.value,
-                                
-                                style.gap.width.type,
-                                style.gap.width.value,
-                                style.gap.height.type,
-                                style.gap.height.value,
-                                
-                                style.aspectRatio ?? Float.nan,
-                                &gridAutoRows,
-                                &gridAutoColumns,
-                                style.gridAutoFlow.rawValue,
-                                style.gridColumn.start.type,
-                                style.gridColumn.start.placementValue,
-                                style.gridColumn.end.type,
-                                style.gridColumn.end.placementValue,
-                                
-                                style.gridRow.start.type,
-                                style.gridRow.start.placementValue,
-                                style.gridRow.end.type,
-                                style.gridRow.end.placementValue,
-                                &gridTemplateRows,
-                                &gridTemplateColumns,
-                                style.overflowX.rawValue,
-                                style.overflowY.rawValue,
-                                style.scrollBarWidth.value,
-                                create_layout)
-                            
-                        }
-                    }
-                }
-            }
-            
-            
-        }
-        
-        let layout: MasonLayout = Unmanaged.fromOpaque(points!).takeRetainedValue()
-        return layout
-    }
-    
-    public func getRoot() -> MasonNode? {
-        guard let owner = self.owner else {return nil}
-        var current = owner
-        var next: MasonNode? = current
-        while(next != nil){
-            next = current.owner
-            if(next != nil){
-                current = next!
-            }
-        }
-        return current
-    }
-    
-    public func rootCompute() {
-        getRoot()?.compute()
-    }
-    
-    public func rootCompute(_ width: Float, _ height: Float) {
-        getRoot()?.compute(width, height)
-    }
-    
-    public func rootComputeMaxContent() {
-        getRoot()?.computeMaxContent()
-    }
-    
-    public func rootComputeMinContent() {
-        getRoot()?.computeMinContent()
-    }
-    
-    public func rootComputeWithViewSize(){
-        getRoot()?.computeWithViewSize()
-    }
-    
-    public func rootComputeWithViewSize(layout: Bool){
-        getRoot()?.computeWithViewSize(layout: layout)
-    }
-    
-    public func rootComputeWithMaxContent(){
-        getRoot()?.computeWithMaxContent()
-    }
-    
-    public func compute() {
-        mason_node_compute(TSCMason.instance.nativePtr, nativePtr)
-    }
-    
-    public func compute(_ width: Float, _ height: Float) {
-        mason_node_compute_wh(TSCMason.instance.nativePtr, nativePtr, width, height)
-    }
-    
-    public func computeMaxContent() {
-        mason_node_compute_max_content(TSCMason.instance.nativePtr, nativePtr)
-    }
-    
-    public func computeMinContent() {
-        mason_node_compute_min_content(TSCMason.instance.nativePtr, nativePtr)
-    }
-    
-    public func computeWithSize(_ width: Float, _ height: Float){
-        guard let view = data as? UIView else{return}
-        MasonNode.attachNodesFromView(view)
-        compute(width, height)
-        MasonNode.applyToView(view)
-    }
-    
-    public func computeWithViewSize(){
-        computeWithViewSize(layout: false)
-    }
-    
-    public func computeWithViewSize(layout: Bool){
-        guard let view = data as? UIView else{return}
-        MasonNode.attachNodesFromView(view)
-        compute(Float(view.frame.size.width) * TSCMason.scale, Float(view.frame.size.height) * TSCMason.scale)
-        if(layout){
-            MasonNode.applyToView(view)
-        }
-    }
-    
-    
-    public func computeWithMaxContent(){
-        guard let view = data as? UIView else{return}
-        MasonNode.attachNodesFromView(view)
-        computeMaxContent()
-        MasonNode.applyToView(view)
-    }
-    
-    public func computeWithMinContent(){
-        guard let view = data as? UIView else{return}
-        MasonNode.attachNodesFromView(view)
-        computeMinContent()
-        MasonNode.applyToView(view)
-    }
-    
-    public func attachAndApply(){
-        guard let view = data as? UIView else{return}
-        MasonNode.attachNodesFromView(view)
-        MasonNode.applyToView(view)
-    }
-    func getChildAt(_ index: Int) -> MasonNode? {
-        // todo support negative get
-        if(index < 0){
-            return nil
-        }
-        
-        
-        if (TSCMason.shared) {
-            let child = mason_node_get_child_at(TSCMason.instance.nativePtr, nativePtr, UInt(index))
-            if (child == nil) {
-                return nil
-            }
-            return MasonNode(child!)
-        }
-        return children[index]
-    }
-    
-    func setChildren(_ children: [UnsafeMutableRawPointer]){
-        // todo ensure data is set
-        mason_node_set_children(TSCMason.instance.nativePtr, nativePtr, children, UInt(children.count))
-    }
-    
-    
-    public func setChildren(children: [MasonNode]){
-        setChildren(children.map { child in
-            child.owner = self
-            return child.nativePtr!
-        })
-        
-        self.children.removeAll()
-    }
-    
-    func addChildren(_ children: [UnsafeMutableRawPointer]){
-        mason_node_add_children(TSCMason.instance.nativePtr, nativePtr, children, UInt(children.count))
-    }
-    
-    public func addChildren(_ children: [MasonNode]){
-        let map = children.map { node in
-            node.owner = self
-            return node.nativePtr
-        }
-        
-        mason_node_add_children(TSCMason.instance.nativePtr, nativePtr, map, UInt(map.count))
-    }
-    
-    func addChild(_ child: MasonNode) {
-        guard let childPtr = child.nativePtr else {
-            return
-        }
-        
-        mason_node_add_child(TSCMason.instance.nativePtr, nativePtr, childPtr)
-        
-        guard let existing = nodes[childPtr] else {
-            child.owner = self
-            
-            children.append(child)
-            
-            nodes[childPtr] = child
-            
-            return
-        }
-        
-        existing.owner = self
-        
-    }
-    
-    func addChildAt(_ child: MasonNode, _ index: Int) {
-        
-        if (index == -1) {
-            mason_node_add_child(TSCMason.instance.nativePtr, nativePtr, child.nativePtr)
-            
-            children.append(child)
-            
-            child.owner = self
-            
-            guard let childPtr = child.nativePtr else {return}
-            
-            nodes[childPtr] = child
-            
-            return
-        }
-        
-        mason_node_add_child_at(TSCMason.instance.nativePtr, nativePtr, child.nativePtr, UInt(index))
-        
-        guard let childPtr = child.nativePtr else {
-            return
-        }
-        
-        
-        child.owner = self
-        
-        children.insert(child, at: index)
-        
-        nodes[childPtr] = child
-    }
-    
-    
-    
-    @discardableResult func removeChild(child: MasonNode) -> MasonNode? {
-        let removedNode = mason_node_remove_child(TSCMason.instance.nativePtr, nativePtr, child.nativePtr)
-        
-        if (removedNode == nil) {
-            return nil
-        }
-        assert(child.nativePtr == removedNode)
-        child.owner = nil
-        
-        guard let index = children.firstIndex(of: child) else {
-            return nil
-        }
-        children.remove(at: index)
-        
-        guard let childPtr = child.nativePtr else {
-            return child
-        }
-        
-        nodes[childPtr] = nil
-        
-        return child
-    }
-    
-    
-    func removeAllChildren() {
-        mason_node_remove_children(TSCMason.instance.nativePtr, nativePtr)
-        children.forEach { child in
-            child.owner = nil
-            nodes[child.nativePtr] = nil
-        }
-        children.removeAll()
-    }
-    
-    
-    func removeChildAt(index: Int) -> MasonNode? {
-        // TODO handle negative index
-        if(index < 0){
-            return nil
-        }
-        guard let removedNode = mason_node_remove_child_at(TSCMason.instance.nativePtr, nativePtr, UInt(index)) else {return nil}
-        
-        let node = nodes[removedNode]
-        
-        nodes[removedNode] = nil
-        
-        guard let node = node else {return nil}
-        
-        node.owner = nil
-        
-        guard let index = children.firstIndex(of: node) else {return nil}
-        
-        return children.remove(at: index)
-    }
-    
-    
-    func removeMeasureFunction(){
-        mason_node_remove_context(TSCMason.instance.nativePtr, nativePtr)
-        self.measureFunc = nil
-    }
-    
-    func setMeasureFunction(_ measureFunc: @escaping MeasureFunc) {
-        self.measureFunc = measureFunc
-        mason_node_set_context(TSCMason.instance.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
-    }
-    
-    public var isLeaf: Bool {
-        assert(Thread.isMainThread, "This method must be called on the main thread.")
-        if(isEnabled){
-            guard let view = self.data as? UIView else {return true}
-            for subview in view.subviews {
-                let mason = subview.mason
-                if(mason.isEnabled && mason.includeInLayout){
-                    return false
-                }
-            }
-        }
-        return true
-    }
-    
-    public func configure(_ block :(MasonNode) -> Void) {
-        inBatch = true
-        block(self)
-        inBatch = false
-        updateNodeStyle()
-    }
-    
-    func setDefaultMeasureFunction(){
-        guard let view = data as? UIView else {return}
-        self.setMeasureFunction { knownDimensions, availableSpace in
-            return MasonNode.measureFunction(view, knownDimensions, availableSpace)
-        }
-    }
-    
-    static func attachNodesFromView(_ view: UIView){
-        let node = view.mason
-        if(node.isLeaf){
-            node.removeAllChildren()
-            node.setMeasureFunction { knownDimensions, availableSpace in
-                return measureFunction(view, knownDimensions, availableSpace)
-            }
-        } else {
-            node.removeMeasureFunction()
-            let count = view.subviews.count
-            var subviewsToInclude = Array<UIView>()
-            subviewsToInclude.reserveCapacity(count)
-            
-            var nodesToInclude = Array<UnsafeMutableRawPointer>()
-            nodesToInclude.reserveCapacity(count)
-            
-            for subview in view.subviews {
-                let mason = subview.mason
-                if(mason.isEnabled && mason.includeInLayout){
-                    subviewsToInclude.append(subview)
-                    nodesToInclude.append(mason.nativePtr!)
-                    mason.owner = view.mason
-                }
-            }
-            
-            if(!mason_node_is_children_same(TSCMason.instance.nativePtr, node.nativePtr, &nodesToInclude, UInt(nodesToInclude.count))){
-                node.removeAllChildren()
-                node.setChildren(nodesToInclude)
-            }
-            
-            for subview in view.subviews {
-                attachNodesFromView(subview)
-            }
-            
-        }
-    }
-    
-    static func applyToView(_ view: UIView){
-        let mason = view.mason
-        
-        if(!mason.includeInLayout){
-            return
-        }
-        
-        var layout = mason.layout()
-        
-        var widthIsNan = layout.width.isNaN
-        
-        var heightIsNan = layout.height.isNaN
-        
-        let widthIsZero = mason.style.size.width.isZero
-        
-        let heightIsZero = mason.style.size.height.isZero
-        
-        var width = CGFloat(layout.width.isNaN ? 0 : layout.width/TSCMason.scale)
-        
-        var height = CGFloat(layout.height.isNaN ? 0 : layout.height/TSCMason.scale)
-        
-        var hasPercentDimensions = false
-        
-        if (width.isZero && !widthIsZero) {
-            switch(mason.style.size.width){
-            case .Auto:
-                widthIsNan = true
-            case .Percent(_):
-                hasPercentDimensions = true
-            default:
-                break
-            }
-        }
-        
-        
-        if (height.isZero && !heightIsZero) {
-            switch(mason.style.size.height){
-            case .Auto:
-                heightIsNan = true
-            case .Percent(_):
-                hasPercentDimensions = true
-            default:
-                break
-            }
-        }
-        
-        if (hasPercentDimensions) {
-            mason.owner?.markDirty()
-            mason.markDirty()
-            mason.rootComputeWithViewSize()
-            layout = mason.layout()
-            widthIsNan = layout.width.isNaN
-            heightIsNan = layout.height.isNaN
-        }
-        
-        
-        width = CGFloat(layout.width.isNaN ? 0 : layout.width/TSCMason.scale)
-        
-        height = CGFloat(layout.height.isNaN ? 0 : layout.height/TSCMason.scale)
-        
-        if (widthIsZero) {
-            width = 0
-            widthIsNan = false
-        }
-        
-        if (heightIsZero) {
-            height = 0
-            heightIsNan = false
-        }
-        
-        
-        if (widthIsNan || heightIsNan) {
-            let fit = view.sizeThatFits(CGSizeMake(.greatestFiniteMagnitude, .greatestFiniteMagnitude))
-            width = fit.width
-            height = fit.height
-        }
-        
-        
-        let x = CGFloat(layout.x.isNaN ? 0 : layout.x/TSCMason.scale)
-        
-        let y = CGFloat(layout.y.isNaN ? 0 : layout.y/TSCMason.scale)
-        
-        let point = CGPoint(x: x, y: y)
-        
-        let size = CGSizeMake(width, height)
-        
-        view.frame = CGRect(origin: point, size: size)
-        
-        if (!mason.isLeaf) {
-            view.subviews.forEach { subview in
-                MasonNode.applyToView(subview)
-            }
-        }
-    }
-    
-    enum MeasureMode {
-        case Min
-        case Max
-        case Definite
-    }
-    
-    static func measureFunction(_ view: UIView, _ knownDimensions: CGSize?,_ availableSpace: CGSize) -> CGSize {
-    
-        let node = view.mason
-                
-        var widthIsNan = knownDimensions?.width.isNaN ?? true
-        var heightIsNan = knownDimensions?.height.isNaN ?? true
-        
-        if(!widthIsNan && !heightIsNan){
-            return knownDimensions!
-        }
-        
-        var size: CGSize = .zero
-        
-        let scale = CGFloat(TSCMason.scale)
-        
-        
-        let widthIsZero = node.style.size.width.isZero
-        let heightIsZero = node.style.size.height.isZero
-        
-        
-        if(widthIsZero && heightIsZero){
-            return size
-        }
-        
 
-        if (widthIsNan || knownDimensions!.width.isZero && !widthIsZero) {
-            switch(node.style.size.width){
-            case .Points(let value):
-                size.width = CGFloat(value)
-                if(!size.width.isNaN){
-                    widthIsNan = false
-                }
-            case .Percent(let value):
-                let parentView = node.owner?.data as? UIView
-                if(parentView != nil){
-                    size.width = (parentView!.frame.size.width.isNaN ? 0 : parentView!.frame.size.width * CGFloat(value)) * scale
-                    widthIsNan = false
-                }else {
-                    let root = view.rootView
-                    if(root != nil){
-                        size.width = (root!.frame.size.width.isNaN ? 0 : root!.frame.size.width * CGFloat(value)) * scale
-                        widthIsNan = false
-                    }
-                }
-                if(size.width.isNaN || size.width.isZero){
-                    let parentLayout = node.owner?.layout()
-                    if(parentLayout != nil){
-                        size.width = CGFloat(parentLayout?.width.isNaN ?? true ? 0 : parentLayout!.width * value)  * scale
-                        widthIsNan = false
-                    }
-                }
-            default:
-                // noop
-                break
-            }
-        }
-        
-        if (heightIsNan || knownDimensions!.height.isZero && !heightIsZero) {
-            switch(node.style.size.height){
-            case .Points(let value):
-                size.height = CGFloat(value)
-                if(!size.height.isNaN){
-                    heightIsNan = false
-                }
-            case .Percent(let value):
-                let parentView = node.owner?.data as? UIView
-                if(parentView != nil){
-                    size.height = (parentView!.frame.size.height.isNaN ? 0 : parentView!.frame.size.height * CGFloat(value)) * scale
-                    heightIsNan = false
-                }else {
-                    let root = view.rootView
-                    if(root != nil){
-                        size.height = (root!.frame.size.height.isNaN ? 0 : root!.frame.size.height * CGFloat(value)) * scale
-                        print(size.height)
-                        heightIsNan = false
-                    }
-                }
-                if(size.height.isNaN || size.height.isZero){
-                    let parentLayout = node.owner?.layout()
-                    if(parentLayout != nil){
-                        size.height = CGFloat(parentLayout?.height.isNaN ?? true ? 0 : parentLayout!.height * value)  * scale
-                        heightIsNan = false
-                    }
-                }
-                
-            default:
-                // noop
-                break
-            }
-        }
-        
-        if(!widthIsNan && !widthIsZero && !heightIsNan && heightIsZero){
-            return size
-        }
-        
-        
-        var widthMode: MeasureMode = .Definite
-        var heightMode: MeasureMode = .Definite
-        
-        
-        var widthConstraint: CGFloat = 0
-        var heightConstraint: CGFloat = 0
-        
-        if(widthIsNan || !widthIsZero){
-            if(availableSpace.width == -1){
-                widthMode = .Min
-                widthConstraint = CGFLOAT_MAX
-            }else if(availableSpace.width == -2){
-                widthMode = .Max
-                widthConstraint = CGFLOAT_MAX
-            }else {
-                widthConstraint = availableSpace.width / scale
-            }
-        }else {
-            widthConstraint = knownDimensions!.width / scale
-        }
-        
-        
-        if(heightIsNan || !heightIsZero){
-            if(availableSpace.height == -1){
-                heightMode = .Min
-                heightConstraint = CGFLOAT_MAX
-            }else if(availableSpace.height == -2){
-                heightMode = .Max
-                heightConstraint = CGFLOAT_MAX
-            }else {
-                heightConstraint = availableSpace.height / scale
-            }
-        }else {
-            heightConstraint = knownDimensions!.height / scale
-        }
-        
+    // Iterate children (only layout children, not author children)
+    for child in node.children {
+      invalidateDescendantTextViews(child, state)
+    }
+  }
+  
+  
+  internal var suppressChildOps = 0
+  
+  @inline(__always)
+  internal func suppressChildOperations<T>(_ block: () -> T) -> T {
+    suppressChildOps += 1
+    defer { suppressChildOps -= 1 }
+    return block()
+  }
+  
+  @objc private dynamic func setComputedSize(_ width: CGFloat, height: CGFloat){
+    cachedWidth = width
+    cachedHeight = height
+  }
+  
+  
+  @objc private dynamic var computedWidth: CGFloat {
+    return cachedWidth
+  }
+  
+  @objc private dynamic var computedHeight: CGFloat {
+    return cachedHeight
+  }
+  
+  
+  public internal(set) var nativePtr: OpaquePointer?
+  
+  public internal(set) var computedLayout = MasonLayout()
+  
+  internal var isLayoutValid: Bool = false
+  
+  public internal(set) var document: MasonDocument? = nil
+  
+  public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
+  
+  internal var view: UIView? = nil
+  
+  internal var children: [MasonNode] = []
+  
+  internal var measureFunc: MeasureFunc? = nil
+  
+  public func getRootNode() -> MasonNode {
+    var current = self
+    while current.parent != nil {
+      current = current.parent!
+    }
+    return current
+  }
+  
+  lazy internal var style: MasonStyle = {
+    MasonStyle(node: self)
+  }()
+  
+  
+  internal var layoutParent: MasonNode? = nil
+  public internal(set) var parent: MasonNode? {
+    get {
+      var p = layoutParent
+      while p?.isAnonymous == true {
+        p = p?.parent
+      }
+      return p
+    }
+    set {
+      layoutParent = newValue
+    }
+  }
+  
+  public var parentNode: MasonNode? {
+    return parent
+  }
+  
+  public var parentElement: MasonElement? {
+    guard let parent = parent else {return nil}
+    return parent.type == .element ? parent.view as? MasonElement : nil
+  }
+  
+  public internal(set) var type: MasonNodeType = .element
+  
+  public func getChildren() -> [MasonNode] {
+    var out: [MasonNode] = []
+    collectAuthorChildren(into: &out, from: children)
+    return out
+  }
+  
+  
+  public func getLayoutChildren() -> [MasonNode] {
+    return children
+  }
+  
+  // MARK: - Helpers
+  
+  private func collectAuthorChildren(into out: inout [MasonNode], from nodes: [MasonNode]) {
+    for child in nodes {
+      if child.isAnonymous {
+        collectAuthorChildren(into: &out, from: child.children)
+      } else {
+        out.append(child)
+      }
+    }
+  }
+  
+  
+  public var inBatch = false {
+    didSet {
+      style.inBatch = inBatch
+    }
+  }
+  
+  
+  internal init(dataNode doc: NSCMason) {
+    mason = doc
+    nativePtr = nil
+    type = .text
+    super.init()
+  }
+  
+  internal init(masonImage doc: NSCMason) {
+    mason = doc
+    nativePtr = mason_node_new_image_node(mason.nativePtr)
+    type = .element
+    super.init()
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
+  }
+  
+  
+  internal init(mason doc: NSCMason, _ isAnonymous: Bool = false) {
+    mason = doc
+    nativePtr = mason_node_new_node(mason.nativePtr, isAnonymous)
+    type = .element
+    super.init()
+    self.isAnonymous = isAnonymous
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
+  }
+  
+  
+  internal init(textNode doc: NSCMason, _ isAnonymous: Bool = false) {
+    mason = doc
+    nativePtr = mason_node_new_text_node(mason.nativePtr, isAnonymous)
+    type = .element
+    super.init()
+    self.isAnonymous = isAnonymous
+  }
+  
+  
+  public init(mason doc: NSCMason, children nodes: [MasonNode]) {
+    var childrenMap = nodes.map { node in
+      node.nativePtr
+    }
+    mason = doc
+    nativePtr = mason_node_new_node_with_children(mason.nativePtr, &childrenMap, UInt(childrenMap.count))
     
-        
-        
-        if(!node.isUIView || view.subviews.count > 0){
-            
-            let fits = view.sizeThatFits(CGSizeMake(widthConstraint, heightConstraint))
-            
-            switch(widthMode){
-            case .Min:
-                size.width = .minimum(fits.width, widthConstraint) * scale
-            case .Max:
-                size.width = fits.width * scale
-            case .Definite:
-                size.width = widthConstraint * scale
-            }
-            
-            
-            switch(heightMode){
-            case .Min:
-                size.height = .minimum(fits.height, heightConstraint) * scale
-            case .Max:
-                size.height = fits.height * scale
-            case .Definite:
-                size.height = heightConstraint * scale
-            }
-            
-        }
-        
-        
-        return size
-        
+    children = nodes
+    type = .element
+    super.init()
+    
+    children.forEach { node in
+      node.parent = self
+    }
+  }
+  
+  
+  internal init(mason doc : NSCMason, measureFunc function: @escaping MeasureFunc) {
+    measureFunc = function
+    mason = doc
+    nativePtr = mason_node_new_node(mason.nativePtr, false)
+    super.init()
+    mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
+  }
+  
+  deinit {
+    guard let nativePtr else { return }
+    mason_node_destroy(nativePtr)
+  }
+  
+  
+  public var isDirty: Bool {
+    return mason_node_dirty(mason.nativePtr, nativePtr)
+  }
+  
+  public func markDirty(){
+    mason_node_mark_dirty(mason.nativePtr, nativePtr)
+    isLayoutValid = false
+  }
+  
+  public func getRoot() -> UIView? {
+    return getRootNode().view
+  }
+  
+  private func getDecorationColor() -> UIColor {
+    let decColor = style.resolvedDecorationColor
+    if decColor == Constants.UNSET_COLOR {
+      return UIColor.colorFromARGB(style.resolvedColor)
+    }
+    return UIColor.colorFromARGB(decColor)
+  }
+  
+  /// Helper to get default text attributes for new text nodes
+  public func getDefaultAttributes() -> [NSAttributedString.Key: Any] {
+    var attrs: [NSAttributedString.Key: Any] = [:]
+    
+    if(style.font.font == nil){
+      style.font.loadSync { _ in }
+    }
+    
+    let paragraphStyle = NSMutableParagraphStyle()
+    
+    var type = MasonTextType.None
+    
+    if let view = view as? MasonText {
+      type = view.type
+    }
+    
+    let scale = NSCMason.scale
+    
+    switch(type){
+    case .H1:
+      paragraphStyle.paragraphSpacing = CGFloat( 8 * scale)
+      break
+    case .H2:
+      paragraphStyle.paragraphSpacing = CGFloat( 7 * scale)
+      break
+    case .H3:
+      paragraphStyle.paragraphSpacing = CGFloat( 6 * scale)
+      break
+    case .H4:
+      paragraphStyle.paragraphSpacing = CGFloat( 5 * scale)
+      break
+    case .H5:
+      paragraphStyle.paragraphSpacing = CGFloat( 4 * scale)
+      break
+    case .H6:
+      paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
+      break
+    case .Blockquote:
+      paragraphStyle.headIndent = CGFloat(40)
+      paragraphStyle.firstLineHeadIndent =  CGFloat(40)
+      break
+    default:
+      //noop
+      break
+    }
+    
+    let fontFace = style.resolvedFontFace
+    
+    if(fontFace.font == nil){
+      fontFace.loadSync { _ in}
+    }
+    
+    if let font = fontFace.font {
+      // Font
+      let fontSize = style.resolvedFontSize
+      let weight = style.resolvedFontWeight
+      let style = style.resolvedInternalFontStyle
+      let ctFont = ctFont(from: font, fontSize: CGFloat(fontSize), weight: weight.uiFontWeight, style: style)
+      attrs[.font] = ctFont
+      attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] = weight.uiFontWeight.rawValue
+      attrs[NSAttributedString.Key(Constants.FONT_STYLE)] = style
     }
     
     
+    // Color
+    attrs[.foregroundColor] =  UIColor.colorFromARGB(style.resolvedColor)
+    
+    
+    let backgroundColorValue = style.resolvedBackgroundColor
+    // Background color
+    if backgroundColorValue != 0 {
+      attrs[.backgroundColor] = UIColor.colorFromARGB(backgroundColorValue)
+    }
+    
+    
+    switch(style.resolvedDecorationLine){
+    case .None: break
+      // noop
+    case .Underline:
+      attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue
+      attrs[.underlineColor] = getDecorationColor()
+    case .Overline:
+      // todo
+      break
+    case .LineThrough:
+      attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+      attrs[.strikethroughColor] = getDecorationColor()
+      
+    }
+    
+    
+    let ws = style.resolvedWhiteSpace
+    let noWrap = (style.resolvedTextWrap == .NoWrap)
+    // Allow wrap unless textWrap=NoWrap or white-space forbids it
+    let allowWrap = !(noWrap || ws == .Pre || ws == .NoWrap)
+
+    switch ws {
+    case .Normal, .PreWrap, .PreLine, .BreakSpaces:
+      paragraphStyle.lineBreakMode = allowWrap ? .byWordWrapping : .byClipping
+    case .Pre, .NoWrap:
+      paragraphStyle.lineBreakMode = .byClipping
+    }
+
+    if #available(iOS 14.0, *) {
+      paragraphStyle.lineBreakStrategy = allowWrap ? [.standard, .hangulWordPriority, .pushOut] : []
+    }
+    
+    // Preserve spacing better when wrapping
+    paragraphStyle.allowsDefaultTighteningForTruncation = false
+    
+    // letter spacing
+    let letterSpacing = style.resolvedLetterSpacing
+    if(letterSpacing > 0){
+      attrs[.kern] = letterSpacing
+    }
+    
+    let lineHeightType = style.resolvedLineHeightType
+    let lineHeight = style.resolvedLineHeight
+    if(lineHeightType == 1){
+      let height = CGFloat(lineHeight)
+      paragraphStyle.minimumLineHeight = height
+      paragraphStyle.maximumLineHeight = height
+    }else {
+      if(lineHeight > 0){
+        paragraphStyle.lineHeightMultiple = CGFloat(lineHeight)
+      }
+    }
+    
+    // text alignment
+    switch style.resolvedTextAlign {
+    case .Auto:
+      paragraphStyle.alignment = .natural
+    case .Left:
+      paragraphStyle.alignment = .left
+    case .Right:
+      paragraphStyle.alignment = .right
+    case .Center:
+      paragraphStyle.alignment = .center
+    case .Justify:
+      paragraphStyle.alignment = .justified
+    case .Start:
+      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+      if(isLTR){
+        paragraphStyle.alignment = .left
+      }else {
+        paragraphStyle.alignment = .right
+      }
+      break
+    case .End:
+      let isLTR = UIView.userInterfaceLayoutDirection(for: .unspecified) == .leftToRight
+      if(isLTR){
+        paragraphStyle.alignment = .right
+      }else {
+        paragraphStyle.alignment = .left
+      }
+      break
+    }
+    
+    // Paragraph style
+    attrs[.paragraphStyle] = paragraphStyle
+    
+    
+    return attrs
+  }
+}
+
+
+// MARK: - Child Management
+extension MasonNode {
+  
+  func getChildAt(_ index: Int) -> MasonNode? {
+    guard !children.isEmpty else { return nil }
+    guard index >= 0 && index < children.count else { return nil }
+    return children[index]
+  }
+  
+  public func setChildren(value: [MasonNode]) {
+    // Remove old children
+    for child in children {
+      child.parent = nil
+      child.view?.removeFromSuperview()
+    }
+    
+    // Set new children
+    children = value
+    
+    // Update parent references and add views
+    for child in value {
+      child.parent = self
+      if let childView = child.view {
+        view?.addSubview(childView)
+      }
+    }
+    
+    // Sync to native layer (only real nodes with nativePtr)
+    let nativeChildren = value.compactMap { Optional($0.nativePtr) }
+    mason_node_set_children(mason.nativePtr, nativePtr, nativeChildren, UInt(nativeChildren.count))
+    
+    markDirty()
+  }
+  
+  
+  public func appendChild(_ child: MasonNode) {
+    if (child is MasonTextNode) {
+      let container = if (view is TextContainer) {
+        self
+      } else {
+        getOrCreateAnonymousTextContainer()
+      }
+    
+  
+      container.children.append(child)
+      if let child = child as? MasonTextNode, let it = container.view as? MasonText {
+        child.attributes = it.getDefaultAttributes()
+        child.container = it
+        it.engine.invalidateInlineSegments()
+      }
+      (container.view as? TextContainer)?.engine.invalidateInlineSegments()
+      NodeUtils.invalidateLayout(self)
+    } else {
+      children.append(child)
+      child.parent = self
+      NativeHelpers.nativeNodeAddChild(mason, self, child)
+      NodeUtils.addView(self, child.view)
+      // Single pass invalidation of descendants with text styles
+      MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+      onNodeAttached?()
+    }
+  }
+  
+  
+  internal func getOrCreateAnonymousTextContainer(_ append: Bool = true, checkLast: Bool = true) -> MasonNode {
+    // Check if last child is an anonymous text container
+    if checkLast,
+       let lastChild = children.last,
+       lastChild.isAnonymous,
+       lastChild.view is TextContainer {
+      return lastChild
+    }
+    
+    // Create new anonymous container
+    let textView = MasonText(mason: mason, isAnonymous: true)
+    textView.style.display = .Inline
+    
+    if(append){
+      // Add container to this node
+      children.append(textView.node)
+      
+      textView.node.parent = self
+      
+      
+      if(append && !(view is TextContainer)){
+        view?.addSubview(textView)
+      }
+      
+      // Add to native layout tree
+      if let containerPtr = textView.node.nativePtr {
+        mason_node_add_child(mason.nativePtr, nativePtr, containerPtr)
+      }
+      
+    }
+    
+    return textView.node
+  }
+  
+  @discardableResult
+  func removeChild(_ child: MasonNode) -> MasonNode? {
+    guard child.parent === self else { return nil }
+    
+    if (children.isEmpty) {
+      return nil
+    }
+    let nodes = getChildren()
+    guard let idx = nodes.firstIndex(of: child) else {return nil}
+    return removeChildAt(index: idx)
+  }
+  
+  
+  
+  internal func replaceChildAt(_ child: MasonNode, _ index: Int) {
+    // --- Handle invalid indices ---
+    if index <= -1 {
+      appendChild(child)
+      return
+    }
+    
+    let nodes = getChildren()
+    if index >= nodes.count {
+      appendChild(child)
+      return
+    }
+    
+    let reference = nodes[index]
+    if reference === child {
+      return
+    }
+    
+    // --- Handle TextNode replacement ---
+    if let textChild = child as? MasonTextNode {
+      if let referenceText = reference as? MasonTextNode {
+        guard
+          let container = referenceText.container,
+          let idx = container.node.children.firstIndex(where: { $0 === referenceText })
+        else { return }
+        
+        container.node.children[idx] = textChild
+        textChild.attributes.removeAll()
+        textChild.attributes.merge(container.node.getDefaultAttributes()) { _, new in new }
+        textChild.container = container
+        referenceText.container = nil
+        
+        container.engine.invalidateInlineSegments()
+        if !style.inBatch {
+          (container.node.view as? MasonElement)?.invalidateLayout()
+        }
+        
+      } else {
+        let container = getOrCreateAnonymousTextContainer(false, checkLast: false)
+        container.children.append(textChild)
+        
+        if let textView = container.view as? MasonText {
+          textChild.attributes.removeAll()
+          textChild.attributes.merge(textView.getDefaultAttributes()) { _, new in new }
+          textChild.container = textView
+          textView.engine.invalidateInlineSegments()
+        }
+        
+        guard let idx = children.firstIndex(where: { $0 === reference }) else { return }
+        children[idx] = container
+        reference.parent = nil
+        NodeUtils.syncNode(self, children)
+      }
+      
+      return
+    }
+    
+    // --- Non-text child handling ---
+    guard let idx: Int = {
+      if let i = children.firstIndex(where: { $0 === reference }) {
+        return i
+      }
+      if let refText = reference as? MasonTextNode,
+         let containerNode = refText.container?.node,
+         containerNode.isAnonymous,
+         let i = containerNode.children.firstIndex(where: { $0 === reference }) {
+        return i
+      }
+      return nil
+    }() else {
+      return
+    }
+    
+    // --- Text node inside anonymous container (split handling) ---
+    if let referenceText = reference as? MasonTextNode {
+      let containerNode = referenceText.layoutParent ?? referenceText.container?.node
+      if let containerNode = containerNode, containerNode.parent === self {
+        let idxInContainer = containerNode.children.firstIndex(where: { $0 === referenceText }) ?? -1
+        if idxInContainer >= 0 {
+          let hasLeft = idxInContainer > 0
+          let hasRight = idxInContainer < containerNode.children.count - 1
+          let containerIndexInParent = children.firstIndex(where: { $0 === containerNode }) ?? -1
+          
+          var afterContainer: MasonNode? = nil
+          if hasRight {
+            afterContainer = getOrCreateAnonymousTextContainer(false, checkLast: false)
+            
+            // Move right-side text nodes into afterContainer
+            let start = idxInContainer + 1
+            let moved = Array(containerNode.children[start...])
+            for m in moved {
+              if let removeIndex = containerNode.children.firstIndex(where: { $0 === m }) {
+                containerNode.children.remove(at: removeIndex)
+              }
+              m.parent = afterContainer
+              afterContainer?.children.append(m)
+              
+              if let tv = afterContainer?.view as? MasonText, let mText = m as? MasonTextNode {
+                mText.attributes = tv.getDefaultAttributes()
+                mText.container = tv
+              }
+            }
+            
+            // Insert afterContainer into parent’s layout children immediately after original container
+            if containerIndexInParent >= 0 {
+              let insertAt = containerIndexInParent + 1
+              children.insert(afterContainer!, at: insertAt)
+              afterContainer?.parent = self
+              
+              if let viewGroup = view,
+                 let refContainerView = referenceText.container?.node.view,
+                 let idxChild = viewGroup.subviews.firstIndex(of: refContainerView),
+                 idxChild > -1,
+                 let afterView = afterContainer?.view {
+                suppressChildOperations {
+                  viewGroup.insertSubview(afterView, at: idxChild + 1)
+                }
+              }
+              
+              if let afterContainer = afterContainer {
+                NativeHelpers.nativeNodeAddChild(mason, self, afterContainer)
+              }
+              
+            } else {
+              // Fallback: append
+              children.append(afterContainer!)
+              afterContainer?.parent = self
+              
+              if let viewGroup = view,
+                 let refContainerView = referenceText.container?.node.view,
+                 let idxChild = viewGroup.subviews.firstIndex(of: refContainerView),
+                 idxChild > -1,
+                 let afterView = afterContainer?.view {
+                suppressChildOperations {
+                  viewGroup.insertSubview(afterView, at: idxChild + 1)
+                }
+              }
+              
+              if let afterContainer = afterContainer {
+                NativeHelpers.nativeNodeAddChild(mason, self, afterContainer)
+              }
+            }
+          }
+          
+          // Remove the reference text node from the original container
+          if idxInContainer >= 0 && idxInContainer < containerNode.children.count {
+            containerNode.children.remove(at: idxInContainer)
+          }
+          
+          referenceText.container?.engine.invalidateInlineSegments()
+          referenceText.container?.node.view?.setNeedsDisplay()
+          referenceText.parent = nil
+          referenceText.container = nil
+          
+          // Remove empty container if necessary
+          if containerNode.children.isEmpty {
+            if let pIdx = children.firstIndex(where: { $0 === containerNode }) {
+              children.remove(at: pIdx)
+              NodeUtils.removeView(self, containerNode.view)
+            }
+          }
+          
+          // --- Insert or replace the element child ---
+          switch (hasLeft, hasRight) {
+          case (true, true):
+            if let pos = children.firstIndex(where: { $0 === containerNode }) {
+              children.insert(child, at: pos + 1)
+            } else {
+              children.append(child)
+            }
+            child.parent = self
+            NodeUtils.addView(self, child.view)
+            
+          case (true, false):
+            if let pos = children.firstIndex(where: { $0 === containerNode }) {
+              children.insert(child, at: pos + 1)
+            } else {
+              children.append(child)
+            }
+            child.parent = self
+            NodeUtils.addView(self, child.view)
+            
+          case (false, true):
+            let pos = (containerIndexInParent >= 0)
+            ? containerIndexInParent
+            : children.firstIndex(where: { $0 === containerNode }) ?? -1
+            if pos >= 0 && pos < children.count {
+              children[pos] = child
+            } else {
+              children.append(child)
+            }
+            child.parent = self
+            NodeUtils.addView(self, child.view)
+            
+          default:
+            let pos = (containerIndexInParent >= 0)
+            ? containerIndexInParent
+            : children.firstIndex(where: { $0 === containerNode }) ?? -1
+            if pos >= 0 && pos < children.count {
+              children[pos] = child
+            } else {
+              children.append(child)
+            }
+            child.parent = self
+            NodeUtils.addView(self, child.view)
+          }
+          
+          
+          // Single pass invalidation of descendants with text styles
+          MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+          
+          NodeUtils.syncNode(self, children)
+          if !style.inBatch {
+            (view as? MasonElement)?.invalidateLayout()
+          }
+          return
+        }
+      }
+    }
+    
+    // --- Default non-text replacement ---
+    children[idx] = child
+    child.parent = self
+    reference.parent = nil
+    NodeUtils.removeView(self, reference.view)
+    NodeUtils.addView(self, child.view)
+    
+    // Single pass invalidation of descendants with text styles
+    MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+    
+    
+    NodeUtils.syncNode(self, children)
+    
+    if !style.inBatch {
+      if child.view is TextContainer {
+        (child.view as? MasonText)?.invalidate()
+      }
+      (view as? MasonElement)?.invalidateLayout()
+    }
+  }
+  
+  
+  internal func addChildAt(_ child: MasonNode, _ index: Int) {
+    if index <= -1 {
+      appendChild(child)
+      return
+    }
+    
+    let authorChildren = getChildren()
+    
+    // if index is past end, fallback to append behavior
+    if index >= authorChildren.count {
+      appendChild(child)
+      return
+    }
+    
+    let reference = authorChildren[index]
+    
+    // Inserting a TextNode
+    if let textChild = child as? MasonTextNode {
+      if let referenceText = reference as? MasonTextNode {
+        if let containerNode = referenceText.layoutParent ?? referenceText.container?.node, containerNode.parent === self {
+          if let idxInContainer = containerNode.children.firstIndex(of: referenceText) {
+            containerNode.children.insert(textChild, at: idxInContainer)
+            textChild.parent = containerNode
+            
+            if let tv = containerNode.view as? MasonText {
+              textChild.attributes.removeAll()
+              textChild.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
+              textChild.container = tv
+              tv.engine.invalidateInlineSegments()
+            }
+            
+            if !style.inBatch {
+              (containerNode as? MasonElement)?.invalidateLayout()
+            }
+            return
+          }
+        }
+      }
+      
+      // Create an anonymous text container
+      let container = getOrCreateAnonymousTextContainer(checkLast: false)
+      container.children.removeAll()
+      container.children.append(textChild)
+      textChild.parent = container
+      
+      if let tv = container.view as? MasonText {
+        textChild.attributes.removeAll()
+        textChild.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
+        textChild.container = tv
+        tv.engine.invalidateInlineSegments()
+      }
+      
+      let refPos = children.firstIndex(of: reference) ?? 0
+      children.insert(container, at: refPos)
+      container.parent = self
+      NodeUtils.addView(self, container.view)
+      NodeUtils.syncNode(self, children)
+      
+      if !style.inBatch {
+        (view as? MasonElement)?.invalidateLayout()
+      }
+      return
+    }
+    
+    // Inserting a non-TextNode
+    if let referenceText = reference as? MasonTextNode {
+      if let containerNode = referenceText.layoutParent ?? referenceText.container?.node, containerNode.parent === self, let idxInContainer = containerNode.children.firstIndex(of: referenceText) {
+        
+        let containerIndexInParent = children.firstIndex(of: containerNode) ?? -1
+        
+        if containerIndexInParent < 0 {
+          let insertIndex = children.firstIndex(of: reference) ?? index
+          let pos = max(0, min(children.count, insertIndex))
+          children.insert(child, at: pos)
+          child.parent = self
+          NodeUtils.addView(self, child.view)
+          NodeUtils.syncNode(self, children)
+          if !style.inBatch { (view as? MasonElement)?.invalidateLayout() }
+          return
+        }
+        
+        // Split container
+        let leftSlice = Array(containerNode.children[..<idxInContainer])
+        let rightSlice = Array(containerNode.children[idxInContainer...])
+        
+        containerNode.children.removeAll()
+        for n in leftSlice {
+          containerNode.children.append(n)
+          n.parent = containerNode
+        }
+        
+        if let tv = containerNode.view as? MasonText {
+          for tn in containerNode.children {
+            if let tnText = tn as? MasonTextNode {
+              tnText.attributes.removeAll()
+              tnText.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
+              tnText.container = tv
+            }
+          }
+          tv.engine.invalidateInlineSegments()
+        }
+        (containerNode.view as? MasonElement)?.invalidateLayout()
+        
+        // after container
+        var afterContainer: MasonNode? = nil
+        if !rightSlice.isEmpty {
+          afterContainer = getOrCreateAnonymousTextContainer(checkLast: false)
+          afterContainer?.children.removeAll()
+          for n in rightSlice {
+            afterContainer?.children.append(n)
+            n.parent = afterContainer
+            if let tv = afterContainer?.view as? MasonText, let tnText = n as? MasonTextNode {
+              tnText.attributes.removeAll()
+              tnText.attributes.merge(tv.getDefaultAttributes()) { _, new in new }
+              tnText.container = tv
+            }
+          }
+          if let tv = afterContainer?.view as? MasonText {
+            tv.engine.invalidateInlineSegments()
+            tv.invalidateLayout()
+          }
+        }
+        
+        if !leftSlice.isEmpty {
+          let insertPos = containerIndexInParent + 1
+          children.insert(child, at: insertPos)
+          child.parent = self
+          if let after = afterContainer {
+            children.insert(after, at: insertPos + 1)
+            after.parent = self
+            NodeUtils.addView(self, after.view)
+          }
+        } else {
+          let replacePos = containerIndexInParent
+          children.remove(at: replacePos)
+          children.insert(child, at: replacePos)
+          child.parent = self
+          if let after = afterContainer {
+            children.insert(after, at: replacePos + 1)
+            after.parent = self
+            NativeHelpers.nativeNodeAddChild(mason, self, after)
+            NodeUtils.addView(self, after.view)
+          } else {
+            NodeUtils.removeView(self, containerNode.view)
+          }
+        }
+        
+        
+     //   NodeUtils.syncNode(self, children)
+        NodeUtils.addView(self, child.view)
+        // Single pass invalidation of descendants with text styles
+        MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+        
+        
+        NodeUtils.syncNode(self, children)
+        
+        
+        
+        (containerNode.view as? MasonElement)?.invalidateLayout()
+        (afterContainer?.view as? MasonElement)?.invalidateLayout()
+        (child.view as? MasonElement)?.invalidateLayout()
+        
+        
+        
+        if !style.inBatch { (view as? MasonElement)?.invalidateLayout() }
+        return
+      }
+    }
+    
+    // Default: simple insert at index
+    let insertIndex = children.firstIndex(of: reference) ?? index
+    let pos = max(0, min(children.count, insertIndex))
+    children.insert(child, at: pos)
+    child.parent = self
+    
+    if child.nativePtr != nil {
+      NativeHelpers.nativeNodeAddChild(mason, self, child)
+    } else {
+      NodeUtils.addView(self, child.view)
+    }
+    
+    // Single pass invalidation of descendants with text styles
+    MasonNode.invalidateDescendantTextViews(child, TextStyleChangeMasks.all.rawValue)
+    
+    NodeUtils.syncNode(self, children)
+    if !style.inBatch { (view as? MasonElement)?.invalidateLayout() }
+  }
+  
+  
+  internal func removeChildAt(index: Int) -> MasonNode? {
+    if (index < 0) {
+      return nil
+    }
+    let children = getChildren()
+    if (index >= children.count) {
+      return nil
+    }
+    let reference = children[index]
+    guard let idx =
+            reference.layoutParent?.children.firstIndex(of: reference) else {return nil}
+    guard let removed = reference.layoutParent?.children.remove(at: idx) else {return nil}
+    if let removed = removed as? MasonTextNode {
+      removed.container?.engine.invalidateInlineSegments()
+      removed.container = nil
+      if (reference.layoutParent?.children.isEmpty == true) {
+        if let layoutParent = reference.layoutParent?.layoutParent {
+          NodeUtils.removeView(layoutParent, reference.layoutParent?.view)
+        }
+        reference.layoutParent?.parent = nil
+        NodeUtils.syncNode(self, children)
+      }
+    } else {
+      if let parent = reference.parent {
+        NodeUtils.removeView(parent, removed.view)
+      }
+      removed.parent = nil
+    }
+    return removed
+  }
+  
+  func removeAllChildren() {
+    // Remove all children
+    for child in children {
+      child.parent = nil
+      child.view?.removeFromSuperview()
+    }
+    
+    children.removeAll()
+    
+    // Clear native layout tree
+    mason_node_remove_children(mason.nativePtr, nativePtr)
+    
+    markDirty()
+  }
+  
+  
+  func removeMeasureFunction(){
+    mason_node_remove_context(mason.nativePtr, nativePtr)
+    self.measureFunc = nil
+  }
+  
+  func setMeasureFunction(_ measureFunc: @escaping MeasureFunc) {
+    self.measureFunc = measureFunc
+    mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passUnretained(self).toOpaque(), measure)
+  }
+  
+  
+  func setDefaultMeasureFunction(){
+    self.setMeasureFunction { knownDimensions, availableSpace in
+      return MasonNode.measureFunction(self, knownDimensions, availableSpace)
+    }
+  }
+  
+  enum MeasureMode {
+    case Min
+    case Max
+    case Definite
+  }
+  
+  static func measureFunction(_ node: MasonNode, _ knownDimensions: CGSize?,_ availableSpace: CGSize) -> CGSize {
+    
+    var width = CGFloat.greatestFiniteMagnitude
+    var height = CGFloat.greatestFiniteMagnitude
+    
+    
+    if(knownDimensions?.width.isZero == true){
+      width = 0
+    }else if(availableSpace.width > 0){
+      width = availableSpace.width
+    }
+    
+    if(knownDimensions?.height.isZero == true){
+      height = 0
+    }else if(availableSpace.height > 0){
+      height = availableSpace.height
+    }
+    
+    if let known = knownDimensions {
+      if(!known.width.isNaN && !known.height.isNaN){
+        node.cachedWidth = known.width
+        node.cachedHeight = known.height
+        return known
+      }
+    }
+    
+    let constraintSize = CGSize(width: width, height: height)
+    var result = node.view?.sizeThatFits(constraintSize)
+    
+    if let size = result {
+      result?.width = size.width * CGFloat(NSCMason.scale)
+      result?.height = size.height * CGFloat(NSCMason.scale)
+    }
+    
+    
+    node.cachedWidth = result?.width ?? 0
+    node.cachedHeight = result?.height ?? 0
+    
+    return result ?? .zero
+  }
+  
+  
 }

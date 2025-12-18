@@ -1,1 +1,0 @@
-OTHER_LDFLAGS[sdk=*] = $(inherited) -framework Mason

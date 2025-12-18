@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDirs": [".", "../.."],
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["app/*"],
+      "@demo/shared": ["../../tools/demo/index.ts"],
+      "@triniwiz/nativescript-masonkit": ["../../packages/nativescript-masonkit/index.d.ts", "../../packages/nativescript-masonkit/typings/android.d.ts", "../../packages/nativescript-masonkit/typings/objc!Mason.d.ts"]
+    }
+  },
+  "vueCompilerOptions": {
+    "target": 3,
+    "lib": "nativescript-vue"
+  }
+}

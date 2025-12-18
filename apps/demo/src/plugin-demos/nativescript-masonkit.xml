@@ -1,15 +1,96 @@
 <Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="navigatingTo" class="p"
-  xmlns:ui="@triniwiz/nativescript-masonkit">
+  xmlns:ui="@triniwiz/nativescript-masonkit"
+  xmlns:text="@triniwiz/nativescript-masonkit/text"
+  xmlns:scroll="@triniwiz/nativescript-masonkit/scroll"
+  xmlns:web="@triniwiz/nativescript-masonkit/web"
+  >
   <Page.actionBar>
     <ActionBar title="nativescript-masonkit" icon="" class="action-bar">
     </ActionBar>
   </Page.actionBar>
 
+<!-- <ui:View class="body" width="100%" height="100%"> -->
 
-  <!-- <ui:Flex class="flex-example" color="white">
-    <Label text="a" class="a"/>
-    <Label text="b" class="b"/>
-  </ui:Flex> -->
+
+  <!-- <ui:View width="100%" height="100%">
+<ui:Text text="This in a span" style="display:inline" backgroundColor="blue" color="orange" textWrap="wrap" text="Help"></ui:Text>
+</ui:View> -->
+<!-- <ui:View width="100%" height="100%"> -->
+    <!-- <ui:Text text="This" backgroundColor="blue" color="orange" textWrap="wrap">
+      <ui:Text text=" is" backgroundColor="red" color="green" loaded="textLoaded"/>
+      <ui:Text text=" a" backgroundColor="purple" color="white" loaded="textLoaded"/>
+      <ui:Text text=" nested text" backgroundColor="teal" color="black" loaded="textLoaded"/>
+      <ui:Text text=" \n Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut nisi est, iaculis non tellus in, molestie finibus tellus. Integer pulvinar eget massa vel porta. Mauris porttitor felis id dictum egestas. Donec eget venenatis massa, auctor porta elit. Quisque augue urna, eleifend id augue nec, eleifend venenatis felis. Etiam eget magna ac magna feugiat ultricies a eu massa. Maecenas iaculis pellentesque neque, sit amet faucibus magna malesuada et. Morbi sit amet rhoncus nunc. In ultricies urna ac pulvinar consequat. Vivamus feugiat sed elit quis efficitur. Etiam erat magna, sodales consectetur velit eu, fermentum condimentum ex. Nulla rhoncus ligula ac ipsum hendrerit, non tristique tortor pharetra. Pellentesque eu urna turpis. Aliquam sed enim mauris. " backgroundColor="teal" color="black" loaded="textLoaded"/>
+     <ui:Img height="100" width="100" src="https://picsum.photos/600/600"></ui:Img>
+    </ui:Text>
+
+    <ui:View id="pink" backgroundColor="pink" width="100" height="100">
+      <ui:View id="orange" backgroundColor="orange" width="50" height="50"> 
+      </ui:View>
+    </ui:View>
+    <ui:Img height="200" width="200" src="https://picsum.photos/600/600"></ui:Img>
+  </ui:View> -->
+
+<!-- <GridLayout backgroundColor="red" rows="*,auto">
+  <ui:View backgroundColor="yellow" style="max-height: 300;"/>
+  <ContentView row="1" backgroundColor="green" height="100"/>
+</GridLayout> -->
+
+  <!-- <ui:View id="absolute" width="100%" height="100%" style="background-color: red;"> -->
+    <!-- <text:Text text="topLeft" style.position="absolute" style.width="100" style.height="50"/>
+    <text:Text text="topRight" style.position="absolute" style.right="0" style.top="0" style.width="100" style.height="50"/>
+    <text:Text text="bottomLeft" style.position="absolute" style.bottom="0" style.left="0" style.width="100" style.height="50"/>
+    <text:Text text="bottomRight" style.position="absolute" style.right="0" style.bottom="0" style.width="100" style.height="50"/> -->
+  <!-- </ui:View> -->
+
+
+ <!-- <scroll:Scroll style="overflow: scroll;"> -->
+ <!--
+<web:h1 text="This is heading 1"></web:h1>
+<web:h2 text="This is heading 2"></web:h2>
+<web:h3 text="This is heading 3"></web:h3>
+<web:h4 text="This is heading 4"></web:h4>
+<web:h5 text="This is heading 5"></web:h5>
+<web:h6 text="This is heading 6"></web:h6>
+
+<web:p>
+<web:b text="Tip:"></web:b>
+<web:span text=" Use h1 to h6 elements only for headings. Do not use them just to make text bold or big. Use other tags for that."></web:span>
+<web:p text="
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec dapibus hendrerit elit, id rhoncus turpis accumsan quis. Donec ipsum tellus, tristique eget luctus sed, venenatis et nibh. Morbi euismod massa consequat, dignissim augue et, facilisis leo. Nulla a vestibulum massa, dapibus fringilla leo. Nulla imperdiet lacus leo, vel tincidunt dui commodo id. Vestibulum sagittis aliquet arcu. Quisque vitae imperdiet magna, sit amet lacinia ligula. Praesent ullamcorper accumsan risus eu eleifend. Curabitur a pharetra orci. Mauris fringilla elit at magna faucibus semper.
+
+Ut cursus magna sed augue rutrum dictum. Proin dignissim lorem nec sem pretium, fermentum mattis sapien mollis. Quisque ligula urna, cursus vitae velit eu, feugiat luctus ex. In auctor libero sit amet lobortis fermentum. Mauris sit amet aliquam augue. Duis vehicula suscipit imperdiet. Phasellus nec placerat lectus.
+
+Nam elementum volutpat magna, ac volutpat neque viverra at. Sed eu pulvinar est. Aenean ultrices pharetra sem, eget imperdiet arcu fermentum quis. Sed porta sit amet lacus quis viverra. Quisque in nunc id purus dictum viverra in nec dolor. Suspendisse potenti. Integer facilisis massa id mi ornare, et commodo neque ornare. Fusce sollicitudin libero in velit tempor, sit amet mattis ex condimentum. Nunc ac orci et arcu convallis volutpat vel eget odio. Morbi interdum ante tincidunt ligula condimentum tristique. Donec at bibendum libero. Curabitur aliquet metus ac libero commodo eleifend. Fusce pretium condimentum suscipit. Cras mauris erat, feugiat nec metus nec, ullamcorper dignissim quam.
+
+Ut faucibus arcu magna, in sagittis metus aliquam nec. Vestibulum laoreet laoreet sapien, id tincidunt ligula hendrerit sed. Suspendisse tristique, libero et placerat dictum, metus tellus luctus erat, sed faucibus elit nunc a erat. Sed vehicula vitae risus a luctus. Nam et aliquam magna. Nulla placerat sed augue at semper. Nam faucibus consequat velit id ullamcorper. In sollicitudin non arcu eget venenatis.
+
+Vivamus id feugiat massa. Curabitur viverra ultrices auctor. Nulla ultrices odio a ante auctor, vel condimentum lorem euismod. Maecenas nec odio ac odio iaculis lobortis. Mauris bibendum lectus non tempor laoreet. Nunc eu eros lorem. Vestibulum egestas mollis enim, sed dignissim mauris porta ullamcorper. Cras tempus odio ut felis lobortis auctor. Sed eu sodales nulla, vitae posuere tellus. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;
+
+Duis dapibus arcu eu sapien viverra, nec accumsan elit porttitor. Fusce a porttitor felis. Vivamus et eros a ipsum commodo rhoncus. Etiam vel facilisis orci, et cursus tellus. Donec ultricies augue sit amet venenatis iaculis. Integer non aliquet turpis. Aenean lacinia tortor augue, a pellentesque urna sollicitudin eu. Curabitur condimentum tortor interdum felis consequat hendrerit. Mauris vel lacus lacinia, luctus enim porttitor, commodo velit. Proin hendrerit orci eget luctus pharetra. Duis ut dolor et dui iaculis sagittis. Sed varius quis elit sed interdum. Maecenas magna quam, facilisis ut ullamcorper vitae, maximus at ante. Mauris tristique dolor metus, in tincidunt nulla vestibulum at.
+
+Curabitur mattis erat non erat varius lacinia. Integer nec iaculis tortor. Aliquam laoreet porta vestibulum. Duis malesuada velit purus, et tempus elit blandit nec. Vestibulum et aliquet leo. Aenean risus velit, convallis sit amet consequat et, tempus eget eros. Suspendisse ac scelerisque ipsum, fringilla dictum risus. Suspendisse finibus nulla sit amet mauris ornare, et pulvinar sapien tristique.
+
+Vestibulum vitae libero id mauris placerat porttitor vitae sed tellus. Quisque aliquet semper arcu, quis euismod orci convallis vitae. Pellentesque ullamcorper hendrerit augue vitae posuere. Donec efficitur congue lacus et ultrices. In at arcu eleifend, suscipit turpis nec, sollicitudin massa. Nam non eros risus. Mauris ut arcu sit amet erat pellentesque feugiat ultrices sit amet tortor. Quisque eget augue vitae eros faucibus interdum eu a felis. Donec hendrerit augue sit amet risus euismod, eu accumsan dolor feugiat.
+
+Sed vehicula egestas neque. Etiam rutrum ornare risus, sit amet volutpat leo fringilla non. Aliquam erat volutpat. Ut sit amet turpis ut ex convallis luctus. Vestibulum facilisis turpis augue, eget gravida libero sollicitudin at. Suspendisse mattis, odio semper aliquam aliquet, eros ante vulputate sem, in scelerisque erat ante eget ex. Aenean accumsan libero ut placerat viverra. Maecenas viverra est nulla, in consectetur augue congue vel. Nam sed eleifend ipsum. Pellentesque ultricies, justo eu vehicula dictum, mauris eros euismod neque, nec consequat nulla velit sit amet justo. Phasellus faucibus elementum congue. Duis odio orci, aliquam auctor vestibulum eget, vulputate faucibus tortor.
+
+Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt arcu in facilisis. Morbi at eros placerat, cursus erat non, iaculis dui. Mauris nisi ex, laoreet et mollis vel, ullamcorper ac tortor. Nam a consectetur metus. Mauris massa velit, tincidunt eu egestas ac, viverra sed ligula. Phasellus laoreet vestibulum gravida. Morbi hendrerit, massa ac vulputate mollis, erat quam aliquet eros, et tincidunt ipsum odio id odio. Donec ornare mi eget tempus dictum. In molestie elit vel lacus cursus maximus. "></web:p>
+</web:p> 
+-->
+<!-- </scroll:Scroll> -->
+
+
+
+
+  <!-- <ui:View class="flex-example" color="white" loaded="loaded">
+    <ui:Text text="a" class="a">
+        <ui:Text text="aa" class="a"/>
+        <ui:Text text="ab" class="a"/>
+    </ui:Text>
+    <ui:Text text="b" class="b"/>
+  </ui:View> -->
 
 
 
@@ -18,24 +99,24 @@
 
 
 
-  <ui:Grid class="wrapper-5">
+   <ui:View class="wrapper-5">
 
-    <ui:Grid class="box a">
-      <Label text="A" />
-    </ui:Grid>
+    <ui:View id="boxA" class="box a">
+      <text:Text text="A" />
+    </ui:View>
 
-    <ui:Grid class="box b">
-      <Label text="B" />
-    </ui:Grid>
+    <ui:View id="boxB" class="box b">
+      <text:Text text="B" />
+    </ui:View>
 
-    <ui:Grid class="box c">
-      <Label text="C" />
-    </ui:Grid>
+    <ui:View id="boxC" class="box c">
+      <text:Text text="C" />
+    </ui:View>
 
-    <ui:Grid class="box d">
-      <Label text="D" />
-    </ui:Grid>
-  </ui:Grid>
+    <ui:View id="boxD" class="box d">
+      <text:Text text="D" />
+    </ui:View>
+  </ui:View>
 
 
 
@@ -44,69 +125,69 @@
 
 
 
-  <!-- <ui:Container class="wrapper-6">
-    <ui:Container class="box a">
-      <Label text="This is box A."></Label>
-      <Label text="align-self: stretch"></Label>
-    </ui:Container>
+  <!-- <ui:View class="wrapper-6">
+    <ui:View class="box a">
+      <ui:Text text="This is box A."></ui:Text>
+      <ui:Text text="align-self: stretch"></ui:Text>
+    </ui:View>
 
-    <ui:Container class="box b">
-      <Label text="This is box B."></Label>
-      <Label text="align-self: end"></Label>
-    </ui:Container>
+    <ui:View class="box b">
+      <ui:Text text="This is box B."></ui:Text>
+      <ui:Text text="align-self: end"></ui:Text>
+    </ui:View>
 
-    <ui:Container class="box c">
-      <Label text="This is box C."></Label>
-      <Label text="align-self: start"></Label>
-    </ui:Container>
+    <ui:View class="box c">
+      <ui:Text text="This is box C."></ui:Text>
+      <ui:Text text="align-self: start"></ui:Text>
+    </ui:View>
 
-    <ui:Container class="box d">
-      <Label text="This is box D."></Label>
-      <Label text="align-self: center"></Label>
-    </ui:Container>
+    <ui:View class="box d">
+      <ui:Text text="This is box D."></ui:Text>
+      <ui:Text text="align-self: center"></ui:Text>
+    </ui:View>
 
-    <ui:Container class="box e">
-      <Label textWrap="true" text="Each of the boxes on the left has a grid area of 3 columns and 3 rows (we're counting the gutter col/row). So each covers the same size area as box A."></Label>
-      <Label text="The align-self property is used to align the content inside the grid-area."></Label>
-    </ui:Container> 
+    <ui:View class="box e">
+      <ui:Text text="Each of the boxes on the left has a grid area of 3 columns and 3 rows (we're counting the gutter col/row). So each covers the same size area as box A."></ui:Text>
+      <ui:Text text="The align-self property is used to align the content inside the grid-area."></ui:Text>
+    </ui:View> 
 
-  </ui:Container>  -->
-
-
-  <!-- <ui:Grid class="grid-example">
-
-    <Label text="A" color="green" class="a" backgroundColor="red"/>
-
-    <Label text="B" class="b" backgroundColor="blue"/>
-
-    <Label text="C" class="c" backgroundColor="purple"/>
-
-    <Label text="D" class="d" backgroundColor="orange"/>
-
-    <Label text="E" class="e" backgroundColor="brown"/>
-
-    <Label text="F" class="f" backgroundColor="pink"/>
-
-  </ui:Grid> -->
+  </ui:View>  -->
 
 
-  <!-- <ui:TSCView id="root" flexDirection="column">
-      <ui:TSCView class="bg-red" width="100%" height="100%" flexDirection="column" backgroundColor="red" rows="auto,auto">
-      <Label text="First"/>
-      </ui:TSCView>
-       <ui:TSCView width="100%" height="100%" flexDirection="column" backgroundColor="blue" rows="auto,auto">
-      <Label text="Second"/>
-      </ui:TSCView>
-       <ui:TSCView width="100%" height="100%" flexDirection="column" backgroundColor="purple" rows="auto,auto">
-      <Label text="Third"/>
-      </ui:TSCView>
-       <ui:TSCView width="100%" height="100%" flexDirection="column" backgroundColor="orange" rows="auto,auto">
-      <Label text="Fourth"/>
-      </ui:TSCView>
-     </ui:TSCView>  -->
-  <!--
-    <ScrollView>
-      <ui:TSCView class="p-20" display="flex" flexDirection="column" alignItems="stretch" loaded="loaded">
+  <!-- <ui:View class="grid-example">
+
+    <ui:Text text="A" color="green" class="a" backgroundColor="red"/>
+
+    <ui:Text text="B" class="b" backgroundColor="blue"/>
+
+    <ui:Text text="C" class="c" backgroundColor="purple"/>
+
+    <ui:Text text="D" class="d" backgroundColor="orange"/>
+
+    <ui:Text text="E" class="e" backgroundColor="brown"/>
+
+    <ui:Text text="F" class="f" backgroundColor="pink"/>
+
+  </ui:View> -->
+
+
+  <!-- <ui:View id="root" flexDirection="column">
+      <ui:View class="bg-red" width="100%" height="100%" flexDirection="column" backgroundColor="red" rows="auto,auto">
+      <ui:Text text="First"/>
+      </ui:View>
+       <ui:View width="100%" height="100%" flexDirection="column" backgroundColor="blue" rows="auto,auto">
+      <ui:Text text="Second"/>
+      </ui:View>
+       <ui:View width="100%" height="100%" flexDirection="column" backgroundColor="purple" rows="auto,auto">
+      <ui:Text text="Third"/>
+      </ui:View>
+       <ui:View width="100%" height="100%" flexDirection="column" backgroundColor="orange" rows="auto,auto">
+      <ui:Text text="Fourth"/>
+      </ui:View>
+     </ui:View>  -->
+
+    <!-- <ScrollView>
+      <ui:View class="p-20" display="flex" flexDirection="column" alignItems="stretch" loaded="loaded">
         <Button text="Test 1" tap="{{ testIt }}" class="btn btn-primary"/>
         <Button text="Test 2" tap="{{ testIt }}" class="btn btn-primary"/>
         <Image width="100" height="100" src="https://picsum.photos/200/300"/>
@@ -117,91 +198,98 @@
 
         <Image src="https://picsum.photos/200/300" height="100" width="100"/>
 
-        <ui:TSCView class="p-20" backgroundColor="green" flexDirection="column" width="100%" height="100%">
+        <ui:View class="p-20" backgroundColor="green" flexDirection="column" width="100%" height="100%">
           <Button text="Test 1.1" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.1" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.1" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.1" tap="{{ testIt }}" class="btn btn-primary"/>
-        </ui:TSCView>
+        </ui:View>
 
-        <ui:TSCView class="p-20" backgroundColor="blue" flexDirection="column" width="100%" height="100%">
+        <ui:View class="p-20" backgroundColor="blue" flexDirection="column" width="100%" height="100%">
           <Button text="Test 1.2" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.2" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.2" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.2" tap="{{ testIt }}" class="btn btn-primary"/>
-        </ui:TSCView>
+        </ui:View>
 
 
-        <ui:TSCView class="p-20" backgroundColor="pink" flexDirection="column" width="100%" height="100%">
+        <ui:View class="p-20" backgroundColor="pink" flexDirection="column" width="100%" height="100%">
           <Button text="Test 1.3" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.3" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.3" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.3" tap="{{ testIt }}" class="btn btn-primary"/>
-        </ui:TSCView>
+        </ui:View>
 
-        <ui:TSCView width="100%" height="100%" class="p-20" backgroundColor="purple" flexDirection="column" width="100%" height="100%">
+        <ui:View width="100%" height="100%" class="p-20" backgroundColor="purple" flexDirection="column" width="100%" height="100%">
           <Button text="Test 1.4" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.4" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.4" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.4" tap="{{ testIt }}" class="btn btn-primary"/>
-        </ui:TSCView>
+        </ui:View>
 
-        <ui:TSCView class="p-20" backgroundColor="yellow" flexDirection="column" width="100%" height="100%">
+        <ui:View class="p-20" backgroundColor="yellow" flexDirection="column" width="100%" height="100%">
           <Button text="Test 1.5" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.5" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.5" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.5" tap="{{ testIt }}" class="btn btn-primary"/>
-        </ui:TSCView>
-      </ui:TSCView>
-    </ScrollView>
+        </ui:View>
+      </ui:View>
+    </ScrollView> -->
 
-  -->
-  <!--
-       <ScrollView>
-      <ui:TSCView class="p-20" backgroundColor="red" flexDirection="column">
-      <Image width="100%" height="100%" src="https://picsum.photos/200/300"/>
+
+<!--
+
+       <ui:Scroll style="overflow:scroll">
+      <ui:View class="p-20" backgroundColor="red" flexDirection="column">
+         <ui:Img src="https://picsum.photos/200/300"/>
            <Button text="Test 1" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4" tap="{{ testIt }}" class="btn btn-primary"/>
 
-          <Image src="https://picsum.photos/200/300"/>
+          <ui:Img src="https://picsum.photos/200/300"/>
 
-          <ui:TSCView class="p-20" backgroundColor="green">
+          <ui:View class="p-20" backgroundColor="green">
           <Button text="Test 1.1" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.1" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.1" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.1" tap="{{ testIt }}" class="btn btn-primary"/>
-          </ui:TSCView>
+          </ui:View>
 
-          <ui:TSCView class="p-20" backgroundColor="blue">
+          <ui:View class="p-20" backgroundColor="blue">
           <Button text="Test 1.2" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.2" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.2" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.2" tap="{{ testIt }}" class="btn btn-primary"/>
-          </ui:TSCView>
+          </ui:View>
 
 
-       <ui:TSCView class="p-20" backgroundColor="pink">
+       <ui:View class="p-20" backgroundColor="pink">
           <Button text="Test 1.3" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.3" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.3" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.3" tap="{{ testIt }}" class="btn btn-primary"/>
-      </ui:TSCView>
+      </ui:View>
 
-       <ui:TSCView width="100%" height="100%" class="p-20" backgroundColor="purple">
+       <ui:View class="p-20" backgroundColor="purple">
           <Button text="Test 1.4" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.4" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.4" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.4" tap="{{ testIt }}" class="btn btn-primary"/>
-      </ui:TSCView>
+      </ui:View>
 
-          <ui:TSCView class="p-20" backgroundColor="yellow">
+          <ui:View class="p-20" backgroundColor="yellow">
           <Button text="Test 1.5" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 2.5" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 3.5" tap="{{ testIt }}" class="btn btn-primary"/>
           <Button text="Test 4.5" tap="{{ testIt }}" class="btn btn-primary"/>
-          </ui:TSCView>
-      </ui:TSCView>
-      </ScrollView> -->
+          </ui:View>
+      </ui:View>
+      </ui:Scroll>
+
+      -->
+
+      
+
+<!-- </ui:View> -->
 </Page>

@@ -16,15 +16,15 @@ class LengthPercentageSerializer : JsonSerializer<LengthPercentage> {
     when (src) {
       is LengthPercentage.Points -> {
         json.add("value", JsonPrimitive(src.points))
-        json.add("unit", JsonPrimitive(PxUnit))
+        json.add("unit", JsonPrimitive(Constants.PX_UNIT))
       }
       is LengthPercentage.Zero -> {
-        json.add("value", JsonPrimitive(src.points))
-        json.add("unit", JsonPrimitive(PxUnit))
+        json.add("value", JsonPrimitive(0))
+        json.add("unit", JsonPrimitive(Constants.PX_UNIT))
       }
       is LengthPercentage.Percent -> {
         json.add("value", JsonPrimitive(src.percentage))
-        json.add("unit", JsonPrimitive(PercentUnit))
+        json.add("unit", JsonPrimitive(Constants.PERCENT_UNIT))
       }
     }
     return json

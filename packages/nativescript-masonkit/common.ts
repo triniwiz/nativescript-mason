@@ -1,806 +1,39 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CoreTypes, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View, ViewBase, borderBottomWidthProperty, borderLeftWidthProperty, borderRightWidthProperty, borderTopWidthProperty, getViewById, heightProperty, marginBottomProperty, marginLeftProperty, marginRightProperty, marginTopProperty, minHeightProperty, minWidthProperty, paddingBottomProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, unsetValue, widthProperty } from '@nativescript/core';
-import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
-import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position } from '.';
-import {
-  _forceStyleUpdate,
-  _getAlignContent,
-  _getAlignItems,
-  _getAlignSelf,
-  _getAspectRatio,
-  _getColumnGap,
-  _getDisplay,
-  _getFlexBasis,
-  _getFlexDirection,
-  _getFlexGrow,
-  _getFlexShrink,
-  _getFlexWrap,
-  _getHeight,
-  _getJustifyContent,
-  _getJustifyItems,
-  _getJustifySelf,
-  _getOverflow,
-  _getOverflowX,
-  _getOverflowY,
-  _getPosition,
-  _getRowGap,
-  _getWidth,
-  _parseGridTemplates,
-  _setAlignContent,
-  _setAlignItems,
-  _setAlignSelf,
-  _setAspectRatio,
-  _setBorderBottom,
-  _setBorderLeft,
-  _setBorderRight,
-  _setBorderTop,
-  _setBottom,
-  _setColumnGap,
-  _setDisplay,
-  _setFlexBasis,
-  _setFlexDirection,
-  _setFlexGrow,
-  _setFlexShrink,
-  _setFlexWrap,
-  _setGridAutoColumns,
-  _setGridAutoFlow,
-  _setGridAutoRows,
-  _setGridColumnEnd,
-  _setGridColumnStart,
-  _setGridRowEnd,
-  _setGridRowStart,
-  _setGridTemplateColumns,
-  _setGridTemplateRows,
-  _setHeight,
-  _setJustifyContent,
-  _setJustifyItems,
-  _setJustifySelf,
-  _setLeft,
-  _setMarginBottom,
-  _setMarginLeft,
-  _setMarginRight,
-  _setMarginTop,
-  _setMaxHeight,
-  _setMaxWidth,
-  _setMinHeight,
-  _setMinWidth,
-  _setOverflow,
-  _setOverflowX,
-  _setOverflowY,
-  _setPaddingBottom,
-  _setPaddingLeft,
-  _setPaddingRight,
-  _setPaddingTop,
-  _setPosition,
-  _setRight,
-  _setRowGap,
-  _setScrollbarWidth,
-  _setTop,
-  _setWidth,
-  getScrollbarWidth,
-} from './helpers';
-import { isNullOrUndefined } from '@nativescript/core/utils/types';
+import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftColorProperty, backgroundInternalProperty } from '@nativescript/core';
+import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing } from '.';
+import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
+import { _forceStyleUpdate, _setGridAutoRows, GridTemplates } from './utils';
+import { Style as MasonStyle } from './style';
+export const native_ = Symbol('[[native]]');
+export const style_ = Symbol('[[style]]');
+export const isTextChild_ = Symbol('[[isTextChild]]');
+export const isText_ = Symbol('[[isText]]');
+export const isMasonView_ = Symbol('[[isMasonView]]');
+export const text_ = Symbol('[[text]]');
 
-// let widgetMasonView: typeof org.nativescript.mason.masonkit.View;
-
-// function ensureNativeTypes() {
-// 	if (!widgetMasonView) {
-// 		widgetMasonView = org.nativescript.mason.masonkit.View;
-// 	}
-// }
-
-// function makeNativeSetter<T>(setter: (lp: org.nativescript.widgets.FlexboxLayout.LayoutParams, value: T) => void) {
-// 	return function (this: View, value: T) {
-// 		ensureNativeTypes();
-// 		const nativeView: android.view.View = this.nativeViewProtected;
-// 		const lp = nativeView.getLayoutParams() || new widgetLayoutParams();
-// 		if (lp instanceof widgetLayoutParams) {
-// 			setter(lp, value);
-// 			nativeView.setLayoutParams(lp);
-// 		}
-// 	};
-// }
-
-export function applyMixins(
-  derivedCtor: any,
-  baseCtors: any[],
-  options?: {
-    after?: boolean;
-    override?: boolean;
-    overrideIfExists?: string;
-    omit?: (string | symbol)[];
-  }
-) {
-  const omits = options && options.omit ? options.omit : [];
-  baseCtors.forEach((baseCtor) => {
-    Object.getOwnPropertyNames(baseCtor.prototype).forEach((name) => {
-      if (omits.indexOf(name) !== -1) {
-        return;
-      }
-      const descriptor = Object.getOwnPropertyDescriptor(baseCtor.prototype, name);
-
-      if (name === 'constructor') return;
-      if (descriptor && (descriptor.get || descriptor.set)) {
-        Object.defineProperty(derivedCtor.prototype, name, descriptor);
-      } else {
-        const oldImpl = derivedCtor.prototype[name];
-
-        if (!oldImpl) {
-          derivedCtor.prototype[name] = baseCtor.prototype[name];
-        } else {
-          derivedCtor.prototype[name] = function (...args) {
-            if (options) {
-              if (options.override) {
-                return baseCtor.prototype[name].apply(this, args);
-              } else if (options.after) {
-                return baseCtor.prototype[name].apply(this, args);
-              } else if (options.overrideIfExists) {
-                if (this[options.overrideIfExists]) {
-                  return baseCtor.prototype[name].apply(this, args);
-                }
-                return oldImpl.apply(this, args);
-              } else {
-                baseCtor.prototype[name].apply(this, args);
-                return oldImpl.apply(this, args);
-              }
-            } else {
-              baseCtor.prototype[name].apply(this, args);
-              return oldImpl.apply(this, args);
-            }
-          };
-        }
-      }
-    });
-    Object.getOwnPropertySymbols(baseCtor.prototype).forEach((symbol) => {
-      if (omits.indexOf(symbol) !== -1) {
-        return;
-      }
-      const oldImpl: Function = derivedCtor.prototype[symbol];
-      if (!oldImpl) {
-        derivedCtor.prototype[symbol] = baseCtor.prototype[symbol];
-      } else {
-        derivedCtor.prototype[symbol] = function (...args) {
-          if (options) {
-            if (options.override) {
-              return baseCtor.prototype[symbol].apply(this, args);
-            }
-            if (options.overrideIfExists) {
-              if (this[options.overrideIfExists]) {
-                return baseCtor.prototype[symbol].apply(this, args);
-              }
-              return oldImpl.apply(this, args);
-            } else if (options.after) {
-              oldImpl.apply(this, args);
-              return baseCtor.prototype[symbol].apply(this, args);
-            } else {
-              baseCtor.prototype[symbol].apply(this, args);
-              return oldImpl.apply(this, args);
-            }
-          } else {
-            baseCtor.prototype[symbol].apply(this, args);
-            return oldImpl.apply(this, args);
-          }
-        };
-      }
-    });
-  });
+function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
+  const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
+  return ret._styleHelper as MasonStyle;
 }
 
-let mixinInstalled = false;
-export function overrideViewBase() {
-  const NSView = require('@nativescript/core').View;
-  class ViewOverride extends View {
-    get _isMasonViewOrChild() {
-      return this._isMasonView || this._isMasonChild;
-    }
-
-    _isMasonView = false;
-    _isMasonChild = false;
-
-    /* Short Props */
-
-    set gridRowGap(value) {
-      this.style.gridRowGap = value;
-    }
-
-    get gridRowGap() {
-      return this.style.gridRowGap;
-    }
-
-    set gridGap(value) {
-      this.style.gridGap = value;
-    }
-
-    get gridGap() {
-      return this.style.gridGap;
-    }
-
-    set gap(value) {
-      this.style.gap = value;
-    }
-
-    get gap() {
-      return this.style.gap;
-    }
-
-    set gridArea(value) {
-      this.style.gridArea = value;
-    }
-
-    get gridArea() {
-      return this.style.gridArea;
-    }
-
-    set gridColumn(value) {
-      this.style.gridColumn = value;
-    }
-
-    get gridColumn() {
-      return this.style.gridColumn;
-    }
-
-    set gridRow(value) {
-      this.style.gridRow = value;
-    }
-
-    get gridRow() {
-      return this.style.gridColumn;
-    }
-
-    /* Short Props */
-
-    get display(): Display {
-      return _getDisplay(this as any);
-    }
-
-    set display(value) {
-      this.style.display = value as any;
-    }
-
-    [displayProperty.setNative](value) {
-      _setDisplay(value, this as any);
-    }
-
-    set position(value) {
-      this.style.position = value;
-    }
-
-    get position(): Position {
-      return _getPosition(this as any);
-    }
-
-    [positionProperty.setNative](value) {
-      _setPosition(value, this as any);
-    }
-
-    set flexDirection(value) {
-      this.style.flexDirection = value;
-    }
-
-    get flexDirection() {
-      return _getFlexDirection(this as any);
-    }
-
-    [flexDirectionProperty.setNative](value) {
-      _setFlexDirection(value, this as any);
-    }
-
-    set flexWrap(value) {
-      this.style.flexWrap = value as any;
-    }
-
-    get flexWrap() {
-      return _getFlexWrap(this as any);
-    }
-
-    [flexWrapProperty.setNative](value) {
-      _setFlexWrap(value, this as any);
-    }
-
-    set alignItems(value) {
-      this.style.alignItems = value as any;
-    }
-
-    get alignItems() {
-      return _getAlignItems(this as any);
-    }
-
-    [alignItemsProperty.setNative](value) {
-      _setAlignItems(value, this as any);
-    }
-
-    //@ts-ignore
-    set alignSelf(value: AlignSelf) {
-      this.style.alignSelf = value as any;
-    }
-
-    //@ts-ignore
-    get alignSelf() {
-      return _getAlignSelf(this as any);
-    }
-
-    [alignSelfProperty.setNative](value) {
-      _setAlignSelf(value, this as any);
-    }
-
-    set alignContent(value) {
-      this.style.alignContent = value as any;
-    }
-
-    get alignContent() {
-      return _getAlignContent(this as any);
-    }
-
-    [alignContentProperty.setNative](value) {
-      _setAlignContent(value, this as any);
-    }
-
-    set justifyItems(value) {
-      this.style.justifyItems = value as any;
-    }
-
-    get justifyItems() {
-      return _getJustifyItems(this as any);
-    }
-
-    [justifyItemsProperty.setNative](value) {
-      _setJustifyItems(value, this as any);
-    }
-
-    set justifySelf(value) {
-      this.style.justifySelf = value as any;
-    }
-
-    get justifySelf() {
-      return _getJustifySelf(this as any);
-    }
-
-    [justifySelfProperty.setNative](value) {
-      _setJustifySelf(value, this as any);
-    }
-
-    set justifyContent(value) {
-      this.style.justifyContent = value as any;
-    }
-
-    get justifyContent() {
-      return _getJustifyContent(this as any);
-    }
-
-    [justifyContentProperty.setNative](value) {
-      _setJustifyContent(value, this as any);
-    }
-
-    //@ts-ignore
-    set left(value) {
-      this.style.left = value;
-    }
-
-    get left() {
-      return this.style.left;
-    }
-
-    [leftProperty.setNative](value) {
-      _setLeft(value, this as any);
-    }
-
-    //@ts-ignore
-    set right(value) {
-      this.style.right = value;
-    }
-
-    get right() {
-      return this.style.right;
-    }
-
-    [rightProperty.setNative](value) {
-      _setRight(value, this as any);
-    }
-
-    //@ts-ignore
-    set top(value) {
-      this.style.top = value;
-    }
-
-    get top() {
-      return this.style.top;
-    }
-
-    [topProperty.setNative](value) {
-      _setTop(value, this as any);
-    }
-
-    //@ts-ignore
-    set bottom(value) {
-      this.style.bottom = value;
-    }
-
-    get bottom() {
-      return this.style.bottom;
-    }
-
-    [bottomProperty.setNative](value) {
-      _setBottom(value, this as any);
-    }
-
-    [marginLeftProperty.setNative](value) {
-      _setMarginLeft(value, this as any);
-    }
-
-    [marginRightProperty.setNative](value) {
-      _setMarginRight(value, this as any);
-    }
-
-    [marginTopProperty.setNative](value) {
-      _setMarginTop(value, this as any);
-    }
-
-    [marginBottomProperty.setNative](value) {
-      _setMarginBottom(value, this as any);
-    }
-
-    [borderLeftWidthProperty.setNative](value) {
-      _setBorderLeft(value, this as any);
-    }
-
-    [borderRightWidthProperty.setNative](value) {
-      _setBorderRight(value, this as any);
-    }
-
-    [borderTopWidthProperty.setNative](value) {
-      _setBorderTop(value, this as any);
-    }
-
-    [borderBottomWidthProperty.setNative](value) {
-      _setBorderBottom(value, this as any);
-    }
-
-    //@ts-ignore
-    get flexGrow() {
-      return _getFlexGrow(this as any);
-    }
-
-    set flexGrow(value) {
-      this.style.flexGrow = value;
-    }
-
-    [flexGrowProperty.setNative](value) {
-      _setFlexGrow(value, this as any);
-    }
-
-    get flex() {
-      return this.style.flex;
-    }
-
-    set flex(value) {
-      this.style.flex = value;
-    }
-
-    get flexFlow() {
-      return this.style.flexFlow;
-    }
-
-    set flexFlow(value) {
-      this.style.flexFlow = value;
-    }
-    //@ts-ignore
-    get flexShrink() {
-      return _getFlexShrink(this as any);
-    }
-
-    set flexShrink(value) {
-      this.style.flexShrink = value;
-    }
-
-    [flexShrinkProperty.setNative](value) {
-      _setFlexShrink(value, this as any);
-    }
-
-    //@ts-ignore
-    get flexBasis() {
-      return _getFlexBasis(this as any);
-    }
-
-    set flexBasis(value) {
-      this.style.flexBasis = value;
-    }
-
-    [flexBasisProperty.setNative](value) {
-      _setFlexBasis(value, this as any);
-    }
-
-    /* faster setter/getter
-    //@ts-ignore
-    get gap() {
-      return _getGap(this as any);
-    }
-
-    set gap(value) {
-      this.style.gap = value;
-      _setGap(value, this as any);
-    }
-
-    */
-
-    set rowGap(value) {
-      this.style.rowGap = value;
-    }
-
-    get rowGap() {
-      return _getRowGap(this as any);
-    }
-
-    [rowGapProperty.setNative](value) {
-      _setRowGap(value, this as any);
-    }
-
-    set columnGap(value) {
-      this.style.columnGap = value;
-    }
-
-    get columnGap() {
-      return _getColumnGap(this as any);
-    }
-
-    [columnGapProperty.setNative](value) {
-      _setColumnGap(value, this as any);
-    }
-
-    get aspectRatio() {
-      return _getAspectRatio(this as any);
-    }
-
-    [aspectRatioProperty.setNative](value) {
-      _setAspectRatio(value, this as any);
-    }
-
-    [paddingLeftProperty.setNative](value) {
-      _setPaddingLeft(value, this as any);
-    }
-
-    [paddingTopProperty.setNative](value) {
-      _setPaddingTop(value, this as any);
-    }
-
-    [paddingRightProperty.setNative](value) {
-      _setPaddingRight(value, this as any);
-    }
-
-    [paddingBottomProperty.setNative](value) {
-      _setPaddingBottom(value, this as any);
-    }
-
-    //@ts-ignore
-    set minWidth(value) {
-      this.style.minWidth = value;
-    }
-
-    [minWidthProperty.setNative](value) {
-      _setMinWidth(value, this as any);
-    }
-
-    //@ts-ignore
-    set minHeight(value) {
-      this.style.minHeight = value;
-    }
-
-    [minHeightProperty.setNative](value) {
-      _setMinHeight(value, this as any);
-    }
-
-    //@ts-ignore
-    set width(value) {
-      this.style.width = value;
-    }
-
-    get width() {
-      return _getWidth(this as any);
-    }
-
-    [widthProperty.setNative](value) {
-      _setWidth(value, this as any);
-    }
-
-    //@ts-ignore
-    set height(value) {
-      this.style.height = value;
-    }
-
-    //@ts-ignore
-    get height() {
-      return _getHeight(this as any);
-    }
-
-    [heightProperty.setNative](value) {
-      _setHeight(value, this as any);
-    }
-
-    set maxWidth(value) {
-      this.style.maxWidth = value;
-    }
-
-    [maxWidthProperty.setNative](value) {
-      _setMaxWidth(value, this as any);
-    }
-
-    //@ts-ignore
-    set maxHeight(value) {
-      this.style.maxHeight = value;
-    }
-
-    [maxHeightProperty.setNative](value) {
-      _setMaxHeight(value, this as any);
-    }
-
-    //@ts-ignore
-    set gridAutoRows(value) {
-      this.style.gridAutoRows = value;
-    }
-
-    //@ts-ignore
-    get gridAutoRows() {
-      return this.style.gridAutoRows;
-    }
-
-    [gridAutoRowsProperty.setNative](value) {
-      _setGridAutoRows(value, this as any);
-    }
-
-    //@ts-ignore
-    set gridAutoColumns(value) {
-      this.style.gridAutoColumns = value;
-    }
-
-    get gridAutoColumns() {
-      return this.style.gridAutoColumns;
-    }
-
-    [gridAutoColumnsProperty.setNative](value) {
-      _setGridAutoColumns(value, this as any);
-    }
-
-    set gridAutoFlow(value) {
-      this.style.gridAutoFlow = value;
-    }
-
-    get gridAutoFlow() {
-      return this.style.gridAutoFlow;
-    }
-
-    [gridAutoFlowProperty.setNative](value) {
-      _setGridAutoFlow(value, this as any);
-    }
-
-    set gridColumnStart(value) {
-      this.style.gridColumnStart = value;
-    }
-
-    get gridColumnStart() {
-      return this.style.gridColumnStart;
-    }
-
-    [gridColumnStartProperty.setNative](value) {
-      _setGridColumnStart(value, this as any);
-    }
-
-    set gridColumnEnd(value) {
-      this.style.gridColumnEnd = value;
-    }
-
-    get gridColumnEnd() {
-      return this.style.gridColumnEnd;
-    }
-
-    [gridColumnEndProperty.setNative](value) {
-      _setGridColumnEnd(value, this as any);
-    }
-
-    set gridRowStart(value) {
-      this.style.gridRowStart = value;
-    }
-
-    get gridRowStart() {
-      return this.style.gridRowStart;
-    }
-
-    [gridRowStartProperty.setNative](value) {
-      _setGridRowStart(value, this as any);
-    }
-
-    set gridRowEnd(value) {
-      this.style.gridRowEnd = value;
-    }
-
-    get gridRowEnd() {
-      return this.style.gridRowEnd;
-    }
-
-    [gridRowEndProperty.setNative](value) {
-      _setGridRowEnd(value, this as any);
-    }
-
-    set gridTemplateRows(value) {
-      this.style.gridTemplateRows = value;
-    }
-
-    [gridTemplateRowsProperty.setNative](value) {
-      const templates = _parseGridTemplates(value);
-      if (templates) {
-        _setGridTemplateRows(templates, this as any);
-      }
-    }
-
-    set gridTemplateColumns(value) {
-      this.style.gridTemplateColumns = value;
-    }
-
-    [gridTemplateColumnsProperty.setNative](value) {
-      const templates = _parseGridTemplates(value);
-      if (templates) {
-        _setGridTemplateColumns(templates, this as any);
-      }
-    }
-
-    get scrollBarWidth() {
-      return getScrollbarWidth(this as any);
-    }
-
-    set scrollBarWidth(value: number | CoreTypes.LengthType) {
-      this.style.scrollBarWidth = value;
-    }
-
-    [scrollBarWidthProperty.setNative](value) {
-      _setScrollbarWidth(value, this as any);
-    }
-
-    get overflow() {
-      return _getOverflow(this as any);
-    }
-
-    set overflow(value: Overflow) {
-      this.style.overflow = value;
-    }
-
-    [overflowProperty.setNative](value) {
-      _setOverflow(value, this as any);
-    }
-
-    get overflowX() {
-      return _getOverflowX(this as any);
-    }
-
-    set overflowX(value: Overflow) {
-      this.style.overflowX = value;
-    }
-
-    [overflowXProperty.setNative](value) {
-      _setOverflowX(value, this as any);
-    }
-
-    get overflowY() {
-      return _getOverflowY(this as any);
-    }
-
-    set overflowY(value: Overflow) {
-      this.style.overflowY = value;
-    }
-
-    [overflowYProperty.setNative](value) {
-      _setOverflowY(value, this as any);
-    }
-  }
-  applyMixins(NSView, [ViewOverride], { overrideIfExists: '_isMasonViewOrChild' });
+export interface MasonChild extends ViewBase {}
+
+enum FrameWork {
+  Core,
+  Angular,
+  Vue,
+  React,
+  Svelte,
+  Solid,
 }
 
-export function installMixins() {
-  if (!mixinInstalled) {
-    mixinInstalled = true;
-    overrideViewBase();
-  }
-}
+let frameWork = FrameWork.Core;
 
-const emptyArray = [];
+try {
+  global.VUE3_ELEMENT_REF = require('nativescript-vue').ELEMENT_REF;
+  frameWork = FrameWork.Vue;
+} catch (e) {}
 
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',
@@ -815,8 +48,10 @@ function overflowConverter(value) {
       case 0:
         return 'visible';
       case 1:
-        return 'hidden';
+        return 'clip';
       case 2:
+        return 'hidden';
+      case 3:
         return 'scroll';
     }
   }
@@ -824,18 +59,89 @@ function overflowConverter(value) {
   switch (value) {
     case 'visible':
     case 'hidden':
+    case 'clip':
     case 'scroll':
       return value;
     default:
-      return 'visible';
+      return undefined;
   }
 }
 
-export const overflowProperty = new CssProperty<Style, Overflow>({
+function masonLengthParse(value) {
+  try {
+    return CoreLength.parse(value);
+  } catch (e) {
+    return undefined;
+  }
+}
+
+function masonLengthPercentParse(value) {
+  try {
+    return CorePercentLength.parse(value);
+  } catch (e) {
+    return undefined;
+  }
+}
+
+const filterProperty = new CssProperty<Style, string>({
+  name: 'filter',
+  cssName: 'filter',
+});
+
+filterProperty.register(Style);
+
+const borderProperty = new CssProperty<Style, string>({
+  name: 'border',
+  cssName: 'border',
+});
+
+borderProperty.register(Style);
+
+const backgroundProperty = new CssProperty<Style, string>({
+  name: 'background',
+  cssName: 'background',
+});
+
+backgroundProperty.register(Style);
+
+const overFlow = /^\s*(visible|hidden|clip|scroll|auto)(?:\s+(visible|hidden|clip|scroll|auto))?\s*$/;
+
+export const overflowProperty = new ShorthandProperty<Style, Overflow>({
   name: 'overflow',
   cssName: 'overflow',
-  defaultValue: 'visible',
-  valueConverter: overflowConverter,
+  getter: function () {
+    if (this.overflowX === this.overflowY) {
+      return this.overflowX;
+    }
+    return `${this.overflowX} ${this.overflowY}`;
+  },
+  converter(value) {
+    const properties: [CssProperty<any, any>, any][] = [];
+    if (typeof value === 'string') {
+      const values = value.match(overFlow);
+
+      const length = values?.length ?? 0;
+      if (length === 0) {
+        return properties;
+      }
+
+      if (length === 1) {
+        const xy = values[0];
+        properties.push([overflowXProperty, xy]);
+        properties.push([overflowYProperty, xy]);
+      }
+
+      if (length > 1) {
+        const x = values[0];
+        const y = values[1];
+
+        properties.push([overflowXProperty, x]);
+        properties.push([overflowYProperty, y]);
+      }
+    }
+
+    return properties;
+  },
 });
 
 export const overflowXProperty = new CssProperty<Style, Overflow>({
@@ -843,13 +149,244 @@ export const overflowXProperty = new CssProperty<Style, Overflow>({
   cssName: 'overflow-x',
   defaultValue: 'visible',
   valueConverter: overflowConverter,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.overflowX = newValue;
+      } else {
+        // Revert to old value if newValue is invalid
+        view.view.style.overflowX = oldValue;
+      }
+    }
+  },
 });
 
 export const overflowYProperty = new CssProperty<Style, Overflow>({
-  name: 'overflow',
+  name: 'overflowY',
   cssName: 'overflow-y',
   defaultValue: 'visible',
   valueConverter: overflowConverter,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.overflowY = newValue;
+      } else {
+        // Revert to old value if newValue is invalid
+        view.view.style.overflowY = oldValue;
+      }
+    }
+  },
+});
+
+const paddingProperty = new ShorthandProperty<Style, string | CoreTypes.LengthType>({
+  name: 'padding',
+  cssName: 'padding',
+  getter: function (this: Style) {
+    if (CoreLength.equals(this.paddingTop, this.paddingRight) && CoreLength.equals(this.paddingTop, this.paddingBottom) && CoreLength.equals(this.paddingTop, this.paddingLeft)) {
+      return this.paddingTop;
+    }
+
+    return `${CoreLength.convertToString(this.paddingTop)} ${CoreLength.convertToString(this.paddingRight)} ${CoreLength.convertToString(this.paddingBottom)} ${CoreLength.convertToString(this.paddingLeft)}`;
+  },
+  converter: convertToPaddings,
+});
+
+export const paddingLeftProperty = new CssProperty<Style, CoreTypes.LengthType>({
+  name: 'paddingLeft',
+  cssName: 'padding-left',
+  defaultValue: CoreTypes.zeroLength,
+  affectsLayout: global.isIOS,
+  equalityComparer: CoreLength.equals,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.paddingLeft = CoreLength.toDevicePixels(newValue, 0);
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
+  valueConverter: masonLengthParse,
+});
+
+export const paddingRightProperty = new CssProperty<Style, CoreTypes.LengthType>({
+  name: 'paddingRight',
+  cssName: 'padding-right',
+  defaultValue: CoreTypes.zeroLength,
+  affectsLayout: global.isIOS,
+  equalityComparer: CoreLength.equals,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.paddingRight = CoreLength.toDevicePixels(newValue, 0);
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
+  valueConverter: masonLengthParse,
+});
+
+export const paddingTopProperty = new CssProperty<Style, CoreTypes.LengthType>({
+  name: 'paddingTop',
+  cssName: 'padding-top',
+  defaultValue: CoreTypes.zeroLength,
+  affectsLayout: global.isIOS,
+  equalityComparer: CoreLength.equals,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.paddingTop = CoreLength.toDevicePixels(newValue, 0);
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
+  valueConverter: masonLengthParse,
+});
+
+export const paddingBottomProperty = new CssProperty<Style, CoreTypes.LengthType>({
+  name: 'paddingBottom',
+  cssName: 'padding-bottom',
+  defaultValue: CoreTypes.zeroLength,
+  affectsLayout: global.isIOS,
+  equalityComparer: CoreLength.equals,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.paddingBottom = CoreLength.toDevicePixels(newValue, 0);
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
+  valueConverter: masonLengthParse,
+});
+
+export const rowGapProperty = new CssProperty<Style, Length>({
+  name: 'rowGap',
+  cssName: 'row-gap',
+  defaultValue: 0,
+  valueConverter(value) {
+    const parsed = CoreLength.parse(value);
+    if (typeof parsed === 'string') {
+      return 0;
+    }
+    return parsed;
+  },
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.rowGap = newValue;
+    }
+  },
+});
+
+export const columnGapProperty = new CssProperty<Style, Length>({
+  name: 'columnGap',
+  cssName: 'column-gap',
+  defaultValue: 0,
+  valueConverter(value) {
+    const parsed = CoreLength.parse(value);
+    if (typeof parsed === 'string') {
+      return 0;
+    }
+    return parsed;
+  },
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.columnGap = newValue;
+    }
+  },
+});
+
+export const gridGapProperty = new ShorthandProperty<Style, Gap>({
+  name: 'gridGap',
+  cssName: 'grid-gap',
+  getter: function () {
+    if (this.rowGap === this.columnGap) {
+      return this.rowGap;
+    }
+    return `${this.rowGap} ${this.columnGap}`;
+  },
+  converter(gap) {
+    const properties: [CssProperty<any, any>, any][] = [];
+
+    let value = gap;
+
+    if (typeof value === 'number') {
+      value = `${value}`;
+    }
+
+    if (typeof value === 'string') {
+      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
+
+      const length = values.length;
+      if (length === 0) {
+        return properties;
+      }
+
+      if (length === 1) {
+        const row = values[0];
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, row]);
+      }
+
+      if (length > 1) {
+        const row = values[0];
+        const column = values[1];
+
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, column]);
+      }
+    }
+
+    return properties;
+  },
+});
+
+export const gapProperty = new ShorthandProperty<Style, Gap>({
+  name: 'gap',
+  cssName: 'gap',
+  getter: function () {
+    if (this.rowGap === this.columnGap) {
+      return this.rowGap;
+    }
+    return `${this.rowGap} ${this.columnGap}`;
+  },
+  converter(gap) {
+    const properties: [CssProperty<any, any>, any][] = [];
+
+    let value = gap;
+
+    if (typeof value === 'number') {
+      value = `${value}`;
+    }
+
+    if (typeof value === 'string') {
+      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
+
+      const length = values.length;
+      if (length === 0) {
+        return properties;
+      }
+
+      if (length === 1) {
+        const row = values[0];
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, row]);
+      }
+
+      if (length > 1) {
+        const row = values[0];
+        const column = values[1];
+
+        properties.push([rowGapProperty, row]);
+        properties.push([columnGapProperty, column]);
+      }
+    }
+
+    return properties;
+  },
 });
 
 // export const flexGrowProperty = new CssProperty<Style, number>({
@@ -869,8 +406,17 @@ export const flexShrinkProperty = new CssProperty<Style, number>({
 export const displayProperty = new CssProperty<Style, Display>({
   name: 'display',
   cssName: 'display',
-  defaultValue: 'flex',
-  valueConverter(value) {
+  defaultValue: 'block',
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view && newValue) {
+      view.display = newValue;
+    } else {
+      // Revert to old value if newValue is invalid
+      view.view.style.display = oldValue;
+    }
+  },
+  valueConverter: function (value) {
     if (typeof value === 'number') {
       switch (value) {
         case 0:
@@ -881,6 +427,14 @@ export const displayProperty = new CssProperty<Style, Display>({
           return 'grid';
         case 3:
           return 'block';
+        case 4:
+          return 'inline';
+        case 5:
+          return 'inline-block';
+        case 6:
+          return 'inline-flex';
+        case 7:
+          return 'inline-grid';
       }
     }
 
@@ -889,10 +443,13 @@ export const displayProperty = new CssProperty<Style, Display>({
       case 'flex':
       case 'grid':
       case 'block':
+      case 'inline':
+      case 'inline-block':
+      case 'inline-flex':
+      case 'inline-grid':
         return value;
       default:
-        // todo throw???
-        return 'flex';
+        return undefined;
     }
   },
 });
@@ -901,20 +458,44 @@ export const maxWidthProperty = new CssProperty<Style, LengthAuto>({
   name: 'maxWidth',
   cssName: 'max-width',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: masonLengthParse,
+  valueChanged: (target, oldValue, newValue) => {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maxWidth = newValue;
+    } else {
+      Trace.write(`${newValue} not set to view's property because ".viewRef" is cleared`, Trace.categories.Style, Trace.messageType.warn);
+    }
+  },
 });
 
 export const maxHeightProperty = new CssProperty<Style, LengthAuto>({
   name: 'maxHeight',
   cssName: 'max-height',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.maxHeight = newValue;
+    }
+  },
 });
 
 export const positionProperty = new CssProperty<Style, Position>({
   name: 'position',
   cssName: 'position',
   defaultValue: 'relative',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.position = newValue;
+    }
+  },
 });
 
 // export const flexDirectionProperty = new CssProperty<Style, FlexDirection>({
@@ -928,38 +509,124 @@ export const positionProperty = new CssProperty<Style, Position>({
 //   defaultValue: 'no-wrap',
 // });
 
+const insetProperty = new ShorthandProperty<Style, LengthAuto>({
+  name: 'inset',
+  cssName: 'inset',
+  getter: function (this: Style) {
+    if (this.top === this.right && this.top === this.bottom && this.top === this.left) {
+      if (typeof this.top === 'string') {
+        if (this.top === 'auto') {
+          return this.top;
+        }
+        const value = CorePercentLength.parse(this.top);
+        if (Number.isNaN(value)) {
+          return this.top;
+        } else {
+          return CorePercentLength.convertToString(value);
+        }
+      }
+    }
+    if (CorePercentLength.equals(this.top as never, this.right as never) && CorePercentLength.equals(this.top as never, this.bottom as never) && CorePercentLength.equals(this.top as never, this.left as never)) {
+      return this.top as never;
+    }
+
+    return `${CorePercentLength.convertToString(this.paddingTop)} ${CorePercentLength.convertToString(this.paddingRight)} ${CorePercentLength.convertToString(this.paddingBottom)} ${CorePercentLength.convertToString(this.paddingLeft)}`;
+  },
+  converter: convertToInsets,
+});
+
+function convertToInsets(value: string | CoreTypes.LengthType): [CssProperty<Style, LengthAuto>, LengthAuto][] {
+  if (typeof value === 'string' && value !== 'auto') {
+    const thickness = parseShorthandPositioning(value);
+
+    return [
+      [topProperty, masonLengthPercentParse(thickness.top)],
+      [rightProperty, masonLengthPercentParse(thickness.right)],
+      [bottomProperty, masonLengthPercentParse(thickness.bottom)],
+      [leftProperty, masonLengthPercentParse(thickness.left)],
+    ];
+  } else {
+    return [
+      [topProperty, value],
+      [rightProperty, value],
+      [bottomProperty, value],
+      [leftProperty, value],
+    ];
+  }
+}
+
 export const leftProperty = new CssProperty<Style, LengthAuto>({
   name: 'left',
   cssName: 'left',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.left = newValue;
+    }
+  },
 });
 
 export const rightProperty = new CssProperty<Style, LengthAuto>({
   name: 'right',
   cssName: 'right',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.right = newValue;
+    }
+  },
 });
 
 export const topProperty = new CssProperty<Style, LengthAuto>({
   name: 'top',
   cssName: 'top',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.top = newValue;
+    }
+  },
 });
 
 export const bottomProperty = new CssProperty<Style, LengthAuto>({
   name: 'bottom',
   cssName: 'bottom',
   defaultValue: 'auto',
+  // @ts-ignore
   equalityComparer: NSLength.equals,
+  valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.bottom = newValue;
+    }
+  },
 });
 
 export const flexBasisProperty = new CssProperty<Style, LengthAuto>({
   name: 'flexBasis',
   cssName: 'flex-basis',
   defaultValue: 'auto',
+  equalityComparer: NSLength.equals,
+  valueConverter: masonLengthParse,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.flexBasis = newValue;
+    }
+  },
 });
 
 export const gridRowGapProperty = new ShorthandProperty<Style, Gap>({
@@ -984,271 +651,135 @@ export const gridColumnGapProperty = new ShorthandProperty<Style, Length>({
   },
 });
 
-export const rowGapProperty = new CssProperty<Style, Length>({
-  name: 'rowGap',
-  cssName: 'row-gap',
-  defaultValue: 0,
-});
-
-export const columnGapProperty = new CssProperty<Style, Length>({
-  name: 'columnGap',
-  cssName: 'column-gap',
-  defaultValue: 0,
-});
-
-export const gridGapProperty = new ShorthandProperty<Style, Gap>({
-  name: 'gridGap',
-  cssName: 'grid-gap',
-  getter: function () {
-    if (this.rowGap === this.columnGap) {
-      return this.rowGap;
-    }
-    return `${this.rowGap} ${this.columnGap}`;
-  },
-  converter(value) {
-    if (typeof value === 'string') {
-      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return emptyArray;
-      }
-
-      if (length === 1) {
-        const row = values[0];
-        return [
-          [rowGapProperty, row],
-          [columnGapProperty, row],
-        ];
-      }
-
-      if (length > 1) {
-        const row = values[0];
-        const column = values[1];
-
-        return [
-          [rowGapProperty, row],
-          [columnGapProperty, column],
-        ];
-      }
-    }
-
-    return emptyArray;
-  },
-});
-
-export const gapProperty = new ShorthandProperty<Style, Gap>({
-  name: 'gap',
-  cssName: 'gap',
-  getter: function () {
-    if (this.rowGap === this.columnGap) {
-      return this.rowGap;
-    }
-    return `${this.rowGap} ${this.columnGap}`;
-  },
-  converter(value) {
-    if (typeof value === 'string') {
-      const values = value.split(/\s+/).filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return emptyArray;
-      }
-
-      if (length === 1) {
-        const row = values[0];
-        return [
-          [rowGapProperty, row],
-          [columnGapProperty, row],
-        ];
-      }
-
-      if (length > 1) {
-        const row = values[0];
-        const column = values[1];
-        return [
-          [rowGapProperty, row],
-          [columnGapProperty, column],
-        ];
-      }
-    }
-
-    return emptyArray;
-  },
-});
-
 export const aspectRatioProperty = new CssProperty<Style, number>({
   name: 'aspectRatio',
   cssName: 'aspect-ratio',
   defaultValue: Number.NaN,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.aspectRatio = newValue;
+    }
+  },
 });
 
-// export const alignItemsProperty = new CssProperty<Style, AlignItems>({
-//   name: 'alignItems',
-//   cssName: 'align-items',
-//   defaultValue: 'normal',
-// });
+export const alignItemsProperty = new CssProperty<Style, AlignItems>({
+  name: 'alignItems',
+  cssName: 'align-items',
+  defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.alignItems = newValue;
+    }
+  },
+});
 
-// export const alignSelfProperty = new CssProperty<Style, AlignSelf>({
-//   name: 'alignSelf',
-//   cssName: 'align-self',
-//   defaultValue: 'normal',
-// });
+export const alignSelfProperty = new CssProperty<Style, AlignSelf>({
+  name: 'alignSelf',
+  cssName: 'align-self',
+  defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.alignSelf = newValue;
+    }
+  },
+});
 
 export const alignContentProperty = new CssProperty<Style, AlignContent>({
   name: 'alignContent',
   cssName: 'align-content',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.alignContent = newValue as never;
+    }
+  },
 });
 
 export const justifyItemsProperty = new CssProperty<Style, JustifyItems>({
   name: 'justifyItems',
   cssName: 'justify-items',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.justifyItems = newValue;
+    }
+  },
 });
 
 export const justifySelfProperty = new CssProperty<Style, JustifySelf>({
   name: 'justifySelf',
   cssName: 'justify-self',
   defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.justifySelf = newValue;
+    }
+  },
 });
 
-// export const justifyContentProperty = new CssProperty<Style, JustifyContent>({
-//   name: 'justifyContent',
-//   cssName: 'justify-content',
-//   defaultValue: 'normal',
-// });
+export const justifyContentProperty = new CssProperty<Style, JustifyContent>({
+  name: 'justifyContent',
+  cssName: 'justify-content',
+  defaultValue: 'normal',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.justifyContent = newValue as never;
+    }
+  },
+});
 
 export const gridAutoRowsProperty = new CssProperty<Style, string>({
   name: 'gridAutoRows',
   cssName: 'grid-auto-rows',
   defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridAutoRows = newValue;
+    }
+  },
 });
 
 export const gridAutoColumnsProperty = new CssProperty<Style, string>({
   name: 'gridAutoColumns',
   cssName: 'grid-auto-columns',
   defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridAutoColumns = newValue;
+    }
+  },
 });
 
 export const gridAutoFlowProperty = new CssProperty<Style, GridAutoFlow>({
   name: 'gridAutoFlow',
   cssName: 'grid-auto-flow',
   defaultValue: 'row',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridAutoFlow = newValue;
+    }
+  },
 });
 
-function parseGridColumnOrRow(value: string) {
-  if (value.trim() === 'auto') {
-    return 'auto';
-  } else {
-    const split = value.split(/\s+/).filter((item) => item.trim().length !== 0);
-
-    const length = split.length;
-
-    if (length === 0) {
-      return undefined;
-    }
-
-    const first = split[0];
-    if (length === 1) {
-      const parsedValue = Number(first);
-      if (Number.isNaN(parsedValue)) {
-        return undefined;
-      }
-      return first;
-    }
-
-    if (length === 2) {
-      if (first === 'span') {
-        const second = split[1];
-
-        const parsedValue = Number(second);
-        if (Number.isNaN(parsedValue)) {
-          return undefined;
-        }
-
-        return `${first} ${second}`;
-      }
-    }
-
-    //custom-ident unsupport atm
-
-    return undefined;
-  }
-}
-
-export const gridAreaProperty = new ShorthandProperty<Style, string>({
+export const gridAreaProperty = new CssProperty<Style, string>({
   name: 'gridArea',
   cssName: 'grid-area',
-  getter: function () {
-    return `${this.gridRowStart} / ${this.gridColumnStart} / ${this.gridRowEnd} / ${this.gridColumnEnd}`;
-  },
-  converter(value) {
-    if (typeof value === 'string') {
-      const values = value.split('/').filter((item) => item.trim().length !== 0);
-
-      // grid-row-start / grid-column-start / grid-row-end / grid-column-end
-
-      const length = values.length;
-      if (length === 0) {
-        return emptyArray;
-      }
-
-      if (length === 1) {
-        const parsed = parseGridColumnOrRow(values[0]);
-        return [
-          [gridRowStartProperty, parsed],
-          [gridRowEndProperty, parsed],
-          [gridColumnStartProperty, parsed],
-          [gridColumnEndProperty, parsed],
-        ];
-      }
-
-      if (length === 2) {
-        const row = parseGridColumnOrRow(values[0]);
-
-        const column = parseGridColumnOrRow(values[1]);
-
-        return [
-          [gridRowStartProperty, row],
-          [gridRowEndProperty, row],
-          [gridColumnStartProperty, column],
-          [gridColumnEndProperty, column],
-        ];
-      }
-
-      if (length === 3) {
-        const rowStart = parseGridColumnOrRow(values[0]);
-
-        const rowEnd = parseGridColumnOrRow(values[2]);
-
-        const columnStart = parseGridColumnOrRow(values[1]);
-        return [
-          [gridRowStartProperty, rowStart],
-          [gridRowEndProperty, rowEnd],
-          [gridColumnStartProperty, columnStart],
-          [gridColumnEndProperty, columnStart],
-        ];
-      }
-
-      if (length >= 4) {
-        const rowStart = parseGridColumnOrRow(values[0]);
-
-        const rowEnd = parseGridColumnOrRow(values[2]);
-
-        const columnStart = parseGridColumnOrRow(values[1]);
-
-        const columnEnd = parseGridColumnOrRow(values[3]);
-        return [
-          [gridRowStartProperty, rowStart],
-          [gridRowEndProperty, rowEnd],
-          [gridColumnStartProperty, columnStart],
-          [gridColumnEndProperty, columnEnd],
-        ];
-      }
+  defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridArea = newValue;
     }
-
-    return emptyArray;
   },
 });
 
@@ -1256,55 +787,35 @@ export const gridColumnStartProperty = new CssProperty<Style, string>({
   name: 'gridColumnStart',
   cssName: 'grid-column-start',
   defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridColumnStart = newValue;
+    }
+  },
 });
 
 export const gridColumnEndProperty = new CssProperty<Style, string>({
   name: 'gridColumnEnd',
   cssName: 'grid-column-end',
   defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridColumnEnd = newValue;
+    }
+  },
 });
 
-export const gridColumnProperty = new ShorthandProperty<Style, string>({
+export const gridColumnProperty = new CssProperty<Style, string>({
   name: 'gridColumn',
   cssName: 'grid-column',
-  getter: function () {
-    if (this.gridColumnStart === this.gridColumnEnd) {
-      return this.gridColumnStart;
+  defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridColumn = newValue;
     }
-    return `${this.gridColumnStart} / ${this.gridColumnStart}`;
-  },
-  converter(value) {
-    if (typeof value === 'string') {
-      const values = value.split('/').filter((item) => item.trim().length !== 0);
-
-      const length = values.length;
-      if (length === 0) {
-        return emptyArray;
-      }
-
-      if (length === 1) {
-        const parsed = parseGridColumnOrRow(values[0]);
-        return [
-          [gridColumnStartProperty, parsed],
-          [gridColumnEndProperty, parsed],
-        ];
-      }
-
-      if (length > 1) {
-        const start = values[0];
-        const end = values[1];
-
-        const parsedStart = parseGridColumnOrRow(start);
-        const parsedEnd = parseGridColumnOrRow(end);
-
-        return [
-          [gridColumnStartProperty, parsedStart],
-          [gridColumnEndProperty, parsedEnd],
-        ];
-      }
-    }
-
-    return emptyArray;
   },
 });
 
@@ -1312,67 +823,72 @@ export const gridRowStartProperty = new CssProperty<Style, string>({
   name: 'gridRowStart',
   cssName: 'grid-row-start',
   defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridRowStart = newValue;
+    }
+  },
 });
 
 export const gridRowEndProperty = new CssProperty<Style, string>({
   name: 'gridRowEnd',
   cssName: 'grid-row-end',
   defaultValue: 'auto',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridRowEnd = newValue;
+    }
+  },
 });
 
-export const gridRowProperty = new ShorthandProperty<Style, string>({
+export const gridRowProperty = new CssProperty<Style, string>({
   name: 'gridRow',
   cssName: 'grid-row',
-  getter: function () {
-    if (this.gridRowStart === this.gridRowEnd) {
-      return this.gridRowStart;
+  defaultValue: '',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridRow = newValue;
     }
-    return `${this.gridRowStart} / ${this.gridRowStart}`;
   },
-  converter(value) {
-    if (typeof value === 'string') {
-      const values = value.split('/').filter((item) => item.trim().length !== 0);
+});
 
-      const length = values.length;
-      if (length === 0) {
-        return emptyArray;
-      }
-
-      if (length === 1) {
-        const parsed = parseGridColumnOrRow(values[0]);
-        return [
-          [gridRowStartProperty, parsed],
-          [gridRowEndProperty, parsed],
-        ];
-      }
-
-      if (length > 1) {
-        const start = values[0];
-        const end = values[1];
-
-        const parsedStart = parseGridColumnOrRow(start);
-        const parsedEnd = parseGridColumnOrRow(end);
-        return [
-          [gridRowStartProperty, parsedStart],
-          [gridRowEndProperty, parsedEnd],
-        ];
-      }
+export const gridTemplateAreasProperty = new CssProperty<Style, string>({
+  name: 'gridTemplateAreas',
+  cssName: 'grid-template-areas',
+  defaultValue: null,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridTemplateAreas = newValue;
     }
-
-    return emptyArray;
   },
 });
 
 export const gridTemplateRowsProperty = new CssProperty<Style, string>({
   name: 'gridTemplateRows',
   cssName: 'grid-template-rows',
-  defaultValue: '',
+  defaultValue: null,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridTemplateRows = newValue;
+    }
+  },
 });
 
 export const gridTemplateColumnsProperty = new CssProperty<Style, string>({
   name: 'gridTemplateColumns',
   cssName: 'grid-template-columns',
-  defaultValue: '',
+  defaultValue: null,
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.gridTemplateColumns = newValue;
+    }
+  },
 });
 
 // flex-flow: <flex-direction> || <flex-wrap>
@@ -1461,10 +977,70 @@ const flexProperty = new ShorthandProperty({
   },
 });
 
-@CSSType('TSCView')
-export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder {
-  android: org.nativescript.mason.masonkit.View;
-  ios: UIView;
+// @ts-ignore
+export const textWrapProperty = new CssProperty<Style, 'nowrap' | 'wrap' | 'balance'>({
+  name: 'textWrap',
+  affectsLayout: true,
+  defaultValue: 'nowrap',
+  valueChanged(target: any, oldValue, newValue) {
+    const view = target?.viewRef ? getViewStyle(target.viewRef) : target.view;
+    if (view) {
+      view.textWrap = newValue;
+    }
+  },
+});
+
+// @ts-ignore
+export const textOverFlowProperty = new CssProperty<Style, 'clip' | 'ellipsis' | `${string}`>({
+  name: 'textOverflow',
+  defaultValue: 'text-overflow',
+  valueChanged(target: any, oldValue, newValue) {
+    const view = target?.viewRef ? getViewStyle(target.viewRef) : target.view;
+    if (view) {
+      view.textOverflow = newValue;
+    }
+  },
+});
+
+export const textContentProperty = new Property<TextBase, string>({
+  name: 'textContent',
+  affectsLayout: true,
+  defaultValue: '',
+});
+
+export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
+  name: 'boxSizing',
+  cssName: 'box-sizing',
+  defaultValue: 'border-box',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.boxSizing = newValue;
+      } else {
+        // Revert to old value if newValue is invalid
+        view.view.style.boxSizing = oldValue;
+      }
+    }
+  },
+  valueConverter(value) {
+    switch (value) {
+      case 'content-box':
+      case 'border-box':
+        return value;
+      default:
+        return undefined;
+    }
+  },
+});
+
+export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
+  readonly android: org.nativescript.mason.masonkit.View;
+  readonly ios: MasonUIView;
+
+  textWrap: 'nowrap' | 'wrap' | 'balance';
+
+  overflow: Overflow | `${Overflow} ${Overflow}`;
 
   gridGap: Gap;
   gap: Gap;
@@ -1472,20 +1048,30 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
   gridColumn: string;
   gridRow: string;
 
-  _children: any[] = [];
-  _isMasonView = false;
-  _isMasonChild = false;
+  inset: LengthAuto;
+  padding: Length;
+  margin: LengthAuto;
+  border: Length;
+
+  _children: (NSView | { text?: string })[] = [];
+  [isMasonView_] = false;
+
+  [isTextChild_] = false;
+  [isText_] = false;
 
   constructor() {
     super();
-    this._isMasonView = true;
   }
 
   forceStyleUpdate() {
     _forceStyleUpdate(this as any);
   }
 
-  public eachLayoutChild(callback: (child: View, isLast: boolean) => void): void {
+  get _viewChildren() {
+    return this._children.filter((child) => child instanceof NSView) as NSView[];
+  }
+
+  public eachLayoutChild(callback: (child: NSView, isLast: boolean) => void): void {
     let lastChild: View = null;
 
     this.eachChildView((cv) => {
@@ -1505,65 +1091,693 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
     }
   }
 
-  public eachChild(callback: (child: ViewBase) => boolean) {
-    this._children.forEach((child) => {
+  public eachChild(callback: (child: NSViewBase) => boolean) {
+    for (const child of this._viewChildren) {
       callback(child);
-    });
+    }
   }
 
-  public eachChildView(callback: (child: View) => boolean): void {
-    this._children.forEach((view, key) => {
-      callback(view as any);
-    });
+  public eachChildView(callback: (child: NSView) => boolean): void {
+    for (const view of this._viewChildren) {
+      callback(view);
+    }
   }
 
   _addChildFromBuilder(name: string, value: any): void {
-    this._children.push(value);
-    value._isMasonChild = true;
-    this._addView(value);
+    this.addChild(value);
   }
 
   getChildrenCount() {
-    return this._children.length;
+    return this._viewChildren.length;
   }
 
   get _childrenCount() {
-    return this._children.length;
+    return this._viewChildren.length;
   }
 
   getChildAt(index: number) {
-    return this._children[index];
+    return this._viewChildren[index];
   }
 
-  getChildIndex(child: View) {
-    return this._children.indexOf(child);
+  getChildIndex(child: NSView) {
+    return this._viewChildren.indexOf(child);
   }
   getChildById(id: string) {
-    return getViewById(this, id);
+    return getViewById(this as never, id);
   }
 
-  addChild(child: View) {
-    this._children.push(child);
-    this._addView(child);
+  addChild(child: any) {
+    if (child instanceof NSView) {
+      this._children.push(child);
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+      this._addView(child);
+    } else {
+      if (text_ in child) {
+        //@ts-ignore
+        if (this._view) {
+          if (__ANDROID__) {
+            //@ts-ignore
+            this._view.addChildAt(child[text_] || '', this._children.length);
+          }
+
+          if (__APPLE__) {
+            //@ts-ignore
+            this._view.mason_addChildAtText(child[text_] || '', this._children.length);
+          }
+        }
+        this._children.push(child);
+      }
+    }
   }
 
-  insertChild(child: View, atIndex: number) {
-    this._children.splice(atIndex, 0, child);
-    this._addView(child, atIndex);
+  insertChild(child: any, atIndex: number) {
+    if (child instanceof NSView) {
+      this._children.splice(atIndex, 0, child);
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+      this._addView(child, atIndex);
+    }
   }
 
-  removeChild(child: View) {
+  replaceChild(child: any, atIndex: number) {
+    if (child instanceof NSView) {
+      this._children[atIndex] = child;
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+      this._addView(child, atIndex);
+    } else {
+      if (text_ in child) {
+        //@ts-ignore
+        if (this._view) {
+          if (__ANDROID__) {
+            //@ts-ignore
+            this._view.replaceChildAt(child[text_] || '', atIndex);
+          }
+
+          if (__APPLE__) {
+            //@ts-ignore
+            this._view.mason_replaceChildAtText(child[text_] || '', atIndex);
+          }
+        }
+        if (this._children.length >= atIndex) {
+          this._children[atIndex] = { text: child[text_] || '' };
+        } else {
+          this._children.push({ text: child[text_] || '' });
+        }
+      }
+    }
+  }
+
+  removeChild(child: any) {
     const index = this._children.indexOf(child);
-    this._children.splice(index, 1);
-    this._removeView(child);
+    if (index > -1) {
+      this._children.splice(index, 1);
+      this._removeView(child);
+    }
   }
 
   removeChildren() {
-    while (this.getChildrenCount() !== 0) {
-      this.removeChild(this._children[this.getChildrenCount() - 1]);
+    if (this._viewChildren.length === 0) {
+      return;
+    }
+    for (const child of this._viewChildren) {
+      // @ts-ignore
+      child._isMasonChild = false;
+      if (child instanceof NSView) {
+        this._removeView(child);
+      }
+    }
+    this._children.splice(0);
+  }
+
+  set text(value: string) {
+    if (frameWork === FrameWork.Vue && global.VUE3_ELEMENT_REF) {
+      const view_ref = this[global.VUE3_ELEMENT_REF] as any;
+      if (Array.isArray(view_ref.childNodes)) {
+        if (view_ref.childNodes.length === 0) {
+          this.addChild({ [text_]: value });
+          return;
+        }
+        if (view_ref.childNodes.length === 1) {
+          const node = view_ref.childNodes[0];
+          if (node && node.nodeType === 'text') {
+            this.addChild({ [text_]: node.text });
+          }
+          return;
+        }
+
+        (view_ref.childNodes as any[]).forEach((node, index) => {
+          if (node.nodeType === 'text') {
+            //  nativeView.replaceChildAt(node.text, index);
+            this.replaceChild({ [text_]: node.text }, index);
+          }
+        });
+      }
+      return;
+    }
+    if ('firstChild' in this) {
+      function getTextNodes(root) {
+        const result = [];
+        let node = root.firstChild;
+        while (node) {
+          result.push(node);
+          node = node.nextSibling;
+        }
+        return result;
+      }
+
+      const nodes = getTextNodes(this);
+
+      for (const [index, node] of nodes.entries()) {
+        if (node.nodeType === 'text' || node.nodeName === 'TextNode' || node.constructor.name === 'TextNode') {
+          const existing = this._children[index];
+          if (existing && Object.is(existing['node'], node)) {
+            // todo direct set text
+            this.replaceChild({ [text_]: node.text, node }, index);
+            continue;
+          }
+          this.replaceChild({ [text_]: node.text, node }, index);
+        }
+      }
+    }
+  }
+
+  [filterProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.filter = value;
+    }
+  }
+
+  [borderProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.border = value;
+    }
+  }
+
+  [backgroundProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.background = value;
+    }
+  }
+
+  [borderLeftWidthProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderLeftWidth = value;
+    }
+  }
+
+  [borderTopWidthProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderTopWidth = value;
+    }
+  }
+
+  [borderRightWidthProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderRightWidth = value;
+    }
+  }
+
+  [borderBottomWidthProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderBottomWidth = value;
+    }
+  }
+
+  [lineHeightProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.lineHeight = value;
+    }
+  }
+
+  [letterSpacingProperty.setNative](value: CoreTypes.LengthType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.letterSpacing = value;
+    }
+  }
+
+  [textAlignmentProperty.setNative](value: CoreTypes.TextAlignmentType) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.textAlignment = value;
+    }
+  }
+
+  get boxSizing(): BoxSizing {
+    return this.style.boxSizing;
+  }
+
+  set boxSizing(value: BoxSizing) {
+    this.style.boxSizing = value;
+  }
+
+  get display() {
+    return this.style.display;
+  }
+
+  set display(value: Display) {
+    this.style.display = value;
+  }
+
+  get overflowX() {
+    return this.style.overflowX;
+  }
+
+  set overflowX(value: Overflow) {
+    this.style.overflowX = value;
+  }
+
+  get overflowY() {
+    return this.style.overflowY;
+  }
+
+  set overflowY(value: Overflow) {
+    this.style.overflowY = value;
+  }
+
+  get scrollBarWidth() {
+    return this.style.scrollBarWidth;
+  }
+
+  set scrollBarWidth(value: Length) {
+    this.style.scrollBarWidth = value;
+  }
+
+  get position() {
+    return this.style.position;
+  }
+
+  set position(value: Position) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.position = value;
+    }
+  }
+
+  [colorProperty.setNative](value) {
+    if (value instanceof Color) {
+      // @ts-ignore
+      const style = this._styleHelper;
+      if (style) {
+        // @ts-ignore
+        style.color = value.argb;
+      }
+    }
+  }
+
+  [flexWrapProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexWrap = value;
+    }
+  }
+
+  [flexDirectionProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexDirection = value;
+    }
+  }
+
+  [flexGrowProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexGrow = value;
+    }
+  }
+
+  [flexShrinkProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexShrink = value;
+    }
+  }
+
+  [flexBasisProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.flexBasis = value;
+    }
+  }
+
+  [alignItemsProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.alignItems = value;
+    }
+  }
+
+  [alignSelfProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.alignSelf = value;
+    }
+  }
+
+  [alignContentProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.alignContent = value;
+    }
+  }
+
+  [justifyItemsProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.justifyItems = value;
+    }
+  }
+
+  [justifySelfProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.justifySelf = value;
+    }
+  }
+
+  [justifyContentProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.justifyContent = value;
+    }
+  }
+
+  [leftProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.left = value;
+    }
+  }
+
+  [rightProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.right = value;
+    }
+  }
+
+  [bottomProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.bottom = value;
+    }
+  }
+
+  [topProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.top = value;
+    }
+  }
+
+  [minWidthProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.minWidth = value;
+    }
+  }
+
+  [minHeightProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.minHeight = value;
+    }
+  }
+
+  [heightProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.height = value;
+    }
+  }
+
+  [widthProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.width = value;
+    }
+  }
+
+  set maxWidth(value: LengthAuto) {
+    this.style.maxWidth = value;
+  }
+
+  get maxWidth(): LengthAuto {
+    return this.style.maxWidth;
+  }
+
+  set maxHeight(value: LengthAuto) {
+    this.style.maxHeight = value;
+  }
+
+  get maxHeight(): LengthAuto {
+    return this.style.maxHeight;
+  }
+
+  _redrawNativeBackground(value: any): void {}
+
+  [marginLeftProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginLeft = value;
+    }
+  }
+
+  [marginRightProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginRight = value;
+    }
+  }
+
+  [marginBottomProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginBottom = value;
+    }
+  }
+
+  [marginTopProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.marginTop = value;
+    }
+  }
+
+  [paddingLeftProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingLeft = value;
+    }
+  }
+  [paddingRightProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingRight = value;
+    }
+  }
+  [paddingTopProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingTop = value;
+    }
+  }
+  [paddingBottomProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      style.paddingBottom = value;
+    }
+  }
+
+  set rowGap(value: Length) {
+    this.style.rowGap = value;
+  }
+
+  get rowGap(): Length {
+    return this.style.rowGap;
+  }
+
+  set columnGap(value: Length) {
+    this.style.columnGap = value;
+  }
+
+  get columnGap(): Length {
+    return this.style.columnGap;
+  }
+
+  set gridColumnStart(value: string) {
+    this.style.gridColumnStart = value;
+  }
+
+  get gridColumnStart(): string {
+    return this.style.gridColumnStart;
+  }
+
+  set gridColumnEnd(value: string) {
+    this.style.gridColumnEnd = value;
+  }
+
+  get gridColumnEnd(): string {
+    return this.style.gridColumnEnd;
+  }
+
+  set gridRowStart(value: string) {
+    this.style.gridRowStart = value;
+  }
+
+  get gridRowStart(): string {
+    return this.style.gridRowStart;
+  }
+
+  set gridRowEnd(value: string) {
+    this.style.gridRowEnd = value;
+  }
+
+  get gridRowEnd(): string {
+    return this.style.gridRowEnd;
+  }
+
+  set gridTemplateRows(value: string) {
+    this.style.gridTemplateRows = value;
+  }
+
+  get gridTemplateRows(): string {
+    return this.style.gridTemplateRows;
+  }
+
+  set gridTemplateColumns(value: string) {
+    this.style.gridTemplateColumns = value;
+  }
+
+  get gridTemplateColumns(): string {
+    return this.style.gridTemplateColumns;
+  }
+
+  set gridAutoColumns(value: string) {
+    this.style.gridAutoColumns = value;
+  }
+
+  get gridAutoColumns(): string {
+    return this.style.gridAutoColumns;
+  }
+
+  set gridAutoRows(value: string) {
+    this.style.gridAutoRows = value;
+  }
+
+  get gridAutoRows(): string {
+    return this.style.gridAutoRows;
+  }
+
+  // @ts-ignore
+  [fontSizeProperty.setNative](value: Length) {
+    // @ts-ignore
+    if (this._styleHelper) {
+      //@ts-ignore
+      this._styleHelper.fontSize = value;
+    }
+  }
+
+  [fontWeightProperty.setNative](value: string) {
+    // @ts-ignore
+    if (this._styleHelper) {
+      //@ts-ignore
+      this._styleHelper.fontWeight = value;
+    }
+  }
+
+  [fontStyleProperty.setNative](value: string) {
+    // @ts-ignore
+    if (this._styleHelper) {
+      //@ts-ignore
+      this._styleHelper.fontStyle = value;
     }
   }
 }
+
+export class TextBase extends ViewBase {
+  textContent: string;
+}
+
+textContentProperty.register(TextBase);
+textWrapProperty.register(Style);
+textOverFlowProperty.register(Style);
+
+export class ButtonBase extends TextBase {}
+
+// @ts-ignore
+export const srcProperty = new Property<ImageBase, string>({
+  name: 'src',
+  defaultValue: '',
+});
+
+export class ImageBase extends ViewBase {
+  src: string;
+}
+
+srcProperty.register(ImageBase);
 
 /**
  * Props are already defined in core flexbox layout,
@@ -1572,10 +1786,125 @@ export class TSCViewBase extends CustomLayoutView implements AddChildFromBuilder
 // flexDirectionProperty.register(Style);
 // flexWrapProperty.register(Style);
 // flexGrowProperty.register(Style);
-// flexShrinkProperty.register(Style);
-// alignItemsProperty.register(Style);
-// alignSelfProperty.register(Style);
-// justifyContentProperty.register(Style);
+flexShrinkProperty.register(Style);
+
+// revert valueConverter if causing issues with core components
+fontSizeProperty.overrideHandlers({
+  name: 'fontSize',
+  cssName: 'font-size',
+  valueConverter: function (value) {
+    return value as never;
+  },
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        if (typeof newValue === 'string') {
+          // @ts-ignore
+          if (newValue.indexOf('%') !== -1) {
+            view.fontSize = {
+              value: parseFloat(newValue as never) / 100,
+              unit: '%',
+            };
+            // @ts-ignore
+          } else if (newValue.indexOf('dip') !== -1) {
+            view.fontSize = parseFloat(newValue as never);
+            // @ts-ignore
+          } else if (newValue.indexOf('px') !== -1) {
+            view.fontSize = {
+              value: parseFloat(newValue as never),
+              unit: 'px',
+            };
+          } else {
+            view.fontSize = parseFloat(newValue as never);
+          }
+        } else {
+          view.fontSize = newValue as never;
+        }
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.fontSize = oldValue as never;
+      }
+    }
+  },
+});
+
+paddingLeftProperty.overrideHandlers({
+  name: 'paddingLeft',
+  cssName: 'padding-left',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.paddingLeft = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.paddingLeft = oldValue as never;
+      }
+    }
+  },
+});
+
+paddingTopProperty.overrideHandlers({
+  name: 'paddingTop',
+  cssName: 'padding-top',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.paddingTop = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.paddingTop = oldValue as never;
+      }
+    }
+  },
+});
+
+paddingRightProperty.overrideHandlers({
+  name: 'paddingRight',
+  cssName: 'padding-right',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.paddingRight = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.paddingRight = oldValue as never;
+      }
+    }
+  },
+});
+
+paddingBottomProperty.overrideHandlers({
+  name: 'paddingBottom',
+  cssName: 'padding-bottom',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.paddingBottom = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.paddingBottom = oldValue as never;
+      }
+    }
+  },
+});
+
+insetProperty.register(Style);
+
+boxSizingProperty.register(Style);
+
+alignItemsProperty.register(Style);
+alignSelfProperty.register(Style);
+justifyContentProperty.register(Style);
 
 displayProperty.register(Style);
 maxWidthProperty.register(Style);
@@ -1594,7 +1923,6 @@ columnGapProperty.register(Style);
 gridRowGapProperty.register(Style);
 gridColumnGapProperty.register(Style);
 gapProperty.register(Style);
-
 gridGapProperty.register(Style);
 
 aspectRatioProperty.register(Style);
@@ -1618,8 +1946,8 @@ gridRowStartProperty.register(Style);
 gridRowEndProperty.register(Style);
 
 gridTemplateRowsProperty.register(Style);
-
 gridTemplateColumnsProperty.register(Style);
+gridTemplateAreasProperty.register(Style);
 
 overflowProperty.register(Style);
 overflowXProperty.register(Style);
@@ -1629,4 +1957,75 @@ scrollBarWidthProperty.register(Style);
 flexFlowProperty.register(Style);
 flexProperty.register(Style);
 
-installMixins();
+interface ShorthandPositioning {
+  top: string;
+  right: string;
+  bottom: string;
+  left: string;
+}
+
+function parseShorthandPositioning(value: string): ShorthandPositioning {
+  const arr = value.split(/[ ,]+/);
+
+  let top: string;
+  let right: string;
+  let bottom: string;
+  let left: string;
+
+  if (arr.length === 1) {
+    top = arr[0];
+    right = arr[0];
+    bottom = arr[0];
+    left = arr[0];
+  } else if (arr.length === 2) {
+    top = arr[0];
+    bottom = arr[0];
+    right = arr[1];
+    left = arr[1];
+  } else if (arr.length === 3) {
+    top = arr[0];
+    right = arr[1];
+    left = arr[1];
+    bottom = arr[2];
+  } else if (arr.length === 4) {
+    top = arr[0];
+    right = arr[1];
+    bottom = arr[2];
+    left = arr[3];
+  } else {
+    throw new Error('Expected 1, 2, 3 or 4 parameters. Actual: ' + value);
+  }
+
+  return {
+    top: top,
+    right: right,
+    bottom: bottom,
+    left: left,
+  };
+}
+
+function convertToPaddings(value: string | CoreTypes.LengthType): [CssProperty<Style, CoreTypes.LengthType>, CoreTypes.LengthType][] {
+  if (typeof value === 'string' && value !== 'auto') {
+    const thickness = parseShorthandPositioning(value);
+
+    return [
+      [paddingTopProperty, CoreLength.parse(thickness.top)],
+      [paddingRightProperty, CoreLength.parse(thickness.right)],
+      [paddingBottomProperty, CoreLength.parse(thickness.bottom)],
+      [paddingLeftProperty, CoreLength.parse(thickness.left)],
+    ];
+  } else {
+    return [
+      [paddingTopProperty, value],
+      [paddingRightProperty, value],
+      [paddingBottomProperty, value],
+      [paddingLeftProperty, value],
+    ];
+  }
+}
+
+paddingProperty.register(Style);
+paddingLeftProperty.register(Style);
+paddingRightProperty.register(Style);
+paddingTopProperty.register(Style);
+paddingBottomProperty.register(Style);

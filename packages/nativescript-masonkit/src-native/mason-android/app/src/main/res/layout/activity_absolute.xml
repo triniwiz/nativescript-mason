@@ -4,10 +4,11 @@
   xmlns:tools="http://schemas.android.com/tools"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
+  android:background="@color/blue"
   tools:context=".AbsoluteActivity">
 
 
-  <TextView
+ <!-- <TextView
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:text="Test" />
@@ -54,5 +55,6 @@
     mason:mason_insetBottom="0dp"
     mason:mason_insetRight="0dp"
     mason:mason_position="absolute" />
+  -->
 
 </org.nativescript.mason.masonkit.View>

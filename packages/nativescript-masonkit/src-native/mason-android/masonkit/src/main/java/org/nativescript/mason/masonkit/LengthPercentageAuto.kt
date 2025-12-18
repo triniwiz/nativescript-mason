@@ -1,12 +1,11 @@
 package org.nativescript.mason.masonkit
 
+
 sealed class LengthPercentageAuto {
   data class Points(var points: Float) : LengthPercentageAuto()
   data class Percent(var percentage: Float) : LengthPercentageAuto()
-  object Auto : LengthPercentageAuto()
-  object Zero : LengthPercentageAuto() {
-    const val points: Float = 0f
-  }
+  data object Auto : LengthPercentageAuto()
+  data object Zero : LengthPercentageAuto()
 
 
   companion object {
@@ -34,7 +33,7 @@ sealed class LengthPercentageAuto {
       is Points -> this.points
       is Percent -> this.percentage
       is Auto -> 0f
-      is Zero -> this.points
+      is Zero -> 0f
     }
 
   internal fun updateValue(value: Float) {
@@ -42,9 +41,11 @@ sealed class LengthPercentageAuto {
       is Points -> {
         this.points = value
       }
+
       is Percent -> {
         this.percentage = value
       }
+
       else -> {}
     }
   }
@@ -58,21 +59,23 @@ sealed class LengthPercentageAuto {
     get() {
       return when (this) {
         is Points -> {
-          "$points$PxUnit"
+          "$points${Constants.PX_UNIT}"
         }
+
         is Percent -> {
-          "${percentage * 100}$PercentUnit"
+          "${percentage * 100}${Constants.PERCENT_UNIT}"
         }
+
         is Auto -> {
-          AutoValue
+          Constants.AUTO_VALUE
         }
+
         is Zero -> {
-          "$points$PxUnit"
+          "0${Constants.PX_UNIT}"
         }
       }
     }
 }
-
 
 val Rect<LengthPercentageAuto>.jsonValue: String
   get() {
@@ -83,6 +86,7 @@ val Rect<LengthPercentageAuto>.cssValue: String
   get() {
     return "\"{\"left\":${left.cssValue},\"right\":${right.cssValue},\"top\":${top.cssValue},\"bottom\":${bottom.cssValue}}\""
   }
+
 
 val Size<LengthPercentageAuto>.jsonValue: String
   get() {

@@ -2,32 +2,51 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.util.Log
+import org.nativescript.mason.masonkit.enums.AlignContent
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.AlignSelf
+import org.nativescript.mason.masonkit.enums.BoxSizing
+import org.nativescript.mason.masonkit.enums.Direction
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
+import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.GridAutoFlow
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.JustifyItems
+import org.nativescript.mason.masonkit.enums.JustifySelf
+import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
+import org.nativescript.mason.masonkit.enums.TextAlign
 
-object NodeHelper {
-  val views: ArrayList<View> = ArrayList<View>();
+class NodeHelper(val mason: Mason) {
+  companion object {
+    @JvmStatic
+    val shared = NodeHelper(Mason.shared)
+  }
 
-  fun configure(node: Node, block: (Node) -> Unit) {
-    node.configure(block)
+  val views: ArrayList<View> = ArrayList()
+
+  fun configure(view: android.view.View, block: (Style) -> Unit) {
+    mason.configureStyleForView(view, block)
   }
 
   private inline fun <T> measurePerformanceInMS(
-    logger: (Long) -> Unit,
-    function: () -> T)
-    : T {
+    logger: (Long) -> Unit, function: () -> T
+  ): T {
     val startTime = System.currentTimeMillis()
     val result: T = function.invoke()
     val endTime = System.currentTimeMillis()
-    logger.invoke( endTime - startTime)
+    logger.invoke(endTime - startTime)
     return result
   }
 
   //the logger function
-  fun logPerf(time: Long){
-    Log.d("TAG","PERFORMANCE IN MS: $time ms ")
+  fun logPerf(time: Long) {
+    Log.d("JS", "PERFORMANCE IN MS: $time ms ")
   }
 
   //the function whose performance needs to be checked
-  fun longRunningFunction() : Int{
+  fun longRunningFunction(): Int {
     var x = 0
     for (i in 1..20000) x++
     return x
@@ -37,966 +56,1212 @@ object NodeHelper {
   fun batchCreateViews(context: Context) {
 
 //    measurePerformanceInMS({time -> logPerf(time)}){
-      for (i in 1..1000) {
-        views.add(View(context));
-      }
+    for (i in 1..1000) {
+      views.add(View(context));
+    }
 //    }
   }
 
   private fun checkAndUpdateStyle(node: Node) {
-    if (!node.inBatch) {
-      node.updateNodeStyle()
+    if (!node.style.inBatch) {
+      node.style.updateNativeStyle()
     }
   }
 
-  fun getDisplay(node: Node): Display {
+  fun getDisplay(view: android.view.View): Display {
+    val node = mason.nodeForView(view)
     return node.style.display
   }
 
-  fun setDisplay(node: Node, display: Display) {
+  fun setDisplay(view: android.view.View, display: Display) {
+    val node = mason.nodeForView(view)
     node.style.display = display
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getPosition(node: Node): Position {
+  fun getPosition(view: android.view.View): Position {
+    val node = mason.nodeForView(view)
     return node.style.position
   }
 
-  fun setPosition(node: Node, position: Position) {
+  fun setPosition(view: android.view.View, position: Position) {
+    val node = mason.nodeForView(view)
     node.style.position = position
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getDirection(node: Node): Direction {
+  fun getDirection(view: android.view.View): Direction {
+    val node = mason.nodeForView(view)
     return node.style.direction
   }
 
-  fun setDirection(node: Node, direction: Direction) {
+  fun setDirection(view: android.view.View, direction: Direction) {
+    val node = mason.nodeForView(view)
     node.style.direction = direction
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getFlexDirection(node: Node): FlexDirection {
+  fun getFlexDirection(view: android.view.View): FlexDirection {
+    val node = mason.nodeForView(view)
     return node.style.flexDirection
   }
 
-  fun setFlexDirection(node: Node, direction: FlexDirection) {
+  fun setFlexDirection(view: android.view.View, direction: FlexDirection) {
+    val node = mason.nodeForView(view)
     node.style.flexDirection = direction
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun getFlexWrap(node: Node): FlexWrap {
+  fun getFlexWrap(view: android.view.View): FlexWrap {
+    val node = mason.nodeForView(view)
     return node.style.flexWrap
   }
 
-  fun setFlexWrap(node: Node, flexWrap: FlexWrap) {
+  fun setFlexWrap(view: android.view.View, flexWrap: FlexWrap) {
+    val node = mason.nodeForView(view)
     node.style.flexWrap = flexWrap
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getOverflow(node: Node): Overflow {
+  fun getOverflow(view: android.view.View): Point<Overflow> {
+    val node = mason.nodeForView(view)
     return node.style.overflow
   }
 
-  fun setOverflow(node: Node, overflow: Overflow) {
+  fun setOverflow(view: android.view.View, overflow: Point<Overflow>) {
+    val node = mason.nodeForView(view)
     node.style.overflow = overflow
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getOverflowX(node: Node): Overflow {
+  fun getOverflowX(view: android.view.View): Overflow {
+    val node = mason.nodeForView(view)
     return node.style.overflowX
   }
 
-  fun setOverflowX(node: Node, overflow: Overflow) {
+  fun setOverflowX(view: android.view.View, overflow: Overflow) {
+    val node = mason.nodeForView(view)
     node.style.overflowX = overflow
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getOverflowY(node: Node): Overflow {
+  fun getOverflowY(view: android.view.View): Overflow {
+    val node = mason.nodeForView(view)
     return node.style.overflowY
   }
 
-  fun setOverflowY(node: Node, overflow: Overflow) {
+  fun setOverflowY(view: android.view.View, overflow: Overflow) {
+    val node = mason.nodeForView(view)
     node.style.overflowY = overflow
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getScrollBarWidth(node: Node): Float {
-    return node.style.scrollBarWidth.value
+  fun getScrollBarWidth(view: android.view.View): Float {
+    val node = mason.nodeForView(view)
+    return node.style.scrollBarWidth
   }
 
-  fun setScrollBarWidth(node: Node, scrollBarWidth: Float) {
-    node.style.scrollBarWidth = Dimension.Points(scrollBarWidth)
-    checkAndUpdateStyle(node)
+  fun setScrollBarWidth(view: android.view.View, scrollBarWidth: Float) {
+    val node = mason.nodeForView(view)
+    node.style.scrollBarWidth = scrollBarWidth
+
   }
 
 
-  fun getAlignItems(node: Node): AlignItems {
+  fun getAlignItems(view: android.view.View): AlignItems {
+    val node = mason.nodeForView(view)
     return node.style.alignItems
   }
 
-  fun setAlignItems(node: Node, alignItems: AlignItems) {
+  fun setAlignItems(view: android.view.View, alignItems: AlignItems) {
+    val node = mason.nodeForView(view)
     node.style.alignItems = alignItems
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun getAlignSelf(node: Node): AlignSelf {
+  fun getAlignSelf(view: android.view.View): AlignSelf {
+    val node = mason.nodeForView(view)
     return node.style.alignSelf
   }
 
-  fun setAlignSelf(node: Node, alignSelf: AlignSelf) {
+  fun setAlignSelf(view: android.view.View, alignSelf: AlignSelf) {
+    val node = mason.nodeForView(view)
     node.style.alignSelf = alignSelf
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun getAlignContent(node: Node): AlignContent {
+  fun getAlignContent(view: android.view.View): AlignContent {
+    val node = mason.nodeForView(view)
     return node.style.alignContent
   }
 
-  fun setAlignContent(node: Node, alignContent: AlignContent) {
+  fun setAlignContent(view: android.view.View, alignContent: AlignContent) {
+    val node = mason.nodeForView(view)
     node.style.alignContent = alignContent
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getJustifyItems(node: Node): JustifyItems {
+  fun getJustifyItems(view: android.view.View): JustifyItems {
+    val node = mason.nodeForView(view)
     return node.style.justifyItems
   }
 
-  fun setJustifyItems(node: Node, justifyItems: JustifyItems) {
+  fun setJustifyItems(view: android.view.View, justifyItems: JustifyItems) {
+    val node = mason.nodeForView(view)
     node.style.justifyItems = justifyItems
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getJustifySelf(node: Node): JustifySelf {
+  fun getJustifySelf(view: android.view.View): JustifySelf {
+    val node = mason.nodeForView(view)
     return node.style.justifySelf
   }
 
-  fun setJustifySelf(node: Node, justifySelf: JustifySelf) {
+  fun setJustifySelf(view: android.view.View, justifySelf: JustifySelf) {
+    val node = mason.nodeForView(view)
     node.style.justifySelf = justifySelf
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getJustifyContent(node: Node): JustifyContent {
+  fun getJustifyContent(view: android.view.View): JustifyContent {
+    val node = mason.nodeForView(view)
     return node.style.justifyContent
   }
 
-  fun setJustifyContent(node: Node, justifyContent: JustifyContent) {
+  fun setJustifyContent(view: android.view.View, justifyContent: JustifyContent) {
+    val node = mason.nodeForView(view)
     node.style.justifyContent = justifyContent
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getFlexGrow(node: Node): Float {
+  fun getFlexGrow(view: android.view.View): Float {
+    val node = mason.nodeForView(view)
     return node.style.flexGrow
   }
 
-  fun setFlexGrow(node: Node, flexGrow: Float) {
+  fun setFlexGrow(view: android.view.View, flexGrow: Float) {
+    val node = mason.nodeForView(view)
     node.style.flexGrow = flexGrow
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun getFlexShrink(node: Node): Float {
+  fun getFlexShrink(view: android.view.View): Float {
+    val node = mason.nodeForView(view)
     return node.style.flexShrink
   }
 
-  fun setFlexShrink(node: Node, flexShrink: Float) {
+  fun setFlexShrink(view: android.view.View, flexShrink: Float) {
+    val node = mason.nodeForView(view)
     node.style.flexShrink = flexShrink
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setFlexBasis(node: Node, value: Float, type: Int) {
+  fun setFlexBasis(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setFlexBasis(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun getFlexBasis(node: Node): Dimension {
+  fun getFlexBasis(view: android.view.View): Dimension {
+    val node = mason.nodeForView(view)
     return node.style.flexBasis
   }
 
-  fun setFlexBasis(node: Node, flexBasis: Dimension) {
+  fun setFlexBasis(view: android.view.View, flexBasis: Dimension) {
+    val node = mason.nodeForView(view)
     node.style.flexBasis = flexBasis
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getPadding(node: Node): Rect<LengthPercentage> {
+  fun getPadding(view: android.view.View): Rect<LengthPercentage> {
+    val node = mason.nodeForView(view)
     return node.style.padding
   }
 
-  fun getStylePaddingLeft(node: Node): LengthPercentage {
+  fun getStylePaddingLeft(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
     return node.style.padding.left
   }
 
-  fun getStylePaddingRight(node: Node): LengthPercentage {
+  fun getStylePaddingRight(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
     return node.style.padding.right
   }
 
-  fun getStylePaddingTop(node: Node): LengthPercentage {
+  fun getStylePaddingTop(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
     return node.style.padding.top
   }
 
-  fun getStylePaddingBottom(node: Node): LengthPercentage {
+  fun getStylePaddingBottom(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
     return node.style.padding.bottom
   }
 
-  fun getPaddingCssValue(node: Node): String {
+  fun getPaddingCssValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.padding.cssValue
   }
 
-  fun getPaddingJsonValue(node: Node): String {
+  fun getPaddingJsonValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.padding.jsonValue
   }
 
-  fun setPadding(node: Node, left: Float, top: Float, right: Float, bottom: Float) {
+  fun setPadding(view: android.view.View, left: Float, top: Float, right: Float, bottom: Float) {
+    val node = mason.nodeForView(view)
     node.style.padding = Rect(
       LengthPercentage.Points(left),
       LengthPercentage.Points(right),
       LengthPercentage.Points(top),
       LengthPercentage.Points(bottom)
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setPadding(
-    node: Node,
+    view: android.view.View,
     left: LengthPercentage,
     top: LengthPercentage,
     right: LengthPercentage,
     bottom: LengthPercentage
   ) {
+    val node = mason.nodeForView(view)
     node.style.padding = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setPadding(
-    node: Node,
+    view: android.view.View,
     left: Float,
-    left_type: Int,
+    leftType: Int,
     top: Float,
-    top_type: Int,
+    topType: Int,
     right: Float,
-    right_type: Int,
+    rightType: Int,
     bottom: Float,
-    bottom_type: Int
+    bottomType: Int
   ) {
+    val node = mason.nodeForView(view)
     node.style.padding = Rect(
-      LengthPercentage.fromTypeValue(left_type, left) ?: node.style.padding.left,
-      LengthPercentage.fromTypeValue(right_type, right) ?: node.style.padding.right,
-      LengthPercentage.fromTypeValue(top_type, top) ?: node.style.padding.top,
-      LengthPercentage.fromTypeValue(bottom_type, bottom) ?: node.style.padding.bottom
+      LengthPercentage.fromTypeValue(leftType, left) ?: node.style.padding.left,
+      LengthPercentage.fromTypeValue(rightType, right) ?: node.style.padding.right,
+      LengthPercentage.fromTypeValue(topType, top) ?: node.style.padding.top,
+      LengthPercentage.fromTypeValue(bottomType, bottom) ?: node.style.padding.bottom
     )
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun setPaddingLeft(node: Node, value: Float, type: Int) {
+  fun setPaddingLeft(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setPaddingLeft(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setPaddingRight(node: Node, value: Float, type: Int) {
+  fun setPaddingRight(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setPaddingRight(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setPaddingTop(node: Node, value: Float, type: Int) {
+  fun setPaddingTop(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setPaddingTop(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setPaddingBottom(node: Node, value: Float, type: Int) {
+  fun setPaddingBottom(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setPaddingBottom(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setPaddingWithValueType(node: Node, value: Float, type: Int) {
+  fun setPaddingWithValueType(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setPaddingWithValueType(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getBorder(node: Node): Rect<LengthPercentage> {
+  fun getBorderWidth(view: android.view.View): Rect<LengthPercentage> {
+    val node = mason.nodeForView(view)
+    return node.style.borderWidth
+  }
+
+  fun getBorderLeftWidth(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
+    return node.style.borderLeftWidth
+  }
+
+  fun getBorderRightWidth(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
+    return node.style.borderRightWidth
+  }
+
+  fun getBorderTopWidth(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
+    return node.style.borderTopWidth
+  }
+
+  fun getBorderBottomWidth(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
+    return node.style.borderBottomWidth
+  }
+
+  fun getBorderWidthCssValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.borderWidth.cssValue
+  }
+
+  fun getBorderWidthJsonValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.borderWidth.jsonValue
+  }
+
+  fun setBorder(view: android.view.View, value: String) {
+    val node = mason.nodeForView(view)
+    node.style.border = value
+  }
+
+  fun getBorder(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.border
   }
 
-  fun getBorderLeft(node: Node): LengthPercentage {
-    return node.style.border.left
-  }
-
-  fun getBorderRight(node: Node): LengthPercentage {
-    return node.style.border.right
-  }
-
-  fun getBorderTop(node: Node): LengthPercentage {
-    return node.style.border.top
-  }
-
-  fun getBorderBottom(node: Node): LengthPercentage {
-    return node.style.border.bottom
-  }
-
-  fun getBorderCssValue(node: Node): String {
-    return node.style.border.cssValue
-  }
-
-  fun getBorderJsonValue(node: Node): String {
-    return node.style.border.jsonValue
-  }
-
-  fun setBorder(node: Node, left: Float, top: Float, right: Float, bottom: Float) {
-    node.style.border = Rect(
+  fun setBorderWidth(
+    view: android.view.View,
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.borderWidth = Rect(
       LengthPercentage.Points(left),
       LengthPercentage.Points(right),
       LengthPercentage.Points(top),
       LengthPercentage.Points(bottom)
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setBorder(
-    node: Node,
+  fun setBorderWidth(
+    view: android.view.View,
     left: LengthPercentage,
     top: LengthPercentage,
     right: LengthPercentage,
     bottom: LengthPercentage
   ) {
-    node.style.border = Rect(
-      left,
-      right,
-      top,
-      bottom
+    val node = mason.nodeForView(view)
+    node.style.borderWidth = Rect(
+      left, right, top, bottom
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setBorder(
-    node: Node,
+  fun setBorderWidth(
+    view: android.view.View,
     left: Float,
-    left_type: Int,
+    leftType: Int,
     top: Float,
-    top_type: Int,
+    topType: Int,
     right: Float,
-    right_type: Int,
+    rightType: Int,
     bottom: Float,
-    bottom_type: Int
+    bottomType: Int
   ) {
-    node.style.border = Rect(
-      LengthPercentage.fromTypeValue(left_type, left) ?: node.style.border.left,
-      LengthPercentage.fromTypeValue(right_type, right) ?: node.style.border.right,
-      LengthPercentage.fromTypeValue(top_type, top) ?: node.style.border.top,
-      LengthPercentage.fromTypeValue(bottom_type, bottom) ?: node.style.border.bottom
+    val node = mason.nodeForView(view)
+    val borderWidth = node.style.borderWidth
+    node.style.borderWidth = Rect(
+      LengthPercentage.fromTypeValue(leftType, left) ?: borderWidth.left,
+      LengthPercentage.fromTypeValue(rightType, right) ?: borderWidth.right,
+      LengthPercentage.fromTypeValue(topType, top) ?: borderWidth.top,
+      LengthPercentage.fromTypeValue(bottomType, bottom) ?: borderWidth.bottom
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setBorderLeft(node: Node, value: Float, type: Int) {
-    node.style.setBorderLeft(value, type)
-    checkAndUpdateStyle(node)
+  fun setBorderLeftWidth(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
+    node.style.setBorderLeftWidth(value, type)
+
   }
 
-  fun setBorderRight(node: Node, value: Float, type: Int) {
-    node.style.setBorderRight(value, type)
-    checkAndUpdateStyle(node)
+  fun setBorderRightWidth(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
+    node.style.setBorderRightWidth(value, type)
+
   }
 
-  fun setBorderTop(node: Node, value: Float, type: Int) {
-    node.style.setBorderTop(value, type)
-    checkAndUpdateStyle(node)
+  fun setBorderTopWidth(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
+    node.style.setBorderTopWidth(value, type)
+
   }
 
-  fun setBorderBottom(node: Node, value: Float, type: Int) {
-    node.style.setBorderBottom(value, type)
-    checkAndUpdateStyle(node)
+  fun setBorderBottomWidth(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
+    node.style.setBorderBottomWidth(value, type)
+
   }
 
-  fun setBorderWithValueType(node: Node, value: Float, type: Int) {
-    node.style.setBorderWithValueType(value, type)
-    checkAndUpdateStyle(node)
+  fun setBorderWithValueType(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
+    node.style.setBorderWidth(value, type)
+
   }
 
-  fun getMargin(node: Node): Rect<LengthPercentageAuto> {
+  fun getMargin(view: android.view.View): Rect<LengthPercentageAuto> {
+    val node = mason.nodeForView(view)
     return node.style.margin
   }
 
-  fun getMarginLeft(node: Node): LengthPercentageAuto {
+  fun getMarginLeft(view: android.view.View): LengthPercentageAuto {
+    val node = mason.nodeForView(view)
     return node.style.margin.left
   }
 
-  fun getMarginRight(node: Node): LengthPercentageAuto {
+  fun getMarginRight(view: android.view.View): LengthPercentageAuto {
+    val node = mason.nodeForView(view)
     return node.style.margin.right
   }
 
-  fun getMarginTop(node: Node): LengthPercentageAuto {
+  fun getMarginTop(view: android.view.View): LengthPercentageAuto {
+    val node = mason.nodeForView(view)
     return node.style.margin.top
   }
 
-  fun getMarginBottom(node: Node): LengthPercentageAuto {
+  fun getMarginBottom(view: android.view.View): LengthPercentageAuto {
+    val node = mason.nodeForView(view)
     return node.style.margin.bottom
   }
 
-  fun getMarginCssValue(node: Node): String {
+  fun getMarginCssValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.margin.cssValue
   }
 
-  fun getMarginJsonValue(node: Node): String {
+  fun getMarginJsonValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.margin.jsonValue
   }
 
-  fun setMargin(node: Node, left: Float, top: Float, right: Float, bottom: Float) {
+  fun setMargin(view: android.view.View, left: Float, top: Float, right: Float, bottom: Float) {
+    val node = mason.nodeForView(view)
     node.style.margin = Rect(
       LengthPercentageAuto.Points(left),
       LengthPercentageAuto.Points(right),
       LengthPercentageAuto.Points(top),
       LengthPercentageAuto.Points(bottom)
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setMargin(
-    node: Node,
+    view: android.view.View,
     left: LengthPercentageAuto,
     top: LengthPercentageAuto,
     right: LengthPercentageAuto,
     bottom: LengthPercentageAuto
   ) {
+    val node = mason.nodeForView(view)
     node.style.margin = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setMargin(
-    node: Node,
+    view: android.view.View,
     left: Float,
-    left_type: Int,
+    leftType: Int,
     top: Float,
-    top_type: Int,
+    topType: Int,
     right: Float,
-    right_type: Int,
+    rightType: Int,
     bottom: Float,
-    bottom_type: Int
+    bottomType: Int
   ) {
+    val node = mason.nodeForView(view)
     node.style.margin = Rect(
-      LengthPercentageAuto.fromTypeValue(left_type, left) ?: node.style.margin.left,
-      LengthPercentageAuto.fromTypeValue(right_type, right) ?: node.style.margin.right,
-      LengthPercentageAuto.fromTypeValue(top_type, top) ?: node.style.margin.top,
-      LengthPercentageAuto.fromTypeValue(bottom_type, bottom) ?: node.style.margin.bottom
+      LengthPercentageAuto.fromTypeValue(leftType, left) ?: node.style.margin.left,
+      LengthPercentageAuto.fromTypeValue(rightType, right) ?: node.style.margin.right,
+      LengthPercentageAuto.fromTypeValue(topType, top) ?: node.style.margin.top,
+      LengthPercentageAuto.fromTypeValue(bottomType, bottom) ?: node.style.margin.bottom
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMarginLeft(node: Node, value: Float, type: Int) {
+  fun setMarginLeft(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setMarginLeft(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMarginRight(node: Node, value: Float, type: Int) {
+  fun setMarginRight(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setMarginRight(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMarginTop(node: Node, value: Float, type: Int) {
+  fun setMarginTop(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setMarginTop(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMarginBottom(node: Node, value: Float, type: Int) {
+  fun setMarginBottom(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setMarginBottom(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMarginWithValueType(node: Node, value: Float, type: Int) {
+  fun setMarginWithValueType(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setMarginWithValueType(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getInset(node: Node): Rect<LengthPercentageAuto> {
+  fun getInset(view: android.view.View): Rect<LengthPercentageAuto> {
+    val node = mason.nodeForView(view)
     return node.style.inset
   }
 
-  fun getInsetLeft(node: Node): LengthPercentageAuto {
+  fun getInsetLeft(view: android.view.View): LengthPercentageAuto {
+    val node = mason.nodeForView(view)
     return node.style.inset.left
   }
 
-  fun getInsetRight(node: Node): LengthPercentageAuto {
+  fun getInsetRight(view: android.view.View): LengthPercentageAuto {
+    val node = mason.nodeForView(view)
     return node.style.inset.right
   }
 
-  fun getInsetTop(node: Node): LengthPercentageAuto {
+  fun getInsetTop(view: android.view.View): LengthPercentageAuto {
+    val node = mason.nodeForView(view)
     return node.style.inset.top
   }
 
-  fun getInsetBottom(node: Node): LengthPercentageAuto {
+  fun getInsetBottom(view: android.view.View): LengthPercentageAuto {
+    val node = mason.nodeForView(view)
     return node.style.inset.bottom
   }
 
-  fun getInsetCssValue(node: Node): String {
+  fun getInsetCssValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.inset.cssValue
   }
 
-  fun getInsetJsonValue(node: Node): String {
+  fun getInsetJsonValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.inset.jsonValue
   }
 
-  fun setPosition(node: Node, left: Float, top: Float, right: Float, bottom: Float) {
+  fun setPosition(view: android.view.View, left: Float, top: Float, right: Float, bottom: Float) {
+    val node = mason.nodeForView(view)
     node.style.inset = Rect(
       LengthPercentageAuto.Points(left),
       LengthPercentageAuto.Points(right),
       LengthPercentageAuto.Points(top),
       LengthPercentageAuto.Points(bottom)
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setPosition(
-    node: Node,
+    view: android.view.View,
     left: LengthPercentageAuto,
     top: LengthPercentageAuto,
     right: LengthPercentageAuto,
     bottom: LengthPercentageAuto
   ) {
+    val node = mason.nodeForView(view)
     node.style.inset = Rect(
-      left,
-      right,
-      top,
-      bottom
+      left, right, top, bottom
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setInset(
-    node: Node,
+    view: android.view.View,
     left: Float,
-    left_type: Int,
+    leftType: Int,
     top: Float,
-    top_type: Int,
+    topType: Int,
     right: Float,
-    right_type: Int,
+    rightType: Int,
     bottom: Float,
-    bottom_type: Int
+    bottomType: Int
   ) {
+    val node = mason.nodeForView(view)
     node.style.inset = Rect(
-      LengthPercentageAuto.fromTypeValue(left_type, left) ?: node.style.inset.left,
-      LengthPercentageAuto.fromTypeValue(right_type, right) ?: node.style.inset.right,
-      LengthPercentageAuto.fromTypeValue(top_type, top) ?: node.style.inset.top,
-      LengthPercentageAuto.fromTypeValue(bottom_type, bottom) ?: node.style.inset.bottom
+      LengthPercentageAuto.fromTypeValue(leftType, left) ?: node.style.inset.left,
+      LengthPercentageAuto.fromTypeValue(rightType, right) ?: node.style.inset.right,
+      LengthPercentageAuto.fromTypeValue(topType, top) ?: node.style.inset.top,
+      LengthPercentageAuto.fromTypeValue(bottomType, bottom) ?: node.style.inset.bottom
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setInsetLeft(node: Node, value: Float, type: Int) {
+  fun setInsetLeft(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setInsetLeft(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setInsetRight(node: Node, value: Float, type: Int) {
+  fun setInsetRight(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setInsetRight(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setInsetTop(node: Node, value: Float, type: Int) {
+  fun setInsetTop(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setInsetTop(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setInsetBottom(node: Node, value: Float, type: Int) {
+  fun setInsetBottom(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setInsetBottom(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setInsetWithValueType(node: Node, value: Float, type: Int) {
+  fun setInsetWithValueType(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setInsetWithValueType(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMinSize(node: Node, width: Float, height: Float) {
+  fun setMinSize(view: android.view.View, width: Float, height: Float) {
+    val node = mason.nodeForView(view)
     node.style.minSize = Size(
       Dimension.Points(width),
       Dimension.Points(height),
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getMinSize(node: Node): Size<Dimension> {
+  fun getMinSize(view: android.view.View): Size<Dimension> {
+    val node = mason.nodeForView(view)
     return node.style.minSize
   }
 
-  fun getMinSizeWidth(node: Node): Dimension {
+  fun getMinSizeWidth(view: android.view.View): Dimension {
+    val node = mason.nodeForView(view)
     return node.style.minSize.width
   }
 
-  fun getMinSizeHeight(node: Node): Dimension {
+  fun getMinSizeHeight(view: android.view.View): Dimension {
+    val node = mason.nodeForView(view)
     return node.style.minSize.height
   }
 
-  fun getMinSizeCssValue(node: Node): String {
+  fun getMinSizeCssValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.minSize.cssValue
   }
 
-  fun getMinSizeJsonValue(node: Node): String {
+  fun getMinSizeJsonValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.minSize.jsonValue
   }
 
-  fun setMinSize(node: Node, width: Dimension, height: Dimension) {
+  fun setMinSize(view: android.view.View, width: Dimension, height: Dimension) {
+    val node = mason.nodeForView(view)
     node.style.minSize = Size(
       width,
       height,
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setMinSize(
-    node: Node,
+    view: android.view.View,
     width: Float,
-    width_type: Int,
+    widthType: Int,
     height: Float,
-    height_type: Int,
+    heightType: Int,
   ) {
+    val node = mason.nodeForView(view)
     node.style.minSize = Size(
-      Dimension.fromTypeValue(width_type, width) ?: node.style.minSize.width,
-      Dimension.fromTypeValue(height_type, height) ?: node.style.minSize.height
+      Dimension.fromTypeValue(widthType, width) ?: node.style.minSize.width,
+      Dimension.fromTypeValue(heightType, height) ?: node.style.minSize.height
     )
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun setMinSizeWidth(node: Node, value: Dimension) {
+  fun setMinSizeWidth(view: android.view.View, value: Dimension) {
+    val node = mason.nodeForView(view)
     node.style.setMinSizeWidth(value)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMinSizeHeight(node: Node, value: Dimension) {
+  fun setMinSizeHeight(view: android.view.View, value: Dimension) {
+    val node = mason.nodeForView(view)
     node.style.setMinSizeHeight(value)
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun setMinSizeWidth(node: Node, value: Float, type: Int) {
+  fun setMinSizeWidth(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setMinSizeWidth(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMinSizeHeight(node: Node, value: Float, type: Int) {
+  fun setMinSizeHeight(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setMinSizeHeight(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setSize(node: Node, width: Float, height: Float) {
+  fun setSize(view: android.view.View, width: Float, height: Float) {
+    val node = mason.nodeForView(view)
     node.style.size = Size(
       Dimension.Points(width),
       Dimension.Points(height),
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getSize(node: Node): Size<Dimension> {
+  fun getSize(view: android.view.View): Size<Dimension> {
+    val node = mason.nodeForView(view)
     return node.style.size
   }
 
-  fun getSizeCssValue(node: Node): String {
+  fun getSizeCssValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.size.cssValue
   }
 
-  fun getSizeJsonValue(node: Node): String {
+  fun getSizeJsonValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.size.jsonValue
   }
 
-  fun getSizeWidth(node: Node): Dimension {
+  fun getSizeWidth(view: android.view.View): Dimension {
+    val node = mason.nodeForView(view)
     return node.style.size.width
   }
 
-  fun getSizeHeight(node: Node): Dimension {
+  fun getSizeHeight(view: android.view.View): Dimension {
+    val node = mason.nodeForView(view)
     return node.style.size.height
   }
 
-  fun setSize(node: Node, width: Dimension, height: Dimension) {
+  fun setSize(view: android.view.View, width: Dimension, height: Dimension) {
+    val node = mason.nodeForView(view)
     node.style.size = Size(
       width,
       height,
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setSize(
-    node: Node,
+    view: android.view.View,
     width: Float,
-    width_type: Int,
+    widthType: Int,
     height: Float,
-    height_type: Int,
+    heightType: Int,
   ) {
+    val node = mason.nodeForView(view)
     node.style.size = Size(
-      Dimension.fromTypeValue(width_type, width) ?: node.style.size.width,
-      Dimension.fromTypeValue(height_type, height) ?: node.style.size.height
+      Dimension.fromTypeValue(widthType, width) ?: node.style.size.width,
+      Dimension.fromTypeValue(heightType, height) ?: node.style.size.height
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setSizeWidth(node: Node, value: Float, type: Int) {
+  fun setSizeWidth(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setSizeWidth(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setSizeWidth(node: Node, value: Dimension) {
+  fun setSizeWidth(view: android.view.View, value: Dimension) {
+    val node = mason.nodeForView(view)
     node.style.setSizeWidth(value)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setSizeHeight(node: Node, value: Float, type: Int) {
+  fun setSizeHeight(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setSizeHeight(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMaxSize(node: Node, width: Float, height: Float) {
+  fun setMaxSize(view: android.view.View, width: Float, height: Float) {
+    val node = mason.nodeForView(view)
     node.style.maxSize = Size(
       Dimension.Points(width),
       Dimension.Points(height),
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getMaxSize(node: Node): Size<Dimension> {
+  fun getMaxSize(view: android.view.View): Size<Dimension> {
+    val node = mason.nodeForView(view)
     return node.style.maxSize
   }
 
-  fun getMaxSizeWidth(node: Node): Dimension {
+  fun getMaxSizeWidth(view: android.view.View): Dimension {
+    val node = mason.nodeForView(view)
     return node.style.maxSize.width
   }
 
-  fun getMaxSizeHeight(node: Node): Dimension {
+  fun getMaxSizeHeight(view: android.view.View): Dimension {
+    val node = mason.nodeForView(view)
     return node.style.maxSize.height
   }
 
-  fun getMaxSizeCssValue(node: Node): String {
+  fun getMaxSizeCssValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.maxSize.cssValue
   }
 
-  fun getMaxSizeJsonValue(node: Node): String {
+  fun getMaxSizeJsonValue(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.maxSize.jsonValue
   }
 
-  fun setMaxSize(node: Node, width: Dimension, height: Dimension) {
+  fun setMaxSize(view: android.view.View, width: Dimension, height: Dimension) {
+    val node = mason.nodeForView(view)
     node.style.maxSize = Size(
       width,
       height,
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setMaxSize(
-    node: Node,
+    view: android.view.View,
     width: Float,
-    width_type: Int,
+    widthType: Int,
     height: Float,
-    height_type: Int,
+    heightType: Int,
   ) {
+    val node = mason.nodeForView(view)
     node.style.maxSize = Size(
-      Dimension.fromTypeValue(width_type, width) ?: node.style.size.width,
-      Dimension.fromTypeValue(height_type, height) ?: node.style.size.height
+      Dimension.fromTypeValue(widthType, width) ?: node.style.size.width,
+      Dimension.fromTypeValue(heightType, height) ?: node.style.size.height
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMaxSizeWidth(node: Node, value: Float, type: Int) {
+  fun setMaxSizeWidth(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setMaxSizeWidth(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMaxSizeHeight(node: Node, value: Float, type: Int) {
+  fun setMaxSizeHeight(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setMaxSizeHeight(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMaxSizeWidth(node: Node, value: Dimension) {
+  fun setMaxSizeWidth(view: android.view.View, value: Dimension) {
+    val node = mason.nodeForView(view)
     node.style.setMaxSizeWidth(value)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setMaxSizeHeight(node: Node, value: Dimension) {
+  fun setMaxSizeHeight(view: android.view.View, value: Dimension) {
+    val node = mason.nodeForView(view)
     node.style.setMaxSizeHeight(value)
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun setGap(node: Node, width: Float, height: Float) {
+  fun setGap(view: android.view.View, width: Float, height: Float) {
+    val node = mason.nodeForView(view)
     node.style.gap = Size(
       LengthPercentage.Points(width),
       LengthPercentage.Points(height),
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getGap(node: Node): Size<LengthPercentage> {
+  fun getGap(view: android.view.View): Size<LengthPercentage> {
+    val node = mason.nodeForView(view)
     return node.style.gap
   }
 
-  fun getGapRow(node: Node): LengthPercentage {
+  fun getGapRow(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
     return node.style.gap.width
   }
 
-  fun getGapColumn(node: Node): LengthPercentage {
+  fun getGapColumn(view: android.view.View): LengthPercentage {
+    val node = mason.nodeForView(view)
     return node.style.gap.height
   }
 
 
-  fun setGap(node: Node, row: LengthPercentage, column: LengthPercentage) {
+  fun setGap(view: android.view.View, row: LengthPercentage, column: LengthPercentage) {
+    val node = mason.nodeForView(view)
     node.style.gap = Size(
       row,
       column,
     )
-    checkAndUpdateStyle(node)
+
   }
 
   fun setGap(
-    node: Node,
+    view: android.view.View,
     width: Float,
-    width_type: Int,
+    widthType: Int,
     height: Float,
-    height_type: Int,
+    heightType: Int,
   ) {
+    val node = mason.nodeForView(view)
     node.style.gap = Size(
-      LengthPercentage.fromTypeValue(width_type, width) ?: node.style.gap.width,
-      LengthPercentage.fromTypeValue(height_type, height) ?: node.style.gap.height
+      LengthPercentage.fromTypeValue(widthType, width) ?: node.style.gap.width,
+      LengthPercentage.fromTypeValue(heightType, height) ?: node.style.gap.height
     )
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setGapRow(node: Node, value: Float, type: Int) {
-    setRowGap(node, value, type)
+  fun setGapRow(view: android.view.View, value: Float, type: Int) {
+    setRowGap(view, value, type)
   }
 
-  fun setRowGap(node: Node, value: Float, type: Int) {
+  fun setRowGap(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setGapRow(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun setGapColumn(node: Node, value: Float, type: Int) {
-    setColumnGap(node, value, type)
+  fun setGapColumn(view: android.view.View, value: Float, type: Int) {
+    setColumnGap(view, value, type)
   }
 
-  fun setColumnGap(node: Node, value: Float, type: Int) {
+  fun setColumnGap(view: android.view.View, value: Float, type: Int) {
+    val node = mason.nodeForView(view)
     node.style.setGapColumn(value, type)
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getAspectRatio(node: Node): Float? {
+  fun getAspectRatio(view: android.view.View): Float? {
+    val node = mason.nodeForView(view)
     return node.style.aspectRatio
   }
 
-  fun setAspectRatio(node: Node, aspectRatio: Float?) {
+  fun setAspectRatio(view: android.view.View, aspectRatio: Float?) {
+    val node = mason.nodeForView(view)
     node.style.aspectRatio = aspectRatio
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getGridAutoRows(node: Node): Array<MinMax> {
+  fun getTextAlign(view: android.view.View): TextAlign {
+    val node = mason.nodeForView(view)
+    return node.style.textAlign
+  }
+
+  fun setTextAlign(view: android.view.View, align: TextAlign) {
+    val node = mason.nodeForView(view)
+    node.style.textAlign = align
+  }
+
+  fun getBoxSizing(view: android.view.View): BoxSizing {
+    val node = mason.nodeForView(view)
+    return node.style.boxSizing
+  }
+
+  fun setTextAlign(view: android.view.View, sizing: BoxSizing) {
+    val node = mason.nodeForView(view)
+    node.style.boxSizing = sizing
+  }
+
+  fun getGridAutoRows(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridAutoRows
   }
 
-  fun setGridAutoRows(node: Node, gridAutoRows: Array<MinMax>) {
+  fun setGridAutoRows(view: android.view.View, gridAutoRows: String) {
+    val node = mason.nodeForView(view)
     node.style.gridAutoRows = gridAutoRows
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun getGridAutoColumns(node: Node): Array<MinMax> {
+  fun getGridAutoColumns(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridAutoColumns
   }
 
-  fun setGridAutoColumns(node: Node, gridAutoColumns: Array<MinMax>) {
+  fun setGridAutoColumns(view: android.view.View, gridAutoColumns: String) {
+    val node = mason.nodeForView(view)
     node.style.gridAutoColumns = gridAutoColumns
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun getGridAutoFlow(node: Node): GridAutoFlow {
+  fun getGridAutoFlow(view: android.view.View): GridAutoFlow {
+    val node = mason.nodeForView(view)
     return node.style.gridAutoFlow
   }
 
-  fun setGridAutoFlow(node: Node, gridAutoFlow: GridAutoFlow) {
+  fun setGridAutoFlow(view: android.view.View, gridAutoFlow: GridAutoFlow) {
+    val node = mason.nodeForView(view)
     node.style.gridAutoFlow = gridAutoFlow
-    checkAndUpdateStyle(node)
+
   }
 
 
-  fun getGridColumn(node: Node): Line<GridPlacement> {
+  fun getGridColumn(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridColumn
   }
 
-  fun setGridColumn(node: Node, gridColumn: Line<GridPlacement>) {
+  fun setGridColumn(view: android.view.View, gridColumn: String) {
+    val node = mason.nodeForView(view)
     node.style.gridColumn = gridColumn
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getGridColumnStart(node: Node): GridPlacement {
+  fun getGridColumnStart(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridColumnStart
   }
 
-  fun setGridColumnStart(node: Node, gridColumnStart: GridPlacement) {
+  fun setGridColumnStart(view: android.view.View, gridColumnStart: String) {
+    val node = mason.nodeForView(view)
     node.style.gridColumnStart = gridColumnStart
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getGridColumnEnd(node: Node): GridPlacement {
+  fun getGridColumnEnd(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridColumnEnd
   }
 
-  fun setGridColumnEnd(node: Node, gridColumnEnd: GridPlacement) {
+  fun setGridColumnEnd(view: android.view.View, gridColumnEnd: String) {
+    val node = mason.nodeForView(view)
     node.style.gridColumnEnd = gridColumnEnd
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getGridRow(node: Node): Line<GridPlacement> {
+  fun getGridRow(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridRow
   }
 
-  fun setGridRow(node: Node, gridRow: Line<GridPlacement>) {
+  fun setGridRow(view: android.view.View, gridRow: String) {
+    val node = mason.nodeForView(view)
     node.style.gridRow = gridRow
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getGridRowStart(node: Node): GridPlacement {
+  fun getGridRowStart(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridRowStart
   }
 
-  fun setGridRowStart(node: Node, gridRowStart: GridPlacement) {
+  fun setGridRowStart(view: android.view.View, gridRowStart: String) {
+    val node = mason.nodeForView(view)
     node.style.gridRowStart = gridRowStart
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getGridRowEnd(node: Node): GridPlacement {
+  fun getGridRowEnd(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridRowEnd
   }
 
-  fun setGridRowEnd(node: Node, gridRowEnd: GridPlacement) {
+  fun setGridRowEnd(view: android.view.View, gridRowEnd: String) {
+    val node = mason.nodeForView(view)
     node.style.gridRowEnd = gridRowEnd
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getGridTemplateRows(node: Node): Array<TrackSizingFunction> {
+  fun getGridTemplateRows(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridTemplateRows
   }
 
-  fun setGridTemplateRows(node: Node, gridTemplateRows: Array<TrackSizingFunction>) {
+  fun setGridTemplateRows(view: android.view.View, gridTemplateRows: String) {
+    val node = mason.nodeForView(view)
     node.style.gridTemplateRows = gridTemplateRows
-    checkAndUpdateStyle(node)
+
   }
 
-  fun getGridTemplateColumns(node: Node): Array<TrackSizingFunction> {
+  fun getGridTemplateColumns(view: android.view.View): String {
+    val node = mason.nodeForView(view)
     return node.style.gridTemplateColumns
   }
 
-  fun setGridTemplateColumns(node: Node, gridTemplateColumns: Array<TrackSizingFunction>) {
+  fun setGridTemplateColumns(
+    view: android.view.View,
+    gridTemplateColumns: String
+  ) {
+    val node = mason.nodeForView(view)
     node.style.gridTemplateColumns = gridTemplateColumns
-    checkAndUpdateStyle(node)
+  }
+
+
+  fun getGridArea(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.gridArea
+  }
+
+  fun setGridArea(
+    view: android.view.View,
+    area: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.gridArea = area
+  }
+
+  fun getGridTemplateAreas(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.gridTemplateAreas
+  }
+
+  fun setGridTemplateAreas(
+    view: android.view.View,
+    gridTemplateColumns: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.gridTemplateAreas = gridTemplateColumns
+  }
+
+
+  fun getBackground(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.background
+  }
+
+  fun setBackground(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.background = value
+  }
+
+
+  fun getFilter(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.filter
+  }
+
+  fun setFilter(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.filter = value
   }
 }
 

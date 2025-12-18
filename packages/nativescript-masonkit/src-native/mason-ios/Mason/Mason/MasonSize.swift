@@ -9,7 +9,7 @@ import Foundation
 
 @objcMembers
 @objc(MasonDimensionSizeCompat)
-public class MasonDimensionSizeCompat: NSObject{
+public class MasonDimensionSizeCompat: NSObject, Codable{
     public var width: MasonDimensionCompat
     public var height: MasonDimensionCompat
     
@@ -30,7 +30,7 @@ public class MasonDimensionSizeCompat: NSObject{
 
 @objcMembers
 @objc(MasonLengthPercentageAutoSizeCompat)
-public class MasonLengthPercentageAutoSizeCompat: NSObject{
+public class MasonLengthPercentageAutoSizeCompat: NSObject, Codable{
     public var width: MasonLengthPercentageAutoCompat
     public var height: MasonLengthPercentageAutoCompat
     
@@ -52,7 +52,7 @@ public class MasonLengthPercentageAutoSizeCompat: NSObject{
 
 @objcMembers
 @objc(MasonLengthPercentageSizeCompat)
-public class MasonLengthPercentageSizeCompat: NSObject{
+public class MasonLengthPercentageSizeCompat: NSObject, Codable{
     public var width: MasonLengthPercentageCompat
     public var height: MasonLengthPercentageCompat
     
@@ -72,9 +72,9 @@ public class MasonLengthPercentageSizeCompat: NSObject{
 }
 
 
-public struct MasonSize<T>{
-    var width: T
-    var height: T
+public struct MasonSize<T: Codable>: Codable{
+    public var width: T
+    public var height: T
     
     internal var compatDimension: MasonDimensionSizeCompat? = nil
     internal var compatLengthAuto: MasonLengthPercentageAutoSizeCompat? = nil

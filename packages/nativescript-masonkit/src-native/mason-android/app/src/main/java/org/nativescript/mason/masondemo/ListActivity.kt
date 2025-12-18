@@ -1,75 +1,92 @@
 package org.nativescript.mason.masondemo
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import org.nativescript.mason.masondemo.databinding.ActivityListBinding
-import org.nativescript.mason.masondemo.databinding.ListItemBinding
+import org.nativescript.mason.masonkit.Dimension
+import org.nativescript.mason.masonkit.Img
+import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.enums.AlignContent
+import org.nativescript.mason.masonkit.enums.AlignItems
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.FlexDirection
 
 class ListActivity : AppCompatActivity() {
-  lateinit var binding: ActivityListBinding
   val array = ArrayList<String>()
   lateinit var adapter: CustomAdapter
-
   lateinit var recyclerView: RecyclerView
-
+  val mason = Mason()
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    binding = ActivityListBinding.inflate(layoutInflater)
-    setContentView(binding.root)
+    recyclerView = RecyclerView(this)
+    recyclerView.layoutParams = RecyclerView.LayoutParams(
+      RecyclerView.LayoutParams.MATCH_PARENT,
+      RecyclerView.LayoutParams.MATCH_PARENT
+    )
 
-
-    repeat(5) {
+    repeat(1000) {
       array.add("https://robohash.org/${it + 1}?set=set4")
     }
 
-    adapter = CustomAdapter(array, resources.displayMetrics.density)
+    adapter = CustomAdapter(this)
 
-    binding.recyclerView.adapter = adapter
+    recyclerView.adapter = adapter
 
-    binding.recyclerView.layoutManager = LinearLayoutManager(this).apply {
+    recyclerView.layoutManager = LinearLayoutManager(this).apply {
       orientation = LinearLayoutManager.VERTICAL
     }
 
+    setContentView(recyclerView)
+
   }
 
-  class CustomAdapter(private val dataSet: ArrayList<String>, val scale: Float) :
+  class CustomAdapter(private val list: ListActivity) :
     RecyclerView.Adapter<CustomAdapter.ViewHolder>() {
-    lateinit var binding: ListItemBinding
     class ViewHolder(view: android.view.View) : RecyclerView.ViewHolder(view) {
-      val textView: TextView
-      val imageView: ImageView
+      val textView: org.nativescript.mason.masonkit.TextView
+      val imageView: Img
 
       init {
-        textView = view.findViewById(R.id.listTextView)
-        imageView = view.findViewById(R.id.listImageView)
+        val root = view as ViewGroup
+        textView = root.getChildAt(0) as org.nativescript.mason.masonkit.TextView
+        imageView = root.getChildAt(2) as Img
       }
     }
 
     override fun onCreateViewHolder(viewGroup: ViewGroup, viewType: Int): ViewHolder {
-      binding = ListItemBinding.inflate(LayoutInflater.from(viewGroup.context))
+      val context = viewGroup.context
+      val root = list.mason.createView(context)
+      root.configure {
+        it.setSizeWidth(Dimension.Percent(1f))
+        it.display = Display.Flex
+        it.alignContent = AlignContent.Stretch
+        it.alignItems = AlignItems.Center
+        it.flexDirection = FlexDirection.Column
+        it.flexGrow = 1f
+      }
+      root.addView(list.mason.createTextView(context))
+      val tv = list.mason.createTextView(context)
+      tv.textContent = "Laffy Taffy!!!!"
+      root.addView(tv)
+      val image = list.mason.createImageView(context)
+      image.configure {
+        it.setSizeHeight(Dimension.Points(50 * context.resources.displayMetrics.density))
+      }
+      root.addView(image)
 
-      return ViewHolder(binding.root)
+      return ViewHolder(root)
     }
 
     override fun onBindViewHolder(viewHolder: ViewHolder, position: Int) {
-      val url = dataSet[position]
-      viewHolder.textView.text = url
-      Glide
-        .with(viewHolder.imageView)
-        .load(url)
-        .fitCenter()
-        .override((150 * scale).toInt(), (150 * scale).toInt())
-        .into(viewHolder.imageView)
+      val url = list.array[position]
+      viewHolder.textView.textContent = url
+      viewHolder.imageView.src = url
+      viewHolder.imageView.style.filter = "drop-shadow(16px 16px 20px red) invert(75%);"
     }
 
-    override fun getItemCount() = dataSet.size
+    override fun getItemCount() = list.array.size
 
   }
 }

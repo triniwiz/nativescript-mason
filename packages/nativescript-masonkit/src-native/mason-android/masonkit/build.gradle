@@ -3,47 +3,44 @@ plugins {
   id 'org.jetbrains.kotlin.android'
 }
 
-def NDK_PATH = ""
-def hasNdkDirectory = project.hasProperty("ndkDirectory")
-if(!hasNdkDirectory){
-  println "No ndkDirectory set, checking environment \$ANDROID_NDK..."
 
-  NDK_PATH = "$System.env.ANDROID_NDK"
-  if (NDK_PATH == null || NDK_PATH == "null"){
-    println "No ndkDirectory set, checking environment \$ANDROID_NDK_ROOT..."
-    NDK_PATH = "$System.env.ANDROID_NDK_ROOT"
-  }
-
-  if (NDK_PATH == null || NDK_PATH == "null"){
-    println "No ndkDirectory set, checking environment \$ANDROID_NDK_HOME..."
-    NDK_PATH = "$System.env.ANDROID_NDK_HOME"
-  }
-} else {
-  NDK_PATH = ndkDirectory
+def detectHostArch = {
+  def arch = System.getProperty("os.arch").toLowerCase(Locale.ROOT)
+  if (arch.contains("aarch64") || arch.contains("arm64")) return "arm64"
+  if (arch.contains("x86_64") || arch.contains("amd64")) return "x86_64"
+  if (arch.contains("x86")) return "x86"
+  if (arch.contains("arm")) return "arm"
+  throw new GradleException("Unsupported host architecture: $arch")
 }
-println "Runtime using NDK_PATH: " + NDK_PATH
+
+def rustTargets = {
+  def prop = project.findProperty("rust.targets")
+  if (!prop || prop == "host") {
+    return [detectHostArch()]
+  }
+  if (prop == "all") {
+    return ["arm", "arm64", "x86", "x86_64"]
+  }
+  return prop.split(",") as List<String>
+}()
+def isRelease = gradle.startParameter.taskNames.any {
+  it.toLowerCase().contains("release")
+}
+
+def rustProfile = isRelease ? "release" : null
 
 android {
   namespace 'org.nativescript.mason.masonkit'
-  compileSdk 33
+  compileSdk 36
   defaultConfig {
-    minSdk 17
-    targetSdk 33
+    minSdk 21
+    targetSdk 36
     multiDexEnabled true
     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     consumerProguardFiles "consumer-rules.pro"
-
-    externalNativeBuild {
-      cmake {
-        cppFlags "-std=c++17"
-        arguments "-DANDROID_TOOLCHAIN=clang",
-          "-DANDROID_STL=c++_static",
-          "-DANDROID_NDK_ROOT=${System.getenv("ANDROID_NDK_ROOT")}"
-      }
-    }
-    ndk {
-      abiFilters 'x86','x86_64', 'armeabi-v7a', 'arm64-v8a'
-    }
+    // using for blur pre RenderNode
+    renderscriptTargetApi 28
+    renderscriptSupportModeEnabled true
   }
 
   buildTypes {
@@ -53,31 +50,72 @@ android {
     }
   }
   compileOptions {
-    sourceCompatibility JavaVersion.VERSION_1_8
-    targetCompatibility JavaVersion.VERSION_1_8
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
   }
   kotlinOptions {
-    jvmTarget = '1.8'
+    jvmTarget = '17'
   }
-
-  externalNativeBuild {
-    cmake {
-      path "CMakeLists.txt"
-    }
-  }
-
-  ndkVersion "25.2.9519653"
 }
+
+apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
+
+cargo {
+  module = "../../../../../"
+  libname = "masonnative"
+
+  apiLevels = [
+    "arm"   : 21,
+    "arm64" : 21,
+    "x86"   : 21,
+    "x86_64": 21
+  ]
+
+  if (rustProfile == "release") {
+    profile = "release"     // gradle plugin will pass --release
+  }
+
+
+  targets = rustTargets
+  targetDirectory = "../../../../../target"
+  verbose = true
+  extraCargoBuildArguments = ['-p', 'mason-android']
+
+  exec = { spec, toolchain ->
+    spec.environment("RUSTFLAGS", "-C link-arg=-Wl,--hash-style=sysv -C link-arg=-Wl,-z,max-page-size=16384")
+  }
+}
+
+tasks.configureEach { task ->
+  if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
+    task.dependsOn 'cargoBuild'
+  }
+
+  if (name == "mergeDebugJniLibFolders" || name == "mergeReleaseJniLibFolders") {
+    outputs.upToDateWhen { false }
+    dependsOn("cargoBuild")
+  }
+}
+
+//afterEvaluate {
+//    tasks.withType(CargoBuildTask).configureEach { buildTask ->
+//        tasks.withType(MergeSourceSetFolders).configureEach {
+//            inputs.dir(layout.buildDirectory.dir("rustJniLibs${File.separator}${buildTask.toolchain.folder}"))
+//            dependsOn(buildTask)
+//        }
+//    }
+//}
+
 
 dependencies {
-
-  implementation 'androidx.core:core-ktx:1.9.0'
-  implementation 'androidx.appcompat:appcompat:1.5.1'
-  implementation 'com.google.android.material:material:1.7.0'
-  implementation 'com.google.code.gson:gson:2.10'
+  implementation 'androidx.core:core-ktx:1.12.0'
+  implementation 'androidx.appcompat:appcompat:1.6.1'
+  implementation 'androidx.activity:activity:1.10.1'
+  implementation 'com.google.code.gson:gson:2.13.2'
   testImplementation 'junit:junit:4.13.2'
-  androidTestImplementation 'androidx.test.ext:junit:1.1.4'
-  androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
-  implementation 'androidx.multidex:multidex:2.0.1'
-
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+  implementation 'com.github.bumptech.glide:glide:4.16.0'
+  annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
 }
+

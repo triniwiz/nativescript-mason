@@ -1,18 +1,28 @@
 package org.nativescript.mason.masondemo
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masondemo.databinding.ActivityMainBinding
-import org.nativescript.mason.masonkit.*
+import org.nativescript.mason.masonkit.Mason
 
 class MainActivity : AppCompatActivity() {
   private lateinit var binding: ActivityMainBinding
+  val mason = Mason()
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
 
+    ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { view, insets ->
+      val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+      view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+      insets
+    }
 
+    /*
     val now = System.currentTimeMillis()
 
     // 1000 :- 90
@@ -27,15 +37,12 @@ class MainActivity : AppCompatActivity() {
     // 100000 :- ~2962
     // 1000000 :- 90 x
 
-    for(i in 0 until 1000){
-      val node = Node()
-//      if (i == 100000){
-//        System.gc()
-//      }
+    for (j in 0 until 1_00_000) {
+      val node = mason.createNode()
     }
 
     Log.d("com.test", "time ${System.currentTimeMillis() - now}")
-
+    */
 
     binding = ActivityMainBinding.inflate(layoutInflater)
     setContentView(binding.root)
@@ -74,6 +81,16 @@ class MainActivity : AppCompatActivity() {
 
     binding.btnScroll.setOnClickListener {
       val intent = Intent(this, ScrollActivity::class.java)
+      startActivity(intent)
+    }
+
+    binding.btnText.setOnClickListener {
+      val intent = Intent(this, TextActivity::class.java)
+      startActivity(intent)
+    }
+
+    binding.btnFloat.setOnClickListener {
+      val intent = Intent(this, FloatActivity::class.java)
       startActivity(intent)
     }
 

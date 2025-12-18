@@ -7,7 +7,6 @@
 
 # dependencies
 node_modules
-package-lock.json
 yarn.lock
 
 # IDEs and editors
@@ -43,3 +42,17 @@ Thumbs.db
 *.tgz
 packages/**/angular/dist
 packages/**/DerivedData
+
+packages/**/native-src/mason-ios/**/xcuserdata/
+packages/**/native-src/mason-ios/**/project.xcworkspace/
+packages/**/native-src/mason-ios/**/build
+
+
+/target
+/**/*.rs.bk
+/Cargo.lock
+*.xcuserstate
+packages/nativescript-masonkit/src-native/mason-ios/Mason/Mason.xcodeproj/xcuserdata/nstudio.xcuserdatad/xcschemes/xcschememanagement.plist
+
+.nx/cache
+.nx/workspace-data

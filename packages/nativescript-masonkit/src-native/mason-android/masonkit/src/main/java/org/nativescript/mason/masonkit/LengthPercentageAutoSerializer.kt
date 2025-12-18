@@ -1,6 +1,11 @@
 package org.nativescript.mason.masonkit
 
-import com.google.gson.*
+import com.google.gson.JsonElement
+import com.google.gson.JsonNull
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
 import java.lang.reflect.Type
 
 class LengthPercentageAutoSerializer : JsonSerializer<LengthPercentageAuto> {
@@ -16,18 +21,21 @@ class LengthPercentageAutoSerializer : JsonSerializer<LengthPercentageAuto> {
     when (src) {
       is LengthPercentageAuto.Points -> {
         json.add("value", JsonPrimitive(src.points))
-        json.add("unit", JsonPrimitive(PxUnit))
+        json.add("unit", JsonPrimitive(Constants.PX_UNIT))
       }
+
       is LengthPercentageAuto.Zero -> {
-        json.add("value", JsonPrimitive(src.points))
-        json.add("unit", JsonPrimitive(PxUnit))
+        json.add("value", JsonPrimitive(0))
+        json.add("unit", JsonPrimitive(Constants.PX_UNIT))
       }
+
       is LengthPercentageAuto.Percent -> {
         json.add("value", JsonPrimitive(src.percentage))
-        json.add("unit", JsonPrimitive(PercentUnit))
+        json.add("unit", JsonPrimitive(Constants.PERCENT_UNIT))
       }
+
       is LengthPercentageAuto.Auto -> {
-        return JsonPrimitive(AutoValue)
+        return JsonPrimitive(Constants.AUTO_VALUE)
       }
     }
     return json

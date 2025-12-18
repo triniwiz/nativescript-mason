@@ -1,7 +1,0 @@
-[package]
-name = "mason-playground"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-mason-core = { path = "../mason-core" }
