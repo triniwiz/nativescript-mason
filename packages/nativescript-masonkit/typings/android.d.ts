@@ -2603,6 +2603,7 @@ declare module org {
 					public getGridRow(this_: globalAndroid.view.View): string;
 					public setMarginLeft(this_: globalAndroid.view.View, view: number, value: number): void;
 					public setBorder(this_: globalAndroid.view.View, view: string): void;
+					public setBorderRadius(this_: globalAndroid.view.View, view: string): void;
 					public setPosition(this_: globalAndroid.view.View, view: number, left: number, top: number, right: number): void;
 					public setMaxSize(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension, width: org.nativescript.mason.masonkit.Dimension): void;
 					public setMinSize(this_: globalAndroid.view.View, view: org.nativescript.mason.masonkit.Dimension, width: org.nativescript.mason.masonkit.Dimension): void;
@@ -2613,6 +2614,7 @@ declare module org {
 					public setGap(this_: globalAndroid.view.View, view: number, width: number, widthType: number, height: number): void;
 					public setGridAutoColumns(this_: globalAndroid.view.View, view: string): void;
 					public getBorder(this_: globalAndroid.view.View): string;
+					public getBorderRadius(this_: globalAndroid.view.View): string;
 				}
 				export module NodeHelper {
 					export class Companion {

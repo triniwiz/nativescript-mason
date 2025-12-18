@@ -2913,6 +2913,34 @@ export class Style {
     }
   }
 
+  get borderRadius() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBorderRadius(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.borderRadius;
+    }
+
+    return '';
+  }
+
+  set borderRadius(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderRadius(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.borderRadius = value;
+    }
+  }
+
   get border() {
     if (!this.nativeView) {
       return '';

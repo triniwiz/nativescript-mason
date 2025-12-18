@@ -1263,5 +1263,19 @@ class NodeHelper(val mason: Mason) {
     val node = mason.nodeForView(view)
     node.style.filter = value
   }
+
+
+  fun getBorderRadius(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.borderRadius
+  }
+
+  fun setBorderRadius(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.borderRadius = value
+  }
 }
 

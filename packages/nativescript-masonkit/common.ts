@@ -12,6 +12,9 @@ export const isText_ = Symbol('[[isText]]');
 export const isMasonView_ = Symbol('[[isMasonView]]');
 export const text_ = Symbol('[[text]]');
 
+// Angular zone detection
+declare const Zone: any;
+
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
   const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
   return ret._styleHelper as MasonStyle;
@@ -34,6 +37,10 @@ try {
   global.VUE3_ELEMENT_REF = require('nativescript-vue').ELEMENT_REF;
   frameWork = FrameWork.Vue;
 } catch (e) {}
+
+if (global.__ngRegisteredViews || typeof Zone !== 'undefined') {
+  frameWork = FrameWork.Angular;
+}
 
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',
@@ -1034,6 +1041,13 @@ export const boxSizingProperty = new CssProperty<Style, BoxSizing>({
   },
 });
 
+const borderRadiusProperty = new CssProperty<Style, string>({
+  name: 'borderRadius',
+  cssName: 'border-radius',
+});
+
+borderRadiusProperty.register(Style);
+
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: MasonUIView;
@@ -1272,6 +1286,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       // @ts-ignore
       style.filter = value;
+    }
+  }
+
+  [borderRadiusProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.borderRadius = value;
     }
   }
 
