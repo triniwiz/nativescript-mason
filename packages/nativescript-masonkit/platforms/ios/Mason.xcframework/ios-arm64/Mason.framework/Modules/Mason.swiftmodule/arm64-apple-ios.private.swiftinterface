@@ -79,6 +79,7 @@ import _SwiftConcurrencyShims
   @objc public static func loadFromStyle(style: Swift.String) -> Mason.NSCFontFace?
   @objc public static func importFromRemote(url: Swift.String, load: Swift.Bool, callback: @escaping ([Mason.NSCFontFace]?, Swift.String?) -> Swift.Void)
   @objc public init(family: Swift.String)
+  @objc public init(family: Swift.String, owner style: Mason.MasonStyle)
   @objc public init(family: Swift.String, source: Swift.String)
   @objc public init(family: Swift.String, data source: Foundation.NSData)
   @objc public init(_ family: Swift.String, _ source: Swift.String? = nil, _ descriptors: Mason.NSCFontDescriptors? = nil)
@@ -230,6 +231,82 @@ final public class CSSBorderRenderer {
   }
   @objc deinit
 }
+@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objcMembers @objc(MasonButton) @_Concurrency.MainActor @preconcurrency public class Button : UIKit.UIControl, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
+  @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
+  @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
+  @_Concurrency.MainActor @preconcurrency @objc public var engine: Mason.TextEngine {
+    @objc get
+    @objc set
+  }
+  @_Concurrency.MainActor @preconcurrency @objc public var uiView: UIKit.UIView {
+    @objc get
+  }
+  @_Concurrency.MainActor @preconcurrency @objc public var style: Mason.MasonStyle {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var textContent: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
+  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
+  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, at: Swift.Int)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
+  @objc @_Concurrency.MainActor @preconcurrency public var textValues: Foundation.NSMutableData {
+    @objc get
+  }
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public init(frame: CoreFoundation.CGRect)
+  @objc deinit
+}
+extension Mason.Button {
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesBegan(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesMoved(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesEnded(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func touchesCancelled(_ touches: Swift.Set<UIKit.UITouch>, with event: UIKit.UIEvent?)
+}
+@_inheritsConvenienceInitializers @objc(NSCMason) @objcMembers public class NSCMason : ObjectiveC.NSObject {
+  @objc public var nativePtr: Swift.OpaquePointer? {
+    get
+  }
+  @objc public static var shared: Mason.NSCMason
+  @objc override dynamic public init()
+  @objc deinit
+  @objc public func setDeviceScale(_ value: Swift.Float)
+  @objc public func nodeForView(_ view: UIKit.UIView, _ isLeaf: Swift.Bool = true) -> Mason.MasonNode
+  @objc public func configureStyleForView(_ view: UIKit.UIView, _ block: (Mason.MasonStyle) -> Swift.Void)
+  @objc public func styleForView(_ view: UIKit.UIView) -> Mason.MasonStyle
+  @objc @discardableResult
+  public func layoutForView(_ view: UIKit.UIView) -> Mason.MasonLayout
+  @objc public func clear()
+  @objc public func createDocument() -> Mason.MasonDocument
+  @objc public func createView() -> Mason.MasonUIView
+  @objc public func createTextView() -> Mason.MasonText
+  @objc public func createTextNode(_ data: Swift.String) -> Mason.MasonTextNode
+  @objc public func createTextView(type: Mason.MasonTextType) -> Mason.MasonText
+  @objc public func createImageView() -> Mason.Img
+  @objc public func createScrollView() -> Mason.Scroll
+  @objc public func createButton() -> Mason.Button
+  @objc public func createNode() -> Mason.MasonNode
+  public func createNode(measure: @escaping Mason.MasonNode.MeasureFunc) -> Mason.MasonNode
+  @objc public func printTree(_ node: Mason.MasonNode)
+  @objc public func createTextNode() -> Mason.MasonNode
+  @objc public func createImageNode() -> Mason.MasonNode
+}
+@_inheritsConvenienceInitializers @objcMembers @objc(MeasureOutput) public class MeasureOutput : ObjectiveC.NSObject {
+  @objc override dynamic public init()
+  @objc deinit
+}
+@objc(MasonTextContainer) public protocol TextContainer : ObjectiveC.NSObjectProtocol {
+  @objc var engine: Mason.TextEngine { get }
+  @objc var node: Mason.MasonNode { get }
+}
+@_hasMissingDesignatedInitializers @objc(MasonTextEngine) public class TextEngine : ObjectiveC.NSObject {
+  public var textContent: Swift.String {
+    get
+    set
+  }
+  @objc deinit
+}
 @objc(MasonTextType) public enum MasonTextType : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case None
   case P
@@ -258,14 +335,19 @@ public enum InlineSegmentPayload {
   case text(width: Swift.Float, ascent: Swift.Float, descent: Swift.Float)
   case inline(id: Swift.OpaquePointer, width: Swift.Float, height: Swift.Float, baseline: Swift.Float)
 }
-@objc @_hasMissingDesignatedInitializers public class MasonTextLayer : QuartzCore.CALayer {
+@objc @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers public class MasonTextLayer : QuartzCore.CALayer {
   @objc override dynamic public init()
+  @objc override dynamic public init(layer: Any)
   @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc {
+@_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let type: Mason.MasonTextType
+  @_Concurrency.MainActor @preconcurrency @objc public var engine: Mason.TextEngine {
+    @objc get
+    @objc set
+  }
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public class var layerClass: Swift.AnyClass {
     @objc get
   }
@@ -395,36 +477,6 @@ extension Mason.MasonText {
 extension Mason.MasonTextNode {
   @objc dynamic public func attributed() -> Foundation.NSAttributedString
 }
-@_inheritsConvenienceInitializers @objc(NSCMason) @objcMembers public class NSCMason : ObjectiveC.NSObject {
-  @objc public var nativePtr: Swift.OpaquePointer? {
-    get
-  }
-  @objc public static var shared: Mason.NSCMason
-  @objc override dynamic public init()
-  @objc deinit
-  @objc public func setDeviceScale(_ value: Swift.Float)
-  @objc public func nodeForView(_ view: UIKit.UIView, _ isLeaf: Swift.Bool = true) -> Mason.MasonNode
-  @objc public func configureStyleForView(_ view: UIKit.UIView, _ block: (Mason.MasonStyle) -> Swift.Void)
-  @objc public func styleForView(_ view: UIKit.UIView) -> Mason.MasonStyle
-  @objc @discardableResult
-  public func layoutForView(_ view: UIKit.UIView) -> Mason.MasonLayout
-  @objc public func clear()
-  @objc public func createDocument() -> Mason.MasonDocument
-  @objc public func createView() -> Mason.MasonUIView
-  @objc public func createTextView() -> Mason.MasonText
-  @objc public func createTextNode(_ data: Swift.String) -> Mason.MasonTextNode
-  @objc public func createTextView(type: Mason.MasonTextType) -> Mason.MasonText
-  @objc public func createImageView() -> Mason.Img
-  @objc public func createScrollView() -> Mason.Scroll
-  @objc public func createNode() -> Mason.MasonNode
-  public func createNode(measure: @escaping Mason.MasonNode.MeasureFunc) -> Mason.MasonNode
-  @objc public func printTree(_ node: Mason.MasonNode)
-  @objc public func createTextNode() -> Mason.MasonNode
-}
-@_inheritsConvenienceInitializers @objcMembers @objc(MeasureOutput) public class MeasureOutput : ObjectiveC.NSObject {
-  @objc override dynamic public init()
-  @objc deinit
-}
 @_hasMissingDesignatedInitializers @objcMembers @objc(MaxSizing) public class MaxSizing : ObjectiveC.NSObject, Swift.Codable {
   @objc public var value: Swift.Float {
     get
@@ -539,6 +591,7 @@ public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPerce
   }
   @objc public func markDirty()
   @objc public func getRoot() -> UIKit.UIView?
+  @objc public func getDefaultAttributes() -> [Foundation.NSAttributedString.Key : Any]
 }
 extension Mason.MasonNode {
   @objc dynamic public func setChildren(value: [Mason.MasonNode])
@@ -812,7 +865,7 @@ extension Mason.MasonElement {
   @objc public var right: Mason.MasonDimensionCompat
   @objc public var top: Mason.MasonDimensionCompat
   @objc public var bottom: Mason.MasonDimensionCompat
-  @objc public init(_ left: Mason.MasonDimensionCompat, _ right: Mason.MasonDimensionCompat, _ top: Mason.MasonDimensionCompat, _ bottom: Mason.MasonDimensionCompat)
+  @objc public init(_ left: Mason.MasonDimensionCompat, _ top: Mason.MasonDimensionCompat, _ right: Mason.MasonDimensionCompat, _ bottom: Mason.MasonDimensionCompat)
   public init(_ rect: Mason.MasonRect<Mason.MasonDimension>)
   @objc deinit
   public func encode(to encoder: any Swift.Encoder) throws
@@ -823,7 +876,7 @@ extension Mason.MasonElement {
   @objc public var right: Mason.MasonLengthPercentageAutoCompat
   @objc public var top: Mason.MasonLengthPercentageAutoCompat
   @objc public var bottom: Mason.MasonLengthPercentageAutoCompat
-  @objc public init(_ left: Mason.MasonLengthPercentageAutoCompat, _ right: Mason.MasonLengthPercentageAutoCompat, _ top: Mason.MasonLengthPercentageAutoCompat, _ bottom: Mason.MasonLengthPercentageAutoCompat)
+  @objc public init(_ left: Mason.MasonLengthPercentageAutoCompat, _ top: Mason.MasonLengthPercentageAutoCompat, _ right: Mason.MasonLengthPercentageAutoCompat, _ bottom: Mason.MasonLengthPercentageAutoCompat)
   public init(_ rect: Mason.MasonRect<Mason.MasonLengthPercentageAuto>)
   @objc deinit
   public func encode(to encoder: any Swift.Encoder) throws
@@ -841,7 +894,7 @@ extension Mason.MasonElement {
   required public init(from decoder: any Swift.Decoder) throws
 }
 public struct MasonRect<T> : Swift.Codable where T : Swift.Decodable, T : Swift.Encodable {
-  public init(_ left: T, _ right: T, _ top: T, _ bottom: T)
+  public init(_ top: T, _ right: T, _ bottom: T, _ left: T)
   public init(uniform: T)
   public func encode(to encoder: any Swift.Encoder) throws
   public init(from decoder: any Swift.Decoder) throws
@@ -855,7 +908,7 @@ public let MasonDimensionRectZero: Mason.MasonRect<Mason.MasonDimension>
 public let MasonLengthPercentageAutoRectZero: Mason.MasonRect<Mason.MasonLengthPercentageAuto>
 public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPercentage>
 @objc(MasonStyle) @objcMembers public class MasonStyle : ObjectiveC.NSObject {
-  @objc public var font: Mason.NSCFontFace {
+  @objc public var font: Mason.NSCFontFace! {
     get
   }
   @objc public var values: Foundation.NSMutableData {
@@ -867,6 +920,10 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc set
   }
   @objc public init(node: Mason.MasonNode)
+  @objc public var verticalAlign: Mason.MasonVerticalAlignValue {
+    @objc get
+    @objc set
+  }
   @objc public var objectFit: Mason.ObjectFit {
     @objc get
     @objc set
@@ -889,6 +946,26 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc set
   }
   @objc public var background: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var backgroundImage: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var backgroundRepeat: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var backgroundPosition: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var backgroundSize: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public var backgroundClip: Swift.String {
     @objc get
     @objc set
   }
@@ -1088,6 +1165,10 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
   @objc public func setPaddingTop(_ value: Swift.Float, _ type: Swift.Int)
   @objc public func setPaddingBottom(_ value: Swift.Float, _ type: Swift.Int)
   @objc public func setPaddingWithValueType(_ value: Swift.Float, _ type: Swift.Int)
+  @objc public var borderRadius: Swift.String {
+    @objc get
+    @objc set
+  }
   @objc public var border: Swift.String {
     @objc get
     @objc set
@@ -1333,6 +1414,9 @@ extension UIKit.UIColor {
   public static func colorFromRGBA(_ rgba: Swift.UInt32) -> UIKit.UIColor
   public func toUInt32() -> Swift.UInt32
 }
+extension UIKit.UIImage {
+  public func mason_resize(to size: CoreFoundation.CGSize) -> UIKit.UIImage?
+}
 @objc extension ObjectiveC.NSObject {
   @objc dynamic public func mason_syncStyle(_ state: Swift.String, _ textState: Swift.String)
   @objc dynamic public func mason_addView(_ view: UIKit.UIView)
@@ -1392,8 +1476,9 @@ extension UIKit.UIColor {
   }
   public init?(rawValue: Mason.LoadingState.RawValue)
 }
-@objc @_hasMissingDesignatedInitializers public class MasonImageLayer : QuartzCore.CALayer {
+@objc @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers public class MasonImageLayer : QuartzCore.CALayer {
   @objc override dynamic public init()
+  @objc override dynamic public init(layer: Any)
   @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
   @objc deinit
 }
@@ -1416,7 +1501,6 @@ extension UIKit.UIColor {
     @objc set
   }
   @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
-  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func setNeedsDisplay()
   @objc @_Concurrency.MainActor @preconcurrency public var src: Swift.String? {
     @objc get
     @objc set
@@ -1923,6 +2007,40 @@ public enum TextOverflow : Swift.CustomStringConvertible {
     get
   }
 }
+public enum VerticalAlign {
+  case Baseline
+  case Length
+  case Percent
+  case Sub
+  case Super
+  case Top
+  case TextTop
+  case Middle
+  case Bottom
+  case TextBottom
+  public var rawValue: Swift.Int32 {
+    get
+  }
+  public static func == (a: Mason.VerticalAlign, b: Mason.VerticalAlign) -> Swift.Bool
+  public func hash(into hasher: inout Swift.Hasher)
+  public var hashValue: Swift.Int {
+    get
+  }
+}
+@_hasMissingDesignatedInitializers @objc(MasonVerticalAlignValue) public class MasonVerticalAlignValue : ObjectiveC.NSObject {
+  public static let Baseline: Mason.MasonVerticalAlignValue
+  public static func length(_ value: Swift.Float) -> Mason.MasonVerticalAlignValue
+  public static func percent(_ value: Swift.Float) -> Mason.MasonVerticalAlignValue
+  public static let Sub: Mason.MasonVerticalAlignValue
+  public static let Super: Mason.MasonVerticalAlignValue
+  public static let Top: Mason.MasonVerticalAlignValue
+  public static let TextTop: Mason.MasonVerticalAlignValue
+  public static let Middle: Mason.MasonVerticalAlignValue
+  public static let Bottom: Mason.MasonVerticalAlignValue
+  public static let TextBottom: Mason.MasonVerticalAlignValue
+  public init(style: Mason.MasonStyle)
+  @objc deinit
+}
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonUIView) @_Concurrency.MainActor @preconcurrency public class MasonUIView : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
@@ -2242,3 +2360,5 @@ extension Mason.Clear : Swift.Equatable {}
 extension Mason.Clear : Swift.Hashable {}
 extension Mason.ObjectFit : Swift.Equatable {}
 extension Mason.ObjectFit : Swift.Hashable {}
+extension Mason.VerticalAlign : Swift.Equatable {}
+extension Mason.VerticalAlign : Swift.Hashable {}

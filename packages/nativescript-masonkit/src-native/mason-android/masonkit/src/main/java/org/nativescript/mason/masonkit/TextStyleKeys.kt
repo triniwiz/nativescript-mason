@@ -40,4 +40,6 @@ object TextStyleKeys {
   const val LINE_HEIGHT = 128
   const val LINE_HEIGHT_STATE = 132
   const val LINE_HEIGHT_TYPE = 133
+  const val DECORATION_THICKNESS = 134
+  const val DECORATION_THICKNESS_STATE = 138
 }

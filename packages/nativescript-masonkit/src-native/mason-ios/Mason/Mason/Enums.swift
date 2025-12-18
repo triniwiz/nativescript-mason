@@ -2512,3 +2512,113 @@ public enum ObjectFit: Int, RawRepresentable, CustomStringConvertible {
     return cssValue
   }
 }
+
+
+public enum VerticalAlign {
+  case Baseline
+  case Length
+  case Percent
+  case Sub
+  case Super
+  case Top
+  case TextTop
+  case Middle
+  case Bottom
+  case TextBottom
+  
+  public var rawValue: Int32 {
+    switch self {
+    case .Baseline, .Length, .Percent:
+      return 0
+    case .Sub:
+      return 6
+    case .Super:
+      return 7
+    case .Top:
+      return 1
+    case .TextTop:
+      return 2
+    case .Middle:
+      return 3
+    case .Bottom:
+      return 4
+    case .TextBottom:
+      return 5
+    }
+  }
+}
+
+
+@objc(MasonVerticalAlignValue)
+public class MasonVerticalAlignValue: NSObject {
+  let align: VerticalAlign
+  let offset: Float
+  let isPercent: Bool
+  
+  public static let Baseline = MasonVerticalAlignValue(align: .Baseline)
+  
+  public static func length(_ value: Float) -> MasonVerticalAlignValue {
+    return MasonVerticalAlignValue(align: .Length, offset: value)
+  }
+  
+  public static func percent(_ value: Float) -> MasonVerticalAlignValue {
+    return MasonVerticalAlignValue(align: .Percent, offset: value)
+  }
+  
+  public static let Sub = MasonVerticalAlignValue(align: .Sub)
+  
+  public static let Super = MasonVerticalAlignValue(align: .Super)
+  
+  public static let Top = MasonVerticalAlignValue(align: .Top)
+  
+  public static let TextTop = MasonVerticalAlignValue(align: .TextTop)
+  
+  public static let Middle = MasonVerticalAlignValue(align: .Middle)
+  
+  public static let Bottom = MasonVerticalAlignValue(align: .Bottom)
+  
+  public static let TextBottom = MasonVerticalAlignValue(align: .TextBottom)
+  
+  
+  init(align vAlign: VerticalAlign, isPercent percentage: Bool = false, offset value: Float = 0) {
+    align = vAlign
+    isPercent = percentage
+    offset = value
+  }
+  
+  public init(style: MasonStyle) {
+    isPercent = style.getUInt8(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET) == 1
+    offset = style.getFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET)
+    
+    if(isPercent){
+      align = VerticalAlign.Percent
+    }else if (offset > 0){
+      align = VerticalAlign.Length
+    }else {
+      switch style.getUInt8(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET) {
+      case 0:
+        align = .Baseline
+      case 1:
+        align = .Sub
+      case 2:
+        align = .Super
+      case 3:
+        align = .Top
+      case 4:
+        align = .TextTop
+      case 5:
+        align = .Middle
+      case 6:
+        align = .Bottom
+      case 7:
+        align = .TextBottom
+      default:
+        // todo invalid
+        align = VerticalAlign.Baseline
+      }
+    }
+    
+    super.init()
+  }
+  
+}

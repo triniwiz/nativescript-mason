@@ -207,6 +207,16 @@ struct StyleKeys {
   static let CLEAR = 464
   
   static let OBJECT_FIT = 468
+  
+  static let FONT_METRICS_ASCENT_OFFSET = 472
+  static let FONT_METRICS_DESCENT_OFFSET = 476
+  static let FONT_METRICS_X_HEIGHT_OFFSET = 480
+  static let FONT_METRICS_LEADING_OFFSET = 484
+  static let FONT_METRICS_CAP_HEIGHT_OFFSET = 488
+  static let VERTICAL_ALIGN_OFFSET_OFFSET = 492
+  static let VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496
+  static let VERTICAL_ALIGN_ENUM_OFFSET = 500
+  static let FIRST_BASELINE_OFFSET = 504
 }
 
 
@@ -304,6 +314,8 @@ struct TextStyleKeys {
   static let LINE_HEIGHT = 128
   static let LINE_HEIGHT_TYPE = 132
   static let LINE_HEIGHT_STATE = 133
+  static let VERTICAL_ALIGN_TYPE = 134
+  static let VERTICAL_ALIGN = 135
 }
 
 internal struct TextStyleChangeMasks: OptionSet {
@@ -336,6 +348,7 @@ internal struct TextStyleChangeMasks: OptionSet {
   static let textOverflow = TextStyleChangeMasks(rawValue: 1 << 14)
   static let lineHeight = TextStyleChangeMasks(rawValue: 1 << 15)
   static let textAlign   = TextStyleChangeMasks(rawValue: 1 << 16)
+  static let verticalAlign   = TextStyleChangeMasks(rawValue: 1 << 17)
   static let all = TextStyleChangeMasks(rawValue: -1)
 }
 
@@ -380,10 +393,68 @@ internal struct GridState {
   }
 }
 
+struct FontMetrics {
+  /// Distance from baseline to top of tallest glyph (positive value)
+  let ascent: Float
+  /// Distance from baseline to bottom of lowest glyph (positive value)
+  let descent: Float
+  /// Height of lowercase 'x' (used for middle alignment)
+  let x_height: Float
+  /// Leading (extra space between lines)
+  let leading: Float
+  /// Cap height (height of capital letters)
+  let cap_height: Float
+}
+
 @objc(MasonStyle)
 @objcMembers
 public class MasonStyle: NSObject {
-  public internal(set) var font = NSCFontFace(family: "serif")
+  public internal(set) var font: NSCFontFace!
+  internal var fontMetrics: FontMetrics {
+    get {
+      return FontMetrics(ascent:  getFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET), descent:  getFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET), x_height: getFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET), leading: getFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET), cap_height: getFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET))
+    }
+    
+    set {
+      setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, newValue.ascent)
+      setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, newValue.descent)
+      setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, newValue.x_height)
+      setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, newValue.leading)
+      setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, newValue.cap_height)
+    }
+  }
+  
+  internal func syncFontMetrics(){
+    guard let font = font.uiFont else {return}
+    
+    // UIFont properties:
+        // - ascender: positive value, distance from baseline to top
+        // - descender: negative value, distance from baseline to bottom
+        // - lineHeight: total recommended line height
+        // - xHeight: height of lowercase 'x'
+        // - capHeight: height of capital letters
+        // - leading: extra spacing between lines (usually small or 0)
+        
+      let scale = NSCMason.scale
+        let ascent = Float(font.ascender) * scale
+        let descent = Float(-font.descender) * scale  // Make it positive
+        let lineHeight = Float(font.lineHeight) * scale
+        let xHeight = Float(font.xHeight) * scale
+        let capHeight = Float(font.capHeight) * scale
+        let leading = Float(font.leading) * scale
+    
+    
+    setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
+    setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
+    setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight)
+    setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
+    setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
+    
+  
+    
+  }
+  
+  
   private var gridState = GridState()
   
   // Weight tracking
@@ -493,6 +564,7 @@ public class MasonStyle: NSObject {
   public init(node: MasonNode) {
     self.node = node
     super.init()
+    font =  NSCFontFace(family: "serif",owner: self)
     mBackground = Background(style: self)
   }
   
@@ -688,6 +760,26 @@ public class MasonStyle: NSObject {
   
   internal func resetAllBorders(){
     mBorderRender.resetAllBorders()
+  }
+  
+  
+  // MARK: - VerticalAlign
+  public var verticalAlign: MasonVerticalAlignValue {
+    get {
+      return MasonVerticalAlignValue(style: self)
+    }
+    set {
+      setFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, newValue.offset)
+      setUInt8(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, UInt8(newValue.align.rawValue))
+
+      if(newValue.isPercent){
+        setUInt8(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1)
+      }else {
+        setUInt8(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0)
+      }
+      
+      notifyTextStyleChanged(TextStyleChangeMasks.verticalAlign.rawValue)
+    }
   }
   
   
@@ -1122,7 +1214,7 @@ public class MasonStyle: NSObject {
     set {
       let oldFamily = font.fontFamily
           if (oldFamily != newValue) {
-            let oldFont = font
+            guard let oldFont = font else {return}
             // Create new font with updated family
             font = NSCFontFace(family: newValue)
             font.weight = oldFont.weight
@@ -1130,6 +1222,8 @@ public class MasonStyle: NSObject {
             font.fontDescriptors.display = oldFont.fontDescriptors.display
             
             font.loadSync { _ in }
+            
+            syncFontMetrics()
 
             setUInt8(TextStyleKeys.FONT_FAMILY_STATE, StyleState.SET, text: true)
             notifyTextStyleChanged(TextStyleChangeMasks.fontFamily.rawValue)
@@ -1452,7 +1546,7 @@ public class MasonStyle: NSObject {
       
       let left = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
-      type = getInt32(Int(StyleKeys.INSET_LEFT_TYPE))
+      type = getInt32(Int(StyleKeys.INSET_RIGHT_TYPE))
       value = getFloat(Int(StyleKeys.INSET_RIGHT_VALUE))
       
       let right = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
@@ -1468,7 +1562,7 @@ public class MasonStyle: NSObject {
       let bottom = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
       
-      return MasonRect(left, right, top, bottom)
+      return MasonRect(top, right, bottom, left)
     }
     set {
       
@@ -1621,7 +1715,7 @@ public class MasonStyle: NSObject {
       
       let bottom = MasonLengthPercentageAuto.fromValueType(value, Int(type))!
       
-      return MasonRect(left, right, top, bottom)
+      return MasonRect(top, right, bottom, left)
     }
     set {
       setInt32(Int(StyleKeys.MARGIN_LEFT_TYPE), newValue.left.type)
@@ -1696,7 +1790,6 @@ public class MasonStyle: NSObject {
       setOrAppendState(.margin)
     }
   }
-  
   
   
   public var marginCompat: MasonLengthPercentageAutoRectCompat {
@@ -1781,7 +1874,7 @@ public class MasonStyle: NSObject {
       let bottom = MasonLengthPercentage.fromValueType(value, Int(type))!
       
       
-      return MasonRect(left, right, top, bottom)
+      return MasonRect(top, right, bottom, left)
     }
     set {
       setInt32(StyleKeys.PADDING_LEFT_TYPE, newValue.left.type)
@@ -1865,6 +1958,16 @@ public class MasonStyle: NSObject {
   }()
   
   
+  public var borderRadius: String {
+    get {
+      // todo
+      return ""
+    }
+    set {
+      CSSBorderRenderer.parseBorderRadius(self, newValue)
+    }
+  }
+  
   public var border: String {
     get {
       return mBorderRender.css
@@ -1873,7 +1976,6 @@ public class MasonStyle: NSObject {
       mBorderRender.parseBorderShorthand(newValue)
     }
   }
-  
   
   
   internal var mBorderLeft: CSSBorderRenderer.BorderSide {
@@ -1895,7 +1997,7 @@ public class MasonStyle: NSObject {
   
   public var borderWidth: MasonRect<MasonLengthPercentage> {
     get {
-      return MasonRect(mBorderRender.left.width, mBorderRender.right.width, mBorderRender.top.width, mBorderRender.bottom.width)
+      return MasonRect(mBorderRender.top.width, mBorderRender.right.width, mBorderRender.bottom.width, mBorderRender.left.width)
     }
     set {
       

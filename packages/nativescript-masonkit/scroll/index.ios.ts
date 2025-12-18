@@ -58,7 +58,7 @@ export class Scroll extends ViewBase {
       const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
       const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
-      if (!this[isMasonView_]) {
+      if (this.parent && !this.parent[isMasonView_]) {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
           // @ts-ignore
@@ -75,6 +75,7 @@ export class Scroll extends ViewBase {
           });
 
           this.setMeasuredDimension(w, h);
+
           return;
         } else {
           // @ts-ignore

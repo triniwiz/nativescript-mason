@@ -8,6 +8,7 @@
 import UIKit
 
 
+@objcMembers
 @objc(MasonButton)
 public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer {
   public let node: MasonNode
@@ -63,6 +64,30 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
       setNeedsDisplay()
     }
   }
+  
+  
+  public func addView(_ view: UIView){
+    if(view.superview == self){
+      return
+    }
+    if(view is MasonElement){
+      append((view as! MasonElement))
+    }else {
+      append(node: node.mason.nodeForView(view))
+    }
+  }
+  
+  public func addView(_ view: UIView, at: Int){
+    if(view.superview == self){
+      return
+    }
+    
+    if(view is MasonElement){
+      node.addChildAt((view as! MasonElement).node, at)
+    }else {
+      node.addChildAt(node.mason.nodeForView(view), at)
+    }
+  }
 
   
   public override func draw(_ rect: CGRect) {
@@ -81,9 +106,18 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
   private func setup(){
     isOpaque = false
     style.setStyleChangeListener(listener: self)
+    
+    let scale = Float((window?.screen.scale ?? CGFloat(NSCMason.scale)))
+    let x =  6 * scale
+    let y =  scale
+
+
     configure { style in
       style.display = Display.InlineBlock
-      style.textAlign = .Center
+      style.padding = MasonRect(.Points(y), .Points(x), .Points(y), .Points(x))
+      
+      style.border = "1px"
+      style.borderRadius = "\(4/scale)/px"
     }
     node.view = self
    
@@ -174,9 +208,6 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
     super.init(coder: coder)
     setup()
   }
-  
-  
-  
 }
 
 

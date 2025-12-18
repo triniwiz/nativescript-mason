@@ -14,7 +14,7 @@ open class Node internal constructor(
   internal var computeCacheDirty = false
 
   internal var isImage = false
-  var computeCache = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
+  var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
     set(value) {
       computeCacheDirty = true
       field = if (isImage && value.width == -1f && value.height == -1f) {
@@ -217,7 +217,7 @@ open class Node internal constructor(
   ): Node {
     // Check if last child is an anonymous text container
     val lastChild = children.lastOrNull()
-    if (checkLast && lastChild?.isAnonymous == true && lastChild.view is TextView) {
+    if (checkLast && lastChild?.isAnonymous == true && lastChild.view is TextContainer) {
       return lastChild
     }
 
@@ -313,11 +313,9 @@ open class Node internal constructor(
       // }
 
       // Direct invalidation if this is a TextView
-      if (node.view is TextView) {
-        (node.view as TextView).apply {
-          // Notify all text style changes to ensure paint is fully updated
-          onTextStyleChanged(state)
-        }
+      if (node.view is TextContainer) {
+        // Notify all text style changes to ensure paint is fully updated
+        (node.view as StyleChangeListener).onTextStyleChanged(state)
       }
 
       // Iterate children (only layout children, not author children)
@@ -331,7 +329,7 @@ open class Node internal constructor(
   open fun appendChild(child: Node) {
     if (child is TextNode) {
       var pending = false
-      val container = if (view is TextView) {
+      val container = if (view is TextContainer) {
         this
       } else {
         pending = true
@@ -339,7 +337,7 @@ open class Node internal constructor(
       }
 
       if (style.font.font == null) {
-        style.font.loadSync((container.view as TextView).context) {}
+        style.font.loadSync((container.view as View).context) {}
       }
 
       if (pending) {
@@ -351,10 +349,9 @@ open class Node internal constructor(
 
       container.children.add(child)
       (container.view as? TextView)?.let {
-        child.attributes.clear()
-        child.attributes.putAll(it.getDefaultAttributes())
+        child.attributes.sync(it.style)
         child.container = it
-        it.invalidateInlineSegments()
+        it.engine.invalidateInlineSegments()
       }
       NodeUtils.invalidateLayout(this)
     } else {
@@ -397,23 +394,21 @@ open class Node internal constructor(
         reference.container?.let { container ->
           val idx = container.node.children.indexOf(reference).takeIf { it > -1 } ?: return
           container.node.children[idx] = child
-          child.attributes.clear()
-          child.attributes.putAll(container.getDefaultAttributes())
+          child.attributes.sync(container.node.style)
           child.container = container
           reference.container = null
-          container.invalidateInlineSegments()
+          container.engine.invalidateInlineSegments()
           if (!style.inBatch) {
-            container.invalidateLayout()
+            (container.node.view as? Element)?.invalidateLayout()
           }
         }
       } else {
         val container = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
         container.children.add(child)
         (container.view as? TextView)?.let {
-          child.attributes.clear()
-          child.attributes.putAll(it.getDefaultAttributes())
+          child.attributes.sync(it.node.style)
           child.container = it
-          it.invalidateInlineSegments()
+          it.engine.invalidateInlineSegments()
         }
         val idx = children.indexOf(reference).takeIf { it > -1 } ?: return
         children[idx] = container
@@ -455,8 +450,7 @@ open class Node internal constructor(
                 afterContainer.children.add(m)
                 (afterContainer.view as? TextView)?.let { tv ->
                   (m as? TextNode)?.let {
-                    m.attributes.clear()
-                    m.attributes.putAll(tv.getDefaultAttributes())
+                    m.attributes.sync(tv.style)
                     m.container = tv
                   }
                 }
@@ -501,7 +495,7 @@ open class Node internal constructor(
 
             // remove the reference text node from the original container
             containerNode.children.removeAt(idxInContainer)
-            reference.container?.invalidateInlineSegments()
+            reference.container?.engine?.invalidateInlineSegments()
             reference.parent = null
             reference.container = null
 
@@ -591,8 +585,8 @@ open class Node internal constructor(
 
       NodeUtils.syncNode(this, children)
       if (!style.inBatch) {
-        if (child.view is TextView) {
-          (child.view as TextView).invalidate()
+        if (child.view is TextContainer) {
+          (child.view as? View)?.invalidate()
         }
         (view as? Element)?.invalidateLayout()
       }
@@ -625,10 +619,9 @@ open class Node internal constructor(
           containerNode.children.add(idxInContainer, child)
           child.parent = containerNode
           (containerNode.view as? TextView)?.let { tv ->
-            child.attributes.clear()
-            child.attributes.putAll(tv.getDefaultAttributes())
+            child.attributes.sync(tv.style)
             child.container = tv
-            tv.invalidateInlineSegments()
+            tv.engine.invalidateInlineSegments()
           }
           if (!style.inBatch) {
             (containerNode as? Element)?.invalidateLayout()
@@ -645,10 +638,9 @@ open class Node internal constructor(
       container.children.add(child)
       child.parent = container
       (container.view as? TextView)?.let {
-        child.attributes.clear()
-        child.attributes.putAll(it.getDefaultAttributes())
+        child.attributes.sync(it.node.style)
         child.container = it
-        it.invalidateInlineSegments()
+        it.engine.invalidateInlineSegments()
       }
 
       val refPos = children.indexOf(reference).takeIf { it >= 0 } ?: 0
@@ -704,12 +696,11 @@ open class Node internal constructor(
             (containerNode.view as? TextView)?.let { tv ->
               containerNode.children.forEach { tn ->
                 (tn as? TextNode)?.let {
-                  tn.attributes.clear()
-                  tn.attributes.putAll(tv.getDefaultAttributes())
+                  tn.attributes.sync(tv.style)
                   tn.container = tv
                 }
               }
-              tv.invalidateInlineSegments()
+              tv.engine.invalidateInlineSegments()
             }
             (containerNode.view as? Element)?.invalidateLayout()
           }
@@ -724,13 +715,12 @@ open class Node internal constructor(
               n.parent = afterContainer
               (afterContainer.view as? TextView)?.let { tv ->
                 (n as? TextNode)?.let {
-                  n.attributes.clear()
-                  n.attributes.putAll(tv.getDefaultAttributes())
+                  n.attributes.sync(tv.style)
                   n.container = tv
                 }
               }
             }
-            (afterContainer.view as? TextView)?.invalidateInlineSegments()
+            (afterContainer.view as? TextView)?.engine?.invalidateInlineSegments()
             (afterContainer.view as? TextView)?.invalidateLayout()
           }
 
@@ -827,7 +817,7 @@ open class Node internal constructor(
       reference.layoutParent?.children?.indexOf(reference)?.takeIf { it > -1 } ?: return null
     val removed = reference.layoutParent?.children?.removeAt(idx) ?: return null
     if (removed is TextNode) {
-      removed.container?.invalidateInlineSegments()
+      removed.container?.engine?.invalidateInlineSegments()
       removed.container = null
       if (reference.layoutParent?.children?.isEmpty() == true) {
         reference.layoutParent?.layoutParent?.let {
@@ -932,4 +922,20 @@ open class Node internal constructor(
     }
     dirty()
   }
+
+  private var mAttributes: TextDefaultAttributes? = null
+
+  internal val attributes: TextDefaultAttributes
+    get() {
+      if (mAttributes == null) {
+        mAttributes = TextDefaultAttributes.empty()
+      }
+      return mAttributes!!
+    }
+}
+
+
+internal fun Node.getDefaultAttributes(): TextDefaultAttributes {
+  attributes.sync(style)
+  return attributes
 }

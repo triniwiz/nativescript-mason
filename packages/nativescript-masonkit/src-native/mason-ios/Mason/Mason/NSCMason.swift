@@ -142,5 +142,9 @@ public class NSCMason: NSObject {
     return node
   }
   
+  public func createImageNode() -> MasonNode {
+    return MasonNode(masonImage: self)
+  }
+  
   @objc static let scale = Float(UIScreen.main.scale)
 }

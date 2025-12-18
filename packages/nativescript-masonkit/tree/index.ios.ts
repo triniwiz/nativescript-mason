@@ -89,4 +89,8 @@ export class Tree {
   createScrollView() {
     return this.native.createScrollView();
   }
+
+  createButtonView() {
+    return this.native.createButton();
+  }
 }

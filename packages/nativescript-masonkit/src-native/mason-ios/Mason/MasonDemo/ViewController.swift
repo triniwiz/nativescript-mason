@@ -437,8 +437,105 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //    body.append(sv)
 //    objectFit(sv)
         //filter()
-    buttons()
+  //  buttons()
+   // background()
+   // verticalAlignment()
+    
+    
+    let container = mason.createView()
+    container.background = "red"
+    container.configure { style in
+      container.setPadding(30, 30, 30, 30)
+    //  style.size = .init(.Points(300), .Auto)
+    }
+    let a = mason.createButton()
+    a.append(text: "Hello")
+    a.append(text: " World!")
+    
+    container.append(a)
+    
+    body.append(container)
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+    
   }
+  
+  
+  func verticalAlignment(){
+    let root = NSCMason.shared.createView()
+    body.append(root)
+    
+    let frame_image = UIImage(named: "frame_image")
+    let normal = NSCMason.shared.createView()
+    let normalImg = NSCMason.shared.createImageView()
+    normal.append(text: "An ")
+    normalImg.style.size = .init(.Points(toPx(32)), .Points(toPx(32)))
+    normal.append(normalImg)
+    normal.append(text: " image with a default alignment.")
+    normalImg.updateImage(frame_image)
+    root.append(normal)
+    
+    
+    let top = NSCMason.shared.createView()
+    let topImg = NSCMason.shared.createImageView()
+    top.append(text: "An ")
+    topImg.image = frame_image
+    topImg.style.size = .init(.Points(toPx(32)), .Points(toPx(32)))
+    topImg.style.verticalAlign = .TextTop
+    top.append(topImg)
+    top.append(text: " image with a text-top alignment.")
+    root.append(top)
+    
+    
+    
+    let bottom = NSCMason.shared.createView()
+    let bottomImg = NSCMason.shared.createImageView()
+    bottom.append(text: "An ")
+    bottomImg.image = frame_image
+    bottomImg.style.size = .init(.Points(toPx(32)), .Points(toPx(32)))
+    bottomImg.style.verticalAlign = .TextBottom
+    bottom.append(bottomImg)
+    bottom.append(text: " image with a text-bottom alignment.")
+    root.append(bottom)
+    
+    
+    
+    let middle = NSCMason.shared.createView()
+    let middleImg = NSCMason.shared.createImageView()
+    middle.append(text: "An ")
+    middleImg.image = frame_image
+    middleImg.style.size = .init(.Points(toPx(32)), .Points(toPx(32)))
+    middleImg.style.verticalAlign = .Middle
+    middle.append(middleImg)
+    middle.append(text: " image with a middle alignment.")
+    root.append(middle)
+    
+    
+//
+    
+//    <div>
+//      An
+//      <img class="top" src="frame_image.svg" alt="link" width="32" height="32" />
+//      image with a text-top alignment.
+//    </div>
+//    <div>
+//      An
+//      <img class="bottom" src="frame_image.svg" alt="link" width="32" height="32" />
+//      image with a text-bottom alignment.
+//    </div>
+//    <div>
+//      An
+//      <img class="middle" src="frame_image.svg" alt="link" width="32" height="32" />
+//      image with a middle alignment.
+//    </div>
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+    
+  }
+  
+  
   
   func buttons(){
     let container = mason.createView()
@@ -448,21 +545,26 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //  style.size = .init(.Points(300), .Auto)
     }
     let a = mason.createButton()
-    a.append(text: "Hello World")
+    a.append(text: "Hello")
+    
     
     let ns = mason.createImageView()
     ns.configure { it in
       it.size = MasonSize(.Points(50), .Points(50))
     }
+ 
     ns.image = UIImage(named: "NativeScript_Logo_White_Blue_Rounded")
+      
+    a.append(text: "World!")
     
     a.append(ns)
     
-    a.style.color = UIColor.blue.toUInt32()
-//    a.style.background = "orange"
-   // a.style.size = .init(.Points(400), .Auto)
     
-//    a.style.border = "1px solid black"
+    a.style.color = UIColor.blue.toUInt32()
+    a.style.background = "orange"
+    a.style.size = .init(.Points(200), .Auto)
+    
+    a.style.border = "1px solid black"
     
     container.append(a)
     

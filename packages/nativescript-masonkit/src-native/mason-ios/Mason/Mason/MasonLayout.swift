@@ -79,37 +79,37 @@ public class MasonLayout: NSObject, Codable {
     
     var border = MasonRect<Float>(uniform: 0)
     
-    border.left = args[offset]
+    border.top = args[offset]
     offset += 1
     border.right = args[offset]
     offset += 1
-    border.top = args[offset]
-    offset += 1
     border.bottom = args[offset]
+    offset += 1
+    border.left = args[offset]
     offset += 1
     
     var margin = MasonRect<Float>(uniform: 0)
     
-    margin.left = args[offset]
+    margin.top = args[offset]
     offset += 1
     margin.right = args[offset]
     offset += 1
-    margin.top = args[offset]
-    offset += 1
     margin.bottom = args[offset]
+    offset += 1
+    margin.left = args[offset]
     offset += 1
     
     
     var padding = MasonRect<Float>(uniform: 0)
-    
-    padding.left = args[offset]
+    padding.top = args[offset]
     offset += 1
     padding.right = args[offset]
     offset += 1
-    padding.top = args[offset]
-    offset += 1
     padding.bottom = args[offset]
     offset += 1
+    padding.left = args[offset]
+    offset += 1
+    
     
     var contentSize = MasonSize<Float>(uniform: 0)
     
@@ -173,36 +173,36 @@ public class MasonLayout: NSObject, Codable {
     
     var border = MasonRect<Float>(uniform: 0)
     
-    border.left = array.pointee
+    border.top = array.pointee
     array = array.advanced(by: 1)
     border.right = array.pointee
     array = array.advanced(by: 1)
-    border.top = array.pointee
-    array = array.advanced(by: 1)
     border.bottom = array.pointee
+    array = array.advanced(by: 1)
+    border.left = array.pointee
     array = array.advanced(by: 1)
     
     var margin = MasonRect<Float>(uniform: 0)
     
-    margin.left = array.pointee
+    margin.top = array.pointee
     array = array.advanced(by: 1)
     margin.right = array.pointee
     array = array.advanced(by: 1)
-    margin.top = array.pointee
-    array = array.advanced(by: 1)
     margin.bottom = array.pointee
+    array = array.advanced(by: 1)
+    margin.left = array.pointee
     array = array.advanced(by: 1)
     
     
     var padding = MasonRect<Float>(uniform: 0)
     
-    padding.left = array.pointee
+    padding.top = array.pointee
     array = array.advanced(by: 1)
     padding.right = array.pointee
     array = array.advanced(by: 1)
-    padding.top = array.pointee
-    array = array.advanced(by: 1)
     padding.bottom = array.pointee
+    array = array.advanced(by: 1)
+    padding.left = array.pointee
     array = array.advanced(by: 1)
     
     var contentSize = MasonSize<Float>(uniform: 0)

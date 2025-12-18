@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.Log
 import android.view.ViewGroup
 import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
 import org.nativescript.mason.masonkit.enums.BoxSizing
@@ -138,7 +139,6 @@ class Scroll @JvmOverloads constructor(
       availableWidth, availableHeight
     )
 
-    node.mason.printTree(node)
     val layout = layout()
 
     var width = layout.width.toInt()
@@ -155,7 +155,8 @@ class Scroll @JvmOverloads constructor(
     width = when (overflow.x) {
       Overflow.Visible -> {
         if (boxing == BoxSizing.BorderBox) {
-          (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
+         // (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
+        layout.width.toInt()
         } else {
           layout.contentSize.height.toInt()
         }
@@ -169,7 +170,8 @@ class Scroll @JvmOverloads constructor(
     height = when (overflow.y) {
       Overflow.Visible -> {
         if (boxing == BoxSizing.BorderBox) {
-          (layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
+          //(layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
+          layout.height.toInt()
         } else {
           layout.contentSize.height.toInt()
         }

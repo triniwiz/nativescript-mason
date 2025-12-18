@@ -198,6 +198,17 @@ pub extern "C" fn mason_node_destroy(node: *mut CMasonNode) {
 }
 
 #[no_mangle]
+pub extern "C" fn mason_node_new_image_node(mason: *mut CMason) -> *mut CMasonNode {
+    if mason.is_null() {
+        return std::ptr::null_mut();
+    }
+    unsafe {
+        let mason = &mut (*mason).0;
+        Box::into_raw(Box::new(CMasonNode(mason.create_image_node())))
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn mason_node_new_node(mason: *mut CMason, anonymous: bool) -> *mut CMasonNode {
     if mason.is_null() {
         return std::ptr::null_mut();

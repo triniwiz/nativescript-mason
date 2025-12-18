@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PointF
+import android.graphics.RectF
 import org.nativescript.mason.masonkit.LengthPercentage.Percent
 import org.nativescript.mason.masonkit.LengthPercentage.Points
 import org.nativescript.mason.masonkit.LengthPercentage.Zero
@@ -335,6 +336,7 @@ class BorderRenderer(private val style: Style) {
 
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val path = Path()
+  private val clipPath = Path()
 
   // cached corner points
   private val topLeftCorner = PointF()
@@ -399,6 +401,123 @@ class BorderRenderer(private val style: Style) {
     cacheInvalidated = true
   }
 
+
+  fun getClipPath(width: Float, height: Float): Path {
+    clipPath.reset()
+
+    val tl = topLeftCorner
+    val tr = topRightCorner
+    val br = bottomRightCorner
+    val bl = bottomLeftCorner
+
+    // Clamp radii
+    val tlX = tl.x.coerceAtMost(width / 2f)
+    val tlY = tl.y.coerceAtMost(height / 2f)
+    val trX = tr.x.coerceAtMost(width / 2f)
+    val trY = tr.y.coerceAtMost(height / 2f)
+    val brX = br.x.coerceAtMost(width / 2f)
+    val brY = br.y.coerceAtMost(height / 2f)
+    val blX = bl.x.coerceAtMost(width / 2f)
+    val blY = bl.y.coerceAtMost(height / 2f)
+
+    clipPath.moveTo(tlX, 0f)
+
+    // Top edge
+    clipPath.lineTo(width - trX, 0f)
+
+    // Top-right corner
+    addCornerToPath(clipPath, Corner.TOP_RIGHT, PointF(trX, trY), topRightExponent, width, height)
+
+    // Right edge
+    clipPath.lineTo(width, height - brY)
+
+    // Bottom-right corner
+    addCornerToPath(clipPath, Corner.BOTTOM_RIGHT, PointF(brX, brY), bottomRightExponent, width, height)
+
+    // Bottom edge
+    clipPath.lineTo(blX, height)
+
+    // Bottom-left corner
+    addCornerToPath(clipPath, Corner.BOTTOM_LEFT, PointF(blX, blY), bottomLeftExponent, width, height)
+
+    // Left edge
+    clipPath.lineTo(0f, tlY)
+
+    // Top-left corner
+    addCornerToPath(clipPath, Corner.TOP_LEFT, PointF(tlX, tlY), topLeftExponent, width, height)
+
+    clipPath.close()
+
+    return clipPath
+  }
+
+  /** Check if there are any border radii set */
+  fun hasRadii(): Boolean {
+    return topLeftCorner.x > 0f || topLeftCorner.y > 0f ||
+      topRightCorner.x > 0f || topRightCorner.y > 0f ||
+      bottomRightCorner.x > 0f || bottomRightCorner.y > 0f ||
+      bottomLeftCorner.x > 0f || bottomLeftCorner.y > 0f
+  }
+
+  private fun addCornerToPath(
+    path: Path,
+    corner: Corner,
+    radius: PointF,
+    exponent: Float,
+    width: Float,
+    height: Float
+  ) {
+    if (radius.x <= 0f && radius.y <= 0f) return
+
+    if (exponent == 1f) {
+      // Use Android's analytic arc
+      val rect = when (corner) {
+        Corner.TOP_LEFT -> RectF(0f, 0f, radius.x * 2, radius.y * 2)
+        Corner.TOP_RIGHT -> RectF(width - radius.x * 2, 0f, width, radius.y * 2)
+        Corner.BOTTOM_RIGHT -> RectF(width - radius.x * 2, height - radius.y * 2, width, height)
+        Corner.BOTTOM_LEFT -> RectF(0f, height - radius.y * 2, radius.x * 2, height)
+      }
+
+      val startAngle = when (corner) {
+        Corner.TOP_LEFT -> 180f
+        Corner.TOP_RIGHT -> 270f
+        Corner.BOTTOM_RIGHT -> 0f
+        Corner.BOTTOM_LEFT -> 90f
+      }
+
+      path.arcTo(rect, startAngle, 90f)
+      return
+    }
+
+    // Superellipse fallback
+    val steps = 16
+    for (i in 0..steps) {
+      val t = i / steps.toFloat()
+      val angle = t * Math.PI / 2.0
+      val cx = cos(angle).pow(exponent.toDouble()).toFloat()
+      val cy = sin(angle).pow(exponent.toDouble()).toFloat()
+
+      val px: Float
+      val py: Float
+
+      when (corner) {
+        Corner.TOP_LEFT -> {
+          px = radius.x * (1 - cx); py = radius.y * (1 - cy)
+        }
+        Corner.TOP_RIGHT -> {
+          px = width - radius.x * (1 - cx); py = radius.y * (1 - cy)
+        }
+        Corner.BOTTOM_RIGHT -> {
+          px = width - radius.x * (1 - cx); py = height - radius.y * (1 - cy)
+        }
+        Corner.BOTTOM_LEFT -> {
+          px = radius.x * (1 - cx); py = height - radius.y * (1 - cy)
+        }
+      }
+      path.lineTo(px, py)
+    }
+  }
+
   fun updateCache(viewWidth: Float, viewHeight: Float) {
     val newHash = computeHash()
     if (!cacheInvalidated && newHash == lastHash) return
@@ -445,7 +564,7 @@ class BorderRenderer(private val style: Style) {
   /** Draws the border into the canvas */
   fun draw(canvas: Canvas, width: Float, height: Float) {
     // resets when building
-   // path.reset()
+    // path.reset()
 
     // Build path with corners and sides
     buildBorderPath(width, height)
@@ -467,7 +586,7 @@ class BorderRenderer(private val style: Style) {
 
     path.reset()
 
-    // Clamp radii to avoid exceeding view dimensions
+    // Clamp radii
     val tlX = tl.x.coerceAtMost(width / 2f)
     val tlY = tl.y.coerceAtMost(height / 2f)
     val trX = tr.x.coerceAtMost(width / 2f)
@@ -477,23 +596,28 @@ class BorderRenderer(private val style: Style) {
     val blX = bl.x.coerceAtMost(width / 2f)
     val blY = bl.y.coerceAtMost(height / 2f)
 
-    path.moveTo(0f + tlX, 0f)
+    path.moveTo(tlX, 0f)
 
-    // Top edge + top-right corner
+    // Top edge
     path.lineTo(width - trX, 0f)
-    path.quadTo(width, 0f, width, trY)
 
-    // Right edge + bottom-right corner
+    // --- Corners ---
+    addCorner(path, Corner.TOP_RIGHT, PointF(trX, trY), topRightExponent, width, height)
+
+    // Right edge
     path.lineTo(width, height - brY)
-    path.quadTo(width, height, width - brX, height)
 
-    // Bottom edge + bottom-left corner
+    addCorner(path, Corner.BOTTOM_RIGHT, PointF(brX, brY), bottomRightExponent, width, height)
+
+    // Bottom edge
     path.lineTo(blX, height)
-    path.quadTo(0f, height, 0f, height - blY)
 
-    // Left edge + top-left corner
+    addCorner(path, Corner.BOTTOM_LEFT, PointF(blX, blY), bottomLeftExponent, width, height)
+
+    // Left edge
     path.lineTo(0f, tlY)
-    path.quadTo(0f, 0f, tlX, 0f)
+
+    addCorner(path, Corner.TOP_LEFT, PointF(tlX, tlY), topLeftExponent, width, height)
 
     path.close()
   }
@@ -508,59 +632,51 @@ class BorderRenderer(private val style: Style) {
   ) {
     if (radius.x <= 0f && radius.y <= 0f) return
 
-    val steps = if (exponent != 1f) 16 else 1
+    if (exponent == 1f) {
+      // Use Android's analytic arc
+      val rect = when (corner) {
+        Corner.TOP_LEFT -> RectF(0f, 0f, radius.x * 2, radius.y * 2)
+        Corner.TOP_RIGHT -> RectF(width - radius.x * 2, 0f, width, radius.y * 2)
+        Corner.BOTTOM_RIGHT -> RectF(width - radius.x * 2, height - radius.y * 2, width, height)
+        Corner.BOTTOM_LEFT -> RectF(0f, height - radius.y * 2, radius.x * 2, height)
+      }
 
+      val startAngle = when (corner) {
+        Corner.TOP_LEFT -> 180f
+        Corner.TOP_RIGHT -> 270f
+        Corner.BOTTOM_RIGHT -> 0f
+        Corner.BOTTOM_LEFT -> 90f
+      }
+
+      path.arcTo(rect, startAngle, 90f)
+      return
+    }
+
+    // Superellipse fallback
+    val steps = 16
     for (i in 0..steps) {
       val t = i / steps.toFloat()
       val angle = t * Math.PI / 2.0
+      val cx = cos(angle).pow(exponent.toDouble()).toFloat()
+      val cy = sin(angle).pow(exponent.toDouble()).toFloat()
+
       val px: Float
       val py: Float
 
-      if (exponent == 1f) {
-        // Simple quarter ellipse (or circle)
-        when (corner) {
-          Corner.TOP_LEFT -> {
-            px = radius.x * (1 - cos(angle)).toFloat(); py = radius.y * (1 - sin(angle)).toFloat()
-          }
-
-          Corner.TOP_RIGHT -> {
-            px = width - radius.x * (1 - cos(angle)).toFloat(); py =
-              radius.y * (1 - sin(angle)).toFloat()
-          }
-
-          Corner.BOTTOM_RIGHT -> {
-            px = width - radius.x * (1 - cos(angle)).toFloat(); py =
-              height - radius.y * (1 - sin(angle)).toFloat()
-          }
-
-          Corner.BOTTOM_LEFT -> {
-            px = radius.x * (1 - cos(angle)).toFloat(); py =
-              height - radius.y * (1 - sin(angle)).toFloat()
-          }
+      when (corner) {
+        Corner.TOP_LEFT -> {
+          px = radius.x * (1 - cx); py = radius.y * (1 - cy)
         }
-      } else {
-        // Superellipse curve
-        val cx = cos(angle).pow(exponent.toDouble()).toFloat()
-        val cy = sin(angle).pow(exponent.toDouble()).toFloat()
-        when (corner) {
-          Corner.TOP_LEFT -> {
-            px = radius.x * (1 - cx); py = radius.y * (1 - cy)
-          }
-
-          Corner.TOP_RIGHT -> {
-            px = width - radius.x * (1 - cx); py = radius.y * (1 - cy)
-          }
-
-          Corner.BOTTOM_RIGHT -> {
-            px = width - radius.x * (1 - cx); py = height - radius.y * (1 - cy)
-          }
-
-          Corner.BOTTOM_LEFT -> {
-            px = radius.x * (1 - cx); py = height - radius.y * (1 - cy)
-          }
+        Corner.TOP_RIGHT -> {
+          px = width - radius.x * (1 - cx); py = radius.y * (1 - cy)
+        }
+        Corner.BOTTOM_RIGHT -> {
+          px = width - radius.x * (1 - cx); py = height - radius.y * (1 - cy)
+        }
+        Corner.BOTTOM_LEFT -> {
+          px = radius.x * (1 - cx); py = height - radius.y * (1 - cy)
         }
       }
-
       path.lineTo(px, py)
     }
   }
@@ -769,6 +885,14 @@ fun parseBorderRadius(style: Style, value: String) {
       style.borderTopRightRadius = Point(parts[1], parts[1])
       style.borderBottomRightRadius = Point(parts[2], parts[2])
       style.borderBottomLeftRadius = Point(parts[3], parts[3])
+    }
+  }
+  if (parts.isNotEmpty()) {
+    style.mBorderRenderer.invalidate()
+
+    if (!style.inBatch) {
+      style.isDirty = StateKeys.BORDER_RADIUS.bits
+      style.updateNativeStyle()
     }
   }
 }

@@ -26,6 +26,7 @@ val FONT_FACE_PATTERN: Pattern = Pattern.compile("@font-face\\s*\\{([^}]+)\\}")
 
 
 class FontFace {
+  internal var owner: Style? = null
   var font: Typeface? = null
     private set
 
@@ -472,6 +473,7 @@ class FontFace {
             fontDescriptors.weight.getStyle(fontDescriptors.style == NSCFontStyle.Italic)
           )
         }
+        owner?.syncFontMetrics()
       }
     }
   }
@@ -498,6 +500,8 @@ class FontFace {
             fontDescriptors.weight.getStyle(fontDescriptors.style == NSCFontStyle.Italic)
           )
         }
+
+        owner?.syncFontMetrics()
       }
     }
   }
@@ -632,6 +636,8 @@ class FontFace {
         }
         status = FontFaceStatus.loaded
         this.font = font
+
+        owner?.syncFontMetrics()
         callback(null)
         return
       }
@@ -681,6 +687,8 @@ class FontFace {
 
             status = FontFaceStatus.loaded
             this.font = font
+
+            owner?.syncFontMetrics()
             callback(null)
             return
           }
@@ -693,6 +701,8 @@ class FontFace {
         val font = cacheData(context, localOrRemoteSource!!)
         this.font = font
         status = FontFaceStatus.loaded
+
+        owner?.syncFontMetrics()
         callback(null)
         return
       } catch (e: Exception) {

@@ -316,6 +316,12 @@ public final class CSSBorderRenderer {
     public var vertical: MasonLengthPercentage
     public var exponent: CGFloat
     
+    init(horizontal: MasonLengthPercentage, vertical: MasonLengthPercentage, exponent: CGFloat) {
+      self.horizontal = horizontal
+      self.vertical = vertical
+      self.exponent = exponent
+    }
+    
     public static var zero: CornerRadius {
       CornerRadius(horizontal: .Zero, vertical: .Zero, exponent: 1)
     }
@@ -417,7 +423,7 @@ public final class CSSBorderRenderer {
       left: CGFloat(left.width.resolve(relativeTo: Float(rect.width)))
     )
     
-    radius = resolveRadius(rect: rect)
+    cachedRadius = resolveRadius(rect: rect)
   }
   
   private func resolveRadius(rect: CGRect) -> BorderRadius {

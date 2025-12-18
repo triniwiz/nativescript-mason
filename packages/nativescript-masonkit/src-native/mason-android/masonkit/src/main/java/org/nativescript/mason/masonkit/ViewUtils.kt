@@ -22,18 +22,28 @@ class ViewUtils {
       val width = view.width.toFloat()
       val height = view.height.toFloat()
 
-      canvas.withSave {
-        Style.applyOverflowClip(style, canvas, style.node)
+      style.mBorderRenderer.updateCache(width, height)
 
+      val hasRadii = style.mBorderRenderer.hasRadii()
+
+      // Draw background (clipped to border radius)
+      canvas.withSave {
+        // Apply border radius clip for background
+        if (hasRadii) {
+          canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
+        }
+
+        // Draw solid background color
         style.mBackground?.let { background ->
           background.color?.let { color ->
             val paint = Paint().apply {
               this.style = Paint.Style.FILL
               this.color = color
             }
-
-            drawRect(0f, 0f, width, height, paint)
+            canvas.drawRect(0f, 0f, width, height, paint)
           }
+
+          // Draw background layers (images, gradients)
           background.layers.forEach { layer ->
             canvas.withSave {
               Style.applyClip(canvas, layer.clip, style.node)
@@ -41,40 +51,46 @@ class ViewUtils {
             }
           }
         }
-
-        style.mBorderRenderer.updateCache(width, height)
-        style.mBorderRenderer.draw(this, width, height)
       }
 
-      style.mFilter?.let { filter ->
-        if (filter.filters.isEmpty()) {
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            view.setRenderEffect(null)
-          }
-          superDraw(canvas)
-          return@let
+      // Draw border on top of background
+      style.mBorderRenderer.draw(canvas, width, height)
+
+      // Apply overflow clip for content
+      canvas.withSave {
+        if (hasRadii) {
+          canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
         }
-        filter.renderFilters(view, canvas) { destCanvas ->
-          if (filter.v1 != null || filter.v2 != null) {
-            superDraw(destCanvas)
-          }
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-          // only call super if there is no composite node the composite node contains the original render
-          if ((filter.v3 as? CSSFilters.FilterHelperV3)?.hasComposite != true) {
+        Style.applyOverflowClip(style, canvas, style.node)
+
+        // Draw content with filters
+        style.mFilter?.let { filter ->
+          if (filter.filters.isEmpty()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+              view.setRenderEffect(null)
+            }
             superDraw(canvas)
+            return@let
           }
+          filter.renderFilters(view, canvas) { destCanvas ->
+            if (filter.v1 != null || filter.v2 != null) {
+              superDraw(destCanvas)
+            }
+          }
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if ((filter.v3 as? CSSFilters.FilterHelperV3)?.hasComposite != true) {
+              superDraw(canvas)
+            }
+          }
+        } ?: run {
+          superDraw(canvas)
         }
-      } ?: run {
-        superDraw(canvas)
       }
     }
-
 
     fun onDraw(view: android.view.View, canvas: Canvas, style: Style, superDraw: (Canvas) -> Unit) {
       render(view, canvas, style, superDraw)
     }
-
 
     fun dispatchDraw(
       view: android.view.View,

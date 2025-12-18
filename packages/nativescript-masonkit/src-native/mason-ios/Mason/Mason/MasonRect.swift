@@ -15,7 +15,7 @@ public class MasonDimensionRectCompat: NSObject, Codable {
     public var top: MasonDimensionCompat
     public var bottom: MasonDimensionCompat
     
-    public init(_ left: MasonDimensionCompat, _ right: MasonDimensionCompat, _ top: MasonDimensionCompat, _ bottom: MasonDimensionCompat) {
+    public init(_ left: MasonDimensionCompat, _ top: MasonDimensionCompat,  _ right: MasonDimensionCompat,_ bottom: MasonDimensionCompat) {
         self.left = left
         self.right = right
         self.top = top
@@ -30,7 +30,7 @@ public class MasonDimensionRectCompat: NSObject, Codable {
     }
     
     func intoMasonRect()-> MasonRect<MasonDimension> {
-        return MasonRect(left.dimension, right.dimension, top.dimension, bottom.dimension)
+        return MasonRect(top.dimension, right.dimension, bottom.dimension, left.dimension)
     }
 }
 
@@ -42,7 +42,7 @@ public class MasonLengthPercentageAutoRectCompat: NSObject, Codable {
     public var top: MasonLengthPercentageAutoCompat
     public var bottom: MasonLengthPercentageAutoCompat
     
-    public init(_ left: MasonLengthPercentageAutoCompat, _ right: MasonLengthPercentageAutoCompat, _ top: MasonLengthPercentageAutoCompat, _ bottom: MasonLengthPercentageAutoCompat) {
+    public init(_ left: MasonLengthPercentageAutoCompat, _ top: MasonLengthPercentageAutoCompat, _ right: MasonLengthPercentageAutoCompat, _ bottom: MasonLengthPercentageAutoCompat) {
         self.left = left
         self.right = right
         self.top = top
@@ -57,7 +57,7 @@ public class MasonLengthPercentageAutoRectCompat: NSObject, Codable {
     }
     
     func intoMasonRect()-> MasonRect<MasonLengthPercentageAuto> {
-        return MasonRect(left.length, right.length, top.length, bottom.length)
+        return MasonRect(top.length, right.length, bottom.length, left.length)
     }
 }
 
@@ -84,7 +84,7 @@ public class MasonLengthPercentageRectCompat: NSObject, Codable {
     }
     
     func intoMasonRect()-> MasonRect<MasonLengthPercentage> {
-        return MasonRect(left.length, right.length, top.length, bottom.length)
+        return MasonRect(top.length, right.length, bottom.length, left.length)
     }
 }
 
@@ -102,7 +102,7 @@ public struct MasonRect<T: Codable>: Codable {
     internal var compatLength: MasonLengthPercentageRectCompat? = nil
   
     
-    public init(_ left: T, _ right: T, _ top: T, _ bottom: T) {
+    public init(_ top: T, _ right: T, _ bottom: T, _ left: T) {
         self.left = left
         self.right = right
         self.top = top

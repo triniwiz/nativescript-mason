@@ -1,5 +1,5 @@
 use crate::node::{Node, NodeData, NodeRef, NodeType};
-use crate::style::{DisplayMode, Style};
+use crate::style::{DisplayMode, DisplayRect, DisplaySize, Style};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use std::fmt::Debug;
 use std::sync::atomic::AtomicU32;
@@ -8,10 +8,9 @@ use style_atoms::Atom;
 use taffy::{
     compute_block_layout, compute_cached_layout, compute_flexbox_layout, compute_grid_layout,
     compute_hidden_layout, compute_leaf_layout, compute_root_layout, round_layout, AvailableSpace,
-    BlockContext, CacheTree, ClearState
-    , Display, Layout, LayoutBlockContainer, LayoutInput, LayoutOutput,
-    LayoutPartialTree, MaybeResolve, NodeId, PrintTree, RoundTree
-    , Size, TraversePartialTree, TraverseTree,
+    BlockContext, CacheTree, ClearState, CoreStyle, Display, Layout, LayoutBlockContainer,
+    LayoutInput, LayoutOutput, LayoutPartialTree, MaybeResolve, NodeId, PrintTree, RoundTree, Size,
+    TraversePartialTree, TraverseTree,
 };
 
 new_key_type! {
@@ -143,23 +142,21 @@ impl Tree {
             for child_id in children {
                 let child = &self.nodes[*child_id];
                 let mode = child.style.display_mode();
-                let is_inline = child.style.force_inline()
-                    || child.is_text_container()
-                    || matches!(mode, DisplayMode::Inline | DisplayMode::Box);
+                let inline_or_box_inline = matches!(mode, DisplayMode::Inline | DisplayMode::Box);
+                // Fix: Check for anonymous inline blocks too
+                let is_inline = child.style.force_inline() || inline_or_box_inline;
 
                 if is_inline {
                     has_inline = true;
                 } else {
                     has_non_inline = true;
-                }
-
-                if !is_inline {
                     all_inline = false;
                 }
 
                 // Early exit if both found
                 if has_inline && has_non_inline {
                     has_mixed_content = true;
+                    all_inline = false;
                     break;
                 }
             }
@@ -251,6 +248,20 @@ impl Tree {
         node.type_ = NodeType::Text;
         node.is_anonymous = true;
         node.style.set_display_mode(DisplayMode::Inline);
+        let guard = node.guard.clone();
+        let id = self.nodes.insert(node);
+        self.parents.insert(id, None);
+        self.children.insert(id, Vec::new());
+        self.node_data.insert(id, NodeData::default());
+        NodeRef { id, guard }
+    }
+
+    pub fn create_image_node(&mut self) -> NodeRef {
+        let mut node = Node::new();
+        node.type_ = NodeType::Image;
+        node.style.set_item_is_replaced(true);
+        node.style.set_display_mode(DisplayMode::Inline);
+        node.style.device_scale = Some(Arc::clone(&self.density));
         let guard = node.guard.clone();
         let id = self.nodes.insert(node);
         self.parents.insert(id, None);
@@ -817,13 +828,15 @@ impl LayoutBlockContainer for Tree {
                 .get(id)
                 .map(|children| !children.is_empty())
                 .unwrap_or(false);
-            let (display_mode, display, padding, border) = {
+            let (display_mode, display, padding, border, size, is_text_container) = {
                 let node = tree.nodes.get(id).unwrap();
                 (
                     node.style.display_mode(),
                     node.style.get_display(),
                     node.style.get_padding(),
                     node.style.get_border(),
+                    node.style.size(),
+                    node.is_text_container(),
                 )
             };
 
@@ -833,21 +846,35 @@ impl LayoutBlockContainer for Tree {
                     (Display::Block, true) => {
                         let analysis = tree.analyze_subtree(id);
 
-                        if analysis.has_mixed_content {
+
+                        let mut computed_layout = if analysis.all_inline {
+                           tree.compute_inline_layout(node_id, inputs, block_ctx)
+                        }else if analysis.has_mixed_content {
                             let children = tree.children.get(id).cloned().unwrap_or_default();
-                            return tree.compute_mixed_layout(
+                           tree.compute_mixed_layout(
                                 id,
                                 children.as_slice(),
                                 inputs,
                                 block_ctx,
-                            );
+                            )
+                        }else {
+                            compute_block_layout(tree, node_id, inputs, block_ctx)
+                        };
+
+
+                        if is_text_container {
+                            if let Some(resolved_height) = size
+                                .height
+                                .maybe_resolve(inputs.parent_size.height, |_, _| 0.0)
+                            {
+                                if computed_layout.size.height < resolved_height {
+                                    computed_layout.size.height = resolved_height;
+                                    // set in layout cache ?
+                                }
+                            }
                         }
 
-                        if analysis.all_inline {
-                            return tree.compute_inline_layout(node_id, inputs, block_ctx);
-                        }
-
-                        compute_block_layout(tree, node_id, inputs, block_ctx)
+                        computed_layout
                     }
                     (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
                     (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
@@ -872,7 +899,7 @@ impl LayoutBlockContainer for Tree {
                                 let resolved_height = known_dimensions.height.or_else(|| {
                                     style_size
                                         .height
-                                        .maybe_resolve(inputs.parent_size.width, |_, _| 0.0)
+                                        .maybe_resolve(inputs.parent_size.height, |_, _| 0.0)
                                 });
 
                                 let final_known = Size {
@@ -914,6 +941,10 @@ impl PrintTree for Tree {
     fn get_debug_label(&self, node_id: NodeId) -> &'static str {
         let node = self.node_from_id(node_id);
 
+        if node.type_ == NodeType::Image {
+            return "IMAGE";
+        }
+
         if node.is_anonymous {
             if node.style.force_inline() {
                 return "ANONYMOUS-INLINE";
@@ -927,7 +958,12 @@ impl PrintTree for Tree {
                     Display::Grid => "ANONYMOUS-GRID",
                     Display::None => "ANONYMOUS-NONE",
                 },
-                DisplayMode::Inline => "ANONYMOUS-INLINE",
+                DisplayMode::Inline => {
+                    if node.type_ == NodeType::Text {
+                        return "ANONYMOUS-INLINE-TEXT";
+                    }
+                    return "ANONYMOUS-INLINE";
+                }
                 DisplayMode::Box => match node.style.get_display() {
                     Display::Block => "ANONYMOUS-INLINE-BLOCK",
                     Display::Flex => "ANONYMOUS-INLINE-FLEX",

@@ -196,10 +196,14 @@ class VBase extends ViewBase implements IViewBase {
 
 export class View extends VBase {}
 
-export class Text extends VBase {}
+export class TextBase extends VBase {}
+
+export class Text extends TextBase {}
 
 export class Img extends VBase {
   src: string;
 }
 
 export class Scroll extends VBase {}
+
+export class Button extends TextBase {}

@@ -34,7 +34,13 @@ class Styles {
   }
 
   enum class DecorationLine(val value: Int) {
-    None(0), Underline(1), Overline(2), LineThrough(3), UnderlineLineThrough(4);
+    None(0),
+    Underline(1),
+    Overline(2),
+    LineThrough(3),
+    UnderlineLineThrough(4),
+    UnderlineOverline(5),
+    OverlineUnderlineLineThrough(6);
 
     companion object {
       fun fromInt(value: Int): DecorationLine {
@@ -44,6 +50,8 @@ class Styles {
           2 -> Overline
           3 -> LineThrough
           4 -> UnderlineLineThrough
+          5 -> UnderlineOverline
+          6 -> OverlineUnderlineLineThrough
           else -> throw IllegalArgumentException("Unknown enum value: $value")
         }
       }

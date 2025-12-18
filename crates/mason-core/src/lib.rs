@@ -24,8 +24,8 @@ pub use node::NodeRef;
 
 pub mod style;
 mod tree;
-pub mod utils;
 mod tree_inline;
+pub mod utils;
 
 #[cfg(target_os = "android")]
 pub static JVM: std::sync::OnceLock<jni::JavaVM> = std::sync::OnceLock::new();
@@ -92,21 +92,24 @@ fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
         output.push(layout.size.width);
         output.push(layout.size.height);
 
-        output.push(layout.border.left);
-        output.push(layout.border.right);
+        // reorder if rect constructor changes
+        // Current order T,R,B,L
+
         output.push(layout.border.top);
+        output.push(layout.border.right);
         output.push(layout.border.bottom);
+        output.push(layout.border.left);
 
-        output.push(layout.margin.left);
-        output.push(layout.margin.right);
         output.push(layout.margin.top);
+        output.push(layout.margin.right);
         output.push(layout.margin.bottom);
+        output.push(layout.margin.left);
 
-        output.push(layout.padding.left);
-        output.push(layout.padding.right);
         output.push(layout.padding.top);
+        output.push(layout.padding.right);
         output.push(layout.padding.bottom);
-
+        output.push(layout.padding.left);
+        
         output.push(layout.content_size.width);
         output.push(layout.content_size.height);
 
@@ -173,6 +176,11 @@ impl Mason {
     #[track_caller]
     pub fn create_anonymous_text_node(&mut self) -> NodeRef {
         self.0.create_anonymous_text_node()
+    }
+
+    #[track_caller]
+    pub fn create_image_node(&mut self) -> NodeRef {
+        self.0.create_image_node()
     }
 
     #[cfg(target_os = "android")]

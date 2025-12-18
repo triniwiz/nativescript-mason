@@ -11,11 +11,22 @@
         <p @tap="viewFeature('grid')">CSSGrid</p>
       </div> -->
 
-      <div style="width: 300px; height: 300px;">
-      <div style="margin: 10; height: 150px; width: 150px; background: red; border: 1px solid #444444; filter: blur(5px);">
+
+      <div>
+        <div style="display: inline-block;" class="box" id="one">One</div>
+        <div style="display: inline-block; top: 20; left: 20; position: relative;" class="box" id="two">Two</div>
+        <div style="display: inline-block;" class="box" id="three">Three</div>
+        <div style="display: inline-block;" class="box" id="four">Four</div>
+      </div>
+      <!-- <div> -->
+
+      <!-- <div style="width: 300px; height: 300px;">
+      <div style="margin: 10; height: 150px; width: 150px; background: red; border: 1px solid #444444;">
         Hello world
       </div>
+      <sbutton style="margin: 10;">Click me</sbutton>
       </div>
+      </div> -->
 
 
       <!-- left 5% / 15% 60% repeat-x

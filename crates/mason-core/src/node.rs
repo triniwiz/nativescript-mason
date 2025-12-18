@@ -427,10 +427,36 @@ impl Default for NodeData {
     }
 }
 
+bitflags::bitflags! {
+    #[derive(Default, Debug, Copy, Clone)]
+    pub struct PseudoStates: u16 {
+        const HOVER         = 1 << 0;
+        const ACTIVE        = 1 << 1;
+        const FOCUS         = 1 << 2;
+        const FOCUS_WITHIN  = 1 << 3;
+        const FOCUS_VISIBLE = 1 << 4;
+        const ENABLED       = 1 << 5;
+        const DISABLED      = 1 << 6;
+        const CHECKED       = 1 << 7;
+    }
+}
+
+/*
+#[derive(Default, Debug, Clone)]
+pub struct PseudoStyles {
+    pub hover: std::cell::LazyCell<Style>,
+    pub active: std::cell::LazyCell<Style>,
+    pub focus: std::cell::LazyCell<Style>,
+    pub disabled: std::cell::LazyCell<Style>,
+    pub checked: std::cell::LazyCell<Style>,
+}
+*/
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum NodeType {
     Normal,
     Text,
+    Image,
 }
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -442,6 +468,8 @@ pub struct Node {
     pub(crate) has_measure: bool,
     pub(crate) type_: NodeType,
     pub(crate) is_anonymous: bool,
+    // pub(crate) pseudo_states: PseudoStates,
+    // pub(crate) pseudo_styles: PseudoStyles
 }
 
 impl Node {
@@ -465,6 +493,52 @@ impl Node {
     #[inline]
     pub fn is_text_container(&self) -> bool {
         self.type_ == NodeType::Text
+    }
+
+    #[inline]
+    pub fn is_image(&self) -> bool {
+        self.type_ == NodeType::Image
+    }
+
+    pub fn compute_style(&self) -> Style {
+        let mut result = self.style.clone();
+        if self.is_text_container() && result.is_inline() {
+            result.set_size(Size::auto());
+        }
+
+        // let flags = node.pseudo_flags;
+        //
+        // if flags.contains(PseudoStateFlags::HOVER) {
+        //     if let Some(s) = &node.pseudo_styles.hover {
+        //         result.merge(s);
+        //     }
+        // }
+        //
+        // if flags.contains(PseudoStateFlags::ACTIVE) {
+        //     if let Some(s) = &node.pseudo_styles.active {
+        //         result.merge(s);
+        //     }
+        // }
+        //
+        // if flags.contains(PseudoStateFlags::FOCUS) {
+        //     if let Some(s) = &node.pseudo_styles.focus {
+        //         result.merge(s);
+        //     }
+        // }
+        //
+        // if flags.contains(PseudoStateFlags::DISABLED) {
+        //     if let Some(s) = &node.pseudo_styles.disabled {
+        //         result.merge(s);
+        //     }
+        // }
+        //
+        // if flags.contains(PseudoStateFlags::CHECKED) {
+        //     if let Some(s) = &node.pseudo_styles.checked {
+        //         result.merge(s);
+        //     }
+        // }
+
+        result
     }
 }
 

@@ -425,11 +425,14 @@ class NodeHelper(val mason: Mason) {
     return node.style.borderWidth.jsonValue
   }
 
-
   fun setBorder(view: android.view.View, value: String) {
     val node = mason.nodeForView(view)
     node.style.border = value
+  }
 
+  fun getBorder(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.border
   }
 
   fun setBorderWidth(

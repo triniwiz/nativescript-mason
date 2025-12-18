@@ -122,6 +122,20 @@ class Mason {
     return node
   }
 
+
+  fun createImageNode(measure: MeasureFunc): Node {
+    val func = MeasureFuncImpl(WeakReference(measure))
+    val nodePtr =
+      NativeHelpers.nativeNodeNewImageWithContext(nativePtr, func)
+    val node = Node(this, nodePtr).apply {
+      nodes[nodePtr] = this
+      measureFunc = measure
+    }
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+
+    return node
+  }
+
   fun createView(context: Context): View {
     return View(context, this)
   }
@@ -144,6 +158,11 @@ class Mason {
     return Scroll(context, this)
   }
 
+  fun createButton(
+    context: Context,
+  ): Button {
+    return Button(context, this)
+  }
 
   fun configureStyleForView(view: android.view.View, block: (Style) -> Unit) {
     val node = nodeForView(view)

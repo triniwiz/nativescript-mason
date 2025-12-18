@@ -3,9 +3,11 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
+import android.util.Log
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.graphics.withClip
 import androidx.core.graphics.withMatrix
@@ -14,6 +16,7 @@ import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.ObjectFit
+import java.io.File
 import kotlin.math.max
 
 class Img @JvmOverloads constructor(
@@ -48,11 +51,10 @@ class Img @JvmOverloads constructor(
   }
 
   constructor(context: Context, mason: Mason) : this(context, null, true) {
-    node = mason.createNode(this).apply {
+    node = mason.createImageNode(this).apply {
       view = this@Img
       isImage = true
     }
-    style.display = Display.Inline
   }
 
   internal val mImgMatrix = Matrix()
@@ -60,11 +62,10 @@ class Img @JvmOverloads constructor(
   init {
     if (!override) {
       if (!::node.isInitialized) {
-        node = Mason.shared.createNode(this).apply {
+        node = Mason.shared.createImageNode(this).apply {
           view = this@Img
           isImage = true
         }
-        style.display = Display.Inline
       }
     }
     scaleType = ScaleType.MATRIX
@@ -133,10 +134,17 @@ class Img @JvmOverloads constructor(
       onStateChange?.let {
         it(LoadingState.Loading)
       }
-      Glide.with(this)
-        .asBitmap()
-        .load(value)
-        .into(target)
+      if (value.startsWith("/")) {
+        Glide.with(this)
+          .asBitmap()
+          .load(File(value))
+          .into(target)
+      } else {
+        Glide.with(this)
+          .asBitmap()
+          .load(value)
+          .into(target)
+      }
 
     }
 

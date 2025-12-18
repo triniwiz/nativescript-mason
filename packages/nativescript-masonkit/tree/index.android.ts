@@ -90,4 +90,8 @@ export class Tree {
   createScrollView(context) {
     return this.native.createScrollView(context);
   }
+
+  createButtonView(context) {
+    return this.native.createButton(context);
+  }
 }

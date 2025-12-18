@@ -77,11 +77,11 @@ public class TextEngine: NSObject {
   internal func handlePressDown() {
     style.mBackground.isActive = true
   }
-
+  
   internal func handlePressUp() {
     style.mBackground.isActive = false
   }
-
+  
   internal func handlePressCancel() {
     style.mBackground.isActive = false
   }
@@ -116,6 +116,57 @@ public class TextEngine: NSObject {
       
       invalidateInlineSegments()
       (node.view as? MasonElement)?.requestLayout()
+    }
+  }
+  
+  // Update attributes on all direct TextNode children when styles change
+  internal func updateStyleOnTextNodes() {
+    let defaultAttrs = node.getDefaultAttributes()
+    
+    for child in node.children {
+      if let child = (child as? MasonTextNode), child.container?.isEqual(self) ?? false {
+        // Only update TextNodes that belong to this TextView
+        child.attributes = defaultAttrs
+      }
+    }
+  }
+  
+  func onTextStyleChanged(change: Int64) {
+    let change = TextStyleChangeMasks(rawValue: change)
+    var dirty = false
+    var layout = false
+    if (change.contains(.color)) {
+      dirty = true
+    }
+    
+    if (change.contains(.fontSize)) {
+      layout = true
+      dirty = true
+    }
+    
+    if (change.contains(.fontWeight) || change.contains(.fontStyle) || change.contains(.fontFamily)) {
+      dirty = true
+    }
+    
+    
+    if (
+      change.contains(.verticalAlign) || change.contains(.textWrap) || change.contains(.whiteSpace) || change.contains(.textTransform) || change.contains(.decorationLine) || change.contains(.decorationColor) || change.contains(.decorationStyle) || change.contains(.letterSpacing) || change.contains(.textJustify) || change.contains(.backgroundColor) || change.contains(.lineHeight)
+    ) {
+      dirty = true
+    }
+    
+    
+    if (dirty) {
+      updateStyleOnTextNodes()
+      invalidateInlineSegments()
+      if (layout) {
+        if (node.isAnonymous) {
+          node.layoutParent?.markDirty()
+        }
+        (node.view as? MasonElement)?.invalidateLayout()
+      }else {
+        invalidate()
+      }
     }
   }
   
@@ -167,6 +218,7 @@ public class TextEngine: NSObject {
     let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, text.length), path, nil)
     
     // Now calculate the size
+    // todo handle Float
     var size = CTFramesetterSuggestFrameSizeWithConstraints(
       framesetter,
       CFRangeMake(0, text.length),
@@ -175,7 +227,7 @@ public class TextEngine: NSObject {
       nil
     )
     
-      if text.length > 0 && size.width <= 0 {
+    if text.length > 0 && size.width <= 0 {
       let line = CTLineCreateWithAttributedString(text)
       var ascent: CGFloat = 0
       var descent: CGFloat = 0
@@ -198,7 +250,7 @@ public class TextEngine: NSObject {
       size.width = (size.width * scale).rounded(.up)
     }
     
-
+    
     size.height = (size.height * scale).rounded(.up)
     
     if let known = known {
@@ -468,17 +520,23 @@ public class TextEngine: NSObject {
     
     let framesetter = CTFramesetterCreateWithAttributedString(text)
     
-    var drawBounds = bounds
+    var paddingRestore =  false
+    let drawBounds = bounds
     let computedPadding = node.computedLayout.padding
     if !computedPadding.isEmpty() {
+      paddingRestore = true
+      context.saveGState()
       let scale = NSCMason.scale
       let padding = UIEdgeInsets(
         top: CGFloat(computedPadding.top / scale),
         left: CGFloat(computedPadding.left / scale),
-        bottom: CGFloat(computedPadding.bottom / scale),
-        right: CGFloat(computedPadding.right / scale)
+        bottom: 0,
+        right: 0
       )
-      drawBounds = drawBounds.inset(by: padding)
+      // translate or inset
+      // drawBounds = drawBounds.inset(by: padding)
+      
+      context.translateBy(x: CGFloat(computedPadding.left / scale), y: -padding.top)
     }
     
     guard drawBounds.width > 0 else { return }
@@ -552,84 +610,75 @@ public class TextEngine: NSObject {
     context.restoreGState()
     
     guard text.containsAttachments else { return }
-
+    
     for i in 0..<linesCount {
       let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
       let lineOrigin = origins[i]
       
       drawInlineAttachments(for: line, origin: lineOrigin, frameBounds: layoutBounds, clipRect: drawBounds, in: context, bounds: bounds)
     }
+    
+    if(paddingRestore){
+      context.restoreGState()
+    }
+    
   }
   
   
   private func drawInlineAttachments(
-    for line: CTLine,
-    origin: CGPoint,
-    frameBounds: CGRect,
-    clipRect: CGRect,
-    in context: CGContext,
-    bounds: CGRect
-  ) {
-    let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
-    var d: [ViewHelper]  = []
-    
-    for run in runs {
-      let attrs = CTRunGetAttributes(run) as NSDictionary
-  
-      guard let helper = attrs[Constants.VIEW_PLACEHOLDER_KEY] as? ViewHelper else {
-        continue
+      for line: CTLine,
+      origin: CGPoint,
+      frameBounds: CGRect,
+      clipRect: CGRect,
+      in context: CGContext,
+      bounds: CGRect
+    ) {
+      let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+      
+      for run in runs {
+        let attrs = CTRunGetAttributes(run) as NSDictionary
+        
+        guard let helper = attrs[Constants.VIEW_PLACEHOLDER_KEY] as? ViewHelper else {
+          continue
+        }
+        
+        var ascent: CGFloat = 0
+        var descent: CGFloat = 0
+        let _ = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &ascent, &descent, nil))
+        
+        var runPosition = CGPoint.zero
+        CTRunGetPositions(run, CFRange(location: 0, length: 1), &runPosition)
+        
+        let scale = CGFloat(NSCMason.scale)
+        let childWidth = CGFloat(helper.node.cachedWidth / scale)
+        let childHeight = CGFloat(helper.node.cachedHeight / scale)
+        
+        // Context is already in CoreText coordinates (flipped in drawText/drawMultiLine)
+        // So use CoreText coordinates directly
+        let ctX = origin.x + runPosition.x
+        let ctY = origin.y - descent  // baseline minus descent = bottom of inline element
+        
+        let drawRect = CGRect(x: ctX, y: ctY, width: childWidth, height: childHeight)
+        
+        guard clipRect.intersects(drawRect) else { continue }
+        guard let childView = helper.view else { continue }
+        
+        context.saveGState()
+        context.clip(to: clipRect)
+        
+        // Translate to top of child (ctY + childHeight) and flip for UIView rendering
+        context.translateBy(x: drawRect.origin.x, y: drawRect.origin.y + drawRect.height)
+        context.scaleBy(x: 1, y: -1)
+        
+        if childView.bounds.size != drawRect.size {
+          childView.frame = CGRect(origin: .zero, size: drawRect.size)
+          childView.layoutIfNeeded()
+        }
+        childView.layer.render(in: context)
+        
+        context.restoreGState()
       }
-      d.append(helper)
-      
-      var ascent: CGFloat = 0
-      var descent: CGFloat = 0
-      let _ = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &ascent, &descent, nil))
-      
-      // let glyphRange = CTRunGetStringRange(run)
-      var runPosition = CGPoint.zero
-      CTRunGetPositions(run, CFRange(location: 0, length: 1), &runPosition)
-      
-      let scale = CGFloat(NSCMason.scale)
-      let childWidth = CGFloat(helper.node.cachedWidth / scale)
-      let childHeight = CGFloat(helper.node.cachedHeight / scale)
-      
-      // Core Text position: origin is the baseline, x is the glyph offset
-      let ctX = origin.x + runPosition.x
-      let ctBaseline = origin.y
-      
-      // The child should sit on the baseline
-      // In Core Text coords (bottom-left origin), child bottom = baseline - descent
-      let ctY = ctBaseline - descent
-      
-      // Convert to UIKit coordinates (top-left origin)
-      // Core Text Y increases upward, UIKit Y increases downward
-      let uiX = ctX
-      let uiY = bounds.height - ctY - childHeight
-      
-      let drawRect = CGRect(x: uiX, y: uiY, width: childWidth, height: childHeight)
-      
-      guard clipRect.intersects(drawRect) else { continue }
-      guard let childView = helper.view else { continue }
-      
-      context.saveGState()
-      context.clip(to: clipRect)
-      
-      // Translate to child origin, flip Y for UIKit rendering
-      context.translateBy(x: drawRect.origin.x, y: drawRect.origin.y + drawRect.height)
-      context.scaleBy(x: 1, y: -1)
-      
-      // Ensure child has correct size (only if changed)
-      if childView.bounds.size != drawRect.size {
-        childView.frame = CGRect(origin: .zero, size: drawRect.size)
-        childView.layoutIfNeeded()
-      }
-    
-      
-      childView.layer.render(in: context)
-      
-      context.restoreGState()
     }
-  }
   
   
   func drawText(context: CGContext, rect: CGRect){
@@ -662,129 +711,158 @@ public class TextEngine: NSObject {
     }
     
     if isBuilding {
-      return NSMutableAttributedString()
+        // Never return empty — return last known good value
+        return cachedAttributedString ?? NSMutableAttributedString()
     }
+    
     isBuilding = true
     defer { isBuilding = false }
     
+    // build `composed` from child fragments using HTML-like whitespace collapsing
+    let wsSet = CharacterSet.whitespacesAndNewlines
+    let collapseRegex = try? NSRegularExpression(pattern: "\\s+", options: [])
+
+    func collapsedString(_ s: String) -> String {
+      guard let rx = collapseRegex else { return s }
+      // replace runs of whitespace with single ASCII space
+      let ns = s as NSString
+      let r = rx.rangeOfFirstMatch(in: s, options: [], range: NSRange(location: 0, length: ns.length))
+      if r.location == NSNotFound && !s.isEmpty { return s }
+      return rx.stringByReplacingMatches(in: s, options: [], range: NSRange(location: 0, length: ns.length), withTemplate: " ")
+    }
+
     let composed = NSMutableAttributedString()
-    
-    // Track the end-state of the previously appended fragment so we don't need to
-    // inspect `composed` (which may be different across nested calls).
-    var prevEndedWithWhitespace: Bool = false
-    var prevHadAttachment: Bool = false
-    
+    var prevEndedWithWhitespace = false
+
     for (childIndex, child) in node.children.enumerated() {
       var fragment: NSAttributedString?
       if let textNode = child as? MasonTextNode {
         fragment = textNode.attributed()
       } else if let textView = child.view as? TextContainer {
         if shouldFlattenTextContainer(textView) {
-          fragment = buildAttributedString(forMeasurement: forMeasurement)
+          fragment = textView.engine.buildAttributedString(forMeasurement: forMeasurement)
         } else {
           fragment = createPlaceholder(for: child)
         }
       } else if (child.view != nil && child.nativePtr != nil) {
         fragment = createPlaceholder(for: child)
       }
-      
-      // If fragment exists, convert leading/trailing ASCII space runs to NBSP where needed
-      // Don't mutate fragment. We'll decide and INSERT an explicit separator run
-      // between fragments below when needed. This keeps source text intact and avoids
-      // index/attribute mismatches from in-place replacements.
-      
+
       guard let frag = fragment, frag.length > 0 else {
+        // append empty frag (or skip) but update flags if needed
         if let frag = fragment {
-          // append empty/placeholder fragment and update state
           composed.append(frag)
-          // update prevEndedWithWhitespace / prevHadAttachment from the fragment if possible
+          // update whitespace flag if the fragment contains text
           if frag.length > 0 {
             let first = (frag.string as NSString).substring(with: NSRange(location: 0, length: 1))
-            prevEndedWithWhitespace = CharacterSet.whitespacesAndNewlines.contains(first.unicodeScalars.first!)
-            prevHadAttachment = (frag.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment) != nil
+            prevEndedWithWhitespace = wsSet.contains(first.unicodeScalars.first!)
           } else {
             prevEndedWithWhitespace = false
-            prevHadAttachment = false
           }
         }
         continue
       }
-      
-      // Compute new-starts-with-space and new-has-attachment from the fragment itself
-      let newStartsWithSpace: Bool = {
-        let firstChar = (frag.string as NSString).substring(with: NSRange(location: 0, length: 1))
-        return CharacterSet.whitespacesAndNewlines.contains(firstChar.unicodeScalars.first!)
-      }()
-      
-      let newHasAttachment: Bool = {
-        if frag.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment != nil { return true }
-        let firstChar = (frag.string as NSString).substring(with: NSRange(location: 0, length: 1))
-        return firstChar == "\u{FFFC}"
-      }()
-      
-      // Also consult source nodes for user-intent whitespace when fragment normalization may have removed it
-      let prevSourceEndsWithSpace: Bool = {
-        guard childIndex > 0 else { return false }
-        let prev = node.children[childIndex - 1]
-        if let tn = prev as? MasonTextNode, let last = tn.data.last {
-          return CharacterSet.whitespacesAndNewlines.contains(last.unicodeScalars.first!)
+
+      // If white-space is pre, preserve fragment exactly
+      if node.style.whiteSpace == .Pre {
+        // append directly (no collapsing)
+        composed.append(frag)
+        let lastChar = (frag.string as NSString).substring(with: NSRange(location: frag.length - 1, length: 1))
+        prevEndedWithWhitespace = wsSet.contains(lastChar.unicodeScalars.first!)
+        continue
+      }
+
+      // Non-pre handling: collapse whitespace inside fragment to single spaces
+      // But preserve attachments/placeholders intact
+      let hasAttachment = (frag.attribute(Constants.VIEW_PLACEHOLDER_KEY, at: 0, effectiveRange: nil) != nil)
+        || (frag.attribute(.attachment, at: 0, effectiveRange: nil) != nil)
+
+      if hasAttachment {
+        // If fragment is an attachment placeholder, treat it as a token.
+        // If previous ended with whitespace and fragment's source doesn't start with explicit space,
+        // a single separating space should be preserved by HTML collapse rules only when there was whitespace.
+        if prevEndedWithWhitespace {
+          // ensure one space between previous text and attachment (but avoid adding if previous ends with attachment)
+          let lastIndex = composed.length - 1
+          var lastIsAttachment = false
+          if lastIndex >= 0 {
+            if composed.attribute(Constants.VIEW_PLACEHOLDER_KEY, at: lastIndex, effectiveRange: nil) != nil ||
+               composed.attribute(.attachment, at: lastIndex, effectiveRange: nil) != nil {
+              lastIsAttachment = true
+            }
+          }
+          if !lastIsAttachment {
+            composed.append(NSAttributedString(string: " "))
+          }
         }
-        return false
-      }()
-      let currSourceStartsWithSpace: Bool = {
-        if let tn = child as? MasonTextNode, let first = tn.data.first {
-          return CharacterSet.whitespacesAndNewlines.contains(first.unicodeScalars.first!)
+        composed.append(frag)
+        prevEndedWithWhitespace = false
+        continue
+      }
+
+      // For normal text fragment: collapse internal whitespace
+      let raw = frag.string
+      let collapsed = collapsedString(raw)
+
+      if collapsed.isEmpty {
+        // nothing to append but mark prevEndedWithWhitespace if original had whitespace
+        prevEndedWithWhitespace = raw.unicodeScalars.allSatisfy { wsSet.contains($0) }
+        continue
+      }
+
+      // Determine starts/ends with space for collapsed fragment
+      let startsWithSpace = collapsed.first?.unicodeScalars.first.map { wsSet.contains($0) } ?? false
+      let endsWithSpace = collapsed.last?.unicodeScalars.first.map { wsSet.contains($0) } ?? false
+
+      // prepare fragment attributes for the collapsed text
+      let attrs = frag.attributes(at: 0, effectiveRange: nil)
+      // strip leading/trailing single spaces from collapsed when appending (we'll handle separator)
+      var middle = collapsed
+      if startsWithSpace { middle.removeFirst() }
+      if endsWithSpace { middle.removeLast() }
+
+      // Insert separator if needed: if composed not empty and (prevEndedWithWhitespace || startsWithSpace)
+      if composed.length > 0 && (prevEndedWithWhitespace || startsWithSpace) {
+        // ensure one space between pieces (avoid double-space)
+        let lastIndex = composed.length - 1
+        var lastIsSpace = false
+        if lastIndex >= 0 {
+          let lastChar = (composed.string as NSString).substring(with: NSRange(location: lastIndex, length: 1))
+          lastIsSpace = wsSet.contains(lastChar.unicodeScalars.first!)
         }
-        return false
-      }()
-      
-      let prevHasWhitespace = prevEndedWithWhitespace || prevSourceEndsWithSpace
-      let currStartsWithWhitespace = newStartsWithSpace || currSourceStartsWithSpace
-      
-      // Decide and append separator between runs based on source intent (ASCII spaces)
-      let prevSourceEndsWithASCII: Bool = {
-        guard childIndex > 0 else { return false }
-        if let prev = node.children[childIndex - 1] as? MasonTextNode, let last = prev.data.last {
-          return last == " "
-        }
-        return false
-      }()
-      
-      let currSourceStartsWithASCII: Bool = {
-        if let tn = child as? MasonTextNode, let first = tn.data.first {
-          return first == " "
-        }
-        return false
-      }()
-      
-      // If either side's SOURCE contains an ASCII space, force a NBSP so it won't be collapsed.
-      if prevSourceEndsWithASCII || currSourceStartsWithASCII {
-        // pick attributes from the current fragment, fallback to last composed run or defaults
-        var sepAttrs = (frag.length > 0 ? frag.attributes(at: 0, effectiveRange: nil) : (composed.length > 0 ? composed.attributes(at: max(0, composed.length - 1), effectiveRange: nil) : node.getDefaultAttributes()))
-        // ensure font & paragraph exist so CT will measure the separator correctly
-        if sepAttrs[.font] == nil { sepAttrs[.font] = node.getDefaultAttributes()[.font] }
-        if sepAttrs[.paragraphStyle] == nil { sepAttrs[.paragraphStyle] = node.getDefaultAttributes()[.paragraphStyle] }
-        composed.append(NSAttributedString(string: "\u{00A0}", attributes: sepAttrs))
-      } else {
-        // fallback: preserve a regular collapsing space only when neither side has whitespace
-        if !prevHasWhitespace && !currStartsWithWhitespace && node.style.whiteSpace != .Pre {
-          var sepAttrs = (frag.length > 0 ? frag.attributes(at: 0, effectiveRange: nil) : (composed.length > 0 ? composed.attributes(at: max(0, composed.length - 1), effectiveRange: nil) : node.getDefaultAttributes()))
+        if !lastIsSpace {
+          // use attributes from current frag if possible, otherwise default node attrs
+          var sepAttrs = attrs
           if sepAttrs[.font] == nil { sepAttrs[.font] = node.getDefaultAttributes()[.font] }
           if sepAttrs[.paragraphStyle] == nil { sepAttrs[.paragraphStyle] = node.getDefaultAttributes()[.paragraphStyle] }
           composed.append(NSAttributedString(string: " ", attributes: sepAttrs))
         }
       }
-      
-      // append fragment
-      composed.append(frag)
-      // update prevEndedWithWhitespace from frag's trailing char
-      prevEndedWithWhitespace = {
-        let lastChar = (frag.string as NSString).substring(with: NSRange(location: frag.length - 1, length: 1))
-        return CharacterSet.whitespacesAndNewlines.contains(lastChar.unicodeScalars.first!)
-      }()
-      prevHadAttachment = newHasAttachment
+
+      // append the trimmed/collapsed middle text with frag attrs
+      if !middle.isEmpty {
+        let a = NSAttributedString(string: middle, attributes: attrs)
+        composed.append(a)
+      }
+
+      // update prevEndedWithWhitespace to endsWithSpace
+      prevEndedWithWhitespace = endsWithSpace
     }
-    
+
+    // After all fragments, trim single trailing space (HTML collapses trailing block-end whitespace)
+    if composed.length > 0 {
+      let lastIndex = composed.length - 1
+      let lastChar = (composed.string as NSString).substring(with: NSRange(location: lastIndex, length: 1))
+      if wsSet.contains(lastChar.unicodeScalars.first!) {
+        // only remove if last char is not an attachment
+        let isAttachment = (composed.attribute(Constants.VIEW_PLACEHOLDER_KEY, at: lastIndex, effectiveRange: nil) != nil)
+          || (composed.attribute(.attachment, at: lastIndex, effectiveRange: nil) != nil)
+        if !isAttachment {
+          composed.deleteCharacters(in: NSRange(location: lastIndex, length: 1))
+        }
+      }
+    }
+
     // Cache the result
     cachedAttributedString = composed
     attributedStringVersion = segmentsInvalidateVersion
@@ -842,6 +920,7 @@ public class TextEngine: NSObject {
       }
     }
     
+  
     
     if let ptr = node.nativePtr {
       if(segments.isEmpty){

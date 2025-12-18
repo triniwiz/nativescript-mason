@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-
 data class Layout(
   val order: Int,
   val x: Float,
@@ -12,8 +11,11 @@ data class Layout(
   val padding: Rect<Float>,
   val contentSize: Size<Float>,
   val scrollbarSize: Size<Float>,
-  val children: List<Layout>
+  val children: List<Layout>,
 ) {
+  var baseline: Int = -1
+    internal set
+
   companion object {
     internal fun fromFloatArray(args: FloatArray, offset: Int): Pair<Int, Layout> {
       var position = offset

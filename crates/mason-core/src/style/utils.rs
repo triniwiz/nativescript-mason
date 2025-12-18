@@ -13,10 +13,7 @@ use taffy::style::{
 use taffy::style_helpers::{
     FromLength, FromPercent, TaffyAuto, TaffyFitContent, TaffyMaxContent, TaffyMinContent,
 };
-use taffy::{
-    CompactLength, Dimension, MaxTrackSizingFunction,
-    Rect, Size,
-};
+use taffy::{CompactLength, Dimension, MaxTrackSizingFunction, Rect, Size};
 
 #[inline(always)]
 #[track_caller]
@@ -498,7 +495,6 @@ pub fn update_from_ffi(
     grid_area: Option<&str>,
     grid_template_areas: Option<&str>,
 ) {
-
     if let Some(display) = display_from_enum(display) {
         style.set_display(display);
     }
@@ -798,6 +794,42 @@ pub(crate) fn get_style_data_f32(style: &[u8], position: StyleKeys) -> f32 {
     let offset = position as usize;
     unsafe {
         let ptr = style.as_ptr().add(offset) as *const f32;
+        *ptr
+    }
+}
+
+#[inline(always)]
+pub(crate) fn set_style_data_bool(style: &mut [u8], position: StyleKeys, value: bool) {
+    let offset = position as usize;
+    unsafe {
+        let ptr = style.as_mut_ptr().add(offset) as *mut bool;
+        *ptr = value;
+    }
+}
+
+#[inline(always)]
+pub(crate) fn get_style_data_bool(style: &[u8], position: StyleKeys) -> bool {
+    let offset = position as usize;
+    unsafe {
+        let ptr = style.as_ptr().add(offset) as *const bool;
+        *ptr
+    }
+}
+
+#[inline(always)]
+pub(crate) fn set_style_data_u8(style: &mut [u8], position: StyleKeys, value: u8) {
+    let offset = position as usize;
+    unsafe {
+        let ptr = style.as_mut_ptr().add(offset);
+        *ptr = value;
+    }
+}
+
+#[inline(always)]
+pub(crate) fn get_style_data_u8(style: &[u8], position: StyleKeys) -> u8 {
+    let offset = position as usize;
+    unsafe {
+        let ptr = style.as_ptr().add(offset);
         *ptr
     }
 }

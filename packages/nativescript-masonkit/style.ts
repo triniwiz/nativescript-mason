@@ -163,6 +163,24 @@ enum StyleKeys {
   BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448,
   BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452,
   BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456,
+
+  // ----------------------------
+  // Float
+  // ----------------------------
+  FLOAT = 460,
+  CLEAR = 464,
+
+  OBJECT_FIT = 468,
+
+  FONT_METRICS_ASCENT_OFFSET = 472,
+  FONT_METRICS_DESCENT_OFFSET = 476,
+  FONT_METRICS_X_HEIGHT_OFFSET = 480,
+  FONT_METRICS_LEADING_OFFSET = 484,
+  FONT_METRICS_CAP_HEIGHT_OFFSET = 488,
+  VERTICAL_ALIGN_OFFSET_OFFSET = 492,
+  VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496,
+  VERTICAL_ALIGN_ENUM_OFFSET = 500,
+  FIRST_BASELINE_OFFSET = 504,
 }
 
 enum TextStyleKeys {
@@ -227,6 +245,12 @@ function parseLengthPercentage(type: number, value: number): Length {
     case 1:
       return { value, unit: '%' };
   }
+}
+
+const enum DisplayMode {
+  None = 0,
+  Inline = 1,
+  Box = 2,
 }
 
 class StateKeys {
@@ -728,23 +752,29 @@ export class Style {
   }
 
   get display() {
+    const mode = getInt32(this.style_view, StyleKeys.DISPLAY_MODE);
+    if (mode === DisplayMode.Inline) {
+      return 'inline';
+    }
+
     switch (getInt32(this.style_view, StyleKeys.DISPLAY)) {
       case 0:
         return 'none';
       case 1:
+        if (mode === DisplayMode.Box) {
+          return 'inline-flex';
+        }
         return 'flex';
       case 2:
+        if (mode === DisplayMode.Box) {
+          return 'inline-grid';
+        }
         return 'grid';
       case 3:
+        if (mode === DisplayMode.Box) {
+          return 'inline-block';
+        }
         return 'block';
-      case 4:
-        return 'inline';
-      case 5:
-        return 'inline-block';
-      case 6:
-        return 'inline-flex';
-      case 7:
-        return 'inline-grid';
       default:
         return 'none';
     }
@@ -752,6 +782,7 @@ export class Style {
 
   set display(value: 'none' | 'flex' | 'grid' | 'block' | 'inline' | 'inline-block' | 'inline-flex' | 'inline-grid') {
     let display = -1;
+    let displayMode = 0;
     switch (value) {
       case 'none':
         display = 0;
@@ -766,20 +797,27 @@ export class Style {
         display = 3;
         break;
       case 'inline':
-        display = 4;
+        // inline
+        display = 1;
+        displayMode = 1;
         break;
       case 'inline-block':
-        display = 5;
+        // inline-block
+        display = 3;
+        displayMode = 2;
         break;
       case 'inline-flex':
-        display = 6;
+        display = 1;
+        displayMode = 2;
         break;
       case 'inline-grid':
-        display = 7;
+        display = 2;
+        displayMode = 2;
         break;
     }
     if (display != -1) {
       setInt32(this.style_view, StyleKeys.DISPLAY, display);
+      setInt32(this.style_view, StyleKeys.DISPLAY_MODE, displayMode);
       this.setOrAppendState(StateKeys.DISPLAY);
     }
   }
@@ -2611,7 +2649,6 @@ export class Style {
         break;
       case 'scroll':
         setInt32(this.style_view, StyleKeys.OVERFLOW_Y, 2);
-        org.nativescript.mason.masonkit.NodeHelper.getShared().setOverflowX(this.nativeView, org.nativescript.mason.masonkit.enums.Overflow.Scroll);
         dirty = true;
         break;
       case 'clip':

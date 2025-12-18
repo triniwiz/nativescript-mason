@@ -15,10 +15,10 @@ internal object NodeUtils {
 
     }
     if (node.isAnonymous) {
-      if (node.view == null || node.view is TextView) {
+      if (node.view == null || node.view is TextContainer) {
         return true
       }
-    } else if (node.view is TextView) {
+    } else if (node.view is TextContainer) {
       return true
     }
     return false
@@ -66,7 +66,7 @@ internal object NodeUtils {
 
   fun invalidateLayout(node: Node, invalidateRoot: Boolean = false) {
     if (node.type == NodeType.Text) {
-      (node as? TextNode)?.container?.invalidateLayout()
+      ((node as? TextNode)?.container?.node?.view as? Element)?.invalidateLayout()
       return
     }
     (node.view as? Element)?.let {

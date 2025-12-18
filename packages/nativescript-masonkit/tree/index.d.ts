@@ -40,4 +40,6 @@ export class Tree {
   createImageView(context?): org.nativescript.mason.masonkit.Img | MasonImg;
 
   createScrollView(context?): org.nativescript.mason.masonkit.Scroll | MasonScroll;
+
+  createButtonView(context?): org.nativescript.mason.masonkit.Button | MasonButton;
 }

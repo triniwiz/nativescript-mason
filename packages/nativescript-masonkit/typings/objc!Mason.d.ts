@@ -166,6 +166,96 @@ declare const enum MasonBoxSizing {
 	ContentBox = 1
 }
 
+declare class MasonButton extends UIControl implements MasonElementObjc, MasonTextContainer {
+
+	static alloc(): MasonButton; // inherited from NSObject
+
+	static appearance(): MasonButton; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 */
+	static appearanceForTraitCollection(trait: UITraitCollection): MasonButton; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 * @deprecated 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonButton; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonButton; // inherited from UIAppearance
+
+	/**
+	 * @since 5.0
+	 * @deprecated 9.0
+	 */
+	static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonButton; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonButton; // inherited from UIAppearance
+
+	static new(): MasonButton; // inherited from NSObject
+
+	engine: MasonTextEngine;
+
+	readonly mason: NSCMason;
+
+	textContent: string;
+
+	readonly textValues: NSMutableData;
+
+	readonly debugDescription: string; // inherited from NSObjectProtocol
+
+	readonly description: string; // inherited from NSObjectProtocol
+
+	readonly hash: number; // inherited from NSObjectProtocol
+
+	readonly isProxy: boolean; // inherited from NSObjectProtocol
+
+	readonly node: MasonNode; // inherited from MasonElementObjc
+
+	readonly style: MasonStyle; // inherited from MasonElementObjc
+
+	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+
+	readonly uiView: UIView; // inherited from MasonElementObjc
+
+	readonly  // inherited from NSObjectProtocol
+
+	addView(view: UIView): void;
+
+	addViewAt(view: UIView, at: number): void;
+
+	class(): typeof NSObject;
+
+	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
+
+	isEqual(object: any): boolean;
+
+	isKindOfClass(aClass: typeof NSObject): boolean;
+
+	isMemberOfClass(aClass: typeof NSObject): boolean;
+
+	performSelector(aSelector: string): any;
+
+	performSelectorWithObject(aSelector: string, object: any): any;
+
+	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
+
+	requestLayout(): void;
+
+	respondsToSelector(aSelector: string): boolean;
+
+	retainCount(): number;
+
+	self(): this;
+}
+
 interface MasonCharacterData {
 
 	data: string;
@@ -825,6 +915,8 @@ declare class MasonNode extends NSObject {
 
 	getChildren(): NSArray<MasonNode>;
 
+	getDefaultAttributes(): NSDictionary<string, any>;
+
 	getLayoutChildren(): NSArray<MasonNode>;
 
 	getRoot(): UIView;
@@ -1033,7 +1125,17 @@ declare class MasonStyle extends NSObject {
 
 	background: string;
 
+	backgroundClip: string;
+
 	backgroundColor: number;
+
+	backgroundImage: string;
+
+	backgroundPosition: string;
+
+	backgroundRepeat: string;
+
+	backgroundSize: string;
 
 	border: string;
 
@@ -1307,7 +1409,7 @@ declare class MasonSwiftHelpers extends NSObject {
 	static requestLayout(element: MasonElementObjc): void;
 }
 
-declare class MasonText extends UIView implements MasonElementObjc {
+declare class MasonText extends UIView implements MasonElementObjc, MasonTextContainer {
 
 	static alloc(): MasonText; // inherited from NSObject
 
@@ -1351,6 +1453,8 @@ declare class MasonText extends UIView implements MasonElementObjc {
 	decorationColor: number;
 
 	decorationLine: MasonDecorationLine;
+
+	engine: MasonTextEngine;
 
 	fontSize: number;
 
@@ -1456,6 +1560,24 @@ declare const enum MasonTextAlign {
 	Start = 5,
 
 	End = 6
+}
+
+interface MasonTextContainer extends NSObjectProtocol {
+
+	engine: MasonTextEngine;
+
+	node: MasonNode;
+}
+declare var MasonTextContainer: {
+
+	prototype: MasonTextContainer;
+};
+
+declare class MasonTextEngine extends NSObject {
+
+	static alloc(): MasonTextEngine; // inherited from NSObject
+
+	static new(): MasonTextEngine; // inherited from NSObject
 }
 
 declare const enum MasonTextJustify {
@@ -2154,6 +2276,8 @@ declare class NSCMason extends NSObject {
 	clear(): void;
 
 	configureStyleForView(view: UIView, block: (p1: MasonStyle) => void): void;
+
+	createButton(): MasonButton;
 
 	createDocument(): MasonDocument;
 

@@ -123,6 +123,7 @@ export class View extends ViewBase {
       child._hasNativeView = true;
       child._isMasonChild = true;
       const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      console.log('Adding child at index:', index);
       nativeView.addViewAt(child.nativeViewProtected, index);
       return true;
     }

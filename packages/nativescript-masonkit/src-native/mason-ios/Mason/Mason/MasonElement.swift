@@ -34,7 +34,7 @@ public protocol MasonElement: NSObjectProtocol {
   
   func configure(_ block: (MasonStyle) -> Void)
   
-  @discardableResult    func layout() -> MasonLayout
+  @discardableResult func layout() -> MasonLayout
   
   func compute()
   
@@ -579,7 +579,6 @@ class MasonElementHelpers: NSObject {
       
       if let scroll = node.view as? Scroll {
         let overflow = node.style.overflow
-        
         
         scroll.contentSize = CGSize(width: CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), height: CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale))
         

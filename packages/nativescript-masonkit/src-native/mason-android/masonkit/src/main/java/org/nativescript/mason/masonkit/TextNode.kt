@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.graphics.Color
 import android.graphics.Paint
 import android.text.Spannable
 import android.text.SpannableStringBuilder
@@ -10,6 +11,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.LineHeightSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
+import org.nativescript.mason.masonkit.Spans.*
 
 
 class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
@@ -17,15 +19,13 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
     this.data = data
   }
 
-  internal var container: TextView? = null
-
-  internal var attributes: MutableMap<String, Any> = mutableMapOf()
+  internal var container: TextContainer? = null
 
   override var data: String = ""
     set(value) {
       field = value
       // Invalidate the container when text changes
-      container?.invalidateInlineSegments()
+      container?.engine?.invalidateInlineSegments()
     }
 
   override var layoutParent: Node?
@@ -168,14 +168,14 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
     val flags = Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
 
     // Apply color
-    attributes["color"]?.let { color ->
-      if (color is Int && color != 0) {
+    attributes.color?.let { color ->
+      if (color != 0) {
         spannable.setSpan(ForegroundColorSpan(color), start, end, flags)
       }
     }
 
     // Apply font size
-    attributes["fontSize"]?.let { size ->
+    attributes.fontSize?.let { size ->
       var fontSize: Int? = null
       when (size) {
         is Int -> {
@@ -192,15 +192,15 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
     }
 
     // Apply letter spacing
-    (attributes["letterSpacing"] as? Float)?.takeIf { it > 0 }?.let { spacing ->
+    attributes.letterSpacing?.takeIf { it > 0 }?.let { spacing ->
       spannable.setSpan(
         android.text.style.ScaleXSpan(1f + spacing), start, end, flags
       )
     }
 
     // Apply line height
-    (attributes["lineHeight"] as? Float)?.let { lineHeight ->
-      val type = attributes["lineHeightType"] as? Byte ?: 0
+    attributes.lineHeight?.let { lineHeight ->
+      val type = attributes.lineHeightType ?: 0
       lineHeight.takeIf { it > 0 }?.let {
         // 1 px/dip
         if (type == StyleState.SET) {
@@ -211,15 +211,16 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
       }
     }
 
+
     // Apply typeface
-    attributes["typeface"]?.let { typeface ->
+    attributes.font?.font.let { typeface ->
       if (typeface is android.graphics.Typeface) {
         spannable.setSpan(Spans.TypefaceSpan(typeface), start, end, flags)
       }
     }
 
     // Apply decoration
-    attributes["decorationLine"]?.let { decoration ->
+    attributes.decorationLine?.let { decoration ->
       when (decoration) {
         Styles.DecorationLine.Underline -> {
           spannable.setSpan(UnderlineSpan(), start, end, flags)
@@ -229,17 +230,32 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
           spannable.setSpan(StrikethroughSpan(), start, end, flags)
         }
 
-        else -> {}
+        Styles.DecorationLine.Overline -> {
+          /*
+          spannable.setSpan(
+            OverlineSpan(
+              attributes.decorationColor ?: Color.BLACK,
+              attributes.decorationThickness ?: (1f * Mason.shared.scale)
+            ), start, end, flags
+          )*/
+        }
+        Styles.DecorationLine.UnderlineLineThrough ->  {
+          spannable.setSpan(UnderlineSpan(), start, end, flags)
+          spannable.setSpan(StrikethroughSpan(), start, end, flags)
+        }
+        Styles.DecorationLine.UnderlineOverline -> {}
+        Styles.DecorationLine.OverlineUnderlineLineThrough -> {}
+        else ->  {}
       }
     }
 
-    // Apply textAligment
-    (attributes["textAlign"] as? android.text.Layout.Alignment)?.let { align ->
+    // Apply textAlignment
+    attributes.textAlign?.let { align ->
       spannable.setSpan(AlignmentSpan.Standard(align), start, end, flags)
     }
     // Apply backgroundColor
-    attributes["backgroundColor"]?.let { color ->
-      if (color is Int && color != 0) {
+    attributes.backgroundColor?.let { color ->
+      if (color != 0) {
         spannable.setSpan(Spans.BackgroundColorSpan(color), start, end, flags)
       }
     }
@@ -250,7 +266,7 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
     var processed = text
 
     // Apply text transform
-    processed = when (container.textTransform) {
+    processed = when (container.style.textTransform) {
       Styles.TextTransform.None -> processed
       Styles.TextTransform.Capitalize -> processed.split(" ").joinToString(" ") {
         it.replaceFirstChar { c -> if (c.isLowerCase()) c.titlecase() else c.toString() }
@@ -262,7 +278,7 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
     }
 
     // Apply whitespace processing
-    processed = when (container.whiteSpace) {
+    processed = when (container.style.whiteSpace) {
       Styles.WhiteSpace.Normal, Styles.WhiteSpace.NoWrap -> {
         // Collapse sequences of whitespace
         normalizeNewlines(processed).replace(Regex("[ \t\u000B\u000C\n]+"), " ")

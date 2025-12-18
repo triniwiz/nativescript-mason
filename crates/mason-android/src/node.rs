@@ -1130,3 +1130,50 @@ pub extern "system" fn NodeNativeSetAndroidNode(
         }
     }
 }
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewImageNode(taffy: jlong) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+        Box::into_raw(Box::new(mason.create_image_node())) as jlong
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewImageNodeNormal(_: JNIEnv, _: JClass, taffy: jlong) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+        Box::into_raw(Box::new(mason.create_image_node())) as jlong
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewImageNodeWithContext(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    measure: JObject,
+) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    let measure = env.new_global_ref(measure).unwrap();
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+
+        let node = mason.create_image_node();
+
+        mason.setup(node.id(), Some(measure));
+
+        Box::into_raw(Box::new(node)) as jlong
+    }
+}

@@ -1765,6 +1765,8 @@ textContentProperty.register(TextBase);
 textWrapProperty.register(Style);
 textOverFlowProperty.register(Style);
 
+export class ButtonBase extends TextBase {}
+
 // @ts-ignore
 export const srcProperty = new Property<ImageBase, string>({
   name: 'src',

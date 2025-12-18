@@ -199,6 +199,16 @@ public class MasonNode: NSObject {
     type = .text
     super.init()
   }
+  
+  internal init(masonImage doc: NSCMason) {
+    mason = doc
+    nativePtr = mason_node_new_image_node(mason.nativePtr)
+    type = .element
+    super.init()
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
+  }
+  
+  
   internal init(mason doc: NSCMason, _ isAnonymous: Bool = false) {
     mason = doc
     nativePtr = mason_node_new_node(mason.nativePtr, isAnonymous)
@@ -479,13 +489,15 @@ extension MasonNode {
       } else {
         getOrCreateAnonymousTextContainer()
       }
-      
+    
+  
       container.children.append(child)
       if let child = child as? MasonTextNode, let it = container.view as? MasonText {
         child.attributes = it.getDefaultAttributes()
         child.container = it
         it.engine.invalidateInlineSegments()
       }
+      (container.view as? TextContainer)?.engine.invalidateInlineSegments()
       NodeUtils.invalidateLayout(self)
     } else {
       children.append(child)

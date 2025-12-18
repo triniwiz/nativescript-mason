@@ -118,4 +118,56 @@ extension CSSBorderRenderer {
     }
     return (width, style, color)
   }
+  
+  
+  
+  static func parseBorderRadius(_ style: MasonStyle, _ value: String) {
+      let parts = value
+          .split(whereSeparator: { $0.isWhitespace })
+          .compactMap { parseLengthPercentage(String($0)) }
+
+      switch parts.count {
+      case 1:
+          let lp = parts[0]
+          style.mBorderRender.radius.topLeft = CornerRadius(horizontal: lp, vertical: lp, exponent: 1)
+          style.mBorderRender.radius.topRight = CornerRadius(horizontal: lp, vertical: lp, exponent: 1)
+          style.mBorderRender.radius.bottomRight = CornerRadius(horizontal: lp, vertical: lp, exponent: 1)
+          style.mBorderRender.radius.bottomLeft = CornerRadius(horizontal: lp, vertical: lp, exponent: 1)
+
+      case 2:
+        
+        let first = parts[0]
+        let second = parts[1]
+        
+        style.mBorderRender.radius.topLeft = CornerRadius(horizontal: first, vertical: first, exponent: 1)
+        style.mBorderRender.radius.topRight = CornerRadius(horizontal: second, vertical: second, exponent: 1)
+        style.mBorderRender.radius.bottomRight = CornerRadius(horizontal: first, vertical: first, exponent: 1)
+        style.mBorderRender.radius.bottomLeft = CornerRadius(horizontal: second, vertical: second, exponent: 1)
+
+      case 3:
+        
+        style.mBorderRender.radius.topLeft = CornerRadius(horizontal: parts[0], vertical: parts[0], exponent: 1)
+        style.mBorderRender.radius.topRight = CornerRadius(horizontal: parts[1], vertical: parts[1], exponent: 1)
+        style.mBorderRender.radius.bottomRight = CornerRadius(horizontal: parts[2], vertical: parts[2], exponent: 1)
+        style.mBorderRender.radius.bottomLeft = CornerRadius(horizontal: parts[1], vertical: parts[1], exponent: 1)
+
+      case 4:
+        style.mBorderRender.radius.topLeft = CornerRadius(horizontal: parts[0], vertical: parts[0], exponent: 1)
+        style.mBorderRender.radius.topRight = CornerRadius(horizontal: parts[1], vertical: parts[1], exponent: 1)
+        style.mBorderRender.radius.bottomRight = CornerRadius(horizontal: parts[2], vertical: parts[2], exponent: 1)
+        style.mBorderRender.radius.bottomLeft = CornerRadius(horizontal: parts[3], vertical: parts[3], exponent: 1)
+
+      default:
+          break
+      }
+
+    
+      if !parts.isEmpty {
+          if !style.inBatch {
+            // border radius ?
+            style.isDirty = Int64(StateKeys.border.rawValue)
+            style.updateNativeStyle()
+          }
+      }
+  }
 }

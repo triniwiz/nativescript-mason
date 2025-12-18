@@ -55,6 +55,11 @@ public class MasonImageLayer: CALayer {
     needsDisplayOnBoundsChange = true
   }
   
+  public override init(layer: Any) {
+    super.init(layer: layer)
+    needsDisplayOnBoundsChange = true
+  }
+  
   
   public override func draw(in context: CGContext) {
     guard bounds.width > 0, bounds.height > 0  else {
@@ -186,6 +191,7 @@ public class Img: UIView, MasonElement, MasonElementObjc {
   public var image: UIImage? {
     didSet {
       requestLayout()
+      setNeedsLayout()
       setNeedsDisplay()
     }
   }
@@ -201,10 +207,10 @@ public class Img: UIView, MasonElement, MasonElementObjc {
     setNeedsDisplay()
   }
   
-  public override func setNeedsDisplay() {
-    super.setNeedsDisplay()
-    masonLayer.setNeedsDisplay()
-  }
+//  public override func setNeedsDisplay() {
+//    super.setNeedsDisplay()
+//    masonLayer.setNeedsDisplay()
+//  }
   
   private var fit: ObjectFit = .Fill
   
@@ -249,13 +255,12 @@ public class Img: UIView, MasonElement, MasonElementObjc {
   }
   
   init(mason doc: NSCMason) {
-    node = doc.createNode()
-    node.style.display = Display.Inline
+    node = doc.createImageNode()
     mason = doc
     super.init(frame: .zero)
+    isOpaque = false
     masonLayer.view = self
     masonLayer.contentsScale = UIScreen.main.scale
-    isOpaque = false
     node.view = self
     node.measureFunc = { known, available in
       return Img.measure(self, known, available)
@@ -301,6 +306,7 @@ public class Img: UIView, MasonElement, MasonElementObjc {
     
     view.node.cachedWidth = ret.width
     view.node.cachedHeight = ret.height
+    
     
     return ret
   }

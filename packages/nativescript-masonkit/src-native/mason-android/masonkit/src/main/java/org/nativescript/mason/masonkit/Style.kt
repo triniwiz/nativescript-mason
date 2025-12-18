@@ -2,6 +2,8 @@ package org.nativescript.mason.masonkit
 
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.text.TextPaint
 import android.view.View
 import androidx.core.graphics.withClip
 import dalvik.annotation.optimization.FastNative
@@ -27,10 +29,10 @@ import org.nativescript.mason.masonkit.enums.ObjectFit
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.enums.VerticalAlign
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
-
 
 object StyleKeys {
   const val DISPLAY = 0
@@ -199,6 +201,16 @@ object StyleKeys {
   const val CLEAR = 464
 
   const val OBJECT_FIT = 468
+
+  const val FONT_METRICS_ASCENT_OFFSET = 472
+  const val FONT_METRICS_DESCENT_OFFSET = 476
+  const val FONT_METRICS_X_HEIGHT_OFFSET = 480
+  const val FONT_METRICS_LEADING_OFFSET = 484
+  const val FONT_METRICS_CAP_HEIGHT_OFFSET = 488
+  const val VERTICAL_ALIGN_OFFSET_OFFSET = 492
+  const val VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496
+  const val VERTICAL_ALIGN_ENUM_OFFSET = 500
+  const val FIRST_BASELINE_OFFSET = 504
 }
 
 @JvmInline
@@ -276,9 +288,10 @@ object TextStyleChangeMask {
   const val TEXT_OVERFLOW: Int = 1 shl 14
   const val LINE_HEIGHT: Int = 1 shl 15
   const val TEXT_ALIGN: Int = 1 shl 16
+  const val VERTICAL_ALIGN: Int = 1 shl 17
+  const val DECORATION_THICKNESS: Int = 1 shl 18
   const val ALL: Int = -1
 }
-
 
 @JvmInline
 internal value class GridStateKeys internal constructor(val bits: Long) {
@@ -329,7 +342,6 @@ internal class GridState {
   }
 }
 
-
 interface StyleChangeListener {
   fun onTextStyleChanged(change: Int)
 }
@@ -344,8 +356,119 @@ class Style internal constructor(internal var node: Node) {
   internal var isTextValueInitialized: Boolean = false
   internal var gridState = GridState()
 
-  var font: FontFace = FontFace("sans-serif")
-    internal set
+  var font: FontFace = FontFace("sans-serif").apply {
+    owner = this@Style
+  }
+
+
+  data class FontMetrics(
+    val ascent: Float,
+    val descent: Float,
+    val xHeight: Float,
+    val leading: Float,
+    val capHeight: Float
+  ) {
+    companion object {
+      @JvmStatic
+      fun from(style: Style): FontMetrics {
+        return FontMetrics(
+          style.values.getFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET),
+          style.values.getFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET),
+          style.values.getFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET),
+          style.values.getFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET),
+          style.values.getFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET)
+        )
+      }
+    }
+  }
+
+
+  private var defaultPaint: TextPaint? = null
+
+  private val paint: TextPaint
+    get() {
+      return if (node.view is TextContainer) {
+        (node.view as TextContainer).getPaint()
+      } else {
+        if (defaultPaint == null) {
+          defaultPaint = TextPaint()
+        }
+        defaultPaint?.apply {
+          Mason.shared.scale
+          textSize =
+            16f * ((node.view as? View)?.resources?.displayMetrics?.density ?: Mason.shared.scale)
+        }
+        defaultPaint!!
+      }
+    }
+
+  internal fun getFontMetrics(): FontMetrics {
+    return FontMetrics.from(this)
+  }
+
+  /**
+   * Update font metrics on a Mason node when font changes
+   */
+  internal fun syncFontMetrics() {
+
+    val fm = paint.fontMetrics
+
+    // Android uses negative ascent, positive descent
+    val ascent = -fm.ascent
+    val descent = fm.descent
+    val leading = fm.leading
+
+    // Android doesn't directly expose x-height or cap-height
+    // We approximate them based on the font
+    val xHeight = getXHeight(paint) ?: (ascent * 0.5f)
+    val capHeight = getCapHeight(paint) ?: (ascent * 0.7f)
+
+    values.putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
+    values.putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
+    values.putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight)
+    values.putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
+    values.putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
+  }
+
+  /**
+   * Update first baseline after text layout
+   */
+  internal fun updateFirstBaseline() {
+    val baseline = -paint.fontMetrics.ascent
+    values.putFloat(StyleKeys.FIRST_BASELINE_OFFSET, baseline)
+  }
+
+  /**
+   * Clear metrics when node no longer has text
+   */
+  internal fun clearFontMetrics() {
+
+    values.putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, 14f)
+    values.putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, 4f)
+    values.putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7f)
+    values.putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, 0f)
+    values.putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10f)
+  }
+
+  private val xBounds = android.graphics.Rect()
+
+  /**
+   * Get x-height by measuring lowercase 'x'
+   */
+  internal fun getXHeight(paint: Paint): Float? {
+    paint.getTextBounds("x", 0, 1, xBounds)
+    return if (xBounds.height() > 0) xBounds.height().toFloat() else null
+  }
+
+  private val capBounds = android.graphics.Rect()
+
+  /**
+   * Get cap-height by measuring uppercase 'H'
+   */
+  internal fun getCapHeight(paint: Paint): Float? {
+    paint.getTextBounds("H", 0, 1, capBounds)
+    return if (capBounds.height() > 0) capBounds.height().toFloat() else null
+  }
 
   val values: ByteBuffer by lazy {
     isValueInitialized = true
@@ -356,7 +479,7 @@ class Style internal constructor(internal var node: Node) {
 
   val textValues: ByteBuffer by lazy {
     isTextValueInitialized = true
-    ByteBuffer.allocateDirect(140).apply {
+    ByteBuffer.allocateDirect(150).apply {
       order(ByteOrder.nativeOrder())
 
       // Initialize all values with INHERIT state
@@ -450,7 +573,9 @@ class Style internal constructor(internal var node: Node) {
           TextStateKeys.TEXT_OVERFLOW
         ) || colorDirty || value.hasFlag(TextStateKeys.BACKGROUND_COLOR) || value.hasFlag(
           TextStateKeys.DECORATION_COLOR
-        ) || value.hasFlag(TextStateKeys.DECORATION_LINE) || sizeDirty || weightDirty || styleDirty || lineHeightDirty
+        ) || value.hasFlag(TextStateKeys.DECORATION_LINE) || sizeDirty || weightDirty || styleDirty || lineHeightDirty || value.hasFlag(
+          TextStateKeys.DECORATION_THICKNESS
+        )
       ) {
         invalidate = true
       }
@@ -654,6 +779,7 @@ class Style internal constructor(internal var node: Node) {
           weight = oldFont.weight
           style = oldFont.style
           fontDescriptors.display = oldFont.fontDescriptors.display
+          owner = this@Style
         }
         textValues.put(TextStyleKeys.FONT_FAMILY_STATE, StyleState.SET)
         notifyTextStyleChanged(TextStyleChangeMask.FONT_FAMILY)
@@ -798,11 +924,46 @@ class Style internal constructor(internal var node: Node) {
       notifyTextStyleChanged(TextStyleChangeMask.TEXT_TRANSFORM)
     }
 
+  var verticalAlign: VerticalAlign
+    get() {
+      return VerticalAlign.fromStyle(this)
+    }
+    set(value) {
+
+      when (value) {
+        VerticalAlign.Length -> {
+          values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0)
+          values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0)
+          values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value)
+        }
+
+        VerticalAlign.Percent -> {
+          values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0)
+          values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1)
+          values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value)
+        }
+
+        else -> {
+          values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, value.type)
+          values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0)
+          values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0f)
+        }
+      }
+
+      notifyTextStyleChanged(TextStyleChangeMask.VERTICAL_ALIGN)
+    }
+
+
   var backgroundColor: Int
     get() {
       return textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
     }
     set(value) {
+      mBackground?.let {
+        it.color = value
+      } ?: run {
+        mBackground = Background(value)
+      }
       textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, value)
       textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.BACKGROUND_COLOR)
@@ -838,6 +999,17 @@ class Style internal constructor(internal var node: Node) {
       textValues.putInt(TextStyleKeys.DECORATION_STYLE, value.value)
       textValues.put(TextStyleKeys.DECORATION_STYLE_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.DECORATION_STYLE)
+    }
+
+
+  var decorationThickness: Float
+    get() {
+      return textValues.getFloat(TextStyleKeys.DECORATION_THICKNESS)
+    }
+    set(value) {
+      textValues.putFloat(TextStyleKeys.DECORATION_THICKNESS, value)
+      textValues.put(TextStyleKeys.DECORATION_THICKNESS_STATE, StyleState.SET)
+      notifyTextStyleChanged(TextStyleChangeMask.DECORATION_THICKNESS)
     }
 
   var lineHeight: Float
@@ -1085,13 +1257,16 @@ class Style internal constructor(internal var node: Node) {
   var inset: Rect<LengthPercentageAuto>
     get() {
       return Rect(
-        LengthPercentageAuto.fromTypeValue(
+        left = LengthPercentageAuto.fromTypeValue(
           values.getInt(StyleKeys.INSET_LEFT_TYPE), values.getFloat(StyleKeys.INSET_LEFT_VALUE)
-        )!!, LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.INSET_RIGHT_TYPE), values.getFloat(StyleKeys.INSET_RIGHT_VALUE)
-        )!!, LengthPercentageAuto.fromTypeValue(
+        )!!,
+        top = LengthPercentageAuto.fromTypeValue(
           values.getInt(StyleKeys.INSET_TOP_TYPE), values.getFloat(StyleKeys.INSET_TOP_VALUE)
-        )!!, LengthPercentageAuto.fromTypeValue(
+        )!!,
+        right = LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.INSET_RIGHT_TYPE), values.getFloat(StyleKeys.INSET_RIGHT_VALUE)
+        )!!,
+        bottom = LengthPercentageAuto.fromTypeValue(
           values.getInt(StyleKeys.INSET_BOTTOM_TYPE), values.getFloat(StyleKeys.INSET_BOTTOM_VALUE)
         )!!
       )
@@ -1174,13 +1349,17 @@ class Style internal constructor(internal var node: Node) {
   var margin: Rect<LengthPercentageAuto>
     get() {
       return Rect(
-        LengthPercentageAuto.fromTypeValue(
+        left = LengthPercentageAuto.fromTypeValue(
           values.getInt(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
-        )!!, LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
-        )!!, LengthPercentageAuto.fromTypeValue(
+        )!!,
+        top = LengthPercentageAuto.fromTypeValue(
           values.getInt(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
-        )!!, LengthPercentageAuto.fromTypeValue(
+        )!!,
+
+        right = LengthPercentageAuto.fromTypeValue(
+          values.getInt(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
+        )!!,
+        bottom = LengthPercentageAuto.fromTypeValue(
           values.getInt(StyleKeys.MARGIN_BOTTOM_TYPE),
           values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
         )!!
@@ -1201,6 +1380,40 @@ class Style internal constructor(internal var node: Node) {
 
       setOrAppendState(StateKeys.MARGIN)
     }
+
+  fun setMargin(left: Float, top: Float, right: Float, bottom: Float) {
+    margin = Rect(
+      LengthPercentageAuto.Points(
+        top
+      ),
+      LengthPercentageAuto.Points(
+        right
+      ),
+      LengthPercentageAuto.Points(
+        bottom
+      ),
+      LengthPercentageAuto.Points(
+        left
+      ),
+    )
+  }
+
+  fun setMargin(left: Int, top: Int, right: Int, bottom: Int) {
+    margin = Rect(
+      LengthPercentageAuto.Points(
+        top.toFloat()
+      ),
+      LengthPercentageAuto.Points(
+        right.toFloat()
+      ),
+      LengthPercentageAuto.Points(
+        bottom.toFloat()
+      ),
+      LengthPercentageAuto.Points(
+        left.toFloat()
+      )
+    )
+  }
 
   fun setMarginLeft(value: Float, type: Int) {
     val left = LengthPercentageAuto.fromTypeValue(type, value)
@@ -1263,35 +1476,78 @@ class Style internal constructor(internal var node: Node) {
 
   var padding: Rect<LengthPercentage>
     get() {
+      val left = LengthPercentage.fromTypeValue(
+        values.getInt(StyleKeys.PADDING_LEFT_TYPE), values.getFloat(StyleKeys.PADDING_LEFT_VALUE)
+      )!!
+
+      val top = LengthPercentage.fromTypeValue(
+        values.getInt(StyleKeys.PADDING_TOP_TYPE), values.getFloat(StyleKeys.PADDING_TOP_VALUE)
+      )!!
+
+      val right = LengthPercentage.fromTypeValue(
+        values.getInt(StyleKeys.PADDING_RIGHT_TYPE),
+        values.getFloat(StyleKeys.PADDING_RIGHT_VALUE)
+      )!!
+
+      val bottom = LengthPercentage.fromTypeValue(
+        values.getInt(StyleKeys.PADDING_BOTTOM_TYPE),
+        values.getFloat(StyleKeys.PADDING_BOTTOM_VALUE)
+      )!!
+
       return Rect(
-        LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.PADDING_LEFT_TYPE), values.getFloat(StyleKeys.PADDING_LEFT_VALUE)
-        )!!, LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.PADDING_RIGHT_TYPE),
-          values.getFloat(StyleKeys.PADDING_RIGHT_VALUE)
-        )!!, LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.PADDING_TOP_TYPE), values.getFloat(StyleKeys.PADDING_TOP_VALUE)
-        )!!, LengthPercentage.fromTypeValue(
-          values.getInt(StyleKeys.PADDING_BOTTOM_TYPE),
-          values.getFloat(StyleKeys.PADDING_BOTTOM_VALUE)
-        )!!
+        top, right, bottom, left
       )
     }
     set(value) {
 
-      values.putInt(StyleKeys.PADDING_LEFT_TYPE, value.left.type)
-      values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value.left.value)
+      values.putInt(StyleKeys.PADDING_TOP_TYPE, value.top.type)
+      values.putFloat(StyleKeys.PADDING_TOP_VALUE, value.top.value)
 
       values.putInt(StyleKeys.PADDING_RIGHT_TYPE, value.right.type)
       values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value.right.value)
 
-      values.putInt(StyleKeys.PADDING_TOP_TYPE, value.top.type)
-      values.putFloat(StyleKeys.PADDING_TOP_VALUE, value.top.value)
-
       values.putInt(StyleKeys.PADDING_BOTTOM_TYPE, value.bottom.type)
       values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value.bottom.value)
+
+      values.putInt(StyleKeys.PADDING_LEFT_TYPE, value.left.type)
+      values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value.left.value)
+
       setOrAppendState(StateKeys.PADDING)
     }
+
+  fun setPadding(left: Float, top: Float, right: Float, bottom: Float) {
+    padding = Rect(
+      LengthPercentage.Points(
+        top
+      ),
+      LengthPercentage.Points(
+        right
+      ),
+      LengthPercentage.Points(
+        bottom
+      ),
+      LengthPercentage.Points(
+        left
+      )
+    )
+  }
+
+  fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+    padding = Rect(
+      LengthPercentage.Points(
+        top.toFloat()
+      ),
+      LengthPercentage.Points(
+        right.toFloat()
+      ),
+      LengthPercentage.Points(
+        bottom.toFloat()
+      ),
+      LengthPercentage.Points(
+        left.toFloat()
+      )
+    )
+  }
 
   fun setPaddingLeft(value: Float, type: Int) {
     val left = LengthPercentage.fromTypeValue(type, value)
@@ -1436,10 +1692,10 @@ class Style internal constructor(internal var node: Node) {
   var borderStyle: Rect<BorderStyle>
     get() {
       return Rect(
-        mBorderLeft.style,
-        mBorderRight.style,
         mBorderTop.style,
+        mBorderRight.style,
         mBorderBottom.style,
+        mBorderLeft.style
       )
     }
     set(value) {
@@ -1527,8 +1783,8 @@ class Style internal constructor(internal var node: Node) {
     get() {
       return Rect(
         left = mBorderLeft.color,
-        top = mBorderTop.color,
         right = mBorderRight.color,
+        top = mBorderTop.color,
         bottom = mBorderBottom.color
       )
     }
@@ -1590,10 +1846,10 @@ class Style internal constructor(internal var node: Node) {
   var borderWidth: Rect<LengthPercentage>
     get() {
       return Rect(
-        left = mBorderLeft.width,
-        top = mBorderTop.width,
         right = mBorderRight.width,
-        bottom = mBorderBottom.width
+        top = mBorderTop.width,
+        bottom = mBorderBottom.width,
+        left = mBorderLeft.width,
       )
     }
     set(value) {
@@ -2398,7 +2654,7 @@ class Style internal constructor(internal var node: Node) {
       marginBottom = it
     }
 
-    return Rect(marginLeft, marginRight, marginTop, marginBottom)
+    return Rect(marginTop, marginRight, marginBottom, marginLeft)
   }
 
   fun getNativeSize(): Size<Dimension> {
@@ -2517,6 +2773,7 @@ class Style internal constructor(internal var node: Node) {
       val resolvedFont = FontFace(baseFamily).apply {
         weight = resolvedWeight
         style = resolvedStyle
+        owner = this@Style
       }
 
       return resolvedFont
@@ -2623,6 +2880,19 @@ class Style internal constructor(internal var node: Node) {
         Styles.DecorationStyle.fromInt(textValues.getInt(TextStyleKeys.DECORATION_STYLE))
       }
     }
+
+
+  internal val resolvedDecorationThickness: Float
+    get() {
+      val state = textValues.get(TextStyleKeys.DECORATION_THICKNESS)
+      return if (state == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedDecorationThickness
+          ?: textValues.getFloat(TextStyleKeys.DECORATION_THICKNESS)
+      } else {
+        textValues.getFloat(TextStyleKeys.DECORATION_THICKNESS)
+      }
+    }
+
 
   internal val resolvedLetterSpacing: Float
     get() {

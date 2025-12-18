@@ -1,9 +1,10 @@
 use crate::style::utils::{
     dimension_from_type_value, dimension_to_format_type_value, dimension_to_type_value,
-    get_style_data_f32, get_style_data_i32, length_percentage_auto_from_type_value,
-    length_percentage_auto_to_format_type_value, length_percentage_auto_to_type_value,
-    length_percentage_from_type_value, length_percentage_to_format_type_value,
-    length_percentage_to_type_value, set_style_data_f32, set_style_data_i32,
+    get_style_data_bool, get_style_data_f32, get_style_data_i32, get_style_data_u8,
+    length_percentage_auto_from_type_value, length_percentage_auto_to_format_type_value,
+    length_percentage_auto_to_type_value, length_percentage_from_type_value,
+    length_percentage_to_format_type_value, length_percentage_to_type_value, set_style_data_bool,
+    set_style_data_f32, set_style_data_i32, set_style_data_u8,
 };
 use crate::utils::{
     align_content_from_enum, align_content_to_enum, align_items_from_enum, align_items_to_enum,
@@ -132,6 +133,232 @@ impl std::fmt::Display for ObjectFit {
             ObjectFit::Fill => write!(f, "fill"),
             ObjectFit::None => write!(f, "none"),
             ObjectFit::ScaleDown => write!(f, "scale-down"),
+        }
+    }
+}
+
+// Add to your style module
+
+/// Font metrics for text layout and vertical alignment
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct FontMetrics {
+    /// Distance from baseline to top of tallest glyph (positive value)
+    pub ascent: f32,
+    /// Distance from baseline to bottom of lowest glyph (positive value)
+    pub descent: f32,
+    /// Height of lowercase 'x' (used for middle alignment)
+    pub x_height: f32,
+    /// Leading (extra space between lines)
+    pub leading: f32,
+    /// Cap height (height of capital letters)
+    pub cap_height: f32,
+}
+
+impl FontMetrics {
+    pub const NONE: Self = Self {
+        ascent: 0.0,
+        descent: 0.0,
+        x_height: 0.0,
+        leading: 0.0,
+        cap_height: 0.0,
+    };
+
+    /// Default metrics approximating a 16px system font
+    pub const DEFAULT: Self = Self {
+        ascent: 14.0,
+        descent: 4.0,
+        x_height: 7.0,
+        leading: 0.0,
+        cap_height: 10.0,
+    };
+
+    pub fn new(ascent: f32, descent: f32) -> Self {
+        Self {
+            ascent,
+            descent,
+            x_height: if ascent > 0.0 { ascent * 0.5 } else { 0.0 },
+            leading: 0.0,
+            cap_height: if ascent > 0.0 { ascent * 0.7 } else { 0.0 },
+        }
+    }
+
+    pub fn with_full_metrics(
+        ascent: f32,
+        descent: f32,
+        x_height: f32,
+        leading: f32,
+        cap_height: f32,
+    ) -> Self {
+        Self {
+            ascent,
+            descent,
+            x_height: if x_height > 0.0 {
+                x_height
+            } else if ascent > 0.0 {
+                ascent * 0.5
+            } else {
+                0.0
+            },
+            leading,
+            cap_height: if cap_height > 0.0 {
+                cap_height
+            } else if ascent > 0.0 {
+                ascent * 0.7
+            } else {
+                0.0
+            },
+        }
+    }
+
+    /// Total line height (ascent + descent + leading)
+    #[inline]
+    pub fn line_height(&self) -> f32 {
+        self.ascent + self.descent + self.leading
+    }
+
+    /// Check if metrics are set (non-zero)
+    #[inline]
+    pub fn is_set(&self) -> bool {
+        self.ascent > 0.0 || self.descent > 0.0
+    }
+
+    /// Get metrics or default if not set
+    #[inline]
+    pub fn or_default(self) -> Self {
+        if self.is_set() {
+            self
+        } else {
+            Self::DEFAULT
+        }
+    }
+
+    /// Get the baseline position from top of a single line of text
+    /// This is the ascent value
+    #[inline]
+    pub fn baseline_from_top(&self) -> f32 {
+        self.ascent
+    }
+
+    /// Get the baseline position from bottom of a single line of text
+    /// This is the descent value
+    #[inline]
+    pub fn baseline_from_bottom(&self) -> f32 {
+        self.descent
+    }
+}
+
+/// Vertical alignment mode for inline items
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(u8)]
+pub enum VerticalAlign {
+    /// Align to text baseline
+    #[default]
+    Baseline = 0,
+    /// Align top of element with top of line box
+    Top = 1,
+    /// Align top of element with top of parent's font
+    TextTop = 2,
+    /// Align middle of element with baseline + half x-height
+    Middle = 3,
+    /// Align bottom of element with bottom of line box
+    Bottom = 4,
+    /// Align bottom of element with bottom of parent's font
+    TextBottom = 5,
+    /// Subscript alignment (lowered)
+    Sub = 6,
+    /// Superscript alignment (raised)
+    Super = 7,
+}
+
+/// Vertical alignment with optional length/percent offset
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct VerticalAlignValue {
+    pub align: VerticalAlign,
+    /// Offset value (used when align is Length or Percent mode)
+    /// For baseline: positive = up, negative = down
+    pub offset: f32,
+    /// If true, offset is percentage of line-height; otherwise pixels
+    pub is_percent: bool,
+}
+
+impl VerticalAlignValue {
+    pub const BASELINE: Self = Self {
+        align: VerticalAlign::Baseline,
+        offset: 0.0,
+        is_percent: false,
+    };
+    pub const TOP: Self = Self {
+        align: VerticalAlign::Top,
+        offset: 0.0,
+        is_percent: false,
+    };
+    pub const MIDDLE: Self = Self {
+        align: VerticalAlign::Middle,
+        offset: 0.0,
+        is_percent: false,
+    };
+    pub const BOTTOM: Self = Self {
+        align: VerticalAlign::Bottom,
+        offset: 0.0,
+        is_percent: false,
+    };
+    pub const TEXT_TOP: Self = Self {
+        align: VerticalAlign::TextTop,
+        offset: 0.0,
+        is_percent: false,
+    };
+    pub const TEXT_BOTTOM: Self = Self {
+        align: VerticalAlign::TextBottom,
+        offset: 0.0,
+        is_percent: false,
+    };
+    pub const SUB: Self = Self {
+        align: VerticalAlign::Sub,
+        offset: 0.0,
+        is_percent: false,
+    };
+    pub const SUPER: Self = Self {
+        align: VerticalAlign::Super,
+        offset: 0.0,
+        is_percent: false,
+    };
+
+    pub fn length(offset: f32) -> Self {
+        Self {
+            align: VerticalAlign::Baseline,
+            offset,
+            is_percent: false,
+        }
+    }
+
+    pub fn percent(offset: f32) -> Self {
+        Self {
+            align: VerticalAlign::Baseline,
+            offset,
+            is_percent: true,
+        }
+    }
+}
+
+impl std::fmt::Display for VerticalAlignValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.is_percent {
+            return write!(f, "{:?}%", self.offset * 100.0);
+        }
+        if self.offset > 0. {
+            return write!(f, "{:?}px", self.offset);
+        }
+        match self.align {
+            VerticalAlign::Baseline => write!(f, "baseline"),
+            VerticalAlign::Sub => write!(f, "sub"),
+            VerticalAlign::Super => write!(f, "super"),
+            VerticalAlign::Top => write!(f, "top"),
+            VerticalAlign::TextTop => write!(f, "text-top"),
+            VerticalAlign::Middle => write!(f, "middle"),
+            VerticalAlign::Bottom => write!(f, "bottom"),
+            VerticalAlign::TextBottom => write!(f, "text-bottom"),
         }
     }
 }
@@ -309,6 +536,16 @@ pub enum StyleKeys {
     // Object Fit
     // ----------------------------
     OBJECT_FIT = 468,
+
+    FONT_METRICS_ASCENT_OFFSET = 472,
+    FONT_METRICS_DESCENT_OFFSET = 476,
+    FONT_METRICS_X_HEIGHT_OFFSET = 480,
+    FONT_METRICS_LEADING_OFFSET = 484,
+    FONT_METRICS_CAP_HEIGHT_OFFSET = 488,
+    VERTICAL_ALIGN_OFFSET_OFFSET = 492,
+    VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496,
+    VERTICAL_ALIGN_ENUM_OFFSET = 500,
+    FIRST_BASELINE_OFFSET = 504,
 }
 
 bitflags! {
@@ -360,6 +597,7 @@ bitflags! {
         const FLOAT = 1 << 43;
         const CLEAR = 1 << 44;
         const OBJECT_FIT = 1 << 45;
+        const VERTICAL_ALIGN = 1 << 46;
     }
 }
 
@@ -402,6 +640,8 @@ impl Debug for Style {
         let max_size = DisplaySize::from(self.max_size());
 
         f.debug_struct("Style")
+            .field("font_metrics", &self.font_metrics())
+            .field("verticalAlign", &self.vertical_align())
             .field("display", &self.get_display())
             .field("displayMode", &self.display_mode())
             .field("itemIsTable", &self.get_item_is_table())
@@ -476,7 +716,7 @@ impl Debug for Style {
     }
 }
 
-struct DisplaySize<T> {
+pub(crate) struct DisplaySize<T> {
     width: T,
     height: T,
 }
@@ -533,7 +773,7 @@ impl Debug for DisplaySize<LengthPercentage> {
     }
 }
 
-struct DisplayRect<T> {
+pub struct DisplayRect<T> {
     left: T,
     right: T,
     top: T,
@@ -611,6 +851,8 @@ impl std::fmt::Display for Style {
         let max_size = DisplaySize::from(self.max_size());
 
         f.debug_struct("Style")
+            .field("font_metrics", &self.font_metrics())
+            .field("verticalAlign", &self.vertical_align())
             .field("display", &self.get_display())
             .field("displayMode", &self.display_mode())
             .field("itemIsTable", &self.get_item_is_table())
@@ -794,6 +1036,14 @@ impl Drop for Style {
 }
 
 impl Style {
+    #[inline(always)]
+    pub fn is_inline(&self) -> bool {
+        if self.force_inline() {
+            return true;
+        }
+        let mode = get_style_data_i32(self.data(), StyleKeys::DISPLAY_MODE);
+        matches!(mode, 1 | 2)
+    }
     pub fn get_device_scale(&self) -> f32 {
         self.device_scale
             .as_ref()
@@ -802,7 +1052,7 @@ impl Style {
     }
     fn default_data() -> Vec<u8> {
         // last item + 4 bytes
-        let mut buffer = vec![0_u8; 472];
+        let mut buffer = vec![0_u8; 508];
 
         {
             let float_slice = unsafe {
@@ -812,6 +1062,24 @@ impl Style {
             float_slice[StyleKeys::ASPECT_RATIO as usize / 4] = f32::NAN;
             // default shrink to 1
             float_slice[StyleKeys::FLEX_SHRINK as usize / 4] = 1.;
+
+            float_slice[StyleKeys::BORDER_RADIUS_TOP_LEFT_EXPONENT as usize / 4] = 1.;
+
+            float_slice[StyleKeys::BORDER_RADIUS_TOP_RIGHT_EXPONENT as usize / 4] = 1.;
+
+            float_slice[StyleKeys::BORDER_RADIUS_BOTTOM_LEFT_EXPONENT as usize / 4] = 1.;
+
+            float_slice[StyleKeys::BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT as usize / 4] = 1.;
+
+            // Default font metrics
+
+            float_slice[StyleKeys::FONT_METRICS_ASCENT_OFFSET as usize / 4] = 14.0;
+            float_slice[StyleKeys::FONT_METRICS_DESCENT_OFFSET as usize / 4] = 4.0;
+            float_slice[StyleKeys::FONT_METRICS_X_HEIGHT_OFFSET as usize / 4] = 7.0;
+            float_slice[StyleKeys::FONT_METRICS_LEADING_OFFSET as usize / 4] = 0.0;
+            float_slice[StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET as usize / 4] = 10.0;
+
+            float_slice[StyleKeys::FIRST_BASELINE_OFFSET as usize / 4] = f32::NAN;
         }
 
         let int_slice = unsafe {
@@ -1030,6 +1298,19 @@ impl Style {
         let raw = unsafe { buffer.as_mut_bytes_unchecked() };
         let ptr = raw.as_mut_ptr();
         let len = raw.len();
+
+        // let mut buffer = Self::default_data().into_boxed_slice();
+        // let ptr = buffer.as_mut_ptr();
+        // let len = buffer.len();
+        // std::mem::forget(buffer);
+        // let buffer = unsafe {
+        //     NSMutableData::dataWithBytesNoCopy_length_freeWhenDone(
+        //         NonNull::new(ptr as _).unwrap(),
+        //         len,
+        //         false,
+        //     )
+        // };
+
         Self {
             grid_template_rows: Default::default(),
             grid_template_rows_raw: None,
@@ -1047,7 +1328,7 @@ impl Style {
             buffer,
             raw_data: ptr,
             raw_data_len: len,
-            data_owned: false,
+            data_owned: true,
             grid_area: None,
             grid_column_start: Default::default(),
             grid_column_end: Default::default(),
@@ -1088,6 +1369,122 @@ impl Style {
             grid_row_end: Default::default(),
             device_scale: None,
         }
+    }
+
+    /// Get font metrics
+    pub fn font_metrics(&self) -> FontMetrics {
+        let data = self.data();
+        FontMetrics {
+            ascent: get_style_data_f32(data, StyleKeys::FONT_METRICS_ASCENT_OFFSET),
+            descent: get_style_data_f32(data, StyleKeys::FONT_METRICS_DESCENT_OFFSET),
+            x_height: get_style_data_f32(data, StyleKeys::FONT_METRICS_X_HEIGHT_OFFSET),
+            leading: get_style_data_f32(data, StyleKeys::FONT_METRICS_LEADING_OFFSET),
+            cap_height: get_style_data_f32(data, StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET),
+        }
+    }
+
+    /// Set font metrics
+    pub fn set_font_metrics(&mut self, metrics: FontMetrics) {
+        let data = self.data_mut();
+        set_style_data_f32(data, StyleKeys::FONT_METRICS_ASCENT_OFFSET, metrics.ascent);
+        set_style_data_f32(
+            data,
+            StyleKeys::FONT_METRICS_DESCENT_OFFSET,
+            metrics.descent,
+        );
+        set_style_data_f32(
+            data,
+            StyleKeys::FONT_METRICS_X_HEIGHT_OFFSET,
+            metrics.x_height,
+        );
+        set_style_data_f32(
+            data,
+            StyleKeys::FONT_METRICS_LEADING_OFFSET,
+            metrics.leading,
+        );
+        set_style_data_f32(
+            data,
+            StyleKeys::FONT_METRICS_CAP_HEIGHT_OFFSET,
+            metrics.cap_height,
+        );
+    }
+
+    /// Set font metrics from individual values
+    pub fn set_font_metrics_values(
+        &mut self,
+        ascent: f32,
+        descent: f32,
+        x_height: f32,
+        leading: f32,
+        cap_height: f32,
+    ) {
+        self.set_font_metrics(FontMetrics::with_full_metrics(
+            ascent, descent, x_height, leading, cap_height,
+        ));
+    }
+
+    /// Get vertical alignment
+    pub fn vertical_align(&self) -> VerticalAlignValue {
+        let align = self.get_vertical_align_enum();
+        let data = self.data();
+        VerticalAlignValue {
+            align,
+            offset: get_style_data_f32(data, StyleKeys::VERTICAL_ALIGN_OFFSET_OFFSET),
+            is_percent: get_style_data_bool(data, StyleKeys::VERTICAL_ALIGN_IS_PERCENT_OFFSET),
+        }
+    }
+
+    /// Set vertical alignment
+    pub fn set_vertical_align(&mut self, value: VerticalAlignValue) {
+        self.set_vertical_align_enum(value.align);
+        let data = self.data_mut();
+        set_style_data_f32(data, StyleKeys::VERTICAL_ALIGN_OFFSET_OFFSET, value.offset);
+        set_style_data_bool(
+            data,
+            StyleKeys::VERTICAL_ALIGN_IS_PERCENT_OFFSET,
+            value.is_percent,
+        );
+    }
+
+    /// Get first baseline (offset from top of element)
+    pub fn first_baseline(&self) -> Option<f32> {
+        let value = get_style_data_f32(self.data(), StyleKeys::FIRST_BASELINE_OFFSET);
+        if value.is_nan() || value < 0.0 {
+            None
+        } else {
+            Some(value)
+        }
+    }
+
+    /// Set first baseline
+    pub fn set_first_baseline(&mut self, baseline: Option<f32>) {
+        set_style_data_f32(
+            self.data_mut(),
+            StyleKeys::FIRST_BASELINE_OFFSET,
+            baseline.unwrap_or(f32::NAN),
+        );
+    }
+
+    fn get_vertical_align_enum(&self) -> VerticalAlign {
+        match get_style_data_u8(self.data(), StyleKeys::VERTICAL_ALIGN_ENUM_OFFSET) {
+            0 => VerticalAlign::Baseline,
+            1 => VerticalAlign::Top,
+            2 => VerticalAlign::TextTop,
+            3 => VerticalAlign::Middle,
+            4 => VerticalAlign::Bottom,
+            5 => VerticalAlign::TextBottom,
+            6 => VerticalAlign::Sub,
+            7 => VerticalAlign::Super,
+            _ => VerticalAlign::Baseline,
+        }
+    }
+
+    fn set_vertical_align_enum(&mut self, align: VerticalAlign) {
+        set_style_data_u8(
+            self.data_mut(),
+            StyleKeys::VERTICAL_ALIGN_ENUM_OFFSET,
+            align as u8,
+        );
     }
 
     pub fn get_float(&self) -> Float {
@@ -1286,6 +1683,7 @@ impl Style {
 
     pub fn set_display(&mut self, value: Display) {
         set_style_data_i32(self.data_mut(), StyleKeys::DISPLAY, display_to_enum(value));
+        set_style_data_i32(self.data_mut(), StyleKeys::DISPLAY_MODE, 0);
     }
 
     pub fn get_item_is_table(&self) -> bool {

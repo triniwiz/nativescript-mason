@@ -95,6 +95,8 @@ void mason_node_array_destroy(struct NodeArray *array);
 
 void mason_node_destroy(struct CMasonNode *node);
 
+struct CMasonNode *mason_node_new_image_node(struct CMason *mason);
+
 struct CMasonNode *mason_node_new_node(struct CMason *mason, bool anonymous);
 
 #if !defined(TARGET_OS_ANDROID)

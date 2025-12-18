@@ -135,6 +135,17 @@ public class NativeHelpers {
 
   static native void nativeSetAndroidNode(long masonPtr, long nodePtr, Node node);
 
+  @FastNative
+  static native long nativeNodeNewImage(
+    long mason
+  );
+
+  static native long nativeNodeNewImageWithContext(
+    long mason,
+    Object context
+  );
+
+
   /* Node */
 
 }

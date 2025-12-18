@@ -409,6 +409,7 @@ let srcPattern = #"src:\s*url\(([^)]+)\)\s*format\('([^']+)'\);"#
 @objcMembers
 @objc(NSCFontFace)
 public class NSCFontFace: NSObject {
+  internal var owner: MasonStyle? = nil
   internal var uiFont: UIFont? = nil
   public internal(set) var font: CGFont? = nil
   internal var fontFamily: String
@@ -634,6 +635,13 @@ public class NSCFontFace: NSObject {
     super.init()
   }
   
+  public init(family: String, owner style: MasonStyle) {
+    fontFamily = family
+    fontDescriptors = NSCFontDescriptors(family: family)
+    owner = style
+    super.init()
+  }
+  
   public init(family: String, source: String) {
     fontFamily = family
     fontDescriptors = NSCFontDescriptors(family: family)
@@ -729,6 +737,7 @@ public class NSCFontFace: NSObject {
         let fontValue = UIFont(descriptor: descriptor, size: 16)
         self.font = CTFontCopyGraphicsFont(fontValue, nil)
         self.uiFont = fontValue
+        self.owner?.syncFontMetrics()
       }
   
     }
@@ -771,6 +780,7 @@ public class NSCFontFace: NSObject {
         
         self.font = CTFontCopyGraphicsFont(fontValue, nil)
         self.uiFont = fontValue
+        self.owner?.syncFontMetrics()
       }
     }
     
@@ -816,6 +826,7 @@ public class NSCFontFace: NSObject {
           self.font = CTFontCopyGraphicsFont(systemFont, nil)
           self.uiFont = systemFont
           self.status = .loaded
+          self.owner?.syncFontMetrics()
           return nil
         }
         
@@ -825,6 +836,7 @@ public class NSCFontFace: NSObject {
           self.font = CTFontCopyGraphicsFont(font, nil)
           self.uiFont = font
           self.status = .loaded
+          self.owner?.syncFontMetrics()
           return nil
         }
         
@@ -861,7 +873,7 @@ public class NSCFontFace: NSObject {
         self.font = CTFontCopyGraphicsFont(fontValue, nil)
         self.uiFont = fontValue
         self.status = .loaded
-        
+        self.owner?.syncFontMetrics()
         return nil
       }
       
@@ -874,6 +886,7 @@ public class NSCFontFace: NSObject {
       if(error == nil){
         self.font = font
         self.status = .loaded
+        self.owner?.syncFontMetrics()
         return nil
       }
       
@@ -905,6 +918,7 @@ public class NSCFontFace: NSObject {
     if(CTFontManagerRegisterGraphicsFont(font, &error)){
       self.font = font
       self.status = .loaded
+      self.owner?.syncFontMetrics()
       return nil
     }else {
       status = .error

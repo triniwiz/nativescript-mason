@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Build
 import android.text.TextPaint
+import android.text.style.LineBackgroundSpan
 import android.text.style.ReplacementSpan
 import android.view.View
 import android.view.ViewGroup
@@ -118,13 +119,12 @@ class Spans {
 
     override fun updateDrawState(tp: TextPaint?) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      //  tp?.underlineColor = color
+        //  tp?.underlineColor = color
         tp?.isUnderlineText = true
         tp?.isStrikeThruText = true
       }
     }
   }
-
 
   class BackgroundColorSpan(val color: Int) : android.text.style.BackgroundColorSpan(color),
     NSCSpan {
@@ -137,6 +137,46 @@ class Spans {
 
     override val type: Type
       get() = Type.ForegroundColor
+  }
+
+  class OverlineSpan(
+    private val color: Int,
+    private val thicknessPx: Float
+  ) : LineBackgroundSpan {
+
+    override fun drawBackground(
+      canvas: Canvas,
+      paint: Paint,
+      left: Int,
+      right: Int,
+      top: Int,
+      baseline: Int,
+      bottom: Int,
+      text: CharSequence,
+      start: Int,
+      end: Int,
+      lineNumber: Int
+    ) {
+      val oldColor = paint.color
+      val oldStrokeWidth = paint.strokeWidth
+
+      paint.color = color
+      paint.strokeWidth = thicknessPx
+
+      val fm = paint.fontMetrics
+      val y = baseline + fm.ascent   // ascent is negative → above text
+
+      canvas.drawLine(
+        left.toFloat(),
+        y,
+        right.toFloat(),
+        y,
+        paint
+      )
+
+      paint.color = oldColor
+      paint.strokeWidth = oldStrokeWidth
+    }
   }
 
   class ViewSpannable(val view: View, val node: Node) : ReplacementSpan(), NSCSpan {

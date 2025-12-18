@@ -293,7 +293,6 @@ export class Text extends TextBase {
       child[isTextChild_] = true;
 
       const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
-      console.log('Adding text child at index', index, 'with text:', child);
       nativeView.addViewAt(child.nativeViewProtected, index);
       return true;
     }

@@ -2,4 +2,5 @@
 <resources>
   <item name="tag_suppress_ops" type="id"/>
   <item name="tag_source" type="id"/>
+  <item name="tag_default_attributes" type="id"/>
 </resources>

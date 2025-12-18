@@ -5,6 +5,7 @@ import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
+import android.util.TypedValue
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import org.nativescript.mason.masonkit.Dimension
@@ -15,6 +16,7 @@ import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
+import org.nativescript.mason.masonkit.Styles
 import org.nativescript.mason.masonkit.TextStyleKeys
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
@@ -22,7 +24,9 @@ import org.nativescript.mason.masonkit.enums.AlignSelf
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.ObjectFit
 import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
+import org.nativescript.mason.masonkit.enums.VerticalAlign
 
 class GridActivity : AppCompatActivity() {
   lateinit var metrics: DisplayMetrics
@@ -37,7 +41,7 @@ class GridActivity : AppCompatActivity() {
     mason.setDeviceScale(metrics.density)
 
     val body = mason.createScrollView(this)
-    body.style.overflowY = Overflow.Scroll
+//    body.style.overflowY = Overflow.Scroll
 
 //    Timer().schedule(1000L) {
 //      runOnUiThread {
@@ -72,9 +76,295 @@ class GridActivity : AppCompatActivity() {
     //grid_template_areas_600(body)
 
     //  backgroundTest(body)
-   // filter(body)
-     objectFit(body)
+    // filter(body)
+    //  objectFit(body)
+    //  buttons(body)
+    // verticalAlignment(body)
+    verticalAlignImages(body)
     setContentView(body)
+  }
+
+  fun verticalAlignImages(body: Scroll) {
+    val root = mason.createTextView(this, TextType.P)
+    val height = TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_SP, (16 * 3f), // 3 em
+      resources.displayMetrics
+    )
+    val margin = TypedValue.applyDimension(
+      TypedValue.COMPLEX_UNIT_SP, (16 * 0.5f), // .5 em
+      resources.displayMetrics
+    )
+    root.configure {
+      it.fontFamily = "monospace"
+      it.size = Size(Dimension.Percent(0.8f), Dimension.Points(height))
+      it.decorationLine = Styles.DecorationLine.Overline
+      it.margin = Rect(
+        LengthPercentageAuto.Points(16f),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Zero,
+        LengthPercentageAuto.Points(16f),
+      )
+      it.padding = Rect(
+        LengthPercentage.Zero,
+        LengthPercentage.Points(
+          margin
+        ),
+        LengthPercentage.Zero,
+        LengthPercentage.Points(
+          margin
+        )
+      )
+    }
+
+    root.append("text-top:    ")
+
+    body.append(root)
+
+    val top = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Top
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    top.setImageResource(R.drawable.star)
+
+    root.append(top)
+
+    root.append("middle:      ")
+    val middle = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Middle
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    middle.setImageResource(R.drawable.star)
+    root.append(middle)
+
+
+    root.append("bottom:      ")
+    val bottom = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Bottom
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    bottom.setImageResource(R.drawable.star)
+    root.append(bottom)
+
+    root.append("super:      ")
+    val supa = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Super
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    supa.setImageResource(R.drawable.star)
+    root.append(supa)
+
+    root.append("sub:      ")
+    val sub = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.Sub
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    sub.setImageResource(R.drawable.star)
+    root.append(sub)
+
+    val footer = mason.createTextView(this, TextType.P)
+    footer.configure {
+      it.fontFamily = "monospace"
+      it.size = Size(Dimension.Percent(0.8f), Dimension.Points(height))
+      it.decorationLine = Styles.DecorationLine.Overline
+      it.margin = Rect(
+        LengthPercentageAuto.Zero,
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Zero,
+        LengthPercentageAuto.Auto,
+      )
+      it.padding = Rect(
+        LengthPercentage.Zero,
+        LengthPercentage.Points(
+          margin
+        ),
+        LengthPercentage.Zero,
+        LengthPercentage.Points(
+          margin
+        )
+      )
+    }
+
+
+    footer.append("text-top:      ")
+    val textTop = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.TextTop
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    textTop.setImageResource(R.drawable.star)
+    footer.append(textTop)
+
+
+
+    footer.append("text-bottom:      ")
+    val textBottom = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.TextBottom
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    textBottom.setImageResource(R.drawable.star)
+    footer.append(textBottom)
+
+
+
+    footer.append("0.2em:      ")
+    val zeroP2 = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.length(
+        TypedValue.applyDimension(
+          TypedValue.COMPLEX_UNIT_SP, (16 * 0.2f), resources.displayMetrics
+        )
+      )
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    zeroP2.setImageResource(R.drawable.star)
+    footer.append(zeroP2)
+
+
+    footer.append("-1em:      ")
+    val minusP2 = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.length(
+        TypedValue.applyDimension(
+          TypedValue.COMPLEX_UNIT_SP, -16f, resources.displayMetrics
+        )
+      )
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    minusP2.setImageResource(R.drawable.star)
+    footer.append(minusP2)
+
+
+    footer.append("20%:      ")
+    val twentyPercent = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.percent(0.2f)
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    twentyPercent.setImageResource(R.drawable.star)
+    footer.append(twentyPercent)
+
+
+    footer.append("-100%:      ")
+    val minusPercent = mason.createImageView(this).apply {
+      style.verticalAlign = VerticalAlign.percent(-1f)
+      style.margin = Rect(
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Points(margin),
+        LengthPercentageAuto.Auto, LengthPercentageAuto.Auto,
+      )
+    }
+    minusPercent.setImageResource(R.drawable.star)
+    footer.append(minusPercent)
+
+    body.append(footer)
+  }
+
+  fun verticalAlignment(body: Scroll) {
+    val root = mason.createView(this)
+    body.append(root)
+
+    val frameImage = R.drawable.frame_image
+    val normal = mason.createView(this)
+    val normalImg = mason.createImageView(this)
+    normal.append("An ")
+    normalImg.style.size = Size(Dimension.Points(toPx(32f)), Dimension.Points(toPx(32f)))
+    normal.append(normalImg)
+    normal.append(" image with a default alignment.")
+    normalImg.setImageResource(frameImage)
+    root.append(normal)
+
+
+    val top = mason.createView(this)
+    val topImg = mason.createImageView(this)
+    top.append("An ")
+    topImg.style.size = Size(Dimension.Points(toPx(32f)), Dimension.Points(toPx(32f)))
+    topImg.style.verticalAlign = VerticalAlign.TextTop
+    top.append(topImg)
+    top.append(" image with a text-top alignment.")
+    topImg.setImageResource(frameImage)
+    root.append(top)
+
+
+    val bottom = mason.createView(this)
+    val bottomImg = mason.createImageView(this)
+    bottom.append("An ")
+    bottomImg.style.size = Size(Dimension.Points(toPx(32f)), Dimension.Points(toPx(32f)))
+    bottomImg.style.verticalAlign = VerticalAlign.TextBottom
+    bottom.append(bottomImg)
+    bottom.append(" image with a text-bottom alignment.")
+    bottomImg.setImageResource(frameImage)
+    root.append(bottom)
+
+
+    val middle = mason.createView(this)
+    val middleImg = mason.createImageView(this)
+    middle.append("An ")
+    middleImg.style.size = Size(Dimension.Points(toPx(32f)), Dimension.Points(toPx(32f)))
+    middleImg.style.verticalAlign = VerticalAlign.Middle
+    middle.append(middleImg)
+    middle.append(" image with a middle alignment.")
+    middleImg.setImageResource(frameImage)
+    root.append(middle)
+
+  }
+
+
+  fun buttons(body: Scroll) {
+    val container = mason.createView(this)
+    container.style.background = "red"
+    container.configure {
+      container.style.setPadding(30, 30, 30, 30)
+      container.style.size = Size(Dimension.Auto, Dimension.Points(600f))
+    }
+    val a = mason.createButton(this)
+    a.append("Hello")
+
+    val ns = mason.createImageView(this)
+    ns.configure {
+      it.size = Size(Dimension.Points(50f), Dimension.Points(50f))
+    }
+
+    ns.setImageResource(R.drawable.nativescript_logo_white_blue_rounded)
+
+    a.append(" World!")
+
+    a.append(ns)
+
+    a.style.color = Color.BLUE
+    a.style.background = "orange"
+    a.style.textAlign = TextAlign.Center
+    a.style.size = Size(Dimension.Points(150f), Dimension.Auto)
+
+    a.style.border = "1px solid black"
+
+    container.append(a)
+
+    body.append(container)
   }
 
   fun insertObjectFit(section: View, header: String, fit: ObjectFit, src: String) {

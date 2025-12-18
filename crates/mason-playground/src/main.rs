@@ -4,7 +4,7 @@ use mason_core::{
     LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, NodeRef, Rect, Size,
 };
 use std::ffi::{c_longlong, c_void};
-use taffy::prelude::{auto, TaffyGridLine, TaffyMaxContent};
+use taffy::prelude::{auto, percent, TaffyGridLine, TaffyMaxContent};
 use taffy::style_helpers::length;
 use taffy::{AlignSelf, AvailableSpace, Line, NodeId};
 
@@ -47,9 +47,56 @@ fn main() {
     // grid_template_areas();
     // grid_template_areas_500();
 
-    //inline();
+    // inline();
     //  mixed();
-    inline_block();
+    // inline_block();
+    // inline_segments();
+
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    let node_a = mason.create_text_node();
+
+    extern "C" fn block_measure(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        println!(
+            "inline block measure {} {} ... {} {}",
+            width, height, available_space_width, available_space_height
+        );
+        MeasureOutput::make(200., 150.)
+    }
+
+    mason.set_segments(
+        node_a.id(),
+        vec![InlineSegment::Text {
+            width: 200.,
+            descent: 20.,
+            ascent: 30.,
+        }],
+    );
+
+    mason.with_style_mut(node_a.id(), |style| {
+        style.set_display(Display::Block);
+        style.set_size(Size {
+            width: percent(0.8),
+            height: auto(),
+        });
+        style.set_margin(Rect::auto());
+    });
+
+    mason.set_measure(node_a.id(), Some(block_measure), 0 as _);
+    mason.add_child(root.id(), node_a.id());
+
+    mason.compute_wh(root.id(), 2000., 2000.);
+
+    mason.layout(root.id());
+
+    mason.print_tree(root.id());
 }
 
 fn inline_block() {
@@ -162,7 +209,7 @@ fn mixed() {
     mason.print_tree(root.id());
 }
 
-fn inline() {
+fn inline_segments() {
     let mut mason = Mason::new();
     let root = mason.create_node();
 
@@ -172,10 +219,20 @@ fn inline() {
             right: length(10.),
             bottom: length(10.),
             left: length(10.),
-        })
+        });
     });
 
-    let inline_a = mason.create_text_node();
+    let inline_a = mason.create_anonymous_text_node();
+
+    mason.set_segments(
+        inline_a.id(),
+        vec![InlineSegment::Text {
+            width: 50.,
+            ascent: 16.0,
+            descent: 4.,
+        }],
+    );
+
     mason.with_style_mut(inline_a.id(), |style| {
         style.set_size(Size {
             width: length(100.),
@@ -189,7 +246,61 @@ fn inline() {
             left: length(20.),
         })
     });
-    let inline_b = mason.create_text_node();
+    let inline_b = mason.create_anonymous_text_node();
+
+    mason.with_style_mut(inline_b.id(), |style| {
+        style.set_size(Size {
+            width: length(300.),
+            height: length(300.),
+        });
+    });
+
+    let c = mason.create_image_node();
+
+    mason.with_style_mut(c.id(), |style| {
+        style.set_size(Size {
+            width: length(500.),
+            height: length(500.),
+        });
+    });
+
+    mason.add_child(root.id(), inline_a.id());
+    mason.add_child(root.id(), inline_b.id());
+    mason.add_child(root.id(), c.id());
+
+    mason.compute_wh(root.id(), 1200.0, 3000.);
+
+    mason.print_tree(root.id());
+}
+
+fn inline() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    mason.with_style_mut(root.id(), |style| {
+        style.set_padding(Rect {
+            top: length(10.),
+            right: length(10.),
+            bottom: length(10.),
+            left: length(10.),
+        })
+    });
+
+    let inline_a = mason.create_anonymous_text_node();
+    mason.with_style_mut(inline_a.id(), |style| {
+        style.set_size(Size {
+            width: length(100.),
+            height: length(200.),
+        });
+
+        style.set_margin(Rect {
+            top: length(20.),
+            right: length(20.),
+            bottom: length(20.),
+            left: length(20.),
+        })
+    });
+    let inline_b = mason.create_anonymous_text_node();
 
     mason.with_style_mut(inline_b.id(), |style| {
         style.set_size(Size {
@@ -198,7 +309,7 @@ fn inline() {
         })
     });
 
-    let c = mason.create_node();
+    let c = mason.create_image_node();
 
     mason.with_style_mut(c.id(), |style| {
         style.set_size(Size {
@@ -209,7 +320,7 @@ fn inline() {
 
     mason.add_child(root.id(), inline_a.id());
     mason.add_child(root.id(), inline_b.id());
-    //mason.add_child(root.id(), c.id());
+    mason.add_child(root.id(), c.id());
 
     mason.compute_wh(root.id(), 1200.0, 3000.);
 
