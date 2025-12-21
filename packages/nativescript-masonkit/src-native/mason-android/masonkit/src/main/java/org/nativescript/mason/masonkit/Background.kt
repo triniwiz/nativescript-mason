@@ -18,13 +18,21 @@ import com.bumptech.glide.request.transition.Transition
 
 private val IMAGE_REGEX = Regex("""url\(["']?(.*?)["']?\)""")
 private val IMAGE_REPLACE_REGEX = Regex("""url\(['"].*?['"]\)""")
-private val GRADIENT_REGEX = Regex("""(linear|radial)-gradient\((.*?)\)\s*;?""")
+private val GRADIENT_REGEX = Regex("""(linear|radial)-gradient\(([\s\S]*)\)\s*;?""")
 private val GRADIENT_DIRECTION_REGEX = Regex("""to .*""")
 private val REPEAT_KEYS = listOf("repeat", "repeat-x", "repeat-y", "no-repeat")
 private val PARSE_LAYER_REGEX = Regex("""\s+""")
 private val POSITION_KEYS = listOf("top", "bottom", "left", "right", "center")
 private val COLOR_KEYWORDS = listOf("red", "blue", "green", "black", "white", "yellow", "gray")
 private val CLIP_REGEX = Regex("""^(content-box|border-box|padding-box)\s+""")
+private val COLOR_REGEX = Regex("(?i)^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})")
+private val RGBA_REGEX =
+  Regex(
+    """rgba?\(\s*([^)]+)\s*\)""",
+    RegexOption.IGNORE_CASE
+  )
+private val ANGLE_REGEX =
+  Regex("""^-?\d+(\.\d+)?(deg|rad|turn|grad)$""")
 
 enum class BackgroundClip {
   BORDER_BOX, PADDING_BOX, CONTENT_BOX
@@ -41,9 +49,35 @@ data class BackgroundLayer(
   var clip: BackgroundClip = BackgroundClip.BORDER_BOX
 )
 
-data class Background(
-  var color: Int? = null, var layers: MutableList<BackgroundLayer> = mutableListOf()
-)
+class Background(
+  val style: Style
+) {
+  var color: Int?
+    set(value) {
+      if (value == null) {
+        style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT)
+        style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, 0)
+        return
+      }
+
+      style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
+      style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, value)
+    }
+    get() {
+      if (style.textValues.get(TextStyleKeys.BACKGROUND_COLOR_STATE) == StyleState.INHERIT) {
+        return null
+      }
+      return style.textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
+    }
+
+  var layers: MutableList<BackgroundLayer> = mutableListOf()
+
+
+  fun clear() {
+    layers = mutableListOf()
+    color = null
+  }
+}
 
 enum class BackgroundRepeat(val value: String) {
   REPEAT("repeat"), REPEAT_X("repeat-x"), REPEAT_Y("repeat-y"), NO_REPEAT("no-repeat")
@@ -91,10 +125,10 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
     layer.shader = when (gradient.type.lowercase()) {
       "linear" -> {
         val (x0, y0, x1, y1) = when (gradient.direction?.lowercase()) {
-          "to bottom" -> listOf(0f, 0f, 0f, height.toFloat())
-          "to top" -> listOf(0f, height.toFloat(), 0f, 0f)
-          "to right" -> listOf(0f, 0f, width.toFloat(), 0f)
-          "to left" -> listOf(width.toFloat(), 0f, 0f, 0f)
+          "to bottom", "180deg" -> listOf(0f, 0f, 0f, height.toFloat())
+          "to top", "0deg" -> listOf(0f, height.toFloat(), 0f, 0f)
+          "to right", "90deg" -> listOf(0f, 0f, width.toFloat(), 0f)
+          "to left", "270deg" -> listOf(width.toFloat(), 0f, 0f, 0f)
           else -> listOf(0f, 0f, 0f, height.toFloat())
         }
         LinearGradient(x0, y0, x1, y1, colors, null, Shader.TileMode.CLAMP)
@@ -174,7 +208,10 @@ private fun drawBitmapLayer(
 }
 
 fun parseHexColor(hex: String): Int? {
-  val s = hex.removePrefix("#")
+  // extract a leading hex token like "#FFF", "#FFFF", "#RRGGBB" or "#RRGGBBAA"
+  val match = COLOR_REGEX.find(hex.trim())
+  val token = match?.value ?: return null
+  val s = token.removePrefix("#")
   val len = s.length
 
   fun hexCharToInt(c: Char): Int = when (c) {
@@ -230,12 +267,76 @@ fun parseHexColor(hex: String): Int? {
   }
 }
 
+private fun parseColorChannel(token: String): Int? {
+  val t = token.trim()
+
+  return when {
+    t.endsWith("%") -> {
+      val v = t.dropLast(1).toFloatOrNull() ?: return null
+      ((v.coerceIn(0f, 100f) / 100f) * 255f).toInt()
+    }
+
+    else -> {
+      val v = t.toFloatOrNull() ?: return null
+      v.coerceIn(0f, 255f).toInt()
+    }
+  }
+}
+
+private fun parseAlpha(token: String?): Int {
+  if (token == null) return 255
+
+  val t = token.trim()
+
+  val alpha = when {
+    t.endsWith("%") -> {
+      val v = t.dropLast(1).toFloatOrNull() ?: return 255
+      v.coerceIn(0f, 100f) / 100f
+    }
+
+    else -> {
+      val v = t.toFloatOrNull() ?: return 255
+      v.coerceIn(0f, 1f)
+    }
+  }
+
+  return (alpha * 255f).toInt()
+}
+
+fun parseRgbColor(input: String): Int? {
+  val match = RGBA_REGEX.find(input.trim()) ?: return null
+  val body = match.groupValues[1]
+
+  val (rgbPart, alphaPart) =
+    if (body.contains('/')) {
+      val parts = body.split('/', limit = 2)
+      parts[0] to parts[1]
+    } else {
+      body to null
+    }
+
+  val components = rgbPart
+    .trim()
+    .split(Regex("""[\s,]+"""))
+    .filter { it.isNotEmpty() }
+
+  if (components.size != 3) return null
+
+  val r = parseColorChannel(components[0]) ?: return null
+  val g = parseColorChannel(components[1]) ?: return null
+  val b = parseColorChannel(components[2]) ?: return null
+  val a = parseAlpha(alphaPart)
+
+  return (a shl 24) or (r shl 16) or (g shl 8) or b
+}
+
 fun parseColor(value: String): Int? {
   return try {
-    if (COLOR_MAP.contains(value)) {
-      return COLOR_MAP[value]
+    val color = value.trimEnd(';')
+    if (COLOR_MAP.contains(color)) {
+      return COLOR_MAP[color]
     }
-    parseHexColor(value)
+    parseHexColor(color) ?: parseRgbColor(color)
   } catch (_: Exception) {
     null
   }
@@ -268,14 +369,73 @@ fun parsePosition(parts: List<String>): Pair<Float, Float> {
   return x to y
 }
 
+fun splitTopLevelCommas(input: String): List<String> {
+  val result = mutableListOf<String>()
+  val current = StringBuilder()
+  var depth = 0
+
+  for (c in input) {
+    when (c) {
+      '(' -> {
+        depth++
+        current.append(c)
+      }
+
+      ')' -> {
+        depth--
+        current.append(c)
+      }
+
+      ',' -> {
+        if (depth == 0) {
+          result += current.toString()
+          current.setLength(0)
+        } else {
+          current.append(c)
+        }
+      }
+
+      else -> current.append(c)
+    }
+  }
+
+  if (current.isNotEmpty()) {
+    result += current.toString()
+  }
+
+  return result
+}
+
+private fun isAngleOrDirection(token: String): Boolean {
+  val v = token.trim().lowercase()
+
+  if (ANGLE_REGEX.matches(v)) return true
+
+  if (v.startsWith("to ")) {
+    val parts = v.removePrefix("to ").split(Regex("\\s+"))
+    return parts.all {
+      it == "top" || it == "bottom" || it == "left" || it == "right"
+    }
+  }
+
+  return false
+}
+
 fun parseGradient(part: String): Gradient? {
   val match = GRADIENT_REGEX.find(part) ?: return null
   val type = match.groupValues[1]
-  val content = match.groupValues[2]
-  val items = content.split(",").map { it.trim() }
-  val direction = if (items.first().matches(GRADIENT_DIRECTION_REGEX)) items.first() else null
+  val content = match.groupValues[2].trim()
+
+  // split on top-level commas so color functions (eg rgba()) are kept intact
+  val items = splitTopLevelCommas(content).filter { it.isNotEmpty() }
+
+  if (items.isEmpty()) return null
+
+  val first = items.first()
+  val direction = if (isAngleOrDirection(first)) first.trim() else null
   val stops = if (direction != null) items.drop(1) else items
-  return Gradient(type, direction, stops)
+
+  return Gradient(type, direction, stops.map { it.trim() })
 }
 
 fun parseBackgroundLayers(css: String): List<BackgroundLayer> {
@@ -362,8 +522,8 @@ fun splitLayers(css: String): List<String> {
   return layers
 }
 
-fun parseBackground(css: String): Background? {
-  val bg = Background()
+fun parseBackground(style: Style, css: String): Background? {
+  val bg = Background(style)
 
   val layers = parseBackgroundLayers(css)
 

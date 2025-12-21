@@ -71,7 +71,27 @@ public class BackgroundCALayer: CALayer {
 // MARK: - Background
 class Background {
   var css: String = ""
-  var color: UIColor? = nil
+  var color: UIColor? {
+    set {
+      guard let color = newValue else {
+        style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, 0, text: true)
+        style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.INHERIT, text: true)
+        style.notifyTextStyleChanged(TextStyleChangeMasks.backgroundColor.rawValue)
+        return
+      }
+      
+      style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, color.toUInt32(), text: true)
+      style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
+      style.notifyTextStyleChanged(TextStyleChangeMasks.backgroundColor.rawValue)
+    }
+    get {
+      if(style.getUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, text: true) != StyleState.SET){
+        return nil
+      }
+      
+      return UIColor.colorFromARGB(style.getUInt32(TextStyleKeys.BACKGROUND_COLOR, text: true))
+    }
+  }
   var layers: [BackgroundLayer] = []
   let style: MasonStyle!
   internal var isActive: Bool = false {
@@ -102,7 +122,7 @@ class Background {
     var layerStrings = splitBackgroundLayers(css)
     
     var color: UIColor? = nil
-
+    
     // Check if the last token is just a color
     if let last = layerStrings.last, parseColor(last) != nil {
       color = parseColor(last)
@@ -121,7 +141,7 @@ class Background {
     style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, newValue, text: true)
     style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
     // change view as well ??
-   // style.node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
+    // style.node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
     
     if(!style.inBatch){
       style.node.view?.setNeedsDisplay()
@@ -131,15 +151,17 @@ class Background {
   
   
   private func applyBackgroundImage(_ value: String) {
-      let chunks = splitBackgroundLayers(value)
-
-      self.layers = chunks.map { chunk in
-          let layer = BackgroundLayer()
-          if let imageURL = parseImage(chunk) {
-              layer.image = imageURL
-          }
-          return layer
+    let chunks = splitBackgroundLayers(value)
+    
+    self.layers = chunks.map { chunk in
+      let layer = BackgroundLayer()
+      if let imageURL = parseImage(chunk) {
+        layer.image = imageURL
+      }else if let gradient = parseGradient(chunk) {
+        layer.gradient = gradient
       }
+      return layer
+    }
     
     if(!style.inBatch){
       style.node.view?.setNeedsDisplay()
@@ -148,18 +170,18 @@ class Background {
   
   
   private func applyBackgroundRepeat(_ value: String) {
-      let part = value.trimmingCharacters(in: .whitespaces).lowercased()
-
-      let repeats = splitBackgroundLayers(part)
-
-      if layers.count < repeats.count {
-          layers += Array(repeating: BackgroundLayer(), count: repeats.count - layers.count)
-      }
-
-      for (idx, rep) in repeats.enumerated() {
-          layers[idx].repeatType = BackgroundRepeat(rawValue: rep) ?? .noRepeat
-      }
-
+    let part = value.trimmingCharacters(in: .whitespaces).lowercased()
+    
+    let repeats = splitBackgroundLayers(part)
+    
+    if layers.count < repeats.count {
+      layers += Array(repeating: BackgroundLayer(), count: repeats.count - layers.count)
+    }
+    
+    for (idx, rep) in repeats.enumerated() {
+      layers[idx].repeatType = BackgroundRepeat(rawValue: rep) ?? .noRepeat
+    }
+    
     if(!style.inBatch){
       style.node.view?.setNeedsDisplay()
     }
@@ -167,96 +189,96 @@ class Background {
   
   
   private func applyBackgroundPosition(_ value: String) {
-      let parts = splitBackgroundLayers(value)
-
-      if layers.count < parts.count {
-          layers += Array(repeating: BackgroundLayer(), count: parts.count - layers.count)
-      }
-
-      for (idx, p) in parts.enumerated() {
-          layers[idx].position = parsePosition(p)
-      }
-
+    let parts = splitBackgroundLayers(value)
+    
+    if layers.count < parts.count {
+      layers += Array(repeating: BackgroundLayer(), count: parts.count - layers.count)
+    }
+    
+    for (idx, p) in parts.enumerated() {
+      layers[idx].position = parsePosition(p)
+    }
+    
     if(!style.inBatch){
       style.node.view?.setNeedsDisplay()
     }
   }
   
   private func applyBackgroundSize(_ value: String) {
-      let parts = splitBackgroundLayers(value)
-
-      if layers.count < parts.count {
-          layers += Array(repeating: BackgroundLayer(), count: parts.count - layers.count)
-      }
-
-      for (idx, p) in parts.enumerated() {
-          layers[idx].size = parseSize(p)
-      }
-
+    let parts = splitBackgroundLayers(value)
+    
+    if layers.count < parts.count {
+      layers += Array(repeating: BackgroundLayer(), count: parts.count - layers.count)
+    }
+    
+    for (idx, p) in parts.enumerated() {
+      layers[idx].size = parseSize(p)
+    }
+    
     if(!style.inBatch){
       style.node.view?.setNeedsDisplay()
     }
   }
-
+  
   private func applyBackgroundClip(_ value: String) {
-      let v = value.trimmingCharacters(in: .whitespaces).lowercased()
-
-      let clip: BackgroundClip
-      switch v {
-      case "border-box": clip = .borderBox
-      case "padding-box": clip = .paddingBox
-      case "content-box": clip = .contentBox
-      default: return
-      }
-
-      for layer in layers {
-          layer.clip = clip
-      }
-
+    let v = value.trimmingCharacters(in: .whitespaces).lowercased()
+    
+    let clip: BackgroundClip
+    switch v {
+    case "border-box": clip = .borderBox
+    case "padding-box": clip = .paddingBox
+    case "content-box": clip = .contentBox
+    default: return
+    }
+    
+    for layer in layers {
+      layer.clip = clip
+    }
+    
     if(!style.inBatch){
       style.node.view?.setNeedsDisplay()
     }
   }
-
+  
   public func applyBackgroundProperty(name: String, value: String) {
-      let key = name.lowercased().trimmingCharacters(in: .whitespaces)
-
-      switch key {
-
-      case "background":
-          parseBackground(value)
-          return
-
-      case "background-color":
-          if let c = parseColor(value) {
-              self.color = c
-              style.node.view?.setNeedsDisplay()
-          }
-          return
-
-      case "background-image":
-          applyBackgroundImage(value)
-          return
-
-      case "background-repeat":
-          applyBackgroundRepeat(value)
-          return
-
-      case "background-position":
-          applyBackgroundPosition(value)
-          return
-
-      case "background-size":
-          applyBackgroundSize(value)
-          return
-
-      case "background-clip":
-          applyBackgroundClip(value)
-          return
-
-      default:
-          return
+    let key = name.lowercased().trimmingCharacters(in: .whitespaces)
+    
+    switch key {
+      
+    case "background":
+      parseBackground(value)
+      return
+      
+    case "background-color":
+      if let c = parseColor(value) {
+        self.color = c
+        style.node.view?.setNeedsDisplay()
       }
+      return
+      
+    case "background-image":
+      applyBackgroundImage(value)
+      return
+      
+    case "background-repeat":
+      applyBackgroundRepeat(value)
+      return
+      
+    case "background-position":
+      applyBackgroundPosition(value)
+      return
+      
+    case "background-size":
+      applyBackgroundSize(value)
+      return
+      
+    case "background-clip":
+      applyBackgroundClip(value)
+      return
+      
+    default:
+      return
+    }
   }
 }
 
@@ -265,26 +287,26 @@ internal let colorMap: [String: UIColor] = [
   "crimson": UIColor(red: 220/255, green: 20/255, blue: 60/255, alpha: 1),
   "skyblue": UIColor(red: 135/255, green: 206/255, blue: 235/255, alpha: 1),
   "black": .black,
-     "silver": UIColor(white: 0.75, alpha: 1),
-     "gray": .gray,
-     "grey": .gray,
-     "white": .white,
-     "maroon": UIColor(red: 0.5, green: 0, blue: 0, alpha: 1),
-     "red": .red,
-     "purple": UIColor(red: 0.5, green: 0, blue: 0.5, alpha: 1),
-     "fuchsia": .magenta,
-     "green": .green,
-     "lime": UIColor(red: 0, green: 1, blue: 0, alpha: 1),
-     "olive": UIColor(red: 0.5, green: 0.5, blue: 0, alpha: 1),
-     "yellow": .yellow,
-     "navy": UIColor(red: 0, green: 0, blue: 0.5, alpha: 1),
-     "blue": .blue,
-     "teal": UIColor(red: 0, green: 0.5, blue: 0.5, alpha: 1),
-     "aqua": .cyan,
-     "orange": .orange,
-     "brown": UIColor(red: 0.65, green: 0.16, blue: 0.16, alpha: 1),
-     "pink": UIColor.systemPink,
-     "transparent": .clear
+  "silver": UIColor(white: 0.75, alpha: 1),
+  "gray": .gray,
+  "grey": .gray,
+  "white": .white,
+  "maroon": UIColor(red: 0.5, green: 0, blue: 0, alpha: 1),
+  "red": .red,
+  "purple": UIColor(red: 0.5, green: 0, blue: 0.5, alpha: 1),
+  "fuchsia": .magenta,
+  "green": .green,
+  "lime": UIColor(red: 0, green: 1, blue: 0, alpha: 1),
+  "olive": UIColor(red: 0.5, green: 0.5, blue: 0, alpha: 1),
+  "yellow": .yellow,
+  "navy": UIColor(red: 0, green: 0, blue: 0.5, alpha: 1),
+  "blue": .blue,
+  "teal": UIColor(red: 0, green: 0.5, blue: 0.5, alpha: 1),
+  "aqua": .cyan,
+  "orange": .orange,
+  "brown": UIColor(red: 0.65, green: 0.16, blue: 0.16, alpha: 1),
+  "pink": UIColor.systemPink,
+  "transparent": .clear
 ]
 
 // MARK: - Top-level splitters

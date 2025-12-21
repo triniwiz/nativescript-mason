@@ -23,7 +23,7 @@ private let cssNames = [
   "outset"
 ]
 
-private let lengthPercentageRegex = try! NSRegularExpression(pattern: "^(\\d+(?:\\.\\d+)?)(px|%|dip)$", options: [])
+private let lengthPercentageRegex = try! NSRegularExpression(pattern:  "^(\\d+(?:\\.\\d+)?)(px|%|dip)?;?$", options: [])
 
 // Swift port of parseLengthPercentage
 func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> MasonLengthPercentage? {
@@ -32,18 +32,59 @@ func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> Ma
     return nil
   }
   let ns = v as NSString
-  let num = Float(Double(ns.substring(with: match.range(at: 1))) ?? 0)
-  let unit = ns.substring(with: match.range(at: 2))
-  
+  let parsed = Double(ns.substring(with: match.range(at: 1)))
+  let num = Float(parsed ?? 0)
+
+  let unitRange = match.range(at: 2)
+  let unit: String? =
+      unitRange.location != NSNotFound
+      ? String(v[Range(unitRange, in: v)!])
+      : nil
   
   switch unit {
   case "px": return .Points(num)
   case "%": return .Percent(num / 100)
   case "dip": return .Points(num * scale)
-  default: return nil
+  default: do {
+    if(parsed != nil){
+      return .Points(num * scale)
+    }else {
+      return nil
+    }
+  }
   }
 }
 
+
+func parseLength(_ style: MasonStyle, _ value: String, scale: Float = NSCMason.scale) -> Float? {
+  let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
+  guard let match = lengthPercentageRegex.firstMatch(in: v, range: NSRange(v.startIndex..<v.endIndex, in: v)) else {
+    return nil
+  }
+  let ns = v as NSString
+  let parsed = Double(ns.substring(with: match.range(at: 1)))
+  let num = Float(parsed ?? 0)
+
+  let unitRange = match.range(at: 2)
+  let unit: String? =
+      unitRange.location != NSNotFound
+      ? String(v[Range(unitRange, in: v)!])
+      : nil
+  
+  switch unit {
+  case "px": return num
+  case "%": return 0
+  case "dip": return num * scale
+  case "em": return (Float(style.fontSize) * scale) * num
+  default: do {
+    if(parsed != nil){
+      return num * scale
+    }else {
+      return nil
+    }
+  }
+  }
+}
 
 // Split regex
 private let splitRegex = try! NSRegularExpression(pattern: "\\s+", options: [])
@@ -125,7 +166,7 @@ extension CSSBorderRenderer {
       let parts = value
           .split(whereSeparator: { $0.isWhitespace })
           .compactMap { parseLengthPercentage(String($0)) }
-
+    
       switch parts.count {
       case 1:
           let lp = parts[0]

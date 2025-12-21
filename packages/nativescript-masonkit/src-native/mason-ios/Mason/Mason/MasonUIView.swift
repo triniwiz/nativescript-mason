@@ -15,6 +15,33 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     MasonNode.invalidateDescendantTextViews(node, change)
   }
   
+  public override func draw(_ rect: CGRect) {
+    
+    guard let context = UIGraphicsGetCurrentContext() else {
+      return
+    }
+    
+    style.mBorderRender.resolve(for: bounds)
+    let borderWidths = style.mBorderRender.cachedWidths
+    let innerRect = bounds.inset(by: UIEdgeInsets(
+      top: borderWidths.top,
+      left: borderWidths.left,
+      bottom: borderWidths.bottom,
+      right: borderWidths.right
+    ))
+    
+    let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
+    let innerPath = style.mBorderRender.buildRoundedPath(in: innerRect, radius: innerRadius)
+    
+    context.saveGState()
+    context.addPath(innerPath.cgPath)
+    context.clip()
+    style.mBackground.draw(on: self, in: context, rect: innerRect)
+    context.restoreGState()
+    
+    style.mBorderRender.draw(in: context, rect: bounds)
+  }
+  
   public let node: MasonNode
   public let mason: NSCMason
   
@@ -36,6 +63,7 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     node = doc.createNode()
     mason = doc
     super.init(frame: .zero)
+    isOpaque = false
     setComputeCache(.init(width: -2, height: -2))
     computeCacheDirty = false
     node.view = self
@@ -72,7 +100,7 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     return view
   }
   
-
+  
   public func addView(_ view: UIView){
     if(view.superview == self){
       return
@@ -88,12 +116,12 @@ public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeLis
     if(view.superview == self){
       return
     }
-//    if(at <= -1){
-//      addSubview(view)
-//    }else {
-//      insertSubview(view, at: at)
-//    }
-
+    //    if(at <= -1){
+    //      addSubview(view)
+    //    }else {
+    //      insertSubview(view, at: at)
+    //    }
+    
     
     if(view is MasonElement){
       node.addChildAt((view as! MasonElement).node, at)

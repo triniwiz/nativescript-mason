@@ -1,6 +1,48 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CSSType, CssProperty, CustomLayoutView, Length as NSLength, ShorthandProperty, Style, View as NSView, ViewBase as NSViewBase, getViewById, unsetValue, Property, widthProperty, heightProperty, View, CoreTypes, Trace, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, borderLeftColorProperty, backgroundInternalProperty, verticalAlignmentProperty } from '@nativescript/core';
+import {
+  AddChildFromBuilder,
+  CSSType,
+  CssProperty,
+  CustomLayoutView,
+  Length as NSLength,
+  ShorthandProperty,
+  Style,
+  View as NSView,
+  ViewBase as NSViewBase,
+  getViewById,
+  unsetValue,
+  Property,
+  widthProperty,
+  heightProperty,
+  View,
+  CoreTypes,
+  Trace,
+  Length as CoreLength,
+  PercentLength as CorePercentLength,
+  marginLeftProperty,
+  marginRightProperty,
+  marginTopProperty,
+  marginBottomProperty,
+  minWidthProperty,
+  minHeightProperty,
+  fontSizeProperty,
+  fontWeightProperty,
+  fontStyleProperty,
+  colorProperty,
+  Color,
+  lineHeightProperty,
+  letterSpacingProperty,
+  textAlignmentProperty,
+  borderLeftWidthProperty,
+  borderTopWidthProperty,
+  borderRightWidthProperty,
+  borderBottomWidthProperty,
+  borderLeftColorProperty,
+  backgroundInternalProperty,
+  verticalAlignmentProperty,
+  backgroundColorProperty,
+} from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing, VerticalAlign } from '.';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows, GridTemplates } from './utils';
@@ -1356,6 +1398,33 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  [backgroundColorProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      switch (typeof value) {
+        case 'number':
+          // @ts-ignore
+          style.backgroundColor = value;
+          return;
+        case 'object':
+          if (value instanceof Color) {
+            // @ts-ignore
+            style.backgroundColor = value.argb;
+            return;
+          }
+          break;
+        case 'string':
+          try {
+            const color = new Color(value);
+            // @ts-ignore
+            style.backgroundColor = color.argb;
+          } catch (error) {}
+          return;
+      }
+    }
+  }
+
   [borderLeftWidthProperty.setNative](value: CoreTypes.LengthType) {
     // @ts-ignore
     const style = this._styleHelper;
@@ -1956,6 +2025,57 @@ paddingBottomProperty.overrideHandlers({
         // Revert to old value if newValue is invalid
         // @ts-ignore
         view.view.style.paddingBottom = oldValue as never;
+      }
+    }
+  },
+});
+
+flexDirectionProperty.overrideHandlers({
+  name: 'flexDirection',
+  cssName: 'flex-direction',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.flexDirection = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.flexDirection = oldValue as never;
+      }
+    }
+  },
+});
+
+flexWrapProperty.overrideHandlers({
+  name: 'flexWrap',
+  cssName: 'flex-wrap',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.flexWrap = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.flexWrap = oldValue as never;
+      }
+    }
+  },
+});
+
+flexGrowProperty.overrideHandlers({
+  name: 'flexGrow',
+  cssName: 'flex-grow',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.flexGrow = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.flexGrow = oldValue as never;
       }
     }
   },

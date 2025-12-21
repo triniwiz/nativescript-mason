@@ -149,7 +149,7 @@ struct StyleKeys {
   static let BORDER_RIGHT_STYLE = 352
   static let BORDER_TOP_STYLE = 356
   static let BORDER_BOTTOM_STYLE = 360
-
+  
   // ----------------------------
   // Border Color (per side)
   // ----------------------------
@@ -157,13 +157,13 @@ struct StyleKeys {
   static let BORDER_RIGHT_COLOR = 368
   static let BORDER_TOP_COLOR = 372
   static let BORDER_BOTTOM_COLOR = 376
-
+  
   // ============================================================
   // Border Radius (elliptical + squircle exponent)
   // Each corner = 20 bytes:
   //   x_type (4), x_value (4), y_type (4), y_value (4), exponent (4)
   // ============================================================
-
+  
   // ----------------------------
   // Top-left corner (20 bytes)
   // ----------------------------
@@ -172,7 +172,7 @@ struct StyleKeys {
   static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 388
   static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 392
   static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 396
-
+  
   // ----------------------------
   // Top-right corner
   // ----------------------------
@@ -181,7 +181,7 @@ struct StyleKeys {
   static let BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 408
   static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 412
   static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 416
-
+  
   // ----------------------------
   // Bottom-right corner
   // ----------------------------
@@ -190,7 +190,7 @@ struct StyleKeys {
   static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 428
   static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 432
   static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 436
-
+  
   // ----------------------------
   // Bottom-left corner
   // ----------------------------
@@ -199,7 +199,7 @@ struct StyleKeys {
   static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448
   static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452
   static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456
-
+  
   // ----------------------------
   // Float
   // ----------------------------
@@ -428,20 +428,20 @@ public class MasonStyle: NSObject {
     guard let font = font.uiFont else {return}
     
     // UIFont properties:
-        // - ascender: positive value, distance from baseline to top
-        // - descender: negative value, distance from baseline to bottom
-        // - lineHeight: total recommended line height
-        // - xHeight: height of lowercase 'x'
-        // - capHeight: height of capital letters
-        // - leading: extra spacing between lines (usually small or 0)
-        
-      let scale = NSCMason.scale
-        let ascent = Float(font.ascender) * scale
-        let descent = Float(-font.descender) * scale  // Make it positive
-        let lineHeight = Float(font.lineHeight) * scale
-        let xHeight = Float(font.xHeight) * scale
-        let capHeight = Float(font.capHeight) * scale
-        let leading = Float(font.leading) * scale
+    // - ascender: positive value, distance from baseline to top
+    // - descender: negative value, distance from baseline to bottom
+    // - lineHeight: total recommended line height
+    // - xHeight: height of lowercase 'x'
+    // - capHeight: height of capital letters
+    // - leading: extra spacing between lines (usually small or 0)
+    
+    let scale = NSCMason.scale
+    let ascent = Float(font.ascender) * scale
+    let descent = Float(-font.descender) * scale  // Make it positive
+    let lineHeight = Float(font.lineHeight) * scale
+    let xHeight = Float(font.xHeight) * scale
+    let capHeight = Float(font.capHeight) * scale
+    let leading = Float(font.leading) * scale
     
     
     setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
@@ -450,7 +450,7 @@ public class MasonStyle: NSObject {
     setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
     setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
     
-  
+    
     
   }
   
@@ -492,7 +492,7 @@ public class MasonStyle: NSObject {
   }
   
   
-  private func notifyTextStyleChanged(_ change: Int64) {
+  internal func notifyTextStyleChanged(_ change: Int64) {
     styleChangeListener?.onTextStyleChanged(change: change)
   }
   
@@ -572,7 +572,7 @@ public class MasonStyle: NSObject {
     if state <= -1 {
       return
     }
-
+    
     if (isDirty != -1) {
       (node.view as? MasonElement)?.invalidateLayout()
     }
@@ -771,7 +771,7 @@ public class MasonStyle: NSObject {
     set {
       setFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, newValue.offset)
       setUInt8(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, UInt8(newValue.align.rawValue))
-
+      
       if(newValue.isPercent){
         setUInt8(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1)
       }else {
@@ -873,6 +873,17 @@ public class MasonStyle: NSObject {
       mBackground.applyBackgroundProperty(name: "background-image", value: newValue)
     }
     get {
+      if(mBackground.layers.isEmpty){
+        return ""
+      }
+      let img = mBackground.layers.map { layer in
+        layer.image ?? ""
+      }.joined(separator: ",")
+      
+      if(!img.isEmpty){
+        return img + ";"
+      }
+      
       return ""
     }
   }
@@ -916,7 +927,7 @@ public class MasonStyle: NSObject {
       return ""
     }
   }
-
+  
   
   public var backgroundColor: UInt32 {
     get {
@@ -926,14 +937,27 @@ public class MasonStyle: NSObject {
       setUInt32(TextStyleKeys.BACKGROUND_COLOR, newValue, text: true)
       setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
       // change view as well ??
-      node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
+//      node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
       notifyTextStyleChanged(TextStyleChangeMasks.backgroundColor.rawValue)
     }
+  }
+  
+  public func getBackgroundColor() -> String {
+    if(getUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, text: true) != StyleState.SET){
+      return ""
+    }
+    return backgroundColor.rgbaToHexCSS()
+  }
+  
+  public func setBackgroundColor(string color: String) {
+    guard let color = parseColor(color) else {return}
+    mBackground.color = color
   }
   
   public func setBackgroundColor(ui color: UIColor) {
     backgroundColor = color.toUInt32()
   }
+  
   
   public func setLineHeight(_ value: Float, _ isRelative: Bool){
     setFloat(TextStyleKeys.LINE_HEIGHT, value, text: true)
@@ -1213,21 +1237,21 @@ public class MasonStyle: NSObject {
     }
     set {
       let oldFamily = font.fontFamily
-          if (oldFamily != newValue) {
-            guard let oldFont = font else {return}
-            // Create new font with updated family
-            font = NSCFontFace(family: newValue)
-            font.weight = oldFont.weight
-            font.style = oldFont.style
-            font.fontDescriptors.display = oldFont.fontDescriptors.display
-            
-            font.loadSync { _ in }
-            
-            syncFontMetrics()
-
-            setUInt8(TextStyleKeys.FONT_FAMILY_STATE, StyleState.SET, text: true)
-            notifyTextStyleChanged(TextStyleChangeMasks.fontFamily.rawValue)
-          }
+      if (oldFamily != newValue) {
+        guard let oldFont = font else {return}
+        // Create new font with updated family
+        font = NSCFontFace(family: newValue)
+        font.weight = oldFont.weight
+        font.style = oldFont.style
+        font.fontDescriptors.display = oldFont.fontDescriptors.display
+        
+        font.loadSync { _ in }
+        
+        syncFontMetrics()
+        
+        setUInt8(TextStyleKeys.FONT_FAMILY_STATE, StyleState.SET, text: true)
+        notifyTextStyleChanged(TextStyleChangeMasks.fontFamily.rawValue)
+      }
     }
   }
   
@@ -1952,6 +1976,12 @@ public class MasonStyle: NSObject {
     self.padding = MasonRect(padding, padding, padding, padding)
   }
   
+  internal var textShadows: [TextShadow] = []
+  public var textShadow: String = "" {
+    didSet {
+      textShadows = ShadowParser.parseTextShadow(style: self, value: textShadow)
+    }
+  }
   
   internal lazy var mBorderRender: CSSBorderRenderer  = {
     CSSBorderRenderer(style: self)
@@ -1981,15 +2011,15 @@ public class MasonStyle: NSObject {
   internal var mBorderLeft: CSSBorderRenderer.BorderSide {
     return mBorderRender.left
   }
-
+  
   internal var mBorderTop: CSSBorderRenderer.BorderSide {
     return mBorderRender.top
   }
-
+  
   internal var mBorderRight: CSSBorderRenderer.BorderSide {
     return mBorderRender.right
   }
-
+  
   internal var mBorderBottom: CSSBorderRenderer.BorderSide {
     return mBorderRender.bottom
   }
@@ -2881,49 +2911,49 @@ public class MasonStyle: NSObject {
   
   public override var description: String {
     var aspectRatioDesc = "undefined"
-        if let aspectRatio = self.aspectRatio {
-            aspectRatioDesc = String(describing: aspectRatio)
-        }
-
-        let overflowDesc = overflowX == overflowY
-            ? overflowX.cssValue
-            : "\(overflowX.cssValue) \(overflowY.cssValue)"
-
-        let parts: [String] = [
-            "display: \(display.cssValue)",
-            "position: \(position.cssValue)",
-            "flexDirection: \(flexDirection.cssValue)",
-            "overflow: \(overflowDesc)",
-            "flexWrap: \(flexWrap.cssValue)",
-            "alignItems: \(alignItems.cssValue)",
-            "alignSelf: \(alignSelf.cssValue)",
-            "alignContent: \(alignContent.cssValue)",
-            "justifyItems: \(justifyItems.cssValue)",
-            "justifySelf: \(justifySelf.cssValue)",
-            "justifyContent: \(justifyContent.cssValue)",
-            "margin: \(margin.cssValue)",
-            "padding: \(padding.cssValue)",
-            "border: \(border)",
-            "gap: \(gap.cssValue)",
-            "flexGrow: \(flexGrow)",
-            "flexShrink: \(flexShrink)",
-            "flexBasis: \(flexBasis.cssValue)",
-            "size: \(size.cssValue)",
-            "minSize: \(minSize.cssValue)",
-            "maxSize: \(maxSize.cssValue)",
-            "aspectRatio: \(aspectRatioDesc)",
-            "gridAutoRows: \(gridAutoRows)",
-            "gridAutoColumns: \(gridAutoColumns)",
-            "gridColumn: \(gridColumn)",
-            "gridRow: \(gridRow)",
-            "gridTemplateRows: \(gridTemplateRows)",
-            "gridTemplateColumns: \(gridTemplateColumns)",
-            "scrollBarWidth: \(scrollBarWidth)"
-        ]
-
-        let joined = parts.joined(separator: ",\n  ")
-
-        return """
+    if let aspectRatio = self.aspectRatio {
+      aspectRatioDesc = String(describing: aspectRatio)
+    }
+    
+    let overflowDesc = overflowX == overflowY
+    ? overflowX.cssValue
+    : "\(overflowX.cssValue) \(overflowY.cssValue)"
+    
+    let parts: [String] = [
+      "display: \(display.cssValue)",
+      "position: \(position.cssValue)",
+      "flexDirection: \(flexDirection.cssValue)",
+      "overflow: \(overflowDesc)",
+      "flexWrap: \(flexWrap.cssValue)",
+      "alignItems: \(alignItems.cssValue)",
+      "alignSelf: \(alignSelf.cssValue)",
+      "alignContent: \(alignContent.cssValue)",
+      "justifyItems: \(justifyItems.cssValue)",
+      "justifySelf: \(justifySelf.cssValue)",
+      "justifyContent: \(justifyContent.cssValue)",
+      "margin: \(margin.cssValue)",
+      "padding: \(padding.cssValue)",
+      "border: \(border)",
+      "gap: \(gap.cssValue)",
+      "flexGrow: \(flexGrow)",
+      "flexShrink: \(flexShrink)",
+      "flexBasis: \(flexBasis.cssValue)",
+      "size: \(size.cssValue)",
+      "minSize: \(minSize.cssValue)",
+      "maxSize: \(maxSize.cssValue)",
+      "aspectRatio: \(aspectRatioDesc)",
+      "gridAutoRows: \(gridAutoRows)",
+      "gridAutoColumns: \(gridAutoColumns)",
+      "gridColumn: \(gridColumn)",
+      "gridRow: \(gridRow)",
+      "gridTemplateRows: \(gridTemplateRows)",
+      "gridTemplateColumns: \(gridTemplateColumns)",
+      "scrollBarWidth: \(scrollBarWidth)"
+    ]
+    
+    let joined = parts.joined(separator: ",\n  ")
+    
+    return """
         (MasonStyle) {
           \(joined)
         }

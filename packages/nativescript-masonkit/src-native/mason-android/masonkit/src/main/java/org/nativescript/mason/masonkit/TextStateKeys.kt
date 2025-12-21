@@ -22,6 +22,7 @@ value class TextStateKeys internal constructor(val bits: Long) {
     val LINE_HEIGHT = TextStateKeys(1L shl 14)
     val VERTICAL_ALIGN = TextStateKeys(1L shl 15)
     val DECORATION_THICKNESS = TextStateKeys(1L shl 16)
+    val TEXT_SHADOWS = TextStateKeys(1L shl 17)
   }
 
   infix fun or(other: TextStateKeys): TextStateKeys = TextStateKeys(bits or other.bits)

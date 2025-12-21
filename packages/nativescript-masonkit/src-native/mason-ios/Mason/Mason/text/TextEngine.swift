@@ -521,25 +521,27 @@ public class TextEngine: NSObject {
     let framesetter = CTFramesetterCreateWithAttributedString(text)
     
     var paddingRestore =  false
-    let drawBounds = bounds
+    var drawBounds = bounds
+  
+    guard drawBounds.width > 0 else { return }
+    
     let computedPadding = node.computedLayout.padding
     if !computedPadding.isEmpty() {
       paddingRestore = true
-      context.saveGState()
+    //  context.saveGState()
       let scale = NSCMason.scale
       let padding = UIEdgeInsets(
         top: CGFloat(computedPadding.top / scale),
         left: CGFloat(computedPadding.left / scale),
-        bottom: 0,
-        right: 0
+        bottom: CGFloat(computedPadding.bottom / scale),
+        right: CGFloat(computedPadding.right / scale)
       )
-      // translate or inset
-      // drawBounds = drawBounds.inset(by: padding)
       
-      context.translateBy(x: CGFloat(computedPadding.left / scale), y: -padding.top)
+      drawBounds = drawBounds.inset(by: padding)
+      
+      guard drawBounds.width > 0, drawBounds.height > 0 else { return }
     }
     
-    guard drawBounds.width > 0 else { return }
     
     let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
       framesetter,
@@ -549,18 +551,20 @@ public class TextEngine: NSObject {
       nil
     )
     
-    let layoutBounds = CGRect(
+    var layoutBounds = CGRect(
       x: drawBounds.origin.x,
       y: drawBounds.origin.y,
       width: drawBounds.width,
       height: max(drawBounds.height, suggestedSize.height)
     )
     
+    
+   
     let path = CGPath(rect: layoutBounds, transform: nil)
     let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
     
     context.saveGState()
-    context.clip(to: drawBounds)
+    context.clip(to: bounds)
     
     let linesCF = CTFrameGetLines(frame)
     let linesCount = CFArrayGetCount(linesCF)
@@ -574,7 +578,19 @@ public class TextEngine: NSObject {
       let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
       let lineOrigin = origins[i]
       
-      context.textPosition = CGPoint(x: lineOrigin.x, y: lineOrigin.y)
+      let verticalOffset = max(
+        0,
+        (layoutBounds.height - suggestedSize.height) / 2
+      )
+
+      let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
+
+       let horizontalOffset = max(
+         0,
+         (drawBounds.width - CGFloat(lineWidth)) / 2
+       )
+      
+      context.textPosition = CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset)
       
       let runsCF = CTLineGetGlyphRuns(line)
       let runCount = CFArrayGetCount(runsCF)
@@ -619,7 +635,7 @@ public class TextEngine: NSObject {
     }
     
     if(paddingRestore){
-      context.restoreGState()
+     // context.restoreGState()
     }
     
   }

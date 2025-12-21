@@ -7,6 +7,7 @@ import android.util.TypedValue
 import android.view.View
 import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.TextAlign
 
 class Button @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
@@ -75,17 +76,9 @@ class Button @JvmOverloads constructor(
       context.resources.displayMetrics
     )
 
-    val x = TypedValue.applyDimension(
-      TypedValue.COMPLEX_UNIT_SP,
-      6f,
-      context.resources.displayMetrics
-    )
+    val x = 6f
 
-    val y = TypedValue.applyDimension(
-      TypedValue.COMPLEX_UNIT_SP,
-      1f,
-      context.resources.displayMetrics
-    )
+    val y = 1f
 
     setPadding(0, 0, 0, 0)
     configure { style ->
@@ -99,6 +92,7 @@ class Button @JvmOverloads constructor(
       )
       style.border = "1px"
       style.borderRadius = "4px"
+      style.textAlign = TextAlign.Center
       style.syncFontMetrics()
     }
 

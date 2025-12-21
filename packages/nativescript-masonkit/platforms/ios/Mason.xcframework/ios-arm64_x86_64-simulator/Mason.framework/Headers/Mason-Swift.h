@@ -866,6 +866,8 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, copy) NSString * _Nonnull backgroundSize;
 @property (nonatomic, copy) NSString * _Nonnull backgroundClip;
 @property (nonatomic) uint32_t backgroundColor;
+- (NSString * _Nonnull)getBackgroundColor SWIFT_WARN_UNUSED_RESULT;
+- (void)setBackgroundColorWithString:(NSString * _Nonnull)color;
 - (void)setBackgroundColorWithUi:(UIColor * _Nonnull)color;
 - (void)setLineHeight:(float)value :(BOOL)isRelative;
 @property (nonatomic) float lineHeight;
@@ -1065,6 +1067,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
 
 SWIFT_CLASS_NAMED("MasonUIView")
 @interface MasonUIView : UIView <MasonElementObjc>
+- (void)drawRect:(CGRect)rect;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
@@ -1429,6 +1432,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonPosition, "Position", open) {
 
 SWIFT_CLASS_NAMED("Scroll")
 @interface MasonScroll : UIScrollView <MasonElementObjc, UIScrollViewDelegate>
+- (void)drawRect:(CGRect)rect;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
@@ -2425,6 +2429,8 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, copy) NSString * _Nonnull backgroundSize;
 @property (nonatomic, copy) NSString * _Nonnull backgroundClip;
 @property (nonatomic) uint32_t backgroundColor;
+- (NSString * _Nonnull)getBackgroundColor SWIFT_WARN_UNUSED_RESULT;
+- (void)setBackgroundColorWithString:(NSString * _Nonnull)color;
 - (void)setBackgroundColorWithUi:(UIColor * _Nonnull)color;
 - (void)setLineHeight:(float)value :(BOOL)isRelative;
 @property (nonatomic) float lineHeight;
@@ -2624,6 +2630,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
 
 SWIFT_CLASS_NAMED("MasonUIView")
 @interface MasonUIView : UIView <MasonElementObjc>
+- (void)drawRect:(CGRect)rect;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
@@ -2988,6 +2995,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonPosition, "Position", open) {
 
 SWIFT_CLASS_NAMED("Scroll")
 @interface MasonScroll : UIScrollView <MasonElementObjc, UIScrollViewDelegate>
+- (void)drawRect:(CGRect)rect;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;

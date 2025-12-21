@@ -457,6 +457,7 @@ pub enum NodeType {
     Normal,
     Text,
     Image,
+    Virtual,
 }
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -498,6 +499,11 @@ impl Node {
     #[inline]
     pub fn is_image(&self) -> bool {
         self.type_ == NodeType::Image
+    }
+
+    #[inline]
+    pub fn is_virtual(&self) -> bool {
+        self.type_ == NodeType::Virtual
     }
 
     pub fn compute_style(&self) -> Style {

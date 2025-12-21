@@ -432,13 +432,27 @@ class BorderRenderer(private val style: Style) {
     clipPath.lineTo(width, height - brY)
 
     // Bottom-right corner
-    addCornerToPath(clipPath, Corner.BOTTOM_RIGHT, PointF(brX, brY), bottomRightExponent, width, height)
+    addCornerToPath(
+      clipPath,
+      Corner.BOTTOM_RIGHT,
+      PointF(brX, brY),
+      bottomRightExponent,
+      width,
+      height
+    )
 
     // Bottom edge
     clipPath.lineTo(blX, height)
 
     // Bottom-left corner
-    addCornerToPath(clipPath, Corner.BOTTOM_LEFT, PointF(blX, blY), bottomLeftExponent, width, height)
+    addCornerToPath(
+      clipPath,
+      Corner.BOTTOM_LEFT,
+      PointF(blX, blY),
+      bottomLeftExponent,
+      width,
+      height
+    )
 
     // Left edge
     clipPath.lineTo(0f, tlY)
@@ -504,12 +518,15 @@ class BorderRenderer(private val style: Style) {
         Corner.TOP_LEFT -> {
           px = radius.x * (1 - cx); py = radius.y * (1 - cy)
         }
+
         Corner.TOP_RIGHT -> {
           px = width - radius.x * (1 - cx); py = radius.y * (1 - cy)
         }
+
         Corner.BOTTOM_RIGHT -> {
           px = width - radius.x * (1 - cx); py = height - radius.y * (1 - cy)
         }
+
         Corner.BOTTOM_LEFT -> {
           px = radius.x * (1 - cx); py = height - radius.y * (1 - cy)
         }
@@ -667,12 +684,15 @@ class BorderRenderer(private val style: Style) {
         Corner.TOP_LEFT -> {
           px = radius.x * (1 - cx); py = radius.y * (1 - cy)
         }
+
         Corner.TOP_RIGHT -> {
           px = width - radius.x * (1 - cx); py = radius.y * (1 - cy)
         }
+
         Corner.BOTTOM_RIGHT -> {
           px = width - radius.x * (1 - cx); py = height - radius.y * (1 - cy)
         }
+
         Corner.BOTTOM_LEFT -> {
           px = radius.x * (1 - cx); py = height - radius.y * (1 - cy)
         }
@@ -727,18 +747,37 @@ class BorderRenderer(private val style: Style) {
   enum class Side { Left, Top, Right, Bottom }
 }
 
-private val lengthPercentageRegex = Regex("""^(\d+(\.\d+)?)(px|%)$""")
+private val lengthPercentageRegex = Regex("""^(-?\d+(?:\.\d+)?)(px|%|dip|em)?$""")
 private val colorRegex = Regex("""^(#\w{3,8}|[a-zA-Z]+)$""")
-
 
 fun parseLengthPercentage(value: String): LengthPercentage? {
   val match = lengthPercentageRegex.matchEntire(value.trim()) ?: return null
   val num = match.groupValues[1].toFloatOrNull() ?: return null
-  return when (match.groupValues[3]) {
+  val unit = match.groupValues.getOrNull(2)
+  return when (unit) {
     "px" -> Points(num)
     "%" -> Percent(num / 100f)
     "dip" -> Points(num * Mason.shared.scale)
-    else -> null
+    else -> {
+      return Points(num * Mason.shared.scale)
+    }
+  }
+}
+
+fun parseLength(style: Style, value: String): Float? {
+  val match = lengthPercentageRegex.matchEntire(value.trim()) ?: return null
+  val num = match.groupValues[1].toFloatOrNull() ?: return null
+  val unit = match.groupValues.getOrNull(2)
+  return when (unit) {
+    "px" -> num
+    "%" -> 0f // don't parse
+    "dip" -> num * Mason.shared.scale
+    "em" ->  {
+      (style.fontSize * Mason.shared.scale) * num
+    }
+    else -> {
+      return num * Mason.shared.scale
+    }
   }
 }
 
@@ -854,7 +893,10 @@ fun parseBorderShorthand(style: Style, value: String) {
 }
 
 fun parseBorderRadius(style: Style, value: String) {
-  val parts = value.split(SPLIT_REGEX).mapNotNull { parseLengthPercentage(it) }
+  val parts = SPLIT_REGEX
+    .split(value.trim().removeSuffix(";"))
+    .mapNotNull { parseLengthPercentage(it) }
+
   when (parts.size) {
     1 -> {
       parts[0].let {

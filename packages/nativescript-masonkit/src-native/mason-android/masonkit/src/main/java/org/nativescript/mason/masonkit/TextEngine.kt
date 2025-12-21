@@ -15,6 +15,7 @@ import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.util.DisplayMetrics
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.View.MeasureSpec
@@ -22,7 +23,6 @@ import android.view.ViewGroup
 import android.widget.TextView.BufferType
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withTranslation
-import org.nativescript.mason.masonkit.Spans.OverlineSpan
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.TextNode.FixedLineHeightSpan
 import org.nativescript.mason.masonkit.TextNode.RelativeLineHeightSpan
@@ -146,7 +146,8 @@ class TextEngine(val container: TextContainer) {
       change and TextStyleChangeMask.BACKGROUND_COLOR != 0 ||
       change and TextStyleChangeMask.LINE_HEIGHT != 0 ||
       change and TextStyleChangeMask.TEXT_ALIGN != 0 ||
-      change and TextStyleChangeMask.TEXT_OVERFLOW != 0
+      change and TextStyleChangeMask.TEXT_OVERFLOW != 0 ||
+      change and TextStyleChangeMask.TEXT_SHADOW != 0
 
     ) {
       dirty = true
@@ -762,13 +763,13 @@ class TextEngine(val container: TextContainer) {
         }
 
         Styles.DecorationLine.Overline -> {
-        /*  spannable.setSpan(
-            OverlineSpan(
-              container.style.resolvedDecorationColor,
-              container.style.resolvedDecorationThickness
-            ), start, end, flags
-          )
-          */
+          /*  spannable.setSpan(
+              OverlineSpan(
+                container.style.resolvedDecorationColor,
+                container.style.resolvedDecorationThickness
+              ), start, end, flags
+            )
+            */
         }
 
         Styles.DecorationLine.UnderlineLineThrough -> {
@@ -820,6 +821,30 @@ class TextEngine(val container: TextContainer) {
     }
 
     spannable.setSpan(AlignmentSpan.Standard(align), start, end, flags)
+
+    val shadows = style.resolvedTextShadow
+    if (shadows.isNotEmpty()) {
+      for (shadow in shadows) {
+        if (shadow.blurRadius > 0) {
+          spannable.setSpan(
+            Spans.BlurredTextShadowSpan(
+              shadow.offsetX,
+              shadow.offsetY,
+              shadow.blurRadius,
+              shadow.color
+            ), start, end, flags
+          )
+        } else {
+          spannable.setSpan(
+            Spans.TextShadowSpan(
+              shadow.offsetX,
+              shadow.offsetY,
+              shadow.color
+            ), start, end, flags
+          )
+        }
+      }
+    }
   }
 
   // When building attributed string, walk tree and apply current styles

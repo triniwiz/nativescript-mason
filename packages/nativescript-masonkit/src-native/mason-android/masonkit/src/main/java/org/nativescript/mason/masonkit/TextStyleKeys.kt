@@ -42,4 +42,5 @@ object TextStyleKeys {
   const val LINE_HEIGHT_TYPE = 133
   const val DECORATION_THICKNESS = 134
   const val DECORATION_THICKNESS_STATE = 138
+  const val TEXT_SHADOW_STATE = 139
 }

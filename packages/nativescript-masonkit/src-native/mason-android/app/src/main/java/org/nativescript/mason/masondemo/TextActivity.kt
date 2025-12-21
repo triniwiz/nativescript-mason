@@ -43,10 +43,10 @@ class TextActivity : AppCompatActivity() {
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
 
       body.style.padding = Rect(
-        LengthPercentage.Points(systemBars.left.toFloat()),
-        LengthPercentage.Points(systemBars.right.toFloat()),
         LengthPercentage.Points(systemBars.top.toFloat()),
-        LengthPercentage.Points(systemBars.bottom.toFloat())
+        LengthPercentage.Points(systemBars.right.toFloat()),
+        LengthPercentage.Points(systemBars.bottom.toFloat()),
+        LengthPercentage.Points(systemBars.left.toFloat()),
       )
 
       WindowInsetsCompat.CONSUMED

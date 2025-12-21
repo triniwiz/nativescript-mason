@@ -955,7 +955,7 @@ class CSSFilters {
       return cm
     }
 
-    private fun parseCssColor(value: String): Int {
+    internal fun parseCssColor(value: String): Int {
       val trimmed = value.trim().lowercase()
 
       return when {

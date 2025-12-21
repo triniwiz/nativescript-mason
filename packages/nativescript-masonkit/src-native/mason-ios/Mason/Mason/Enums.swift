@@ -409,8 +409,8 @@ public enum MasonLengthPercentage: Codable, Equatable {
   
   func resolve(relativeTo: Float) -> Float {
     switch (self) {
-    case .Points(let points): return points
-    case .Percent(let percent): return (percent * 100) * relativeTo
+    case .Points(let points): return points / NSCMason.scale
+    case .Percent(let percent): return percent * relativeTo
     case .Zero: return 0
     }
   }

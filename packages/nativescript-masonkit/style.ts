@@ -2915,6 +2915,34 @@ export class Style {
     }
   }
 
+  get backgroundImage() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getBackgroundImage(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.backgroundImage;
+    }
+
+    return '';
+  }
+
+  set backgroundImage(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setBackgroundImage(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.backgroundImage = value;
+    }
+  }
+
   get borderRadius() {
     if (!this.nativeView) {
       return '';

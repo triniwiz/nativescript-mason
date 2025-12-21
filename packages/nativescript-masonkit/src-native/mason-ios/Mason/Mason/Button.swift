@@ -99,7 +99,6 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
     style.mBackground.draw(on: self, in: context, rect: bounds)
     engine.drawText(context: context, rect: bounds)
     style.mBorderRender.draw(in: context, rect: bounds)
-    
   }
   
   
@@ -111,11 +110,10 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
     let x =  6 * scale
     let y =  scale
 
-
     configure { style in
       style.display = Display.InlineBlock
       style.padding = MasonRect(.Points(y), .Points(x), .Points(y), .Points(x))
-      
+      style.textAlign = .Center
       style.border = "1px"
       style.borderRadius = "\(4/scale)/px"
     }

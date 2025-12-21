@@ -7,17 +7,23 @@ import android.os.Bundle
 import android.util.DisplayMetrics
 import android.view.WindowInsets
 import android.view.WindowMetrics
+import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
-import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.Rect
+import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles
 import org.nativescript.mason.masonkit.View
+import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.Position
+import org.nativescript.mason.masonkit.enums.TextAlign
 
 @RequiresApi(Build.VERSION_CODES.R)
 fun getActivitySizeWithInsets(activity: Activity): Triple<Int, Int, android.graphics.Rect> {
@@ -51,65 +57,43 @@ fun getActivitySizeWithInsetsLegacy(activity: Activity): Triple<Int, Int, androi
 
 
 class AbsoluteActivity : AppCompatActivity() {
-  val mason = Mason()
-
+  val mason = Mason.shared
+  lateinit var body: View
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    body = mason.createView(this)
+    ViewCompat.setOnApplyWindowInsetsListener(body) { view, insets ->
+      val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
 
-    /*
-    val child = mason.createView(this)
-    child.setBackgroundColor(Color.RED)
-    child.configure { node ->
-      node.style.display = Display.Block
-      node.style.position = Position.Absolute
-      node.style.maxSize = Size(
-        Dimension.Points(12f),
-        Dimension.Points(12f)
-      )
-      node.style.padding = Rect(
-        LengthPercentage.Points(2f),
-        LengthPercentage.Points(4f),
-        LengthPercentage.Points(6f),
-        LengthPercentage.Points(8f)
+      body.style.padding = Rect(
+        LengthPercentage.Points(systemBars.top.toFloat()),
+        LengthPercentage.Points(systemBars.right.toFloat()),
+        LengthPercentage.Points(systemBars.bottom.toFloat()),
+        LengthPercentage.Points(systemBars.left.toFloat()),
       )
 
-      node.style.border = Rect(
-        LengthPercentage.Points(1f),
-        LengthPercentage.Points(3f),
-        LengthPercentage.Points(5f),
-        LengthPercentage.Points(7f)
-      )
-    }
-    */
-
-    val activitySize = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      getActivitySizeWithInsets(this)
-    } else {
-      getActivitySizeWithInsetsLegacy(this)
+      WindowInsetsCompat.CONSUMED
     }
 
+    enableEdgeToEdge()
 
-    val adjustedWidth =
-      resources.displayMetrics.widthPixels - (activitySize.third.left + activitySize.third.right)
-    val adjustedHeight =
-      resources.displayMetrics.heightPixels - (activitySize.third.top + activitySize.third.bottom)
-
-//    Log.d("com", "${activitySize.second} ${}")
-
-    val rootLayout = mason.createView(this)
-    rootLayout.setBackgroundColor(Color.BLUE)
-    rootLayout.configure {
-      it.display = Display.Block
-//     style.size = Size(
-//        Dimension.Points(adjustedWidth.toFloat()),
-//        Dimension.Points(adjustedHeight.toFloat())
-//      )
-
+    body.configure {
       it.size = Size(
         Dimension.Percent(1f),
         Dimension.Percent(1f)
       )
+    }
 
+
+    val rootLayout = mason.createView(this)
+    body.append(rootLayout)
+    body.setBackgroundColor(Color.BLUE)
+    rootLayout.style.background = "red"
+    rootLayout.configure {
+      it.size = Size(
+        Dimension.Percent(1f),
+        Dimension.Percent(1f)
+      )
     }
 
     //rootLayout.addView(child)
@@ -118,7 +102,7 @@ class AbsoluteActivity : AppCompatActivity() {
 
     // regularTextText(rootLayout)
 
-    setContentView(rootLayout)
+    setContentView(body)
 
   }
 
@@ -142,8 +126,8 @@ class AbsoluteActivity : AppCompatActivity() {
         LengthPercentageAuto.Auto
       )
       it.inset = Rect(
-        LengthPercentageAuto.Percent(.5f),
         LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Percent(.5f),
         LengthPercentageAuto.Percent(.5f),
         LengthPercentageAuto.Auto
       )
@@ -160,8 +144,8 @@ class AbsoluteActivity : AppCompatActivity() {
       it.inset = Rect(
         LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Auto,
         LengthPercentageAuto.Points(10f),
-        LengthPercentageAuto.Auto
       )
     }
 
@@ -171,9 +155,9 @@ class AbsoluteActivity : AppCompatActivity() {
     topRight.configure {
       it.position = Position.Absolute
       it.inset = Rect(
+        LengthPercentageAuto.Points(10f),
+        LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Auto,
-        LengthPercentageAuto.Points(10f),
-        LengthPercentageAuto.Points(10f),
         LengthPercentageAuto.Auto
       )
     }
@@ -221,31 +205,31 @@ class AbsoluteActivity : AppCompatActivity() {
   }
 
   fun absTextText(rootLayout: View) {
-
     val ct = mason.createTextView(this)
-    ct.text = "Center Text"
-    val size = ct.paint.measureText(ct.text.toString())
+    ct.append("Center Text")
     ct.color = Color.MAGENTA
-    ct.setBackgroundColor(Color.GREEN)
-    ct.textAlignment = android.widget.TextView.TEXT_ALIGNMENT_CENTER
+    ct.style.background = "green"
+    ct.style.textAlign = TextAlign.Center
     ct.configure {
       it.position = Position.Absolute
       it.margin = Rect(
-        LengthPercentageAuto.Points(-(size / 2)),
         LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Percent(-0.5f),
         LengthPercentageAuto.Auto,
-        LengthPercentageAuto.Auto
+        LengthPercentageAuto.Percent(0.40f)
       )
       it.inset = Rect(
         LengthPercentageAuto.Percent(.5f),
         LengthPercentageAuto.Auto,
-        LengthPercentageAuto.Percent(.5f),
+        LengthPercentageAuto.Percent(0.5f),
         LengthPercentageAuto.Auto
       )
     }
 
 
-    rootLayout.addView(ct)
+    rootLayout.append(ct)
+
+    /*
 
     val topLeft = mason.createTextView(this)
     topLeft.text = "Top Left"
@@ -306,6 +290,8 @@ class AbsoluteActivity : AppCompatActivity() {
     }
 
     //   val image =
+
+    */
 
   }
 

@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.view.ViewGroup
 import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
 import org.nativescript.mason.masonkit.enums.BoxSizing
@@ -24,8 +23,7 @@ class Scroll @JvmOverloads constructor(
 
   override var enableScrollX: Boolean
     get() {
-      val value = node.style.values.getInt(StyleKeys.OVERFLOW_X)
-      return when (value) {
+      return when (val value = node.style.values.getInt(StyleKeys.OVERFLOW_X)) {
         2, 4 -> true
         0, 1, 3 -> false
         else -> throw IllegalArgumentException("Unknown overflow enum value: $value")
@@ -36,8 +34,7 @@ class Scroll @JvmOverloads constructor(
 
   override var enableScrollY: Boolean
     get() {
-      val value = node.style.values.getInt(StyleKeys.OVERFLOW_Y)
-      return when (value) {
+      return when (val value = node.style.values.getInt(StyleKeys.OVERFLOW_Y)) {
         2, 4 -> true
         0, 1, 3 -> false
         else -> throw IllegalArgumentException("Unknown overflow enum value: $value")
@@ -135,9 +132,11 @@ class Scroll @JvmOverloads constructor(
     val availableWidth = mapMeasureSpec(specWidthMode, specWidth).value
     val availableHeight = mapMeasureSpec(specHeightMode, specHeight).value
 
-    compute(
-      availableWidth, availableHeight
-    )
+    if (parent !is Element) {
+      compute(
+        availableWidth, availableHeight
+      )
+    }
 
     val layout = layout()
 
@@ -155,8 +154,8 @@ class Scroll @JvmOverloads constructor(
     width = when (overflow.x) {
       Overflow.Visible -> {
         if (boxing == BoxSizing.BorderBox) {
-         // (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
-        layout.width.toInt()
+          // (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
+          layout.width.toInt()
         } else {
           layout.contentSize.height.toInt()
         }
@@ -185,7 +184,7 @@ class Scroll @JvmOverloads constructor(
     setMeasuredDimension(width, height)
   }
 
-  override fun generateDefaultLayoutParams(): LayoutParams? {
+  override fun generateDefaultLayoutParams(): LayoutParams {
     return LayoutParams(
       LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
     )

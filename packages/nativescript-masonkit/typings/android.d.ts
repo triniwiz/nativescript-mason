@@ -2473,6 +2473,8 @@ declare module org {
 					public setInsetTop(this_: globalAndroid.view.View, view: number, value: number): void;
 					public longRunningFunction(): number;
 					public setBackground(this_: globalAndroid.view.View, view: string): void;
+					public setBackgroundImage(this_: globalAndroid.view.View, view: string): void;
+					public getBackgroundImage(this_: globalAndroid.view.View): string;
 					public static getShared(): org.nativescript.mason.masonkit.NodeHelper;
 					public getOverflow(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Point<org.nativescript.mason.masonkit.enums.Overflow>;
 					public getDirection(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.enums.Direction;

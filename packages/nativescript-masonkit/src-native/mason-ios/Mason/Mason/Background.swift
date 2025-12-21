@@ -196,7 +196,6 @@ func drawBackground(
     context.fill(CGRect(x: 0, y: 0, width: rect.width, height: rect.height))
   }
   
-  
   if layer.gradient != nil {
     drawGradient(layer: layer, context: context, width: rect.width, height: rect.height)
   }
@@ -256,10 +255,10 @@ func drawGradient(layer: BackgroundLayer, context: CGContext, width: CGFloat, he
 func linearGradientPoints(direction: String?, width: CGFloat, height: CGFloat)
 -> (CGPoint, CGPoint) {
   switch direction?.lowercased() {
-  case "to bottom": return (CGPoint(x: 0, y: 0), CGPoint(x: 0, y: height))
-  case "to top": return (CGPoint(x: 0, y: height), CGPoint(x: 0, y: 0))
-  case "to right": return (CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0))
-  case "to left": return (CGPoint(x: width, y: 0), CGPoint(x: 0, y: 0))
+  case "to bottom", "180deg": return (CGPoint(x: 0, y: 0), CGPoint(x: 0, y: height))
+  case "to top", "0deg": return (CGPoint(x: 0, y: height), CGPoint(x: 0, y: 0))
+  case "to right", "90deg": return (CGPoint(x: 0, y: 0), CGPoint(x: width, y: 0))
+  case "to left", "270deg": return (CGPoint(x: width, y: 0), CGPoint(x: 0, y: 0))
   default:
     // handle angle in degrees
     

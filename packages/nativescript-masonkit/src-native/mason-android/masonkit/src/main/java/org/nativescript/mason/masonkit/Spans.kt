@@ -5,8 +5,10 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Build
 import android.text.TextPaint
+import android.text.style.CharacterStyle
 import android.text.style.LineBackgroundSpan
 import android.text.style.ReplacementSpan
+import android.text.style.UpdateAppearance
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.withSave
@@ -240,4 +242,56 @@ class Spans {
       }
     }
   }
+
+
+  class BlurredTextShadowSpan(
+    private val offsetX: Float,
+    private val offsetY: Float,
+    private val blurRadius: Float,
+    private val color: Int
+  ) : CharacterStyle(), UpdateAppearance {
+
+    override fun updateDrawState(tp: TextPaint) {
+      tp.setShadowLayer(blurRadius, offsetX, offsetY, color)
+    }
+  }
+
+  class TextShadowSpan(
+    private val offsetX: Float,
+    private val offsetY: Float,
+    private val shadowColor: Int
+  ) : ReplacementSpan() {
+
+    override fun getSize(
+      paint: Paint,
+      text: CharSequence,
+      start: Int,
+      end: Int,
+      fm: Paint.FontMetricsInt?
+    ): Int {
+      return paint.measureText(text, start, end).toInt()
+    }
+
+    override fun draw(
+      canvas: Canvas,
+      text: CharSequence,
+      start: Int,
+      end: Int,
+      x: Float,
+      top: Int,
+      y: Int,
+      bottom: Int,
+      paint: Paint
+    ) {
+      val originalColor = paint.color
+
+      paint.color = shadowColor
+      canvas.drawText(text, start, end, x + offsetX, y + offsetY, paint)
+
+      paint.color = originalColor
+      canvas.drawText(text, start, end, x, y.toFloat(), paint)
+    }
+  }
+
+
 }

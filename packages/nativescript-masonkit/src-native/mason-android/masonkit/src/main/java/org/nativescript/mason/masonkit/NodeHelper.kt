@@ -1277,5 +1277,31 @@ class NodeHelper(val mason: Mason) {
     val node = mason.nodeForView(view)
     node.style.borderRadius = value
   }
+
+  fun getBackgroundColor(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.mBackground?.color?.rgbaToHexCSS() ?: ""
+  }
+
+  fun setBackgroundColor(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.setBackgroundColor(value)
+  }
+
+  fun getBackgroundImage(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.backgroundImage
+  }
+
+  fun setBackgroundImage(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.backgroundImage = value
+  }
 }
 

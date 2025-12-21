@@ -13,6 +13,33 @@ public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement, MasonElem
     MasonNode.invalidateDescendantTextViews(node, change)
   }
   
+  public override func draw(_ rect: CGRect) {
+    
+    guard let context = UIGraphicsGetCurrentContext() else {
+      return
+    }
+    style.mBorderRender.resolve(for: bounds)
+    let borderWidths = style.mBorderRender.cachedWidths
+    let innerRect = bounds.inset(by: UIEdgeInsets(
+      top: borderWidths.top,
+      left: borderWidths.left,
+      bottom: borderWidths.bottom,
+      right: borderWidths.right
+    ))
+    
+    let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
+    let innerPath = style.mBorderRender.buildRoundedPath(in: innerRect, radius: innerRadius)
+    
+    
+    context.saveGState()
+    context.addPath(innerPath.cgPath)
+    context.clip()
+    style.mBackground.draw(on: self, in: context, rect: innerRect)
+    context.restoreGState()
+    
+    style.mBorderRender.draw(in: context, rect: bounds)
+    style.mBorderRender.draw(in: context, rect: bounds)
+  }
   
   public let node: MasonNode
   public let mason: NSCMason

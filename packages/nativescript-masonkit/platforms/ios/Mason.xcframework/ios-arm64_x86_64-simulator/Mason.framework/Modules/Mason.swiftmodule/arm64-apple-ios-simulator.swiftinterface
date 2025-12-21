@@ -973,6 +973,8 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc get
     @objc set
   }
+  @objc public func getBackgroundColor() -> Swift.String
+  @objc public func setBackgroundColor(string color: Swift.String)
   @objc public func setBackgroundColor(ui color: UIKit.UIColor)
   @objc public func setLineHeight(_ value: Swift.Float, _ isRelative: Swift.Bool)
   @objc public var lineHeight: Swift.Float {
@@ -2042,6 +2044,7 @@ public enum VerticalAlign {
   @objc deinit
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonUIView) @_Concurrency.MainActor @preconcurrency public class MasonUIView : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc {
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @_Concurrency.MainActor @preconcurrency @objc public var uiView: UIKit.UIView {
@@ -2267,6 +2270,7 @@ public enum VerticalAlign {
   @objc deinit
 }
 @_hasMissingDesignatedInitializers @objc(MasonScroll) @objcMembers @_Concurrency.MainActor @preconcurrency public class Scroll : UIKit.UIScrollView, UIKit.UIScrollViewDelegate, Mason.MasonElement, Mason.MasonElementObjc {
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @_Concurrency.MainActor @preconcurrency @objc public var uiView: UIKit.UIView {

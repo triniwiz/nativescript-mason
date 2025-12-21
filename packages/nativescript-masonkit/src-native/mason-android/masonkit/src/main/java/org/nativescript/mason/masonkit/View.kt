@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
@@ -55,7 +56,6 @@ class View @JvmOverloads constructor(
         node = Mason.shared.createNode().apply {
           view = this@View
         }
-
         node.style.setStyleChangeListener(this)
       }
     }
@@ -68,6 +68,11 @@ class View @JvmOverloads constructor(
     style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
     super.onSizeChanged(w, h, oldw, oldh)
+  }
+
+
+  override fun onDraw(canvas: Canvas) {
+    super.onDraw(canvas)
   }
 
   override fun dispatchDraw(canvas: Canvas) {
@@ -117,10 +122,12 @@ class View @JvmOverloads constructor(
     val specWidthMode = MeasureSpec.getMode(widthMeasureSpec)
     val specHeightMode = MeasureSpec.getMode(heightMeasureSpec)
 
-    compute(
-      mapMeasureSpec(specWidthMode, specWidth).value,
-      mapMeasureSpec(specHeightMode, specHeight).value
-    )
+    if (parent !is Element) {
+      compute(
+        mapMeasureSpec(specWidthMode, specWidth).value,
+        mapMeasureSpec(specHeightMode, specHeight).value
+      )
+    }
 
     // todo cache layout
     val layout = layout()
@@ -154,7 +161,6 @@ class View @JvmOverloads constructor(
         layout.contentSize.height.toInt()
       }
     }
-
 
     setMeasuredDimension(
       width,
@@ -1863,7 +1869,7 @@ class View @JvmOverloads constructor(
 
   override fun generateDefaultLayoutParams(): ViewGroup.LayoutParams {
     return LayoutParams(
-      ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+      ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
     )
   }
 

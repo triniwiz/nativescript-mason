@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
 import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
@@ -89,6 +90,9 @@ open class Node internal constructor(
       availableHeight = availableSpace.height
       val view = this@Node.view as? View
 
+      Log.d("com.test", "known?? ${knownDimensions} $availableSpace")
+
+
       if (knownDimensions.width != null && knownDimensions.height != null) {
         return Size(knownDimensions.width!!, knownDimensions.height!!)
       }
@@ -149,12 +153,21 @@ open class Node internal constructor(
           when (paramsHeight) {
             ViewGroup.LayoutParams.MATCH_PARENT -> {
               if (availableHeight != null && availableHeight!!.isFinite()) {
-                if (availableWidth == -2f) {
-                  height = Int.MAX_VALUE
-                  MeasureSpec.UNSPECIFIED
-                } else {
-                  height = availableHeight!!.toInt()
-                  MeasureSpec.AT_MOST
+                when (availableHeight) {
+                  -2f -> {
+                    height = Int.MAX_VALUE
+                    MeasureSpec.UNSPECIFIED
+                  }
+
+                  -1f -> {
+                    height = Int.MAX_VALUE
+                    MeasureSpec.UNSPECIFIED
+                  }
+
+                  else -> {
+                    height = availableHeight!!.toInt()
+                    MeasureSpec.AT_MOST
+                  }
                 }
               } else {
                 MeasureSpec.EXACTLY
@@ -183,7 +196,6 @@ open class Node internal constructor(
             height, heightSpec
           )
         )
-
       }
 
       val width = knownDimensions.width ?: view?.measuredWidth?.toFloat() ?: 0f

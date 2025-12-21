@@ -34,6 +34,22 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
 
+
+internal fun Int.rgbaToHexCSS(): String {
+  val color = this.toUInt()
+  val r = (color shr 24) and 0xFFu
+  val g = (color shr 16) and 0xFFu
+  val b = (color shr 8) and 0xFFu
+  val a = (color and 0xFFu).toInt()
+  if (a == 255) {
+    return "#%02X%02X%02X".format(r.toInt(), g.toInt(), b.toInt())
+  }
+  return "#%02X%02X%02X%02X".format(
+    r.toInt(), g.toInt(), b.toInt(), a
+  )
+}
+
+
 object StyleKeys {
   const val DISPLAY = 0
   const val POSITION = 4
@@ -290,6 +306,7 @@ object TextStyleChangeMask {
   const val TEXT_ALIGN: Int = 1 shl 16
   const val VERTICAL_ALIGN: Int = 1 shl 17
   const val DECORATION_THICKNESS: Int = 1 shl 18
+  const val TEXT_SHADOW: Int = 1 shl 19
   const val ALL: Int = -1
 }
 
@@ -479,7 +496,7 @@ class Style internal constructor(internal var node: Node) {
 
   val textValues: ByteBuffer by lazy {
     isTextValueInitialized = true
-    ByteBuffer.allocateDirect(150).apply {
+    ByteBuffer.allocateDirect(151).apply {
       order(ByteOrder.nativeOrder())
 
       // Initialize all values with INHERIT state
@@ -575,6 +592,8 @@ class Style internal constructor(internal var node: Node) {
           TextStateKeys.DECORATION_COLOR
         ) || value.hasFlag(TextStateKeys.DECORATION_LINE) || sizeDirty || weightDirty || styleDirty || lineHeightDirty || value.hasFlag(
           TextStateKeys.DECORATION_THICKNESS
+        ) || value.hasFlag(
+          TextStateKeys.TEXT_SHADOWS
         )
       ) {
         invalidate = true
@@ -737,9 +756,9 @@ class Style internal constructor(internal var node: Node) {
     get() = mBackgroundRaw
     set(value) {
       if (value.isEmpty()) {
-        mBackground = null
+        mBackground?.clear()
       } else {
-        parseBackground(value)?.let {
+        parseBackground(this, value)?.let {
           mBackground = it
           mBackgroundRaw = value
           (node.view as? View)?.invalidate()
@@ -747,6 +766,25 @@ class Style internal constructor(internal var node: Node) {
       }
 
     }
+
+  var backgroundImage: String
+    get() {
+      return mBackground?.layers
+        ?.map { it.image }?.joinToString(",", "", ";") ?: ""
+    }
+    set(value) {
+      if (mBackground == null) {
+        mBackground = Background(this)
+      }
+      val layers = parseBackgroundLayers(value)
+      mBackground?.layers = layers.toMutableList()
+    }
+
+  fun setBackgroundColor(value: String) {
+    parseColor(value)?.let {
+      (mBackground ?: run { Background(this) }).color = it
+    }
+  }
 
   var textJustify: TextJustify
     get() {
@@ -959,11 +997,6 @@ class Style internal constructor(internal var node: Node) {
       return textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
     }
     set(value) {
-      mBackground?.let {
-        it.color = value
-      } ?: run {
-        mBackground = Background(value)
-      }
       textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, value)
       textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.BACKGROUND_COLOR)
@@ -1608,6 +1641,26 @@ class Style internal constructor(internal var node: Node) {
     }
   }
 
+//  var boxShadow: String
+//    set(value) {
+//      field = value
+//    }
+
+  internal var textShadows: List<Shadow.TextShadow> = listOf()
+  var textShadow: String = ""
+    set(value) {
+      field = value
+      textShadows = Shadow.parseTextShadow(this, value)
+      if (textShadows.isEmpty()) {
+        textValues.put(TextStyleKeys.TEXT_SHADOW_STATE, StyleState.INHERIT)
+      } else {
+        textValues.put(TextStyleKeys.TEXT_SHADOW_STATE, StyleState.SET)
+      }
+
+      setOrAppendState(TextStateKeys.TEXT_SHADOWS)
+      notifyTextStyleChanged(TextStyleChangeMask.TEXT_SHADOW)
+    }
+
   internal var mBorder: String = ""
   internal val mBorderRenderer by lazy {
     BorderRenderer(this)
@@ -2070,6 +2123,21 @@ class Style internal constructor(internal var node: Node) {
     values.putInt(StyleKeys.MIN_HEIGHT_TYPE, value.type)
     values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value.value)
     setOrAppendState(StateKeys.MIN_SIZE)
+  }
+
+  internal val isSizeAuto: Boolean
+    get() {
+      return values.getInt(StyleKeys.WIDTH_TYPE) == 0
+        && values.getInt(StyleKeys.HEIGHT_TYPE) == 0
+    }
+
+  internal fun setSize(width: Int, height: Int) {
+    values.putInt(StyleKeys.WIDTH_TYPE, 1)
+    values.putFloat(StyleKeys.WIDTH_VALUE, width.toFloat())
+
+    values.putInt(StyleKeys.HEIGHT_TYPE, 1)
+    values.putFloat(StyleKeys.HEIGHT_VALUE, height.toFloat())
+    setOrAppendState(StateKeys.SIZE)
   }
 
   var size: Size<Dimension>
@@ -2988,6 +3056,17 @@ class Style internal constructor(internal var node: Node) {
           ?: textValues.get(TextStyleKeys.LINE_HEIGHT_TYPE)
       } else {
         textValues.get(TextStyleKeys.LINE_HEIGHT_TYPE)
+      }
+    }
+
+
+  internal val resolvedTextShadow: List<Shadow.TextShadow>
+    get() {
+      val state = textValues.get(TextStyleKeys.TEXT_SHADOW_STATE)
+      return if (state == StyleState.INHERIT) {
+        parentStyleWithTextValues?.resolvedTextShadow ?: textShadows
+      } else {
+        textShadows
       }
     }
 

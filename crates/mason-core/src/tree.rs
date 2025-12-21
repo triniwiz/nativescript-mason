@@ -846,21 +846,14 @@ impl LayoutBlockContainer for Tree {
                     (Display::Block, true) => {
                         let analysis = tree.analyze_subtree(id);
 
-
                         let mut computed_layout = if analysis.all_inline {
-                           tree.compute_inline_layout(node_id, inputs, block_ctx)
-                        }else if analysis.has_mixed_content {
+                            tree.compute_inline_layout(node_id, inputs, block_ctx)
+                        } else if analysis.has_mixed_content {
                             let children = tree.children.get(id).cloned().unwrap_or_default();
-                           tree.compute_mixed_layout(
-                                id,
-                                children.as_slice(),
-                                inputs,
-                                block_ctx,
-                            )
-                        }else {
+                            tree.compute_mixed_layout(id, children.as_slice(), inputs, block_ctx)
+                        } else {
                             compute_block_layout(tree, node_id, inputs, block_ctx)
                         };
-
 
                         if is_text_container {
                             if let Some(resolved_height) = size

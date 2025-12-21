@@ -10,6 +10,20 @@ import UIKit
 let BLACK_COLOR = UInt32(bitPattern:-16777216)
 let WHITE_COLOR = UInt32(bitPattern:-1)
 
+extension UInt32 {
+  internal func rgbaToHexCSS() -> String {
+      let color = self
+      let a = (color >> 24) & 0xFF
+      let r = (color >> 16) & 0xFF
+      let g = (color >> 8) & 0xFF
+      let b = color & 0xFF
+      if(a == 255){
+        return String(format: "#%02X%02X%02X", r, g, b)
+      }
+      return String(format: "#%02X%02X%02X%02X", r, g, b, a)
+  }
+}
+
 extension UIColor {
   internal static let deviceCS = CGColorSpaceCreateDeviceRGB()
   internal static let greyCS = CGColorSpaceCreateDeviceGray()

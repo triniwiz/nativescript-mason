@@ -20,10 +20,11 @@ import org.nativescript.mason.masonkit.Styles
 import org.nativescript.mason.masonkit.TextStyleKeys
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
+import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.AlignSelf
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.JustifyContent
 import org.nativescript.mason.masonkit.enums.ObjectFit
-import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.VerticalAlign
@@ -78,10 +79,97 @@ class GridActivity : AppCompatActivity() {
     //  backgroundTest(body)
     // filter(body)
     //  objectFit(body)
-    //  buttons(body)
+     //   buttons(body)
     // verticalAlignment(body)
-    verticalAlignImages(body)
+    // verticalAlignImages(body)
+   // radius(body)
+    textShadow(body)
     setContentView(body)
+  }
+
+  fun textShadow(body: Scroll){
+    val container = mason.createView(this)
+
+    container.configure {
+      container.style.setPadding(30, 30, 30, 30)
+    }
+    val a = mason.createTextView(this)
+
+    a.style.color = Color.WHITE
+    a.style.textShadow = """
+      1px 1px 2px black,
+    0 0 1em blue,
+    0 0 0.2em blue;
+    """.trimIndent()
+
+    a.append("Hello ")
+
+    container.append(a)
+
+    val b = mason.createButton(this)
+
+    b.append("World")
+
+    b.style.textShadow = """
+     red 0 -2px
+    """.trimIndent()
+
+    container.append(b)
+
+    body.append(container)
+  }
+
+  fun radius(body: Scroll) {
+    val contentRoot = mason.createView(this)
+    body.append(contentRoot)
+
+    val root = mason.createView(this)
+
+    contentRoot.append(root)
+
+    contentRoot.configure {
+      it.size = Size(
+        Dimension.Points(240f),
+        Dimension.Auto,
+      )
+      it.margin = Rect(
+        LengthPercentageAuto.Points(
+          20f
+        ),
+        LengthPercentageAuto.Auto,
+        LengthPercentageAuto.Points(
+          20f
+        ),
+        LengthPercentageAuto.Auto
+      )
+    }
+
+
+    root.configure {
+      it.display = Display.Flex
+      it.size = Size(
+        Dimension.Percent(1f),
+        Dimension.Points(180f),
+      )
+      it.justifyContent = JustifyContent.Center
+      it.alignItems = AlignItems.Center
+      it.backgroundColor = Color.GREEN
+      it.backgroundImage = "linear-gradient(\n" +
+        "    to bottom,\n" +
+        "    rgb(255 255 255 / 0),\n" +
+        "    rgb(255 255 255 / 0.5)\n" +
+        "    );"
+      it.border = "1 solid #c3c3c3"
+      it.borderRadius = "0 20% 50 30%"
+    }
+
+
+//    box-shadow: 1px 1px 3px gray;
+//    border-radius: 0 20% 50px 30%;
+//    corner-shape: superellipse(0.5) bevel notch squircle;
+//
+
+
   }
 
   fun verticalAlignImages(body: Scroll) {

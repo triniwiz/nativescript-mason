@@ -101,7 +101,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let top = Float(self.view.safeAreaInsets.top) * scale
     let bottom = Float(self.view.safeAreaInsets.bottom) * scale
     
-    body.style.padding = MasonRect(.Points(left), .Points(right), .Points(top), .Points(bottom))
+    body.style.padding = MasonRect(.Points(top),.Points(right), .Points(bottom), .Points(left))
     
     guard view.subviews.first is MasonUIView else {return}
     
@@ -437,28 +437,111 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //    body.append(sv)
 //    objectFit(sv)
         //filter()
-  //  buttons()
+   // buttons()
    // background()
    // verticalAlignment()
     
     
+//    let container = mason.createView()
+//    container.background = "linear-gradient(180deg, #FEE2E2 0%, #FECACA 50%, #FCA5A5 100%);"
+//    container.configure { style in
+//     //container.setPadding(30, 30, 30, 30)
+//    //  style.size = .init(.Points(300), .Auto)
+//    }
+//    let a = mason.createButton()
+//    a.append(text: "Hello")
+//    a.append(text: " World!")
+//    
+//    container.append(a)
+//    
+//    body.append(container)
+//    
+//    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
+   // radius()
+    button()
+  }
+  
+  func button(){
     let container = mason.createView()
-    container.background = "red"
     container.configure { style in
       container.setPadding(30, 30, 30, 30)
     //  style.size = .init(.Points(300), .Auto)
     }
-    let a = mason.createButton()
+    let a = mason.createTextView()
     a.append(text: "Hello")
-    a.append(text: " World!")
-    
+    a.style.marginRight = .Points(10)
+    a.style.textShadow = """
+           1px 1px 2px black,
+          0 0 1em blue,
+          0 0 0.2em blue;
+    """
     container.append(a)
+    
+    
+    let b = mason.createButton()
+    b.append(text: "World")
+    b.style.textShadow = "red 0 -2px"
+    
+    b.style.border = "1px solid black"
+    
+    container.append(b)
     
     body.append(container)
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+  }
+  
+  func radius() {
+    let content = mason.createView()
+    let root = mason.createView()
     
+    body.append(content)
+    content.append(root)
     
+    content.configure { it in
+      it.size = MasonSize(
+        .Points(240),
+        .Auto,
+      )
+      it.margin = MasonRect(
+        .Points(
+          20
+        ),
+        .Auto,
+        .Points(
+          20
+        ),
+        .Auto
+      )
+    }
+
+
+    root.configure {it in
+      it.display = Display.Flex
+      it.size = MasonSize(
+        .Percent(1),
+        .Points(180),
+      )
+      it.justifyContent = JustifyContent.Center
+      it.alignItems = AlignItems.Center
+      it.backgroundColor = UIColor.green.toUInt32()
+      it.backgroundImage = "linear-gradient(\n" +
+        "    to bottom,\n" +
+        "    rgb(255 255 255 / 0),\n" +
+        "    rgb(255 255 255 / 0.5)\n" +
+        "    );"
+      it.borderRadius = "0 20% 50 30%;"
+    }
+
+
+//    box-shadow: 1px 1px 3px gray;
+//    border-radius: 0 20% 50px 30%;
+//    corner-shape: superellipse(0.5) bevel notch squircle;
+//
+
+    
+    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
   }
   
   
@@ -537,9 +620,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   
   
   
+  
   func buttons(){
     let container = mason.createView()
-    container.background = "red"
+    container.style.setBackgroundColor(string: "red")
     container.configure { style in
       container.setPadding(30, 30, 30, 30)
     //  style.size = .init(.Points(300), .Auto)
@@ -561,7 +645,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     
     a.style.color = UIColor.blue.toUInt32()
-    a.style.background = "orange"
+    a.style.setBackgroundColor(string: "orange")
     a.style.size = .init(.Points(200), .Auto)
     
     a.style.border = "1px solid black"

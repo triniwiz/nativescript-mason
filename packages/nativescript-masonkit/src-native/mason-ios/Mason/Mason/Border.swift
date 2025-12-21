@@ -373,7 +373,7 @@ public final class CSSBorderRenderer {
   private var lastHash: Int = 0
   private var cachedResolvedRect: CGRect = .zero
   private var cachedRadius: BorderRadius = .zero
-  private var cachedWidths: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat) = (0,0,0,0)
+  internal var cachedWidths: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat) = (0,0,0,0)
   internal var css: String = ""
   public init(style: MasonStyle) {
     self.style = style
@@ -407,7 +407,7 @@ public final class CSSBorderRenderer {
   
   // MARK: - resolve
   
-  private func resolve(for rect: CGRect) {
+  internal func resolve(for rect: CGRect) {
     let hash = style.hashValue ^ Int(rect.width) ^ Int(rect.height)
     if hash == lastHash && cachedResolvedRect == rect {
       return
@@ -661,16 +661,24 @@ public final class CSSBorderRenderer {
         // use resolved radius — you already have `radius` member resolved in resolve(for:)
         drawDoubleBorder(ctx, sideEdge: s, rect: rect, totalWidth: width, side: side, outerRadius: radius)
       case .solid:
-        ctx.setFillColor(side.color.cgColor)
-        // fill band as before
-        var band: CGRect
-        switch s {
-        case .top: band = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: width)
-        case .right: band = CGRect(x: rect.maxX - width, y: rect.minY, width: width, height: rect.height)
-        case .bottom: band = CGRect(x: rect.minX, y: rect.maxY - width, width: rect.width, height: width)
-        case .left: band = CGRect(x: rect.minX, y: rect.minY, width: width, height: rect.height)
-        }
-        ctx.fill(band)
+        // Stroke the border along the correct path
+        let halfWidth = width / 2.0
+        // Inset only the relevant side for the current border
+        let inset = insetForSide(s, amount: halfWidth)
+        let insetRect = rect.inset(by: inset)
+        // Inset the radii for this side
+        let borderWidthsForSide: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat) = (
+            top: s == .top ? width : 0,
+            right: s == .right ? width : 0,
+            bottom: s == .bottom ? width : 0,
+            left: s == .left ? width : 0
+        )
+        let insetRadius = radius.insetByBorderWidths(borderWidthsForSide)
+        let path = buildRoundedPath(in: insetRect, radius: insetRadius)
+        ctx.setStrokeColor(side.color.cgColor)
+        ctx.setLineWidth(width)
+        ctx.addPath(path.cgPath)
+        ctx.strokePath()
       case .dashed(let dash, let gap):
       //  strokeBandCenterline(band: bandRect(for: s, rect: rect, width: width), side: s, ctx: ctx, color: side.color, lineWidth: width, dash: dash, gap: gap)
         break
@@ -692,7 +700,7 @@ public final class CSSBorderRenderer {
       ctx.restoreGState()
   }
   
-  private func buildRoundedPath(in rect: CGRect, radius: BorderRadius) -> UIBezierPath {
+  internal func buildRoundedPath(in rect: CGRect, radius: BorderRadius) -> UIBezierPath {
     let p = UIBezierPath()
     let tl = radius.topLeft.resolved(rect: rect)
     let tr = radius.topRight.resolved(rect: rect)
@@ -722,7 +730,26 @@ public final class CSSBorderRenderer {
 
 // MARK: - Radius inset helpers
 
-private extension CSSBorderRenderer.CornerRadius {
+internal extension CSSBorderRenderer.CornerRadius {
+  
+  func inset(x: CGFloat, y: CGFloat) -> CSSBorderRenderer.CornerRadius {
+        let newHorizontal: MasonLengthPercentage
+        switch horizontal {
+        case .Points(let p):
+            newHorizontal = .Points(max(0, p - Float(x)))
+        default:
+            newHorizontal = horizontal
+        }
+        let newVertical: MasonLengthPercentage
+        switch vertical {
+        case .Points(let p):
+            newVertical = .Points(max(0, p - Float(y)))
+        default:
+            newVertical = vertical
+        }
+        return CSSBorderRenderer.CornerRadius(horizontal: newHorizontal, vertical: newVertical, exponent: exponent)
+    }
+  
   func inset(by edgeInset: UIEdgeInsets) -> CSSBorderRenderer.CornerRadius {
     // We need a conservative single scalar inset for each corner.
     // For top-left, effective inset along X is left inset, along Y is top inset.
@@ -760,7 +787,7 @@ private extension CSSBorderRenderer.CornerRadius {
   }
 }
 
-private extension CSSBorderRenderer.BorderRadius {
+internal extension CSSBorderRenderer.BorderRadius {
   func inset(by insets: UIEdgeInsets) -> CSSBorderRenderer.BorderRadius {
     // Inset each corner by the relevant x/y from the edge insets.
     // For simplicity pass the same insets to each corner since insetForSide gives single-side insets.
@@ -771,4 +798,13 @@ private extension CSSBorderRenderer.BorderRadius {
       bottomLeft: bottomLeft.inset(by: insets)
     )
   }
+  
+  func insetByBorderWidths(_ borderWidths: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat)) -> CSSBorderRenderer.BorderRadius {
+         return CSSBorderRenderer.BorderRadius(
+             topLeft: topLeft.inset(x: borderWidths.left, y: borderWidths.top),
+             topRight: topRight.inset(x: borderWidths.right, y: borderWidths.top),
+             bottomRight: bottomRight.inset(x: borderWidths.right, y: borderWidths.bottom),
+             bottomLeft: bottomLeft.inset(x: borderWidths.left, y: borderWidths.bottom)
+         )
+     }
 }

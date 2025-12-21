@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.graphics.Color
 import android.graphics.Paint
 import android.text.Spannable
 import android.text.SpannableStringBuilder
@@ -11,7 +10,6 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.LineHeightSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
-import org.nativescript.mason.masonkit.Spans.*
 
 
 class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
@@ -211,7 +209,6 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
       }
     }
 
-
     // Apply typeface
     attributes.font?.font.let { typeface ->
       if (typeface is android.graphics.Typeface) {
@@ -239,13 +236,15 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
             ), start, end, flags
           )*/
         }
-        Styles.DecorationLine.UnderlineLineThrough ->  {
+
+        Styles.DecorationLine.UnderlineLineThrough -> {
           spannable.setSpan(UnderlineSpan(), start, end, flags)
           spannable.setSpan(StrikethroughSpan(), start, end, flags)
         }
+
         Styles.DecorationLine.UnderlineOverline -> {}
         Styles.DecorationLine.OverlineUnderlineLineThrough -> {}
-        else ->  {}
+        else -> {}
       }
     }
 
@@ -259,6 +258,34 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
         spannable.setSpan(Spans.BackgroundColorSpan(color), start, end, flags)
       }
     }
+
+    // Apply textShadow
+    attributes.textShadow?.let { shadows ->
+      if (shadows.isNotEmpty()) {
+        for (shadow in shadows) {
+          if (shadow.blurRadius > 0) {
+            spannable.setSpan(
+              Spans.BlurredTextShadowSpan(
+                shadow.offsetX,
+                shadow.offsetY,
+                shadow.blurRadius,
+                shadow.color
+              ), start, end, flags
+            )
+          } else {
+            spannable.setSpan(
+              Spans.TextShadowSpan(
+                shadow.offsetX,
+                shadow.offsetY,
+                shadow.color
+              ), start, end, flags
+            )
+          }
+
+        }
+      }
+    }
+
   }
 
   private fun processText(text: String): String {

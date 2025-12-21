@@ -23,19 +23,16 @@ class AnimationActivity : AppCompatActivity() {
     ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
       root.style.padding = Rect(
-        LengthPercentage.Points(systemBars.left.toFloat()),
-        LengthPercentage.Points(systemBars.right.toFloat()),
         LengthPercentage.Points(systemBars.top.toFloat()),
-        LengthPercentage.Points(systemBars.bottom.toFloat())
+        LengthPercentage.Points(systemBars.right.toFloat()),
+        LengthPercentage.Points(systemBars.bottom.toFloat()),
+        LengthPercentage.Points(systemBars.left.toFloat())
       )
       insets
     }
 
     root.style.size =
-      Size(
-        Dimension.Points(resources.displayMetrics.widthPixels.toFloat()),
-        Dimension.Points(resources.displayMetrics.heightPixels.toFloat())
-      )
+      Size(Dimension.Percent(1f), Dimension.Percent(1f))
 
     val animatedView = mason.createView(this)
 

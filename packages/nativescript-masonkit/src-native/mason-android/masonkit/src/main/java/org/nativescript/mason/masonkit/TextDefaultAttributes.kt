@@ -23,7 +23,8 @@ data class TextDefaultAttributes(
   var lineHeightType: Byte? = null,
   var textAlign: android.text.Layout.Alignment? = null,
   var verticalAlign: VerticalAlign? = null,
-  var decorationThickness: Float? = null
+  var decorationThickness: Float? = null,
+  var textShadow: List<Shadow.TextShadow>? = null
 ) {
 
   fun sync(style: Style) {
@@ -63,6 +64,7 @@ data class TextDefaultAttributes(
     } else {
       style.verticalAlign
     }
+    textShadow = style.resolvedTextShadow
   }
 
   fun copy(attributes: TextDefaultAttributes) {
@@ -84,6 +86,7 @@ data class TextDefaultAttributes(
     lineHeightType = attributes.lineHeightType
     textAlign = attributes.textAlign
     verticalAlign = attributes.verticalAlign
+    textShadow = attributes.textShadow
   }
 
   companion object {
@@ -124,7 +127,8 @@ data class TextDefaultAttributes(
 
           else -> android.text.Layout.Alignment.ALIGN_NORMAL
         },
-        style.verticalAlign
+        style.verticalAlign,
+        textShadow = style.resolvedTextShadow
       )
     }
   }
