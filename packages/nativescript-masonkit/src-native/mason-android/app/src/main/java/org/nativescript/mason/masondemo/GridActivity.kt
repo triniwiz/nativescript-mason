@@ -13,11 +13,13 @@ import org.nativescript.mason.masonkit.Element
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.NodeHelper
 import org.nativescript.mason.masonkit.Point
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles
+import org.nativescript.mason.masonkit.TextStyleChangeMask
 import org.nativescript.mason.masonkit.TextStyleKeys
 import org.nativescript.mason.masonkit.TextView
 import org.nativescript.mason.masonkit.View
@@ -756,11 +758,15 @@ class GridActivity : AppCompatActivity() {
     header.append("Header")
     header.configure {
       it.color = Color.WHITE
-      header.style.background = "#999999"
+     // header.style.background = "#999999"
       header.style.gridArea = "header"
       it.padding = boxPadding
       it.borderRadius = "5px"
     }
+
+    header.style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, "#999999".toColorInt())
+    header.style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, 1)
+    header.syncStyle("",TextStyleChangeMask.BACKGROUND_COLOR.toString())
 
 
     val sidebar = mason.createView(this)

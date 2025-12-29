@@ -2617,6 +2617,8 @@ declare module org {
 					public setGridAutoColumns(this_: globalAndroid.view.View, view: string): void;
 					public getBorder(this_: globalAndroid.view.View): string;
 					public getBorderRadius(this_: globalAndroid.view.View): string;
+					public setTextShadow(this_: globalAndroid.view.View, view: string): void;
+					public getTextShadow(this_: globalAndroid.view.View): string;
 				}
 				export module NodeHelper {
 					export class Companion {

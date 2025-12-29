@@ -288,27 +288,29 @@ value class StateKeys internal constructor(val bits: Long) {
 object TextStyleChangeMask {
   const val NONE: Int = 0
   const val COLOR: Int = 1 shl 0
-  const val FONT_SIZE: Int = 1 shl 1
-  const val FONT_WEIGHT: Int = 1 shl 2
-  const val FONT_STYLE: Int = 1 shl 3
-  const val FONT_FAMILY: Int = 1 shl 4
-  const val LETTER_SPACING: Int = 1 shl 5
-  const val DECORATION_LINE: Int = 1 shl 6
-  const val DECORATION_COLOR: Int = 1 shl 7
-  const val DECORATION_STYLE: Int = 1 shl 8
-  const val BACKGROUND_COLOR: Int = 1 shl 9
+  const val DECORATION_LINE: Int = 1 shl 1
+  const val DECORATION_COLOR: Int = 1 shl 2
+  const val TEXT_ALIGN: Int = 1 shl 3
+  const val TEXT_JUSTIFY: Int = 1 shl 4
+  const val BACKGROUND_COLOR: Int = 1 shl 5
+  const val FONT_SIZE: Int = 1 shl 6
+  const val TEXT_TRANSFORM: Int = 1 shl 7
+  const val FONT_STYLE: Int = 1 shl 8
+  const val FONT_STYLE_SLANT: Int = 1 shl 9
   const val TEXT_WRAP: Int = 1 shl 10
-  const val WHITE_SPACE: Int = 1 shl 11
-  const val TEXT_TRANSFORM: Int = 1 shl 12
-  const val TEXT_JUSTIFY: Int = 1 shl 13
-  const val TEXT_OVERFLOW: Int = 1 shl 14
+  const val TEXT_OVERFLOW: Int = 1 shl 11
+  const val DECORATION_STYLE: Int = 1 shl 12
+  const val WHITE_SPACE: Int = 1 shl 13
+  const val FONT_WEIGHT: Int = 1 shl 14
   const val LINE_HEIGHT: Int = 1 shl 15
-  const val TEXT_ALIGN: Int = 1 shl 16
-  const val VERTICAL_ALIGN: Int = 1 shl 17
-  const val DECORATION_THICKNESS: Int = 1 shl 18
-  const val TEXT_SHADOW: Int = 1 shl 19
+  const val VERTICAL_ALIGN: Int = 1 shl 16
+  const val DECORATION_THICKNESS: Int = 1 shl 17
+  const val TEXT_SHADOW: Int = 1 shl 18
+  const val FONT_FAMILY: Int = 1 shl 19
+  const val LETTER_SPACING: Int = 1 shl 20
   const val ALL: Int = -1
 }
+
 
 @JvmInline
 internal value class GridStateKeys internal constructor(val bits: Long) {
@@ -579,6 +581,7 @@ class Style internal constructor(internal var node: Node) {
     if (isTextDirty != -1L) {
       var invalidate = false
       val value = TextStateKeys(isTextDirty)
+      val backgroundColorDirty = value.hasFlag(TextStateKeys.BACKGROUND_COLOR)
       val colorDirty = value.hasFlag(TextStateKeys.COLOR)
       val sizeDirty = value.hasFlag(TextStateKeys.SIZE)
       val weightDirty = value.hasFlag(TextStateKeys.FONT_WEIGHT)
@@ -619,6 +622,13 @@ class Style internal constructor(internal var node: Node) {
 
       if (lineHeightDirty) {
         state = state or TextStyleChangeMask.LINE_HEIGHT
+      }
+
+      if (backgroundColorDirty) {
+        if (mBackground == null) {
+          mBackground = Background(this)
+        }
+        state = state or TextStyleChangeMask.BACKGROUND_COLOR
       }
 
       if (state != TextStyleChangeMask.NONE) {
@@ -2357,7 +2367,7 @@ class Style internal constructor(internal var node: Node) {
 
   /* legacy helpers */
 
-  private fun <T> lazyCache(getCache: () -> T?, setCache: (T) -> Unit, fetch: () -> T): T {
+  private fun <T> lazyCache(getCache: () -> T?, setCache: (T?) -> Unit, fetch: () -> T): T? {
     val cached = getCache()
     return cached ?: fetch().also { setCache(it) }
   }
@@ -2366,8 +2376,8 @@ class Style internal constructor(internal var node: Node) {
   var gridArea: String
     get() {
       return lazyCache({ _gridArea }, { _gridArea = it }) {
-        nativeGetGridArea(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+        nativeGetGridArea(node.mason.nativePtr, node.nativePtr)
+      } ?: ""
     }
     set(value) {
       gridState.gridArea = value
@@ -2383,8 +2393,8 @@ class Style internal constructor(internal var node: Node) {
   var gridTemplateAreas: String
     get() {
       return lazyCache({ _gridTemplateAreas }, { _gridTemplateAreas = it }) {
-        nativeGetGridTemplateAreas(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+        nativeGetGridTemplateAreas(node.mason.nativePtr, node.nativePtr)
+      } ?: ""
     }
     set(value) {
       gridState.gridTemplateAreas = value
@@ -2396,8 +2406,8 @@ class Style internal constructor(internal var node: Node) {
   var gridAutoRows: String
     get() {
       return lazyCache({ _gridAutoRows }, { _gridAutoRows = it }) {
-        nativeGetGridAutoRows(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+        nativeGetGridAutoRows(node.mason.nativePtr, node.nativePtr)
+      } ?: ""
     }
     set(value) {
       gridState.gridAutoRows = value
@@ -2409,8 +2419,8 @@ class Style internal constructor(internal var node: Node) {
   var gridAutoColumns: String
     get() {
       return lazyCache({ _gridAutoColumns }, { _gridAutoColumns = it }) {
-        nativeGetGridAutoColumns(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+        nativeGetGridAutoColumns(node.mason.nativePtr, node.nativePtr)
+      } ?: ""
     }
     set(value) {
       gridState.gridAutoColumns = value
@@ -2432,7 +2442,7 @@ class Style internal constructor(internal var node: Node) {
     get() {
       return lazyCache({ _gridColumn }, { _gridColumn = it }) {
         nativeGetGridColumn(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+      } ?: ""
     }
     set(value) {
       gridState.gridColumn = value
@@ -2448,8 +2458,8 @@ class Style internal constructor(internal var node: Node) {
       }, {
         _gridColumnStart = it
       }) {
-        nativeGetGridColumnStart(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+        nativeGetGridColumnStart(node.mason.nativePtr, node.nativePtr)
+      } ?: ""
     }
     set(value) {
       gridState.gridColumnStart = value
@@ -2466,8 +2476,8 @@ class Style internal constructor(internal var node: Node) {
       }, {
         _gridColumnEnd = it
       }) {
-        nativeGetGridColumnEnd(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+        nativeGetGridColumnEnd(node.mason.nativePtr, node.nativePtr)
+      } ?: ""
     }
     set(value) {
       gridState.gridColumnEnd = value
@@ -2480,8 +2490,8 @@ class Style internal constructor(internal var node: Node) {
   var gridRow: String
     get() {
       return lazyCache({ _gridRow }, { _gridRow = it }) {
-        nativeGetGridRow(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+        nativeGetGridRow(node.mason.nativePtr, node.nativePtr)
+      } ?: ""
     }
     set(value) {
       gridState.gridRow = value
@@ -2497,8 +2507,8 @@ class Style internal constructor(internal var node: Node) {
       }, {
         _gridRowStart = it
       }) {
-        nativeGetGridRowStart(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+        nativeGetGridRowStart(node.mason.nativePtr, node.nativePtr)
+      } ?: ""
     }
     set(value) {
       gridState.gridRowStart = value
@@ -2515,8 +2525,8 @@ class Style internal constructor(internal var node: Node) {
       }, {
         _gridRowEnd = it
       }) {
-        nativeGetGridRowEnd(node.mason.nativePtr, node.nativePtr) ?: ""
-      }
+        nativeGetGridRowEnd(node.mason.nativePtr, node.nativePtr)
+      } ?: ""
     }
     set(value) {
       gridState.gridRowEnd = value
@@ -2532,8 +2542,8 @@ class Style internal constructor(internal var node: Node) {
       return lazyCache({ _gridTemplateRows }, { _gridTemplateRows = it }) {
         nativeGetGridTemplateRows(
           node.mason.nativePtr, node.nativePtr
-        ) ?: ""
-      }
+        )
+      } ?: ""
     }
     set(value) {
       gridState.gridTemplateRows = value
@@ -2547,8 +2557,8 @@ class Style internal constructor(internal var node: Node) {
       return lazyCache({ _gridTemplateColumns }, { _gridTemplateColumns = it }) {
         nativeGetGridTemplateColumns(
           node.mason.nativePtr, node.nativePtr
-        ) ?: ""
-      }
+        )
+      } ?: ""
     }
     set(value) {
       gridState.gridTemplateColumns = value

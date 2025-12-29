@@ -94,4 +94,9 @@ export class Tree {
   createButtonView(context) {
     return this.native.createButton(context);
   }
+
+  createBr(context) {
+    //@ts-ignore
+    return this.native.createBr();
+  }
 }

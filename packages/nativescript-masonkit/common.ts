@@ -42,6 +42,7 @@ import {
   backgroundInternalProperty,
   verticalAlignmentProperty,
   backgroundColorProperty,
+  textShadowProperty,
 } from '@nativescript/core';
 import { AlignContent, AlignSelf, Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, AlignItems, JustifyContent, BoxSizing, VerticalAlign } from '.';
 import { flexDirectionProperty, flexGrowProperty, flexWrapProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
@@ -53,6 +54,7 @@ export const isTextChild_ = Symbol('[[isTextChild]]');
 export const isText_ = Symbol('[[isText]]');
 export const isMasonView_ = Symbol('[[isMasonView]]');
 export const text_ = Symbol('[[text]]');
+export const isPlaceholder_ = Symbol('[[isPlaceholder]]');
 
 // Angular zone detection
 declare const Zone: any;
@@ -86,7 +88,7 @@ if (global.__ngRegisteredViews || typeof Zone !== 'undefined') {
 
 export const scrollBarWidthProperty = new CssProperty<Style, number>({
   name: 'scrollBarWidth',
-  cssName: 'scroll-bar-width',
+  cssName: 'scrollbar-width',
   defaultValue: 0,
   valueConverter: parseFloat,
 });
@@ -229,18 +231,19 @@ export const overflowYProperty = new CssProperty<Style, Overflow>({
   },
 });
 
-const paddingProperty = new ShorthandProperty<Style, string | CoreTypes.LengthType>({
+const paddingProperty = new CssProperty<Style, string>({
   name: 'padding',
   cssName: 'padding',
-  getter: function (this: Style) {
-    if (CoreLength.equals(this.paddingTop, this.paddingRight) && CoreLength.equals(this.paddingTop, this.paddingBottom) && CoreLength.equals(this.paddingTop, this.paddingLeft)) {
-      return this.paddingTop;
-    }
-
-    return `${CoreLength.convertToString(this.paddingTop)} ${CoreLength.convertToString(this.paddingRight)} ${CoreLength.convertToString(this.paddingBottom)} ${CoreLength.convertToString(this.paddingLeft)}`;
-  },
-  converter: convertToPaddings,
 });
+
+paddingProperty.register(Style);
+
+const marginProperty = new CssProperty<Style, string>({
+  name: 'margin',
+  cssName: 'margin',
+});
+
+marginProperty.register(Style);
 
 export const paddingLeftProperty = new CssProperty<Style, CoreTypes.LengthType>({
   name: 'paddingLeft',
@@ -1130,6 +1133,24 @@ verticalAlignmentProperty.overrideHandlers({
   },
 });
 
+textShadowProperty.overrideHandlers({
+  name: 'textShadow',
+  cssName: 'text-shadow',
+  valueConverter: function (value) {
+    return value as never;
+  },
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      view.textShadow = newValue as never;
+    } else {
+      // Revert to old value if newValue is invalid
+      // @ts-ignore
+      view.view.style.verticalAlign = oldValue;
+    }
+  },
+});
+
 export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: MasonUIView;
@@ -1164,7 +1185,9 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   get _viewChildren() {
-    return this._children.filter((child) => child instanceof NSView) as NSView[];
+    return this._children.filter((child) => {
+      return !child[isPlaceholder_] && child instanceof NSView;
+    }) as NSView[];
   }
 
   public eachLayoutChild(callback: (child: NSView, isLast: boolean) => void): void {
@@ -1223,6 +1246,24 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   addChild(child: any) {
+    if (child && child[isPlaceholder_] && child._view) {
+      if (__ANDROID__) {
+        //@ts-ignore
+        this._view.addChildAt(child._view, this._children.length);
+      }
+
+      if (__APPLE__) {
+        //@ts-ignore
+        this._view.mason_addChildAtNode(child._view, this._children.length);
+      }
+
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+
+      this._children.push(child);
+      return;
+    }
     if (child instanceof NSView) {
       this._children.push(child);
       if (this[isText_]) {
@@ -1249,7 +1290,22 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   insertChild(child: any, atIndex: number) {
-    if (child instanceof NSView) {
+    if (child && child[isPlaceholder_] && child._view) {
+      this._children[atIndex] = child;
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+
+      if (__ANDROID__) {
+        //@ts-ignore
+        this._view.addChildAt(child._view, atIndex);
+      }
+
+      if (__APPLE__) {
+        //@ts-ignore
+        this._view.mason_addChildAtNode(child._view, atIndex);
+      }
+    } else if (child instanceof NSView) {
       this._children.splice(atIndex, 0, child);
       if (this[isText_]) {
         child[isTextChild_] = true;
@@ -1259,7 +1315,22 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   replaceChild(child: any, atIndex: number) {
-    if (child instanceof NSView) {
+    if (child && child[isPlaceholder_] && child._view) {
+      this._children[atIndex] = child;
+      if (this[isText_]) {
+        child[isTextChild_] = true;
+      }
+
+      if (__ANDROID__) {
+        //@ts-ignore
+        this._view.replaceChildAt(child._view, atIndex);
+      }
+
+      if (__APPLE__) {
+        //@ts-ignore
+        this._view.mason_replaceChildAtNode(child._view, atIndex);
+      }
+    } else if (child instanceof NSView) {
       this._children[atIndex] = child;
       if (this[isText_]) {
         child[isTextChild_] = true;
@@ -1722,6 +1793,20 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   _redrawNativeBackground(value: any): void {}
 
+  [marginProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      if (value === 'auto') {
+        style.margin = 'auto';
+        return;
+      }
+      try {
+        style.margin = CorePercentLength.parse(value);
+      } catch (error) {}
+    }
+  }
+
   [marginLeftProperty.setNative](value) {
     // @ts-ignore
     const style = this._styleHelper;
@@ -1751,6 +1836,17 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     const style = this._styleHelper;
     if (style) {
       style.marginTop = value;
+    }
+  }
+
+  [paddingProperty.setNative](value) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      try {
+        // @ts-ignore
+        style.padding = CoreLength.parse(value);
+      } catch (error) {}
     }
   }
 
@@ -1957,6 +2053,74 @@ fontSizeProperty.overrideHandlers({
         // Revert to old value if newValue is invalid
         // @ts-ignore
         view.view.style.fontSize = oldValue as never;
+      }
+    }
+  },
+});
+
+marginLeftProperty.overrideHandlers({
+  name: 'marginLeft',
+  cssName: 'margin-left',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.marginLeft = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.marginLeft = oldValue as never;
+      }
+    }
+  },
+});
+
+marginTopProperty.overrideHandlers({
+  name: 'marginTop',
+  cssName: 'margin-top',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.marginTop = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.marginTop = oldValue as never;
+      }
+    }
+  },
+});
+
+marginRightProperty.overrideHandlers({
+  name: 'marginRight',
+  cssName: 'margin-right',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.marginRight = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.marginRight = oldValue as never;
+      }
+    }
+  },
+});
+
+marginBottomProperty.overrideHandlers({
+  name: 'marginBottom',
+  cssName: 'margin-bottom',
+  valueChanged(target, oldValue, newValue) {
+    const view = getViewStyle(target.viewRef);
+    if (view) {
+      if (newValue) {
+        view.marginBottom = newValue as never;
+      } else {
+        // Revert to old value if newValue is invalid
+        // @ts-ignore
+        view.view.style.marginBottom = oldValue as never;
       }
     }
   },
@@ -2207,7 +2371,6 @@ function convertToPaddings(value: string | CoreTypes.LengthType): [CssProperty<S
   }
 }
 
-paddingProperty.register(Style);
 paddingLeftProperty.register(Style);
 paddingRightProperty.register(Style);
 paddingTopProperty.register(Style);

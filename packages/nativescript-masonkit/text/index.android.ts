@@ -1,5 +1,5 @@
 import { backgroundColorProperty, Color, colorProperty, CSSType, Utils, ViewBase } from '@nativescript/core';
-import { isMasonView_, isTextChild_, style_, TextBase, textContentProperty, textWrapProperty } from '../common';
+import { isMasonView_, isPlaceholder_, isTextChild_, style_, TextBase, textContentProperty, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 
@@ -152,6 +152,83 @@ export class Text extends TextBase {
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
+    if (nativeView && child.nativeViewProtected) {
+      child[isTextChild_] = true;
+      const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
+      nativeView.addChildAt(child.nativeViewProtected, index as never);
+    }
+
+    return false;
+  }
+
+  _removeViewFromNativeVisualTree(view: ViewBase): void {
+    view[isTextChild_] = false;
+    // @ts-ignore
+    super._removeViewFromNativeVisualTree(view);
+  }
+}
+
+export class Br extends TextBase {
+  [style_];
+  _inBatch = false;
+  private _view;
+  constructor() {
+    super();
+    const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
+    this._view = Tree.instance.createBr(context) as never;
+    this[isMasonView_] = true;
+    this[isPlaceholder_] = true;
+    this[style_] = Style.fromView(this as never, this._view);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  get android() {
+    return this._view;
+  }
+
+  get _styleHelper() {
+    if (this[style_] === undefined) {
+      this[style_] = Style.fromView(this as never, this._view);
+    }
+    return this[style_];
+  }
+
+  [textContentProperty.setNative](value) {}
+
+  [colorProperty.setNative](value) {
+    if (value instanceof Color) {
+      this[style_].color = value.android;
+    }
+  }
+
+  [backgroundColorProperty.setNative](value) {
+    if (typeof value === 'number') {
+      this[style_].backgroundColor = value;
+    } else if (value instanceof Color) {
+      this[style_].backgroundColor = value.android;
+    }
+  }
+
+  [textWrapProperty.setNative](value) {
+    switch (value) {
+      case 'false':
+      case 'nowrap':
+        this[style_].textWrap = TextWrap.NoWrap;
+        break;
+      case 'true':
+      case 'wrap':
+        this[style_].textWrap = TextWrap.Wrap;
+        break;
+      case 'balance':
+        this[style_].textWrap = TextWrap.Balance;
+        break;
+    }
+  }
+
+  // @ts-ignore
+  public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
+    const nativeView = this._view;
     if (nativeView && child.nativeViewProtected) {
       child[isTextChild_] = true;
       const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;

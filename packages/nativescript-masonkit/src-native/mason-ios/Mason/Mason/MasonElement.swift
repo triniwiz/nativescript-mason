@@ -168,7 +168,8 @@ extension MasonElement {
     let stateValue = Int64(state, radix: 10)
     let textStateValue = Int64(textState, radix: 10)
     if let textStateValue = textStateValue {
-      node.style.invalidateStyle(textStateValue)
+      style.isTextDirty = textStateValue
+      style.updateTextStyle()
     }
     
     if let stateValue = stateValue {

@@ -212,3 +212,5 @@ export class Img extends VBase {
 export class Scroll extends VBase {}
 
 export class Button extends TextBase {}
+
+export class Br extends TextBase {}

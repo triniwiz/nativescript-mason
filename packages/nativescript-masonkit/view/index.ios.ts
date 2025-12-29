@@ -62,7 +62,8 @@ export class View extends ViewBase {
       const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
 
-      if (!this[isMasonView_]) {
+      const parentIsMason = this.parent && this.parent[isMasonView_];
+      if (!parentIsMason) {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
           // @ts-ignore

@@ -1,5 +1,5 @@
 import { backgroundColorProperty, Color, colorProperty, Utils, View, ViewBase } from '@nativescript/core';
-import { isMasonView_, isText_, isTextChild_, style_, text_, TextBase, textContentProperty, textWrapProperty } from '../common';
+import { isMasonView_, isPlaceholder_, isText_, isTextChild_, style_, text_, TextBase, textContentProperty, textWrapProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { parseLength } from '../utils';
@@ -200,14 +200,15 @@ export class Text extends TextBase {
 
   public onMeasure(widthMeasureSpec: number, heightMeasureSpec: number) {
     const nativeView = this._view;
-
     if (nativeView) {
       const specWidth = Utils.layout.getMeasureSpecSize(widthMeasureSpec);
       const widthMode = Utils.layout.getMeasureSpecMode(widthMeasureSpec);
       const specHeight = Utils.layout.getMeasureSpecSize(heightMeasureSpec);
       const heightMode = Utils.layout.getMeasureSpecMode(heightMeasureSpec);
 
-      if (!this[isMasonView_]) {
+      const parentIsMason = this.parent && this.parent[isMasonView_];
+
+      if (!parentIsMason) {
         // only call compute on the parent
         if (this.width === 'auto' && this.height === 'auto') {
           // todo
@@ -217,7 +218,7 @@ export class Text extends TextBase {
 
           // todo
           // @ts-ignore
-          const layout = this.ios.node.computedLayout;
+          const layout = this.ios.mason_layout();
 
           const w = Utils.layout.makeMeasureSpec(layout.width, Utils.layout.EXACTLY);
           const h = Utils.layout.makeMeasureSpec(layout.height, Utils.layout.EXACTLY);
@@ -291,7 +292,6 @@ export class Text extends TextBase {
 
     if (nativeView && child.nativeViewProtected) {
       child[isTextChild_] = true;
-
       const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
       nativeView.addViewAt(child.nativeViewProtected, index);
       return true;
@@ -307,5 +307,99 @@ export class Text extends TextBase {
 
   _setNativeViewFrame(nativeView: any, frame: CGRect): void {
     nativeView.frame = frame;
+  }
+}
+
+export class Br extends TextBase {
+  [style_];
+  _inBatch = false;
+  private _view;
+  constructor() {
+    super();
+    this._view = Tree.instance.createBr(null) as never;
+    this[isMasonView_] = true;
+    this[isPlaceholder_] = true;
+    this[style_] = Style.fromView(this as never, this._view);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  get ios() {
+    return this._view;
+  }
+
+  get _styleHelper(): Style {
+    if (this[style_] === undefined) {
+      this[style_] = Style.fromView(this as never, this._view);
+    }
+    return this[style_];
+  }
+
+  [textContentProperty.setNative](value) {}
+
+  [colorProperty.setNative](value) {
+    switch (typeof value) {
+      case 'number':
+        this._styleHelper.color = value;
+        break;
+      case 'string':
+        {
+          this._styleHelper.color = new Color(value).argb;
+        }
+        break;
+      case 'object':
+        {
+          this._styleHelper.color = value.argb;
+        }
+        break;
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  set backgroundColor(value: Color | number) {
+    switch (typeof value) {
+      case 'number':
+        this._styleHelper.backgroundColor = value;
+        break;
+      case 'string':
+        this._styleHelper.backgroundColor = new Color(value).argb;
+        break;
+      case 'object':
+        this._styleHelper.backgroundColor = value.argb;
+        break;
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  get backgroundColor() {
+    return new Color(this[style_].backgroundColor);
+  }
+
+  [backgroundColorProperty.setNative](value) {
+    if (typeof value === 'number') {
+      this[style_].backgroundColor = value;
+    } else if (value instanceof Color) {
+      this[style_].backgroundColor = value.argb;
+    }
+  }
+
+  [textWrapProperty.setNative](value) {
+    switch (value) {
+      case 'false':
+      case false:
+      case 'nowrap':
+        this._styleHelper.textWrap = MasonTextWrap.NoWrap;
+        break;
+      case true:
+      case 'true':
+      case 'wrap':
+        this._styleHelper.textWrap = MasonTextWrap.Wrap;
+        break;
+      case 'balance':
+        this._styleHelper.textWrap = MasonTextWrap.Balance;
+        break;
+    }
   }
 }

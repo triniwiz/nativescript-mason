@@ -318,24 +318,26 @@ class TextStateKeys {
   static readonly ALL = new TextStateKeys(-1n);
   static readonly NONE = new TextStateKeys(0n);
   static readonly COLOR = new TextStateKeys(1n << 0n);
-  static readonly SIZE = new TextStateKeys(1n << 1n);
-  static readonly FONT_WEIGHT = new TextStateKeys(1n << 2n);
-  static readonly FONT_STYLE = new TextStateKeys(1n << 3n);
-  static readonly FONT_FAMILY = new TextStateKeys(1n << 4n);
-  static readonly LETTER_SPACING = new TextStateKeys(1n << 5n);
-  static readonly DECORATION_LINE = new TextStateKeys(1n << 6n);
-  static readonly DECORATION_COLOR = new TextStateKeys(1n << 7n);
-  static readonly DECORATION_STYLE = new TextStateKeys(1n << 8n);
-  static readonly BACKGROUND_COLOR = new TextStateKeys(1n << 9n);
+  static readonly DECORATION_LINE = new TextStateKeys(1n << 1n);
+  static readonly DECORATION_COLOR = new TextStateKeys(1n << 2n);
+  static readonly TEXT_ALIGN = new TextStateKeys(1n << 3n);
+  static readonly TEXT_JUSTIFY = new TextStateKeys(1n << 4n);
+  static readonly BACKGROUND_COLOR = new TextStateKeys(1n << 5n);
+  static readonly SIZE = new TextStateKeys(1n << 6n);
+  static readonly TRANSFORM = new TextStateKeys(1n << 7n);
+  static readonly FONT_STYLE = new TextStateKeys(1n << 8n);
+  static readonly FONT_STYLE_SLANT = new TextStateKeys(1n << 9n);
   static readonly TEXT_WRAP = new TextStateKeys(1n << 10n);
-  static readonly WHITE_SPACE = new TextStateKeys(1n << 11n);
-  static readonly TRANSFORM = new TextStateKeys(1n << 12n);
-  static readonly TEXT_JUSTIFY = new TextStateKeys(1n << 13n);
-  static readonly TEXT_OVERFLOW = new TextStateKeys(1n << 14n);
+  static readonly TEXT_OVERFLOW = new TextStateKeys(1n << 11n);
+  static readonly DECORATION_STYLE = new TextStateKeys(1n << 12n);
+  static readonly WHITE_SPACE = new TextStateKeys(1n << 13n);
+  static readonly FONT_WEIGHT = new TextStateKeys(1n << 14n);
   static readonly LINE_HEIGHT = new TextStateKeys(1n << 15n);
-  static readonly TEXT_ALIGN = new TextStateKeys(1n << 16n);
-  static readonly VERTICAL_ALIGN = new TextStateKeys(1n << 17n);
-  static readonly DECORATION_THICKNESS = new TextStateKeys(1n << 18n);
+  static readonly VERTICAL_ALIGN = new TextStateKeys(1n << 16n);
+  static readonly DECORATION_THICKNESS = new TextStateKeys(1n << 17n);
+  static readonly TEXT_SHADOW = new TextStateKeys(1n << 18n);
+  static readonly FONT_FAMILY = new TextStateKeys(1n << 19n);
+  static readonly LETTER_SPACING = new TextStateKeys(1n << 20n);
 
   or(other: TextStateKeys): TextStateKeys {
     return new TextStateKeys(this.bits | other.bits);
@@ -1399,6 +1401,13 @@ export class Style {
         break;
     }
     this.setOrAppendState(StateKeys.INSET);
+  }
+
+  set margin(value: LengthAuto) {
+    this.inBatch = true;
+    this.marginBottom = this.marginLeft = this.marginRight = this.marginTop = value;
+    this.inBatch = false;
+    this.setOrAppendState(StateKeys.MARGIN);
   }
 
   get marginLeft() {
@@ -3158,6 +3167,34 @@ export class Style {
       }
     }
     this.setOrAppendTextState(TextStateKeys.VERTICAL_ALIGN);
+  }
+
+  get textShadow() {
+    if (!this.nativeView) {
+      return '';
+    }
+    if (__ANDROID__) {
+      return org.nativescript.mason.masonkit.NodeHelper.getShared().getTextShadow(this.nativeView);
+    }
+
+    if (__APPLE__) {
+      return (this.nativeView as MasonElementObjc).style.textShadow;
+    }
+
+    return '';
+  }
+
+  set textShadow(value: string) {
+    if (!this.nativeView) {
+      return;
+    }
+    if (__ANDROID__) {
+      org.nativescript.mason.masonkit.NodeHelper.getShared().setTextShadow(this.nativeView, value);
+    }
+
+    if (__APPLE__) {
+      (this.nativeView as MasonElementObjc).style.textShadow = value;
+    }
   }
 
   toJSON() {

@@ -1251,6 +1251,8 @@ declare class MasonStyle extends NSObject {
 
 	textTransform: MasonTextTransform;
 
+	textShadow: string;
+
 	textValues: NSMutableData;
 
 	textWrap: MasonTextWrap;

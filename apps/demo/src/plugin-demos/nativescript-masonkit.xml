@@ -97,27 +97,58 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
 
   <!-- https://gridbyexample.com/examples/example5/ -->
 
-
-
+<!--
+<ui:View>
+<ui:View class="body">
    <ui:View class="wrapper-5">
 
     <ui:View id="boxA" class="box a">
-      <text:Text text="A" />
+      <text:Text textContent="A" />
     </ui:View>
 
     <ui:View id="boxB" class="box b">
-      <text:Text text="B" />
+      <text:Text textContent="B" />
     </ui:View>
 
     <ui:View id="boxC" class="box c">
-      <text:Text text="C" />
+      <text:Text textContent="C" />
     </ui:View>
 
     <ui:View id="boxD" class="box d">
-      <text:Text text="D" />
+      <text:Text textContent="D" />
     </ui:View>
   </ui:View>
+</ui:View>
+</ui:View>
+-->
 
+
+<ui:View>
+
+<ui:View class="wrapper">
+  <ui:View class="box header">
+   <text:Text textContent="Header" />
+  </ui:View>
+
+  <ui:View class="box sidebar">
+  <text:Text textContent="Sidebar" />
+  </ui:View>
+
+  <ui:View class="box sidebar2">
+  <text:Text textContent="Sidebar 2" />
+  </ui:View>
+  
+  <ui:View class="box content">
+   <text:Text textContent="Content" />
+    <text:Br />
+    <text:Text textContent="More content than we had before so this column is now quite tall." />
+  </ui:View>
+  <ui:View class="box footer">
+  <text:Text textContent="Footer" />
+  </ui:View>
+</ui:View>
+
+</ui:View>
 
 
   <!--
