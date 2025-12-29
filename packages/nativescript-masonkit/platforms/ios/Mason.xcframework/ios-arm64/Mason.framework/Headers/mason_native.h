@@ -26,6 +26,7 @@ typedef struct CMasonInlineChildSegment {
 typedef enum CMasonSegment_Tag {
   Text,
   InlineChild,
+  LineBreak,
 } CMasonSegment_Tag;
 
 typedef struct CMasonSegment {

@@ -44,6 +44,7 @@ private func runDelegateGetWidth(_ refCon: UnsafeMutableRawPointer) -> CGFloat {
 public protocol TextContainer: NSObjectProtocol {
   var engine: TextEngine { get }
   var node: MasonNode { get }
+  func onTextStyleChanged(change: Int64)
 }
 
 extension TextContainer {
@@ -51,7 +52,9 @@ extension TextContainer {
     return node.getDefaultAttributes()
   }
   
-  func onTextStyleChanged(change: Int64){}
+  public func onTextStyleChanged(change: Int64){
+    engine.onTextStyleChanged(change: change)
+  }
 }
 
 
@@ -124,7 +127,7 @@ public class TextEngine: NSObject {
     let defaultAttrs = node.getDefaultAttributes()
     
     for child in node.children {
-      if let child = (child as? MasonTextNode), child.container?.isEqual(self) ?? false {
+      if let child = (child as? MasonTextNode), child.container?.engine == self {
         // Only update TextNodes that belong to this TextView
         child.attributes = defaultAttrs
       }
@@ -171,6 +174,47 @@ public class TextEngine: NSObject {
   }
   
   
+
+  private static func splitByWhitespace(
+    _ attr: NSAttributedString
+    ) -> [NSAttributedString] {
+
+    let regex = try! NSRegularExpression(pattern: "\\s+")
+    let text = attr.string as NSString
+    let fullRange = NSRange(location: 0, length: text.length)
+
+    var result: [NSAttributedString] = []
+    var lastLocation = 0
+
+    for match in regex.matches(in: attr.string, range: fullRange) {
+        let r = match.range
+        if r.location > lastLocation {
+            let subrange = NSRange(
+                location: lastLocation,
+                length: r.location - lastLocation
+            )
+            result.append(attr.attributedSubstring(from: subrange))
+        }
+        lastLocation = r.location + r.length
+    }
+
+    if lastLocation < text.length {
+        let subrange = NSRange(
+            location: lastLocation,
+            length: text.length - lastLocation
+        )
+        result.append(attr.attributedSubstring(from: subrange))
+    }
+
+    return result
+}
+  
+  private static func desiredWidth(_ text: NSAttributedString) -> CGFloat {
+    let line = CTLineCreateWithAttributedString(text)
+    let width = CTLineGetTypographicBounds(line, nil, nil, nil)
+    return ceil(width)
+}
+  
   // MARK: - Measurement
   
   static func measure(_ engine: TextEngine, _ isInLine: Bool, isBlock: Bool = false, _ known: CGSize?, _ available: CGSize) -> CGSize {
@@ -209,6 +253,18 @@ public class TextEngine: NSObject {
       }
     }
     
+    if(maxWidth == CGFloat.greatestFiniteMagnitude){
+      if(available.width == -1){
+        if let min = splitByWhitespace(text).first {
+          maxWidth = desiredWidth(min)
+        }
+      }
+      
+      if (available.width == -2){
+        maxWidth = desiredWidth(text)
+      }
+    }
+    
     // Create framesetter and frame to collect segments
     let framesetter = CTFramesetterCreateWithAttributedString(text)
     
@@ -237,6 +293,7 @@ public class TextEngine: NSObject {
         size.width = lineWidth
       }
     }
+    
     
     
     // IMPORTANT: Collect and push segments to Rust BEFORE returning size
@@ -406,19 +463,19 @@ public class TextEngine: NSObject {
       context.saveGState()
       context.clip(to: drawBounds)
     }
-    
+
     let line = CTLineCreateWithAttributedString(text)
-    
+
     var ascent: CGFloat = 0
     var descent: CGFloat = 0
     var leading: CGFloat = 0
     let _ = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
-    
-    var originX = drawBounds.origin.x
+
+    let originX = drawBounds.origin.x
     let baselineOrigin = CGPoint(x: originX, y: drawBounds.origin.y)
-    
+
     var drawLine: CTLine = line
-    
+
     // Apply text overflow truncation
     switch style.textOverflow {
     case .Ellipse(let value):
@@ -443,26 +500,35 @@ public class TextEngine: NSObject {
     case .Clip:
       break
     }
-    
-    // Draw runs, skipping placeholders
+
+    // Draw text shadows if any
+    if !style.textShadows.isEmpty {
+      for shadow in style.textShadows {
+        context.saveGState()
+        context.setShadow(offset: CGSize(width: shadow.offsetX, height: -shadow.offsetY), blur: shadow.blurRadius, color: shadow.color.cgColor)
+        context.textPosition = baselineOrigin
+        let runs = CTLineGetGlyphRuns(drawLine) as? [CTRun] ?? []
+        for run in runs {
+          let attrs = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] ?? [:]
+          if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
+          CTRunDraw(run, context, CFRange(location: 0, length: 0))
+        }
+        context.restoreGState()
+      }
+    }
+
+    // Draw runs, skipping placeholders (main text, no shadow)
     let runs = CTLineGetGlyphRuns(drawLine) as? [CTRun] ?? []
     context.textPosition = baselineOrigin
-    
     for run in runs {
       let attrs = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] ?? [:]
-      
-      // Skip placeholder runs - handled by drawInlineAttachments
-      if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil {
-        continue
-      }
-      
+      if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
       if let ctFont = attrs[.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
         let font = ctFont as! CTFont
         let traits = CTFontCopyTraits(font) as? [CFString: Any]
         let symbolicTraits = CTFontGetSymbolicTraits(font)
         let isBold = symbolicTraits.contains(.traitBold)
         let weight = attrs[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat ?? traits?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
-        
         if !isBold && weight >= 0.4 {
           drawRunWithFakeBold(run, in: context, at: baselineOrigin)
         } else {
@@ -472,7 +538,7 @@ public class TextEngine: NSObject {
         CTRunDraw(run, context, CFRange(location: 0, length: 0))
       }
     }
-    
+
     // Draw inline attachments
     drawInlineAttachments(
       for: drawLine,
@@ -482,7 +548,7 @@ public class TextEngine: NSObject {
       in: context,
       bounds: bounds
     )
-    
+
     if !node.computedLayout.padding.isEmpty() {
       context.restoreGState()
     }
@@ -517,18 +583,16 @@ public class TextEngine: NSObject {
   
   internal func drawMultiLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
     guard text.length > 0 else { return }
-    
+
     let framesetter = CTFramesetterCreateWithAttributedString(text)
-    
+
     var paddingRestore =  false
     var drawBounds = bounds
-  
+
     guard drawBounds.width > 0 else { return }
-    
     let computedPadding = node.computedLayout.padding
     if !computedPadding.isEmpty() {
       paddingRestore = true
-    //  context.saveGState()
       let scale = NSCMason.scale
       let padding = UIEdgeInsets(
         top: CGFloat(computedPadding.top / scale),
@@ -536,13 +600,10 @@ public class TextEngine: NSObject {
         bottom: CGFloat(computedPadding.bottom / scale),
         right: CGFloat(computedPadding.right / scale)
       )
-      
       drawBounds = drawBounds.inset(by: padding)
-      
       guard drawBounds.width > 0, drawBounds.height > 0 else { return }
     }
-    
-    
+
     let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
       framesetter,
       CFRange(location: 0, length: text.length),
@@ -550,70 +611,93 @@ public class TextEngine: NSObject {
       CGSize(width: drawBounds.width, height: .greatestFiniteMagnitude),
       nil
     )
-    
-    var layoutBounds = CGRect(
+
+    let layoutBounds = CGRect(
       x: drawBounds.origin.x,
       y: drawBounds.origin.y,
       width: drawBounds.width,
       height: max(drawBounds.height, suggestedSize.height)
     )
-    
-    
-   
+
     let path = CGPath(rect: layoutBounds, transform: nil)
     let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: text.length), path, nil)
-    
+
     context.saveGState()
     context.clip(to: bounds)
-    
+
     let linesCF = CTFrameGetLines(frame)
     let linesCount = CFArrayGetCount(linesCF)
-    
     guard linesCount > 0 else { context.restoreGState(); return }
-    
+
     var origins = Array(repeating: CGPoint.zero, count: linesCount)
     CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), &origins)
-    
+
+    // Draw text shadows if any
+    if !style.textShadows.isEmpty {
+      for shadow in style.textShadows {
+        for i in 0..<linesCount {
+          let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
+          let lineOrigin = origins[i]
+          let verticalOffset = max(0, (layoutBounds.height - suggestedSize.height) / 2)
+          let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
+          // Compute horizontal offset based on resolved text alignment
+          var horizontalOffset: CGFloat = 0
+          switch style.resolvedTextAlign {
+          case .Center:
+            horizontalOffset = max(0, (drawBounds.width - CGFloat(lineWidth)) / 2)
+          case .Right, .End:
+            horizontalOffset = max(0, drawBounds.width - CGFloat(lineWidth))
+          case .Left, .Auto, .Start, .Justify:
+            horizontalOffset = 0
+          }
+          let textPos = CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset)
+          context.saveGState()
+          context.setShadow(offset: CGSize(width: shadow.offsetX, height: -shadow.offsetY), blur: shadow.blurRadius, color: shadow.color.cgColor)
+          
+          context.textPosition = textPos
+          let runsCF = CTLineGetGlyphRuns(line)
+          let runCount = CFArrayGetCount(runsCF)
+          for j in 0..<runCount {
+            let run = unsafeBitCast(CFArrayGetValueAtIndex(runsCF, j), to: CTRun.self)
+            guard let attributes = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else { continue }
+            if attributes[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
+            CTRunDraw(run, context, CFRange(location: 0, length: 0))
+          }
+          context.restoreGState()
+        }
+      }
+    }
+
+    // Draw main text (no shadow)
     for i in 0..<linesCount {
       let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
       let lineOrigin = origins[i]
-      
-      let verticalOffset = max(
-        0,
-        (layoutBounds.height - suggestedSize.height) / 2
-      )
-
+      let verticalOffset = max(0, (layoutBounds.height - suggestedSize.height) / 2)
       let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
-
-       let horizontalOffset = max(
-         0,
-         (drawBounds.width - CGFloat(lineWidth)) / 2
-       )
-      
+      var horizontalOffset: CGFloat = 0
+      switch style.resolvedTextAlign {
+      case .Center:
+        horizontalOffset = max(0, (drawBounds.width - CGFloat(lineWidth)) / 2)
+      case .Right, .End:
+        horizontalOffset = max(0, drawBounds.width - CGFloat(lineWidth))
+      case .Left, .Auto, .Start, .Justify:
+        horizontalOffset = 0
+      }
       context.textPosition = CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset)
-      
       let runsCF = CTLineGetGlyphRuns(line)
       let runCount = CFArrayGetCount(runsCF)
-      
       for j in 0..<runCount {
         let run = unsafeBitCast(CFArrayGetValueAtIndex(runsCF, j), to: CTRun.self)
-        
         guard let attributes = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else { continue }
-        
-        // Skip placeholder runs - these are drawn by drawInlineAttachments
-        if attributes[Constants.VIEW_PLACEHOLDER_KEY] != nil {
-          continue
-        }
-        
+        if attributes[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
         if let ctFont = attributes[.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
           let font = ctFont as! CTFont
           let traits = CTFontCopyTraits(font) as? [CFString: Any]
           let symbolicTraits = CTFontGetSymbolicTraits(font)
           let isBold = symbolicTraits.contains(.traitBold)
           let weight = attributes[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat ?? traits?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
-          
           if !isBold && weight >= 0.4 {
-            drawRunWithFakeBold(run, in: context, at: lineOrigin)
+            drawRunWithFakeBold(run, in: context, at: CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset))
           } else {
             CTRunDraw(run, context, CFRange(location: 0, length: 0))
           }
@@ -622,22 +706,20 @@ public class TextEngine: NSObject {
         }
       }
     }
-    
+
     context.restoreGState()
-    
+
     guard text.containsAttachments else { return }
-    
+
     for i in 0..<linesCount {
       let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
       let lineOrigin = origins[i]
-      
       drawInlineAttachments(for: line, origin: lineOrigin, frameBounds: layoutBounds, clipRect: drawBounds, in: context, bounds: bounds)
     }
-    
+
     if(paddingRestore){
      // context.restoreGState()
     }
-    
   }
   
   
@@ -750,9 +832,26 @@ public class TextEngine: NSObject {
     let composed = NSMutableAttributedString()
     var prevEndedWithWhitespace = false
 
-    for (childIndex, child) in node.children.enumerated() {
+    for (_, child) in node.children.enumerated() {
       var fragment: NSAttributedString?
-      if let textNode = child as? MasonTextNode {
+      if child is MasonBr {
+               let brString = NSMutableAttributedString(string: "\n")
+              
+                let attrs = node.getDefaultAttributes()
+
+               brString.addAttribute(NSAttributedString.Key("BrSpan"), value: true, range: NSRange(location: 0, length: 1))
+        
+                brString.addAttributes(attrs, range:  NSRange(location: 0, length: 1))
+        
+      
+               fragment = brString
+
+               // Since a line break ends any previous whitespace sequence
+               prevEndedWithWhitespace = true
+
+        
+        
+      }else if let textNode = child as? MasonTextNode {
         fragment = textNode.attributed()
       } else if let textView = child.view as? TextContainer {
         if shouldFlattenTextContainer(textView) {
@@ -762,6 +861,14 @@ public class TextEngine: NSObject {
         }
       } else if (child.view != nil && child.nativePtr != nil) {
         fragment = createPlaceholder(for: child)
+      }
+      
+      if let frag = fragment {
+          if frag.attribute(NSAttributedString.Key("BrSpan"), at: 0, effectiveRange: nil) != nil {
+              composed.append(frag)
+              prevEndedWithWhitespace = true
+              continue
+          }
       }
 
       guard let frag = fragment, frag.length > 0 else {
@@ -834,8 +941,8 @@ public class TextEngine: NSObject {
       let attrs = frag.attributes(at: 0, effectiveRange: nil)
       // strip leading/trailing single spaces from collapsed when appending (we'll handle separator)
       var middle = collapsed
-      if startsWithSpace { middle.removeFirst() }
-      if endsWithSpace { middle.removeLast() }
+      if startsWithSpace && !middle.isEmpty { middle.removeFirst() }
+      if endsWithSpace && !middle.isEmpty { middle.removeLast() }
 
       // Insert separator if needed: if composed not empty and (prevEndedWithWhitespace || startsWithSpace)
       if composed.length > 0 && (prevEndedWithWhitespace || startsWithSpace) {
@@ -926,14 +1033,25 @@ public class TextEngine: NSObject {
             segments.append(segment)
           }
         } else {
-          // Text segment
+          // Text segment or explicit <br> span
           var segment = CMasonSegment()
-          segment.tag = Text
-          segment.text = CMasonInlineTextSegment(width: Float(width * scale).rounded(.up), ascent: Float(ascent * scale).rounded(.up), descent: Float(descent * scale).rounded(.up))
-          
+          if attrs[NSAttributedString.Key("BrSpan")] != nil {
+            // Explicit line break
+            segment.tag = LineBreak
+          } else {
+            segment.tag = Text
+            segment.text = CMasonInlineTextSegment(width: Float(width * scale).rounded(.up), ascent: Float(ascent * scale).rounded(.up), descent: Float(descent * scale).rounded(.up))
+          }
+
           segments.append(segment)
         }
       }
+
+      // // After processing all runs in this CTLine, insert an explicit LineBreak segment
+      // // so Rust receives the same line breaks produced by CoreText.
+      // var brSegment = CMasonSegment()
+      // brSegment.tag = LineBreak
+      // segments.append(brSegment)
     }
     
   

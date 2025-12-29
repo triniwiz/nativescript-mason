@@ -4,29 +4,32 @@
       <ActionBar>
         <Label text="Home?" class="text-white bg-gray-800" />
       </ActionBar>
-      <!-- <div>
+      <div>
         <sspan>Welcome to the New Layout!</sspan>
         <p @tap="viewFeature('block')">Block</p>
         <p @tap="viewFeature('flex')">FlexBox</p>
         <p @tap="viewFeature('grid')">CSSGrid</p>
-      </div> -->
+      </div>
 
-      <div>
-        <h4>This is a Column-Reverse</h4>
-        <div id="col-rev" class="content">
-          <div class="box red">A</div>
-          <div class="box lightblue">B</div>
-          <div class="box yellow">C</div>
-        </div>
-        <h4>This is a Row-Reverse</h4>
-        <div id="row-rev" class="content">
-          <div class="box red">A</div>
-          <div class="box lightblue">B</div>
-          <div class="box yellow">C</div>
+        <!--
+      <div height="100%">
+        <div>
+          <h4>This is a Column-Reverse</h4>
+          <div id="col-rev" class="content">
+            <div class="box red">A</div>
+            <div class="box lightblue">B</div>
+            <div class="box yellow">C</div>
+          </div>
+          <h4>This is a Row-Reverse</h4>
+          <div id="row-rev" class="content">
+            <div class="box red">A</div>
+            <div class="box lightblue">B</div>
+            <div class="box yellow">C</div>
+          </div>
         </div>
       </div>
 
-      
+-->
       <!--
       <div>
         <p>
@@ -114,7 +117,6 @@ const viewFeature = (args) => {
 </script>
 
 <style scoped>
-
 .content {
   width: 200px;
   height: 200px;
@@ -146,7 +148,4 @@ const viewFeature = (args) => {
 .yellow {
   background-color: yellow;
 }
-
-
-
 </style>

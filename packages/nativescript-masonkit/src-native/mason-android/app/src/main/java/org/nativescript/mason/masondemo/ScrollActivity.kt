@@ -9,10 +9,11 @@ import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.Point
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles
+import org.nativescript.mason.masonkit.enums.Overflow
 
 class ScrollActivity : AppCompatActivity() {
 
@@ -25,10 +26,10 @@ class ScrollActivity : AppCompatActivity() {
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
 
       rootLayout.style.padding = Rect(
-        LengthPercentage.Points(systemBars.left.toFloat()),
-        LengthPercentage.Points(systemBars.right.toFloat()),
         LengthPercentage.Points(systemBars.top.toFloat()),
-        LengthPercentage.Points(systemBars.bottom.toFloat())
+        LengthPercentage.Points(systemBars.right.toFloat()),
+        LengthPercentage.Points(systemBars.bottom.toFloat()),
+        LengthPercentage.Points(systemBars.left.toFloat()),
       )
 
       insets
@@ -43,7 +44,9 @@ class ScrollActivity : AppCompatActivity() {
 
     val sv = mason.createScrollView(this)
     sv.configure {
-      it.overflowX = Overflow.Clip
+    //  it.overflowX = Overflow.Scroll
+     // it.overflowY = Overflow.Scroll
+        it.overflow = Point(Overflow.Scroll, Overflow.Scroll)
       it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
     }
     sv.setBackgroundColor(Color.RED)

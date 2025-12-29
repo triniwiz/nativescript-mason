@@ -459,7 +459,98 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
    // radius()
-    button()
+  //  button()
+    grid_template_areas_500(body)
+  }
+  
+  func grid_template_areas_500(_ rootLayout: MasonElement) {
+    let body = mason.createView()
+    body.style.margin = MasonRect(uniform: MasonLengthPercentageAuto.Points(40))
+    let root = mason.createView()
+    body.append(root)
+    root.configure { it in
+      it.display = Display.Grid
+      it.gridTemplateAreas = """
+      "header  header"
+      "sidebar content"
+      "sidebar2 sidebar2"
+      "footer  footer"
+      """
+      it.gridTemplateColumns = "20% auto"
+      it.gap = MasonSize(MasonLengthPercentage.Points(16), MasonLengthPercentage.Points(16))
+    }
+
+
+    let boxPadding = MasonRect(uniform: MasonLengthPercentage.Points(10))
+    let header = mason.createView()
+    header.append(text: "Header")
+    header.configure { it in
+      it.color = UIColor.white.toUInt32()
+      header.style.background = "#999999"
+      header.style.gridArea = "header"
+      it.padding = boxPadding
+      it.borderRadius = "5px"
+    }
+
+
+    let sidebar = mason.createView()
+    sidebar.append(text: "Sidebar")
+    sidebar.configure { it in
+      it.color = UIColor.white.toUInt32()
+      sidebar.style.gridArea = "sidebar"
+      sidebar.style.background = "#444444"
+      it.padding = boxPadding
+      it.borderRadius = "5px"
+    }
+
+    let content = mason.createView()
+    content.append(
+      text: "Content"
+    )
+    
+    let br = mason.createBr()
+    content.append(node: br)
+    content.append(
+      text: "More content than we had before so this column is now quite tall."
+    )
+
+
+    content.configure { it in
+      it.color = UIColor.white.toUInt32()
+      content.style.gridArea = "content"
+      it.background = "#444444"
+      it.borderRadius = "5px"
+      it.padding = boxPadding
+    }
+    
+
+    let sidebar2 = mason.createView()
+    sidebar2.configure { it in
+      sidebar2.style.background = "#cccccc"
+      sidebar2.style.setColor(css: "#444")
+      sidebar2.style.gridArea = "sidebar2"
+      it.borderRadius = "5px"
+      it.padding = boxPadding
+    }
+    sidebar2.append(text: "Sidebar 2")
+
+
+    let footer = mason.createView()
+    footer.configure { it in
+      footer.style.gridArea = "footer"
+      footer.style.background = "#999999"
+      it.borderRadius = "5px"
+      it.padding = boxPadding
+    }
+    footer.append(text: "Footer")
+
+    root.append(elements: [header, sidebar, sidebar2, content, footer])
+
+    rootLayout.append(body)
+    
+    self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
+    
+    mason.printTree(body.node)
   }
   
   func button(){
@@ -471,6 +562,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let a = mason.createTextView()
     a.append(text: "Hello")
     a.style.marginRight = .Points(10)
+    a.color = UIColor.white.toUInt32()
     a.style.textShadow = """
            1px 1px 2px black,
           0 0 1em blue,

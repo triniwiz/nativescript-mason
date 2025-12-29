@@ -1303,5 +1303,18 @@ class NodeHelper(val mason: Mason) {
     val node = mason.nodeForView(view)
     node.style.backgroundImage = value
   }
+
+  fun getTextShadow(view: android.view.View): String {
+    val node = mason.nodeForView(view)
+    return node.style.textShadow
+  }
+
+  fun setTextShadow(
+    view: android.view.View,
+    value: String
+  ) {
+    val node = mason.nodeForView(view)
+    node.style.textShadow = value
+  }
 }
 

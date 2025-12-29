@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.Log
 import android.view.ViewGroup
 import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
 import org.nativescript.mason.masonkit.enums.BoxSizing

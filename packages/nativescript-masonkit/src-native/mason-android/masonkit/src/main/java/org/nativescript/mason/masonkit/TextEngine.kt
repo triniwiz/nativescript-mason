@@ -10,12 +10,13 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.AlignmentSpan
+import android.text.style.CharacterStyle
 import android.text.style.ForegroundColorSpan
 import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
+import android.text.style.UpdateLayout
 import android.util.DisplayMetrics
-import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.View.MeasureSpec
@@ -42,7 +43,6 @@ class TextEngine(val container: TextContainer) {
     get() {
       return container.node.style
     }
-
 
   var textContent: String
     get() {
@@ -166,7 +166,6 @@ class TextEngine(val container: TextContainer) {
     }
   }
 
-
   private fun measureLayout(
     paint: TextPaint,
     knownWidth: Float,
@@ -271,6 +270,17 @@ class TextEngine(val container: TextContainer) {
           measuredWidth = lineWidth
         }
       }
+
+      if (widthConstraint == Int.MAX_VALUE) {
+        if (availableWidth == -1f) {
+          measuredWidth = spannable.split(white_space)
+            .maxOfOrNull { android.text.Layout.getDesiredWidth(it, paint) } ?: 0f
+        }
+
+        if (availableWidth == -2f) {
+          measuredWidth = android.text.Layout.getDesiredWidth(spannable, paint)
+        }
+      }
     } else {
       measuredWidth = if (widthConstraint == Int.MAX_VALUE) {
         if (availableWidth == -1f) {
@@ -364,6 +374,20 @@ class TextEngine(val container: TextContainer) {
     // Walk through the spannable to find text runs and view placeholders
     var currentPos = 0
     while (currentPos < attributed.length) {
+
+      val brSpans = attributed.getSpans(currentPos, currentPos + 1, BrSpan::class.java)
+      if (brSpans.isNotEmpty()) {
+        // Inline child placeholder
+        val brSpan = brSpans[0]
+        segments.add(
+          InlineSegment.Br()
+        )
+
+        currentPos = attributed.getSpanEnd(brSpan)
+        continue
+      }
+
+
       val viewSpans = attributed.getSpans(currentPos, currentPos + 1, ViewSpan::class.java)
 
       if (viewSpans.isNotEmpty()) {
@@ -464,6 +488,10 @@ class TextEngine(val container: TextContainer) {
       val canvas = Canvas(bitmap!!)
       view.draw(canvas)
     }
+  }
+
+  class BrSpan : CharacterStyle(), UpdateLayout {
+    override fun updateDrawState(tp: TextPaint?) {}
   }
 
 
@@ -680,6 +708,14 @@ class TextEngine(val container: TextContainer) {
     return placeholder
   }
 
+  private fun createBRholder(): SpannableStringBuilder {
+    val br = SpannableStringBuilder("\n")
+
+    br.setSpan(BrSpan(), 0, br.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+    return br
+  }
+
 
   // monotonically increasing version for invalidation; cachedAttributedString is valid when
   // attributedStringVersion == segmentsInvalidateVersion
@@ -865,6 +901,10 @@ class TextEngine(val container: TextContainer) {
 
     for (child in node.children) {
       when {
+        child is Br -> {
+          composed.append(createBRholder())
+        }
+
         child is TextNode -> {
           composed.append(child.attributed())
         }

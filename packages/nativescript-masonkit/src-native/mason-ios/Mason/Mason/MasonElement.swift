@@ -211,7 +211,6 @@ extension MasonElement {
     node.inBatch = true
     block(node.style)
     node.inBatch = false
-    style.updateNativeStyle()
   }
   
   

@@ -12,7 +12,7 @@ import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 
 
-class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
+open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
   constructor(mason: Mason, data: String) : this(mason) {
     this.data = data
   }
@@ -77,8 +77,7 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
   class FixedLineHeightSpan(private val heightDip: Int) : LineHeightSpan.WithDensity {
 
     private fun choose(
-      fm: Paint.FontMetricsInt,
-      scale: Float = 1f
+      fm: Paint.FontMetricsInt, scale: Float = 1f
     ) {
       val originalHeight = fm.descent - fm.ascent
       if (originalHeight <= 0) return
@@ -227,8 +226,7 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
           spannable.setSpan(StrikethroughSpan(), start, end, flags)
         }
 
-        Styles.DecorationLine.Overline -> {
-          /*
+        Styles.DecorationLine.Overline -> {/*
           spannable.setSpan(
             OverlineSpan(
               attributes.decorationColor ?: Color.BLACK,
@@ -266,18 +264,13 @@ class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
           if (shadow.blurRadius > 0) {
             spannable.setSpan(
               Spans.BlurredTextShadowSpan(
-                shadow.offsetX,
-                shadow.offsetY,
-                shadow.blurRadius,
-                shadow.color
+                shadow.offsetX, shadow.offsetY, shadow.blurRadius, shadow.color
               ), start, end, flags
             )
           } else {
             spannable.setSpan(
               Spans.TextShadowSpan(
-                shadow.offsetX,
-                shadow.offsetY,
-                shadow.color
+                shadow.offsetX, shadow.offsetY, shadow.color
               ), start, end, flags
             )
           }

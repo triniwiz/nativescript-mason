@@ -131,56 +131,8 @@ public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListe
     }
   }
   
-  // Update attributes on all direct TextNode children when styles change
-  internal func updateStyleOnTextNodes() {
-    let defaultAttrs = getDefaultAttributes()
-    
-    for child in node.children {
-      if let child = (child as? MasonTextNode), child.container?.isEqual(self) ?? false {
-        // Only update TextNodes that belong to THIS TextView
-        // Don't touch TextNodes that belong to child TextViews
-        child.attributes = defaultAttrs
-      }
-    }
-  }
-  
-  func onTextStyleChanged(change: Int64) {
-    let change = TextStyleChangeMasks(rawValue: change)
-    var dirty = false
-    var layout = false
-    if (change.contains(.color)) {
-      dirty = true
-    }
-    
-    if (change.contains(.fontSize)) {
-      layout = true
-      dirty = true
-    }
-    
-    if (change.contains(.fontWeight) || change.contains(.fontStyle) || change.contains(.fontFamily)) {
-      dirty = true
-    }
-    
-    
-    if (
-      change.contains(.textWrap) || change.contains(.whiteSpace) || change.contains(.textTransform) || change.contains(.decorationLine) || change.contains(.decorationColor) || change.contains(.decorationStyle) || change.contains(.letterSpacing) || change.contains(.textJustify) || change.contains(.backgroundColor) || change.contains(.lineHeight)
-    ) {
-      dirty = true
-    }
-    
-    
-    if (dirty) {
-      updateStyleOnTextNodes()
-      engine.invalidateInlineSegments()
-      if (layout) {
-        if (node.isAnonymous) {
-          node.layoutParent?.markDirty()
-        }
-        invalidateLayout()
-      }else {
-        invalidate()
-      }
-    }
+  public func onTextStyleChanged(change: Int64) {
+    engine.onTextStyleChanged(change: change)
   }
   
   

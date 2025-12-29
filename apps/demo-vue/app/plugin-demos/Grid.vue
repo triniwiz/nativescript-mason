@@ -3,16 +3,13 @@
         <ActionBar title="Grid">
         </ActionBar>
 
-        <div>
-            <div class="wrapper">
-                <div class="box header">Header</div>
-                <div class="box sidebar">Sidebar</div>
-                <div class="box sidebar2">Sidebar 2</div>
-                <div class="box content">Content
-                    <!-- <br /> More content than we had before so this column is now quite tall. -->
-                    More content than we had before so this column is now quite tall.
-                </div>
-                <div class="box footer">Footer</div>
+        <div backgroundColor="lightgray" height="100%" width="100%">
+            <div class="parent">
+                <div class="div1"> </div>
+                <div class="div2"> </div>
+                <div class="div3"> </div>
+                <div class="div4"> </div>
+                <div class="div5"> </div>
             </div>
         </div>
     </Page>
@@ -27,85 +24,36 @@ const message = ref("Test nativescript-masonkit");
 </script>
 
 <style scoped>
-body {
-    margin: 40px;
-}
-
-.sidebar {
-    grid-area: sidebar;
-}
-
-.sidebar2 {
-    grid-area: sidebar2;
-}
-
-.content {
-    grid-area: content;
-}
-
-.header {
-    grid-area: header;
-}
-
-.footer {
-    grid-area: footer;
-}
-
-.wrapper {
-    background-color: #fff;
-    color: #444;
-}
-
-.wrapper {
+.parent {
     display: grid;
-    grid-gap: 1em;
-    grid-template-areas:
-        "header"
-        "sidebar"
-        "content"
-        "sidebar2"
-        "footer"
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    grid-column-gap: 0px;
+    grid-row-gap: 0px;
 }
 
-@media only screen and (min-width: 500px) {
-    .wrapper {
-
-        grid-template-columns: 20% auto;
-        grid-template-areas:
-            "header   header"
-            "sidebar  content"
-            "sidebar2 sidebar2"
-            "footer   footer";
-    }
+.div1 {
+    grid-area: 1 / 1 / 2 / 2;
+    background-color: red;
 }
 
-@media only screen and (min-width: 600px) {
-    .wrapper {
-        grid-gap: 20px;
-        grid-template-columns: 120px auto 120px;
-        grid-template-areas:
-            "header  header  header"
-            "sidebar content sidebar2"
-            "footer  footer  footer";
-        max-width: 600px;
-    }
+.div2 {
+    grid-area: 2 / 2 / 3 / 3;
+    background-color: blue;
 }
 
-.box {
-    background-color: #444;
-    color: #fff;
-    border-radius: 5px;
-    padding: 10px;
-    font-size: 150%;
+.div3 {
+    grid-area: 3 / 3 / 4 / 4;
+    background-color: white;
 }
 
-.header,
-.footer {
-    background-color: #999;
+.div4 {
+    grid-area: 4 / 4 / 5 / 5;
+    background-color: yellow;
 }
 
-.sidebar2 {
-    background-color: #ccc;
-    color: #444;
+.div5 {
+    grid-area: 5 / 5 / 6 / 6;
+    background-color: black;
 }
 </style>

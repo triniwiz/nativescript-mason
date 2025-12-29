@@ -282,7 +282,7 @@ public class MasonText: UIView, MasonElement, MasonElementObjc, StyleChangeListe
   }
   
   
-  func onTextStyleChanged(change: Int64) {
+  public func onTextStyleChanged(change: Int64) {
     engine.onTextStyleChanged(change: change)
   }
   

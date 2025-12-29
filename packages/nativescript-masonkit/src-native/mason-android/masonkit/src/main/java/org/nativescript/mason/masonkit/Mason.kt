@@ -164,6 +164,10 @@ class Mason {
     return Button(context, this)
   }
 
+  fun createBr(): Node {
+    return Br(this)
+  }
+
   fun configureStyleForView(view: android.view.View, block: (Style) -> Unit) {
     val node = nodeForView(view)
     node.style.inBatch = true

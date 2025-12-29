@@ -793,7 +793,11 @@ class Style internal constructor(internal var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.TEXT_JUSTIFY, value.value)
       textValues.put(TextStyleKeys.TEXT_JUSTIFY_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChangeMask.TEXT_JUSTIFY)
+      if (inBatch) {
+        setOrAppendState(TextStateKeys.TEXT_JUSTIFY)
+      } else {
+        notifyTextStyleChanged(TextStyleChangeMask.TEXT_JUSTIFY)
+      }
     }
 
   var color: Int
@@ -801,8 +805,18 @@ class Style internal constructor(internal var node: Node) {
     set(value) {
       textValues.putInt(TextStyleKeys.COLOR, value)
       textValues.put(TextStyleKeys.COLOR_STATE, StyleState.SET)
-      notifyTextStyleChanged(TextStyleChangeMask.COLOR)
+      if (inBatch) {
+        setOrAppendState(TextStateKeys.COLOR)
+      } else {
+        notifyTextStyleChanged(TextStyleChangeMask.COLOR)
+      }
     }
+
+  fun setColor(value: String) {
+    parseColor(value)?.let {
+      color = it
+    }
+  }
 
   var fontFamily: String
     get() {
@@ -1656,8 +1670,6 @@ class Style internal constructor(internal var node: Node) {
       } else {
         textValues.put(TextStyleKeys.TEXT_SHADOW_STATE, StyleState.SET)
       }
-
-      setOrAppendState(TextStateKeys.TEXT_SHADOWS)
       notifyTextStyleChanged(TextStyleChangeMask.TEXT_SHADOW)
     }
 

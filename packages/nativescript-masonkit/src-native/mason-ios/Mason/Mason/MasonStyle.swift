@@ -316,6 +316,7 @@ struct TextStyleKeys {
   static let LINE_HEIGHT_STATE = 133
   static let VERTICAL_ALIGN_TYPE = 134
   static let VERTICAL_ALIGN = 135
+  static let TEXT_SHADOW_STATE = 136
 }
 
 internal struct TextStyleChangeMasks: OptionSet {
@@ -349,6 +350,7 @@ internal struct TextStyleChangeMasks: OptionSet {
   static let lineHeight = TextStyleChangeMasks(rawValue: 1 << 15)
   static let textAlign   = TextStyleChangeMasks(rawValue: 1 << 16)
   static let verticalAlign   = TextStyleChangeMasks(rawValue: 1 << 17)
+  static let textShadow   = TextStyleChangeMasks(rawValue: 1 << 18)
   static let all = TextStyleChangeMasks(rawValue: -1)
 }
 
@@ -510,7 +512,7 @@ public class MasonStyle: NSObject {
   }()
   
   public lazy var textValues: NSMutableData = {
-    let buffer = NSMutableData(length: 140)
+    let buffer = NSMutableData(length: 144)
     guard let buffer else {
       // todo
       fatalError("Could not allocate style buffer")
@@ -826,11 +828,20 @@ public class MasonStyle: NSObject {
     set {
       setUInt32(TextStyleKeys.COLOR, newValue, text: true)
       setUInt8(TextStyleKeys.COLOR_STATE, StyleState.SET, text: true)
-      notifyTextStyleChanged(TextStyleChangeMasks.color.rawValue)
+      if(inBatch){
+        setOrAppendState(TextStyleChangeMasks.color)
+      }else {
+        notifyTextStyleChanged(TextStyleChangeMasks.color.rawValue)
+      }
     }
   }
   
   public func setColor(ui color: UIColor) {
+    self.color = color.toUInt32()
+  }
+  
+  public func setColor(css color: String) {
+    guard let color = UIColor(css: color) else {return}
     self.color = color.toUInt32()
   }
   
@@ -1980,6 +1991,14 @@ public class MasonStyle: NSObject {
   public var textShadow: String = "" {
     didSet {
       textShadows = ShadowParser.parseTextShadow(style: self, value: textShadow)
+      
+      if(textShadows.isEmpty){
+        setUInt8(TextStyleKeys.TEXT_SHADOW_STATE, StyleState.INHERIT, text: true)
+      }else {
+        setUInt8(TextStyleKeys.TEXT_SHADOW_STATE, StyleState.SET, text: true)
+      }
+    
+      notifyTextStyleChanged(TextStyleChangeMasks.textShadow.rawValue)
     }
   }
   
@@ -2792,6 +2811,7 @@ public class MasonStyle: NSObject {
         (node.view as? MasonElement)?.requestLayout()
         return
       }
+      
       
       mason_style_set_with_values(
         node.mason.nativePtr,

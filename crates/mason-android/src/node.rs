@@ -1095,6 +1095,9 @@ pub extern "system" fn NodeNativeSetSegments(
                             baseline: descent,
                         });
                     }
+                    2 => {
+                        child.push(InlineSegment::LineBreak)
+                    }
                     _ => {}
                 }
             }

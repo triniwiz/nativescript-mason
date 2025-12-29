@@ -74,6 +74,25 @@ extension UIColor {
   }
   
   
+  func adjustedAlpha(_ multiplier: CGFloat) -> UIColor {
+       var r: CGFloat = 0
+       var g: CGFloat = 0
+       var b: CGFloat = 0
+       var a: CGFloat = 0
+
+       guard getRed(&r, green: &g, blue: &b, alpha: &a) else {
+           return self
+       }
+
+       return UIColor(
+           red: r,
+           green: g,
+           blue: b,
+           alpha: min(a * multiplier, 1.0)
+       )
+   }
+  
+  
   func lighter(by amount: CGFloat = 0.25) -> UIColor {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         getRed(&r, green: &g, blue: &b, alpha: &a)

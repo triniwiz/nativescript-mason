@@ -1,12 +1,12 @@
 use crate::node::NodeType;
 use crate::style::{DisplayMode, DisplaySize, FontMetrics, VerticalAlign, VerticalAlignValue};
 use crate::{Id, InlineSegment, Tree};
+use taffy::prelude::auto;
 use taffy::{
     compute_leaf_layout, AvailableSpace, BlockContext, BoxSizing, CoreStyle, Dimension, Display,
     LayoutInput, LayoutOutput, LayoutPartialTree, MaybeMath, MaybeResolve, NodeId, Point,
     ResolveOrZero, Size, SizingMode,
 };
-use taffy::prelude::auto;
 
 /// Represents an item in a line during inline layout
 #[derive(Clone, Debug)]
@@ -374,6 +374,8 @@ enum PreparedItem {
         height: f32,
         margin: taffy::Rect<f32>,
     },
+    /// Explicit line break (e.g. <br>)
+    LineBreak,
 }
 
 /// Context for inline formatting
@@ -384,6 +386,7 @@ struct InlineFormattingContext {
     content_box_left: f32,
     content_box_top: f32,
     parent_font: FontMetrics,
+    text_align: taffy::TextAlign,
 }
 
 impl InlineFormattingContext {
@@ -392,6 +395,7 @@ impl InlineFormattingContext {
         content_box_left: f32,
         content_box_top: f32,
         parent_font: FontMetrics,
+        text_align: taffy::TextAlign,
     ) -> Self {
         Self {
             available_width,
@@ -400,6 +404,7 @@ impl InlineFormattingContext {
             content_box_left,
             content_box_top,
             parent_font,
+            text_align,
         }
     }
 
@@ -414,6 +419,19 @@ impl InlineFormattingContext {
             let line = std::mem::replace(&mut self.current_line, Line::new(self.parent_font));
             self.lines.push(line);
         }
+    }
+
+    /// Force a line break even if the current line is empty (for <br>)
+    fn line_break(&mut self) {
+        let mut line = std::mem::replace(&mut self.current_line, Line::new(self.parent_font));
+
+        // If the line is empty, ensure it still contributes the parent's strut
+        if line.is_empty() {
+            line.max_ascent = line.max_ascent.max(self.parent_font.ascent);
+            line.max_descent = line.max_descent.max(self.parent_font.descent);
+        }
+
+        self.lines.push(line);
     }
 
     fn add_text(&mut self, width: f32, ascent: f32, descent: f32) {
@@ -477,6 +495,9 @@ impl InlineFormattingContext {
                     descent,
                 } => {
                     self.add_text(*width, *ascent, *descent);
+                }
+                PreparedItem::LineBreak => {
+                    self.line_break();
                 }
                 PreparedItem::InlineChild {
                     id,
@@ -553,7 +574,30 @@ impl InlineFormattingContext {
                     max_width = max_width.max(*width);
                 }
             } else {
+                // Compute horizontal alignment offset for the line
                 let mut cursor_x = self.content_box_left;
+                if self.available_width.is_finite() {
+                    let line_w = line.total_width();
+                    let avail = self.available_width;
+                    let mut align_offset = 0.0f32;
+                    match self.text_align {
+                        // center
+                        taffy::TextAlign::LegacyCenter => {
+                            if avail > line_w {
+                                align_offset = (avail - line_w) / 2.0;
+                            }
+                        }
+                        // right
+                        taffy::TextAlign::LegacyRight => {
+                            if avail > line_w {
+                                align_offset = avail - line_w;
+                            }
+                        }
+                        // left/auto/legacy-left: no offset
+                        _ => {}
+                    }
+                    cursor_x += align_offset;
+                }
 
                 for item in &line.items {
                     match item {
@@ -822,9 +866,12 @@ impl Tree {
             return Some(Size::ZERO);
         }
 
-        let mut total_width = 0.0f32;
+        // Simple multi-line handling: track current line width and max width across lines.
+        let mut current_line_width = 0.0f32;
+        let mut max_line_width = 0.0f32;
         let mut max_ascent = 0.0f32;
         let mut max_descent = 0.0f32;
+        let mut line_count = 1usize;
 
         for segment in segments {
             match segment {
@@ -833,26 +880,36 @@ impl Tree {
                     ascent,
                     descent,
                 } => {
-                    total_width += width;
+                    current_line_width += width;
                     max_ascent = max_ascent.max(*ascent);
                     max_descent = max_descent.max(*descent);
                 }
                 InlineSegment::InlineChild { id: Some(id), .. } => {
-                    // Get child size
                     let child_size = self.nodes[*id].unrounded_layout.size;
-                    total_width += child_size.width;
-                    // For inline children, treat their height as contributing to line height
-                    // This is simplified - proper handling would use baseline alignment
+                    current_line_width += child_size.width;
                     max_ascent = max_ascent.max(child_size.height);
                 }
                 InlineSegment::InlineChild { id: None, .. } => {}
+                InlineSegment::LineBreak => {
+                    max_line_width = max_line_width.max(current_line_width);
+                    current_line_width = 0.0;
+                    line_count += 1;
+                }
             }
         }
 
-        let height = max_ascent + max_descent;
+        max_line_width = max_line_width.max(current_line_width);
+
+        // Determine per-line ascent/descent using inherited font metrics as minimums
+        let metrics = self.get_font_metrics(child_id);
+        let ascent = max_ascent.max(metrics.ascent);
+        let descent = max_descent.max(metrics.descent);
+        let line_height = ascent + descent;
+        let content_height = line_height * (line_count as f32);
+
         Some(Size {
-            width: total_width,
-            height,
+            width: max_line_width,
+            height: content_height,
         })
     }
 
@@ -870,7 +927,6 @@ impl Tree {
                     width: inputs.available_space.width,
                     height: AvailableSpace::MaxContent,
                 },
-                sizing_mode: SizingMode::InherentSize,
                 parent_size: inputs.parent_size,
                 ..inputs
             };
@@ -889,8 +945,18 @@ impl Tree {
 
                 // Content size is the layout size minus padding and border
                 let content_size = Size {
-                    width: (layout.size.width - padding.left - padding.right - border.left - border.right).max(0.0),
-                    height: (layout.size.height - padding.top - padding.bottom - border.top - border.bottom).max(0.0),
+                    width: (layout.size.width
+                        - padding.left
+                        - padding.right
+                        - border.left
+                        - border.right)
+                        .max(0.0),
+                    height: (layout.size.height
+                        - padding.top
+                        - padding.bottom
+                        - border.top
+                        - border.bottom)
+                        .max(0.0),
                 };
 
                 child.unrounded_layout.location = Point::zero();
@@ -916,7 +982,7 @@ impl Tree {
 
             return layout;
         }
-        
+
         // Check if this is an empty inline text container
         if self.is_empty_inline_text(child_id) {
             // Empty inline elements have 0x0 size
@@ -949,27 +1015,18 @@ impl Tree {
         // This allows native platforms to measure text
         if is_text_container && has_measure {
             // First, measure all children of this text container
-            let grandchild_ids: Vec<Id> = self
-                .children
-                .get(child_id)
-                .cloned()
-                .unwrap_or_default();
+            let grandchild_ids: Vec<Id> = self.children.get(child_id).cloned().unwrap_or_default();
 
-            let content_available_width = inputs
-                .available_space
-                .width
-                .into_option()
-                .unwrap_or(f32::INFINITY);
+            let content_available_width = inputs.available_space.width;
 
             let grandchild_inputs = LayoutInput {
                 known_dimensions: Size::NONE,
                 available_space: Size {
-                    width: AvailableSpace::Definite(content_available_width),
+                    width: content_available_width,
                     height: AvailableSpace::MaxContent,
                 },
-                sizing_mode: SizingMode::InherentSize,
                 parent_size: Size {
-                    width: Some(content_available_width),
+                    width: content_available_width.into_option(),
                     height: inputs.parent_size.height,
                 },
                 ..inputs
@@ -1002,6 +1059,105 @@ impl Tree {
                 adjusted_style.set_size(size);
             }
 
+            /*
+            let margin = style
+                .margin()
+                .resolve_or_zero(inputs.parent_size.width, |_,_|0.0);
+            let padding = style
+                .padding()
+                .resolve_or_zero(inputs.parent_size.width, |_,_|0.0);
+            let border = style
+                .border()
+                .resolve_or_zero(inputs.parent_size.width, |_,_|0.0);
+            let container_pb = padding + border;
+            let pb_sum = container_pb.sum_axes();
+            let box_sizing_adjustment = if style.box_sizing() == BoxSizing::ContentBox {
+                pb_sum
+            } else {
+                Size::ZERO
+            };
+
+            // Scrollbar gutters are reserved when the `overflow` property is set to `Overflow::Scroll`.
+            // However, the axis are switched (transposed) because a node that scrolls vertically needs
+            // *horizontal* space to be reserved for a scrollbar
+            let scrollbar_gutter = style.overflow().transpose().map(|overflow| match overflow {
+                taffy::Overflow::Scroll => style.scrollbar_width(),
+                _ => 0.0,
+            });
+            // TODO: make side configurable based on the `direction` property
+            let mut content_box_inset = container_pb;
+            content_box_inset.right += scrollbar_gutter.x;
+            content_box_inset.bottom += scrollbar_gutter.y;
+
+
+            let (node_size, node_min_size, node_max_size, aspect_ratio) = match inputs.sizing_mode {
+                SizingMode::ContentSize => {
+                    let node_size = inputs.known_dimensions;
+                    let node_min_size = Size::NONE;
+                    let node_max_size = Size::NONE;
+                    (node_size, node_min_size, node_max_size, None)
+                }
+                SizingMode::InherentSize => {
+                    let aspect_ratio = style.aspect_ratio();
+                    let style_size = style
+                        .size()
+                        .maybe_resolve(inputs.parent_size, |_,_| 0.0)
+                        .maybe_apply_aspect_ratio(aspect_ratio)
+                        .maybe_add(box_sizing_adjustment);
+                    let style_min_size = style
+                        .min_size()
+                        .maybe_resolve(inputs.parent_size, |_,_| 0.0)
+                        .maybe_apply_aspect_ratio(aspect_ratio)
+                        .maybe_add(box_sizing_adjustment);
+                    let style_max_size = style
+                        .max_size()
+                        .maybe_resolve(inputs.parent_size, |_,_| 0.0)
+                        .maybe_add(box_sizing_adjustment);
+
+                    let node_size =
+                        inputs.known_dimensions.or(style_size.maybe_clamp(style_min_size, style_max_size));
+                    (node_size, style_min_size, style_max_size, aspect_ratio)
+                }
+            };
+
+            // Compute available space
+            let available_space = Size {
+                width: inputs.known_dimensions
+                    .width
+                    .map(AvailableSpace::from)
+                    .unwrap_or(inputs.available_space.width)
+                    .maybe_sub(margin.horizontal_axis_sum())
+                    .maybe_set(inputs.known_dimensions.width)
+                    .maybe_set(node_size.width)
+                    .map_definite_value(|size| {
+                        size.maybe_clamp(node_min_size.width, node_max_size.width)
+                            - content_box_inset.horizontal_axis_sum()
+                    }),
+                height: inputs.known_dimensions
+                    .height
+                    .map(AvailableSpace::from)
+                    .unwrap_or(inputs.available_space.height)
+                    .maybe_sub(margin.vertical_axis_sum())
+                    .maybe_set(inputs.known_dimensions.height)
+                    .maybe_set(node_size.height)
+                    .map_definite_value(|size| {
+                        size.maybe_clamp(node_min_size.height, node_max_size.height)
+                            - content_box_inset.vertical_axis_sum()
+                    }),
+            };
+
+            let child_inputs = taffy::tree::LayoutInput {
+                known_dimensions: Size::NONE,
+                available_space,
+                sizing_mode: SizingMode::InherentSize,
+                parent_size: available_space.into_options(),
+                ..inputs
+            };
+
+
+            let a = self.compute_child_layout(child_node_id, child_inputs);
+            */
+
             let layout = compute_leaf_layout(
                 inputs,
                 &adjusted_style,
@@ -1015,6 +1171,7 @@ impl Tree {
                     measure.measure(measure_known, available_space)
                 },
             );
+
 
             if let Some(child) = self.nodes.get_mut(child_id) {
                 let padding = child
@@ -1117,7 +1274,6 @@ impl Tree {
                 width: inputs.available_space.width,
                 height: AvailableSpace::MaxContent,
             },
-            sizing_mode: SizingMode::InherentSize,
             parent_size: inputs.parent_size,
             ..inputs
         };
@@ -1174,7 +1330,7 @@ impl Tree {
     fn measure_block_child(
         &mut self,
         child_id: Id,
-        available_width: f32,
+        available_width: AvailableSpace,
         inputs: LayoutInput,
     ) -> LayoutOutput {
         let child_node_id = NodeId::from(child_id);
@@ -1182,11 +1338,11 @@ impl Tree {
         let block_inputs = LayoutInput {
             known_dimensions: Size::NONE,
             available_space: Size {
-                width: AvailableSpace::Definite(available_width),
+                width: available_width,
                 height: inputs.available_space.height,
             },
             parent_size: Size {
-                width: Some(available_width),
+                width: available_width.into_option(),
                 height: inputs.parent_size.height,
             },
             ..inputs
@@ -1194,11 +1350,13 @@ impl Tree {
 
         let mut layout = self.compute_child_layout(child_node_id, block_inputs);
 
-        if layout.size.width > available_width {
-            layout.size.width = available_width;
-        }
-        if layout.content_size.width > available_width {
-            layout.content_size.width = available_width;
+        if let AvailableSpace::Definite(value) = available_width {
+            if layout.size.width > value {
+                layout.size.width = value;
+            }
+            if layout.content_size.width > value {
+                layout.content_size.width = value;
+            }
         }
 
         if let Some(child) = self.nodes.get_mut(child_id) {
@@ -1233,12 +1391,13 @@ impl Tree {
         let id: Id = node_id.into();
         let child_ids: Vec<Id> = self.children.get(id).cloned().unwrap_or_default();
 
-        let (style, is_text_container, has_measure) = {
+        let (style, is_text_container, has_measure, type_) = {
             let node = &self.nodes[id];
             (
                 node.style.clone(),
                 node.is_text_container(),
                 node.has_measure,
+                node.type_,
             )
         };
 
@@ -1291,24 +1450,15 @@ impl Tree {
             }
         };
 
-        let content_available_width = available_space
-            .width
-            .into_option()
-            .map(|w| (w - pb.horizontal_components().sum()).max(0.0))
-            .unwrap_or(f32::INFINITY);
-
         if is_text_container {
+            let sizing_mode = match inputs.available_space.width {
+                AvailableSpace::Definite(_) => SizingMode::InherentSize,
+                AvailableSpace::MinContent | AvailableSpace::MaxContent => SizingMode::ContentSize,
+            };
+
             let child_inputs = LayoutInput {
                 known_dimensions: Size::NONE,
-                available_space: Size {
-                    width: AvailableSpace::Definite(content_available_width),
-                    height: AvailableSpace::MaxContent,
-                },
-                sizing_mode: SizingMode::InherentSize,
-                parent_size: Size {
-                    width: Some(content_available_width),
-                    height: parent_size.height,
-                },
+                sizing_mode,
                 ..inputs
             };
 
@@ -1317,7 +1467,7 @@ impl Tree {
                 if self.is_inline_level(child_id) {
                     self.measure_inline_child(child_id, child_inputs);
                 } else {
-                    self.measure_block_child(child_id, content_available_width, inputs);
+                    self.measure_block_child(child_id, child_inputs.available_space.width, inputs);
                 }
             }
 
@@ -1334,16 +1484,27 @@ impl Tree {
                 // Build prepared items from segments (which include text and inline children)
                 for segment in &segments {
                     match segment {
-                        InlineSegment::Text { width, ascent, descent } => {
+                        InlineSegment::Text {
+                            width,
+                            ascent,
+                            descent,
+                        } => {
                             prepared_items.push(PreparedItem::Text {
                                 width: *width,
                                 ascent: *ascent,
                                 descent: *descent,
                             });
                         }
-                        InlineSegment::InlineChild { id: child_id_opt, baseline } => {
+                        InlineSegment::LineBreak => {
+                            prepared_items.push(PreparedItem::LineBreak);
+                        }
+                        InlineSegment::InlineChild {
+                            id: child_id_opt,
+                            baseline,
+                        } => {
                             if let Some(child_id) = child_id_opt {
-                                let (size, margin, _, vertical_align) = self.collect_child_info(*child_id);
+                                let (size, margin, _, vertical_align) =
+                                    self.collect_child_info(*child_id);
                                 let is_pure_inline = self.is_pure_inline(*child_id);
                                 prepared_items.push(PreparedItem::InlineChild {
                                     id: *child_id,
@@ -1362,7 +1523,8 @@ impl Tree {
                 // If no segments but we have children, add children directly
                 if prepared_items.is_empty() {
                     for &child_id in &child_ids {
-                        let (size, margin, is_block, vertical_align) = self.collect_child_info(child_id);
+                        let (size, margin, is_block, vertical_align) =
+                            self.collect_child_info(child_id);
                         if is_block {
                             prepared_items.push(PreparedItem::BlockChild {
                                 id: child_id,
@@ -1387,11 +1549,18 @@ impl Tree {
                 }
 
                 // Run IFC to get placements
+                let content_available_width = child_inputs
+                    .available_space
+                    .width
+                    .into_option()
+                    .unwrap_or(f32::INFINITY);
+
                 let mut ifc = InlineFormattingContext::new(
                     content_available_width,
                     pb.left,
                     pb.top,
                     parent_font,
+                    style.get_text_align(),
                 );
                 ifc.process_items(&prepared_items);
                 let (_, _, placements) = ifc.finalize();
@@ -1422,7 +1591,7 @@ impl Tree {
                 adjusted_style.set_size(size);
             }
 
-            let ret =  compute_leaf_layout(
+            let ret = compute_leaf_layout(
                 inputs,
                 &adjusted_style,
                 |_val, _basis| 0.0,
@@ -1466,20 +1635,17 @@ impl Tree {
                 )
             } else {
                 compute_leaf_layout(inputs, &style, |_val, _basis| 0.0, |_, _| Size::ZERO)
-            }
+            };
         }
+
+        let sizing_mode = match inputs.available_space.width {
+            AvailableSpace::Definite(_) => SizingMode::InherentSize,
+            AvailableSpace::MinContent | AvailableSpace::MaxContent => SizingMode::ContentSize,
+        };
 
         let child_inputs = LayoutInput {
             known_dimensions: Size::NONE,
-            available_space: Size {
-                width: AvailableSpace::Definite(content_available_width),
-                height: AvailableSpace::MaxContent,
-            },
-            sizing_mode: SizingMode::InherentSize,
-            parent_size: Size {
-                width: Some(content_available_width),
-                height: parent_size.height,
-            },
+            sizing_mode,
             ..inputs
         };
 
@@ -1487,7 +1653,7 @@ impl Tree {
             if self.is_inline_level(child_id) {
                 self.measure_inline_child(child_id, child_inputs);
             } else {
-                self.measure_block_child(child_id, content_available_width, inputs);
+                self.measure_block_child(child_id, child_inputs.available_space.width, inputs);
             }
         }
 
@@ -1506,6 +1672,9 @@ impl Tree {
                             ascent: *ascent,
                             descent: *descent,
                         });
+                    }
+                    InlineSegment::LineBreak => {
+                        prepared_items.push(PreparedItem::LineBreak);
                     }
                     InlineSegment::InlineChild {
                         id: child_id_opt,
@@ -1547,15 +1716,26 @@ impl Tree {
                         margin,
                         baseline,
                         vertical_align,
-                        is_pure_inline
+                        is_pure_inline,
                     });
                 }
             }
         }
 
+        let content_available_width = inputs
+            .available_space
+            .width
+            .into_option()
+            .unwrap_or(f32::INFINITY);
+
         // Pass parent_font to the IFC
-        let mut ifc =
-            InlineFormattingContext::new(content_available_width, pb.left, pb.top, parent_font);
+        let mut ifc = InlineFormattingContext::new(
+            content_available_width,
+            pb.left,
+            pb.top,
+            parent_font,
+            style.get_text_align(),
+        );
         ifc.process_items(&prepared_items);
 
         let (content_width, content_height, placements) = ifc.finalize();

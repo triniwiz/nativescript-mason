@@ -684,6 +684,7 @@ pub extern "system" fn StyleNativeGetGridTemplateColumns(
         let mason = &mut *(mason as *mut Mason);
         let node = &*(node as *const NodeRef);
         if let Some(style) = mason.style(node.id()) {
+            log::info!("nativeGetGridTemplateColumns {:?}", style.get_grid_template_columns_css());
             return style.get_grid_template_columns_css()
                 .and_then(|value| env.new_string(value).ok())
                 .map(|value| value.into_raw())

@@ -230,6 +230,8 @@ pub enum InlineSegment {
         id: Option<Id>,
         baseline: f32,
     },
+    /// Explicit line break (e.g. <br>)
+    LineBreak,
 }
 
 #[derive(Debug)]

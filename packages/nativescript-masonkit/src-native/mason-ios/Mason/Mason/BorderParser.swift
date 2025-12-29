@@ -23,7 +23,10 @@ private let cssNames = [
   "outset"
 ]
 
-private let lengthPercentageRegex = try! NSRegularExpression(pattern:  "^(\\d+(?:\\.\\d+)?)(px|%|dip)?;?$", options: [])
+private let lengthPercentageRegex = try! NSRegularExpression(
+    pattern: "^(-?(?:\\d*\\.\\d+|\\d+\\.\\d*|\\d+))(px|%|dip|em)?;?$",
+    options: []
+)
 
 // Swift port of parseLengthPercentage
 func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> MasonLengthPercentage? {
@@ -56,7 +59,7 @@ func parseLengthPercentage(_ value: String, scale: Float = NSCMason.scale) -> Ma
 }
 
 
-func parseLength(_ style: MasonStyle, _ value: String, scale: Float = NSCMason.scale) -> Float? {
+func parseLength(_ style: MasonStyle, _ value: String, scale: Float = NSCMason.scale, resolve: Bool = false) -> Float? {
   let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
   guard let match = lengthPercentageRegex.firstMatch(in: v, range: NSRange(v.startIndex..<v.endIndex, in: v)) else {
     return nil
@@ -64,6 +67,7 @@ func parseLength(_ style: MasonStyle, _ value: String, scale: Float = NSCMason.s
   let ns = v as NSString
   let parsed = Double(ns.substring(with: match.range(at: 1)))
   let num = Float(parsed ?? 0)
+  
 
   let unitRange = match.range(at: 2)
   let unit: String? =
@@ -72,7 +76,11 @@ func parseLength(_ style: MasonStyle, _ value: String, scale: Float = NSCMason.s
       : nil
   
   switch unit {
-  case "px": return num
+  case "px":
+    if(resolve){
+      return num / scale
+    }
+    return num
   case "%": return 0
   case "dip": return num * scale
   case "em": return (Float(style.fontSize) * scale) * num

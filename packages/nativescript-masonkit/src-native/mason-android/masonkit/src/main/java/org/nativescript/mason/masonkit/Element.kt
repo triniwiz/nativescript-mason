@@ -1,6 +1,5 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
@@ -339,8 +338,6 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       if (view.isGone) {
         return
       }
-      Log.d("com.test", "layout ${layout}")
-
       var overflow: Point<Overflow> = Point(Overflow.Visible, Overflow.Visible)
       var boxing = BoxSizing.BorderBox
       if (node.style.isValueInitialized) {
@@ -362,17 +359,13 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
 
       // Calculate content size (what's inside the box)
       val contentWidth = if (boxing == BoxSizing.BorderBox) {
-        (layout.contentSize.width
-          + layout.border.left + layout.border.right
-          + layout.padding.left + layout.padding.right).toInt()
+        layout.width.toInt()
       } else {
         layout.contentSize.width.toInt()
       }
 
       val contentHeight = if (boxing == BoxSizing.BorderBox) {
-        (layout.contentSize.height
-          + layout.border.top + layout.border.bottom
-          + layout.padding.top + layout.padding.bottom).toInt()
+        layout.height.toInt()
       } else {
         layout.contentSize.height.toInt()
       }

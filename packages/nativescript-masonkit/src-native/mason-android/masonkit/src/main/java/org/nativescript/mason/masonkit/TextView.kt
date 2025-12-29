@@ -227,7 +227,7 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun onTextStyleChanged(change: Int) {
-    // engine.onTextStyleChanged(change, paint, resources.displayMetrics)
+     engine.onTextStyleChanged(change, paint, resources.displayMetrics)
   }
 
   val textValues: ByteBuffer

@@ -13,6 +13,7 @@ import org.nativescript.mason.masonkit.Element
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.Point
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
@@ -25,6 +26,7 @@ import org.nativescript.mason.masonkit.enums.AlignSelf
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.JustifyContent
 import org.nativescript.mason.masonkit.enums.ObjectFit
+import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.VerticalAlign
@@ -61,33 +63,35 @@ class GridActivity : AppCompatActivity() {
 //      LengthPercentageAuto.Points(40f)
 //    )
 
-    //val rootLayout = mason.createView(this)
+//    val rootLayout = mason.createView(this)
+//
+//    body.addView(rootLayout)
+//
+//    wrapper5(rootLayout)
 
-    //body.addView(rootLayout)
 
-    //  wrapper5(rootLayout)
     //  wrapper6(body)
     // wrapper8(body)
     //genTest(body)
 
     //grid_template_areas(body)
 
-    // grid_template_areas_500(body)
+    grid_template_areas_500(body)
 
     //grid_template_areas_600(body)
 
     //  backgroundTest(body)
     // filter(body)
     //  objectFit(body)
-     //   buttons(body)
+    //   buttons(body)
     // verticalAlignment(body)
     // verticalAlignImages(body)
-   // radius(body)
-    textShadow(body)
+    // radius(body)
+    // textShadow(body)
     setContentView(body)
   }
 
-  fun textShadow(body: Scroll){
+  fun textShadow(body: Scroll) {
     val container = mason.createView(this)
 
     container.configure {
@@ -135,12 +139,9 @@ class GridActivity : AppCompatActivity() {
       it.margin = Rect(
         LengthPercentageAuto.Points(
           20f
-        ),
-        LengthPercentageAuto.Auto,
-        LengthPercentageAuto.Points(
+        ), LengthPercentageAuto.Auto, LengthPercentageAuto.Points(
           20f
-        ),
-        LengthPercentageAuto.Auto
+        ), LengthPercentageAuto.Auto
       )
     }
 
@@ -154,11 +155,8 @@ class GridActivity : AppCompatActivity() {
       it.justifyContent = JustifyContent.Center
       it.alignItems = AlignItems.Center
       it.backgroundColor = Color.GREEN
-      it.backgroundImage = "linear-gradient(\n" +
-        "    to bottom,\n" +
-        "    rgb(255 255 255 / 0),\n" +
-        "    rgb(255 255 255 / 0.5)\n" +
-        "    );"
+      it.backgroundImage =
+        "linear-gradient(\n" + "    to bottom,\n" + "    rgb(255 255 255 / 0),\n" + "    rgb(255 255 255 / 0.5)\n" + "    );"
       it.border = "1 solid #c3c3c3"
       it.borderRadius = "0 20% 50 30%"
     }
@@ -193,12 +191,9 @@ class GridActivity : AppCompatActivity() {
         LengthPercentageAuto.Points(16f),
       )
       it.padding = Rect(
-        LengthPercentage.Zero,
-        LengthPercentage.Points(
+        LengthPercentage.Zero, LengthPercentage.Points(
           margin
-        ),
-        LengthPercentage.Zero,
-        LengthPercentage.Points(
+        ), LengthPercentage.Zero, LengthPercentage.Points(
           margin
         )
       )
@@ -276,12 +271,9 @@ class GridActivity : AppCompatActivity() {
         LengthPercentageAuto.Auto,
       )
       it.padding = Rect(
-        LengthPercentage.Zero,
-        LengthPercentage.Points(
+        LengthPercentage.Zero, LengthPercentage.Points(
           margin
-        ),
-        LengthPercentage.Zero,
-        LengthPercentage.Points(
+        ), LengthPercentage.Zero, LengthPercentage.Points(
           margin
         )
       )
@@ -420,7 +412,6 @@ class GridActivity : AppCompatActivity() {
     root.append(middle)
 
   }
-
 
   fun buttons(body: Scroll) {
     val container = mason.createView(this)
@@ -743,7 +734,10 @@ class GridActivity : AppCompatActivity() {
   }
 
   fun grid_template_areas_500(rootLayout: Scroll) {
+    val body = mason.createView(this)
+    body.style.margin = Rect.uniform(LengthPercentageAuto.Points(40f))
     val root = mason.createView(this)
+    body.append(root)
     root.configure {
       it.display = Display.Grid
       it.gridTemplateAreas = """
@@ -753,50 +747,71 @@ class GridActivity : AppCompatActivity() {
 		"footer  footer"
       """.trimIndent()
       it.gridTemplateColumns = "20% auto"
-      it.gap = Size(LengthPercentage.Points(10f), LengthPercentage.Points(10f))
+      it.gap = Size(LengthPercentage.Points(16f), LengthPercentage.Points(16f))
     }
 
 
+    val boxPadding: Rect<LengthPercentage> = Rect.uniform(LengthPercentage.Points(10f))
     val header = mason.createView(this)
-    Log.d("com.test", "header ???")
-    mason.printTree(header.node)
     header.append("Header")
-    header.setBackgroundColor("#999999".toColorInt())
     header.configure {
-      it.gridRow = "header"
-      it.gridColumn = "header"
+      it.color = Color.WHITE
+      header.style.background = "#999999"
+      header.style.gridArea = "header"
+      it.padding = boxPadding
+      it.borderRadius = "5px"
     }
 
 
     val sidebar = mason.createView(this)
-    sidebar.style.gridArea = "sidebar"
-    sidebar.setBackgroundColor("#444444".toColorInt())
     sidebar.append("Sidebar")
+    sidebar.configure {
+      it.color = Color.WHITE
+      sidebar.style.gridArea = "sidebar"
+      sidebar.style.background = "#444444"
+      it.padding = boxPadding
+      it.borderRadius = "5px"
+    }
 
     val content = mason.createView(this)
-    content.style.gridArea = "content"
-
     content.append(
-      """
-      Content
-     More content than we had before so this column is now quite tall.
-    """.trimIndent()
+      "Content"
     )
+    val br = mason.createBr()
+    content.append(br)
+    content.append("More content than we had before so this column is now quite tall.")
+
+    content.configure {
+      content.style.gridArea = "content"
+      it.borderRadius = "5px"
+      it.padding = boxPadding
+      it.color = Color.WHITE
+      it.background = "#444444"
+    }
 
     val sidebar2 = mason.createView(this)
-    sidebar2.setBackgroundColor("#cccccc".toColorInt())
-    sidebar2.style.gridArea = "sidebar2"
+    sidebar2.configure {
+      sidebar2.style.background = "#cccccc"
+      sidebar2.style.setColor("#444")
+      sidebar2.style.gridArea = "sidebar2"
+      it.borderRadius = "5px"
+      it.padding = boxPadding
+    }
     sidebar2.append("Sidebar 2")
 
-
     val footer = mason.createView(this)
-    footer.style.gridArea = "footer"
-    footer.setBackgroundColor("#999999".toColorInt())
+    footer.configure {
+      footer.style.gridArea = "footer"
+      footer.style.background = "#999999"
+      it.borderRadius = "5px"
+      it.padding = boxPadding
+      it.color = Color.WHITE
+    }
     footer.append("Footer")
 
     root.append(arrayOf(header, sidebar, sidebar2, content, footer))
 
-    rootLayout.append(root)
+    rootLayout.append(body)
   }
 
   fun grid_template_areas(rootLayout: Scroll) {
@@ -1070,10 +1085,31 @@ class GridActivity : AppCompatActivity() {
 
     val percentage: Byte = 1
 
-    rootLayout.style.fontSize = 80
-    rootLayout.style.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+    val body = mason.createView(this)
+    rootLayout.addView(body)
+
+    body.configure {
+      it.margin = Rect.uniform(LengthPercentageAuto.Points(40f))
+      it.overflow = Point(Overflow.Scroll, Overflow.Scroll)
+      it.fontSize = 80
+      it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
+    }
 
     val wrapper6 = mason.createView(this)
+
+    wrapper6.configure {
+      it.color = "#444444".toColorInt()
+      it.background = "no-repeat url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/12005/grid.png);"
+      it.backgroundColor = Color.WHITE
+      //  background = ColorDrawable(Color.WHITE)
+      it.display = Display.Grid
+      it.gap = Size(LengthPercentage.Points(10F), LengthPercentage.Points(10F))
+      it.gridTemplateColumns = "repeat(6, 150px)"
+      it.gridTemplateRows = "repeat(4, 150px)"
+    }
+
+    Log.d("com.test", " ${wrapper6.style}")
+
 
     val boxA = createParentWith2Kids("This is box A.", "align-self: stretch", AlignSelf.Stretch)
     val boxB = createParentWith2Kids("This is box B.", "align-self: end", AlignSelf.End)
@@ -1092,31 +1128,19 @@ class GridActivity : AppCompatActivity() {
     wrapper6.append(boxA)
     wrapper6.append(boxB)
     wrapper6.append(boxC)
-    wrapper6.append(boxD)
-    wrapper6.append(boxE)
-
-
-    wrapper6.configure {
-      it.color = "#444444".toColorInt()
-      //  background = ColorDrawable(Color.WHITE)
-      it.display = Display.Grid
-      it.gap = Size(LengthPercentage.Points(toPx(10F)), LengthPercentage.Points(toPx(10F)))
-      it.gridTemplateColumns = "repeat(6, 150)"
-      it.gridTemplateRows = "repeat(4, 150)"
-    }
+//    wrapper6.append(boxD)
+//    wrapper6.append(boxE)
 
     boxA.configure {
       // 150%
       it.fontSize = 150
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
-      it.background =
-        "no-repeat url('https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/lizard.png')"
       it.border = "1px solid #444"
       it.padding = Rect(
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f))
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f)
       )
       it.gridColumn = "1/3"
       it.gridRow = "1/3"
@@ -1128,10 +1152,10 @@ class GridActivity : AppCompatActivity() {
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f))
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f)
       )
       it.gridColumn = "3/5"
       it.gridRow = "1/3"
@@ -1142,15 +1166,11 @@ class GridActivity : AppCompatActivity() {
       it.fontSize = 150
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
       it.border = "1px solid #444"
-      it.background = """
-        left 5% / 15% 60% repeat-x
-  url("https://d78af7b0-82e5-4390-93c4-bba28463aa0f.mdnplay.dev/shared-assets/images/examples/star.png");
-      """.trimIndent()
       it.padding = Rect(
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f))
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f)
       )
       it.gridColumn = "1/3"
       it.gridRow = "3/6"
@@ -1162,10 +1182,10 @@ class GridActivity : AppCompatActivity() {
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f))
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f)
       )
       it.gridColumn = "3/5"
       it.gridRow = "3/6"
@@ -1177,10 +1197,10 @@ class GridActivity : AppCompatActivity() {
       it.textValues.put(TextStyleKeys.SIZE_TYPE, percentage)
       it.border = "1px solid #444"
       it.padding = Rect(
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f)),
-        LengthPercentage.Points(toPx(20f))
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f),
+        LengthPercentage.Points(20f)
       )
       it.gridColumn = "5/7"
       it.gridRow = "1/6"
@@ -1188,6 +1208,6 @@ class GridActivity : AppCompatActivity() {
     }
 
 
-    rootLayout.addView(wrapper6)
+    body.addView(wrapper6)
   }
 }

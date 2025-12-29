@@ -56,6 +56,8 @@ pub struct CMasonInlineChildSegment {
 pub enum CMasonSegment {
     Text(CMasonInlineTextSegment),
     InlineChild(CMasonInlineChildSegment),
+    LineBreak
+
 }
 
 impl From<&CMasonSegment> for InlineSegment {
@@ -80,6 +82,9 @@ impl From<&CMasonSegment> for InlineSegment {
                     id,
                     baseline: child.descent,
                 }
+            }
+            CMasonSegment::LineBreak => {
+                InlineSegment::LineBreak
             }
         }
     }
@@ -108,6 +113,7 @@ impl Into<InlineSegment> for CMasonSegment {
                     baseline: child.descent,
                 }
             }
+            CMasonSegment::LineBreak => InlineSegment::LineBreak
         }
     }
 }

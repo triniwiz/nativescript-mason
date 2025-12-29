@@ -129,6 +129,10 @@ public class NSCMason: NSObject {
     return MasonNode(mason: self, measureFunc: measure)
   }
   
+  public func createBr() -> MasonBr {
+    return MasonBr(mason: self, data: "")
+  }
+  
   public func printTree(_ node: MasonNode){
     mason_print_tree(nativePtr, node.nativePtr)
   }

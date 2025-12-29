@@ -81,4 +81,23 @@ abstract class InlineSegment {
       return result;
     }
   }
+
+  // Represents a br segment
+  static final class Br extends InlineSegment {
+
+    public Br() {
+      this.kind = 2;
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+      return "Br()";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      return this == o;
+    }
+  }
 }

@@ -30,9 +30,9 @@ enum ShadowParser {
         var offsetY: CGFloat?
         var blur: CGFloat = 0
         var color: UIColor?
-
+        
         for token in tokens {
-          if let length = parseLength(style, token) {
+          if let length = parseLength(style, token, resolve: true) {
             if offsetX == nil {
               offsetX = CGFloat(length)
             } else if offsetY == nil {
@@ -51,12 +51,12 @@ enum ShadowParser {
         guard let x = offsetX, let y = offsetY else {
           return nil
         }
-
+        
         return TextShadow(
           offsetX: x,
           offsetY: y,
-          blurRadius: blur,
-          color: color ?? .black
+          blurRadius: blur * 0.1,
+          color: (color ?? .black).adjustedAlpha(1.15)
         )
 
       }

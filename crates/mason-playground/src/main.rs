@@ -4,7 +4,7 @@ use mason_core::{
     LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, NodeRef, Rect, Size,
 };
 use std::ffi::{c_longlong, c_void};
-use taffy::prelude::{auto, percent, TaffyGridLine, TaffyMaxContent};
+use taffy::prelude::{auto, TaffyGridLine, TaffyMaxContent};
 use taffy::style_helpers::length;
 use taffy::{AlignSelf, AvailableSpace, Line, NodeId};
 
@@ -45,12 +45,31 @@ fn main() {
     // grid_sizing();
     // grid_sizing_taffy();
     // grid_template_areas();
-    // grid_template_areas_500();
+  //  grid_template_areas_500();
 
     // inline();
     //  mixed();
     // inline_block();
     // inline_segments();
+
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    let a = mason.create_node();
+
+    mason.append_segment(
+        a.id(), InlineSegment::LineBreak
+    );
+
+    let b = mason.create_node();
+    mason.add_children(root.id(), &[a.id(), b.id()]);
+
+
+    mason.compute_wh(root.id(), 100.,300.);
+
+    mason.print_tree(root.id());
+
+    /*
 
     let mut mason = Mason::new();
     let root = mason.create_node();
@@ -97,6 +116,8 @@ fn main() {
     mason.layout(root.id());
 
     mason.print_tree(root.id());
+
+    */
 }
 
 fn inline_block() {
@@ -338,7 +359,7 @@ fn grid_template_areas_500() {
         style.set_grid_template_columns_css("20% auto");
         style.set_grid_template_areas_css(
             r#"
-           "header   header"
+        "header   header"
 		"sidebar  content"
 		"sidebar2 sidebar2"
 		"footer   footer"
@@ -373,9 +394,17 @@ fn grid_template_areas_500() {
         } else if available_space_width == -2f32 {
             return MeasureOutput::make(30., 30.);
         }
-
-        MeasureOutput::make(50., 50.)
+        MeasureOutput::make(1200.0f32, 50.)
     }
+
+    mason.set_segments(
+        sidebar2_txt.id(),
+        vec![InlineSegment::Text {
+            width: 1200.0,
+            descent: 20.,
+            ascent: 30.,
+        }],
+    );
 
     let mut set_area = |node: &NodeRef, child: &NodeRef, area: &str| {
         mason.add_child(node.id(), child.id());
@@ -383,13 +412,14 @@ fn grid_template_areas_500() {
             style.set_grid_area(area);
         });
 
+        let segments = mason.get_segments(child.id());
         mason.set_measure(child.id(), Some(grid_template_areas_inline), 0 as _);
     };
 
     set_area(&header, &header_txt, "header");
     set_area(&sidebar, &sidebar_txt, "sidebar");
-    set_area(&content, &content_txt, "content");
     set_area(&sidebar2, &sidebar2_txt, "sidebar2");
+    set_area(&content, &content_txt, "content");
     set_area(&footer, &footer_txt, "footer");
 
     mason.add_children(
@@ -397,8 +427,8 @@ fn grid_template_areas_500() {
         &[
             header.id(),
             sidebar.id(),
-            content.id(),
             sidebar2.id(),
+            content.id(),
             footer.id(),
         ],
     );
