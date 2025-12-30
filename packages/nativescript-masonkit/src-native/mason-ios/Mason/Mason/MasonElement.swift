@@ -187,7 +187,7 @@ extension MasonElement {
   }
   
   public func addChildAt(node: MasonNode, _ index: Int) {
-    node.addChildAt(node, index)
+    self.node.addChildAt(node, index)
   }
   
   public func replaceChildAt(text: String, _ index: Int) {
@@ -199,7 +199,7 @@ extension MasonElement {
   }
   
   public func replaceChildAt(node: MasonNode, _ index: Int) {
-    node.replaceChildAt(node, index)
+    self.node.replaceChildAt(node, index)
   }
   
   public var style: MasonStyle {

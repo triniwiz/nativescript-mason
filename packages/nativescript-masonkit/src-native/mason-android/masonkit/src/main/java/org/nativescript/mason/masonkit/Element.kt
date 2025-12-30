@@ -291,7 +291,7 @@ interface Element {
   }
 
   fun addChildAt(node: Node, index: Int) {
-    node.addChildAt(node, index)
+    this.node.addChildAt(node, index)
   }
 
   fun replaceChildAt(text: String, index: Int) {
@@ -317,7 +317,7 @@ interface Element {
   }
 
   fun replaceChildAt(node: Node, index: Int) {
-    node.replaceChildAt(node, index)
+    this.node.replaceChildAt(node, index)
   }
 
   fun removeChildAt(index: Int) {
