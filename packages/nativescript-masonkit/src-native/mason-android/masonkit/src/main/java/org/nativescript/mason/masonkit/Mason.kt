@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
 import org.nativescript.mason.masonkit.enums.TextType
@@ -205,6 +206,18 @@ class Mason {
   fun styleForView(view: android.view.View): Style {
     val node = nodeForView(view)
     return node.style
+  }
+
+  fun styleForViewOrNode(viewOrNode: Any?): Style? {
+    Log.d("com.test", "styleForViewOrNode $viewOrNode")
+    val view = viewOrNode as? android.view.View
+    if (view != null) {
+      val node = nodeForView(view)
+      return node.style
+    }
+    val node = viewOrNode as? Node
+    Log.d("com.test", "node $node")
+    return node?.style
   }
 
   fun requestLayout(node: Long) {

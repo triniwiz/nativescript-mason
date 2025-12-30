@@ -13,7 +13,7 @@ open class Node internal constructor(
   internal val mason: Mason, internal var nativePtr: Long, nodeType: NodeType = NodeType.Element
 ) {
   internal var computeCacheDirty = false
-
+  internal var isPlaceholder = false
   internal var isImage = false
   var computeCache: SizeF = SizeF(Float.MIN_VALUE, Float.MIN_VALUE)
     set(value) {
@@ -89,10 +89,6 @@ open class Node internal constructor(
       availableWidth = availableSpace.width
       availableHeight = availableSpace.height
       val view = this@Node.view as? View
-
-      Log.d("com.test", "known?? ${knownDimensions} $availableSpace")
-
-
       if (knownDimensions.width != null && knownDimensions.height != null) {
         return Size(knownDimensions.width!!, knownDimensions.height!!)
       }

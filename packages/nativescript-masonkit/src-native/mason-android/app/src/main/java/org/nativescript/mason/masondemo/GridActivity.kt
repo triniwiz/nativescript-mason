@@ -711,13 +711,13 @@ class GridActivity : AppCompatActivity() {
 
     val content = mason.createView(this)
     content.style.gridArea = "content"
-
-    content.append(
-      """
-      Content
-     More content than we had before so this column is now quite tall.
-    """.trimIndent()
-    )
+    content.append("Content")
+    val br = mason.createBr()
+    Log.d("com.test", "style ${mason.styleForViewOrNode(br)}")
+    content.replaceChildAt(br, 1)
+    content.replaceChildAt(mason.createBr(), 2)
+    content.replaceChildAt(mason.createBr(), 3)
+    content.append("More content than we had before so this column is now quite tall.")
 
     val sidebar2 = mason.createView(this)
     sidebar2.setBackgroundColor("#cccccc".toColorInt())

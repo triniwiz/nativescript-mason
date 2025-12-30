@@ -36,6 +36,7 @@ public class MasonTextNode: MasonNode, MasonCharacterData {
   
   internal var attributesInitialized: Bool = false
   
+  
   public init(mason doc: NSCMason, data text: String, attributes attrs: [NSAttributedString.Key: Any]? = nil) {
     data = text
     if let attrs = attrs {

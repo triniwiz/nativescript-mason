@@ -57,6 +57,7 @@ public class MasonNode: NSObject {
   public internal(set) var mason: NSCMason
   
   internal var isAnonymous = false
+  internal var isPlaceholder: Bool = false
   
   internal var cachedWidth: CGFloat = 0
   internal var cachedHeight: CGFloat = 0

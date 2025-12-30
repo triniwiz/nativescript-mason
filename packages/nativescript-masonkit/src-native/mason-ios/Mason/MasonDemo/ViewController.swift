@@ -510,6 +510,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     let br = mason.createBr()
     content.append(node: br)
+    
     content.append(
       text: "More content than we had before so this column is now quite tall."
     )

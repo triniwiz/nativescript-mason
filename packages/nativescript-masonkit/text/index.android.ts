@@ -174,8 +174,7 @@ export class Br extends TextBase {
   private _view;
   constructor() {
     super();
-    const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-    this._view = Tree.instance.createBr(context) as never;
+    this._view = Tree.instance.createBr() as never;
     this[isMasonView_] = true;
     this[isPlaceholder_] = true;
     this[style_] = Style.fromView(this as never, this._view);

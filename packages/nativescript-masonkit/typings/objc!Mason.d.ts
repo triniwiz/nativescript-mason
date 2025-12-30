@@ -2308,6 +2308,9 @@ declare class NSCMason extends NSObject {
 	setDeviceScale(value: number): void;
 
 	styleForView(view: UIView): MasonStyle;
+
+	styleForViewOrNode(nodeOrView: UIView | MasonNode): MasonStyle;
+
 }
 
 interface NodeArray {

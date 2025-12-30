@@ -1973,6 +1973,8 @@ declare module org {
 					public getNativePtr(): number;
 					public styleForView(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Style;
 					public nodeForView($this$nodeForView_u24lambda_u2414_u24lambda_u2413: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
+					public styleForViewOrNode(nodeOrView: any): org.nativescript.mason.masonkit.Style | null;
+					
 				}
 				export module Mason {
 					export class Companion {

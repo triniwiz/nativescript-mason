@@ -417,7 +417,7 @@ export class Style {
       let style = (nativeView as org.nativescript.mason.masonkit.Element)?.getStyle?.();
       if (!style) {
         // if a non mason view is passed
-        style = org.nativescript.mason.masonkit.Mason.getShared().styleForView(nativeView);
+        style = org.nativescript.mason.masonkit.Mason.getShared().styleForViewOrNode(nativeView);
       }
       const styleBuffer = style.getValues();
       const buffer = (<any>ArrayBuffer).from(styleBuffer);
@@ -429,7 +429,7 @@ export class Style {
     } else if (__APPLE__) {
       let style: MasonStyle = nativeView?.style as never;
       if (!style) {
-        style = NSCMason.shared.styleForView(nativeView) as never;
+        style = NSCMason.shared.styleForViewOrNode(nativeView) as never;
       }
       const styleBuffer = style.values;
 

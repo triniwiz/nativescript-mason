@@ -13,6 +13,10 @@ import android.text.style.UnderlineSpan
 
 
 open class TextNode(mason: Mason) : Node(mason, 0, NodeType.Text), CharacterData {
+  init {
+    this.isPlaceholder = true
+  }
+
   constructor(mason: Mason, data: String) : this(mason) {
     this.data = data
   }

@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.text.TextPaint
+import android.util.Log
 import android.view.View
 import androidx.core.graphics.withClip
 import dalvik.annotation.optimization.FastNative
@@ -491,6 +492,62 @@ class Style internal constructor(internal var node: Node) {
 
   val values: ByteBuffer by lazy {
     isValueInitialized = true
+    Log.d("com.test", "isPlaceholder ${node.isPlaceholder}")
+    if (node.isPlaceholder) {
+      // use the same capacity set in rust
+      return@lazy ByteBuffer.allocateDirect(508).apply {
+        order(ByteOrder.nativeOrder());
+
+        // default ratio to NAN
+        putFloat(StyleKeys.ASPECT_RATIO, Float.NaN)
+        // default shrink to 1
+        putFloat(StyleKeys.FLEX_SHRINK, 1f)
+
+        putFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, 1f)
+        putFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, 1f)
+        putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, 1f)
+        putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, 1f)
+
+
+        // Default font metrics
+
+        putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, 14f)
+        putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, 4f)
+        putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7f)
+        putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, 0f)
+        putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10f)
+
+        putFloat(StyleKeys.FIRST_BASELINE_OFFSET, Float.NaN)
+
+        putInt(StyleKeys.OBJECT_FIT, ObjectFit.Fill.value)
+        putInt(StyleKeys.DISPLAY, Display.Block.value)
+
+        // default Normal -> -1
+        putInt(StyleKeys.ALIGN_ITEMS, -1)
+        putInt(StyleKeys.ALIGN_SELF, -1)
+        putInt(StyleKeys.ALIGN_CONTENT, -1)
+
+        putInt(StyleKeys.JUSTIFY_ITEMS, -1)
+        putInt(StyleKeys.JUSTIFY_SELF, -1)
+        putInt(StyleKeys.JUSTIFY_CONTENT, -1)
+
+        putInt(StyleKeys.MARGIN_LEFT_TYPE, 1)
+        putInt(StyleKeys.MARGIN_TOP_TYPE, 1)
+        putInt(StyleKeys.MARGIN_RIGHT_TYPE, 1)
+        putInt(StyleKeys.MARGIN_BOTTOM_TYPE, 1)
+
+//          putInt(StyleKeys.PADDING_LEFT_TYPE, 0)
+//          putInt(StyleKeys.PADDING_TOP_TYPE, 0)
+//          putInt(StyleKeys.PADDING_RIGHT_TYPE, 0)
+//          putInt(StyleKeys.PADDING_BOTTOM_TYPE, 0)
+
+
+//          putInt(StyleKeys.BORDER_LEFT_TYPE, 0)
+//          putInt(StyleKeys.BORDER_TOP_TYPE, 0)
+//          putInt(StyleKeys.BORDER_RIGHT_TYPE, 0)
+//          putInt(StyleKeys.BORDER_BOTTOM_TYPE, 0)
+      }
+    }
     nativeGetStyleBuffer(node.mason.nativePtr, node.nativePtr).apply {
       order(ByteOrder.nativeOrder())
     }

@@ -1249,12 +1249,12 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (child && child[isPlaceholder_] && child._view) {
       if (__ANDROID__) {
         //@ts-ignore
-        this._view.addChildAt(child._view, this._children.length);
+        this._view.append(child._view);
       }
 
       if (__APPLE__) {
         //@ts-ignore
-        this._view.mason_addChildAtNode(child._view, this._children.length);
+        this._view.mason_appendWithNode(child._view);
       }
 
       if (this[isText_]) {
@@ -1428,6 +1428,8 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
             continue;
           }
           this.replaceChild({ [text_]: node.text, node }, index);
+        } else if (node.nodeName === 'br') {
+          this.replaceChild(node, index);
         }
       }
     }

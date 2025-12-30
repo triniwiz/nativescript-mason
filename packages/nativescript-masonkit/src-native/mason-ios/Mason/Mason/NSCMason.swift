@@ -62,6 +62,12 @@ public class NSCMason: NSObject {
     return node.style
   }
   
+  public func styleForViewOrNode(_ viewOrNode: Any?) -> MasonStyle? {
+    if let view = viewOrNode as? UIView {
+      return styleForView(view)
+    }
+    return (viewOrNode as? MasonNode)?.style
+  }
   
   @discardableResult public func layoutForView(_ view: UIView) -> MasonLayout {
     let node = nodeForView(view, view.subviews.isEmpty)

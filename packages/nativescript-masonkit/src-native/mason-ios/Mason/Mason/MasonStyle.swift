@@ -501,6 +501,74 @@ public class MasonStyle: NSObject {
   
   
   public lazy var values: NSMutableData = {
+    if(node.isPlaceholder){
+      // use the same capacity set in rust
+      let buffer = NSMutableData(length: 508)
+      
+      
+      setFloat(StyleKeys.ASPECT_RATIO, Float.nan, buffer: buffer)
+      // default shrink to 1
+      setFloat(StyleKeys.FLEX_SHRINK, 1, buffer: buffer)
+      
+      setFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, 1, buffer: buffer)
+      setFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, 1, buffer: buffer)
+      setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, 1, buffer: buffer)
+      setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, 1, buffer: buffer)
+      
+      
+      // Default font metrics
+      
+      setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, 14, buffer: buffer)
+      setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, 4, buffer: buffer)
+      setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7, buffer: buffer)
+      setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, 0, buffer: buffer)
+      setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10, buffer: buffer)
+      
+      setFloat(StyleKeys.FIRST_BASELINE_OFFSET, Float.nan, buffer: buffer)
+      
+      
+      
+      
+      setInt32(StyleKeys.OBJECT_FIT, ObjectFit.Fill.rawValue, buffer: buffer)
+      setInt32(StyleKeys.DISPLAY, Display.Block.rawValue, buffer: buffer)
+      
+      // default Normal -> -1
+      setInt32(StyleKeys.ALIGN_ITEMS, -1, buffer: buffer)
+      setInt32(StyleKeys.ALIGN_SELF, -1, buffer: buffer)
+      setInt32(StyleKeys.ALIGN_CONTENT, -1, buffer: buffer)
+      
+      setInt32(StyleKeys.JUSTIFY_ITEMS, -1, buffer: buffer)
+      setInt32(StyleKeys.JUSTIFY_SELF, -1, buffer: buffer)
+      setInt32(StyleKeys.JUSTIFY_CONTENT, -1, buffer: buffer)
+      
+      setInt32(StyleKeys.MARGIN_LEFT_TYPE, 1, buffer: buffer)
+      setInt32(StyleKeys.MARGIN_TOP_TYPE, 1, buffer: buffer)
+      setInt32(StyleKeys.MARGIN_RIGHT_TYPE, 1, buffer: buffer)
+      setInt32(StyleKeys.MARGIN_BOTTOM_TYPE, 1, buffer: buffer)
+      
+      //          setInt32(StyleKeys.PADDING_LEFT_TYPE, 0, buffer: buffer)
+      //          setInt32(StyleKeys.PADDING_TOP_TYPE, 0, buffer: buffer)
+      //          setInt32(StyleKeys.PADDING_RIGHT_TYPE, 0, buffer: buffer)
+      //          setInt32(StyleKeys.PADDING_BOTTOM_TYPE, 0, buffer: buffer)
+      
+      
+      //          setInt32(StyleKeys.BORDER_LEFT_TYPE, 0, buffer: buffer)
+      //          setInt32(StyleKeys.BORDER_TOP_TYPE, 0, buffer: buffer)
+      //          setInt32(StyleKeys.BORDER_RIGHT_TYPE, 0, buffer: buffer)
+      //          setInt32(StyleKeys.BORDER_BOTTOM_TYPE, 0, buffer: buffer)
+      
+      
+      
+      guard let buffer else {
+        // todo
+        fatalError("Could not allocate style buffer")
+      }
+      
+      isValueInitialized = true
+      return buffer
+      
+    }
+    print(node, node.isPlaceholder)
     let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
     guard let buffer else {
       // todo
@@ -949,7 +1017,7 @@ public class MasonStyle: NSObject {
       setUInt32(TextStyleKeys.BACKGROUND_COLOR, newValue, text: true)
       setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
       // change view as well ??
-//      node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
+      //      node.view?.backgroundColor = UIColor.colorFromARGB(newValue)
       notifyTextStyleChanged(TextStyleChangeMasks.backgroundColor.rawValue)
     }
   }
@@ -1998,7 +2066,7 @@ public class MasonStyle: NSObject {
       }else {
         setUInt8(TextStyleKeys.TEXT_SHADOW_STATE, StyleState.SET, text: true)
       }
-    
+      
       notifyTextStyleChanged(TextStyleChangeMasks.textShadow.rawValue)
     }
   }
