@@ -11,6 +11,10 @@ interface TextContainer : StyleChangeListener {
     type: TextView.BufferType
   )
 
+  fun setTextSize(size: Float)
+
+  fun setTextSize(unit: Int, size: Float)
+
   fun getPaint(): TextPaint
 }
 

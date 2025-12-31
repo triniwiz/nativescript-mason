@@ -1,8 +1,9 @@
-import { backgroundColorProperty, Color, colorProperty, CSSType, Utils, View, ViewBase } from '@nativescript/core';
-import { isMasonView_, isText_, isTextChild_, style_, text_, ButtonBase, textContentProperty, textWrapProperty } from '../common';
+import { CSSType, Utils, View, ViewBase } from '@nativescript/core';
+import { ButtonBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { parseLength } from '../utils';
+import { style_, isText_, isMasonView_, isTextChild_ } from '../symbols';
 
 @CSSType('Button')
 export class Button extends ButtonBase {
@@ -38,72 +39,6 @@ export class Button extends ButtonBase {
     const nativeView = this._view;
     if (nativeView) {
       nativeView.textContent = value;
-    }
-  }
-
-  [colorProperty.setNative](value) {
-    switch (typeof value) {
-      case 'number':
-        this._styleHelper.color = value;
-        break;
-      case 'string':
-        {
-          this._styleHelper.color = new Color(value).argb;
-        }
-        break;
-      case 'object':
-        {
-          this._styleHelper.color = value.argb;
-        }
-        break;
-    }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  set backgroundColor(value: Color | number) {
-    switch (typeof value) {
-      case 'number':
-        this._styleHelper.backgroundColor = value;
-        break;
-      case 'string':
-        this._styleHelper.backgroundColor = new Color(value).argb;
-        break;
-      case 'object':
-        this._styleHelper.backgroundColor = value.argb;
-        break;
-    }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  get backgroundColor() {
-    return new Color(this[style_].backgroundColor);
-  }
-
-  [backgroundColorProperty.setNative](value) {
-    if (typeof value === 'number') {
-      this[style_].backgroundColor = value;
-    } else if (value instanceof Color) {
-      this[style_].backgroundColor = value.argb;
-    }
-  }
-
-  [textWrapProperty.setNative](value) {
-    switch (value) {
-      case 'false':
-      case false:
-      case 'nowrap':
-        this._styleHelper.textWrap = MasonTextWrap.NoWrap;
-        break;
-      case true:
-      case 'true':
-      case 'wrap':
-        this._styleHelper.textWrap = MasonTextWrap.Wrap;
-        break;
-      case 'balance':
-        this._styleHelper.textWrap = MasonTextWrap.Balance;
-        break;
     }
   }
 

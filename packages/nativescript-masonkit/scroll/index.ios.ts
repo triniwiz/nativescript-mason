@@ -1,7 +1,8 @@
 import { CSSType, Utils, View } from '@nativescript/core';
-import { isMasonView_, style_, text_, ViewBase } from '../common';
+import { ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
+import { style_, isMasonView_ } from '../symbols';
 
 @CSSType('Scroll')
 export class Scroll extends ViewBase {

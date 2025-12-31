@@ -1,7 +1,7 @@
 // declare const __non_webpack_require__;
 
-import { CoreTypes, Length, returnKeyTypeProperty, Utils } from '@nativescript/core';
-import { isMasonView_, style_, ViewBase } from '../common';
+import { CoreTypes, Length, Utils } from '@nativescript/core';
+import { ViewBase } from '../common';
 
 type View = ViewBase & {
   _hasNativeView: boolean;
@@ -17,6 +17,7 @@ type View = ViewBase & {
 import { parseUnit } from '@nativescript/core/css/parser';
 import type { Style } from '../style';
 import { Tree } from '../tree';
+import { isMasonView_, style_ } from '../symbols';
 
 const enum Overflow {
   Visible = 0,

@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.content.Context
 import android.graphics.Canvas
+import android.os.Build
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
@@ -56,6 +57,31 @@ class TextView @JvmOverloads constructor(
   init {
     if (!::node.isInitialized && !override) {
       setup(Mason.shared)
+    }
+  }
+
+
+  override fun setTextSize(size: Float) {
+    node.style.fontSize = size.toInt()
+  }
+
+
+  override fun setTextSize(unit: Int, size: Float) {
+    if (unit == TypedValue.COMPLEX_UNIT_SP) {
+      node.style.fontSize = size.toInt()
+      return
+    }
+
+    val metrics = resources.displayMetrics
+    val px = TypedValue.applyDimension(
+      unit, size, metrics
+    )
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      node.style.fontSize = TypedValue.deriveDimension(
+        TypedValue.COMPLEX_UNIT_SP, px, metrics
+      ).toInt()
+    } else {
+      node.style.fontSize = (px / metrics.density).toInt()
     }
   }
 
@@ -192,7 +218,7 @@ class TextView @JvmOverloads constructor(
           node.style.margin = margin(16f, 16f)
         }
 
-        else -> { }
+        else -> {}
       }
 
       fontFace.loadSync(context) {}
@@ -227,7 +253,7 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun onTextStyleChanged(change: Int) {
-     engine.onTextStyleChanged(change, paint, resources.displayMetrics)
+    engine.onTextStyleChanged(change, paint, resources.displayMetrics)
   }
 
   val textValues: ByteBuffer

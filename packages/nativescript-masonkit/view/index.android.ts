@@ -1,7 +1,8 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { isMasonView_, style_, text_, ViewBase } from '../common';
+import { ViewBase } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
+import { style_, isMasonView_ } from '../symbols';
 
 @CSSType('View')
 export class View extends ViewBase {

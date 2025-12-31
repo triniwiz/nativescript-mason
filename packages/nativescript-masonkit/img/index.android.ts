@@ -1,7 +1,8 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { ImageBase, isMasonView_, srcProperty, style_ } from '../common';
+import { ImageBase, srcProperty } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
+import { style_, isMasonView_ } from '../symbols';
 
 @CSSType('img')
 export class Img extends ImageBase {
@@ -39,12 +40,4 @@ export class Img extends ImageBase {
       nativeView.setSrc(value);
     }
   }
-
-  // [backgroundColorProperty.setNative](value) {
-  //   if (typeof value === 'number') {
-  //     this[style_].backgroundColor = value;
-  //   } else if (value instanceof Color) {
-  //     this[style_].backgroundColor = value.android;
-  //   }
-  // }
 }

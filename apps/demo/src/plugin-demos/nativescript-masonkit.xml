@@ -5,8 +5,7 @@
   xmlns:web="@triniwiz/nativescript-masonkit/web"
   >
   <Page.actionBar>
-    <ActionBar title="nativescript-masonkit" icon="" class="action-bar">
-    </ActionBar>
+    <ActionBar title="nativescript-masonkit" icon="" class="action-bar"></ActionBar>
   </Page.actionBar>
 
 <!-- <ui:View class="body" width="100%" height="100%"> -->

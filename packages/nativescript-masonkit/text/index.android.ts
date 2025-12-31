@@ -1,7 +1,8 @@
-import { backgroundColorProperty, Color, colorProperty, CSSType, Utils, ViewBase } from '@nativescript/core';
-import { isMasonView_, isPlaceholder_, isTextChild_, style_, TextBase, textContentProperty, textWrapProperty } from '../common';
+import { CSSType, Utils, ViewBase } from '@nativescript/core';
+import { TextBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
+import { style_, isMasonView_, isTextChild_, isPlaceholder_ } from '../symbols';
 
 const enum TextType {
   None = 0,
@@ -29,14 +30,6 @@ const enum TextType {
   Blockquote = 11,
 
   B = 12,
-}
-
-const enum TextWrap {
-  NoWrap = 0,
-
-  Wrap = 1,
-
-  Balance = 2,
 }
 
 @CSSType('Text')
@@ -119,36 +112,6 @@ export class Text extends TextBase {
     }
   }
 
-  [colorProperty.setNative](value) {
-    if (value instanceof Color) {
-      this[style_].color = value.android;
-    }
-  }
-
-  [backgroundColorProperty.setNative](value) {
-    if (typeof value === 'number') {
-      this[style_].backgroundColor = value;
-    } else if (value instanceof Color) {
-      this[style_].backgroundColor = value.android;
-    }
-  }
-
-  [textWrapProperty.setNative](value) {
-    switch (value) {
-      case 'false':
-      case 'nowrap':
-        this[style_].textWrap = TextWrap.NoWrap;
-        break;
-      case 'true':
-      case 'wrap':
-        this[style_].textWrap = TextWrap.Wrap;
-        break;
-      case 'balance':
-        this[style_].textWrap = TextWrap.Balance;
-        break;
-    }
-  }
-
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view as org.nativescript.mason.masonkit.TextView;
@@ -194,36 +157,6 @@ export class Br extends TextBase {
   }
 
   [textContentProperty.setNative](value) {}
-
-  [colorProperty.setNative](value) {
-    if (value instanceof Color) {
-      this[style_].color = value.android;
-    }
-  }
-
-  [backgroundColorProperty.setNative](value) {
-    if (typeof value === 'number') {
-      this[style_].backgroundColor = value;
-    } else if (value instanceof Color) {
-      this[style_].backgroundColor = value.android;
-    }
-  }
-
-  [textWrapProperty.setNative](value) {
-    switch (value) {
-      case 'false':
-      case 'nowrap':
-        this[style_].textWrap = TextWrap.NoWrap;
-        break;
-      case 'true':
-      case 'wrap':
-        this[style_].textWrap = TextWrap.Wrap;
-        break;
-      case 'balance':
-        this[style_].textWrap = TextWrap.Balance;
-        break;
-    }
-  }
 
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {

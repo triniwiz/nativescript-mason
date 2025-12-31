@@ -32,6 +32,7 @@
     "debug": {
       "executor": "@nativescript/nx:debug",
       "options": {
+        "flags": "--env.watchNodeModules",
         "noHmr": true,
         "uglify": false,
         "release": false,

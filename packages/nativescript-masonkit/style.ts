@@ -2,7 +2,6 @@ import { layout } from '@nativescript/core/utils';
 import type { GridAutoFlow, Length, LengthAuto, VerticalAlign, View } from '.';
 import { CoreTypes, Length as CoreLength, PercentLength as CorePercentLength } from '@nativescript/core';
 import { AlignContent, AlignSelf, AlignItems, JustifyContent, JustifySelf, _parseGridAutoRowsColumns, _setGridAutoRows, _setGridAutoColumns, _parseGridLine, JustifyItems, GridTemplates, _parseGridTemplates, _setGridTemplateColumns, _setGridTemplateRows, _getGridTemplateRows, _getGridTemplateColumns } from './utils';
-import { isMasonView_ } from './common';
 
 enum StyleKeys {
   DISPLAY = 0,
@@ -2972,11 +2971,29 @@ export class Style {
       return;
     }
     if (__ANDROID__) {
-      org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderRadius(this.nativeView, value);
+      switch (typeof value) {
+        case 'number':
+          org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderRadius(this.nativeView, `${value}`);
+          break;
+        case 'string':
+          org.nativescript.mason.masonkit.NodeHelper.getShared().setBorderRadius(this.nativeView, value);
+          break;
+        default:
+          return;
+      }
     }
 
     if (__APPLE__) {
-      (this.nativeView as MasonElementObjc).style.borderRadius = value;
+      switch (typeof value) {
+        case 'number':
+          (this.nativeView as MasonElementObjc).style.borderRadius = `${value}`;
+          break;
+        case 'string':
+          (this.nativeView as MasonElementObjc).style.borderRadius = value;
+          break;
+        default:
+          return;
+      }
     }
   }
 

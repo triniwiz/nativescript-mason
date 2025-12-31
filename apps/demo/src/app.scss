@@ -1,6 +1,10 @@
 @import 'nativescript-theme-core/scss/light';
 @import 'nativescript-theme-core/scss/index';
 
+.action-bar {
+  font-size: 100%;
+}
+
 .flex-example {
   display: flex;
   flex-direction: column;

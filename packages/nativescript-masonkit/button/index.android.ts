@@ -1,7 +1,8 @@
 import { CSSType, Utils, ViewBase } from '@nativescript/core';
-import { isMasonView_, isText_, isTextChild_, style_, ButtonBase, textContentProperty } from '../common';
+import { ButtonBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
+import { style_, isText_, isMasonView_, isTextChild_ } from '../symbols';
 
 @CSSType('Button')
 export class Button extends ButtonBase {

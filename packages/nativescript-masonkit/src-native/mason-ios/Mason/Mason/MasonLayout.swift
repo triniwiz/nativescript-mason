@@ -23,6 +23,34 @@ public class MasonLayout: NSObject, Codable {
   public let children: [MasonLayout]
   public static let zero = MasonLayout()
   public var hasChildren: Bool { !children.isEmpty }
+
+
+  public var borderIsEmpty: Bool { border.isEmpty() }
+  public var borderTop:Float {border.left}
+  public var borderRight:Float {border.right}
+  public var borderBottom:Float {border.bottom}
+  public var borderLeft:Float {border.left}
+  
+  public var marginIsEmpty: Bool { margin.isEmpty() }
+  public var marginTop:Float {margin.left}
+  public var marginRight:Float {margin.right}
+  public var marginBottom:Float {margin.bottom}
+  public var marginLeft:Float {margin.left}
+  
+  public var paddingIsEmpty: Bool { padding.isEmpty() }
+  public var paddingTop:Float {padding.left}
+  public var paddingRight:Float {padding.right}
+  public var paddingBottom:Float {padding.bottom}
+  public var paddingLeft:Float {padding.left}
+  
+  
+  public var contentSizeIsEmpty: Bool { contentSize.isEmpty() }
+  public var contentSizeWidth:Float {contentSize.width}
+  public var contentSizeHeight:Float {contentSize.height}
+  
+  public var scrollbarSizeIsEmpty: Bool { scrollbarSize.isEmpty() }
+  public var scrollbarSizeWidth:Float {scrollbarSize.width}
+  public var scrollbarSizeHeight:Float {scrollbarSize.height}
   
   public override var description: String {
     do {
