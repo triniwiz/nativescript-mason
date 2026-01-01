@@ -2,18 +2,25 @@ import { CSSType, Utils } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { isMasonView_, style_ } from '../symbols';
+import { isMasonView_, native_, style_ } from '../symbols';
 
 @CSSType('View')
 export class View extends ViewBase {
   [style_];
-  private _view: MasonUIView;
   constructor() {
     super();
-    const view = Tree.instance.createView();
-    this._view = view;
     this[isMasonView_] = true;
   }
+
+  get _view() {
+    if (!this[native_]) {
+      const view = Tree.instance.createView() as never;
+      this[native_] = view;
+      return view;
+    }
+    return this[native_] as never as MasonUIView;
+  }
+
   get _styleHelper(): Style {
     if (this[style_] === undefined) {
       this[style_] = Style.fromView(this as never, this._view);

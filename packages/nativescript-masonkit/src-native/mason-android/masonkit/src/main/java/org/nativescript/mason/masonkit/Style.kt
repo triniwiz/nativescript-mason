@@ -492,7 +492,6 @@ class Style internal constructor(internal var node: Node) {
 
   val values: ByteBuffer by lazy {
     isValueInitialized = true
-    Log.d("com.test", "isPlaceholder ${node.isPlaceholder}")
     if (node.isPlaceholder) {
       // use the same capacity set in rust
       return@lazy ByteBuffer.allocateDirect(508).apply {

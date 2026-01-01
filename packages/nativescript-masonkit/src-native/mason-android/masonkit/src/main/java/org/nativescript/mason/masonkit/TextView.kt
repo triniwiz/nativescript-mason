@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.os.Build
@@ -16,9 +17,10 @@ import java.nio.ByteBuffer
 
 val white_space = "\\s+".toRegex()
 
+@SuppressLint("AppCompatCustomView")
 class TextView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
-) : androidx.appcompat.widget.AppCompatTextView(context, attrs), Element, MeasureFunc,
+) : android.widget.TextView(context, attrs), Element, MeasureFunc,
   TextContainer {
 
   override val view: View

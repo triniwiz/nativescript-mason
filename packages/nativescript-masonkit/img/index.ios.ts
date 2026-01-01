@@ -2,24 +2,30 @@ import { CSSType, Utils } from '@nativescript/core';
 import { ImageBase, srcProperty } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
-import { style_, isMasonView_, isTextChild_ } from '../symbols';
+import { style_, isMasonView_, isTextChild_, native_ } from '../symbols';
 
 @CSSType('img')
 export class Img extends ImageBase {
   [style_];
   _inBatch = false;
-  private _view: MasonImg;
   constructor() {
     super();
-    this._view = Tree.instance.createImageView() as never;
-    this._view.onStateChange = (state) => {
-      this.requestLayout();
-    };
-    this._view.didLayout = () => {
-      this.requestLayout();
-    };
     this[isMasonView_] = true;
-    this[style_] = Style.fromView(this as never, this._view);
+  }
+
+  get _view() {
+    if (!this[native_]) {
+      const view = Tree.instance.createImageView() as never as MasonImg;
+      view.onStateChange = (state) => {
+        this.requestLayout();
+      };
+      view.didLayout = () => {
+        this.requestLayout();
+      };
+      this[native_] = view;
+      return view;
+    }
+    return this[native_] as MasonImg;
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment

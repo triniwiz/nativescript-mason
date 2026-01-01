@@ -2,17 +2,25 @@ import { CSSType, Utils, View } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { style_, isMasonView_ } from '../symbols';
+import { style_, isMasonView_, native_ } from '../symbols';
 
 @CSSType('Scroll')
 export class Scroll extends ViewBase {
   [style_];
-  private _view: MasonScroll;
   constructor() {
     super();
-    this._view = Tree.instance.createScrollView() as never;
     this[isMasonView_] = true;
   }
+
+  get _view() {
+    if (!this[native_]) {
+      const view = Tree.instance.createScrollView() as never;
+      this[native_] = view;
+      return view;
+    }
+    return this[native_] as never as MasonScroll;
+  }
+
   get _styleHelper() {
     if (this[style_] === undefined) {
       this[style_] = Style.fromView(this as never, this._view);

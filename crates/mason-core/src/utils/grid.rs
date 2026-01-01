@@ -396,53 +396,58 @@ where
     let mut row_index: u16 = 0;
     let mut column_count: u16 = 0;
 
-
-    while !parser.is_exhausted() {
-        parser.skip_whitespace();
-
-        if let Ok(Token::QuotedString(row)) = parser.next_including_whitespace() {
-            let cols: Vec<&str> = row.split_whitespace().collect();
-            if cols.is_empty() {
-                continue;
+    while let Ok(token) = parser.next_including_whitespace() {
+        match token {
+            Token::Ident(ref ident) if ident.eq_ignore_ascii_case("none") => {
+                return Ok(GridTemplateAreasParseResult {
+                    areas: vec![],
+                    row_count: 0,
+                    column_count: 0,
+                });
             }
 
-            let cols_len = cols.len() as u16;
-            if column_count == 0 {
-                column_count = cols_len;
-            } else if column_count != cols_len {
-                return Err(parser.new_custom_error(()));
-            }
-
-            for (col_index, &name) in cols.iter().enumerate() {
-                if name == "." {
+            Token::QuotedString(row) => {
+                let cols: Vec<&str> = row.split_whitespace().collect();
+                if cols.is_empty() {
                     continue;
                 }
 
-                let key: S = name.into();
-                // compute 1-based start/end lines
-                let row_start_line = row_index + 1;
-                let row_end_line = row_start_line + 1;
-                let col_start_line = col_index as u16 + 1;
-                let col_end_line = col_start_line + 1;
+                let cols_len = cols.len() as u16;
+                if column_count == 0 {
+                    column_count = cols_len;
+                } else if column_count != cols_len {
+                    return Err(parser.new_custom_error(()));
+                }
 
-                map.entry(key.clone()).and_modify(|extents| {
-                    // extents = (row_start, row_end, col_start, col_end)
-                    // extend to cover new cell
-                    extents.0 = extents.0.min(row_start_line);
-                    extents.1 = extents.1.max(row_end_line);
-                    extents.2 = extents.2.min(col_start_line);
-                    extents.3 = extents.3.max(col_end_line);
-                }).or_insert((
-                    row_start_line,
-                    row_end_line,
-                    col_start_line,
-                    col_end_line,
-                ));
+                for (col_index, &name) in cols.iter().enumerate() {
+                    if name == "." {
+                        continue;
+                    }
+
+                    let key: S = name.into();
+                    let row_start = row_index + 1;
+                    let row_end = row_start + 1;
+                    let col_start = col_index as u16 + 1;
+                    let col_end = col_start + 1;
+
+                    map.entry(key.clone())
+                        .and_modify(|e| {
+                            e.0 = e.0.min(row_start);
+                            e.1 = e.1.max(row_end);
+                            e.2 = e.2.min(col_start);
+                            e.3 = e.3.max(col_end);
+                        })
+                        .or_insert((row_start, row_end, col_start, col_end));
+                }
+
+                row_index += 1;
             }
 
-            row_index += 1;
-        } else {
-            parser.next()?;
+            Token::WhiteSpace(_) => {}
+
+            Token::Semicolon => break, // declaration ends here (correct!)
+
+            _ => return Err(parser.new_custom_error(())),
         }
     }
 
@@ -494,7 +499,7 @@ pub fn parse_grid_auto_tracks(
 pub enum StartOrEnd {
     Start,
     End,
-    None
+    None,
 }
 
 impl StartOrEnd {
@@ -502,7 +507,7 @@ impl StartOrEnd {
         match self {
             StartOrEnd::Start => "-start",
             StartOrEnd::End => "-end",
-            StartOrEnd::None => ""
+            StartOrEnd::None => "",
         }
     }
 }
@@ -567,7 +572,7 @@ fn parse_grid_placement_with_parser<'i, 't, S: CheapCloneStr>(
 
     // <ident> [<integer>]?
     if let Ok(ident) = parser.try_parse(|p| p.expect_ident_cloned()) {
-        let name = format!("{}{}",ident.as_ref(),  start_or_end.value()).into();
+        let name = format!("{}{}", ident.as_ref(), start_or_end.value()).into();
 
         if let Ok(num) = parser.try_parse(|p| p.expect_integer()) {
             return Ok(GridPlacement::NamedLine(name, num as i16));
@@ -638,8 +643,10 @@ pub fn parse_grid_area(input: &str) -> Result<GridAreaPosition, ParseError<'_, (
             break;
         }
 
-
-        parts.push(parse_grid_placement_with_parser(&mut parser, StartOrEnd::None)?);
+        parts.push(parse_grid_placement_with_parser(
+            &mut parser,
+            StartOrEnd::None,
+        )?);
         parser.skip_whitespace();
 
         // placements are separated by '/', stop if there's no more separator
@@ -649,7 +656,6 @@ pub fn parse_grid_area(input: &str) -> Result<GridAreaPosition, ParseError<'_, (
             break;
         }
     }
-
 
     Ok(match parts.len() {
         1 => GridAreaPosition {

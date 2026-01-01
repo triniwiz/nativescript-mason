@@ -2,20 +2,25 @@ import { CSSType, Utils, ViewBase } from '@nativescript/core';
 import { ButtonBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { style_, isText_, isMasonView_, isTextChild_ } from '../symbols';
+import { style_, isText_, isMasonView_, isTextChild_, native_ } from '../symbols';
 
 @CSSType('Button')
 export class Button extends ButtonBase {
   [style_];
   _inBatch = false;
-  private _view: org.nativescript.mason.masonkit.Button;
+  private __view: org.nativescript.mason.masonkit.Button;
   constructor() {
     super();
     this[isText_] = true;
-    const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-    this._view = Tree.instance.createButtonView(context) as never;
     this[isMasonView_] = true;
-    this[style_] = Style.fromView(this as never, this._view);
+  }
+
+  get _view() {
+    if (!this[native_]) {
+      const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
+      this[native_] = Tree.instance.createButtonView(context) as never;
+    }
+    return this[native_] as org.nativescript.mason.masonkit.Button;
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment

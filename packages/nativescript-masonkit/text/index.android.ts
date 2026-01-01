@@ -2,7 +2,7 @@ import { CSSType, Utils, ViewBase } from '@nativescript/core';
 import { TextBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { style_, isMasonView_, isTextChild_, isPlaceholder_ } from '../symbols';
+import { style_, isMasonView_, isTextChild_, isPlaceholder_, native_ } from '../symbols';
 
 const enum TextType {
   None = 0,
@@ -36,56 +36,66 @@ const enum TextType {
 export class Text extends TextBase {
   [style_];
   _inBatch = false;
-  private _view: org.nativescript.mason.masonkit.TextView;
   private _type: TextType;
   constructor(type: TextType = 0) {
     super();
     this._type = type;
-    const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-    switch (type) {
-      case TextType.None:
-        this._view = Tree.instance.createTextView(context, TextType.None as number) as never;
-        break;
-      case TextType.P:
-        this._view = Tree.instance.createTextView(context, TextType.P as number) as never;
-        break;
-      case TextType.Span:
-        this._view = Tree.instance.createTextView(context, TextType.Span as number) as never;
-        break;
-      case TextType.Code:
-        this._view = Tree.instance.createTextView(context, TextType.Code as number) as never;
-        break;
-      case TextType.H1:
-        this._view = Tree.instance.createTextView(context, TextType.H1 as number) as never;
-        break;
-      case TextType.H2:
-        this._view = Tree.instance.createTextView(context, TextType.H2 as number) as never;
-        break;
-      case TextType.H3:
-        this._view = Tree.instance.createTextView(context, TextType.H3 as number) as never;
-        break;
-      case TextType.H4:
-        this._view = Tree.instance.createTextView(context, TextType.H4 as number) as never;
-        break;
-      case TextType.H5:
-        this._view = Tree.instance.createTextView(context, TextType.H5 as number) as never;
-        break;
-      case TextType.H6:
-        this._view = Tree.instance.createTextView(context, TextType.H6 as number) as never;
-        break;
-      case TextType.Li:
-        this._view = Tree.instance.createTextView(context, TextType.Li as number) as never;
-        break;
-      case TextType.Blockquote:
-        this._view = Tree.instance.createTextView(context, TextType.Blockquote as number) as never;
-        break;
-      case TextType.B:
-        this._view = Tree.instance.createTextView(context, TextType.B as number) as never;
-        break;
-    }
-
     this[isMasonView_] = true;
-    this[style_] = Style.fromView(this as never, this._view);
+  }
+
+  get _view() {
+    if (!this[native_]) {
+      const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
+      let view;
+      switch (this._type) {
+        case TextType.None:
+          view = Tree.instance.createTextView(context, TextType.None as number) as never;
+          break;
+        case TextType.P:
+          view = Tree.instance.createTextView(context, TextType.P as number) as never;
+          break;
+        case TextType.Span:
+          view = Tree.instance.createTextView(context, TextType.Span as number) as never;
+          break;
+        case TextType.Code:
+          view = Tree.instance.createTextView(context, TextType.Code as number) as never;
+          break;
+        case TextType.H1:
+          view = Tree.instance.createTextView(context, TextType.H1 as number) as never;
+          break;
+        case TextType.H2:
+          view = Tree.instance.createTextView(context, TextType.H2 as number) as never;
+          break;
+        case TextType.H3:
+          view = Tree.instance.createTextView(context, TextType.H3 as number) as never;
+          break;
+        case TextType.H4:
+          view = Tree.instance.createTextView(context, TextType.H4 as number) as never;
+          break;
+        case TextType.H5:
+          view = Tree.instance.createTextView(context, TextType.H5 as number) as never;
+          break;
+        case TextType.H6:
+          view = Tree.instance.createTextView(context, TextType.H6 as number) as never;
+          break;
+        case TextType.Li:
+          view = Tree.instance.createTextView(context, TextType.Li as number) as never;
+          break;
+        case TextType.Blockquote:
+          view = Tree.instance.createTextView(context, TextType.Blockquote as number) as never;
+          break;
+        case TextType.B:
+          view = Tree.instance.createTextView(context, TextType.B as number) as never;
+          break;
+        default:
+          view = Tree.instance.createTextView(context, TextType.None as number) as never;
+          break;
+      }
+
+      this[native_] = view;
+      return view;
+    }
+    return this[native_] as never as org.nativescript.mason.masonkit.TextView;
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment

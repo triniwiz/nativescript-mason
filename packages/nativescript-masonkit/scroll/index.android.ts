@@ -2,17 +2,23 @@ import { CSSType, Utils } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { style_, isMasonView_ } from '../symbols';
+import { style_, isMasonView_, native_ } from '../symbols';
 
 @CSSType('Scroll')
 export class Scroll extends ViewBase {
   [style_];
-  private _view: org.nativescript.mason.masonkit.Scroll;
   _inBatch = false;
   constructor() {
     super();
-    this._view = Tree.instance.createView(Utils.android.getCurrentActivity() || Utils.android.getApplicationContext()) as never;
     this[isMasonView_] = true;
+  }
+
+  get _view() {
+    if (!this[native_]) {
+      const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
+      this[native_] = Tree.instance.createScrollView(context) as never;
+    }
+    return this[native_] as never as org.nativescript.mason.masonkit.Scroll;
   }
 
   get _styleHelper() {

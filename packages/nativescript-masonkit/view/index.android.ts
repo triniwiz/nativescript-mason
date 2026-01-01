@@ -2,17 +2,25 @@ import { CSSType, Utils } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
-import { style_, isMasonView_ } from '../symbols';
+import { style_, isMasonView_, native_ } from '../symbols';
 
 @CSSType('View')
 export class View extends ViewBase {
   [style_];
-  private _view: org.nativescript.mason.masonkit.View;
   _inBatch = false;
   constructor() {
     super();
-    this._view = Tree.instance.createView(Utils.android.getCurrentActivity() || Utils.android.getApplicationContext()) as never;
     this[isMasonView_] = true;
+  }
+
+  get _view() {
+    if (!this[native_]) {
+      const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
+      const view = Tree.instance.createView(context) as never;
+      this[native_] = view;
+      return view;
+    }
+    return this[native_] as never as org.nativescript.mason.masonkit.View;
   }
 
   get _styleHelper() {

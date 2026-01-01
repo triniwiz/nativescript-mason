@@ -3,19 +3,23 @@ import { ButtonBase, textContentProperty } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
 import { parseLength } from '../utils';
-import { style_, isText_, isMasonView_, isTextChild_ } from '../symbols';
+import { style_, isText_, isMasonView_, isTextChild_, native_ } from '../symbols';
 
 @CSSType('Button')
 export class Button extends ButtonBase {
   [style_];
   _inBatch = false;
-  private _view: MasonButton;
   constructor() {
     super();
     this[isText_] = true;
-    this._view = Tree.instance.createButtonView(null) as never;
     this[isMasonView_] = true;
-    this[style_] = Style.fromView(this as never, this._view);
+  }
+
+  get _view() {
+    if (!this[native_]) {
+      this[native_] = Tree.instance.createButtonView(null) as never;
+    }
+    return this[native_] as never as MasonButton;
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment

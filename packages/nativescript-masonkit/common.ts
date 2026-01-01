@@ -147,9 +147,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: MasonUIView;
 
-  gridGap: Gap;
-  gap: Gap;
-
   _children: (NSView | { text?: string })[] = [];
   [isMasonView_] = false;
 
@@ -1027,6 +1024,14 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  get padding() {
+    return this.style.padding;
+  }
+
+  set padding(value) {
+    this.style.padding = value;
+  }
+
   [paddingProperty.setNative](value) {
     // @ts-ignore
     const style = this._styleHelper;
@@ -1068,6 +1073,22 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     if (style) {
       style.paddingBottom = value;
     }
+  }
+
+  set gap(value: Length) {
+    this.style.gap = value;
+  }
+
+  get gap(): Length {
+    return this.style.gap;
+  }
+
+  set gridGap(value: Length) {
+    this.style.gridGap = value;
+  }
+
+  get gridGap(): Length {
+    return this.style.gridGap;
   }
 
   set rowGap(value: Length) {

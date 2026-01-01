@@ -2,19 +2,25 @@ import { CSSType, Utils } from '@nativescript/core';
 import { ImageBase, srcProperty } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
-import { style_, isMasonView_ } from '../symbols';
+import { style_, isMasonView_, native_ } from '../symbols';
 
 @CSSType('img')
 export class Img extends ImageBase {
   [style_];
   _inBatch = false;
-  private _view;
   constructor() {
     super();
-    const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
-    this._view = Tree.instance.createImageView(context);
     this[isMasonView_] = true;
-    this[style_] = Style.fromView(this as never, this._view);
+  }
+
+  get _view() {
+    if (!this[native_]) {
+      const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
+      const view = Tree.instance.createImageView(context);
+      this[native_] = view;
+      return view;
+    }
+    return this[native_] as org.nativescript.mason.masonkit.Img;
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment

@@ -1,27 +1,26 @@
 package org.nativescript.mason.masonkit
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
-import android.util.Log
-import androidx.appcompat.widget.AppCompatImageView
+import android.widget.ImageView
 import androidx.core.graphics.withClip
 import androidx.core.graphics.withMatrix
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.ObjectFit
 import java.io.File
 import kotlin.math.max
 
+@SuppressLint("AppCompatCustomView")
 class Img @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
-) : AppCompatImageView(context, attrs), Element, MeasureFunc {
+) : ImageView(context, attrs), Element, MeasureFunc {
   override lateinit var node: Node
     private set
 

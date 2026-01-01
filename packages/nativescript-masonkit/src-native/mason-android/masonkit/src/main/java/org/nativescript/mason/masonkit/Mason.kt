@@ -209,14 +209,12 @@ class Mason {
   }
 
   fun styleForViewOrNode(viewOrNode: Any?): Style? {
-    Log.d("com.test", "styleForViewOrNode $viewOrNode")
     val view = viewOrNode as? android.view.View
     if (view != null) {
       val node = nodeForView(view)
       return node.style
     }
     val node = viewOrNode as? Node
-    Log.d("com.test", "node $node")
     return node?.style
   }
 
