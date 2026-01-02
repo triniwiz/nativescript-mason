@@ -1,5 +1,5 @@
 use crate::node::{Node, NodeData, NodeRef, NodeType};
-use crate::style::{DisplayMode, DisplayRect, DisplaySize, Style};
+use crate::style::{DisplayMode, Style};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use std::fmt::Debug;
 use std::sync::atomic::AtomicU32;
@@ -913,6 +913,9 @@ impl LayoutBlockContainer for Tree {
                     }
                 },
                 DisplayMode::Inline | DisplayMode::Box => {
+                    if display == Display::None {
+                        return compute_hidden_layout(tree, node_id);
+                    }
                     tree.compute_inline_layout(node_id, inputs, block_ctx)
                 }
             }

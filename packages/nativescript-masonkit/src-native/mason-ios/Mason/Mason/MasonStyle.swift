@@ -568,7 +568,6 @@ public class MasonStyle: NSObject {
       return buffer
       
     }
-    print(node, node.isPlaceholder)
     let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
     guard let buffer else {
       // todo

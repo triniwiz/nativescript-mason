@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.view.ViewGroup
 import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
 import org.nativescript.mason.masonkit.enums.BoxSizing
@@ -94,14 +93,23 @@ class Scroll @JvmOverloads constructor(
   }
 
   override fun addView(child: android.view.View) {
-    if (child != scrollRoot) {
+    if (child == scrollRoot) {
+      if (scrollRoot.parent == this) {
+        return
+      }
+      super.addView(child)
+    } else {
       scrollRoot.addView(child)
     }
   }
 
-
   override fun addView(child: android.view.View, width: Int, height: Int) {
-    if (child != scrollRoot) {
+    if (child == scrollRoot) {
+      if (scrollRoot.parent == this) {
+        return
+      }
+      super.addView(child, width, height)
+    } else {
       scrollRoot.addView(child, width, height)
     }
   }
@@ -110,12 +118,26 @@ class Scroll @JvmOverloads constructor(
     child: android.view.View, index: Int, params: ViewGroup.LayoutParams
   ) {
     if (child == scrollRoot) {
-      //  scrollRoot.addView(child, index, params)
+      if (scrollRoot.parent == this) {
+        return
+      }
       super.addView(child, index, params)
     } else {
       scrollRoot.addView(child, index, params)
     }
   }
+
+  override fun addView(child: android.view.View, index: Int) {
+    if (child == scrollRoot) {
+      if (scrollRoot.parent == this) {
+        return
+      }
+      super.addView(child, index)
+    } else {
+      scrollRoot.addView(child, index)
+    }
+  }
+
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     // todo cache layout
