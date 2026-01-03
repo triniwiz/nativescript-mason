@@ -863,7 +863,7 @@ public class TextEngine: NSObject {
         fragment = createPlaceholder(for: child)
       }
       
-      if let frag = fragment {
+      if let frag = fragment, frag.length > 0 {
           if frag.attribute(NSAttributedString.Key("BrSpan"), at: 0, effectiveRange: nil) != nil {
               composed.append(frag)
               prevEndedWithWhitespace = true
