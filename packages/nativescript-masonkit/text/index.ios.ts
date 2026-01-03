@@ -48,7 +48,6 @@ export class Text extends TextBase {
 
   get _view() {
     if (!this[native_]) {
-      const context = Utils.android.getCurrentActivity() || Utils.android.getApplicationContext();
       let view;
       switch (this._type) {
         case TextType.None:
