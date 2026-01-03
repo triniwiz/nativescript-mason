@@ -1,4 +1,4 @@
-import { CSSType, Utils } from '@nativescript/core';
+import { CSSType, knownFolders, Utils } from '@nativescript/core';
 import { ImageBase, srcProperty } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
@@ -43,7 +43,11 @@ export class Img extends ImageBase {
   [srcProperty.setNative](value) {
     const nativeView = this._view as org.nativescript.mason.masonkit.Img;
     if (nativeView) {
-      nativeView.setSrc(value);
+      if (typeof value === 'string' && value.startsWith('~/')) {
+        nativeView.setSrc(value.replace('~/', knownFolders.currentApp().path));
+      } else {
+        nativeView.setSrc(value);
+      }
     }
   }
 }

@@ -1,4 +1,4 @@
-import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty } from '@nativescript/core';
+import { CssProperty, Style, ViewBase as NSViewBase, ShorthandProperty, Length as CoreLength, fontSizeProperty, textAlignmentProperty, PercentLength as CorePercentLength, Trace, CoreTypes, unsetValue, verticalAlignmentProperty, textShadowProperty, Font } from '@nativescript/core';
 import { Display, Overflow, Length, Gap, LengthAuto, Position, BoxSizing, GridAutoFlow, JustifyItems, JustifySelf, AlignContent, VerticalAlign } from '.';
 import type { TextBase } from './common';
 import { isMasonChild_, isMasonView_ } from './symbols';
@@ -10,9 +10,12 @@ function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle
   return ret._styleHelper as MasonStyle;
 }
 
-function isMasonViewOrChild(view: WeakRef<NSViewBase> | WeakRef<TextBase>): boolean {
-  const ret: NSViewBase = (__ANDROID__ ? view.get() : view.deref()) as never;
-  return ret && (ret[isMasonView_] || ret[isMasonChild_]);
+function isMasonViewOrChild(style: Style): boolean {
+  if (style && style.viewRef) {
+    const view = __ANDROID__ ? style.viewRef.get() : style.viewRef.deref();
+    return view && (view[isMasonView_] || view[isMasonChild_]);
+  }
+  return false;
 }
 
 export const displayProperty = new CssProperty<Style, Display>({
@@ -253,7 +256,7 @@ fontSizeProperty.overrideHandlers({
   name: 'fontSize',
   cssName: 'font-size',
   valueConverter: function (value) {
-    if (this && (this[isMasonView_] || this[isMasonChild_])) {
+    if (isMasonViewOrChild(this)) {
       return value as never;
     }
     return parseFloat(value as never);
@@ -288,6 +291,14 @@ fontSizeProperty.overrideHandlers({
         // Revert to old value if newValue is invalid
         // @ts-ignore
         target.fontSize = oldValue as never;
+      }
+    } else {
+      // fallback to core behavior
+
+      const currentFont = target.fontInternal || Font.default;
+      if (currentFont.fontSize !== newValue) {
+        const newFont = currentFont.withFontSize(newValue);
+        target.fontInternal = Font.equals(Font.default, newFont) ? unsetValue : newFont;
       }
     }
   },
@@ -1123,7 +1134,10 @@ verticalAlignmentProperty.overrideHandlers({
   name: 'verticalAlignment',
   cssName: 'vertical-align',
   valueConverter: function (value) {
-    return value as never;
+    if (isMasonViewOrChild(this)) {
+      return value as never;
+    }
+    return CoreTypes.VerticalAlignmentText.parse(value) as never;
   },
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
