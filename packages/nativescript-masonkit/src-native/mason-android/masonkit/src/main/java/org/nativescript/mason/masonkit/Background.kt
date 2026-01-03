@@ -90,7 +90,9 @@ data class Gradient(
   val stops: List<String>,      // color stops
 )
 
-private val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+private val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+  isDither = true
+}
 
 fun drawBackground(
   context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
