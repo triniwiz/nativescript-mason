@@ -46,6 +46,7 @@ class GridActivity : AppCompatActivity() {
     mason.setDeviceScale(metrics.density)
 
     val body = mason.createScrollView(this)
+    body.style.background = "radial-gradient(ellipse at center,#192d38 0,#211f2f 100%);"
 //    body.style.overflowY = Overflow.Scroll
 
 //    Timer().schedule(1000L) {

@@ -391,15 +391,8 @@ func parseLayer(_ str: String) -> BackgroundLayer {
       var cgColors: [CGColor] = []
       var locations: [CGFloat] = []
       
-      let colorStops: [String]
-      // For radial-gradient, first stop can be shape/position
-      if g.type == "radial" && g.stops.count > 1 {
-        colorStops = Array(g.stops.dropFirst())
-      } else if g.type == "linear", g.direction != nil {
-        colorStops = Array(g.stops)
-      } else {
-        colorStops = g.stops
-      }
+      // The direction/shape is now properly parsed, so stops only contain color stops
+      let colorStops = g.stops
       
       for stop in colorStops {
         if let lastSpace = stop.lastIndex(of: " ") {
@@ -555,7 +548,7 @@ func parseGradient(_ str: String) -> Gradient? {
   var direction: String? = nil
   if let first = parts.first {
     let t = first.trimmingCharacters(in: .whitespacesAndNewlines)
-    if t.lowercased().hasPrefix("to ") || t.lowercased().hasSuffix("deg") {
+    if isAngleOrDirection(t) {
       direction = t
       parts = Array(parts.dropFirst())
     }
@@ -563,6 +556,41 @@ func parseGradient(_ str: String) -> Gradient? {
   
   let stops = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
   return Gradient(type: type, direction: direction, stops: stops)
+}
+
+// MARK: - Helper to detect if a token is an angle, direction, or radial shape/position
+private func isAngleOrDirection(_ token: String) -> Bool {
+  let v = token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  
+  // Check for angle: e.g., "180deg", "45deg"
+  if v.hasSuffix("deg") || v.hasSuffix("rad") || v.hasSuffix("turn") || v.hasSuffix("grad") {
+    return true
+  }
+  
+  // Check for linear-gradient direction: "to bottom", "to top left", etc.
+  if v.hasPrefix("to ") {
+    let parts = v.dropFirst(3).split(separator: " ")
+    let validDirections = Set(["top", "bottom", "left", "right"])
+    return parts.allSatisfy { validDirections.contains(String($0)) }
+  }
+  
+  // Check for radial-gradient shape/position: "ellipse at center", "circle at top left"
+  if v.contains(" at ") {
+    let beforeAt = v.components(separatedBy: " at ").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let shapeKeywords = Set(["circle", "ellipse"])
+    let sizeKeywords = Set(["closest-side", "closest-corner", "farthest-side", "farthest-corner"])
+    let parts = beforeAt.split(separator: " ").map { String($0) }
+    if parts.isEmpty || parts.contains(where: { shapeKeywords.contains($0) || sizeKeywords.contains($0) }) {
+      return true
+    }
+  }
+  
+  // Check for standalone shape keywords: "circle", "ellipse"
+  if v == "circle" || v == "ellipse" {
+    return true
+  }
+  
+  return false
 }
 
 // MARK: - Parse Image URL

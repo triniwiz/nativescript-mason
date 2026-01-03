@@ -10,6 +10,7 @@ import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
+import android.util.Log
 import android.view.View
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
@@ -25,7 +26,7 @@ private val PARSE_LAYER_REGEX = Regex("""\s+""")
 private val POSITION_KEYS = listOf("top", "bottom", "left", "right", "center")
 private val COLOR_KEYWORDS = listOf("red", "blue", "green", "black", "white", "yellow", "gray")
 private val CLIP_REGEX = Regex("""^(content-box|border-box|padding-box)\s+""")
-private val COLOR_REGEX = Regex("(?i)^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})")
+private val COLOR_REGEX = Regex("(?i)^#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})")
 private val RGBA_REGEX =
   Regex(
     """rgba?\(\s*([^)]+)\s*\)""",
@@ -121,7 +122,53 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
   val gradient = layer.gradient ?: return
 
   if (layer.shader == null) {
-    val colors = gradient.stops.map { parseColor(it) ?: Color.TRANSPARENT }.toIntArray()
+    // Parse color stops: each stop can be "color position" or just "color"
+    val colors = mutableListOf<Int>()
+    val positions = mutableListOf<Float>()
+
+    for ((index, stop) in gradient.stops.withIndex()) {
+      val trimmed = stop.trim()
+      // Find the last space that separates color from position
+      val lastSpace = trimmed.lastIndexOf(' ')
+
+      if (lastSpace > 0) {
+        val colorPart = trimmed.substring(0, lastSpace)
+        val posPart = trimmed.substring(lastSpace + 1).trim()
+
+        val color = parseColor(colorPart) ?: Color.TRANSPARENT
+        colors.add(color)
+
+        // Parse position: can be "0", "50%", "100%", etc.
+        val posValue = posPart.trimEnd('%')
+        val pos = posValue.toFloatOrNull()
+        if (pos != null) {
+          // Normalize to 0.0-1.0 range
+          // If it ends with %, divide by 100; if no %, treat small values (0-1) as-is, larger as percentage
+          val normalizedPos = when {
+            posPart.endsWith('%') -> pos / 100f
+            pos <= 1f -> pos  // Already in 0-1 range
+            else -> pos / 100f  // Treat as percentage (0-100)
+          }
+          positions.add(normalizedPos.coerceIn(0f, 1f))
+        } else {
+          // Fallback: distribute evenly
+          positions.add(index.toFloat() / (gradient.stops.size - 1).coerceAtLeast(1))
+        }
+      } else {
+        // No position specified, just color
+        val color = parseColor(trimmed) ?: Color.TRANSPARENT
+        colors.add(color)
+        // Distribute evenly
+        positions.add(index.toFloat() / (gradient.stops.size - 1).coerceAtLeast(1))
+      }
+    }
+
+    val colorsArray = colors.toIntArray()
+    val positionsArray = if (positions.isNotEmpty()) positions.toFloatArray() else null
+
+    // Ensure we have valid colors and positions
+    if (colorsArray.isEmpty()) return
+
     layer.shader = when (gradient.type.lowercase()) {
       "linear" -> {
         val (x0, y0, x1, y1) = when (gradient.direction?.lowercase()) {
@@ -131,12 +178,12 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
           "to left", "270deg" -> listOf(width.toFloat(), 0f, 0f, 0f)
           else -> listOf(0f, 0f, 0f, height.toFloat())
         }
-        LinearGradient(x0, y0, x1, y1, colors, null, Shader.TileMode.CLAMP)
+        LinearGradient(x0, y0, x1, y1, colorsArray, positionsArray, Shader.TileMode.CLAMP)
       }
 
       "radial" -> {
         RadialGradient(
-          width / 2f, height / 2f, maxOf(width, height) / 2f, colors, null, Shader.TileMode.CLAMP
+          width / 2f, height / 2f, maxOf(width, height) / 2f, colorsArray, positionsArray, Shader.TileMode.CLAMP
         )
       }
 
@@ -332,7 +379,7 @@ fun parseRgbColor(input: String): Int? {
 
 fun parseColor(value: String): Int? {
   return try {
-    val color = value.trimEnd(';')
+    val color = value.trim().trimEnd(';')
     if (COLOR_MAP.contains(color)) {
       return COLOR_MAP[color]
     }
@@ -416,6 +463,23 @@ private fun isAngleOrDirection(token: String): Boolean {
     return parts.all {
       it == "top" || it == "bottom" || it == "left" || it == "right"
     }
+  }
+
+  // Handle radial gradient shape/position: e.g., "ellipse at center", "circle at top left"
+  if (v.contains(" at ")) {
+    val beforeAt = v.substringBefore(" at ").trim()
+    // Check if it starts with a shape keyword or size keyword
+    val shapeKeywords = listOf("circle", "ellipse")
+    val sizeKeywords = listOf("closest-side", "closest-corner", "farthest-side", "farthest-corner")
+    val parts = beforeAt.split(Regex("\\s+"))
+    if (parts.any { it in shapeKeywords || it in sizeKeywords } || beforeAt.isEmpty()) {
+      return true
+    }
+  }
+
+  // Handle standalone shape keywords: "circle", "ellipse"
+  if (v == "circle" || v == "ellipse") {
+    return true
   }
 
   return false
