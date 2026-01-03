@@ -553,13 +553,13 @@ export class Style {
       case 'object':
         switch (value.unit) {
           case 'dip':
-            setInt32(this.text_style_view, TextStyleKeys.SIZE, value.value);
+            setInt32(this.text_style_view, TextStyleKeys.SIZE, layout.toDeviceIndependentPixels(value.value));
             setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
             setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 0);
             this.setOrAppendTextState(TextStateKeys.SIZE);
             break;
           case 'px':
-            setInt32(this.text_style_view, TextStyleKeys.SIZE, layout.toDeviceIndependentPixels(value.value));
+            setInt32(this.text_style_view, TextStyleKeys.SIZE, value.value);
             setInt8(this.text_style_view, TextStyleKeys.SIZE_STATE, 1);
             setInt8(this.text_style_view, TextStyleKeys.SIZE_TYPE, 0);
             this.setOrAppendTextState(TextStateKeys.SIZE);
