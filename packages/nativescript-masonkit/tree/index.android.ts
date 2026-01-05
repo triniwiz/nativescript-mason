@@ -1,4 +1,5 @@
 import { Screen } from '@nativescript/core';
+import { InputType } from '..';
 
 enum TextType {
   None = 0,
@@ -98,5 +99,39 @@ export class Tree {
   createBr(context) {
     //@ts-ignore
     return this.native.createBr();
+  }
+
+  createInputView(context?, type?: InputType) {
+    switch (type) {
+      case 'number':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Number);
+      case 'text':
+        return this.native.createInput(context);
+      case 'password':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Password);
+      case 'email':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Email);
+      case 'tel':
+      case 'url':
+      case 'search':
+      case 'date':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Date);
+      case 'time':
+      case 'datetime-local':
+      case 'month':
+      case 'week':
+      case 'color':
+      case 'checkbox':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Checkbox);
+      case 'radio':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Radio);
+      case 'button':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Button);
+      case 'submit':
+      case 'reset':
+      case 'file':
+      default:
+        return this.native.createInput(context);
+    }
   }
 }

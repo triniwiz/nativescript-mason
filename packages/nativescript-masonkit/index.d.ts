@@ -3,6 +3,8 @@ import { CoreTypes } from '@nativescript/core';
 import { TextBase, ViewBase } from './common';
 import { LengthPercentage } from '@nativescript/core/css/parser';
 
+export type InputType = 'text' | 'password' | 'email' | 'number' | 'tel' | 'url' | 'search' | 'date' | 'time' | 'datetime-local' | 'month' | 'week' | 'color' | 'checkbox' | 'radio' | 'button' | 'submit' | 'reset' | 'file';
+
 export type Length = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | `${number}px` | `${number}%` | `${number}dip`;
 
 export type LengthAuto = CoreTypes.dip | CoreTypes.LengthDipUnit | CoreTypes.LengthPxUnit | CoreTypes.LengthPercentUnit | 'auto' | `${number}px` | `${number}%` | `${number}dip`;
@@ -214,3 +216,5 @@ export class Scroll extends VBase {}
 export class Button extends TextBase {}
 
 export class Br extends TextBase {}
+
+export class Input extends VBase {}

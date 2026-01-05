@@ -2279,12 +2279,12 @@ public enum TextJustify: Int, RawRepresentable, CustomStringConvertible {
 
 @objc(MasonDecorationStyle)
 public enum DecorationStyle: Int, RawRepresentable, CustomStringConvertible  {
-   case Solid
-   case Double
-   case Dotted
-   case Dashed
-   case Wavy
-
+  case Solid
+  case Double
+  case Dotted
+  case Dashed
+  case Wavy
+  
   public typealias RawValue = Int32
   
   public var rawValue: RawValue {
@@ -2338,7 +2338,7 @@ public enum DecorationStyle: Int, RawRepresentable, CustomStringConvertible  {
   public var description: String {
     return cssValue
   }
- }
+}
 
 
 
@@ -2453,10 +2453,10 @@ public enum Clear: Int, RawRepresentable, CustomStringConvertible {
 @objc(MasonObjectFit)
 public enum ObjectFit: Int, RawRepresentable, CustomStringConvertible {
   case Contain
-   case Cover
-   case Fill
-   case None
-   case ScaleDown
+  case Cover
+  case Fill
+  case None
+  case ScaleDown
   
   public typealias RawValue = Int32
   
@@ -2621,4 +2621,82 @@ public class MasonVerticalAlignValue: NSObject {
     super.init()
   }
   
+}
+
+
+@objc(MasonInputType)
+public enum MasonInputType: Int, RawRepresentable {
+  public var description: String {
+    switch(self){case .Text:
+      return "text"
+    case .Button:
+      return "button"
+    case .Checkbox:
+      return "checkbox"
+    case .Email:
+      return "email"
+    case .Password:
+      return "password"
+    case .Date:
+      return "date"
+    case .Radio:
+      return "radio"
+    case .Number:
+      return "number"
+      
+    }
+  }
+  
+  public init?(rawValue: Int32) {
+    switch(rawValue){
+    case 0:
+      self = .Text
+    case 1:
+      self = .Button
+    case 2:
+      self = .Checkbox
+    case 3:
+      self = .Email
+    case 4:
+      self = .Password
+    case 5:
+      self = .Date
+    case 6:
+      self = .Radio
+    case 7:
+      self = .Number
+    default:
+      return nil
+    }
+  }
+  
+  public var rawValue: Int32 {
+    switch(self){case .Text:
+      0
+    case .Button:
+      1
+    case .Checkbox:
+      2
+    case .Email:
+      3
+    case .Password:
+      4
+    case .Date:
+      5
+    case .Radio:
+      6
+    case .Number:
+      7
+    }
+  }
+  
+  public typealias RawValue = Int32
+  case Text
+  case Button
+  case Checkbox
+  case Email
+  case Password
+  case Date
+  case Radio
+  case Number
 }

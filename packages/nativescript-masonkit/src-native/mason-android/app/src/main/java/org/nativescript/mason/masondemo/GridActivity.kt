@@ -10,10 +10,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Element
+import org.nativescript.mason.masonkit.Input
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
 import org.nativescript.mason.masonkit.Mason
-import org.nativescript.mason.masonkit.NodeHelper
 import org.nativescript.mason.masonkit.Point
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
@@ -46,7 +46,6 @@ class GridActivity : AppCompatActivity() {
     mason.setDeviceScale(metrics.density)
 
     val body = mason.createScrollView(this)
-    body.style.background = "radial-gradient(ellipse at center,#192d38 0,#211f2f 100%);"
 //    body.style.overflowY = Overflow.Scroll
 
 //    Timer().schedule(1000L) {
@@ -79,7 +78,7 @@ class GridActivity : AppCompatActivity() {
 
     //grid_template_areas(body)
 
-    grid_template_areas_500(body)
+    // grid_template_areas_500(body)
 
     //grid_template_areas_600(body)
 
@@ -91,7 +90,58 @@ class GridActivity : AppCompatActivity() {
     // verticalAlignImages(body)
     // radius(body)
     // textShadow(body)
+    input(body)
     setContentView(body)
+  }
+
+  fun input(body: Scroll) {
+    val root = mason.createView(this)
+    root.style.padding = Rect(
+      LengthPercentage.Zero,
+      LengthPercentage.Zero,
+      LengthPercentage.Zero,
+      LengthPercentage.Points(50f)
+    )
+    body.append(root)
+    val input = mason.createInput(this)
+    input.placeholder = "Enter Text"
+    root.append(input)
+
+    val btn = mason.createInput(this, Input.Type.Button)
+    btn.value = "Button"
+    root.append(btn)
+
+    root.append(mason.createBr())
+
+    val cb = mason.createInput(this, Input.Type.Checkbox)
+    root.append(cb)
+
+    root.append(mason.createBr())
+
+    val password = mason.createInput(this, Input.Type.Password)
+    password.placeholder = "Enter Password"
+    root.append(password)
+
+    root.append(mason.createBr())
+
+    val email = mason.createInput(this, Input.Type.Email)
+    email.placeholder = "Enter Email"
+    root.append(email)
+
+    root.append(mason.createBr())
+
+    val date = mason.createInput(this, Input.Type.Date)
+    root.append(date)
+
+    root.append(mason.createBr())
+
+    val radio = mason.createInput(this, Input.Type.Radio)
+    root.append(radio)
+
+    root.append(mason.createBr())
+
+    val number = mason.createInput(this, Input.Type.Number)
+    root.append(number)
   }
 
   fun textShadow(body: Scroll) {
@@ -759,7 +809,7 @@ class GridActivity : AppCompatActivity() {
     header.append("Header")
     header.configure {
       it.color = Color.WHITE
-     // header.style.background = "#999999"
+      // header.style.background = "#999999"
       header.style.gridArea = "header"
       it.padding = boxPadding
       it.borderRadius = "5px"
@@ -767,7 +817,7 @@ class GridActivity : AppCompatActivity() {
 
     header.style.textValues.putInt(TextStyleKeys.BACKGROUND_COLOR, "#999999".toColorInt())
     header.style.textValues.put(TextStyleKeys.BACKGROUND_COLOR_STATE, 1)
-    header.syncStyle("",TextStyleChangeMask.BACKGROUND_COLOR.toString())
+    header.syncStyle("", TextStyleChangeMask.BACKGROUND_COLOR.toString())
 
 
     val sidebar = mason.createView(this)

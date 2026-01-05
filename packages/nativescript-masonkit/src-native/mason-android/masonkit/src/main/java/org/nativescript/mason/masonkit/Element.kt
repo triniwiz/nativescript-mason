@@ -417,6 +417,9 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
             else -> layoutHeight
           }
         )
+      } else if (view is Input) {
+        view.layout(x, y, right, bottom)
+        view.layoutChild(0, 0, width, height)
       } else {
         view.layout(x, y, right, bottom)
       }

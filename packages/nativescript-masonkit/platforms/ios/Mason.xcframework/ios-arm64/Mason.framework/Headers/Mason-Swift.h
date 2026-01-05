@@ -726,6 +726,33 @@ SWIFT_CLASS("_TtC5Mason15MasonImageLayer")
 - (void)drawInContext:(CGContextRef _Nonnull)context;
 @end
 
+enum MasonInputType : NSInteger;
+SWIFT_CLASS_NAMED("MasonInput")
+@interface MasonInput : UIView
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
+@property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
+@property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic) enum MasonInputType type;
+@property (nonatomic) int32_t size;
+@property (nonatomic, copy) NSString * _Nonnull value;
+@property (nonatomic, copy) NSString * _Nonnull placeholder;
+- (void)drawRect:(CGRect)rect;
+- (void)layoutSubviews;
+- (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+typedef SWIFT_ENUM_NAMED(NSInteger, MasonInputType, "MasonInputType", open) {
+  MasonInputTypeText = 0,
+  MasonInputTypeButton = 1,
+  MasonInputTypeCheckbox = 2,
+  MasonInputTypeEmail = 3,
+  MasonInputTypePassword = 4,
+  MasonInputTypeDate = 5,
+  MasonInputTypeRadio = 6,
+  MasonInputTypeNumber = 7,
+};
+
 SWIFT_CLASS_NAMED("MasonLayout")
 @interface MasonLayout : NSObject
 @property (nonatomic, readonly) NSInteger order;
@@ -1399,6 +1426,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (MasonButton * _Nonnull)createButton SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createNode SWIFT_WARN_UNUSED_RESULT;
 - (MasonBr * _Nonnull)createBr SWIFT_WARN_UNUSED_RESULT;
+- (MasonInput * _Nonnull)createInput:(enum MasonInputType)type SWIFT_WARN_UNUSED_RESULT;
 - (void)printTree:(MasonNode * _Nonnull)node;
 - (MasonNode * _Nonnull)createTextNode SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createImageNode SWIFT_WARN_UNUSED_RESULT;

@@ -58,6 +58,7 @@
 		F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */; };
 		F1F0AF412EB66FA9001F0C36 /* NativeHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */; };
 		F1F29C5A2EF8587600324A68 /* Shadow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F29C592EF8587300324A68 /* Shadow.swift */; };
+		F1F7828C2F09D4DB00A4B901 /* MasonInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F7828B2F09D4D800A4B901 /* MasonInput.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -168,6 +169,7 @@
 		F1F0AF3E2EB5D116001F0C36 /* NodeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeUtils.swift; sourceTree = "<group>"; };
 		F1F0AF402EB66FA2001F0C36 /* NativeHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHelpers.swift; sourceTree = "<group>"; };
 		F1F29C592EF8587300324A68 /* Shadow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shadow.swift; sourceTree = "<group>"; };
+		F1F7828B2F09D4D800A4B901 /* MasonInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonInput.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -260,6 +262,7 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F1F7828B2F09D4D800A4B901 /* MasonInput.swift */,
 				F10A1B112F02684200888DDD /* Br.swift */,
 				F1F29C592EF8587300324A68 /* Shadow.swift */,
 				F1047C662EDE8E0E00599B56 /* Button.swift */,
@@ -588,6 +591,7 @@
 				F1E4F95A296242660091913B /* MinSizing.swift in Sources */,
 				F1F0AF412EB66FA9001F0C36 /* NativeHelpers.swift in Sources */,
 				F1F29C5A2EF8587600324A68 /* Shadow.swift in Sources */,
+				F1F7828C2F09D4DB00A4B901 /* MasonInput.swift in Sources */,
 				F18483E72935935600EC35F4 /* MasonLayout.swift in Sources */,
 				F1E4F960296271FB0091913B /* TrackSizingFunction.swift in Sources */,
 				F1EE402D2ECFA98F00EAF4CC /* CSSFilters.swift in Sources */,

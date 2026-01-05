@@ -11,7 +11,8 @@ class ViewUtils {
       view: android.view.View,
       canvas: Canvas,
       style: Style,
-      superDraw: (Canvas) -> Unit
+      superDraw: (Canvas) -> Unit,
+      ignoreBorder: Boolean = false,
     ) {
       val suppressOps = view.getTag(R.id.tag_suppress_ops) as? Boolean ?: false
       if (suppressOps || (!style.isValueInitialized && style.mFilter == null)) {
@@ -53,8 +54,10 @@ class ViewUtils {
         }
       }
 
-      // Draw border on top of background
-      style.mBorderRenderer.draw(canvas, width, height)
+      if (!ignoreBorder) {
+        // Draw border on top of background
+        style.mBorderRenderer.draw(canvas, width, height)
+      }
 
       // Apply overflow clip for content
       canvas.withSave {
@@ -88,17 +91,24 @@ class ViewUtils {
       }
     }
 
-    fun onDraw(view: android.view.View, canvas: Canvas, style: Style, superDraw: (Canvas) -> Unit) {
-      render(view, canvas, style, superDraw)
+    fun onDraw(
+      view: android.view.View,
+      canvas: Canvas,
+      style: Style,
+      ignoreBorder: Boolean = false,
+      superDraw: (Canvas) -> Unit,
+    ) {
+      render(view, canvas, style, superDraw, ignoreBorder)
     }
 
     fun dispatchDraw(
       view: android.view.View,
       canvas: Canvas,
       style: Style,
-      superDraw: (Canvas) -> Unit
+      ignoreBorder: Boolean = false,
+      superDraw: (Canvas) -> Unit,
     ) {
-      render(view, canvas, style, superDraw)
+      render(view, canvas, style, superDraw, ignoreBorder)
     }
   }
 }

@@ -103,6 +103,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     body.style.padding = MasonRect(.Points(top),.Points(right), .Points(bottom), .Points(left))
     
+   // body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+    
     guard view.subviews.first is MasonUIView else {return}
     
     
@@ -281,6 +283,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     return value * scale
   }
   var data:Data!
+  
+  override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
+    body.style.size = .init(.Points(Float(size.width * UIScreen.main.scale)), .Points(Float(size.height * UIScreen.main.scale)))
+  }
   override func viewDidLoad() {
     NSCMason.shared.setDeviceScale(Float(UIScreen.main.scale))
     print("=== viewDidLoad() STARTING ===")
@@ -460,7 +466,61 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
    // radius()
   //  button()
-    grid_template_areas_500(body)
+    
+   // grid_template_areas_500(body)
+    input()
+  }
+  
+  func input(){
+    let root = mason.createView()
+    body.append(root)
+    root.style.padding = MasonRect(uniform: .Points(40))
+    
+    let input = root.mason.createInput()
+    input.placeholder = "Enter text..."
+    
+    root.append(input)
+    
+    root.append(text: "\n")
+    
+    root.append(node: mason.createBr())
+    
+    let button = root.mason.createInput(.Button)
+    button.value = "Button"
+    
+    root.append(button)
+    
+    root.append(node: mason.createBr())
+    
+    let checkbox = root.mason.createInput(.Checkbox)
+    root.append(checkbox)
+    
+    
+    root.append(node: mason.createBr())
+    
+    let password = root.mason.createInput(.Password)
+    password.placeholder = "Enter Password..."
+    
+    root.append(password)
+    
+    
+    let email = root.mason.createInput(.Email)
+    email.placeholder = "Enter Email..."
+    
+    root.append(email)
+    
+    
+    
+    
+    root.append(node: mason.createBr())
+    
+    
+    
+    let radio = root.mason.createInput(.Radio)
+    root.append(radio)
+  
+    
+    self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
   }
   
   func grid_template_areas_500(_ rootLayout: MasonElement) {
@@ -551,7 +611,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
     
-    mason.printTree(body.node)
   }
   
   func button(){

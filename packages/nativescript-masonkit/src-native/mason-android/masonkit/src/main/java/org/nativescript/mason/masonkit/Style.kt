@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.text.TextPaint
 import android.util.Log
+import android.util.TypedValue
 import android.view.View
 import androidx.core.graphics.withClip
 import dalvik.annotation.optimization.FastNative
@@ -405,7 +406,7 @@ class Style internal constructor(internal var node: Node) {
 
   private var defaultPaint: TextPaint? = null
 
-  private val paint: TextPaint
+  internal val paint: TextPaint
     get() {
       return if (node.view is TextContainer) {
         (node.view as TextContainer).getPaint()
@@ -418,7 +419,14 @@ class Style internal constructor(internal var node: Node) {
           textSize =
             16f * ((node.view as? View)?.resources?.displayMetrics?.density ?: Mason.shared.scale)
         }
-        defaultPaint!!
+        defaultPaint!!.apply {
+          if (font.font == null) {
+            (node.view as? View)?.let {
+              font.loadSync(it.context) {}
+            }
+          }
+         // this.typeface = font.font
+        }
       }
     }
 

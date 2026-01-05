@@ -1,7 +1,6 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
-import android.util.Log
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
 import org.nativescript.mason.masonkit.enums.TextType
@@ -167,6 +166,11 @@ class Mason {
 
   fun createBr(): Node {
     return Br(this)
+  }
+
+  @JvmOverloads
+  fun createInput(context: Context, type: Input.Type = Input.Type.Text): Input {
+    return Input(context, this, type)
   }
 
   fun configureStyleForView(view: android.view.View, block: (Style) -> Unit) {

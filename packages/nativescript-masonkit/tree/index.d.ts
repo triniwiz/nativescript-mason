@@ -1,3 +1,5 @@
+import { InputType } from '..';
+
 const enum TextType {
   None = 0,
 
@@ -44,4 +46,6 @@ export class Tree {
   createButtonView(context?): org.nativescript.mason.masonkit.Button | MasonButton;
 
   createBr(context?);
+
+  createInputView(context?, type?: InputType): org.nativescript.mason.masonkit.Input | MasonInput;
 }

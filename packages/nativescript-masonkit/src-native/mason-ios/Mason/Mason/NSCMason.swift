@@ -139,6 +139,10 @@ public class NSCMason: NSObject {
     return MasonBr(mason: self, data: "")
   }
   
+  public func createInput(_ type: MasonInputType = .Text) -> MasonInput {
+    return MasonInput(mason: self, type: type)
+  }
+  
   public func printTree(_ node: MasonNode){
     mason_print_tree(nativePtr, node.nativePtr)
   }

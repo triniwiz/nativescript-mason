@@ -48,7 +48,9 @@ declare const enum CMasonSegment_Tag {
 
 	Text = 0,
 
-	InlineChild = 1
+	InlineChild = 1,
+
+	LineBreak = 2
 }
 
 declare class GridPlacementCompat extends NSObject {
@@ -166,6 +168,13 @@ declare const enum MasonBoxSizing {
 	ContentBox = 1
 }
 
+declare class MasonBr extends MasonTextNode {
+
+	static alloc(): MasonBr; // inherited from NSObject
+
+	static new(): MasonBr; // inherited from NSObject
+}
+
 declare class MasonButton extends UIControl implements MasonElementObjc, MasonTextContainer {
 
 	static alloc(): MasonButton; // inherited from NSObject
@@ -240,6 +249,8 @@ declare class MasonButton extends UIControl implements MasonElementObjc, MasonTe
 	isKindOfClass(aClass: typeof NSObject): boolean;
 
 	isMemberOfClass(aClass: typeof NSObject): boolean;
+
+	onTextStyleChangedWithChange(change: number): void;
 
 	performSelector(aSelector: string): any;
 
@@ -379,7 +390,7 @@ declare class MasonDimensionRectCompat extends NSObject {
 
 	constructor();
 
-	init(left: MasonDimensionCompat, right: MasonDimensionCompat, top: MasonDimensionCompat, bottom: MasonDimensionCompat): this;
+	init(left: MasonDimensionCompat, top: MasonDimensionCompat, right: MasonDimensionCompat, bottom: MasonDimensionCompat): this;
 }
 
 declare class MasonDimensionSizeCompat extends NSObject {
@@ -627,6 +638,75 @@ declare class MasonImg extends UIView implements MasonElementObjc {
 	updateImage(image: UIImage): void;
 }
 
+declare class MasonInput extends UIView {
+
+	static alloc(): MasonInput; // inherited from NSObject
+
+	static appearance(): MasonInput; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 */
+	static appearanceForTraitCollection(trait: UITraitCollection): MasonInput; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 * @deprecated 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonInput; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonInput; // inherited from UIAppearance
+
+	/**
+	 * @since 5.0
+	 * @deprecated 9.0
+	 */
+	static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonInput; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonInput; // inherited from UIAppearance
+
+	static new(): MasonInput; // inherited from NSObject
+
+	readonly mason: NSCMason;
+
+	readonly node: MasonNode;
+
+	placeholder: string;
+
+	size: number;
+
+	type: MasonInputType;
+
+	readonly uiView: UIView;
+
+	value: string;
+}
+
+declare const enum MasonInputType {
+
+	Text = 0,
+
+	Button = 1,
+
+	Checkbox = 2,
+
+	Email = 3,
+
+	Password = 4,
+
+	Date = 5,
+
+	Radio = 6,
+
+	Number = 7
+}
+
 declare const enum MasonJustifyContent {
 
 	Normal = -1,
@@ -694,13 +774,55 @@ declare class MasonLayout extends NSObject {
 
 	static new(): MasonLayout; // inherited from NSObject
 
+	readonly borderBottom: number;
+
+	readonly borderIsEmpty: boolean;
+
+	readonly borderLeft: number;
+
+	readonly borderRight: number;
+
+	readonly borderTop: number;
+
 	readonly children: NSArray<MasonLayout>;
+
+	readonly contentSizeHeight: number;
+
+	readonly contentSizeIsEmpty: boolean;
+
+	readonly contentSizeWidth: number;
 
 	readonly hasChildren: boolean;
 
 	readonly height: number;
 
+	readonly marginBottom: number;
+
+	readonly marginIsEmpty: boolean;
+
+	readonly marginLeft: number;
+
+	readonly marginRight: number;
+
+	readonly marginTop: number;
+
 	readonly order: number;
+
+	readonly paddingBottom: number;
+
+	readonly paddingIsEmpty: boolean;
+
+	readonly paddingLeft: number;
+
+	readonly paddingRight: number;
+
+	readonly paddingTop: number;
+
+	readonly scrollbarSizeHeight: number;
+
+	readonly scrollbarSizeIsEmpty: boolean;
+
+	readonly scrollbarSizeWidth: number;
 
 	readonly width: number;
 
@@ -774,7 +896,7 @@ declare class MasonLengthPercentageAutoRectCompat extends NSObject {
 
 	constructor();
 
-	init(left: MasonLengthPercentageAutoCompat, right: MasonLengthPercentageAutoCompat, top: MasonLengthPercentageAutoCompat, bottom: MasonLengthPercentageAutoCompat): this;
+	init(left: MasonLengthPercentageAutoCompat, top: MasonLengthPercentageAutoCompat, right: MasonLengthPercentageAutoCompat, bottom: MasonLengthPercentageAutoCompat): this;
 }
 
 declare class MasonLengthPercentageAutoSizeCompat extends NSObject {
@@ -1249,9 +1371,9 @@ declare class MasonStyle extends NSObject {
 
 	textOverflowCompat: MasonTextOverflowCompat;
 
-	textTransform: MasonTextTransform;
-
 	textShadow: string;
+
+	textTransform: MasonTextTransform;
 
 	textValues: NSMutableData;
 
@@ -1259,11 +1381,17 @@ declare class MasonStyle extends NSObject {
 
 	values: NSMutableData;
 
+	verticalAlign: MasonVerticalAlignValue;
+
 	whiteSpace: MasonWhiteSpace;
 
 	constructor(o: { node: MasonNode; });
 
+	getBackgroundColor(): string;
+
 	initWithNode(node: MasonNode): this;
+
+	setBackgroundColorWithString(color: string): void;
 
 	setBackgroundColorWithUi(color: UIColor): void;
 
@@ -1276,6 +1404,8 @@ declare class MasonStyle extends NSObject {
 	setBorderTopWidth(value: number, type: number): void;
 
 	setBorderWidth(value: number, type: number): void;
+
+	setColorWithCss(color: string): void;
 
 	setColorWithUi(color: UIColor): void;
 
@@ -1524,6 +1654,8 @@ declare class MasonText extends UIView implements MasonElementObjc, MasonTextCon
 
 	isMemberOfClass(aClass: typeof NSObject): boolean;
 
+	onTextStyleChangedWithChange(change: number): void;
+
 	performSelector(aSelector: string): any;
 
 	performSelectorWithObject(aSelector: string, object: any): any;
@@ -1571,6 +1703,8 @@ interface MasonTextContainer extends NSObjectProtocol {
 	engine: MasonTextEngine;
 
 	node: MasonNode;
+
+	onTextStyleChangedWithChange(change: number): void;
 }
 declare var MasonTextContainer: {
 
@@ -2005,6 +2139,13 @@ declare var MasonVersionNumber: number;
 
 declare var MasonVersionString: interop.Reference<number>;
 
+declare class MasonVerticalAlignValue extends NSObject {
+
+	static alloc(): MasonVerticalAlignValue; // inherited from NSObject
+
+	static new(): MasonVerticalAlignValue; // inherited from NSObject
+}
+
 declare const enum MasonWhiteSpace {
 
 	Normal = 0,
@@ -2174,6 +2315,8 @@ declare class NSCFontFace extends NSObject {
 
 	constructor(o: { family: string; data: NSData; });
 
+	constructor(o: { family: string; owner: MasonStyle; });
+
 	constructor(o: { family: string; source: string; });
 
 	init(family: string, source: string, descriptors: NSCFontDescriptors): this;
@@ -2183,6 +2326,8 @@ declare class NSCFontFace extends NSObject {
 	initWithFamily(family: string): this;
 
 	initWithFamilyData(family: string, source: NSData): this;
+
+	initWithFamilyOwner(family: string, style: MasonStyle): this;
 
 	initWithFamilySource(family: string, source: string): this;
 
@@ -2281,11 +2426,17 @@ declare class NSCMason extends NSObject {
 
 	configureStyleForView(view: UIView, block: (p1: MasonStyle) => void): void;
 
+	createBr(): MasonBr;
+
 	createButton(): MasonButton;
 
 	createDocument(): MasonDocument;
 
+	createImageNode(): MasonNode;
+
 	createImageView(): MasonImg;
+
+	createInput(type: MasonInputType): MasonInput;
 
 	createNode(): MasonNode;
 
@@ -2309,8 +2460,7 @@ declare class NSCMason extends NSObject {
 
 	styleForView(view: UIView): MasonStyle;
 
-	styleForViewOrNode(nodeOrView: UIView | MasonNode): MasonStyle;
-
+	styleForViewOrNode(viewOrNode: any): MasonStyle;
 }
 
 interface NodeArray {
@@ -2377,6 +2527,8 @@ declare function mason_node_is_equal(node_a: interop.Pointer | interop.Reference
 declare function mason_node_layout(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, layout: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<number>) => interop.Pointer | interop.Reference<any>>): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_mark_dirty(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
+
+declare function mason_node_new_image_node(mason: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_new_node(mason: interop.Pointer | interop.Reference<any>, anonymous: boolean): interop.Pointer | interop.Reference<any>;
 
