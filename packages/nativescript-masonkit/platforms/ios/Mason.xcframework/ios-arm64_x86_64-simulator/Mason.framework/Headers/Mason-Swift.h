@@ -733,6 +733,7 @@ SWIFT_CLASS_NAMED("MasonInput")
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 @property (nonatomic) enum MasonInputType type;
 @property (nonatomic) int32_t size;
 @property (nonatomic, copy) NSString * _Nonnull value;
@@ -2359,6 +2360,7 @@ SWIFT_CLASS_NAMED("MasonInput")
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 @property (nonatomic) enum MasonInputType type;
 @property (nonatomic) int32_t size;
 @property (nonatomic, copy) NSString * _Nonnull value;

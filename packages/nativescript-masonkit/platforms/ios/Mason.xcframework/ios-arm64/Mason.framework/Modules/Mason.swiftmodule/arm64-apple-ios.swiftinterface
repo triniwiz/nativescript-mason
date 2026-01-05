@@ -722,6 +722,9 @@ extension Mason.MasonElement {
   @objc @_Concurrency.MainActor @preconcurrency public var uiView: UIKit.UIView {
     @objc get
   }
+  @objc @_Concurrency.MainActor @preconcurrency public var style: Mason.MasonStyle {
+    @objc get
+  }
   @objc @_Concurrency.MainActor @preconcurrency public var type: Mason.MasonInputType {
     @objc get
     @objc set

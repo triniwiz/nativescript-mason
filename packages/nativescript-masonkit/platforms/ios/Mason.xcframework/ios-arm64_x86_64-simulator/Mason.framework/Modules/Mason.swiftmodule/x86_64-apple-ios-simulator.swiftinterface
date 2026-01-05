@@ -300,68 +300,21 @@ extension Mason.Button {
   @objc override dynamic public init()
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MaxSizing) public class MaxSizing : ObjectiveC.NSObject, Swift.Codable {
-  @objc public var value: Swift.Float {
+@objc(MasonTextContainer) public protocol TextContainer : ObjectiveC.NSObjectProtocol {
+  @objc var engine: Mason.TextEngine { get }
+  @objc var node: Mason.MasonNode { get }
+  @objc func onTextStyleChanged(change: Swift.Int64)
+}
+extension Mason.TextContainer {
+  public func onTextStyleChanged(change: Swift.Int64)
+}
+@_hasMissingDesignatedInitializers @objc(MasonTextEngine) public class TextEngine : ObjectiveC.NSObject {
+  public var textContent: Swift.String {
     get
+    set
   }
-  @objc public static func Points(_ points: Swift.Float) -> Mason.MaxSizing
-  @objc public static func Percent(_ percent: Swift.Float) -> Mason.MaxSizing
-  @objc public static func FitContent(_ fit: Swift.Float) -> Mason.MaxSizing
-  @objc public static func FitContentPercent(_ fit: Swift.Float) -> Mason.MaxSizing
-  @objc public static func Fraction(_ flex: Swift.Float) -> Mason.MaxSizing
-  @objc public static let Auto: Mason.MaxSizing
-  @objc public static let MinContent: Mason.MaxSizing
-  @objc public static let MaxContent: Mason.MaxSizing
-  @objc public var cssValue: Swift.String {
-    @objc get
-  }
-  @objc public var jsonValue: Swift.String? {
-    @objc get
-  }
-  required public init(from decoder: any Swift.Decoder) throws
-  public func encode(to encoder: any Swift.Encoder) throws
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionSizeCompat) public class MasonDimensionSizeCompat : ObjectiveC.NSObject, Swift.Codable {
-  @objc public var width: Mason.MasonDimensionCompat
-  @objc public var height: Mason.MasonDimensionCompat
-  public init(_ size: Mason.MasonSize<Mason.MasonDimension>)
-  @objc deinit
-  public func encode(to encoder: any Swift.Encoder) throws
-  required public init(from decoder: any Swift.Decoder) throws
-}
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonLengthPercentageAutoSizeCompat) public class MasonLengthPercentageAutoSizeCompat : ObjectiveC.NSObject, Swift.Codable {
-  @objc public var width: Mason.MasonLengthPercentageAutoCompat
-  @objc public var height: Mason.MasonLengthPercentageAutoCompat
-  public init(_ size: Mason.MasonSize<Mason.MasonLengthPercentageAuto>)
-  @objc deinit
-  public func encode(to encoder: any Swift.Encoder) throws
-  required public init(from decoder: any Swift.Decoder) throws
-}
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonLengthPercentageSizeCompat) public class MasonLengthPercentageSizeCompat : ObjectiveC.NSObject, Swift.Codable {
-  @objc public var width: Mason.MasonLengthPercentageCompat
-  @objc public var height: Mason.MasonLengthPercentageCompat
-  public init(_ size: Mason.MasonSize<Mason.MasonLengthPercentage>)
-  @objc deinit
-  public func encode(to encoder: any Swift.Encoder) throws
-  required public init(from decoder: any Swift.Decoder) throws
-}
-public struct MasonSize<T> : Swift.Codable where T : Swift.Decodable, T : Swift.Encodable {
-  public var width: T
-  public var height: T
-  public init(_ width: T, _ height: T)
-  public init(uniform: T)
-  public func encode(to encoder: any Swift.Encoder) throws
-  public init(from decoder: any Swift.Decoder) throws
-}
-public let MasonDimensionSizeAuto: Mason.MasonSize<Mason.MasonDimension>
-public let MasonLengthPercentageAutoSizeAuto: Mason.MasonSize<Mason.MasonLengthPercentageAuto>
-public let MasonDimensionSizeMaxPercentWH: Mason.MasonSize<Mason.MasonDimension>
-public let MasonLengthPercentageAutoSizeMaxPercentWH: Mason.MasonSize<Mason.MasonLengthPercentageAuto>
-public let MasonLengthPercentageSizeMaxPercentWH: Mason.MasonSize<Mason.MasonLengthPercentage>
-public let MasonDimensionSizeZero: Mason.MasonSize<Mason.MasonDimension>
-public let MasonLengthPercentageAutoSizeZero: Mason.MasonSize<Mason.MasonLengthPercentageAuto>
-public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPercentage>
 @objc(MasonTextType) public enum MasonTextType : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case None
   case P
@@ -533,21 +486,68 @@ extension Mason.MasonText {
 extension Mason.MasonTextNode {
   @objc dynamic public func attributed() -> Foundation.NSAttributedString
 }
-@objc(MasonTextContainer) public protocol TextContainer : ObjectiveC.NSObjectProtocol {
-  @objc var engine: Mason.TextEngine { get }
-  @objc var node: Mason.MasonNode { get }
-  @objc func onTextStyleChanged(change: Swift.Int64)
-}
-extension Mason.TextContainer {
-  public func onTextStyleChanged(change: Swift.Int64)
-}
-@_hasMissingDesignatedInitializers @objc(MasonTextEngine) public class TextEngine : ObjectiveC.NSObject {
-  public var textContent: Swift.String {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MaxSizing) public class MaxSizing : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var value: Swift.Float {
     get
-    set
   }
+  @objc public static func Points(_ points: Swift.Float) -> Mason.MaxSizing
+  @objc public static func Percent(_ percent: Swift.Float) -> Mason.MaxSizing
+  @objc public static func FitContent(_ fit: Swift.Float) -> Mason.MaxSizing
+  @objc public static func FitContentPercent(_ fit: Swift.Float) -> Mason.MaxSizing
+  @objc public static func Fraction(_ flex: Swift.Float) -> Mason.MaxSizing
+  @objc public static let Auto: Mason.MaxSizing
+  @objc public static let MinContent: Mason.MaxSizing
+  @objc public static let MaxContent: Mason.MaxSizing
+  @objc public var cssValue: Swift.String {
+    @objc get
+  }
+  @objc public var jsonValue: Swift.String? {
+    @objc get
+  }
+  required public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
   @objc deinit
 }
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonDimensionSizeCompat) public class MasonDimensionSizeCompat : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var width: Mason.MasonDimensionCompat
+  @objc public var height: Mason.MasonDimensionCompat
+  public init(_ size: Mason.MasonSize<Mason.MasonDimension>)
+  @objc deinit
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonLengthPercentageAutoSizeCompat) public class MasonLengthPercentageAutoSizeCompat : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var width: Mason.MasonLengthPercentageAutoCompat
+  @objc public var height: Mason.MasonLengthPercentageAutoCompat
+  public init(_ size: Mason.MasonSize<Mason.MasonLengthPercentageAuto>)
+  @objc deinit
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonLengthPercentageSizeCompat) public class MasonLengthPercentageSizeCompat : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var width: Mason.MasonLengthPercentageCompat
+  @objc public var height: Mason.MasonLengthPercentageCompat
+  public init(_ size: Mason.MasonSize<Mason.MasonLengthPercentage>)
+  @objc deinit
+  public func encode(to encoder: any Swift.Encoder) throws
+  required public init(from decoder: any Swift.Decoder) throws
+}
+public struct MasonSize<T> : Swift.Codable where T : Swift.Decodable, T : Swift.Encodable {
+  public var width: T
+  public var height: T
+  public init(_ width: T, _ height: T)
+  public init(uniform: T)
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public let MasonDimensionSizeAuto: Mason.MasonSize<Mason.MasonDimension>
+public let MasonLengthPercentageAutoSizeAuto: Mason.MasonSize<Mason.MasonLengthPercentageAuto>
+public let MasonDimensionSizeMaxPercentWH: Mason.MasonSize<Mason.MasonDimension>
+public let MasonLengthPercentageAutoSizeMaxPercentWH: Mason.MasonSize<Mason.MasonLengthPercentageAuto>
+public let MasonLengthPercentageSizeMaxPercentWH: Mason.MasonSize<Mason.MasonLengthPercentage>
+public let MasonDimensionSizeZero: Mason.MasonSize<Mason.MasonDimension>
+public let MasonLengthPercentageAutoSizeZero: Mason.MasonSize<Mason.MasonLengthPercentageAuto>
+public let MasonLengthPercentageSizeZero: Mason.MasonSize<Mason.MasonLengthPercentage>
 @objc(MasonNodeType) public enum MasonNodeType : Swift.Int32, Swift.RawRepresentable {
   case element
   case text
@@ -720,6 +720,9 @@ extension Mason.MasonElement {
   @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @objc @_Concurrency.MainActor @preconcurrency public var uiView: UIKit.UIView {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var style: Mason.MasonStyle {
     @objc get
   }
   @objc @_Concurrency.MainActor @preconcurrency public var type: Mason.MasonInputType {

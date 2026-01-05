@@ -19631,6 +19631,45 @@
           },
           {
             "kind": "Var",
+            "name": "style",
+            "printedName": "style",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "MasonStyle",
+                "printedName": "Mason.MasonStyle",
+                "usr": "c:@M@Mason@objc(cs)MasonStyle"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "c:@M@Mason@objc(cs)MasonInput(py)style",
+            "mangledName": "$s5Mason0A5InputC5styleAA0A5StyleCvp",
+            "moduleName": "Mason",
+            "declAttributes": ["Preconcurrency", "Custom", "AccessControl", "ObjC"],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "MasonStyle",
+                    "printedName": "Mason.MasonStyle",
+                    "usr": "c:@M@Mason@objc(cs)MasonStyle"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "c:@M@Mason@objc(cs)MasonInput(im)style",
+                "mangledName": "$s5Mason0A5InputC5styleAA0A5StyleCvg",
+                "moduleName": "Mason",
+                "declAttributes": ["ObjC"],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "type",
             "printedName": "type",
             "children": [
@@ -63676,7 +63715,7 @@
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonElement.swift",
       "kind": "BooleanLiteral",
-      "offset": 16546,
+      "offset": 16544,
       "length": 5,
       "value": "false"
     },
@@ -63732,28 +63771,28 @@
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonInput.swift",
       "kind": "BooleanLiteral",
-      "offset": 3208,
+      "offset": 3267,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonInput.swift",
       "kind": "IntegerLiteral",
-      "offset": 3409,
+      "offset": 3468,
       "length": 2,
       "value": "20"
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonInput.swift",
       "kind": "StringLiteral",
-      "offset": 3494,
+      "offset": 3553,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "\/Users\/triniwiz\/Documents\/GitHub\/nativescript-mason\/packages\/nativescript-masonkit\/src-native\/mason-ios\/Mason\/Mason\/MasonInput.swift",
       "kind": "StringLiteral",
-      "offset": 4040,
+      "offset": 4099,
       "length": 2,
       "value": "\"\""
     },

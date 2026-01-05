@@ -134,9 +134,12 @@ public class MasonInput: UIView, MasonElement {
   }()
   
   
-  
   public var uiView: UIView {
     self
+  }
+  
+  public var style: MasonStyle {
+    return node.style
   }
   
   private var initializing = true
