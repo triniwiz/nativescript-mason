@@ -460,6 +460,7 @@ pub enum NodeType {
     Text,
     Image,
     Virtual,
+    LineBreak,
 }
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -506,6 +507,11 @@ impl Node {
     #[inline]
     pub fn is_virtual(&self) -> bool {
         self.type_ == NodeType::Virtual
+    }
+
+    #[inline]
+    pub fn is_line_container(&self) -> bool {
+        self.type_ == NodeType::LineBreak
     }
 
     pub fn compute_style(&self) -> Style {

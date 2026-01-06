@@ -591,6 +591,15 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonLoadingState, "LoadingState", open) {
   MasonLoadingStateError = 2,
 };
 
+SWIFT_CLASS_NAMED("MasonBr")
+@interface MasonBr : NSObject
+@property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, strong) MasonNode * _Nonnull node;
+@property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
 SWIFT_PROTOCOL("_TtP5Mason18MasonCharacterData_")
 @protocol MasonCharacterData
 @property (nonatomic, copy) NSString * _Nonnull data;
@@ -602,55 +611,6 @@ SWIFT_PROTOCOL("_TtP5Mason18MasonCharacterData_")
 - (NSString * _Nonnull)substringDataWithOffset:(NSInteger)offset count:(NSInteger)count SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)deleteDataWithRange:(NSRange)range;
 - (nonnull instancetype)replaceDataWithRange:(NSRange)range with:(NSString * _Nonnull)s;
-@end
-
-@class MasonLayout;
-@class MasonDocument;
-enum MasonNodeType : int32_t;
-SWIFT_CLASS_NAMED("MasonNode")
-@interface MasonNode : NSObject
-@property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
-@property (nonatomic, copy) void (^ _Nullable onNodeAttached)(void);
-@property (nonatomic, copy) void (^ _Nullable onNodeDetached)(void);
-@property (nonatomic, readonly) void * _Nullable nativePtr;
-@property (nonatomic, readonly, strong) MasonLayout * _Nonnull computedLayout;
-@property (nonatomic, readonly, strong) MasonDocument * _Nullable document;
-- (MasonNode * _Nonnull)getRootNode SWIFT_WARN_UNUSED_RESULT;
-@property (nonatomic, readonly, strong) MasonNode * _Nullable parent;
-@property (nonatomic, readonly, strong) MasonNode * _Nullable parentNode;
-@property (nonatomic, readonly) enum MasonNodeType type;
-- (NSArray<MasonNode *> * _Nonnull)getChildren SWIFT_WARN_UNUSED_RESULT;
-- (NSArray<MasonNode *> * _Nonnull)getLayoutChildren SWIFT_WARN_UNUSED_RESULT;
-@property (nonatomic) BOOL inBatch;
-- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes OBJC_DESIGNATED_INITIALIZER;
-@property (nonatomic, readonly) BOOL isDirty;
-- (void)markDirty;
-- (UIView * _Nullable)getRoot SWIFT_WARN_UNUSED_RESULT;
-/// Helper to get default text attributes for new text nodes
-- (NSDictionary<NSAttributedStringKey, id> * _Nonnull)getDefaultAttributes SWIFT_WARN_UNUSED_RESULT;
-- (nonnull instancetype)init SWIFT_UNAVAILABLE;
-+ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
-@end
-
-SWIFT_CLASS_NAMED("MasonTextNode")
-@interface MasonTextNode : MasonNode <MasonCharacterData>
-@property (nonatomic, copy) NSString * _Nonnull data;
-- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc data:(NSString * _Nonnull)text attributes:(NSDictionary<NSAttributedStringKey, id> * _Nullable)attrs OBJC_DESIGNATED_INITIALIZER;
-- (void)appendChild:(MasonNode * _Nonnull)child;
-@property (nonatomic, readonly) NSInteger length;
-- (NSString * _Nonnull)substringDataWithOffset:(NSInteger)offset count:(NSInteger)count SWIFT_WARN_UNUSED_RESULT;
-- (nonnull instancetype)appendData:(NSString * _Nonnull)s;
-- (nonnull instancetype)insertData:(NSString * _Nonnull)s at:(NSInteger)offset;
-- (nonnull instancetype)deleteDataWithOffset:(NSInteger)offset count:(NSInteger)count;
-- (nonnull instancetype)replaceDataWithOffset:(NSInteger)offset count:(NSInteger)count with:(NSString * _Nonnull)s;
-- (nonnull instancetype)deleteDataWithRange:(NSRange)range;
-- (nonnull instancetype)replaceDataWithRange:(NSRange)range with:(NSString * _Nonnull)s;
-- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes SWIFT_UNAVAILABLE;
-@end
-
-SWIFT_CLASS_NAMED("MasonBr")
-@interface MasonBr : MasonTextNode
-- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc data:(NSString * _Nonnull)text attributes:(NSDictionary<NSAttributedStringKey, id> * _Nullable)attrs OBJC_DESIGNATED_INITIALIZER;
 @end
 
 enum MasonDimensionCompatType : NSInteger;
@@ -726,12 +686,17 @@ SWIFT_CLASS("_TtC5Mason15MasonImageLayer")
 - (void)drawInContext:(CGContextRef _Nonnull)context;
 @end
 
+@class UIDocumentPickerViewController;
+@class NSURL;
 enum MasonInputType : NSInteger;
 SWIFT_CLASS_NAMED("MasonInput")
-@interface MasonInput : UIView
+@interface MasonInput : UIView <UIDocumentPickerDelegate, UIImagePickerControllerDelegate>
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic) BOOL multiple;
+- (void)documentPickerWasCancelled:(UIDocumentPickerViewController * _Nonnull)controller;
+- (void)documentPicker:(UIDocumentPickerViewController * _Nonnull)controller didPickDocumentsAtURLs:(NSArray<NSURL *> * _Nonnull)urls;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
 @property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 @property (nonatomic) enum MasonInputType type;
@@ -752,6 +717,11 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonInputType, "MasonInputType", open) {
   MasonInputTypeDate = 5,
   MasonInputTypeRadio = 6,
   MasonInputTypeNumber = 7,
+  MasonInputTypeRange = 8,
+  MasonInputTypeTel = 9,
+  MasonInputTypeUrl = 10,
+  MasonInputTypeColor = 11,
+  MasonInputTypeFile = 12,
 };
 
 SWIFT_CLASS_NAMED("MasonLayout")
@@ -884,6 +854,32 @@ SWIFT_CLASS_NAMED("MasonLengthPercentageSizeCompat")
 @interface MasonLengthPercentageSizeCompat : NSObject
 @property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull width;
 @property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull height;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+enum MasonNodeType : int32_t;
+SWIFT_CLASS_NAMED("MasonNode")
+@interface MasonNode : NSObject
+@property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
+@property (nonatomic, copy) void (^ _Nullable onNodeAttached)(void);
+@property (nonatomic, copy) void (^ _Nullable onNodeDetached)(void);
+@property (nonatomic, readonly) void * _Nullable nativePtr;
+@property (nonatomic, readonly, strong) MasonLayout * _Nonnull computedLayout;
+@property (nonatomic, readonly, strong) MasonDocument * _Nullable document;
+- (MasonNode * _Nonnull)getRootNode SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic, readonly, strong) MasonNode * _Nullable parent;
+@property (nonatomic, readonly, strong) MasonNode * _Nullable parentNode;
+@property (nonatomic, readonly) enum MasonNodeType type;
+- (NSArray<MasonNode *> * _Nonnull)getChildren SWIFT_WARN_UNUSED_RESULT;
+- (NSArray<MasonNode *> * _Nonnull)getLayoutChildren SWIFT_WARN_UNUSED_RESULT;
+@property (nonatomic) BOOL inBatch;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly) BOOL isDirty;
+- (void)markDirty;
+- (UIView * _Nullable)getRoot SWIFT_WARN_UNUSED_RESULT;
+/// Helper to get default text attributes for new text nodes
+- (NSDictionary<NSAttributedStringKey, id> * _Nonnull)getDefaultAttributes SWIFT_WARN_UNUSED_RESULT;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
@@ -1101,6 +1097,22 @@ SWIFT_CLASS("_TtC5Mason14MasonTextLayer")
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 - (nonnull instancetype)initWithLayer:(id _Nonnull)layer OBJC_DESIGNATED_INITIALIZER;
 - (void)drawInContext:(CGContextRef _Nonnull)context;
+@end
+
+SWIFT_CLASS_NAMED("MasonTextNode")
+@interface MasonTextNode : MasonNode <MasonCharacterData>
+@property (nonatomic, copy) NSString * _Nonnull data;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc data:(NSString * _Nonnull)text attributes:(NSDictionary<NSAttributedStringKey, id> * _Nullable)attrs OBJC_DESIGNATED_INITIALIZER;
+- (void)appendChild:(MasonNode * _Nonnull)child;
+@property (nonatomic, readonly) NSInteger length;
+- (NSString * _Nonnull)substringDataWithOffset:(NSInteger)offset count:(NSInteger)count SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)appendData:(NSString * _Nonnull)s;
+- (nonnull instancetype)insertData:(NSString * _Nonnull)s at:(NSInteger)offset;
+- (nonnull instancetype)deleteDataWithOffset:(NSInteger)offset count:(NSInteger)count;
+- (nonnull instancetype)replaceDataWithOffset:(NSInteger)offset count:(NSInteger)count with:(NSString * _Nonnull)s;
+- (nonnull instancetype)deleteDataWithRange:(NSRange)range;
+- (nonnull instancetype)replaceDataWithRange:(NSRange)range with:(NSString * _Nonnull)s;
+- (nonnull instancetype)initWithMason:(NSCMason * _Nonnull)doc children:(NSArray<MasonNode *> * _Nonnull)nodes SWIFT_UNAVAILABLE;
 @end
 
 @class NSAttributedString;
@@ -1431,6 +1443,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (void)printTree:(MasonNode * _Nonnull)node;
 - (MasonNode * _Nonnull)createTextNode SWIFT_WARN_UNUSED_RESULT;
 - (MasonNode * _Nonnull)createImageNode SWIFT_WARN_UNUSED_RESULT;
+- (MasonNode * _Nonnull)createLineBreakNode SWIFT_WARN_UNUSED_RESULT;
 @end
 
 @interface NSObject (SWIFT_EXTENSION(Mason))

@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Element
+import org.nativescript.mason.masonkit.FontFace
 import org.nativescript.mason.masonkit.Input
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
@@ -97,7 +98,7 @@ class GridActivity : AppCompatActivity() {
   fun input(body: Scroll) {
     val root = mason.createView(this)
     root.style.padding = Rect(
-      LengthPercentage.Zero,
+      LengthPercentage.Points(40f),
       LengthPercentage.Zero,
       LengthPercentage.Zero,
       LengthPercentage.Points(50f)
@@ -107,41 +108,55 @@ class GridActivity : AppCompatActivity() {
     input.placeholder = "Enter Text"
     root.append(input)
 
+    root.append(mason.createBr(this))
+
     val btn = mason.createInput(this, Input.Type.Button)
     btn.value = "Button"
     root.append(btn)
 
-    root.append(mason.createBr())
+    root.append(mason.createBr(this))
 
     val cb = mason.createInput(this, Input.Type.Checkbox)
     root.append(cb)
 
-    root.append(mason.createBr())
+    root.append(mason.createBr(this))
 
     val password = mason.createInput(this, Input.Type.Password)
     password.placeholder = "Enter Password"
     root.append(password)
 
-    root.append(mason.createBr())
+    root.append(mason.createBr(this))
 
     val email = mason.createInput(this, Input.Type.Email)
     email.placeholder = "Enter Email"
     root.append(email)
 
-    root.append(mason.createBr())
+    root.append(mason.createBr(this))
 
-    val date = mason.createInput(this, Input.Type.Date)
-    root.append(date)
-
-    root.append(mason.createBr())
+    root.append(mason.createBr(this))
 
     val radio = mason.createInput(this, Input.Type.Radio)
     root.append(radio)
 
-    root.append(mason.createBr())
+    root.append(mason.createBr(this))
+
+    val range = mason.createInput(this, Input.Type.Range)
+    root.append(range)
+
+    root.append(mason.createBr(this))
 
     val number = mason.createInput(this, Input.Type.Number)
     root.append(number)
+
+    root.append(mason.createBr(this))
+
+    val file = mason.createInput(this, Input.Type.File)
+    root.append(file)
+
+    root.append(mason.createBr(this))
+
+    val date = mason.createInput(this, Input.Type.Date)
+    root.append(date)
   }
 
   fun textShadow(body: Scroll) {
@@ -763,11 +778,11 @@ class GridActivity : AppCompatActivity() {
     val content = mason.createView(this)
     content.style.gridArea = "content"
     content.append("Content")
-    val br = mason.createBr()
+    val br = mason.createBr(this)
     Log.d("com.test", "style ${mason.styleForViewOrNode(br)}")
     content.replaceChildAt(br, 1)
-    content.replaceChildAt(mason.createBr(), 2)
-    content.replaceChildAt(mason.createBr(), 3)
+    content.replaceChildAt(mason.createBr(this), 2)
+    content.replaceChildAt(mason.createBr(this), 3)
     content.append("More content than we had before so this column is now quite tall.")
 
     val sidebar2 = mason.createView(this)
@@ -834,7 +849,7 @@ class GridActivity : AppCompatActivity() {
     content.append(
       "Content"
     )
-    val br = mason.createBr()
+    val br = mason.createBr(this)
     content.append(br)
     content.append("More content than we had before so this column is now quite tall.")
 

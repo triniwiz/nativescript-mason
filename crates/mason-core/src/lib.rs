@@ -183,6 +183,12 @@ impl Mason {
         self.0.create_image_node()
     }
 
+
+    #[track_caller]
+    pub fn create_line_break_node(&mut self) -> NodeRef {
+        self.0.create_line_break_node()
+    }
+
     #[cfg(target_os = "android")]
     #[track_caller]
     pub fn style_data(&mut self, node: Id) -> jni::objects::GlobalRef {

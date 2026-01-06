@@ -187,7 +187,9 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeNodeSetContext",
                 "nativeSetAndroidNode",
                 "nativeNodeNewImage",
-                "nativeNodeNewImageWithContext"
+                "nativeNodeNewImageWithContext",
+                "nativeNodeNewLineBreak",
+                "nativeNodeNewLineBreakWithContext",
             ];
 
             let native_helper_signatures = if ret >= ANDROID_O {
@@ -224,6 +226,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJLorg/nativescript/mason/masonkit/Node;)V",
                     "(J)J",
                     "(JLjava/lang/Object;)J",
+                    "(J)J",
+                    "(JLjava/lang/Object;)J",
                 ]
             } else {
                 [
@@ -257,6 +261,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJ[Lorg/nativescript/mason/masonkit/InlineSegment;)V",
                     "!(JJLjava/lang/Object;)V",
                     "!(JJLorg/nativescript/mason/masonkit/Node;)V",
+                    "!(J)J",
+                    "!(JLjava/lang/Object;)J",
                     "!(J)J",
                     "!(JLjava/lang/Object;)J",
                 ]
@@ -296,6 +302,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeSetAndroidNode as *mut c_void,
                     node::NodeNativeNewImageNode as *mut c_void,
                     node::NodeNativeNewImageNodeWithContext as *mut c_void,
+                    node::NodeNativeNewLineBreakNodeNormal as *mut c_void,
+                    node::NodeNativeNewLineBreakNodeWithContext as *mut c_void,
                 ]
             } else {
                 [
@@ -331,6 +339,8 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeSetAndroidNode as *mut c_void,
                     node::NodeNativeNewImageNodeNormal as *mut c_void,
                     node::NodeNativeNewImageNodeWithContext as *mut c_void,
+                    node::NodeNativeNewLineBreakNodeNormal as *mut c_void,
+                    node::NodeNativeNewLineBreakNodeWithContext as *mut c_void,
                 ]
             };
 

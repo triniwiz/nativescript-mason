@@ -130,6 +130,18 @@ struct CMasonNode *mason_node_new_text_node_with_children(struct CMason *mason,
                                                           struct CMasonNode **children,
                                                           uintptr_t children_size);
 
+struct CMasonNode *mason_node_new_line_break_node(struct CMason *mason);
+
+#if !defined(TARGET_OS_ANDROID)
+struct CMasonNode *mason_node_new_line_break_node_with_context(struct CMason *mason,
+                                                               void *measure_data,
+                                                               long long (*measure)(const void*,
+                                                                                    float,
+                                                                                    float,
+                                                                                    float,
+                                                                                    float));
+#endif
+
 void *mason_node_layout(struct CMason *mason,
                         struct CMasonNode *node,
                         void *(*layout)(const float*));

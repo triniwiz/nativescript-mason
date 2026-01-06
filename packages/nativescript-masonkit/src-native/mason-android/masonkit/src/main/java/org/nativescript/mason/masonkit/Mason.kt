@@ -136,6 +136,20 @@ class Mason {
     return node
   }
 
+  fun createLineBreakNode(measure: MeasureFunc): Node {
+    val func = MeasureFuncImpl(WeakReference(measure))
+    val nodePtr =
+      NativeHelpers.nativeNodeNewLineBreakWithContext(nativePtr, func)
+    val node = Node(this, nodePtr).apply {
+      nodes[nodePtr] = this
+      measureFunc = measure
+    }
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+
+    return node
+  }
+
+
   fun createView(context: Context): View {
     return View(context, this)
   }
@@ -164,8 +178,8 @@ class Mason {
     return Button(context, this)
   }
 
-  fun createBr(): Node {
-    return Br(this)
+  fun createBr(context: Context): Br {
+    return Br(context, this)
   }
 
   @JvmOverloads

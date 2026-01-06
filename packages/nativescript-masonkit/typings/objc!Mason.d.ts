@@ -168,11 +168,17 @@ declare const enum MasonBoxSizing {
 	ContentBox = 1
 }
 
-declare class MasonBr extends MasonTextNode {
+declare class MasonBr extends NSObject {
 
 	static alloc(): MasonBr; // inherited from NSObject
 
 	static new(): MasonBr; // inherited from NSObject
+
+	readonly mason: NSCMason;
+
+	node: MasonNode;
+
+	readonly uiView: UIView;
 }
 
 declare class MasonButton extends UIControl implements MasonElementObjc, MasonTextContainer {
@@ -638,7 +644,7 @@ declare class MasonImg extends UIView implements MasonElementObjc {
 	updateImage(image: UIImage): void;
 }
 
-declare class MasonInput extends UIView {
+declare class MasonInput extends UIView implements UIDocumentPickerDelegate, UIImagePickerControllerDelegate {
 
 	static alloc(): MasonInput; // inherited from NSObject
 
@@ -675,17 +681,78 @@ declare class MasonInput extends UIView {
 
 	readonly mason: NSCMason;
 
+	multiple: boolean;
+
 	readonly node: MasonNode;
 
 	placeholder: string;
 
 	size: number;
 
+	readonly style: MasonStyle;
+
 	type: MasonInputType;
 
 	readonly uiView: UIView;
 
 	value: string;
+
+	readonly debugDescription: string; // inherited from NSObjectProtocol
+
+	readonly description: string; // inherited from NSObjectProtocol
+
+	readonly hash: number; // inherited from NSObjectProtocol
+
+	readonly isProxy: boolean; // inherited from NSObjectProtocol
+
+	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+
+	readonly  // inherited from NSObjectProtocol
+
+	class(): typeof NSObject;
+
+	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
+
+	/**
+	 * @since 8.0
+	 * @deprecated 11.0
+	 */
+	documentPickerDidPickDocumentAtURL(controller: UIDocumentPickerViewController, url: NSURL): void;
+
+	/**
+	 * @since 11.0
+	 */
+	documentPickerDidPickDocumentsAtURLs(controller: UIDocumentPickerViewController, urls: NSArray<NSURL> | NSURL[]): void;
+
+	documentPickerWasCancelled(controller: UIDocumentPickerViewController): void;
+
+	imagePickerControllerDidCancel(picker: UIImagePickerController): void;
+
+	/**
+	 * @since 2.0
+	 * @deprecated 3.0
+	 */
+	imagePickerControllerDidFinishPickingImageEditingInfo(picker: UIImagePickerController, image: UIImage, editingInfo: NSDictionary<string, any>): void;
+
+	imagePickerControllerDidFinishPickingMediaWithInfo(picker: UIImagePickerController, info: NSDictionary<string, any>): void;
+
+	isEqual(object: any): boolean;
+
+	isKindOfClass(aClass: typeof NSObject): boolean;
+
+	isMemberOfClass(aClass: typeof NSObject): boolean;
+
+	performSelector(aSelector: string): any;
+
+	performSelectorWithObject(aSelector: string, object: any): any;
+
+	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
+
+	respondsToSelector(aSelector: string): boolean;
+
+	retainCount(): number;
+
+	self(): this;
 }
 
 declare const enum MasonInputType {
@@ -704,7 +771,17 @@ declare const enum MasonInputType {
 
 	Radio = 6,
 
-	Number = 7
+	Number = 7,
+
+	Range = 8,
+
+	Tel = 9,
+
+	Url = 10,
+
+	Color = 11,
+
+	File = 12
 }
 
 declare const enum MasonJustifyContent {
@@ -2438,6 +2515,8 @@ declare class NSCMason extends NSObject {
 
 	createInput(type: MasonInputType): MasonInput;
 
+	createLineBreakNode(): MasonNode;
+
 	createNode(): MasonNode;
 
 	createScrollView(): MasonScroll;
@@ -2529,6 +2608,10 @@ declare function mason_node_layout(mason: interop.Pointer | interop.Reference<an
 declare function mason_node_mark_dirty(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_node_new_image_node(mason: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_new_line_break_node(mason: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_new_line_break_node_with_context(mason: interop.Pointer | interop.Reference<any>, measure_data: interop.Pointer | interop.Reference<any>, measure: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<any>, p2: number, p3: number, p4: number, p5: number) => number>): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_new_node(mason: interop.Pointer | interop.Reference<any>, anonymous: boolean): interop.Pointer | interop.Reference<any>;
 

@@ -6,7 +6,9 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.net.Uri
 import android.os.Build
+import android.provider.OpenableColumns
 import android.text.Editable
 import android.text.InputFilter
 import android.text.InputFilter.LengthFilter
@@ -20,17 +22,21 @@ import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.RadioButton
+import android.widget.SeekBar
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.text.TextUtilsCompat
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.max
+import kotlin.math.min
 
 @SuppressLint("DiscouragedPrivateApi")
 class Input @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
-) : FrameLayout(context, attrs), Element, MeasureFunc {
-
+) : FrameLayout(context, attrs), Element, MeasureFunc, StyleChangeListener {
 
   class DateInput(context: Context) : FrameLayout(context) {
 
@@ -322,8 +328,12 @@ class Input @JvmOverloads constructor(
     }
   }
 
-  internal val buttonInput: Button by lazy {
-    Button(context, node.mason)
+  internal val buttonInput: android.widget.Button by lazy {
+    android.widget.Button(context).apply {
+      background = null
+      setPadding(0, 0, 0, 0)
+      isAllCaps = false
+    }
   }
 
   internal val checkBoxInput: CheckBox by lazy {
@@ -338,16 +348,111 @@ class Input @JvmOverloads constructor(
     RadioButton(context)
   }
 
+  internal val rangeInput: SeekBar by lazy {
+    SeekBar(context)
+  }
+
+  internal val numberInput: NumberControl by lazy {
+    NumberControl(context)
+  }
+
+  var multiple: Boolean = false
+
+  val fileInput = FileInputControl(context).apply {
+    onPickFile = {
+      pickFile(multiple = this@Input.multiple)
+    }
+    onContentSizeChanged = {
+      invalidateLayout()
+    }
+  }
+
+  private var filePickerLauncher: ActivityResultLauncher<Array<String>>? = null
+
+  private var multiFilePickerLauncher: ActivityResultLauncher<Array<String>>? = null
+
+  private fun handlePickedFiles(uris: List<Uri>) {
+    if (uris.isEmpty()) return
+
+    if (multiple) {
+      if (uris.size == 1) {
+        fileInput.labelText = getFileName(uris.first())
+      } else {
+        fileInput.labelText = "${uris.size} files selected"
+      }
+    } else {
+      fileInput.labelText = getFileName(uris.first())
+    }
+  }
+
+  private fun getFileName(uri: Uri): String {
+    return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+      val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+      if (cursor.moveToFirst() && nameIndex >= 0) {
+        cursor.getString(nameIndex)
+      } else ""
+    } ?: ""
+  }
+
+  @Synchronized
+  @Throws(Throwable::class)
+  protected fun finalize() {
+    filePickerLauncher?.unregister()
+    multiFilePickerLauncher?.unregister()
+  }
+
+  private fun pickFile(multiple: Boolean) {
+    val mimeTypes = arrayOf(
+      "image/png",
+      "image/jpeg",
+      "image/webp"
+    )
+
+    (context as? androidx.activity.ComponentActivity)?.let {
+      filePickerLauncher = it.activityResultRegistry.register(
+        "picker:1",
+        ActivityResultContracts.OpenDocument()
+      ) { uri ->
+        if (uri != null) {
+          handlePickedFiles(listOf(uri))
+        }
+      }
+
+      filePickerLauncher = it.activityResultRegistry.register(
+        "picker:2",
+        ActivityResultContracts.OpenMultipleDocuments()
+      ) { uris ->
+        if (uris.isNotEmpty()) {
+          handlePickedFiles(uris)
+        }
+      }
+
+
+//      filePickerLauncher =
+//        it.registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+//          if (uri != null) {
+//            handlePickedFiles(listOf(uri))
+//          }
+//        }
+
+//      multiFilePickerLauncher =
+//        it.registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+//          if (uris.isNotEmpty()) {
+//            handlePickedFiles(uris)
+//          }
+//        }
+    }
+
+    if (multiple) {
+      multiFilePickerLauncher?.launch(mimeTypes)
+    } else {
+      filePickerLauncher?.launch(mimeTypes)
+    }
+  }
+
 
   enum class Type {
-    Text,
-    Button,
-    Checkbox,
-    Email,
-    Password,
-    Date,
-    Radio,
-    Number
+    Text, Button, Checkbox, Email, Password, Date, Radio, Number, Range, Tel, Url, Color, File
   }
 
   private var initializing = true
@@ -400,7 +505,23 @@ class Input @JvmOverloads constructor(
           addView(radioInput)
         }
 
-        Type.Number -> {}
+        Type.Number -> {
+          removeAllViews()
+          addView(numberInput)
+        }
+
+        Type.Range -> {
+          removeAllViews()
+          addView(rangeInput)
+        }
+
+        Type.Tel -> {}
+        Type.Url -> {}
+        Type.Color -> {}
+        Type.File -> {
+          removeAllViews()
+          addView(fileInput)
+        }
       }
     }
 
@@ -462,6 +583,23 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Button -> {
+        configure {
+          val x = (2 * resources.displayMetrics.density).toInt()
+          val y = (resources.displayMetrics.density).toInt()
+//          textInput.setPadding(
+//            x, y, x, y
+//          )
+//          style.padding = Rect(
+//            LengthPercentage.Points(y),
+//            LengthPercentage.Points(x),
+//            LengthPercentage.Points(y),
+//            LengthPercentage.Points(x),
+//          )
+
+          style.border = "2px"
+          style.borderRadius = "4px"
+          style.textAlign = TextAlign.Center
+        }
         addView(buttonInput)
       }
 
@@ -477,8 +615,36 @@ class Input @JvmOverloads constructor(
         addView(radioInput)
       }
 
-      Type.Number -> {}
+      Type.Number -> {
+        configure {
+          val x = (2 * resources.displayMetrics.density).toInt()
+          val y = (resources.displayMetrics.density).toInt()
+//          style.padding = Rect(
+//            LengthPercentage.Points(y),
+//            LengthPercentage.Points(x),
+//            LengthPercentage.Points(y),
+//            LengthPercentage.Points(x),
+//          )
+
+          style.border = "2px"
+          style.borderRadius = "4px"
+          style.textAlign = TextAlign.Center
+        }
+        addView(numberInput)
+      }
+
+      Type.Range -> {
+        addView(rangeInput)
+      }
+
+      Type.Tel -> {}
+      Type.Url -> {}
+      Type.Color -> {}
+      Type.File -> {
+        addView(fileInput)
+      }
     }
+    node.style.setStyleChangeListener(this)
     initializing = false
   }
 
@@ -527,6 +693,11 @@ class Input @JvmOverloads constructor(
 
         Type.Date, Type.Radio -> {}
         Type.Number -> {}
+        Type.Range -> {}
+        Type.Tel -> {}
+        Type.Url -> {}
+        Type.Color -> {}
+        Type.File -> {}
       }
     }
 
@@ -538,7 +709,7 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Button -> {
-          buttonInput.textContent = value
+          buttonInput.setText(value)
         }
 
         Type.Checkbox -> {
@@ -548,6 +719,11 @@ class Input @JvmOverloads constructor(
         Type.Date -> {}
         Type.Radio -> {}
         Type.Number -> {}
+        Type.Range -> {}
+        Type.Tel -> {}
+        Type.Url -> {}
+        Type.Color -> {}
+        Type.File -> {}
       }
     }
     get() {
@@ -557,7 +733,7 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Button -> {
-          buttonInput.textContent
+          buttonInput.text.toString()
         }
 
         Type.Checkbox, Type.Radio -> ""
@@ -566,6 +742,11 @@ class Input @JvmOverloads constructor(
         }
 
         Type.Number -> ""
+        Type.Range -> ""
+        Type.Tel -> ""
+        Type.Url -> ""
+        Type.Color -> ""
+        Type.File -> ""
       }
     }
 
@@ -611,7 +792,36 @@ class Input @JvmOverloads constructor(
         radioInput.layout(l, t, r, b)
       }
 
-      Type.Number -> {}
+      Type.Number -> {
+        numberInput.measure(
+          MeasureSpec.makeMeasureSpec(
+            width, MeasureSpec.EXACTLY
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height, MeasureSpec.EXACTLY
+          )
+        )
+        numberInput.layout(l, t, r, b)
+      }
+
+      Type.Range -> {
+        rangeInput.layout(l, t, r, b)
+      }
+
+      Type.Tel -> {}
+      Type.Url -> {}
+      Type.Color -> {}
+      Type.File -> {
+        fileInput.measure(
+          MeasureSpec.makeMeasureSpec(
+            width, MeasureSpec.EXACTLY
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height, MeasureSpec.EXACTLY
+          )
+        )
+        fileInput.layout(l, t, r, b)
+      }
     }
   }
 
@@ -672,6 +882,99 @@ class Input @JvmOverloads constructor(
         size.height = fm.descent - fm.ascent
       }
     }
+
+    if (type == Type.Button){
+      size.width = min(size.width, 64 * resources.displayMetrics.density)
+      size.height = min(size.height, 32 * resources.displayMetrics.density)
+    }
     return size
+  }
+
+  override fun onTextStyleChanged(change: Int) {
+    val fontColor = change and TextStyleChangeMask.COLOR != 0
+    val fontSize = change and TextStyleChangeMask.FONT_SIZE != 0
+    val font =
+      change and TextStyleChangeMask.FONT_WEIGHT != 0 || change and TextStyleChangeMask.FONT_STYLE != 0 || change and TextStyleChangeMask.FONT_FAMILY != 0
+
+
+    val textAlign = change and TextStyleChangeMask.TEXT_ALIGN != 0
+
+    when (type) {
+      Type.Text, Type.Email, Type.Password, Type.Number -> {
+        if (fontSize) {
+          textInput.textSize = style.fontSize.toFloat()
+        }
+        if (fontColor) {
+          textInput.setTextColor(style.resolvedColor)
+        }
+
+        if (font) {
+          style.resolvedFontFace.font?.let {
+            textInput.typeface = it
+          }
+        }
+
+
+        val isLeftToRight =
+          TextUtilsCompat.getLayoutDirectionFromLocale(Locale.getDefault()) == LAYOUT_DIRECTION_LTR
+        if (textAlign) {
+          val align = style.resolvedTextAlign
+          if (align == TextAlign.Justify) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+              textInput.justificationMode =
+                android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+              //  textInput.justificationMode = 1
+            }
+          } else {
+            textInput.textAlignment = when (align) {
+              TextAlign.Auto -> View.TEXT_ALIGNMENT_GRAVITY
+              TextAlign.Left -> if (isLeftToRight) {
+                View.TEXT_ALIGNMENT_TEXT_START
+              } else {
+                View.TEXT_ALIGNMENT_TEXT_END
+              }
+
+              TextAlign.Right -> if (isLeftToRight) {
+                View.TEXT_ALIGNMENT_TEXT_END
+              } else {
+                View.TEXT_ALIGNMENT_TEXT_START
+              }
+
+              TextAlign.Center -> View.TEXT_ALIGNMENT_CENTER
+              TextAlign.Justify -> View.TEXT_ALIGNMENT_INHERIT
+              TextAlign.Start -> TEXT_ALIGNMENT_TEXT_START
+              TextAlign.End -> TEXT_ALIGNMENT_TEXT_END
+            }
+          }
+
+        }
+      }
+
+      Type.Button -> {
+        if (fontSize) {
+          buttonInput.textSize = style.fontSize.toFloat()
+        }
+        if (fontColor) {
+          buttonInput.setTextColor(style.resolvedColor)
+        }
+
+        if (font) {
+          style.resolvedFontFace.font?.let {
+            buttonInput.typeface = it
+          }
+        }
+      }
+
+      Type.Checkbox -> {}
+      Type.Date -> {}
+      Type.Radio -> {}
+
+      Type.Range -> {}
+      Type.Tel -> {}
+      Type.Url -> {}
+      Type.Color -> {}
+      Type.File -> {}
+    }
   }
 }

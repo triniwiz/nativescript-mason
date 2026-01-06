@@ -136,7 +136,7 @@ public class NSCMason: NSObject {
   }
   
   public func createBr() -> MasonBr {
-    return MasonBr(mason: self, data: "")
+    return MasonBr(mason: self)
   }
   
   public func createInput(_ type: MasonInputType = .Text) -> MasonInput {
@@ -158,6 +158,10 @@ public class NSCMason: NSObject {
   
   public func createImageNode() -> MasonNode {
     return MasonNode(masonImage: self)
+  }
+  
+  public func createLineBreakNode() -> MasonNode {
+    return MasonNode(masonLineBreak: self)
   }
   
   @objc static let scale = Float(UIScreen.main.scale)

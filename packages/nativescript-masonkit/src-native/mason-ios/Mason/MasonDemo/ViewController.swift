@@ -483,25 +483,27 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     root.append(text: "\n")
     
-    root.append(node: mason.createBr())
+    root.append(mason.createBr())
     
     let button = root.mason.createInput(.Button)
     button.value = "Button"
     
     root.append(button)
     
-    root.append(node: mason.createBr())
+    root.append(mason.createBr())
     
     let checkbox = root.mason.createInput(.Checkbox)
     root.append(checkbox)
     
     
-    root.append(node: mason.createBr())
+    root.append(mason.createBr())
     
     let password = root.mason.createInput(.Password)
     password.placeholder = "Enter Password..."
     
     root.append(password)
+    
+    root.append(mason.createBr())
     
     
     let email = root.mason.createInput(.Email)
@@ -510,15 +512,40 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     root.append(email)
     
     
-    
-    
-    root.append(node: mason.createBr())
-    
+    root.append(mason.createBr())
     
     
     let radio = root.mason.createInput(.Radio)
     root.append(radio)
+    
+    root.append(mason.createBr())
+    
+    let range = root.mason.createInput(.Range)
+    root.append(range)
   
+    root.append(mason.createBr())
+    
+    
+    let number = root.mason.createInput(.Number)
+    number.placeholder = "100"
+    root.append(number)
+     
+    root.append(mason.createBr())
+    
+    let color = root.mason.createInput(.Color)
+    root.append(color)
+     
+    root.append(mason.createBr())
+    
+    let file = root.mason.createInput(.File)
+    file.multiple = true
+    root.append(file)
+    
+    
+    root.append(mason.createBr())
+    
+    let date = root.mason.createInput(.Date)
+    root.append(date)
     
     self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
   }
@@ -569,7 +596,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     )
     
     let br = mason.createBr()
-    content.append(node: br)
+    content.append(br)
     
     content.append(
       text: "More content than we had before so this column is now quite tall."

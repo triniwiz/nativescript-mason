@@ -1095,9 +1095,7 @@ pub extern "system" fn NodeNativeSetSegments(
                             baseline: descent,
                         });
                     }
-                    2 => {
-                        child.push(InlineSegment::LineBreak)
-                    }
+                    2 => child.push(InlineSegment::LineBreak),
                     _ => {}
                 }
             }
@@ -1174,6 +1172,45 @@ pub extern "system" fn NodeNativeNewImageNodeWithContext(
         let mason = &mut *(taffy as *mut Mason);
 
         let node = mason.create_image_node();
+
+        mason.setup(node.id(), Some(measure));
+
+        Box::into_raw(Box::new(node)) as jlong
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewLineBreakNodeNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+        Box::into_raw(Box::new(mason.create_line_break_node())) as jlong
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewLineBreakNodeWithContext(
+    env: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    measure: JObject,
+) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    let measure = env.new_global_ref(measure).unwrap();
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+
+        let node = mason.create_line_break_node();
 
         mason.setup(node.id(), Some(measure));
 

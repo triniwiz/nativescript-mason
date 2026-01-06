@@ -49,6 +49,12 @@ public class NativeHelpers {
     boolean isAnonymous
   );
 
+
+  static native long nativeNodeNewLineBreak(long mason);
+
+  static native long nativeNodeNewLineBreakWithContext(long mason,
+                                                       Object context);
+
   @CriticalNative
   static native void nativeNodeDestroy(long mason);
 

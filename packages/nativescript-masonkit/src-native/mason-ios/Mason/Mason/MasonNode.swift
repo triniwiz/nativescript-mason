@@ -201,6 +201,16 @@ public class MasonNode: NSObject {
     super.init()
   }
   
+  
+  internal init(masonLineBreak doc: NSCMason) {
+    mason = doc
+    nativePtr = mason_node_new_line_break_node(mason.nativePtr)
+    type = .element
+    super.init()
+    mason_node_set_apple_node(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque())
+  }
+  
+  
   internal init(masonImage doc: NSCMason) {
     mason = doc
     nativePtr = mason_node_new_image_node(mason.nativePtr)

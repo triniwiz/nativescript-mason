@@ -1,4 +1,4 @@
-import { Property } from '@nativescript/core';
+import { booleanConverter, Property } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { InputType } from '..';
 
@@ -17,3 +17,17 @@ export const placeholderProperty = new Property<InputBase, string>({
 });
 
 placeholderProperty.register(InputBase);
+
+export const valueProperty = new Property<InputBase, string>({
+  name: 'value',
+});
+
+valueProperty.register(InputBase);
+
+export const multipleProperty = new Property<InputBase, boolean>({
+  name: 'multiple',
+  defaultValue: false,
+  valueConverter: booleanConverter,
+});
+
+multipleProperty.register(InputBase);

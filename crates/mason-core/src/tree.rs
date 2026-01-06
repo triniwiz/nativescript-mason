@@ -270,6 +270,18 @@ impl Tree {
         NodeRef { id, guard }
     }
 
+    pub fn create_line_break_node(&mut self) -> NodeRef {
+        let mut node = Node::new();
+        node.type_ = NodeType::LineBreak;
+        node.style.device_scale = Some(Arc::clone(&self.density));
+        let guard = node.guard.clone();
+        let id = self.nodes.insert(node);
+        self.parents.insert(id, None);
+        self.children.insert(id, Vec::new());
+        self.node_data.insert(id, NodeData::default());
+        NodeRef { id, guard }
+    }
+
     fn set_parent(&mut self, child: Id, parent: Option<Id>) -> bool {
         match self.parents.insert(child, parent) {
             Some(old_parent) => old_parent != parent,

@@ -346,6 +346,47 @@ pub extern "C" fn mason_node_new_text_node_with_children(
     }
 }
 
+
+#[no_mangle]
+pub extern "C" fn mason_node_new_line_break_node(
+    mason: *mut CMason,
+) -> *mut CMasonNode {
+    if mason.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    unsafe {
+        let mason = &mut (*mason).0;
+
+        let node_id = mason.create_line_break_node();
+
+        Box::into_raw(Box::new(CMasonNode(node_id)))
+    }
+}
+
+
+#[cfg(not(target_os = "android"))]
+#[no_mangle]
+pub extern "C" fn mason_node_new_line_break_node_with_context(
+    mason: *mut CMason,
+    measure_data: *mut c_void,
+    measure: Option<extern "C" fn(*const c_void, c_float, c_float, c_float, c_float) -> c_longlong>,
+) -> *mut CMasonNode {
+    if mason.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    unsafe {
+        let mason = &mut (*mason).0;
+
+        let node_id = mason.create_line_break_node();
+
+        mason.set_measure(node_id.id(), measure, measure_data);
+
+        Box::into_raw(Box::new(CMasonNode(node_id)))
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn mason_node_layout(
     mason: *mut CMason,

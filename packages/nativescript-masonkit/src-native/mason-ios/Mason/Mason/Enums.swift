@@ -2625,7 +2625,21 @@ public class MasonVerticalAlignValue: NSObject {
 
 
 @objc(MasonInputType)
-public enum MasonInputType: Int, RawRepresentable {
+public enum MasonInputType: Int, RawRepresentable, CustomStringConvertible {
+  public typealias RawValue = Int32
+  case Text
+  case Button
+  case Checkbox
+  case Email
+  case Password
+  case Date
+  case Radio
+  case Number
+  case Range
+  case Tel
+  case Url
+  case Color
+  case File
   public var description: String {
     switch(self){case .Text:
       return "text"
@@ -2643,7 +2657,16 @@ public enum MasonInputType: Int, RawRepresentable {
       return "radio"
     case .Number:
       return "number"
-      
+    case .Range:
+      return "range"
+    case .Tel:
+      return "tel"
+    case .Url:
+      return "url"
+    case .Color:
+      return "color"
+    case .File:
+      return "file"
     }
   }
   
@@ -2665,6 +2688,16 @@ public enum MasonInputType: Int, RawRepresentable {
       self = .Radio
     case 7:
       self = .Number
+    case 8:
+      self = .Range
+    case 9:
+      self = .Tel
+    case 10:
+      self = .Url
+    case 11:
+      self = .Color
+    case 12:
+      self = .File
     default:
       return nil
     }
@@ -2687,16 +2720,16 @@ public enum MasonInputType: Int, RawRepresentable {
       6
     case .Number:
       7
+    case .Range:
+      8
+    case .Tel:
+      9
+    case .Url:
+      10
+    case .Color:
+      11
+    case .File:
+      12
     }
   }
-  
-  public typealias RawValue = Int32
-  case Text
-  case Button
-  case Checkbox
-  case Email
-  case Password
-  case Date
-  case Radio
-  case Number
 }

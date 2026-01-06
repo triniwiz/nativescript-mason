@@ -230,14 +230,16 @@ public class TextEngine: NSObject {
     var maxWidth = CGFloat.greatestFiniteMagnitude
     var maxHeight = CGFloat.greatestFiniteMagnitude
     
+    // Check for explicit line breaks (from <br> tags)
+    let hasExplicitLineBreaks = text.string.contains("\n")
     
     var allowWrap = true
     if engine.node.style.isTextValueInitialized {
       let ws = engine.node.style.whiteSpace
-      // No wrap for pre / nowrap
-      if ws == .Pre || ws == .NoWrap { allowWrap = false }
-      // Explicit override
-      if engine.node.style.textWrap == .NoWrap { allowWrap = false }
+      // No wrap for pre / nowrap - but still allow if there are explicit line breaks
+      if (ws == .Pre || ws == .NoWrap) && !hasExplicitLineBreaks { allowWrap = false }
+      // Explicit override - but still allow if there are explicit line breaks
+      if engine.node.style.textWrap == .NoWrap && !hasExplicitLineBreaks { allowWrap = false }
     }
     
     
@@ -511,6 +513,8 @@ public class TextEngine: NSObject {
         for run in runs {
           let attrs = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] ?? [:]
           if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
+          // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
+          if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
           CTRunDraw(run, context, CFRange(location: 0, length: 0))
         }
         context.restoreGState()
@@ -523,6 +527,8 @@ public class TextEngine: NSObject {
     for run in runs {
       let attrs = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] ?? [:]
       if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
+      // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
+      if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
       if let ctFont = attrs[.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
         let font = ctFont as! CTFont
         let traits = CTFontCopyTraits(font) as? [CFString: Any]
@@ -661,6 +667,8 @@ public class TextEngine: NSObject {
             let run = unsafeBitCast(CFArrayGetValueAtIndex(runsCF, j), to: CTRun.self)
             guard let attributes = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else { continue }
             if attributes[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
+            // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
+            if attributes[NSAttributedString.Key("BrSpan")] != nil { continue }
             CTRunDraw(run, context, CFRange(location: 0, length: 0))
           }
           context.restoreGState()
@@ -690,6 +698,8 @@ public class TextEngine: NSObject {
         let run = unsafeBitCast(CFArrayGetValueAtIndex(runsCF, j), to: CTRun.self)
         guard let attributes = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else { continue }
         if attributes[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
+        // Skip BR spans - they cause line breaks but shouldn't render a visible glyph
+        if attributes[NSAttributedString.Key("BrSpan")] != nil { continue }
         if let ctFont = attributes[.font], CFGetTypeID(ctFont as CFTypeRef) == CTFontGetTypeID() {
           let font = ctFont as! CTFont
           let traits = CTFontCopyTraits(font) as? [CFString: Any]
@@ -788,14 +798,17 @@ public class TextEngine: NSObject {
     context.translateBy(x: 0, y: rect.height)
     context.scaleBy(x: 1.0, y: -1.0)
     
-    // Handle nowrap case
-    if style.textWrap == .NoWrap {
+    // Check if text contains explicit line breaks (from <br> tags)
+    let hasExplicitLineBreaks = text.string.contains("\n")
+    
+    // Handle nowrap case - but still respect explicit line breaks from <br>
+    if style.textWrap == .NoWrap && !hasExplicitLineBreaks {
       drawSingleLine(text: text, in: context, bounds: rect)
       context.restoreGState()
       drawState = .idle
       return
     }
-    // Multi-line text
+    // Multi-line text (or has explicit line breaks)
     drawMultiLine(text: text, in: context, bounds: rect)
     context.restoreGState()
     drawState = .idle
@@ -817,12 +830,15 @@ public class TextEngine: NSObject {
     defer { isBuilding = false }
     
     // build `composed` from child fragments using HTML-like whitespace collapsing
+    // Only collapse horizontal whitespace (spaces, tabs) - preserve line breaks
     let wsSet = CharacterSet.whitespacesAndNewlines
-    let collapseRegex = try? NSRegularExpression(pattern: "\\s+", options: [])
+    let horizontalWsSet = CharacterSet(charactersIn: " \t")
+    // Use [ \t]+ to only match horizontal whitespace, not newlines or line separators
+    let collapseRegex = try? NSRegularExpression(pattern: "[ \\t]+", options: [])
 
     func collapsedString(_ s: String) -> String {
       guard let rx = collapseRegex else { return s }
-      // replace runs of whitespace with single ASCII space
+      // replace runs of horizontal whitespace with single ASCII space
       let ns = s as NSString
       let r = rx.rangeOfFirstMatch(in: s, options: [], range: NSRange(location: 0, length: ns.length))
       if r.location == NSNotFound && !s.isEmpty { return s }
@@ -834,22 +850,19 @@ public class TextEngine: NSObject {
 
     for (_, child) in node.children.enumerated() {
       var fragment: NSAttributedString?
-      if child is MasonBr {
-               let brString = NSMutableAttributedString(string: "\n")
-              
-                let attrs = node.getDefaultAttributes()
-
-               brString.addAttribute(NSAttributedString.Key("BrSpan"), value: true, range: NSRange(location: 0, length: 1))
+      if child.view is MasonBr.FakeView {
+        // Use newline character for line break
+        let brString = NSMutableAttributedString(string: "\n")
         
-                brString.addAttributes(attrs, range:  NSRange(location: 0, length: 1))
+        let attrs = node.getDefaultAttributes()
         
-      
-               fragment = brString
-
-               // Since a line break ends any previous whitespace sequence
-               prevEndedWithWhitespace = true
-
+        brString.addAttribute(NSAttributedString.Key("BrSpan"), value: true, range: NSRange(location: 0, length: 1))
+        brString.addAttributes(attrs, range: NSRange(location: 0, length: 1))
         
+        fragment = brString
+        
+        // Since a line break ends any previous whitespace sequence
+        prevEndedWithWhitespace = true
         
       }else if let textNode = child as? MasonTextNode {
         fragment = textNode.attributed()

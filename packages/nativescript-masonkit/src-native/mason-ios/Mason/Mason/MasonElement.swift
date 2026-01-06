@@ -534,7 +534,7 @@ class MasonElementHelpers: NSObject {
   
   public static func applyToView(_ node: MasonNode , _ layout: MasonLayout){
     node.computedLayout = layout
-    if let view = node.view {
+    if let view = node.view, !(view is MasonBr.FakeView) {
       var isTextView = false
       var realLayout = layout
       var hasWidthConstraint: Bool = false

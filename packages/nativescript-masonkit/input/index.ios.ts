@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { InputBase } from './common';
+import { InputBase, multipleProperty, valueProperty } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { placeholderProperty, typeProperty } from './common';
@@ -30,6 +30,16 @@ export class Input extends InputBase {
         return MasonInputType.Radio;
       case 'number':
         return MasonInputType.Number;
+      case 'range':
+        return MasonInputType.Range;
+      case 'tel':
+        return MasonInputType.Tel;
+      case 'url':
+        return MasonInputType.Url;
+      case 'color':
+        return MasonInputType.Color;
+      case 'file':
+        return MasonInputType.File;
     }
     return MasonInputType.Text;
   }
@@ -37,6 +47,20 @@ export class Input extends InputBase {
   constructor() {
     super();
     this[isMasonView_] = true;
+  }
+
+  [multipleProperty.setNative](value) {
+    this._type = value;
+    if (this._view) {
+      this._view.multiple = value;
+    }
+  }
+
+  [valueProperty.setNative](value) {
+    this._type = value;
+    if (this._view) {
+      this._view.value = value;
+    }
   }
 
   [typeProperty.setNative](value: InputType) {

@@ -901,7 +901,7 @@ class TextEngine(val container: TextContainer) {
 
     for (child in node.children) {
       when {
-        child is Br -> {
+        child.view is Br.FakeView -> {
           composed.append(createBRholder())
         }
 

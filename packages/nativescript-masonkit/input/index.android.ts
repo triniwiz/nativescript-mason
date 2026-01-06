@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { InputBase } from './common';
+import { InputBase, multipleProperty, valueProperty } from './common';
 import { Tree } from '../tree';
 import { Style } from '../style';
 import { style_, isMasonView_, native_ } from '../symbols';
@@ -35,8 +35,38 @@ export class Input extends InputBase {
         return org.nativescript.mason.masonkit.Input.Type.Radio;
       case 'number':
         return org.nativescript.mason.masonkit.Input.Type.Number;
+      case 'range':
+        //@ts-ignore
+        return org.nativescript.mason.masonkit.Input.Type.Range;
+      case 'tel':
+        //@ts-ignore
+        return org.nativescript.mason.masonkit.Input.Type.Tel;
+      case 'url':
+        //@ts-ignore
+        return org.nativescript.mason.masonkit.Input.Type.Url;
+      case 'color':
+        //@ts-ignore
+        return org.nativescript.mason.masonkit.Input.Type.Color;
+      case 'file':
+        //@ts-ignore
+        return org.nativescript.mason.masonkit.Input.Type.File;
     }
     return org.nativescript.mason.masonkit.Input.Type.Text;
+  }
+
+  [multipleProperty.setNative](value) {
+    this._type = value;
+    if (this._view) {
+      //@ts-ignore
+      this._view.setMultiple(value);
+    }
+  }
+
+  [valueProperty.setNative](value) {
+    this._type = value;
+    if (this._view) {
+      this._view.setValue(value);
+    }
   }
 
   [typeProperty.setNative](value: InputType) {

@@ -12,15 +12,15 @@ let WHITE_COLOR = UInt32(bitPattern:-1)
 
 extension UInt32 {
   internal func rgbaToHexCSS() -> String {
-      let color = self
-      let a = (color >> 24) & 0xFF
-      let r = (color >> 16) & 0xFF
-      let g = (color >> 8) & 0xFF
-      let b = color & 0xFF
-      if(a == 255){
-        return String(format: "#%02X%02X%02X", r, g, b)
-      }
-      return String(format: "#%02X%02X%02X%02X", r, g, b, a)
+    let color = self
+    let a = (color >> 24) & 0xFF
+    let r = (color >> 16) & 0xFF
+    let g = (color >> 8) & 0xFF
+    let b = color & 0xFF
+    if(a == 255){
+      return String(format: "#%02X%02X%02X", r, g, b)
+    }
+    return String(format: "#%02X%02X%02X%02X", r, g, b, a)
   }
 }
 
@@ -75,63 +75,63 @@ extension UIColor {
   
   
   func adjustedAlpha(_ multiplier: CGFloat) -> UIColor {
-       var r: CGFloat = 0
-       var g: CGFloat = 0
-       var b: CGFloat = 0
-       var a: CGFloat = 0
-
-       guard getRed(&r, green: &g, blue: &b, alpha: &a) else {
-           return self
-       }
-
-       return UIColor(
-           red: r,
-           green: g,
-           blue: b,
-           alpha: min(a * multiplier, 1.0)
-       )
-   }
+    var r: CGFloat = 0
+    var g: CGFloat = 0
+    var b: CGFloat = 0
+    var a: CGFloat = 0
+    
+    guard getRed(&r, green: &g, blue: &b, alpha: &a) else {
+      return self
+    }
+    
+    return UIColor(
+      red: r,
+      green: g,
+      blue: b,
+      alpha: min(a * multiplier, 1.0)
+    )
+  }
   
   
   func lighter(by amount: CGFloat = 0.25) -> UIColor {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        getRed(&r, green: &g, blue: &b, alpha: &a)
-        return UIColor(red: min(r + amount, 1),
-                       green: min(g + amount, 1),
-                       blue: min(b + amount, 1),
-                       alpha: a)
-    }
-
-    func darker(by amount: CGFloat = 0.25) -> UIColor {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        getRed(&r, green: &g, blue: &b, alpha: &a)
-        return UIColor(red: max(r - amount, 0),
-                       green: max(g - amount, 0),
-                       blue: max(b - amount, 0),
-                       alpha: a)
-    }
+    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+    getRed(&r, green: &g, blue: &b, alpha: &a)
+    return UIColor(red: min(r + amount, 1),
+                   green: min(g + amount, 1),
+                   blue: min(b + amount, 1),
+                   alpha: a)
+  }
+  
+  func darker(by amount: CGFloat = 0.25) -> UIColor {
+    var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+    getRed(&r, green: &g, blue: &b, alpha: &a)
+    return UIColor(red: max(r - amount, 0),
+                   green: max(g - amount, 0),
+                   blue: max(b - amount, 0),
+                   alpha: a)
+  }
   
 }
 
 
 extension UIFont {
-    /// Returns true if the font is italic or oblique
-    var isItalicOrOblique: Bool {
-        // Check symbolic traits
-        if fontDescriptor.symbolicTraits.contains(.traitItalic) {
-            return true
-        }
-
-        // As a fallback, check Core Text traits
-        let ctFont = CTFontCreateWithName(self.fontName as CFString, self.pointSize, nil)
-        let traitsDict = CTFontCopyTraits(ctFont) as? [CFString: Any]
-        if let symbolicTraitsValue = traitsDict?[kCTFontSymbolicTrait] as? UInt32 {
-          let symbolicTraits = CTFontSymbolicTraits(rawValue: symbolicTraitsValue)
-            return symbolicTraits.contains(.traitItalic)
-        }
-
-        return false
+  /// Returns true if the font is italic or oblique
+  var isItalicOrOblique: Bool {
+    // Check symbolic traits
+    if fontDescriptor.symbolicTraits.contains(.traitItalic) {
+      return true
     }
+    
+    // As a fallback, check Core Text traits
+    let ctFont = CTFontCreateWithName(self.fontName as CFString, self.pointSize, nil)
+    let traitsDict = CTFontCopyTraits(ctFont) as? [CFString: Any]
+    if let symbolicTraitsValue = traitsDict?[kCTFontSymbolicTrait] as? UInt32 {
+      let symbolicTraits = CTFontSymbolicTraits(rawValue: symbolicTraitsValue)
+      return symbolicTraits.contains(.traitItalic)
+    }
+    
+    return false
+  }
 }
 
 let attachmentKey = NSAttributedString.Key(Constants.VIEW_PLACEHOLDER)
@@ -149,51 +149,149 @@ extension NSAttributedString {
 }
 
 public extension UIImage {
+  
+  static func triangle(
+    direction: Direction,
+    color: UIColor,
+    size: CGSize = CGSize(width: 8, height: 5),
+    scale: CGFloat = UIScreen.main.scale
+  ) -> UIImage {
+    let renderer = UIGraphicsImageRenderer(size: size, format: {
+      let f = UIGraphicsImageRendererFormat()
+      f.scale = scale
+      f.opaque = false
+      return f
+    }())
+    
+    return renderer.image { ctx in
+      ctx.cgContext.setFillColor(color.cgColor)
+      
+      let path = UIBezierPath()
+      switch direction {
+      case .up:
+        path.move(to: CGPoint(x: size.width / 2, y: 0))
+        path.addLine(to: CGPoint(x: size.width, y: size.height))
+        path.addLine(to: CGPoint(x: 0, y: size.height))
+      case .down:
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: size.width, y: 0))
+        path.addLine(to: CGPoint(x: size.width / 2, y: size.height))
+      }
+      path.close()
+      path.fill()
+    }
+  }
+  
+  enum Direction {
+    case up, down
+  }
+  
+  enum ChevronDirection {
+    case up, down, left, right
+  }
+  
+  static func chevron(
+          direction: ChevronDirection,
+          color: UIColor,
+          size: CGSize = CGSize(width: 16, height: 6),
+          lineWidth: CGFloat = 1.5,
+          scale: CGFloat = UIScreen.main.scale
+      ) -> UIImage {
+
+          let format = UIGraphicsImageRendererFormat()
+          format.scale = scale
+          format.opaque = false
+
+          let renderer = UIGraphicsImageRenderer(size: size, format: format)
+
+          return renderer.image { ctx in
+              let cg = ctx.cgContext
+              cg.setStrokeColor(color.cgColor)
+              cg.setLineWidth(lineWidth)
+              cg.setLineCap(.round)
+              cg.setLineJoin(.round)
+
+              let midX = size.width / 2
+              let midY = size.height / 2
+
+              let path = UIBezierPath()
+
+              switch direction {
+              case .up:
+                  path.move(to: CGPoint(x: 0, y: size.height))
+                  path.addLine(to: CGPoint(x: midX, y: 0))
+                  path.move(to: CGPoint(x: midX, y: 0))
+                  path.addLine(to: CGPoint(x: size.width, y: size.height))
+
+              case .down:
+                  path.move(to: CGPoint(x: 0, y: 0))
+                  path.addLine(to: CGPoint(x: midX, y: size.height))
+                  path.move(to: CGPoint(x: midX, y: size.height))
+                  path.addLine(to: CGPoint(x: size.width, y: 0))
+
+              case .left:
+                  path.move(to: CGPoint(x: size.width, y: 0))
+                  path.addLine(to: CGPoint(x: 0, y: midY))
+                  path.move(to: CGPoint(x: 0, y: midY))
+                  path.addLine(to: CGPoint(x: size.width, y: size.height))
+
+              case .right:
+                  path.move(to: CGPoint(x: 0, y: 0))
+                  path.addLine(to: CGPoint(x: size.width, y: midY))
+                  path.move(to: CGPoint(x: size.width, y: midY))
+                  path.addLine(to: CGPoint(x: 0, y: size.height))
+              }
+            
+              path.stroke()
+          }
+      }
+  
+  
   func mason_resize(to size: CGSize) -> UIImage? {
-      guard let cgImage = self.cgImage else { return nil }
-
-      let width = Int(size.width)
-      let height = Int(size.height)
-
-      guard let colorSpace = cgImage.colorSpace,
-            let context = CGContext(
-              data: nil,
-              width: width,
-              height: height,
-              bitsPerComponent: cgImage.bitsPerComponent,
-              bytesPerRow: 0,
-              space: colorSpace,
-              bitmapInfo: cgImage.bitmapInfo.rawValue
-            ) else { return nil }
-
-      context.interpolationQuality = .high  // use .none for fastest
-      context.draw(cgImage, in: CGRect(origin: .zero, size: size))
-
-      guard let scaledImage = context.makeImage() else { return nil }
-      return UIImage(cgImage: scaledImage)
+    guard let cgImage = self.cgImage else { return nil }
+    
+    let width = Int(size.width)
+    let height = Int(size.height)
+    
+    guard let colorSpace = cgImage.colorSpace,
+          let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: cgImage.bitsPerComponent,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: cgImage.bitmapInfo.rawValue
+          ) else { return nil }
+    
+    context.interpolationQuality = .high  // use .none for fastest
+    context.draw(cgImage, in: CGRect(origin: .zero, size: size))
+    
+    guard let scaledImage = context.makeImage() else { return nil }
+    return UIImage(cgImage: scaledImage)
   }
 }
 
 
 
 func markNodeDirty<T: MasonElement>(_ element: T) {
-    element.markNodeDirty()
+  element.markNodeDirty()
 }
 
 func isNodeDirty<T: MasonElement>(_ element: T) -> Bool {
-    element.isNodeDirty()
+  element.isNodeDirty()
 }
 
 func configure<T: MasonElement>(_ element: T, _ block: (MasonStyle) -> Void) {
-    element.configure(block)
+  element.configure(block)
 }
 
 func layout<T: MasonElement>(_ element: T) -> MasonLayout {
-   element.layout()
+  element.layout()
 }
 
 func compute<T: MasonElement>(_ element: T) {
-    element.compute()
+  element.compute()
 }
 
 func compute<T: MasonElement>(_ element: T, width: Float, height: Float) {
@@ -201,11 +299,11 @@ func compute<T: MasonElement>(_ element: T, width: Float, height: Float) {
 }
 
 func computeMinContent<T: MasonElement>(_ element: T) {
-    element.computeMinContent()
+  element.computeMinContent()
 }
 
 func computeMaxContent<T: MasonElement>(_ element: T) {
-    element.computeMaxContent()
+  element.computeMaxContent()
 }
 
 func computeWidthSize<T: MasonElement>(_ element: T, width: Float, height: Float) {
@@ -213,105 +311,105 @@ func computeWidthSize<T: MasonElement>(_ element: T, width: Float, height: Float
 }
 
 func computeWithViewSize<T: MasonElement>(_ element: T) {
-    element.computeWithViewSize()
+  element.computeWithViewSize()
 }
 
 func computeWithViewSize<T: MasonElement>(_ element: T, layout: Bool) {
-    element.computeWithViewSize(layout: layout)
+  element.computeWithViewSize(layout: layout)
 }
 
 func computeWithMinContent<T: MasonElement>(_ element: T) {
-    element.computeWithMinContent()
+  element.computeWithMinContent()
 }
 
 func computeWithMaxContent<T: MasonElement>(_ element: T) {
-    element.computeWithMaxContent()
+  element.computeWithMaxContent()
 }
 
 func attachAndApply<T: MasonElement>(_ element: T) {
-    element.attachAndApply()
+  element.attachAndApply()
 }
 
 func requestLayout<T: MasonElement>(_ element: T) {
-    element.requestLayout()
+  element.requestLayout()
 }
 
 func append<T: MasonElement>(_ element: T, _ child: T) {
-    element.append(child)
+  element.append(child)
 }
 
 func append<T: MasonElement>(_ element: T, text: String) {
-    element.append(text: text)
+  element.append(text: text)
 }
 
 func append<T: MasonElement>(_ element: T, node: MasonNode) {
-    element.append(node: node)
+  element.append(node: node)
 }
 
 func append<T: MasonElement>(_ element: T, _ elements: [T]) {
-    element.append(elements: elements)
+  element.append(elements: elements)
 }
 
 func append<T: MasonElement>(_ element: T, texts: [String]) {
-    element.append(texts: texts)
+  element.append(texts: texts)
 }
 
 func append<T: MasonElement>(_ element: T, nodes: [MasonNode]) {
-    element.append(nodes: nodes)
+  element.append(nodes: nodes)
 }
 
 func prepend<T: MasonElement>(_ element: T, _ child: T) {
-    element.prepend(child)
+  element.prepend(child)
 }
 
 func prepend<T: MasonElement>(_ element: T, text: String) {
-    element.prepend(string: text)
+  element.prepend(string: text)
 }
 
 func prepend<T: MasonElement>(_ element: T, node: MasonNode) {
-    element.prepend(node: node)
+  element.prepend(node: node)
 }
 
 func prepend<T: MasonElement>(_ element: T, _ elements: [T]) {
-    element.prepend(elements: elements)
+  element.prepend(elements: elements)
 }
 
 func prepend<T: MasonElement>(_ element: T, texts: [String]) {
-    element.prepend(strings: texts)
+  element.prepend(strings: texts)
 }
 
 func prepend<T: MasonElement>(_ element: T, nodes: [MasonNode]) {
-    element.prepend(nodes: nodes)
+  element.prepend(nodes: nodes)
 }
 
 
 func addChildAt<T: MasonElement>(_ element: T, text: String, index: Int) {
-    element.addChildAt(text: text, index)
+  element.addChildAt(text: text, index)
 }
 
 func addChildAt<T: MasonElement>(_ element: T, child: MasonElement, index: Int) {
-    element.addChildAt(element: child, index)
+  element.addChildAt(element: child, index)
 }
 
 func addChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
-    element.addChildAt(node: node, index)
+  element.addChildAt(node: node, index)
 }
 
 
 func replaceChildAt<T: MasonElement>(_ element: T, text: String, index: Int) {
-    element.replaceChildAt(text: text, index)
+  element.replaceChildAt(text: text, index)
 }
 
 func replaceChildAt<T: MasonElement>(_ element: T, child: MasonElement, index: Int) {
-    element.replaceChildAt(element: child, index)
+  element.replaceChildAt(element: child, index)
 }
 
 func replaceChildAt<T: MasonElement>(_ element: T, node: MasonNode, index: Int) {
-    element.replaceChildAt(node: node, index)
+  element.replaceChildAt(node: node, index)
 }
 
 func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: String) {
-    element.syncStyle(state, textState)
+  element.syncStyle(state, textState)
 }
 
 
@@ -339,7 +437,7 @@ func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: Strin
     if(view.superview == element.uiView){
       return
     }
-
+    
     if(view is MasonElement){
       element.node.addChildAt((view as! MasonElement).node, at)
     }else {
@@ -353,12 +451,12 @@ func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: Strin
     markNodeDirty(element)
   }
   
- @objc public func mason_isNodeDirty() -> Bool {
+  @objc public func mason_isNodeDirty() -> Bool {
     guard let element = self as? MasonElement else { return false }
     return isNodeDirty(element)
   }
   
- @objc public func mason_configure(_ block: (MasonStyle) -> Void) {
+  @objc public func mason_configure(_ block: (MasonStyle) -> Void) {
     guard let element = self as? MasonElement else { return }
     configure(element, block)
   }
@@ -368,142 +466,142 @@ func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: Strin
     return layout(element)
   }
   
- @objc public func mason_compute(){
+  @objc public func mason_compute(){
     guard let element = self as? MasonElement else { return }
     compute(element)
   }
   
- @objc public func mason_compute(width: Float, height: Float){
+  @objc public func mason_compute(width: Float, height: Float){
     guard let element = self as? MasonElement else { return }
     compute(element, width: width, height: height)
   }
   
- @objc public func mason_computeMaxContent() {
+  @objc public func mason_computeMaxContent() {
     guard let element = self as? MasonElement else { return }
     computeMaxContent(element)
   }
   
- @objc public func mason_computeMinContent() {
+  @objc public func mason_computeMinContent() {
     guard let element = self as? MasonElement else { return }
     computeMinContent(element)
   }
   
- @objc public func mason_computeWithSize(_ width: Float, _ height: Float){
+  @objc public func mason_computeWithSize(_ width: Float, _ height: Float){
     guard let element = self as? MasonElement else { return }
     computeWidthSize(element, width: width, height: height)
   }
   
- @objc public func mason_computeWithViewSize() {
+  @objc public func mason_computeWithViewSize() {
     guard let element = self as? MasonElement else { return }
     computeWithViewSize(element)
   }
   
- @objc public func mason_computeWithViewSize(layout: Bool) {
+  @objc public func mason_computeWithViewSize(layout: Bool) {
     guard let element = self as? MasonElement else { return }
     computeWithViewSize(element, layout: layout)
   }
   
- @objc public func mason_computeWithMaxContent(){
+  @objc public func mason_computeWithMaxContent(){
     guard let element = self as? MasonElement else { return }
     computeWithMaxContent(element)
   }
   
- @objc public func mason_computeWithMinContent(){
+  @objc public func mason_computeWithMinContent(){
     guard let element = self as? MasonElement else { return }
     computeWithMinContent(element)
   }
   
- @objc public func mason_attachAndApply(){
+  @objc public func mason_attachAndApply(){
     guard let element = self as? MasonElement else { return }
     attachAndApply(element)
   }
   
- @objc public func mason_requestLayout(){
+  @objc public func mason_requestLayout(){
     guard let element = self as? MasonElement else { return }
     requestLayout(element)
   }
   
- @objc public func mason_invalidateLayout(){
+  @objc public func mason_invalidateLayout(){
     guard let element = self as? MasonElement else { return }
     requestLayout(element)
   }
   
- @objc public func mason_append(_ element: MasonElementObjc){
+  @objc public func mason_append(_ element: MasonElementObjc){
     guard let parent = self as? MasonElement else { return }
     guard let element = element as? MasonElement else { return }
     parent.append(element)
   }
   
- @objc public func mason_append(text: String){
+  @objc public func mason_append(text: String){
     guard let element = self as? MasonElement else { return }
     append(element, text: text)
   }
   
- @objc public func mason_append(node: MasonNode){
+  @objc public func mason_append(node: MasonNode){
     guard let element = self as? MasonElement else { return }
     append(element, node: node)
   }
   
- @objc public func mason_append(texts: [String]){
+  @objc public func mason_append(texts: [String]){
     guard let parent = self as? MasonElement else { return }
     append(parent, texts: texts)
   }
   
- @objc public func mason_append(elements: [MasonElementObjc]){
+  @objc public func mason_append(elements: [MasonElementObjc]){
     guard let parent = self as? MasonElement else { return }
-   guard let elements = elements as? [MasonElement] else { return }
+    guard let elements = elements as? [MasonElement] else { return }
     parent.append(elements: elements)
   }
   
- @objc public func mason_append(nodes: [MasonNode]){
+  @objc public func mason_append(nodes: [MasonNode]){
     guard let parent = self as? MasonElement else { return }
     append(parent, nodes: nodes)
   }
   
- @objc public func mason_prepend(_ element: MasonElementObjc){
+  @objc public func mason_prepend(_ element: MasonElementObjc){
     guard let parent = self as? MasonElement else { return }
     guard let element = element as? MasonElement else { return }
     parent.prepend(element)
   }
   
- @objc public func mason_prepend(text: String){
+  @objc public func mason_prepend(text: String){
     guard let parent = self as? MasonElement else { return }
     prepend(parent, text: text)
   }
   
- @objc public func mason_prepend(node: MasonNode){
+  @objc public func mason_prepend(node: MasonNode){
     guard let parent = self as? MasonElement else { return }
     prepend(parent, node: node)
   }
   
- @objc public func mason_prepend(texts: [String]){
+  @objc public func mason_prepend(texts: [String]){
     guard let parent = self as? MasonElement else { return }
     prepend(parent, texts: texts)
   }
   
- @objc public func mason_prepend(elements: [MasonElementObjc]){
+  @objc public func mason_prepend(elements: [MasonElementObjc]){
     guard let parent = self as? MasonElement else { return }
-   guard let elements = elements as? [MasonElement] else { return }
-   parent.prepend(elements: elements)
+    guard let elements = elements as? [MasonElement] else { return }
+    parent.prepend(elements: elements)
   }
   
- @objc public func mason_prepend(nodes: [MasonNode]){
+  @objc public func mason_prepend(nodes: [MasonNode]){
     guard let parent = self as? MasonElement else { return }
     prepend(parent, nodes: nodes)
   }
   
- @objc public func mason_addChildAt(text: String, _ index: Int){
+  @objc public func mason_addChildAt(text: String, _ index: Int){
     guard let parent = self as? MasonElement else { return }
     addChildAt(parent, text: text, index: index)
   }
-
- @objc public func mason_addChildAt(element: MasonElementObjc, _ index: Int){
+  
+  @objc public func mason_addChildAt(element: MasonElementObjc, _ index: Int){
     guard let parent = self as? MasonElement else { return }
     guard let element = element as? MasonElement else { return }
     parent.addChildAt(element: element, index)
   }
-
- @objc public func mason_addChildAt(node: MasonNode, _ index: Int){
+  
+  @objc public func mason_addChildAt(node: MasonNode, _ index: Int){
     guard let parent = self as? MasonElement else { return }
     addChildAt(parent, node: node, index: index)
   }
@@ -511,18 +609,18 @@ func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: Strin
   
   
   @objc public func mason_replaceChildAt(text: String, _ index: Int){
-     guard let parent = self as? MasonElement else { return }
-     replaceChildAt(parent, text: text, index: index)
-   }
-
+    guard let parent = self as? MasonElement else { return }
+    replaceChildAt(parent, text: text, index: index)
+  }
+  
   @objc public func mason_replaceChildAt(element: MasonElementObjc, _ index: Int){
-     guard let parent = self as? MasonElement else { return }
-     guard let element = element as? MasonElement else { return }
-     parent.replaceChildAt(element: element, index)
-   }
-
+    guard let parent = self as? MasonElement else { return }
+    guard let element = element as? MasonElement else { return }
+    parent.replaceChildAt(element: element, index)
+  }
+  
   @objc public func mason_replaceChildAt(node: MasonNode, _ index: Int){
-     guard let parent = self as? MasonElement else { return }
-     replaceChildAt(parent, node: node, index: index)
-   }
+    guard let parent = self as? MasonElement else { return }
+    replaceChildAt(parent, node: node, index: index)
+  }
 }

@@ -1,5 +1,6 @@
 package org.nativescript.mason.masonkit
 
+import android.util.Log
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
@@ -330,6 +331,10 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
   node.computedLayout = layout
 
   if (node.type != NodeType.Element) {
+    return
+  }
+
+  if (node.view is Br.FakeView) {
     return
   }
 
