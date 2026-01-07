@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:orientation="vertical"
+  android:layout_width="match_parent"
+  android:layout_height="wrap_content"
+  android:padding="16dp"
+  android:background="#FFFFFF">
+
+  <!-- Large color area (placeholder - real gradient rendering can be added later) -->
+  <FrameLayout
+    android:layout_width="match_parent"
+    android:layout_height="200dp"
+    android:background="#EEEEEE"
+    android:id="@+id/color_area">
+  </FrameLayout>
+
+  <!-- Controls row: eyedropper, preview, hue slider -->
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:orientation="horizontal"
+    android:layout_marginTop="12dp"
+    android:gravity="center_vertical">
+
+  <ImageView
+    android:id="@+id/eyedropper"
+    android:layout_width="32dp"
+    android:layout_height="32dp"
+    android:src="@drawable/ic_eyedropper"
+    android:contentDescription="eyedropper"
+    android:tint="#000000"
+    android:layout_marginEnd="8dp" />
+
+  <View
+    android:id="@+id/preview_color"
+    android:layout_width="36dp"
+    android:layout_height="36dp"
+    android:background="@drawable/preview_circle"
+    android:layout_marginEnd="12dp" />
+
+  <SeekBar
+    android:id="@+id/seek_hue"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:splitTrack="false"
+    android:max="360"
+    android:thumb="@drawable/seekbar_thumb_color_picker"
+    />
+  </LinearLayout>
+
+  <!-- H S L boxes -->
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layout_marginTop="16dp"
+    android:weightSum="3">
+
+  <EditText
+    android:id="@+id/h_value"
+    android:layout_weight="1"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:text="0"
+    android:gravity="center"
+    android:background="@drawable/box_gray"
+    android:textColor="#000000"
+    android:inputType="number"
+    android:focusable="true"
+    android:singleLine="true" />
+
+  <EditText
+    android:id="@+id/s_value"
+    android:layout_weight="1"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:text="100"
+    android:gravity="center"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
+    android:background="@drawable/box_gray"
+    android:textColor="#000000"
+    android:inputType="number"
+    android:focusable="true"
+    android:singleLine="true" />
+
+  <EditText
+    android:id="@+id/l_value"
+    android:layout_weight="1"
+    android:layout_width="0dp"
+    android:layout_height="48dp"
+    android:text="50"
+    android:gravity="center"
+    android:background="@drawable/box_gray"
+    android:textColor="#000000"
+    android:inputType="number"
+    android:focusable="true"
+    android:singleLine="true" />
+  </LinearLayout>
+
+  <!-- Single HEX display (hidden by default) -->
+  <EditText
+    android:id="@+id/hex_value"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:layout_marginTop="8dp"
+    android:gravity="center"
+    android:background="@drawable/box_gray"
+    android:text="#FF0000"
+    android:visibility="gone"
+    android:textColor="#000000"
+    android:inputType="text"
+    android:singleLine="true"
+    android:imeOptions="actionDone" />
+
+  <!-- removed extra label row (not required) -->
+
+  <!-- Output switcher (RGB / HSL / HEX) -->
+  <LinearLayout
+    android:id="@+id/output_switcher"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:orientation="horizontal"
+    android:layout_marginTop="12dp"
+    android:background="@drawable/output_switcher_bg"
+    android:gravity="center_vertical"
+    android:paddingLeft="6dp"
+    android:paddingRight="6dp">
+
+    <TextView
+      android:id="@+id/out_a"
+      android:layout_width="0dp"
+      android:layout_weight="1"
+      android:layout_height="wrap_content"
+      android:gravity="center"
+      android:text="H"
+      android:textSize="12sp"
+      android:textColor="#000000" />
+
+    <TextView
+      android:id="@+id/out_b"
+      android:layout_width="0dp"
+      android:layout_weight="1"
+      android:layout_height="wrap_content"
+      android:gravity="center"
+      android:text="S"
+      android:textSize="12sp"
+      android:textColor="#000000" />
+
+    <TextView
+      android:id="@+id/out_c"
+      android:layout_width="0dp"
+      android:layout_weight="1"
+      android:layout_height="wrap_content"
+      android:gravity="center"
+      android:text="L"
+      android:textSize="12sp"
+      android:textColor="#000000" />
+
+    <LinearLayout
+      android:layout_width="36dp"
+      android:layout_height="36dp"
+      android:orientation="vertical"
+      android:layout_marginEnd="4dp"
+      android:layout_marginStart="4dp"
+      android:gravity="center">
+
+      <ImageView
+        android:id="@+id/out_mode_up"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:src="@drawable/ic_stepper_up"
+        android:tint="#000000" />
+
+      <ImageView
+        android:id="@+id/out_mode_down"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:src="@drawable/ic_stepper_down"
+        android:tint="#000000" />
+
+    </LinearLayout>
+  </LinearLayout>
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="end"
+    android:layout_marginTop="12dp">
+
+    <Button
+      android:id="@+id/btn_cancel"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Cancel" />
+
+    <Button
+      android:id="@+id/btn_ok"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginStart="8dp"
+      android:text="OK" />
+
+  </LinearLayout>
+
+</LinearLayout>

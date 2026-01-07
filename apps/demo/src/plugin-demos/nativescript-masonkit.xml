@@ -147,7 +147,7 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
   </ui:View>
 </ui:View>
 
-<ui:Input placeholder="Type here..." />
+<!-- <ui:Input placeholder="Type here..." /> -->
 
 </ui:View>
 

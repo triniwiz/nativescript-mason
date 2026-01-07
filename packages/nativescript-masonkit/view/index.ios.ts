@@ -2,7 +2,7 @@ import { CSSType, Utils } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { Style } from '../style';
 import { Tree } from '../tree';
-import { isMasonView_, native_, style_ } from '../symbols';
+import { isMasonView_, isPlaceholder_, native_, style_ } from '../symbols';
 
 @CSSType('View')
 export class View extends ViewBase {
@@ -128,11 +128,16 @@ export class View extends ViewBase {
   // @ts-ignore
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view;
-    if (nativeView && child.nativeViewProtected) {
+    if (nativeView && (child.nativeViewProtected || child.ios)) {
       child._hasNativeView = true;
       child._isMasonChild = true;
       const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
-      nativeView.addViewAt(child.nativeViewProtected, index);
+      if (child[isPlaceholder_]) {
+        // @ts-ignore
+        nativeView.mason_addChildAtElement(child.ios, index);
+      } else {
+        nativeView.addViewAt(child.nativeViewProtected, index);
+      }
       return true;
     }
 

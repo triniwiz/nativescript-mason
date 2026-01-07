@@ -98,7 +98,7 @@ export class Tree {
 
   createBr(context) {
     //@ts-ignore
-    return this.native.createBr();
+    return this.native.createBr(context);
   }
 
   createInputView(context?, type?: InputType) {
@@ -112,15 +112,22 @@ export class Tree {
       case 'email':
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Email);
       case 'tel':
+        //@ts-ignore
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Tel);
       case 'url':
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Email);
       case 'search':
+        return this.native.createInput(context);
       case 'date':
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Date);
       case 'time':
       case 'datetime-local':
       case 'month':
       case 'week':
+        return this.native.createInput(context);
       case 'color':
+        //@ts-ignore
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Color);
       case 'checkbox':
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Checkbox);
       case 'radio':
@@ -129,7 +136,10 @@ export class Tree {
         return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.Button);
       case 'submit':
       case 'reset':
+        return this.native.createInput(context);
       case 'file':
+        //@ts-ignore
+        return this.native.createInput(context, org.nativescript.mason.masonkit.Input.Type.File);
       default:
         return this.native.createInput(context);
     }

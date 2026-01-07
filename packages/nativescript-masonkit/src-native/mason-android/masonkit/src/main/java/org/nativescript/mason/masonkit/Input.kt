@@ -3,9 +3,13 @@ package org.nativescript.mason.masonkit
 import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.StateListDrawable
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
@@ -25,6 +29,8 @@ import android.widget.RadioButton
 import android.widget.SeekBar
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.core.text.TextUtilsCompat
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
@@ -62,14 +68,32 @@ class Input @JvmOverloads constructor(
     }
 
     private val fields = mutableListOf<EditText>()
-    private val showButton = android.widget.Button(context).apply {
-      setBackgroundResource(android.R.drawable.ic_menu_my_calendar)
+    private val showButton = android.widget.ImageButton(context).apply {
+      background = null
+      // scaleType = ImageView.ScaleType.CENTER_INSIDE
+      setImageResource(R.drawable.ic_calendar_web)
+      val size = (20 * resources.displayMetrics.density).toInt()
+      minimumWidth = size
+      minimumHeight = size
     }
 
+    private fun createSeparator(): android.widget.TextView {
+      return android.widget.TextView(context).apply {
+        text = "/"
+        scaleY = 2f
+        gravity = android.view.Gravity.CENTER
+        setPadding(
+          (2 * resources.displayMetrics.density).toInt(),
+          0,
+          (2 * resources.displayMetrics.density).toInt(),
+          0
+        )
+      }
+    }
 
     init {
       // Add fields to layout in correct order
-      order.forEach {
+      order.forEachIndexed { index, it ->
         when (it) {
           "Y" -> {
             addView(
@@ -97,6 +121,15 @@ class Input @JvmOverloads constructor(
               )
             ); fields.add(dayInput)
           }
+        }
+        // Add separator after each field except the last
+        if (index < order.size - 1) {
+          addView(
+            createSeparator(), LayoutParams(
+              LayoutParams.WRAP_CONTENT,
+              LayoutParams.MATCH_PARENT
+            )
+          )
         }
       }
 
@@ -143,28 +176,26 @@ class Input @JvmOverloads constructor(
       var totalWidth = 0
       var maxHeight = 0
 
-      fields.forEach { child ->
-        measureChild(child, widthMeasureSpec, heightMeasureSpec)
-        totalWidth += child.measuredWidth
-        maxHeight = max(maxHeight, child.measuredHeight)
-      }
-
+      // measure all children (fields + separators + showButton)
+      val childCount = childCount
+      // fixed size for the button based on sp like before
       val size = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_SP,
         16f,
         resources.displayMetrics
       )
+      val wh = MeasureSpec.makeMeasureSpec(size.toInt(), MeasureSpec.EXACTLY)
 
-      val wh = MeasureSpec.makeMeasureSpec(
-        size.toInt(), MeasureSpec.EXACTLY
-      )
-
-      measureChild(showButton, wh, wh)
-      totalWidth += showButton.measuredWidth
-      maxHeight = max(maxHeight, showButton.measuredHeight)
-
-      val spacing = (4 * resources.displayMetrics.density).toInt()
-      totalWidth += spacing * (fields.size - 1)
+      for (i in 0 until childCount) {
+        val child = getChildAt(i)
+        if (child === showButton) {
+          measureChild(child, wh, wh)
+        } else {
+          measureChild(child, widthMeasureSpec, heightMeasureSpec)
+        }
+        totalWidth += child.measuredWidth
+        maxHeight = max(maxHeight, child.measuredHeight)
+      }
 
       val width = resolveSize(totalWidth, widthMeasureSpec)
       val height = resolveSize(maxHeight, heightMeasureSpec)
@@ -173,16 +204,15 @@ class Input @JvmOverloads constructor(
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
       var left = 0
-      val spacing = (4 * resources.displayMetrics.density).toInt()
 
-      fields.forEach { child ->
+      // layout children in order (fields, separators, button)
+      val childCount = childCount
+      for (i in 0 until childCount) {
+        val child = getChildAt(i)
         val right = left + child.measuredWidth
         child.layout(left, 0, right, child.measuredHeight)
-        left = right + spacing
+        left = right
       }
-
-      val right = left + showButton.measuredWidth
-      showButton.layout(left, 0, right, showButton.measuredHeight)
     }
 
     private fun createField(maxDigits: Int): EditText {
@@ -336,8 +366,63 @@ class Input @JvmOverloads constructor(
     }
   }
 
+
+  private val systemGreen = "#4CAF50".toColorInt()
+
+  private val systemGray = "#9E9E9E".toColorInt()
+
+  fun setCheckboxColors(
+    checkBox: CheckBox,
+    checkedColor: Int = systemGreen,
+    uncheckedColor: Int = systemGray
+  ) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      checkBox.buttonTintList = ColorStateList(
+        arrayOf(
+          intArrayOf(android.R.attr.state_checked),
+          intArrayOf(-android.R.attr.state_checked)
+        ),
+        intArrayOf(
+          checkedColor,
+          uncheckedColor
+        )
+      )
+    } else {
+      setCheckboxColorsPre21(checkBox, checkedColor, uncheckedColor)
+    }
+
+  }
+
+  private fun setCheckboxColorsPre21(
+    checkBox: CheckBox,
+    checkedColor: Int,
+    uncheckedColor: Int
+  ) {
+    fun makeDrawable(color: Int): Drawable {
+      val d = ContextCompat.getDrawable(
+        checkBox.context,
+        android.R.drawable.checkbox_off_background
+      )!!.mutate()
+
+      d.setColorFilter(color, PorterDuff.Mode.SRC_IN)
+      return d
+    }
+
+    val checked = makeDrawable(checkedColor)
+    val unchecked = makeDrawable(uncheckedColor)
+
+    val states = StateListDrawable().apply {
+      addState(intArrayOf(android.R.attr.state_checked), checked)
+      addState(intArrayOf(), unchecked)
+    }
+
+    checkBox.buttonDrawable = states
+  }
+
   internal val checkBoxInput: CheckBox by lazy {
-    CheckBox(context)
+    CheckBox(context).apply {
+      setCheckboxColors(this)
+    }
   }
 
   internal val dateInput: DateInput by lazy {
@@ -345,15 +430,37 @@ class Input @JvmOverloads constructor(
   }
 
   internal val radioInput: RadioButton by lazy {
-    RadioButton(context)
+    RadioButton(context).apply {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        buttonTintList = ColorStateList(
+          arrayOf(
+            intArrayOf(android.R.attr.state_checked),
+            intArrayOf(-android.R.attr.state_checked)
+          ),
+          intArrayOf(
+            systemGreen,
+            systemGray
+          )
+        )
+      }
+    }
   }
 
   internal val rangeInput: SeekBar by lazy {
-    SeekBar(context)
+    SeekBar(context).apply {
+      isClickable = true
+      isFocusable = true
+      thumb = context.getDrawable(R.drawable.seekbar_thumb_web)
+      progressDrawable = context.getDrawable(R.drawable.seekbar_track_web_bordered)
+    }
   }
 
   internal val numberInput: NumberControl by lazy {
     NumberControl(context)
+  }
+
+  internal val colorInput: ColorInput by lazy {
+    ColorInput(context)
   }
 
   var multiple: Boolean = false
@@ -408,9 +515,10 @@ class Input @JvmOverloads constructor(
       "image/webp"
     )
 
+    val hash = hashCode()
     (context as? androidx.activity.ComponentActivity)?.let {
       filePickerLauncher = it.activityResultRegistry.register(
-        "picker:1",
+        "picker:${hash}",
         ActivityResultContracts.OpenDocument()
       ) { uri ->
         if (uri != null) {
@@ -419,28 +527,13 @@ class Input @JvmOverloads constructor(
       }
 
       filePickerLauncher = it.activityResultRegistry.register(
-        "picker:2",
+        "picker:${hash}",
         ActivityResultContracts.OpenMultipleDocuments()
       ) { uris ->
         if (uris.isNotEmpty()) {
           handlePickedFiles(uris)
         }
       }
-
-
-//      filePickerLauncher =
-//        it.registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-//          if (uri != null) {
-//            handlePickedFiles(listOf(uri))
-//          }
-//        }
-
-//      multiFilePickerLauncher =
-//        it.registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-//          if (uris.isNotEmpty()) {
-//            handlePickedFiles(uris)
-//          }
-//        }
     }
 
     if (multiple) {
@@ -462,103 +555,21 @@ class Input @JvmOverloads constructor(
       if (initializing) {
         return
       }
-      when (value) {
-        Type.Text, Type.Email, Type.Password -> {
-          removeAllViews()
-          when (value) {
-            Type.Email -> {
-              textInput.inputType =
-                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-            }
-
-            Type.Password -> {
-              textInput.inputType =
-                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            }
-
-            else -> {
-              textInput.inputType =
-                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD // disable spell checker
-            }
-          }
-
-          addView(textInput)
-        }
-
-        Type.Button -> {
-          removeAllViews()
-          addView(buttonInput)
-        }
-
-        Type.Checkbox -> {
-          removeAllViews()
-          addView(checkBoxInput)
-        }
-
-        Type.Date -> {
-          removeAllViews()
-          addView(dateInput)
-        }
-
-        Type.Radio -> {
-          removeAllViews()
-          addView(radioInput)
-        }
-
-        Type.Number -> {
-          removeAllViews()
-          addView(numberInput)
-        }
-
-        Type.Range -> {
-          removeAllViews()
-          addView(rangeInput)
-        }
-
-        Type.Tel -> {}
-        Type.Url -> {}
-        Type.Color -> {}
-        Type.File -> {
-          removeAllViews()
-          addView(fileInput)
-        }
-      }
+      setupType()
     }
 
-  @JvmOverloads
-  constructor(context: Context, mason: Mason, type: Type = Type.Text) : this(context, null, true) {
-    setup(mason, type)
-  }
-
-  init {
-    if (!::node.isInitialized && !override) {
-      setup(Mason.shared, type)
+  private fun setupType(initial: Boolean = false) {
+    if (!initial) {
+      removeAllViews()
     }
-  }
-
-  private fun setup(mason: Mason, type: Type) {
-    node = mason.createNode(this).apply {
-      view = this@Input
-    }
-    node.style.values.put(StyleKeys.ITEM_IS_REPLACED, 1.toByte())
-    node.style.display = Display.InlineBlock
-    this.type = type
     when (type) {
-      Type.Text, Type.Email, Type.Password -> {
-
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> {
         configure {
           val x = (2 * resources.displayMetrics.density).toInt()
           val y = (resources.displayMetrics.density).toInt()
           textInput.setPadding(
             x, y, x, y
           )
-//          style.padding = Rect(
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//            LengthPercentage.Points(y),
-//            LengthPercentage.Points(x),
-//          )
-
           style.border = "2px"
           style.borderRadius = "4px"
           style.textAlign = TextAlign.Center
@@ -572,6 +583,16 @@ class Input @JvmOverloads constructor(
           Type.Password -> {
             textInput.inputType =
               InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+          }
+
+          Type.Tel -> {
+            textInput.inputType =
+              InputType.TYPE_CLASS_PHONE
+          }
+
+          Type.Url -> {
+            textInput.inputType =
+              InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
           }
 
           else -> {
@@ -637,13 +658,49 @@ class Input @JvmOverloads constructor(
         addView(rangeInput)
       }
 
-      Type.Tel -> {}
-      Type.Url -> {}
-      Type.Color -> {}
+      Type.Color -> {
+        configure {
+          val x = (2 * resources.displayMetrics.density).toInt()
+          val y = (resources.displayMetrics.density).toInt()
+//          textInput.setPadding(
+//            x, y, x, y
+//          )
+//          style.padding = Rect(
+//            LengthPercentage.Points(y),
+//            LengthPercentage.Points(x),
+//            LengthPercentage.Points(y),
+//            LengthPercentage.Points(x),
+//          )
+
+          style.border = "2px"
+        }
+        addView(colorInput)
+      }
       Type.File -> {
         addView(fileInput)
       }
     }
+  }
+
+  @JvmOverloads
+  constructor(context: Context, mason: Mason, type: Type = Type.Text) : this(context, null, true) {
+    setup(mason, type)
+  }
+
+  init {
+    if (!::node.isInitialized && !override) {
+      setup(Mason.shared, type)
+    }
+  }
+
+  private fun setup(mason: Mason, type: Type) {
+    node = mason.createNode(this).apply {
+      view = this@Input
+    }
+    node.style.values.put(StyleKeys.ITEM_IS_REPLACED, 1.toByte())
+    node.style.display = Display.InlineBlock
+    this.type = type
+    this.setupType(true)
     node.style.setStyleChangeListener(this)
     initializing = false
   }
@@ -750,6 +807,13 @@ class Input @JvmOverloads constructor(
       }
     }
 
+  var checked: Boolean = false
+    set(value) {
+      field = value
+      if (type == Type.Checkbox) {
+        checkBoxInput.isChecked = value
+      }
+    }
 
   var size: Int = 20
     set(value) {
@@ -762,7 +826,7 @@ class Input @JvmOverloads constructor(
 
   internal fun layoutChild(l: Int, t: Int, r: Int, b: Int) {
     when (type) {
-      Type.Text, Type.Email, Type.Password -> {
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> {
         textInput.layout(l, t, r, b)
       }
 
@@ -808,9 +872,20 @@ class Input @JvmOverloads constructor(
         rangeInput.layout(l, t, r, b)
       }
 
-      Type.Tel -> {}
-      Type.Url -> {}
-      Type.Color -> {}
+      Type.Color -> {
+        val width = r - l
+        val height = b - t
+        colorInput.measure(
+          MeasureSpec.makeMeasureSpec(
+            width, MeasureSpec.EXACTLY
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height, MeasureSpec.EXACTLY
+          )
+        )
+        colorInput.layout(l, t, r, b)
+      }
+
       Type.File -> {
         fileInput.measure(
           MeasureSpec.makeMeasureSpec(
@@ -857,6 +932,21 @@ class Input @JvmOverloads constructor(
         size.height = height
       }
 
+      Type.Color -> {
+        val width = TypedValue.applyDimension(
+          TypedValue.COMPLEX_UNIT_DIP,
+          64F,
+          resources.displayMetrics
+        )
+        val height = TypedValue.applyDimension(
+          TypedValue.COMPLEX_UNIT_DIP,
+          24F,
+          resources.displayMetrics
+        )
+        size.width = width
+        size.height = height
+      }
+
       else -> {
         ch = style.paint.measureText("0")
       }
@@ -883,7 +973,7 @@ class Input @JvmOverloads constructor(
       }
     }
 
-    if (type == Type.Button){
+    if (type == Type.Button) {
       size.width = min(size.width, 64 * resources.displayMetrics.density)
       size.height = min(size.height, 32 * resources.displayMetrics.density)
     }
@@ -900,7 +990,7 @@ class Input @JvmOverloads constructor(
     val textAlign = change and TextStyleChangeMask.TEXT_ALIGN != 0
 
     when (type) {
-      Type.Text, Type.Email, Type.Password, Type.Number -> {
+      Type.Text, Type.Email, Type.Password, Type.Number, Type.Tel, Type.Url -> {
         if (fontSize) {
           textInput.textSize = style.fontSize.toFloat()
         }
@@ -969,10 +1059,7 @@ class Input @JvmOverloads constructor(
       Type.Checkbox -> {}
       Type.Date -> {}
       Type.Radio -> {}
-
       Type.Range -> {}
-      Type.Tel -> {}
-      Type.Url -> {}
       Type.Color -> {}
       Type.File -> {}
     }

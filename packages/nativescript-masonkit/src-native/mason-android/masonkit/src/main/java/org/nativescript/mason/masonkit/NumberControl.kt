@@ -1,6 +1,7 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.graphics.Color
 import android.os.Build
 import android.text.Editable
 import android.text.InputType
@@ -18,6 +19,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toDrawable
+import androidx.core.graphics.toColorInt
 import kotlin.math.max
 import kotlin.math.min
 
@@ -27,14 +29,10 @@ class NumberControl @JvmOverloads constructor(
   defStyleAttr: Int = 0
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
-  // MARK: - Subviews
-
   val editText = EditText(context)
   private val stepperContainer = LinearLayout(context)
   private val incrementButton = ImageButton(context)
   private val decrementButton = ImageButton(context)
-
-  // MARK: - Value
 
   private var skip = false
 
@@ -53,8 +51,6 @@ class NumberControl @JvmOverloads constructor(
   init {
     setup()
   }
-
-  // MARK: - Setup
 
   private fun setup() {
     setupEditText()
@@ -89,41 +85,43 @@ class NumberControl @JvmOverloads constructor(
       orientation = LinearLayout.VERTICAL
       gravity = Gravity.FILL
       isClickable = true
+      // default background similar to iOS systemGray6
+      background = ContextCompat.getDrawable(context, R.drawable.stepper_bg_web)
     }
 
-    val bgNormal = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-      context.getColor(android.R.color.system_neutral2_100).toDrawable()
-    } else {
-      ContextCompat.getColor(context, android.R.color.darker_gray).toDrawable()
-    }
+    // Use lightweight chevron icons and tint them for pressed state to match iOS style
+    val defaultTint = "#636366".toColorInt()
+    val pressedTint = ContextCompat.getColor(context, android.R.color.system_neutral2_100)
 
-    val bgPressed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-      context.getColor(android.R.color.system_neutral2_200).toDrawable()
-    } else {
-      ContextCompat.getColor(context, android.R.color.background_light).toDrawable()
-    }
+    val tintList = android.content.res.ColorStateList(
+      arrayOf(
+        intArrayOf(android.R.attr.state_pressed),
+        intArrayOf()
+      ),
+      intArrayOf(
+        pressedTint,
+        defaultTint
+      )
+    )
 
     fun setupButton(button: ImageButton, drawableRes: Int) {
       button.apply {
         setImageResource(drawableRes)
         scaleType = ImageView.ScaleType.CENTER
-        background = bgNormal
+        background = context.getDrawable(R.drawable.stepper_bg_web)
         isClickable = true
         isFocusable = true
-
-        setOnTouchListener { v, event ->
-          when (event.action) {
-            MotionEvent.ACTION_DOWN -> v.background = bgPressed
-            MotionEvent.ACTION_UP,
-            MotionEvent.ACTION_CANCEL -> v.background = bgNormal
-          }
-          false
-        }
+//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+//          imageTintList = tintList
+//        } else {
+//          // fallback: apply default tint
+//          setColorFilter(defaultTint)
+//        }
       }
     }
 
-    setupButton(incrementButton, android.R.drawable.arrow_up_float)
-    setupButton(decrementButton, android.R.drawable.arrow_down_float)
+    setupButton(incrementButton, R.drawable.ic_stepper_up)
+    setupButton(decrementButton, R.drawable.ic_stepper_down)
 
     incrementButton.setOnClickListener { increment() }
     decrementButton.setOnClickListener { decrement() }
@@ -174,8 +172,6 @@ class NumberControl @JvmOverloads constructor(
     setPadding(dp(8), dp(1), dp(1), dp(1))
   }
 
-  // MARK: - Actions
-
   private fun increment() {
     setValueInner(value + step)
   }
@@ -215,8 +211,6 @@ class NumberControl @JvmOverloads constructor(
       skip = false
     }
   }
-
-  // MARK: - Utils
 
   private fun dp(value: Int): Int =
     (value * resources.displayMetrics.density).toInt()

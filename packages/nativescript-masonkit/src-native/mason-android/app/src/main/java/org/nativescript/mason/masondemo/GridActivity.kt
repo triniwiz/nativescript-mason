@@ -157,6 +157,9 @@ class GridActivity : AppCompatActivity() {
 
     val date = mason.createInput(this, Input.Type.Date)
     root.append(date)
+
+    val color = mason.createInput(this, Input.Type.Color)
+    root.append(color)
   }
 
   fun textShadow(body: Scroll) {

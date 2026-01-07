@@ -5,10 +5,12 @@
         <Label text="Home?" class="text-white bg-gray-800" />
       </ActionBar>
       <div>
-        <sspan>Welcome to the New Layout!</sspan>
+        <!-- <sspan>Welcome to the New Layout!</sspan>
         <p @tap="viewFeature('block')">Block</p>
         <p @tap="viewFeature('flex')">FlexBox</p>
-        <p @tap="viewFeature('grid')">CSSGrid</p>
+        <p @tap="viewFeature('grid')">CSSGrid</p> -->
+        <input placeholder="Type here..." />
+        <input type="button" value="Tapp" />
       </div>
 
         <!--

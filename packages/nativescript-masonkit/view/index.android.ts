@@ -2,7 +2,7 @@ import { CSSType, Utils } from '@nativescript/core';
 import { ViewBase } from '../common';
 import { Tree } from '../tree';
 import { Style } from '../style';
-import { style_, isMasonView_, native_ } from '../symbols';
+import { style_, isMasonView_, native_, isPlaceholder_ } from '../symbols';
 
 @CSSType('View')
 export class View extends ViewBase {
@@ -44,11 +44,15 @@ export class View extends ViewBase {
   public _addViewToNativeVisualTree(child: MasonChild, atIndex = -1): boolean {
     const nativeView = this._view as org.nativescript.mason.masonkit.View;
 
-    if (nativeView && child.nativeViewProtected) {
+    if (nativeView && (child.nativeViewProtected || child.android)) {
       child._hasNativeView = true;
       child._isMasonChild = true;
       const index = atIndex <= -1 ? this._children.indexOf(child) : atIndex;
-      nativeView.addView(child.nativeViewProtected, index as never);
+      if (child[isPlaceholder_]) {
+        nativeView.addChildAt(child.android, index as never);
+      } else {
+        nativeView.addView(child.nativeViewProtected, index as never);
+      }
       return true;
     }
 
