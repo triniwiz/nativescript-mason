@@ -490,6 +490,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     root.append(button)
     
+    
     root.append(mason.createBr())
     
     let checkbox = root.mason.createInput(.Checkbox)
@@ -506,6 +507,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     root.append(mason.createBr())
     
     
+    
     let email = root.mason.createInput(.Email)
     email.placeholder = "Enter Email..."
     
@@ -518,6 +520,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let radio = root.mason.createInput(.Radio)
     root.append(radio)
     
+    
     root.append(mason.createBr())
     
     let range = root.mason.createInput(.Range)
@@ -529,6 +532,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let number = root.mason.createInput(.Number)
     number.placeholder = "100"
     root.append(number)
+    
      
     root.append(mason.createBr())
     
@@ -546,6 +550,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     let date = root.mason.createInput(.Date)
     root.append(date)
+    
     
     self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
   }

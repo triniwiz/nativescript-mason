@@ -97,7 +97,6 @@ export class Tree {
   }
 
   createBr(context) {
-    //@ts-ignore
     return this.native.createBr();
   }
 
