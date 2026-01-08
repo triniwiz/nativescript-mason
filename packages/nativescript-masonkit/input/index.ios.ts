@@ -63,6 +63,12 @@ export class Input extends InputBase {
     }
   }
 
+  set value(value: string) {
+    if (this._view) {
+      this._view.value = value;
+    }
+  }
+
   get value() {
     return this._view ? this._view.value : '';
   }
