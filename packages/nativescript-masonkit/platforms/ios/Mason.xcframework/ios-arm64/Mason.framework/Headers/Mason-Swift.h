@@ -592,10 +592,11 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonLoadingState, "LoadingState", open) {
 };
 
 SWIFT_CLASS_NAMED("MasonBr")
-@interface MasonBr : NSObject
+@interface MasonBr : NSObject <MasonElementObjc>
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
+@property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end

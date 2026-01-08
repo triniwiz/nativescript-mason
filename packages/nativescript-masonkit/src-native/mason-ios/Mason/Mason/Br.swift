@@ -9,7 +9,7 @@ import UIKit
 
 @objc(MasonBr)
 @objcMembers
-public class MasonBr: NSObject, MasonElement {
+public class MasonBr: NSObject, MasonElement, MasonElementObjc {
   public let mason: NSCMason
   public var node: MasonNode
   
@@ -23,6 +23,10 @@ public class MasonBr: NSObject, MasonElement {
     get {
       return view
     }
+  }
+  
+  public var style: MasonStyle {
+    return node.style
   }
   
   private static func measureText(_ node: MasonNode, _ text: String) -> CGSize {
