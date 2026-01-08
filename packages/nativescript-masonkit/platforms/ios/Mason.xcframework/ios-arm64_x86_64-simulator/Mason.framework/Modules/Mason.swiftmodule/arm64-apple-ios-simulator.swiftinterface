@@ -534,82 +534,6 @@ extension Mason.MasonElement {
   public func prepend(elements: [any Mason.MasonElement])
   public func prepend(nodes: [Mason.MasonNode])
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MinSizing) public class MinSizing : ObjectiveC.NSObject, Swift.Codable {
-  @objc public var value: Swift.Float {
-    get
-  }
-  @objc public static func Points(_ points: Swift.Float) -> Mason.MinSizing
-  @objc public static func Percent(_ percent: Swift.Float) -> Mason.MinSizing
-  @objc public static let Auto: Mason.MinSizing
-  @objc public static let MinContent: Mason.MinSizing
-  @objc public static let MaxContent: Mason.MinSizing
-  @objc public var cssValue: Swift.String {
-    @objc get
-  }
-  @objc public var jsonValue: Swift.String? {
-    @objc get
-  }
-  required public init(from decoder: any Swift.Decoder) throws
-  public func encode(to encoder: any Swift.Encoder) throws
-  @objc deinit
-}
-@objc public protocol MasonCharacterData {
-  @objc var data: Swift.String { get set }
-  @objc var length: Swift.Int { get }
-  @objc @discardableResult
-  func appendData(_ s: Swift.String) -> Self
-  @objc @discardableResult
-  func insertData(_ s: Swift.String, at offset: Swift.Int) -> Self
-  @objc @discardableResult
-  func deleteData(offset: Swift.Int, count: Swift.Int) -> Self
-  @objc @discardableResult
-  func replaceData(offset: Swift.Int, count: Swift.Int, with s: Swift.String) -> Self
-  @objc func substringData(offset: Swift.Int, count: Swift.Int) -> Swift.String
-  @objc @discardableResult
-  func deleteData(range: Foundation.NSRange) -> Self
-  @objc @discardableResult
-  func replaceData(range: Foundation.NSRange, with s: Swift.String) -> Self
-}
-@_hasMissingDesignatedInitializers @objc(MasonTextNode) @objcMembers public class MasonTextNode : Mason.MasonNode, Mason.MasonCharacterData {
-  @objc public var data: Swift.String
-  @objc public init(mason doc: Mason.NSCMason, data text: Swift.String, attributes attrs: [Foundation.NSAttributedString.Key : Any]? = nil)
-  @objc override dynamic public func appendChild(_ child: Mason.MasonNode)
-  @objc public var length: Swift.Int {
-    @objc get
-  }
-  @objc public func substringData(offset: Swift.Int, count: Swift.Int) -> Swift.String
-  @discardableResult
-  @objc public func appendData(_ s: Swift.String) -> Self
-  @discardableResult
-  @objc public func insertData(_ s: Swift.String, at offset: Swift.Int) -> Self
-  @discardableResult
-  @objc public func deleteData(offset: Swift.Int, count: Swift.Int) -> Self
-  @discardableResult
-  @objc public func replaceData(offset: Swift.Int, count: Swift.Int, with s: Swift.String) -> Self
-  @discardableResult
-  @objc public func deleteData(range: Foundation.NSRange) -> Self
-  @discardableResult
-  @objc public func replaceData(range: Foundation.NSRange, with s: Swift.String) -> Self
-  @objc deinit
-}
-extension Mason.MasonTextNode {
-  @objc dynamic public func attributed() -> Foundation.NSAttributedString
-}
-@objc(MasonTextContainer) public protocol TextContainer : ObjectiveC.NSObjectProtocol {
-  @objc var engine: Mason.TextEngine { get }
-  @objc var node: Mason.MasonNode { get }
-  @objc func onTextStyleChanged(change: Swift.Int64)
-}
-extension Mason.TextContainer {
-  public func onTextStyleChanged(change: Swift.Int64)
-}
-@_hasMissingDesignatedInitializers @objc(MasonTextEngine) public class TextEngine : ObjectiveC.NSObject {
-  public var textContent: Swift.String {
-    get
-    set
-  }
-  @objc deinit
-}
 @objc(MasonTextType) public enum MasonTextType : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
   case None
   case P
@@ -738,6 +662,82 @@ extension Mason.MasonText {
 }
 extension Mason.MasonText {
   @objc @_Concurrency.MainActor @preconcurrency dynamic public func addChild(_ child: Mason.MasonNode)
+}
+@objc(MasonTextContainer) public protocol TextContainer : ObjectiveC.NSObjectProtocol {
+  @objc var engine: Mason.TextEngine { get }
+  @objc var node: Mason.MasonNode { get }
+  @objc func onTextStyleChanged(change: Swift.Int64)
+}
+extension Mason.TextContainer {
+  public func onTextStyleChanged(change: Swift.Int64)
+}
+@_hasMissingDesignatedInitializers @objc(MasonTextEngine) public class TextEngine : ObjectiveC.NSObject {
+  public var textContent: Swift.String {
+    get
+    set
+  }
+  @objc deinit
+}
+@objc public protocol MasonCharacterData {
+  @objc var data: Swift.String { get set }
+  @objc var length: Swift.Int { get }
+  @objc @discardableResult
+  func appendData(_ s: Swift.String) -> Self
+  @objc @discardableResult
+  func insertData(_ s: Swift.String, at offset: Swift.Int) -> Self
+  @objc @discardableResult
+  func deleteData(offset: Swift.Int, count: Swift.Int) -> Self
+  @objc @discardableResult
+  func replaceData(offset: Swift.Int, count: Swift.Int, with s: Swift.String) -> Self
+  @objc func substringData(offset: Swift.Int, count: Swift.Int) -> Swift.String
+  @objc @discardableResult
+  func deleteData(range: Foundation.NSRange) -> Self
+  @objc @discardableResult
+  func replaceData(range: Foundation.NSRange, with s: Swift.String) -> Self
+}
+@_hasMissingDesignatedInitializers @objc(MasonTextNode) @objcMembers public class MasonTextNode : Mason.MasonNode, Mason.MasonCharacterData {
+  @objc public var data: Swift.String
+  @objc public init(mason doc: Mason.NSCMason, data text: Swift.String, attributes attrs: [Foundation.NSAttributedString.Key : Any]? = nil)
+  @objc override dynamic public func appendChild(_ child: Mason.MasonNode)
+  @objc public var length: Swift.Int {
+    @objc get
+  }
+  @objc public func substringData(offset: Swift.Int, count: Swift.Int) -> Swift.String
+  @discardableResult
+  @objc public func appendData(_ s: Swift.String) -> Self
+  @discardableResult
+  @objc public func insertData(_ s: Swift.String, at offset: Swift.Int) -> Self
+  @discardableResult
+  @objc public func deleteData(offset: Swift.Int, count: Swift.Int) -> Self
+  @discardableResult
+  @objc public func replaceData(offset: Swift.Int, count: Swift.Int, with s: Swift.String) -> Self
+  @discardableResult
+  @objc public func deleteData(range: Foundation.NSRange) -> Self
+  @discardableResult
+  @objc public func replaceData(range: Foundation.NSRange, with s: Swift.String) -> Self
+  @objc deinit
+}
+extension Mason.MasonTextNode {
+  @objc dynamic public func attributed() -> Foundation.NSAttributedString
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MinSizing) public class MinSizing : ObjectiveC.NSObject, Swift.Codable {
+  @objc public var value: Swift.Float {
+    get
+  }
+  @objc public static func Points(_ points: Swift.Float) -> Mason.MinSizing
+  @objc public static func Percent(_ percent: Swift.Float) -> Mason.MinSizing
+  @objc public static let Auto: Mason.MinSizing
+  @objc public static let MinContent: Mason.MinSizing
+  @objc public static let MaxContent: Mason.MinSizing
+  @objc public var cssValue: Swift.String {
+    @objc get
+  }
+  @objc public var jsonValue: Swift.String? {
+    @objc get
+  }
+  required public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
+  @objc deinit
 }
 @_hasMissingDesignatedInitializers @objcMembers @objc(MasonInput) @_Concurrency.MainActor @preconcurrency public class MasonInput : UIKit.UIView, Mason.MasonElement {
   @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode

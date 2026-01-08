@@ -648,5 +648,6 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
     node.style.display = Display.InlineBlock
     self.type = type
     configureInput(type)
+    initializing = false
   }
 }
