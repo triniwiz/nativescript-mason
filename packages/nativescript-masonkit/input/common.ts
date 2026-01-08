@@ -31,3 +31,10 @@ export const multipleProperty = new Property<InputBase, boolean>({
 });
 
 multipleProperty.register(InputBase);
+
+export const acceptProperty = new Property<InputBase, string>({
+  name: 'accept',
+  defaultValue: '*/*',
+});
+
+acceptProperty.register(InputBase);

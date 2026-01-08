@@ -643,6 +643,8 @@ declare class NSObject implements NSObjectProtocol {
 
 	mason_addChildAtText(text: string, index: number): void;
 
+	mason_addEventListener(event: string, listener: (p1: MasonEvent) => void): NSUUID;
+
 	mason_addView(view: UIView): void;
 
 	mason_addViewAt(view: UIView, at: number): void;
@@ -681,6 +683,8 @@ declare class NSObject implements NSObjectProtocol {
 
 	mason_configure(block: (p1: MasonStyle) => void): void;
 
+	mason_dispatch(event: MasonEvent, node: MasonNode): void;
+
 	mason_invalidateLayout(): void;
 
 	mason_isNodeDirty(): boolean;
@@ -700,6 +704,10 @@ declare class NSObject implements NSObjectProtocol {
 	mason_prependWithText(text: string): void;
 
 	mason_prependWithTexts(texts: NSArray<string> | string[]): void;
+
+	mason_removeEventListener(event: string): boolean;
+
+	mason_removeEventListenerId(event: string, id: NSUUID): boolean;
 
 	mason_replaceChildAtElement(element: MasonElementObjc, index: number): void;
 

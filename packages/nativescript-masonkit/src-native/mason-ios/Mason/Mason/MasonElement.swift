@@ -28,6 +28,19 @@ public protocol MasonElement: NSObjectProtocol {
   
   var uiView: UIView { get }
   
+  @discardableResult
+  func addEventListener(_ node: MasonNode, _ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID
+
+  
+  @discardableResult
+  func removeEventListener(_ node: MasonNode, _ event: String, id: UUID) -> Bool
+  
+  @discardableResult
+  func removeEventListener(_ node: MasonNode, _ event: String) -> Bool
+  
+
+  func dispatch(_ event: MasonEvent, _ node: MasonNode)
+  
   func markNodeDirty()
   
   func isNodeDirty() -> Bool
@@ -128,7 +141,7 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
   case .italic:
     symbolicTraits.insert(.traitItalic)
   case .oblique(let value):
-    if let value = value {
+    if value != nil {
       // todo handle slant value
       symbolicTraits.insert(.traitItalic)
     }else {
@@ -157,6 +170,27 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
 }
 
 extension MasonElement {
+  
+  @discardableResult
+  public func addEventListener(_ node: MasonNode, _ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID {
+    return node.mason.addEventListener(node, event, listener)
+  }
+
+  
+  @discardableResult
+  public func removeEventListener(_ node: MasonNode, _ event: String, id: UUID) -> Bool {
+    return node.mason.removeEventListener(node, event, id: id)
+  }
+  
+  @discardableResult
+  public func removeEventListener(_ node: MasonNode, _ event: String) -> Bool {
+    return node.mason.removeEventListener(node, event)
+  }
+  
+
+  public func dispatch(_ event: MasonEvent, _ node: MasonNode) {
+    node.mason.dispatch(event, node)
+  }
   
   /// Helper to get default text attributes for new text nodes
   public func getDefaultAttributes() -> [NSAttributedString.Key: Any] {
@@ -572,7 +606,7 @@ class MasonElementHelpers: NSObject {
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)
-    
+      
       view.frame = CGRect(origin: point, size: size)
       
       node.isLayoutValid = true

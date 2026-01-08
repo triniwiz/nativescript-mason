@@ -466,6 +466,60 @@ declare var MasonElementObjc: {
 	prototype: MasonElementObjc;
 };
 
+declare class MasonEvent extends NSObject {
+
+	static alloc(): MasonEvent; // inherited from NSObject
+
+	static new(): MasonEvent; // inherited from NSObject
+
+	readonly bubbles: boolean;
+
+	readonly cancelable: boolean;
+
+	readonly composed: boolean;
+
+	readonly currentTarget: any;
+
+	readonly defaultPrevented: boolean;
+
+	readonly propagationStopped: boolean;
+
+	readonly target: any;
+
+	readonly timeStamp: number;
+
+	readonly type: string;
+
+	constructor(o: { type: string; options: MasonEventOptions; });
+
+	initWithTypeOptions(type: string, options: MasonEventOptions): this;
+
+	preventDefault(): void;
+
+	stopPropagation(): void;
+}
+
+declare class MasonEventOptions extends NSObject {
+
+	static alloc(): MasonEventOptions; // inherited from NSObject
+
+	static new(): MasonEventOptions; // inherited from NSObject
+
+	bubbles: boolean;
+
+	cancelable: boolean;
+
+	composed: boolean;
+
+	target: any;
+
+	type: string;
+
+	constructor(o: { type: string; bubbles: boolean; cancelable: boolean; composed: boolean; });
+
+	initWithTypeBubblesCancelableComposed(type: string, bubbles: boolean, cancelable: boolean, composed: boolean): this;
+}
+
 declare const enum MasonFlexDirection {
 
 	Row = 0,
@@ -644,7 +698,7 @@ declare class MasonImg extends UIView implements MasonElementObjc {
 	updateImage(image: UIImage): void;
 }
 
-declare class MasonInput extends UIView implements UIDocumentPickerDelegate, UIImagePickerControllerDelegate {
+declare class MasonInput extends UIView {
 
 	static alloc(): MasonInput; // inherited from NSObject
 
@@ -679,6 +733,8 @@ declare class MasonInput extends UIView implements UIDocumentPickerDelegate, UII
 
 	static new(): MasonInput; // inherited from NSObject
 
+	accept: string;
+
 	readonly mason: NSCMason;
 
 	multiple: boolean;
@@ -697,62 +753,24 @@ declare class MasonInput extends UIView implements UIDocumentPickerDelegate, UII
 
 	value: string;
 
-	readonly debugDescription: string; // inherited from NSObjectProtocol
+	valueAsDate: Date;
 
-	readonly description: string; // inherited from NSObjectProtocol
+	valueAsNumber: number;
+}
 
-	readonly hash: number; // inherited from NSObjectProtocol
+declare class MasonInputEvent extends MasonEvent {
 
-	readonly isProxy: boolean; // inherited from NSObjectProtocol
+	static alloc(): MasonInputEvent; // inherited from NSObject
 
-	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+	static new(): MasonInputEvent; // inherited from NSObject
 
-	readonly  // inherited from NSObjectProtocol
+	readonly data: string;
 
-	class(): typeof NSObject;
+	readonly inputType: string;
 
-	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
+	constructor(o: { type: string; data: string; inputType: string; options: MasonEventOptions; });
 
-	/**
-	 * @since 8.0
-	 * @deprecated 11.0
-	 */
-	documentPickerDidPickDocumentAtURL(controller: UIDocumentPickerViewController, url: NSURL): void;
-
-	/**
-	 * @since 11.0
-	 */
-	documentPickerDidPickDocumentsAtURLs(controller: UIDocumentPickerViewController, urls: NSArray<NSURL> | NSURL[]): void;
-
-	documentPickerWasCancelled(controller: UIDocumentPickerViewController): void;
-
-	imagePickerControllerDidCancel(picker: UIImagePickerController): void;
-
-	/**
-	 * @since 2.0
-	 * @deprecated 3.0
-	 */
-	imagePickerControllerDidFinishPickingImageEditingInfo(picker: UIImagePickerController, image: UIImage, editingInfo: NSDictionary<string, any>): void;
-
-	imagePickerControllerDidFinishPickingMediaWithInfo(picker: UIImagePickerController, info: NSDictionary<string, any>): void;
-
-	isEqual(object: any): boolean;
-
-	isKindOfClass(aClass: typeof NSObject): boolean;
-
-	isMemberOfClass(aClass: typeof NSObject): boolean;
-
-	performSelector(aSelector: string): any;
-
-	performSelectorWithObject(aSelector: string, object: any): any;
-
-	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
-
-	respondsToSelector(aSelector: string): boolean;
-
-	retainCount(): number;
-
-	self(): this;
+	initWithTypeDataInputTypeOptions(type: string, inputData: string, masonInputType: string, options: MasonEventOptions): this;
 }
 
 declare const enum MasonInputType {
@@ -2499,6 +2517,8 @@ declare class NSCMason extends NSObject {
 
 	static shared: NSCMason;
 
+	addEventListener(node: MasonNode, event: string, listener: (p1: MasonEvent) => void): NSUUID;
+
 	clear(): void;
 
 	configureStyleForView(view: UIView, block: (p1: MasonStyle) => void): void;
@@ -2529,11 +2549,17 @@ declare class NSCMason extends NSObject {
 
 	createView(): MasonUIView;
 
+	dispatch(event: MasonEvent, node: MasonNode): void;
+
 	layoutForView(view: UIView): MasonLayout;
 
 	nodeForView(view: UIView, isLeaf: boolean): MasonNode;
 
 	printTree(node: MasonNode): void;
+
+	removeEventListener(node: MasonNode, event: string): boolean;
+
+	removeEventListenerId(node: MasonNode, event: string, id: NSUUID): boolean;
 
 	setDeviceScale(value: number): void;
 

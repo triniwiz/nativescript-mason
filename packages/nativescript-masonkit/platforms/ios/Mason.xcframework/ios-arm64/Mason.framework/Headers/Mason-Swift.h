@@ -672,6 +672,37 @@ SWIFT_CLASS_NAMED("MasonDocument")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
+@class MasonEventOptions;
+SWIFT_CLASS_NAMED("MasonEvent")
+@interface MasonEvent : NSObject
+@property (nonatomic, readonly, copy) NSString * _Nonnull type;
+@property (nonatomic, readonly) BOOL bubbles;
+@property (nonatomic, readonly) BOOL cancelable;
+@property (nonatomic, readonly) BOOL composed;
+@property (nonatomic, readonly) double timeStamp;
+@property (nonatomic, readonly) BOOL defaultPrevented;
+@property (nonatomic, readonly) BOOL propagationStopped;
+@property (nonatomic, readonly) id _Nullable target;
+@property (nonatomic, readonly) id _Nullable currentTarget;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
+- (void)preventDefault;
+- (void)stopPropagation;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+SWIFT_CLASS_NAMED("MasonEventOptions")
+@interface MasonEventOptions : NSObject
+@property (nonatomic, copy) NSString * _Nonnull type;
+@property (nonatomic) BOOL bubbles;
+@property (nonatomic) BOOL cancelable;
+@property (nonatomic) BOOL composed;
+@property (nonatomic) id _Nullable target;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type bubbles:(BOOL)bubbles cancelable:(BOOL)cancelable composed:(BOOL)composed OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)init SWIFT_UNAVAILABLE;
++ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonFloat, "MasonFloat", open) {
   MasonFloatNone = 0,
   MasonFloatLeft = 1,
@@ -686,26 +717,34 @@ SWIFT_CLASS("_TtC5Mason15MasonImageLayer")
 - (void)drawInContext:(CGContextRef _Nonnull)context;
 @end
 
-@class UIDocumentPickerViewController;
-@class NSURL;
 enum MasonInputType : NSInteger;
+@class NSDate;
 SWIFT_CLASS_NAMED("MasonInput")
-@interface MasonInput : UIView <UIDocumentPickerDelegate, UIImagePickerControllerDelegate>
+@interface MasonInput : UIView
 - (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder SWIFT_UNAVAILABLE;
 @property (nonatomic, readonly, strong) MasonNode * _Nonnull node;
 @property (nonatomic, readonly, strong) NSCMason * _Nonnull mason;
 @property (nonatomic) BOOL multiple;
-- (void)documentPickerWasCancelled:(UIDocumentPickerViewController * _Nonnull)controller;
-- (void)documentPicker:(UIDocumentPickerViewController * _Nonnull)controller didPickDocumentsAtURLs:(NSArray<NSURL *> * _Nonnull)urls;
+@property (nonatomic, copy) NSString * _Nonnull accept;
 @property (nonatomic, readonly, strong) UIView * _Nonnull uiView;
 @property (nonatomic, readonly, strong) MasonStyle * _Nonnull style;
 @property (nonatomic) enum MasonInputType type;
 @property (nonatomic) int32_t size;
 @property (nonatomic, copy) NSString * _Nonnull value;
+@property (nonatomic) double valueAsNumber;
+@property (nonatomic, copy) NSDate * _Nullable valueAsDate;
 @property (nonatomic, copy) NSString * _Nonnull placeholder;
 - (void)drawRect:(CGRect)rect;
 - (void)layoutSubviews;
 - (nonnull instancetype)initWithFrame:(CGRect)frame SWIFT_UNAVAILABLE;
+@end
+
+SWIFT_CLASS_NAMED("MasonInputEvent")
+@interface MasonInputEvent : MasonEvent
+@property (nonatomic, readonly, copy) NSString * _Nullable data;
+@property (nonatomic, readonly, copy) NSString * _Nonnull inputType;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type data:(NSString * _Nullable)inputData inputType:(NSString * _Nonnull)masonInputType options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonInputType, "MasonInputType", open) {
@@ -1414,6 +1453,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, NSCFontWeight, "NSCFontWeight", open) {
   NSCFontWeightBlack = 8,
 };
 
+@class NSUUID;
 @class MasonScroll;
 SWIFT_CLASS_NAMED("NSCMason")
 @interface NSCMason : NSObject
@@ -1428,6 +1468,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (MasonStyle * _Nonnull)styleForView:(UIView * _Nonnull)view SWIFT_WARN_UNUSED_RESULT;
 - (MasonStyle * _Nullable)styleForViewOrNode:(id _Nullable)viewOrNode SWIFT_WARN_UNUSED_RESULT;
 - (MasonLayout * _Nonnull)layoutForView:(UIView * _Nonnull)view;
+- (NSUUID * _Nonnull)addEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
+- (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
+- (BOOL)removeEventListener:(MasonNode * _Nonnull)node :(NSString * _Nonnull)event;
+- (void)dispatch:(MasonEvent * _Nonnull)event :(MasonNode * _Nonnull)node;
 - (void)clear;
 - (MasonDocument * _Nonnull)createDocument SWIFT_WARN_UNUSED_RESULT;
 - (MasonUIView * _Nonnull)createView SWIFT_WARN_UNUSED_RESULT;
@@ -1447,6 +1491,10 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 @end
 
 @interface NSObject (SWIFT_EXTENSION(Mason))
+- (NSUUID * _Nonnull)mason_addEventListener:(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
+- (BOOL)mason_removeEventListener:(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
+- (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
+- (void)mason_dispatch:(MasonEvent * _Nonnull)event :(MasonNode * _Nonnull)node;
 - (void)mason_syncStyle:(NSString * _Nonnull)state :(NSString * _Nonnull)textState;
 - (void)mason_addView:(UIView * _Nonnull)view;
 - (void)mason_addView:(UIView * _Nonnull)view at:(NSInteger)at;

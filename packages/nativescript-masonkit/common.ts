@@ -48,7 +48,7 @@ import {
   verticalAlignProperty,
 } from './properties';
 import { leftProperty } from '@nativescript/core/ui/layouts/absolute-layout';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_ } from './symbols';
 
 // Angular zone detection
 declare const Zone: any;
@@ -155,6 +155,83 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
   constructor() {
     super();
+  }
+
+  _registerNativeEvent(arg: string, callback: any, thisArg?: any) {
+    //@ts-ignore
+    if (this._view) {
+      if (__ANDROID__) {
+      }
+      if (__APPLE__) {
+        //@ts-ignore
+        const id = (this._view as NSObject).mason_addEventListener(arg, (event: any) => {
+          let ret;
+          if (arg === 'input') {
+            ret = new InputEvent();
+          } else {
+            ret = new Event();
+          }
+          ret[native_] = event;
+          ret.target = this;
+          callback.call(thisArg || this, ret);
+        });
+
+        callback['mason:event:id'] = id;
+      }
+    }
+  }
+
+  _unregisterNativeEvent(arg: string, callback: any, thisArg?: any) {
+    //@ts-ignore
+    if (this._view) {
+      if (__ANDROID__) {
+      }
+      if (__APPLE__) {
+        const id = callback['mason:event:id'];
+        if (!id) {
+          //@ts-ignore
+          const removed = (this._view as NSObject).mason_removeEventListenerId(arg, id);
+
+          callback['mason:event:id'] = undefined;
+        }
+      }
+    }
+  }
+
+  public addEventListener(arg: string, callback: any, thisArg?: any) {
+    if (typeof thisArg === 'boolean') {
+      thisArg = {
+        capture: thisArg,
+      };
+    }
+    super.addEventListener(arg, callback, thisArg);
+    if (typeof arg !== 'string') {
+      return;
+    }
+
+    switch (arg) {
+      case 'input':
+      case 'change':
+        this._registerNativeEvent(arg, callback, thisArg);
+        break;
+    }
+  }
+
+  public removeEventListener(arg: string, callback: any, thisArg?: any) {
+    if (typeof thisArg === 'boolean') {
+      thisArg = {
+        capture: thisArg,
+      };
+    }
+
+    super.removeEventListener(arg, callback, thisArg);
+
+    switch (arg) {
+      case 'input':
+      case 'change':
+        this._unregisterNativeEvent(arg, callback, thisArg);
+        break;
+    }
   }
 
   forceStyleUpdate() {
@@ -1445,3 +1522,17 @@ export class ImageBase extends ViewBase {
 }
 
 srcProperty.register(ImageBase);
+
+export class Event {
+  [native_];
+
+  get type(): string {
+    return this[native_]?.type;
+  }
+
+  get target(): any {
+    return this[native_]?.target;
+  }
+}
+
+export class InputEvent extends Event {}

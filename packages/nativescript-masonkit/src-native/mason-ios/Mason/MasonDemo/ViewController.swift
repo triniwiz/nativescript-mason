@@ -479,6 +479,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let input = root.mason.createInput()
     input.placeholder = "Enter text..."
     
+    
     root.append(input)
     
     root.append(text: "\n")

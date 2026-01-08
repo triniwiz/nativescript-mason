@@ -415,6 +415,30 @@ func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: Strin
 
 @objc extension NSObject {
   
+  @discardableResult
+  @objc public func mason_addEventListener(_ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID {
+    guard let element = self as? MasonElement else { return UUID()}
+    return element.addEventListener(element.node, event, listener)
+  }
+
+  @discardableResult
+  @objc public func mason_removeEventListener(_ event: String, id: UUID) -> Bool {
+    guard let element = self as? MasonElement else { return false}
+    return element.removeEventListener(element.node, event, id: id)
+  }
+  
+  @discardableResult
+  @objc public func mason_removeEventListener(_ event: String) -> Bool {
+    guard let element = self as? MasonElement else { return false}
+    return element.removeEventListener(element.node, event)
+  }
+  
+
+  @objc public func mason_dispatch(_ event: MasonEvent, _ node: MasonNode) {
+    guard let element = self as? MasonElement else { return}
+    element.dispatch(event, node)
+  }
+  
   @objc public func mason_syncStyle(_ state: String, _ textState: String){
     guard let element = self as? MasonElement else { return }
     element.syncStyle(state, textState)

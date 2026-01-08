@@ -8,12 +8,12 @@
 import UIKit
 
 // MARK: - Helpers
-private extension UITextField {
+internal extension UITextField {
     private struct AssociatedKeys { static var maxDigits = "maxDigits" }
 
     var maxDigits: Int {
-        get { objc_getAssociatedObject(self, &AssociatedKeys.maxDigits) as? Int ?? 1 }
-        set { objc_setAssociatedObject(self, &AssociatedKeys.maxDigits, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+        get { objc_getAssociatedObject(self, AssociatedKeys.maxDigits) as? Int ?? 1 }
+        set { objc_setAssociatedObject(self, AssociatedKeys.maxDigits, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
     }
 
     func configure(maxDigits: Int, hint: String, width: CGFloat) {
@@ -28,7 +28,7 @@ private extension UITextField {
     }
 }
 
-private extension String {
+internal extension String {
     func paddingLeft(toLength: Int, withPad: String) -> String {
         if self.count < toLength {
             return String(repeating: withPad, count: toLength - self.count) + self
@@ -38,7 +38,7 @@ private extension String {
 }
 
 
-private extension UIView {
+internal extension UIView {
     var parentViewController: UIViewController? {
         var responder: UIResponder? = self
         while let r = responder {
@@ -52,7 +52,7 @@ private extension UIView {
 
 @objcMembers
 @objc(MasonInput)
-public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPickerDelegate, UIImagePickerControllerDelegate {
+public class MasonInput: UIView, MasonElement, StyleChangeListener{
   func onTextStyleChanged(change: Int64) {
     let change = TextStyleChangeMasks(rawValue: change)
     let color = change.contains(.color)
@@ -63,10 +63,7 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPi
       if(color){
         textInput.textColor = UIColor.colorFromARGB(style.resolvedColor)
       }
-      if(size){
-        textInput.minimumFontSize = CGFloat(style.resolvedFontSize)
-      }
-      if(font){
+      if(font || size){
         let resolved = style.resolvedFontFace
         if let uiFont = resolved.uiFont {
           textInput.font = uiFont
@@ -89,486 +86,6 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPi
     }
   }
   
-  final class DateControl: UIView {
-    private let locale = Locale.current
-    private let order: [String]
-    
-    internal let yearInput = UITextField()
-    internal let monthInput = UITextField()
-    internal let dayInput = UITextField()
-    
-    private var fields: [UITextField] = []
-    private let showButton = UIButton(type: .system)
-    private let stack = UIStackView()
-    
-    // Public API to get/set value like web input
-    var value: String {
-      get {
-        let y = yearInput.text?.paddingLeft(toLength: 4, withPad: "0") ?? "0000"
-        let m = monthInput.text?.paddingLeft(toLength: 2, withPad: "0") ?? "00"
-        let d = dayInput.text?.paddingLeft(toLength: 2, withPad: "0") ?? "00"
-        return "\(y)-\(m)-\(d)"
-      }
-      set {
-        let parts = newValue.split(separator: "-")
-        if parts.count == 3 {
-          yearInput.text = String(parts[0])
-          yearInput.textColor = .label
-          monthInput.text = String(parts[1])
-          monthInput.textColor = .label
-          dayInput.text = String(parts[2])
-          dayInput.textColor = .label
-        }
-      }
-    }
-    
-    init() {
-      // Determine order from locale (M/D/Y)
-      let pattern = DateFormatter.dateFormat(fromTemplate: "yMd", options: 0, locale: locale) ?? "MdY"
-      self.order = pattern.compactMap { char -> String? in
-        switch char {
-        case "y": return "Y"
-        case "M": return "M"
-        case "d": return "D"
-        default: return nil
-        }
-      }
-      
-      super.init(frame: .zero)
-      setupFields()
-      setupLayout()
-      setupAutoFocus()
-      setupButton()
-    }
-    
-    required init?(coder: NSCoder) { fatalError("init(coder:) not implemented") }
-    
-    // MARK: - Field setup
-    private func setupFields() {
-      yearInput.configure(maxDigits: 4, hint: "yyyy", width: 40)
-      monthInput.configure(maxDigits: 2, hint: "mm", width: 26)
-      dayInput.configure(maxDigits: 2, hint: "dd", width: 20)
-      
-      fields = []
-      for part in order {
-        switch part {
-        case "Y": fields.append(yearInput)
-        case "M": fields.append(monthInput)
-        case "D": fields.append(dayInput)
-        default: break
-        }
-      }
-    }
-    
-    // MARK: - Layout
-    private func setupLayout() {
-      stack.axis = .horizontal
-      stack.spacing = 2
-      stack.alignment = .center
-      stack.distribution = .fill
-      
-      for field in fields {
-        stack.addArrangedSubview(field)
-      }
-      stack.addArrangedSubview(showButton)
-      
-      addSubview(stack)
-    }
-    
-    override func layoutSubviews() {
-      super.layoutSubviews()
-      stack.frame = bounds
-    }
-    
-    override var intrinsicContentSize: CGSize {
-      let stackSize = stack.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
-      return CGSize(width: stackSize.width, height: max(stackSize.height, 24))
-    }
-    
-    // MARK: - Auto-focus to next field
-    private func setupAutoFocus() {
-      for (i, field) in fields.enumerated() {
-        field.addTarget(self, action: #selector(textChanged(_:)), for: .editingChanged)
-        field.addTarget(self, action: #selector(editingBegan(_:)), for: .editingDidBegin)
-        field.addTarget(self, action: #selector(editingEnded(_:)), for: .editingDidEnd)
-        field.tag = i
-      }
-    }
-    
-    @objc private func editingBegan(_ sender: UITextField) {
-      // Clear placeholder text when editing begins
-      if sender.textColor == .placeholderText {
-        sender.text = ""
-        sender.textColor = .label
-      }
-    }
-    
-    @objc private func editingEnded(_ sender: UITextField) {
-      validateAndCorrect(sender)
-    }
-    
-    private func validateAndCorrect(_ field: UITextField) {
-      guard let text = field.text, !text.isEmpty else { return }
-      guard let value = Int(text) else { return }
-      
-      if field === monthInput {
-        // Month: 1-12
-        let corrected = max(1, min(12, value))
-        field.text = String(format: "%02d", corrected)
-      } else if field === dayInput {
-        // Day: 1-31 (adjusted for month if possible)
-        let maxDay = maxDayForCurrentMonth()
-        let corrected = max(1, min(maxDay, value))
-        field.text = String(format: "%02d", corrected)
-      } else if field === yearInput {
-        // Year: ensure 4 digits, reasonable range
-        let corrected = max(1, min(9999, value))
-        field.text = String(format: "%04d", corrected)
-        // Re-validate day in case of leap year change
-        validateAndCorrect(dayInput)
-      }
-    }
-    
-    private func maxDayForCurrentMonth() -> Int {
-      guard let monthText = monthInput.text, let month = Int(monthText), month >= 1, month <= 12 else {
-        return 31
-      }
-      
-      let year: Int
-      if let yearText = yearInput.text, let y = Int(yearText), y > 0 {
-        year = y
-      } else {
-        year = Calendar.current.component(.year, from: Date())
-      }
-      
-      var components = DateComponents()
-      components.year = year
-      components.month = month
-      components.day = 1
-      
-      guard let date = Calendar.current.date(from: components),
-            let range = Calendar.current.range(of: .day, in: .month, for: date) else {
-        return 31
-      }
-      
-      return range.count
-    }
-    
-    @objc private func textChanged(_ sender: UITextField) {
-      guard let text = sender.text else { return }
-      
-      // Only allow digits
-      let filtered = text.filter { $0.isNumber }
-      if filtered != text {
-        sender.text = filtered
-      }
-      
-      let maxLength = sender.maxDigits
-      if filtered.count >= maxLength {
-        // Validate before moving to next field
-        validateAndCorrect(sender)
-        if sender.tag + 1 < fields.count {
-          fields[sender.tag + 1].becomeFirstResponder()
-        }
-      }
-    }
-    
-    // MARK: - Calendar button
-    private func setupButton() {
-      let config = UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)
-      let calendarImage = UIImage(systemName: "calendar", withConfiguration: config)
-      showButton.setImage(calendarImage, for: .normal)
-      showButton.tintColor = .placeholderText
-      showButton.setContentHuggingPriority(.required, for: .horizontal)
-      showButton.setContentCompressionResistancePriority(.required, for: .horizontal)
-      showButton.addTarget(self, action: #selector(showDatePicker), for: .touchUpInside)
-    }
-    
-    @objc private func showDatePicker() {
-      guard let parentVC = self.parentViewController else { return }
-      
-      let picker = UIDatePicker()
-      picker.datePickerMode = .date
-      picker.preferredDatePickerStyle = .inline
-      
-      let alert = UIAlertController(title: "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", message: nil, preferredStyle: .actionSheet)
-      alert.view.addSubview(picker)
-      
-      picker.translatesAutoresizingMaskIntoConstraints = false
-      NSLayoutConstraint.activate([
-        picker.leadingAnchor.constraint(equalTo: alert.view.leadingAnchor),
-        picker.trailingAnchor.constraint(equalTo: alert.view.trailingAnchor),
-        picker.topAnchor.constraint(equalTo: alert.view.topAnchor, constant: 8),
-        picker.heightAnchor.constraint(equalToConstant: 360)
-      ])
-      
-      alert.addAction(UIAlertAction(title: "Done", style: .default, handler: { _ in
-        let calendar = Calendar.current
-        let comps = calendar.dateComponents([.year, .month, .day], from: picker.date)
-        self.yearInput.text = String(format: "%04d", comps.year ?? 0)
-        self.yearInput.textColor = .label
-        self.monthInput.text = String(format: "%02d", comps.month ?? 0)
-        self.monthInput.textColor = .label
-        self.dayInput.text = String(format: "%02d", comps.day ?? 0)
-        self.dayInput.textColor = .label
-      }))
-      
-      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-      parentVC.present(alert, animated: true)
-    }
-  }
-  
-  final class NumberControl: UIView {
-    
-    // MARK: - Subviews
-    
-    internal let textField = UITextField()
-    private let stepperContainer = UIStackView()
-    private let incrementButton = UIButton(type: .custom)
-    private let decrementButton = UIButton(type: .custom)
-
-    // MARK: - Value
-
-    internal var skip = false
-    public var value: Int = 0 {
-        didSet {
-          if(skip){return}
-            textField.text = "\(value)"
-        }
-    }
-
-    public var step: Int = 1
-    public var minValue: Int?
-    public var maxValue: Int?
-
-    // MARK: - Init
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        setup()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setup()
-    }
-
-    // MARK: - Setup
-
-    private func setup() {
-        incrementButton.backgroundColor = .systemGray6
-        decrementButton.backgroundColor = .systemGray6
-      
-        setupTextField()
-        setupStepper()
-        setupLayout()
-
-        tintColor = nil // inherit system accent (green)
-    }
-
-    private func setupTextField() {
-        textField.keyboardType = .numberPad
-        textField.borderStyle = .none
-        textField.textAlignment = .left
-        textField.font = .systemFont(ofSize: 16)
-        textField.addTarget(self, action: #selector(textChanged), for: .editingChanged)
-    }
-
-    private func setupStepper() {
-        stepperContainer.axis = .vertical
-        stepperContainer.distribution = .fillEqually
-        stepperContainer.alignment = .fill
-        stepperContainer.isUserInteractionEnabled = true
-
-        let size = CGSize(width: 8, height: 4)
-        let upChevron = UIImage.chevron(direction: .up, color: UIColor.label.withAlphaComponent(0.6), size: size, lineWidth: 3)
-        let downChevron = UIImage.chevron(direction: .down, color: UIColor.label.withAlphaComponent(0.6), size: size, lineWidth: 3)
-        
-        incrementButton.setImage(upChevron, for: .normal)
-        decrementButton.setImage(downChevron, for: .normal)
-        
-        // Add highlight effect on tap
-        incrementButton.addTarget(self, action: #selector(buttonTouchDown(_:)), for: .touchDown)
-        incrementButton.addTarget(self, action: #selector(buttonTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-        decrementButton.addTarget(self, action: #selector(buttonTouchDown(_:)), for: .touchDown)
-        decrementButton.addTarget(self, action: #selector(buttonTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-        
-        incrementButton.isUserInteractionEnabled = true
-        decrementButton.isUserInteractionEnabled = true
-
-        incrementButton.addTarget(self, action: #selector(increment), for: .touchUpInside)
-        decrementButton.addTarget(self, action: #selector(decrement), for: .touchUpInside)
-
-        stepperContainer.addArrangedSubview(incrementButton)
-        stepperContainer.addArrangedSubview(decrementButton)
-    }
-    
-    @objc private func buttonTouchDown(_ sender: UIButton) {
-        sender.backgroundColor = .systemGray4
-    }
-    
-    @objc private func buttonTouchUp(_ sender: UIButton) {
-        sender.backgroundColor = .systemGray6
-    }
-
-    private var container: UIStackView!
-    
-    private func setupLayout() {
-        // TextField should expand to fill available space
-        textField.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        
-        // Stepper should stay fixed width
-        stepperContainer.setContentHuggingPriority(.required, for: .horizontal)
-        stepperContainer.setContentCompressionResistancePriority(.required, for: .horizontal)
-        
-        container = UIStackView(arrangedSubviews: [textField, stepperContainer])
-        container.axis = .horizontal
-        container.alignment = .fill
-        container.distribution = .fill
-
-        stepperContainer.translatesAutoresizingMaskIntoConstraints = false
-        stepperContainer.widthAnchor.constraint(equalToConstant: 16).isActive = true
-
-        addSubview(container)
-    }
-    
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        container.frame = bounds.inset(by: UIEdgeInsets(top: 1, left: 8, bottom: 1, right: 1))
-    }
-
-    // MARK: - Actions
-
-    @objc private func increment() {
-        setValue(value + step)
-    }
-
-    @objc private func decrement() {
-        setValue(value - step)
-    }
-
-    @objc private func textChanged() {
-        if let text = textField.text, let newValue = Int(text) {
-            setValue(newValue)
-        }
-    }
-
-    private func setValue(_ newValue: Int) {
-      if let text = textField.text, !text.isEmpty && Int(text, radix: 10) == nil{
-        skip = true
-        value = 0
-        skip = false
-        return
-      }
-        var v = newValue
-        if let min = minValue { v = max(v, min) }
-        if let max = maxValue { v = min(v, max) }
-        value = v
-    }
-  }
-  
-  
-  final class CheckboxControl: UIControl {
-
-    var isChecked: Bool = false {
-      didSet {
-        setNeedsDisplay()
-        sendActions(for: .valueChanged)
-      }
-    }
-    
-    override init(frame: CGRect) {
-      super.init(frame: frame)
-      isOpaque = false
-    }
-    
-    required init?(coder: NSCoder) {
-      super.init(coder: coder)
-    }
-    
-    override func draw(_ rect: CGRect) {
-      guard let ctx = UIGraphicsGetCurrentContext() else { return }
-
-      let box = CGRect(x: 4, y: 3, width: 17, height: 17)
-
-      
-      if isChecked {
-        ctx.setFillColor(UIColor.systemGreen.cgColor)
-        ctx.fill(box)
-        
-        ctx.setStrokeColor(UIColor.white.cgColor)
-        ctx.setLineWidth(2)
-        ctx.move(to: CGPoint(x: box.minX + 3, y: box.midY))
-        ctx.addLine(to: CGPoint(x: box.midX - 1, y: box.maxY - 4))
-        ctx.addLine(to: CGPoint(x: box.maxX - 3, y: box.minY + 4))
-        ctx.strokePath()
-      }else {
-        ctx.setStrokeColor(UIColor.label.cgColor)
-        ctx.setLineWidth(1)
-        ctx.stroke(box)
-      }
-    }
-
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-      isChecked.toggle()
-    }
-  }
-  
-  
-  final class RadioButtonControl: UIControl {
-
-    var isSelectedRadio: Bool = false {
-      didSet {
-        setNeedsDisplay()
-        sendActions(for: .valueChanged)
-      }
-    }
-
-    override init(frame: CGRect) {
-      super.init(frame: frame)
-      isOpaque = false
-    }
-
-    required init?(coder: NSCoder) {
-      super.init(coder: coder)
-    }
-
-    override func draw(_ rect: CGRect) {
-      guard let ctx = UIGraphicsGetCurrentContext() else { return }
-
-      let diameter: CGFloat = 17
-      let circleRect = CGRect(x: 4, y: 3, width: diameter, height: diameter)
-
-      // Outer circle
-      if isSelectedRadio {
-        ctx.setStrokeColor(UIColor.systemGreen.cgColor)
-      }else {
-        ctx.setStrokeColor(UIColor.label.cgColor)
-      }
-
-      ctx.setLineWidth(1)
-      ctx.strokeEllipse(in: circleRect)
-
-      if isSelectedRadio {
-        let innerDiameter: CGFloat = 12
-        let innerRect = CGRect(
-          x: circleRect.midX - innerDiameter / 2,
-          y: circleRect.midY - innerDiameter / 2,
-          width: innerDiameter,
-          height: innerDiameter
-        )
-
-        ctx.setFillColor(UIColor.systemGreen.cgColor)
-        ctx.fillEllipse(in: innerRect)
-      }
-    }
-
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-      guard !isSelectedRadio else { return }
-      isSelectedRadio = true
-    }
-  }
   
   required init?(coder: NSCoder) {
     node = NSCMason.shared.createNode()
@@ -579,146 +96,100 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPi
   
   public let mason: NSCMason
   
-  internal lazy var dateInput: DateControl  = {
-    DateControl()
+  internal lazy var dateInput: MasonDateInput  = {
+    let date = MasonDateInput()
+    date.owner = self
+    return date
   }()
   
   
-  internal lazy var textInput: UITextField  = {
-    let field = UITextField()
+  internal lazy var textInput: MasonTextInput  = {
+    let field = MasonTextInput()
+    field.owner = self
+    
+    if(style.font.uiFont == nil){
+      style.font.loadSync { _ in }
+    }
+    if let font = style.font.uiFont {
+      field.font = font
+    }
+    
     field.autocorrectionType = .no
     return field
+  }()
+
+  internal lazy var passwordInput: MasonPasswordInput = {
+    let input = MasonPasswordInput()
+    input.owner = self
+    if(style.font.uiFont == nil){
+      style.font.loadSync { _ in }
+    }
+    if let font = style.font.uiFont {
+      input.font = font
+    }
+    return input
   }()
   
   
   internal lazy var buttonInput: UIButton  = {
     let btn = UIButton()
+    btn.addTarget(self, action: #selector(buttonTapped), for: .touchUpInside)
     return btn
   }()
   
-  internal lazy var checkboxInput: CheckboxControl  = {
-    let cb = CheckboxControl()
+  
+  @objc private func buttonTapped() {
+      let before = MasonInputEvent(
+          type: "beforeinput",
+          data: nil,
+          inputType: "activate",
+          options: MasonEventOptions(
+              type: "beforeinput",
+              bubbles: true,
+              cancelable: true,
+              composed: true
+          )
+      )
+      before.target = self
+      node.mason.dispatch(before, node)
+      
+      if before.defaultPrevented { return }
+      
+      // change (non-cancellable)
+      let change = MasonInputEvent(
+          type: "change",
+          data: nil,
+          inputType: "activate",
+          options: MasonEventOptions(
+              type: "change",
+              bubbles: true,
+              cancelable: false,
+              composed: true
+          )
+      )
+      change.target = self
+      node.mason.dispatch(change, node)
+  }
+  
+  internal lazy var checkboxInput: MasonCheckboxInput  = {
+    let cb = MasonCheckboxInput()
+    cb.owner = self
     return cb
   }()
   
-  internal lazy var radioInput: RadioButtonControl  = {
-    let rb = RadioButtonControl()
+  internal lazy var radioInput: MasonRadioInput  = {
+    let rb = MasonRadioInput()
+    rb.owner = self
     return rb
   }()
   
-  
-  class Range: UISlider {
-    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
-           let bounds = self.bounds.insetBy(dx: -10, dy: -10)
-           return bounds.contains(point)
-       }
-  }
-  
- private func thumbImage(diameter: CGFloat, color: UIColor) -> UIImage {
-      let renderer = UIGraphicsImageRenderer(size: CGSize(width: diameter, height: diameter))
-      return renderer.image { ctx in
-          ctx.cgContext.setFillColor(color.cgColor)
-          ctx.cgContext.fillEllipse(in: CGRect(x: 0, y: 0, width: diameter, height: diameter))
-      }
-  }
-  
-  private func rangeThumbImage(
-      diameter: CGFloat = 18,
-      innerScale: CGFloat = 0.75,
-      outerColor: UIColor = .white,
-      innerColor: UIColor = .systemGreen,
-      borderColor: UIColor = .systemGray,
-      borderWidth: CGFloat = 1
-  ) -> UIImage {
-
-      let size = CGSize(width: diameter, height: diameter)
-      let renderer = UIGraphicsImageRenderer(size: size)
-
-      return renderer.image { ctx in
-          let rect = CGRect(origin: .zero, size: size)
-
-          // Outer circle (white)
-          ctx.cgContext.setFillColor(outerColor.cgColor)
-          ctx.cgContext.fillEllipse(in: rect)
-
-          // Optional subtle border (web-like)
-          ctx.cgContext.setStrokeColor(borderColor.cgColor)
-          ctx.cgContext.setLineWidth(borderWidth)
-          ctx.cgContext.strokeEllipse(in: rect.insetBy(dx: borderWidth / 2, dy: borderWidth / 2))
-
-          // Inner circle (green)
-          let innerDiameter = diameter * innerScale
-          let innerRect = CGRect(
-              x: (diameter - innerDiameter) / 2,
-              y: (diameter - innerDiameter) / 2,
-              width: innerDiameter,
-              height: innerDiameter
-          )
-
-          ctx.cgContext.setFillColor(innerColor.cgColor)
-          ctx.cgContext.fillEllipse(in: innerRect)
-      }
-  }
-
-  
-  private func rangeTrackImage(
-      height: CGFloat = 4,
-      fillColor: UIColor,
-      borderColor: UIColor = .systemGray,
-      borderWidth: CGFloat = 1
-  ) -> UIImage {
-
-      // Width must be > height so caps can stretch cleanly
-      let width: CGFloat = height * 3
-      let size = CGSize(width: width, height: height + borderWidth * 2)
-
-      let renderer = UIGraphicsImageRenderer(size: size)
-      let image = renderer.image { ctx in
-          let rect = CGRect(
-              x: borderWidth,
-              y: borderWidth,
-              width: width - borderWidth * 2,
-              height: height
-          )
-
-          let radius = rect.height / 2
-
-          // Border
-          let borderPath = UIBezierPath(
-              roundedRect: rect.insetBy(dx: -borderWidth, dy: -borderWidth),
-              cornerRadius: radius + borderWidth
-          )
-          borderColor.setStroke()
-          borderPath.lineWidth = borderWidth
-          borderPath.stroke()
-
-          // Fill
-          let fillPath = UIBezierPath(
-              roundedRect: rect,
-              cornerRadius: radius
-          )
-          fillColor.setFill()
-          fillPath.fill()
-      }
-
-      return image.resizableImage(
-          withCapInsets: UIEdgeInsets(
-              top: size.height / 2,
-              left: size.width / 2,
-              bottom: size.height / 2,
-              right: size.width / 2
-          )
-      )
-  }
-
-  
-  internal lazy var rangeInput: UISlider  = {
-    let range = Range()
+  internal lazy var rangeInput: MasonRangeInput  = {
+    let range = MasonRangeInput()
+    range.owner = self
     range.contentVerticalAlignment = .center
     range.maximumValueImage = nil
     range.minimumValueImage = nil
-    
-    range.setMinimumTrackImage(rangeTrackImage(fillColor: .systemGreen), for: .normal)
+    range.setMinimumTrackImage(rangeTrackImage(fillColor: UIColor.systemGreen), for: .normal)
     range.setMinimumTrackImage(rangeTrackImage(fillColor: .systemGreen.darker()), for: .highlighted)
     
     range.setMaximumTrackImage(rangeTrackImage(fillColor: .systemGray5), for: .normal)
@@ -730,11 +201,11 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPi
     return range
   }()
   
-  internal lazy var numberInput: NumberControl  = {
-    let ctrl = NumberControl()
+  internal lazy var numberInput: MasonNumberInput  = {
+    let ctrl = MasonNumberInput()
+    ctrl.owner = self
     return ctrl
   }()
-  
   
   internal lazy var colorInput: UIColorWell = {
     let well = UIColorWell()
@@ -753,137 +224,18 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPi
     }
   }
   
-  final class FileInputControl: UIView {
-    private let fileBtn = UIButton(type: .system)
-    private let fileLabel = UILabel()
-    private let stack: UIStackView
-    
-    var onPickFile: (() -> Void)?
-    var onContentSizeChanged: (() -> Void)?
-    
-    var labelText: String {
-      get { fileLabel.text ?? "" }
-      set {
-        fileLabel.text = newValue
-        invalidateIntrinsicContentSize()
-        setNeedsLayout()
-        layoutIfNeeded()
-        onContentSizeChanged?()
-      }
-    }
-    
-    override init(frame: CGRect) {
-      stack = UIStackView(arrangedSubviews: [fileBtn, fileLabel])
-      super.init(frame: frame)
-      setup()
-    }
-    
-    required init?(coder: NSCoder) {
-      stack = UIStackView(arrangedSubviews: [fileBtn, fileLabel])
-      super.init(coder: coder)
-      setup()
-    }
-    
-    private func setup() {
-      clipsToBounds = false
-      
-      fileBtn.setTitle("Browse...", for: .normal)
-      fileBtn.layer.borderWidth = 1
-      fileBtn.layer.borderColor = UIColor.systemGray4.cgColor
-      fileBtn.layer.cornerRadius = 4
-      fileBtn.contentEdgeInsets = UIEdgeInsets(top: 2, left: 8, bottom: 2, right: 8)
-      fileBtn.setContentHuggingPriority(.required, for: .horizontal)
-      fileBtn.setContentCompressionResistancePriority(.required, for: .horizontal)
-      
-      fileLabel.text = "No file selected"
-      fileLabel.lineBreakMode = .byTruncatingTail
-      fileLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
-      fileLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-      
-      stack.axis = .horizontal
-      stack.spacing = 8
-      stack.alignment = .center
-      stack.distribution = .fill
-      stack.clipsToBounds = false
-      
-      addSubview(stack)
-      
-      fileBtn.addTarget(self, action: #selector(didTapButton), for: .touchUpInside)
-    }
-    
-    @objc private func didTapButton() {
-      onPickFile?()
-    }
-    
-    func configure(attributes: [NSAttributedString.Key: Any]) {
-      fileBtn.setAttributedTitle(NSAttributedString(string: "Browse...", attributes: attributes), for: .normal)
-      fileLabel.attributedText = NSAttributedString(string: fileLabel.text ?? "No file selected", attributes: attributes)
-    }
-    
-    override func layoutSubviews() {
-      super.layoutSubviews()
-      stack.frame = bounds
-    }
-    
-    override var intrinsicContentSize: CGSize {
-      let btnSize = fileBtn.intrinsicContentSize
-      let labelSize = fileLabel.intrinsicContentSize
-      let width = btnSize.width + 8 + labelSize.width
-      let height = max(btnSize.height, labelSize.height)
-      return CGSize(width: width, height: height)
-    }
-    
-    override func sizeThatFits(_ size: CGSize) -> CGSize {
-      let fitting = stack.systemLayoutSizeFitting(
-        CGSize(width: size.width, height: UIView.layoutFittingCompressedSize.height),
-        withHorizontalFittingPriority: .fittingSizeLevel,
-        verticalFittingPriority: .fittingSizeLevel
-      )
-      return fitting
-    }
-  }
-  
-  internal lazy var fileInput: FileInputControl = {
-    let control = FileInputControl()
+  internal lazy var fileInput: MasonFileInput = {
+    let control = MasonFileInput()
+    control.owner = self
     control.configure(attributes: node.getDefaultAttributes())
-    control.onPickFile = { [weak self] in
-      self?.pickFile()
-    }
     control.onContentSizeChanged = { [weak self] in
       self?.invalidateLayout()
     }
     return control
   }()
   
+  public var accept: String = "*/*"
   
-  public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-    
-  }
-  
-  public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-    guard !urls.isEmpty else { return }
-    
-    if multiple {
-      if urls.count == 1 {
-        fileInput.labelText = urls.first?.lastPathComponent ?? ""
-      } else {
-        fileInput.labelText = "\(urls.count) files selected"
-      }
-    } else {
-      fileInput.labelText = urls.first?.lastPathComponent ?? ""
-    }
-  }
-  
-  @objc private func pickFile() {
-    let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.png, .jpeg, .webP])
-    picker.delegate = self
-    picker.allowsMultipleSelection = multiple
-  
-    if let controller = parentViewController {
-      controller.present(picker, animated: true)
-    }
-  }
-
   
   public var uiView: UIView {
     self
@@ -913,8 +265,10 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPi
   public var value: String = "" {
     didSet {
       switch type {
-      case .Text,.Email,.Url:
+      case .Text, .Email, .Url:
         textInput.text = value
+      case .Password:
+        passwordInput.text = value
       case .Button:
         let attributes = node.getDefaultAttributes()
         let title = NSAttributedString(string: value, attributes: attributes)
@@ -942,11 +296,110 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPi
     }
   }
   
+  
+  public var valueAsNumber: Double {
+    get {
+      switch type {
+      case .Number:
+        return Double(numberInput.value)
+      case .Range:
+        return Double(rangeInput.value)
+      case .Text, .Email, .Url, .Tel:
+        if let txt = textInput.text, let d = Double(txt) { return d }
+        return Double.nan
+      case .Password:
+        if let txt = passwordInput.text, let d = Double(txt) { return d }
+        return Double.nan
+      case .Date:
+        if let d = valueAsDate { return d.timeIntervalSince1970 }
+        return Double.nan
+      default:
+        return Double.nan
+      }
+    }
+    set {
+      if newValue.isNaN {
+        value = ""
+        return
+      }
+
+      switch type {
+      case .Number:
+        numberInput.value = Int(newValue)
+        value = String(numberInput.value)
+      case .Range:
+        rangeInput.value = Float(newValue)
+        value = String(newValue)
+      case .Text, .Email, .Url, .Tel, .Password:
+        value = String(newValue)
+      case .Date:
+        let date = Date(timeIntervalSince1970: newValue)
+        valueAsDate = date
+      default:
+        value = String(newValue)
+      }
+    }
+  }
+  
+  public var valueAsDate: Date? {
+    get {
+      let iso = ISO8601DateFormatter()
+      let simple = DateFormatter()
+      simple.calendar = Calendar(identifier: .gregorian)
+      simple.locale = Locale(identifier: "en_US_POSIX")
+      simple.timeZone = TimeZone(secondsFromGMT: 0)
+      simple.dateFormat = "yyyy-MM-dd"
+
+      switch type {
+      case .Date:
+        let s = dateInput.value
+        if let d = simple.date(from: s) { return d }
+        return nil
+      case .Text, .Email, .Url, .Tel:
+        if let d = iso.date(from: value) { return d }
+        if let d = simple.date(from: value) { return d }
+        return nil
+      case .Password:
+        if let txt = passwordInput.text {
+          if let d = iso.date(from: txt) { return d }
+          if let d = simple.date(from: txt) { return d }
+        }
+        return nil
+      default:
+        return nil
+      }
+    }
+    set {
+      guard let d = newValue else {
+        value = ""
+        return
+      }
+
+      let simple = DateFormatter()
+      simple.calendar = Calendar(identifier: .gregorian)
+      simple.locale = Locale(identifier: "en_US_POSIX")
+      simple.timeZone = TimeZone(secondsFromGMT: 0)
+      simple.dateFormat = "yyyy-MM-dd"
+
+      switch type {
+      case .Date:
+        dateInput.value = simple.string(from: d)
+        value = dateInput.value
+      case .Text, .Email, .Url, .Tel, .Password:
+        value = simple.string(from: d)
+      default:
+        value = simple.string(from: d)
+      }
+    }
+  }
+  
   public var placeholder: String = "" {
     didSet {
       switch type {
-      case .Text,.Email, .Password:
+      case .Text, .Email:
         textInput.placeholder = placeholder
+      case .Password:
+        passwordInput.placeholder = placeholder
       case .Button:
         break
       case .Checkbox:
@@ -1084,8 +537,11 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPi
       inputSize = bounds.insetBy(dx: inset.left, dy: inset.top)
     }
     switch type {
-    case .Text, .Email, .Password:
+    case .Text, .Email:
       textInput.frame = inputSize
+      break
+    case .Password:
+      passwordInput.frame = inputSize
       break
     case .Button:
       buttonInput.frame = inputSize
@@ -1132,15 +588,20 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener, UIDocumentPi
         textInput.keyboardType = .emailAddress
         break
       case .Password:
-          textInput.isSecureTextEntry = (type == .Password)
-         textInput.textContentType = type == .Password ? .password : .none
-         textInput.autocapitalizationType = .none
-         textInput.autocorrectionType = .no
+         // For password use a real secure `UITextField` instead of `UITextView`.
+         passwordInput.isSecureTextEntry = true
+         passwordInput.textContentType = .password
+         passwordInput.autocapitalizationType = .none
+         passwordInput.autocorrectionType = .no
         break
       default:
         break
       }
-      addSubview(textInput)
+      if type == .Password {
+        addSubview(passwordInput)
+      } else {
+        addSubview(textInput)
+      }
     case .Date:
       addSubview(dateInput)
       break

@@ -17,6 +17,9 @@ public class NSCMason: NSObject {
   
   public static var shared = NSCMason()
   
+  private var nodeEventListeners: [MasonNode: [String: [UUID: (MasonEvent) -> Void]]] = [:]
+
+  
   public override init() {
     nativePtr = mason_init()
   }
@@ -81,6 +84,53 @@ public class NSCMason: NSObject {
     let layout: MasonLayout = Unmanaged.fromOpaque(points).takeRetainedValue()
     return layout
   }
+  
+  @discardableResult
+  public func addEventListener(_ node: MasonNode, _ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID {
+      var dict = nodeEventListeners[node] ?? [:]
+      var listeners = dict[event] ?? [:]
+
+      let id = UUID() // unique key for this closure
+      listeners[id] = listener
+
+      dict[event] = listeners
+      nodeEventListeners[node] = dict
+
+      return id
+  }
+
+  
+  @discardableResult
+  public func removeEventListener(_ node: MasonNode, _ event: String, id: UUID) -> Bool {
+      guard var dict = nodeEventListeners[node], var listeners = dict[event] else { return false }
+      listeners[id] = nil
+      if listeners.isEmpty {
+          dict[event] = nil
+      } else {
+          dict[event] = listeners
+      }
+      nodeEventListeners[node] = dict
+      return true
+  }
+  
+  @discardableResult
+  public func removeEventListener(_ node: MasonNode, _ event: String) -> Bool {
+      guard var dict = nodeEventListeners[node] else { return false }
+      dict[event] = nil
+      nodeEventListeners[node] = dict
+      return true
+  }
+  
+
+  public func dispatch(_ event: MasonEvent, _ node: MasonNode) {
+      if let listeners = nodeEventListeners[node]?[event.type] {
+          for listener in listeners.values {
+              listener(event)
+          }
+      }
+  }
+
+  
   
   public func clear(){
     mason_clear(nativePtr)

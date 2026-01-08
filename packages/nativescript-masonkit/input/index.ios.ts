@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { InputBase, multipleProperty, valueProperty } from './common';
+import { acceptProperty, InputBase, multipleProperty, valueProperty } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { placeholderProperty, typeProperty } from './common';
@@ -63,6 +63,30 @@ export class Input extends InputBase {
     }
   }
 
+  get value() {
+    return this._view ? this._view.value : '';
+  }
+
+  set valueAsNumber(value: number) {
+    if (this._view) {
+      this._view.valueAsNumber = value;
+    }
+  }
+
+  get valueAsNumber(): number {
+    return this._view ? this._view.valueAsNumber : NaN;
+  }
+
+  set valueAsDate(value: Date | null) {
+    if (this._view) {
+      this._view.valueAsDate = value;
+    }
+  }
+
+  get valueAsDate(): Date | null {
+    return this._view ? this._view.valueAsDate : null;
+  }
+
   [typeProperty.setNative](value: InputType) {
     this._type = value;
     if (this._view) {
@@ -73,6 +97,12 @@ export class Input extends InputBase {
   [placeholderProperty.setNative](value: string) {
     if (this._view) {
       this._view.placeholder = value;
+    }
+  }
+
+  [acceptProperty.setNative](value: string) {
+    if (this._view) {
+      this._view.accept = value;
     }
   }
 
