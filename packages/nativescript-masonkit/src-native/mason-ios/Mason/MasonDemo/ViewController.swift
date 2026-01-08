@@ -483,7 +483,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     root.append(input)
     
     root.append(text: "\n")
-    
     root.mason_addChildAt(element: mason.createBr(), -1)
     
     let button = root.mason.createInput(.Button)

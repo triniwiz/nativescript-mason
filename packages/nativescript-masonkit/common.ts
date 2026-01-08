@@ -308,7 +308,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
       if (__APPLE__) {
         //@ts-ignore
-        this._view.mason_appendWithNode(child._view);
+        this._view.mason_addChildAtElement(child._view);
       }
 
       if (this[isText_]) {
