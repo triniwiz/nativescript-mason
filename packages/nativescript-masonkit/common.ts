@@ -172,7 +172,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
             ret = new Event();
           }
           ret[native_] = event;
-          ret.target = this;
+          ret._target = this;
           callback.call(thisArg || this, ret);
         });
 
@@ -1531,7 +1531,7 @@ export class Event {
   }
 
   get target(): any {
-    return this[native_]?.target;
+    return this['_target'];
   }
 }
 

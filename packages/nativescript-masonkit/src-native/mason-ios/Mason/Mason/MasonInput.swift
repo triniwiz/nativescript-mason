@@ -261,40 +261,61 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
       invalidateLayout()
     }
   }
-  
-  public var value: String = "" {
-    didSet {
-      switch type {
-      case .Text, .Email, .Url:
-        textInput.text = value
-      case .Password:
-        passwordInput.text = value
-      case .Button:
-        let attributes = node.getDefaultAttributes()
-        let title = NSAttributedString(string: value, attributes: attributes)
-        buttonInput.setAttributedTitle(title, for: .normal)
-        break
-      case .Checkbox:
-        break
-      case .Password:
-        break
-      case .Date:
-        break
-      case .Radio:
-        break
-      case .Number:
-        break
-      case .Range:
-        break
-      case .Tel:
-        break
-      case .Color:
-        break
-      case .File:
-        break
+  public var value: String {
+      set {
+          switch type {
+          case .Text, .Email, .Url, .Tel:
+              textInput.text = newValue
+          case .Password:
+              passwordInput.text = newValue
+          case .Button:
+              let attributes = node.getDefaultAttributes()
+              let title = NSAttributedString(string: newValue, attributes: attributes)
+              buttonInput.setAttributedTitle(title, for: .normal)
+          case .Checkbox:
+              checkboxInput.isChecked = (newValue == "true")
+          case .Date:
+              dateInput.value = newValue
+          case .Radio:
+              radioInput.isSelected = (newValue == "true")
+          case .Number:
+              numberInput.value = Int(newValue) ?? 0
+          case .Range:
+              rangeInput.value = Float(newValue) ?? 0
+          case .Color:
+              if let color = UIColor(css: newValue) {
+                  colorInput.selectedColor = color
+              }
+          case .File:
+              fileInput.labelText = newValue
+          }
       }
-    }
+      get {
+          switch type {
+          case .Text, .Email, .Url, .Tel:
+              return textInput.text ?? ""
+          case .Password:
+              return passwordInput.text ?? ""
+          case .Button:
+              return buttonInput.currentAttributedTitle?.string ?? ""
+          case .Checkbox:
+              return checkboxInput.isChecked ? "true" : "false"
+          case .Date:
+              return dateInput.value
+          case .Radio:
+              return radioInput.isSelected ? "true" : "false"
+          case .Number:
+              return String(numberInput.value)
+          case .Range:
+              return String(rangeInput.value)
+          case .Color:
+              return colorInput.selectedColor?.toCSS(includeAlpha: true) ?? "#000000"
+          case .File:
+              return fileInput.labelText
+          }
+      }
   }
+
   
   
   public var valueAsNumber: Double {
@@ -603,6 +624,12 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
         addSubview(textInput)
       }
     case .Date:
+      configure { style in
+        style.border = ""
+        style.borderRadius = ""
+        style.padding = MasonRect(uniform: .Zero)
+        style.textAlign = TextAlign.Auto
+      }
       addSubview(dateInput)
       break
     case .Button:
@@ -636,6 +663,12 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
       addSubview(colorInput)
       break
     case .File:
+      configure { style in
+        style.border = ""
+        style.borderRadius = ""
+        style.padding = MasonRect(uniform: .Zero)
+        style.textAlign = TextAlign.Auto
+      }
       addSubview(fileInput)
       break
     default:

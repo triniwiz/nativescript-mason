@@ -620,6 +620,24 @@ func parseColor(_ value: String) -> UIColor? {
 
 
 extension UIColor {
+  
+  func toCSS(includeAlpha: Bool = false) -> String {
+          var r: CGFloat = 0
+          var g: CGFloat = 0
+          var b: CGFloat = 0
+          var a: CGFloat = 0
+
+          self.getRed(&r, green: &g, blue: &b, alpha: &a)
+
+          if includeAlpha {
+              let rgba = (Int(r * 255) << 24) | (Int(g * 255) << 16) | (Int(b * 255) << 8) | Int(a * 255)
+              return String(format: "#%08X", rgba)
+          } else {
+              let rgb = (Int(r * 255) << 16) | (Int(g * 255) << 8) | Int(b * 255)
+              return String(format: "#%06X", rgb)
+          }
+      }
+
   convenience init?(css: String) {
     let value = css
       .trimmingCharacters(in: .whitespacesAndNewlines)
