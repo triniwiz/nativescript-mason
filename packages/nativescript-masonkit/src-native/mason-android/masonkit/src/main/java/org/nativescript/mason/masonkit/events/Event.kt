@@ -1,7 +1,28 @@
 package org.nativescript.mason.masonkit.events
 
+import org.nativescript.mason.masonkit.EventTarget
+
 
 open class Event(val type: String, options: EventOptions? = null) {
+
+  enum class InputType(val value: String) {
+    // Text editing
+    InsertText("insertText"),
+    DeleteContentBackward("deleteContentBackward"),
+    DeleteContentForward("deleteContentForward"),
+    InsertLineBreak("insertLineBreak"),
+
+    // Replacement / non-text controls
+    InsertReplacementText("insertReplacementText"),
+
+    // History
+    HistoryUndo("historyUndo"),
+    HistoryRedo("historyRedo"),
+
+    // Composition (IME)
+    InsertCompositionText("insertCompositionText"),
+    DeleteCompositionText("deleteCompositionText"),
+  }
 
   val bubbles: Boolean = options?.bubbles ?: false
   val cancelable: Boolean = options?.cancelable ?: false
@@ -14,10 +35,13 @@ open class Event(val type: String, options: EventOptions? = null) {
   var propagationStopped = false
     internal set
 
-  var target: Any? = null
+  var immediatePropagationStopped = false
     internal set
 
-  var currentTarget: Any? = null
+  var target: EventTarget? = null
+    internal set
+
+  var currentTarget: EventTarget? = null
     internal set
 
 
@@ -29,6 +53,11 @@ open class Event(val type: String, options: EventOptions? = null) {
   }
 
   fun stopPropagation() {
+    propagationStopped = true
+  }
+
+  fun stopImmediatePropagation() {
+    immediatePropagationStopped = true
     propagationStopped = true
   }
 }

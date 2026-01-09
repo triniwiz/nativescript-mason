@@ -4,9 +4,10 @@ import android.content.Context
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
 import org.nativescript.mason.masonkit.enums.TextType
+import org.nativescript.mason.masonkit.events.Event
 import java.lang.ref.WeakReference
+import java.util.UUID
 import java.util.WeakHashMap
-
 
 class Mason {
 
@@ -16,6 +17,10 @@ class Mason {
   private var isAlive = true
 
   internal val nodes = WeakHashMap<Long, Node>()
+
+  private val nodeEventListeners =
+    mutableMapOf<Node, MutableMap<String, MutableMap<UUID, (Event) -> Unit>>>()
+
   private val viewNodes = WeakHashMap<android.view.View, Node>()
   var scale: Float = 1f
     private set
@@ -36,6 +41,56 @@ class Mason {
   fun printTree(node: Node) {
     nativePrintTree(nativePtr, node.nativePtr)
   }
+
+  fun addEventListener(
+    node: Node,
+    type: String,
+    listener: (Event) -> Unit
+  ): UUID {
+    val id = UUID.randomUUID()
+
+    val byType = nodeEventListeners.getOrPut(node) { mutableMapOf() }
+    val byId = byType.getOrPut(type) { mutableMapOf() }
+
+    byId[id] = listener
+    return id
+  }
+
+  fun removeEventListener(
+    node: Node,
+    type: String,
+    id: UUID
+  ) {
+    nodeEventListeners[node]
+      ?.get(type)
+      ?.remove(id)
+  }
+
+  fun dispatch(event: Event) {
+    val path = mutableListOf<Node>()
+    var current: Node? = event.target?.node
+    while (current != null) {
+      path.add(current)
+      current = current.parent
+    }
+
+    for (node in path) {
+      if (event.propagationStopped) break
+
+      val listeners =
+        nodeEventListeners[node]
+          ?.get(event.type)
+          ?.values
+          ?.toList()
+          ?: continue
+
+      for (listener in listeners) {
+        if (event.immediatePropagationStopped) break
+        listener(event)
+      }
+    }
+  }
+
 
   @JvmOverloads
   fun createNode(children: Array<Node>? = null, isAnonymous: Boolean = false): Node {
@@ -64,8 +119,7 @@ class Mason {
 
   fun createNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
-    val nodePtr =
-      NativeHelpers.nativeNodeNewWithContext(nativePtr, func, isAnonymous)
+    val nodePtr = NativeHelpers.nativeNodeNewWithContext(nativePtr, func, isAnonymous)
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = this
       measureFunc = measure
@@ -80,8 +134,7 @@ class Mason {
   fun createTextNode(children: Array<Node>? = null, isAnonymous: Boolean = false): Node {
     val nodePtr = children?.let {
       NativeHelpers.nativeNodeNewWithChildren(
-        nativePtr,
-        children.map { map ->
+        nativePtr, children.map { map ->
           if (map.nativePtr == 0L) {
             null
           } else {
@@ -109,8 +162,7 @@ class Mason {
 
   fun createTextNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
-    val nodePtr =
-      NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func, isAnonymous)
+    val nodePtr = NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func, isAnonymous)
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = this
       measureFunc = measure
@@ -125,8 +177,7 @@ class Mason {
 
   fun createImageNode(measure: MeasureFunc): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
-    val nodePtr =
-      NativeHelpers.nativeNodeNewImageWithContext(nativePtr, func)
+    val nodePtr = NativeHelpers.nativeNodeNewImageWithContext(nativePtr, func)
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = this
       measureFunc = measure
@@ -138,8 +189,7 @@ class Mason {
 
   fun createLineBreakNode(measure: MeasureFunc): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
-    val nodePtr =
-      NativeHelpers.nativeNodeNewLineBreakWithContext(nativePtr, func)
+    val nodePtr = NativeHelpers.nativeNodeNewLineBreakWithContext(nativePtr, func)
     val node = Node(this, nodePtr).apply {
       nodes[nodePtr] = this
       measureFunc = measure
@@ -157,9 +207,7 @@ class Mason {
 
   @JvmOverloads
   fun createTextView(
-    context: Context,
-    type: TextType = TextType.None,
-    isAnonymous: Boolean = false
+    context: Context, type: TextType = TextType.None, isAnonymous: Boolean = false
   ): TextView {
     return TextView(context, this, type, isAnonymous)
   }
@@ -272,14 +320,11 @@ class Mason {
     val shared = Mason()
 
     internal val gson =
-      Gson().newBuilder()
-        .registerTypeAdapter(Dimension::class.java, DimensionSerializer())
+      Gson().newBuilder().registerTypeAdapter(Dimension::class.java, DimensionSerializer())
         .registerTypeAdapter(LengthPercentageSerializer::class.java, LengthPercentageSerializer())
         .registerTypeAdapter(
-          LengthPercentageAutoSerializer::class.java,
-          LengthPercentageAutoSerializer()
-        )
-        .create()
+          LengthPercentageAutoSerializer::class.java, LengthPercentageAutoSerializer()
+        ).create()
 
     @JvmStatic
     @CriticalNative

@@ -16,10 +16,14 @@ import android.widget.FrameLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.graphics.ColorUtils
+import androidx.core.graphics.toColorInt
+import org.nativescript.mason.masonkit.events.EventOptions
+import  org.nativescript.mason.masonkit.events.InputEvent
 
 class ColorInput @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null
 ) : FrameLayout(context, attrs) {
+  var owner: Element? = null
   val colorView = View(context)
   private var hueTrackDrawable: HueTrackDrawable? = null
 
@@ -69,10 +73,10 @@ class ColorInput @JvmOverloads constructor(
         when (outMode) {
           0 -> {
             // RGB: show three value boxes, hide hex
-            hexView.visibility = View.GONE
-            hText.visibility = View.VISIBLE
-            sText.visibility = View.VISIBLE
-            lText.visibility = View.VISIBLE
+            hexView.visibility = GONE
+            hText.visibility = VISIBLE
+            sText.visibility = VISIBLE
+            lText.visibility = VISIBLE
 
             outA.text = "R"
             outB.text = "G"
@@ -88,10 +92,10 @@ class ColorInput @JvmOverloads constructor(
 
           1 -> {
             // HSL: show three value boxes, hide hex
-            hexView.visibility = View.GONE
-            hText.visibility = View.VISIBLE
-            sText.visibility = View.VISIBLE
-            lText.visibility = View.VISIBLE
+            hexView.visibility = GONE
+            hText.visibility = VISIBLE
+            sText.visibility = VISIBLE
+            lText.visibility = VISIBLE
             val hsl = FloatArray(3)
             ColorUtils.colorToHSL(col, hsl)
             hText.setText("${hsl[0].toInt()}")
@@ -104,10 +108,10 @@ class ColorInput @JvmOverloads constructor(
 
           else -> {
             // HEX: show single hex box
-            hexView.visibility = View.VISIBLE
-            hText.visibility = View.GONE
-            sText.visibility = View.GONE
-            lText.visibility = View.GONE
+            hexView.visibility = VISIBLE
+            hText.visibility = GONE
+            sText.visibility = GONE
+            lText.visibility = GONE
             val hex = String.format("#%06X", 0xFFFFFF and col)
             hexView.setText(hex)
 
@@ -161,7 +165,13 @@ class ColorInput @JvmOverloads constructor(
               val hh = hText.text.toString().toFloatOrNull() ?: 0f
               val ss = sText.text.toString().toFloatOrNull() ?: 0f
               val ll = lText.text.toString().toFloatOrNull() ?: 0f
-              val rgb = ColorUtils.HSLToColor(floatArrayOf(hh, (ss / 100f).coerceIn(0f, 1f), (ll / 100f).coerceIn(0f, 1f)))
+              val rgb = ColorUtils.HSLToColor(
+                floatArrayOf(
+                  hh,
+                  (ss / 100f).coerceIn(0f, 1f),
+                  (ll / 100f).coerceIn(0f, 1f)
+                )
+              )
               selectedColor = rgb
             }
 
@@ -169,7 +179,8 @@ class ColorInput @JvmOverloads constructor(
               // HEX
               val txt = hexView.text.toString().trim()
               try {
-                selectedColor = if (txt.startsWith("#")) Color.parseColor(txt) else Color.parseColor("#${txt}")
+                selectedColor =
+                  if (txt.startsWith("#")) txt.toColorInt() else "#${txt}".toColorInt()
               } catch (_: Exception) {
               }
             }
@@ -178,14 +189,23 @@ class ColorInput @JvmOverloads constructor(
         }
         // propagate selectedColor into UI (seekbar, SV, preview)
         val hsvTmp = FloatArray(3)
-        android.graphics.Color.colorToHSV(selectedColor, hsvTmp)
+        Color.colorToHSV(selectedColor, hsvTmp)
         h = hsvTmp[0]
         svView.hue = h
         svView.sat = hsvTmp[1]
         svView.valueV = hsvTmp[2]
-        try { hue.progress = h.toInt() } catch (_: Exception) {}
+        try {
+          hue.progress = h.toInt()
+        } catch (_: Exception) {
+        }
         updatePreview()
         updateOutputFields(selectedColor)
+        // emit input event when user edits numeric/hex fields
+        dispatchInputEvent(
+          type = "input",
+          value = selectedColor,
+          cancelable = false
+        )
       }
 
       // apply edits when fields lose focus
@@ -227,7 +247,7 @@ class ColorInput @JvmOverloads constructor(
           }
           hueTrackDrawable?.setGap(posX, huePressed)
           // ensure thumb reflects current selection (respect pressed state)
-          val trackColorInit = android.graphics.Color.HSVToColor(floatArrayOf(h, 1f, 1f))
+          val trackColorInit = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
           setHueThumb(hue, trackColorInit, huePressed)
           try {
             hue.viewTreeObserver.removeOnGlobalLayoutListener(this)
@@ -240,13 +260,13 @@ class ColorInput @JvmOverloads constructor(
         when (event.actionMasked) {
           MotionEvent.ACTION_DOWN -> {
             huePressed = true
-            val trackColorDown = android.graphics.Color.HSVToColor(floatArrayOf(h, 1f, 1f))
+            val trackColorDown = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
             setHueThumb(hue, trackColorDown, true)
           }
 
           MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
             huePressed = false
-            val trackColorUp = android.graphics.Color.HSVToColor(floatArrayOf(h, 1f, 1f))
+            val trackColorUp = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
             setHueThumb(hue, trackColorUp, false)
           }
         }
@@ -255,11 +275,24 @@ class ColorInput @JvmOverloads constructor(
       }
       hue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
         override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+          if (fromUser) {
+            val hsv = floatArrayOf(progress.toFloat(), svView.sat, svView.valueV)
+            val nextColor = Color.HSVToColor(hsv)
+
+            val allowed = dispatchInputEvent(
+              type = "beforeinput",
+              value = nextColor,
+              cancelable = true
+            )
+            if (!allowed) return
+          }
+
+
           h = progress.toFloat()
           svView.hue = h
           // compute color from HSV (h, s, v) where svView holds latest s/v
           val hsv = floatArrayOf(h, svView.sat, svView.valueV)
-          val rgb = android.graphics.Color.HSVToColor(hsv)
+          val rgb = Color.HSVToColor(hsv)
           val hsl = FloatArray(3)
           ColorUtils.colorToHSL(rgb, hsl)
           s = hsl[1]
@@ -269,9 +302,15 @@ class ColorInput @JvmOverloads constructor(
           sText.setText("${(s * 100).toInt()}")
           lText.setText("${(l * 100).toInt()}")
           selectedColor = rgb
-          val trackColor = android.graphics.Color.HSVToColor(floatArrayOf(h, 1f, 1f))
+          val trackColor = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
           setHueThumb(hue, trackColor, huePressed)
           updateOutputFields(selectedColor)
+          // emit live input event for hue changes (mirrors web `input` behavior)
+          dispatchInputEvent(
+            type = "input",
+            value = selectedColor,
+            cancelable = false
+          )
           // update hue drawable gap
           val posX = run {
             val tb = try {
@@ -296,33 +335,47 @@ class ColorInput @JvmOverloads constructor(
       svView.onSVChanged = { sv, vv ->
         // build HSV color
         val hsv = floatArrayOf(h, sv, vv)
-        val rgb = android.graphics.Color.HSVToColor(hsv)
-        val hsl = FloatArray(3)
-        ColorUtils.colorToHSL(rgb, hsl)
-        s = hsl[1]
-        l = hsl[2]
-        selectedColor = rgb
-        val trackColorSV = android.graphics.Color.HSVToColor(floatArrayOf(h, 1f, 1f))
-        setHueThumb(hue, trackColorSV, huePressed)
-        updateOutputFields(selectedColor)
-        // keep gap updated when SV changes
-        val posX = run {
-          val tb = try {
-            hue.thumb?.bounds
-          } catch (_: Exception) {
-            null
+        val rgb = Color.HSVToColor(hsv)
+
+        val allowed = dispatchInputEvent(
+          type = "beforeinput",
+          value = rgb,
+          cancelable = true
+        )
+        if (allowed) {
+          val hsl = FloatArray(3)
+          ColorUtils.colorToHSL(rgb, hsl)
+          s = hsl[1]
+          l = hsl[2]
+          selectedColor = rgb
+          val trackColorSV = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
+          setHueThumb(hue, trackColorSV, huePressed)
+          updateOutputFields(selectedColor)
+          // emit live input event for saturation/value changes
+          dispatchInputEvent(
+            type = "input",
+            value = selectedColor,
+            cancelable = false
+          )
+          // keep gap updated when SV changes
+          val posX = run {
+            val tb = try {
+              hue.thumb?.bounds
+            } catch (_: Exception) {
+              null
+            }
+            if (tb != null && !tb.isEmpty) tb.centerX() else {
+              val avail = (hue.width - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
+              val x = (hue.progress.toFloat() / hue.max) * (avail - 1)
+              (hue.paddingLeft + x).toInt()
+            }
           }
-          if (tb != null && !tb.isEmpty) tb.centerX() else {
-            val avail = (hue.width - hue.paddingLeft - hue.paddingRight).coerceAtLeast(1)
-            val x = (hue.progress.toFloat() / hue.max) * (avail - 1)
-            (hue.paddingLeft + x).toInt()
-          }
+          hueTrackDrawable?.setGap(posX, huePressed)
+          updatePreview()
+          hText.setText(h.toInt().toString())
+          sText.setText("${(s * 100).toInt()}")
+          lText.setText("${(l * 100).toInt()}")
         }
-        hueTrackDrawable?.setGap(posX, huePressed)
-        updatePreview()
-        hText.setText(h.toInt().toString())
-        sText.setText("${(s * 100).toInt()}")
-        lText.setText("${(l * 100).toInt()}")
       }
 
       updatePreview()
@@ -336,15 +389,50 @@ class ColorInput @JvmOverloads constructor(
       val dm = resources.displayMetrics
       val widthPx = (340 * dm.density).toInt()
       dlg.window?.setLayout(widthPx, WindowManager.LayoutParams.WRAP_CONTENT)
-
-      btnCancel?.setOnClickListener { dlg.dismiss() }
+      btnCancel?.setOnClickListener {
+        // Emit cancel event
+        dispatchInputEvent(
+          type = "cancel",
+          value = selectedColor,
+          cancelable = false
+        )
+        dlg.dismiss()
+      }
       btnOk?.setOnClickListener {
         // persist selected color back to the colorView
         colorView.setBackgroundColor(selectedColor)
+        // Emit change event for final color selection (mirrors web `change`)
+        dispatchInputEvent(
+          type = "change",
+          value = selectedColor,
+          cancelable = false
+        )
         dlg.dismiss()
       }
     }
   }
+
+  private fun dispatchInputEvent(
+    type: String,
+    value: Int,
+    cancelable: Boolean = false
+  ): Boolean {
+    val event = InputEvent(
+      type = type,
+      data = String.format("#%06X", 0xFFFFFF and value),
+      null,
+      EventOptions().apply {
+        bubbles = true
+        this.cancelable = cancelable
+      }
+    ).apply {
+      target = owner
+    }
+
+    owner?.node?.mason?.dispatch(event)
+    return !event.defaultPrevented
+  }
+
 
   private fun setHueThumb(seek: SeekBar, color: Int, pressed: Boolean = false) {
     // Mutate the existing thumb drawable when possible to avoid triggering re-layout
@@ -359,14 +447,15 @@ class ColorInput @JvmOverloads constructor(
             is android.graphics.drawable.LayerDrawable -> {
               for (i in 0 until drawable.numberOfLayers) {
                 val child = drawable.getDrawable(i)
-                setInnerColor(child)
+                if (child != null) setInnerColor(child)
               }
             }
 
             is android.graphics.drawable.StateListDrawable -> {
               val stateContainer = drawable.constantState
-              if (stateContainer is android.graphics.drawable.DrawableContainer.DrawableContainerState) {
-                for (child in stateContainer.children) setInnerColor(child)
+              val children = (stateContainer as? android.graphics.drawable.DrawableContainer.DrawableContainerState)?.children
+              if (children != null) {
+                for (child in children) if (child != null) setInnerColor(child)
               }
             }
 
@@ -387,13 +476,16 @@ class ColorInput @JvmOverloads constructor(
           fun setInner(drawable: android.graphics.drawable.Drawable) {
             when (drawable) {
               is android.graphics.drawable.LayerDrawable -> {
-                for (i in 0 until drawable.numberOfLayers) setInner(drawable.getDrawable(i))
+                for (i in 0 until drawable.numberOfLayers) {
+                  val child = drawable.getDrawable(i)
+                  if (child != null) setInner(child)
+                }
               }
 
               is android.graphics.drawable.StateListDrawable -> {
                 val stateContainer = drawable.constantState
                 if (stateContainer is android.graphics.drawable.DrawableContainer.DrawableContainerState) {
-                  for (child in stateContainer.children) setInner(child)
+                  for (child in stateContainer.children) if (child != null) setInner(child)
                 }
               }
 

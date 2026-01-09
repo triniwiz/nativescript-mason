@@ -35,6 +35,7 @@ public class MasonEvent: NSObject {
   
   public internal(set) var defaultPrevented = false
   public internal(set) var propagationStopped = false
+  public internal(set) var immediatePropagationStopped = false
   
   public internal(set) var target: Any?
   public internal(set) var currentTarget: Any?
@@ -54,6 +55,10 @@ public class MasonEvent: NSObject {
   
   public func stopPropagation(){
     propagationStopped = true
+  }
+  
+  public func stopImmediatePropagation() {
+    immediatePropagationStopped = true
   }
 }
 

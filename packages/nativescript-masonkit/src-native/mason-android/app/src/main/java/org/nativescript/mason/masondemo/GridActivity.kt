@@ -10,7 +10,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Element
-import org.nativescript.mason.masonkit.FontFace
 import org.nativescript.mason.masonkit.Input
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
@@ -33,6 +32,8 @@ import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.VerticalAlign
+import org.nativescript.mason.masonkit.events.Event
+import org.nativescript.mason.masonkit.events.InputEvent
 
 class GridActivity : AppCompatActivity() {
   lateinit var metrics: DisplayMetrics
@@ -158,8 +159,15 @@ class GridActivity : AppCompatActivity() {
     val date = mason.createInput(this, Input.Type.Date)
     root.append(date)
 
+    date.addEventListener("input"){
+      Log.d("com.test", "input ${(it as InputEvent).data}")
+    }
+
     val color = mason.createInput(this, Input.Type.Color)
     root.append(color)
+    color.addEventListener("input"){
+      Log.d("com.test", "input ${(it as InputEvent).data}")
+    }
   }
 
   fun textShadow(body: Scroll) {

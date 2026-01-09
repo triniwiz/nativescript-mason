@@ -9,6 +9,7 @@ import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import kotlin.math.max
 
@@ -17,10 +18,21 @@ class FileInputControl @JvmOverloads constructor(
   attrs: AttributeSet? = null,
   defStyleAttr: Int = 0
 ) : ViewGroup(context, attrs, defStyleAttr) {
+  internal var owner: Element? = null
 
-  private val fileButton = Button(context)
-  private val fileLabel = TextView(context)
-  private val spacing = dp(8)
+  private val fileButton = Button(context).apply {
+    owner?.let {
+      textSize = it.style.fontSize.toFloat()
+    }
+  }
+  private val fileLabel = TextView(context).apply {
+    owner?.let {
+      textSize = it.style.fontSize.toFloat()
+    }
+  }
+
+  // slightly tighter spacing to keep controls compact
+  private val spacing = dp(6)
 
   var onPickFile: (() -> Unit)? = null
   var onContentSizeChanged: (() -> Unit)? = null
@@ -46,8 +58,11 @@ class FileInputControl @JvmOverloads constructor(
     fileButton.apply {
       text = "Browse…"
       isAllCaps = false
-      setPadding(dp(8), dp(2), dp(8), dp(2))
+      // avoid default extra min width/padding from button styles
+      includeFontPadding = false
       background = createButtonBackground()
+      // re-apply tight padding after setting custom background
+      setPadding(dp(8), dp(2), dp(8), dp(2))
       textAlignment = TEXT_ALIGNMENT_CENTER
       setOnClickListener { onPickFile?.invoke() }
     }
@@ -55,6 +70,10 @@ class FileInputControl @JvmOverloads constructor(
 
     fileLabel.apply {
       text = "No file selected"
+      setTextColor(Color.DKGRAY)
+      // slightly smaller label to de-emphasize it relative to the button
+      textSize = 12f
+      visibility = VISIBLE
       ellipsize = TextUtils.TruncateAt.END
       maxLines = 1
     }

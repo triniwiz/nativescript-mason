@@ -1,16 +1,15 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
 import android.util.SizeF
 import android.view.View
 import androidx.core.view.isGone
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
 
-interface Element {
+interface Element : EventTarget {
   val style: Style
 
-  val node: Node
+  override val node: Node
 
   fun syncStyle(state: String, textState: String) {
     val stateValue = state.toLongOrNull()?.takeIf { it > -1 }

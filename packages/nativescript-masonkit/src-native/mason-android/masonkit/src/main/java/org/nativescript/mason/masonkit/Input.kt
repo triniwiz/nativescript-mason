@@ -1,7 +1,6 @@
 package org.nativescript.mason.masonkit
 
 import android.annotation.SuppressLint
-import android.app.DatePickerDialog
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
@@ -18,7 +17,6 @@ import android.text.InputFilter
 import android.text.InputFilter.LengthFilter
 import android.text.InputType
 import android.text.TextWatcher
-import android.text.format.DateFormat
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
@@ -29,12 +27,14 @@ import android.widget.RadioButton
 import android.widget.SeekBar
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import androidx.core.text.TextUtilsCompat
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
-import java.util.Calendar
+import org.nativescript.mason.masonkit.events.Event
+import org.nativescript.mason.masonkit.events.InputEvent
 import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
@@ -43,207 +43,6 @@ import kotlin.math.min
 class Input @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
 ) : FrameLayout(context, attrs), Element, MeasureFunc, StyleChangeListener {
-
-  class DateInput(context: Context) : FrameLayout(context) {
-
-    private val locale = Locale.getDefault()
-    private val pattern = DateFormat.getBestDateTimePattern(locale, "yMd") // e.g., "MM/dd/yyyy"
-    private val order = pattern.map {
-      when (it) {
-        'y' -> "Y"
-        'M' -> "M"
-        'd' -> "D"
-        else -> null
-      }
-    }.filterNotNull() // ["M","d","Y"] etc.
-
-    internal val yearInput = createField(4).apply {
-      hint = "yyyy"
-    }
-    internal val monthInput = createField(2).apply {
-      hint = "mm"
-    }
-    internal val dayInput = createField(2).apply {
-      hint = "dd"
-    }
-
-    private val fields = mutableListOf<EditText>()
-    private val showButton = android.widget.ImageButton(context).apply {
-      background = null
-      // scaleType = ImageView.ScaleType.CENTER_INSIDE
-      setImageResource(R.drawable.ic_calendar_web)
-      val size = (20 * resources.displayMetrics.density).toInt()
-      minimumWidth = size
-      minimumHeight = size
-    }
-
-    private fun createSeparator(): android.widget.TextView {
-      return android.widget.TextView(context).apply {
-        text = "/"
-        scaleY = 2f
-        gravity = android.view.Gravity.CENTER
-        setPadding(
-          (2 * resources.displayMetrics.density).toInt(),
-          0,
-          (2 * resources.displayMetrics.density).toInt(),
-          0
-        )
-      }
-    }
-
-    init {
-      // Add fields to layout in correct order
-      order.forEachIndexed { index, it ->
-        when (it) {
-          "Y" -> {
-            addView(
-              yearInput, LayoutParams(
-                LayoutParams.WRAP_CONTENT,
-                LayoutParams.MATCH_PARENT,
-              )
-            ); fields.add(yearInput)
-          }
-
-          "M" -> {
-            addView(
-              monthInput, LayoutParams(
-                LayoutParams.WRAP_CONTENT,
-                LayoutParams.MATCH_PARENT,
-              )
-            ); fields.add(monthInput)
-          }
-
-          "D" -> {
-            addView(
-              dayInput, LayoutParams(
-                LayoutParams.WRAP_CONTENT,
-                LayoutParams.MATCH_PARENT,
-              )
-            ); fields.add(dayInput)
-          }
-        }
-        // Add separator after each field except the last
-        if (index < order.size - 1) {
-          addView(
-            createSeparator(), LayoutParams(
-              LayoutParams.WRAP_CONTENT,
-              LayoutParams.MATCH_PARENT
-            )
-          )
-        }
-      }
-
-      // Auto-jump focus
-      fields.forEachIndexed { i, field ->
-        field.addTextChangedListener(object : TextWatcher {
-          override fun afterTextChanged(s: Editable?) {
-            if (s?.length == (field.filters.firstOrNull() as? InputFilter.LengthFilter)?.max) {
-              if (i + 1 < fields.size) fields[i + 1].requestFocus()
-            }
-          }
-
-          override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-          override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-      }
-
-      addView(showButton)
-
-      showButton.setOnClickListener {
-        val today = Calendar.getInstance()
-        DatePickerDialog(
-          context,
-          { _, year, month, dayOfMonth ->
-            // month is 0-based
-            val yrStr =
-              String.format(Locale.getDefault(), "%04d", year, month + 1, dayOfMonth)
-            val monthStr =
-              String.format(Locale.getDefault(), "%02d", year, month + 1, dayOfMonth)
-            val dayStr =
-              String.format(Locale.getDefault(), "%02d", year, month + 1, dayOfMonth)
-            dayInput.setText(dayStr)
-            monthInput.setText(monthStr)
-            yearInput.setText(yrStr)
-          },
-          today.get(Calendar.YEAR),
-          today.get(Calendar.MONTH),
-          today.get(Calendar.DAY_OF_MONTH)
-        ).show()
-      }
-    }
-
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-      var totalWidth = 0
-      var maxHeight = 0
-
-      // measure all children (fields + separators + showButton)
-      val childCount = childCount
-      // fixed size for the button based on sp like before
-      val size = TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_SP,
-        16f,
-        resources.displayMetrics
-      )
-      val wh = MeasureSpec.makeMeasureSpec(size.toInt(), MeasureSpec.EXACTLY)
-
-      for (i in 0 until childCount) {
-        val child = getChildAt(i)
-        if (child === showButton) {
-          measureChild(child, wh, wh)
-        } else {
-          measureChild(child, widthMeasureSpec, heightMeasureSpec)
-        }
-        totalWidth += child.measuredWidth
-        maxHeight = max(maxHeight, child.measuredHeight)
-      }
-
-      val width = resolveSize(totalWidth, widthMeasureSpec)
-      val height = resolveSize(maxHeight, heightMeasureSpec)
-      setMeasuredDimension(width, height)
-    }
-
-    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-      var left = 0
-
-      // layout children in order (fields, separators, button)
-      val childCount = childCount
-      for (i in 0 until childCount) {
-        val child = getChildAt(i)
-        val right = left + child.measuredWidth
-        child.layout(left, 0, right, child.measuredHeight)
-        left = right
-      }
-    }
-
-    private fun createField(maxDigits: Int): EditText {
-      return EditText(context).apply {
-        isSingleLine = true
-        maxLines = 1
-        setHorizontallyScrolling(true)
-        filters = arrayOf(LengthFilter(maxDigits))
-        inputType = InputType.TYPE_CLASS_NUMBER
-        hint = "_".repeat(maxDigits)
-        background = null
-        setPadding(0, 0, 0, 0)
-      }
-    }
-
-    var value: String
-      get() {
-        val y = yearInput.text.toString().padStart(4, '0')
-        val m = monthInput.text.toString().padStart(2, '0')
-        val d = dayInput.text.toString().padStart(2, '0')
-        return "$y-$m-$d"
-      }
-      set(v) {
-        val parts = v.split("-")
-        if (parts.size == 3) {
-          yearInput.setText(parts[0])
-          monthInput.setText(parts[1])
-          dayInput.setText(parts[2])
-        }
-      }
-  }
 
   @SuppressLint("AppCompatCustomView")
   class InputEditText @JvmOverloads constructor(
@@ -338,10 +137,29 @@ class Input @JvmOverloads constructor(
     }
   }
 
+  private val beforeFilter = InputFilter { source, start, end, dest, dstart, dend ->
+    val event = InputEvent(
+      type = "beforeinput",
+      data = source?.toString(),
+      inputType = Event.InputType.InsertText.value
+    ).apply {
+      target = this@Input
+    }
+
+    node.mason.dispatch(event)
+
+    if (event.defaultPrevented) {
+      "" // CANCEL mutation
+    } else {
+      null // ALLOW mutation
+    }
+  }
+
   internal val textInput: EditText by lazy {
     InputEditText(context).apply {
       isSingleLine = true
       maxLines = 1
+      textSize = style.fontSize.toFloat()
       setHorizontallyScrolling(true)
       setPadding(0, 0, 0, 0)
       background = null
@@ -352,20 +170,54 @@ class Input @JvmOverloads constructor(
         textCursorDrawable = null
       }
 
-//      setOnFocusChangeListener { v, hasFocus ->
-//       // if (hasFocus) textInput.setSelection(textInput.text?.length ?: 0)
-//      }
+      setOnFocusChangeListener { _, hasFocus ->
+        node.mason.dispatch(
+          Event(
+            type = if (hasFocus) "focus" else "blur",
+          ).apply {
+            target = this@Input
+          }
+        )
+      }
+
+      addTextChangedListener(object : TextWatcher {
+        override fun afterTextChanged(s: Editable?) {
+          node.mason.dispatch(
+            InputEvent(
+              type = "input",
+              inputType = "insertText",
+              data = s?.toString()
+            ).apply {
+              target = this@Input
+            }
+          )
+        }
+
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+      })
+
+      filters = arrayOf(beforeFilter)
     }
   }
 
   internal val buttonInput: android.widget.Button by lazy {
     android.widget.Button(context).apply {
+      textSize = style.fontSize.toFloat()
       background = null
       setPadding(0, 0, 0, 0)
       isAllCaps = false
+      setOnClickListener {
+        node.mason.dispatch(
+          Event(
+            type = "click",
+          ).apply {
+            target = this@Input
+          }
+        )
+      }
     }
   }
-
 
   private val systemGreen = "#4CAF50".toColorInt()
 
@@ -422,11 +274,41 @@ class Input @JvmOverloads constructor(
   internal val checkBoxInput: CheckBox by lazy {
     CheckBox(context).apply {
       setCheckboxColors(this)
+      setOnCheckedChangeListener { checkBox, isChecked ->
+        val before = InputEvent(
+          type = "beforeinput",
+          data = isChecked,
+          inputType = Event.InputType.InsertReplacementText.value
+        ).apply {
+          target = this@Input
+        }
+
+        node.mason.dispatch(before)
+
+        if (before.defaultPrevented) {
+          checkBox.isChecked = !isChecked
+          return@setOnCheckedChangeListener
+        }
+
+        node.mason.dispatch(
+          InputEvent("input", isChecked, Event.InputType.InsertReplacementText.value).apply {
+            target = this@Input
+          }
+        )
+
+        node.mason.dispatch(
+          InputEvent("change", isChecked, Event.InputType.InsertReplacementText.value).apply {
+            target = this@Input
+          }
+        )
+      }
     }
   }
 
   internal val dateInput: DateInput by lazy {
-    DateInput(context)
+    DateInput(context).apply {
+      owner = this@Input
+    }
   }
 
   internal val radioInput: RadioButton by lazy {
@@ -443,6 +325,18 @@ class Input @JvmOverloads constructor(
           )
         )
       }
+
+      setOnCheckedChangeListener { _, isChecked ->
+        if (isChecked) {
+          node.mason.dispatch(
+            InputEvent(
+              "change", true
+            ).apply {
+              target = this@Input
+            }
+          )
+        }
+      }
     }
   }
 
@@ -450,8 +344,47 @@ class Input @JvmOverloads constructor(
     SeekBar(context).apply {
       isClickable = true
       isFocusable = true
-      thumb = context.getDrawable(R.drawable.seekbar_thumb_web)
-      progressDrawable = context.getDrawable(R.drawable.seekbar_track_web_bordered)
+      thumb = AppCompatResources.getDrawable(context, R.drawable.seekbar_thumb_web)
+      progressDrawable =
+        AppCompatResources.getDrawable(context, R.drawable.seekbar_track_web_bordered)
+      setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+
+        override fun onProgressChanged(sb: SeekBar, value: Int, fromUser: Boolean) {
+          if (!fromUser) return
+
+          val before = InputEvent(
+            "beforeinput", value.toDouble(),
+            Event.InputType.InsertReplacementText.value
+          ).apply {
+            target = this@Input
+          }
+
+          node.mason.dispatch(before)
+          if (before.defaultPrevented) return
+
+          node.mason.dispatch(
+            InputEvent(
+              "input", value.toDouble(),
+              Event.InputType.InsertReplacementText.value
+            ).apply {
+              target = this@Input
+            }
+          )
+        }
+
+        override fun onStopTrackingTouch(sb: SeekBar) {
+          node.mason.dispatch(
+            InputEvent(
+              "change", sb.progress.toDouble(),
+              Event.InputType.InsertReplacementText.value
+            ).apply {
+              target = this@Input
+            }
+          )
+        }
+
+        override fun onStartTrackingTouch(sb: SeekBar) {}
+      })
     }
   }
 
@@ -460,12 +393,15 @@ class Input @JvmOverloads constructor(
   }
 
   internal val colorInput: ColorInput by lazy {
-    ColorInput(context)
+    ColorInput(context).apply {
+      owner = this@Input
+    }
   }
 
   var multiple: Boolean = false
 
   val fileInput = FileInputControl(context).apply {
+    owner = this@Input
     onPickFile = {
       pickFile(multiple = this@Input.multiple)
     }
@@ -676,6 +612,7 @@ class Input @JvmOverloads constructor(
         }
         addView(colorInput)
       }
+
       Type.File -> {
         addView(fileInput)
       }
@@ -727,10 +664,10 @@ class Input @JvmOverloads constructor(
         Type.Text, Type.Email, Type.Password -> {
           if (value > -1) {
             textInput.filters = arrayOf(
-              LengthFilter(value)
+              LengthFilter(value), beforeFilter
             )
           } else {
-            textInput.filters = arrayOf()
+            textInput.filters = arrayOf(beforeFilter)
           }
         }
 
@@ -945,6 +882,12 @@ class Input @JvmOverloads constructor(
         )
         size.width = width
         size.height = height
+      }
+
+      Type.File -> {
+        fileInput.measure(0, 0)
+        size.width = fileInput.measuredWidth.toFloat()
+        size.height = fileInput.measuredHeight.toFloat()
       }
 
       else -> {
