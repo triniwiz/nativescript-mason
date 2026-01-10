@@ -22,11 +22,13 @@ open class Event(val type: String, options: EventOptions? = null) {
     // Composition (IME)
     InsertCompositionText("insertCompositionText"),
     DeleteCompositionText("deleteCompositionText"),
+
+    InsertFromPaste("insertFromPaste")
   }
 
   val bubbles: Boolean = options?.bubbles ?: false
   val cancelable: Boolean = options?.cancelable ?: false
-  val composed: Boolean = options?.composed ?: false
+  val isComposing: Boolean = options?.isComposing ?: false
   val timeStamp: Double = (System.currentTimeMillis() * 1000).toDouble()
 
   var defaultPrevented = false

@@ -427,19 +427,101 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
-				export class Br extends org.nativescript.mason.masonkit.TextNode {
+				export class Br implements org.nativescript.mason.masonkit.Element, org.nativescript.mason.masonkit.MeasureFunc {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Br>;
-					public getData(): string;
-					public constructor(mason: org.nativescript.mason.masonkit.Mason, data: string);
-					public constructor(mason: org.nativescript.mason.masonkit.Mason, nativePtr: number, nodeType: org.nativescript.mason.masonkit.NodeType);
-					public insertData(param0: number, param1: string): org.nativescript.mason.masonkit.CharacterData;
-					public getLength(): number;
-					public constructor(mason: org.nativescript.mason.masonkit.Mason);
-					public setData(param0: string): void;
-					public deleteData(param0: number, param1: number): org.nativescript.mason.masonkit.CharacterData;
-					public substringData(param0: number, param1: number): string;
-					public appendData(param0: string): org.nativescript.mason.masonkit.CharacterData;
-					public replaceData(param0: number, param1: number, param2: string): org.nativescript.mason.masonkit.CharacterData;
+					public getView(): globalAndroid.view.View;
+					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, size: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public computeMaxContent(): void;
+					public configure(param0: any): void;
+					public replaceChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
+					public layout(): org.nativescript.mason.masonkit.Layout;
+					public computeWithViewSize(layout: boolean): void;
+					public addChildAt(node: org.nativescript.mason.masonkit.Node, index: number): void;
+					public getStyle(): org.nativescript.mason.masonkit.Style;
+					public removeChildAt(param0: number): void;
+					public syncStyle(state: string, textState: string): void;
+					public append(param0: org.nativescript.mason.masonkit.Element): void;
+					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
+					public append(param0: org.nativescript.mason.masonkit.Node): void;
+					public prependView(view: globalAndroid.view.View): void;
+					public replaceChildAt(param0: string, param1: number): void;
+					public replaceChildAt(text: string, index: number): void;
+					public prepend(param0: org.nativescript.mason.masonkit.Node): void;
+					public computeMinContent(): void;
+					public computeAndLayout(): org.nativescript.mason.masonkit.Layout;
+					public compute(): void;
+					public invalidateLayout(): void;
+					public computeWithViewSize(param0: boolean): void;
+					public prepend(param0: org.nativescript.mason.masonkit.Element): void;
+					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public appendView(view: globalAndroid.view.View): void;
+					public prepend(param0: androidNative.Array<string>): void;
+					public removeChildAt(index: number): void;
+					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
+					public prependView(param0: globalAndroid.view.View): void;
+					public replaceChildAt(param0: org.nativescript.mason.masonkit.Element, param1: number): void;
+					public appendView(views: androidNative.Array<globalAndroid.view.View>): void;
+					public compute(param0: number, param1: number): void;
+					public addChildAt(text: string, index: number): void;
+					public prepend(nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public prepend(param0: string): void;
+					public compute(width: number, height: number): void;
+					public addEventListener(param0: string, param1: any): java.util.UUID;
+					public isNodeDirty(): boolean;
+					public computeWithMinContent(): void;
+					public prepend(elements: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
+					public invalidateLayout(param0: boolean): void;
+					public append(texts: androidNative.Array<string>): void;
+					public computeAndLayout(width: number, height: number): org.nativescript.mason.masonkit.Layout;
+					public computeAndLayout(param0: number, param1: number): org.nativescript.mason.masonkit.Layout;
+					public addChildAt(param0: org.nativescript.mason.masonkit.Element, param1: number): void;
+					public attachAndApply(): void;
+					public onNodeAttached(): void;
+					public onNodeDetached(): void;
+					public computeWithViewSize(): void;
+					public computeWithMaxContent(): void;
+					public removeEventListener(type: string, id: java.util.UUID): void;
+					public append(node: org.nativescript.mason.masonkit.Node): void;
+					public prepend(node: org.nativescript.mason.masonkit.Node): void;
+					public markNodeDirty(): void;
+					public prepend(element: org.nativescript.mason.masonkit.Element): void;
+					public addEventListener(type: string, listener: any): java.util.UUID;
+					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public append(param0: androidNative.Array<string>): void;
+					public dispatch(event: org.nativescript.mason.masonkit.events.Event): void;
+					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
+					public replaceChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
+					public syncStyle(param0: string, param1: string): void;
+					public addChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
+					public configure(block: any): void;
+					public append(element: org.nativescript.mason.masonkit.Element): void;
+					public replaceChildAt(node: org.nativescript.mason.masonkit.Node, index: number): void;
+					public invalidateLayout(invalidateRoot: boolean): void;
+					public append(text: string): void;
+					public addChildAt(param0: string, param1: number): void;
+					public prepend(strings: androidNative.Array<string>): void;
+					public appendView(param0: globalAndroid.view.View): void;
+					public prepend(string: string): void;
+					public prependView(views: androidNative.Array<globalAndroid.view.View>): void;
+					public addChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
+					public computeWithSize(param0: number, param1: number): void;
+					public removeEventListener(param0: string, param1: java.util.UUID): void;
+					public getNode(): org.nativescript.mason.masonkit.Node;
+					public computeWithSize(width: number, height: number): void;
+					public append(elements: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
+					public append(param0: string): void;
+					public append(nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public prependView(param0: androidNative.Array<globalAndroid.view.View>): void;
+					public getMFake$masonkit_release(): org.nativescript.mason.masonkit.Br.FakeView;
+					public appendView(param0: androidNative.Array<globalAndroid.view.View>): void;
+					public constructor(context: globalAndroid.content.Context, mason: org.nativescript.mason.masonkit.Mason);
+				}
+				export module Br {
+					export class FakeView {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.Br.FakeView>;
+						public constructor(context: globalAndroid.content.Context);
+					}
 				}
 			}
 		}
@@ -476,6 +558,7 @@ declare module org {
 					public addChildAt(text: string, index: number): void;
 					public prepend(nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public compute(width: number, height: number): void;
+					public addEventListener(param0: string, param1: any): java.util.UUID;
 					public computeWithMinContent(): void;
 					public isNodeDirty(): boolean;
 					public invalidateLayout(param0: boolean): void;
@@ -489,6 +572,7 @@ declare module org {
 					public onNodeDetached(): void;
 					public append(node: org.nativescript.mason.masonkit.Node): void;
 					public markNodeDirty(): void;
+					public addEventListener(type: string, listener: any): java.util.UUID;
 					public prepend(element: org.nativescript.mason.masonkit.Element): void;
 					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public replaceChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
@@ -517,6 +601,7 @@ declare module org {
 					public syncStyle(state: string, textState: string): void;
 					public onTextStyleChanged(change: number): void;
 					public append(param0: org.nativescript.mason.masonkit.Element): void;
+					public dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
 					public append(param0: org.nativescript.mason.masonkit.Node): void;
 					public onSizeChanged(it: number, element$iv: number, $i$f$forEach: number, $this$forEach$iv: number): void;
 					public computeAndLayout(): org.nativescript.mason.masonkit.Layout;
@@ -535,8 +620,10 @@ declare module org {
 					public getPaint(): globalAndroid.text.TextPaint;
 					public computeWithViewSize(): void;
 					public computeWithMaxContent(): void;
+					public removeEventListener(type: string, id: java.util.UUID): void;
 					public prepend(node: org.nativescript.mason.masonkit.Node): void;
 					public append(param0: androidNative.Array<string>): void;
+					public dispatch(event: org.nativescript.mason.masonkit.events.Event): void;
 					public getFontFace$masonkit_release(): org.nativescript.mason.masonkit.FontFace;
 					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
 					public configure(block: any): void;
@@ -545,6 +632,7 @@ declare module org {
 					public prepend(string: string): void;
 					public prependView(views: androidNative.Array<globalAndroid.view.View>): void;
 					public addChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
+					public removeEventListener(param0: string, param1: java.util.UUID): void;
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public computeWithSize(width: number, height: number): void;
 					public onDraw(canvas: globalAndroid.graphics.Canvas): void;
@@ -722,7 +810,7 @@ declare module org {
 					export module FilterHelper {
 						export class Companion {
 							public static class: java.lang.Class<org.nativescript.mason.masonkit.CSSFilters.FilterHelper.Companion>;
-							public createDropShadowBitmap(cached: globalAndroid.content.Context, value: number, value2: number, value3: number, tempW: number, tempH: number, tempBmp: number, tempCanvas: globalAndroid.graphics.Bitmap, input: globalAndroid.renderscript.RenderScript, output: globalAndroid.graphics.Canvas): globalAndroid.graphics.Bitmap;
+							public createDropShadowBitmap(cached: globalAndroid.content.Context, value: number, $this$createDropShadowBitmap_u24lambda_u242_u24lambda_u241: number, bm: number, tempW: number, tempH: number, tempBmp: number, tempCanvas: globalAndroid.graphics.Bitmap, input: globalAndroid.renderscript.RenderScript, output: globalAndroid.graphics.Canvas): globalAndroid.graphics.Bitmap;
 							public build(helper: globalAndroid.view.View, pool: java.util.List<any>, source: any): org.nativescript.mason.masonkit.CSSFilters.FilterHelper;
 							public createBlurBitmap(config$iv: globalAndroid.content.Context, destroyRS: number, renderScript: number, input: number, output: globalAndroid.graphics.Bitmap, script: globalAndroid.renderscript.RenderScript): globalAndroid.graphics.Bitmap;
 						}
@@ -760,7 +848,7 @@ declare module org {
 					export module FilterHelperV3 {
 						export class Companion {
 							public static class: java.lang.Class<org.nativescript.mason.masonkit.CSSFilters.FilterHelperV3.Companion>;
-							public build(view: globalAndroid.view.View, $this$build_u24lambda_u240: java.util.List<any>, blurEffect: any): org.nativescript.mason.masonkit.CSSFilters.FilterHelperV3;
+							public build(filter: globalAndroid.view.View, $this$build_u24lambda_u240: java.util.List<any>, blurEffect: any): org.nativescript.mason.masonkit.CSSFilters.FilterHelperV3;
 						}
 					}
 					export class ShadowOrBlur {
@@ -936,7 +1024,7 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
-				export class Element {
+				export class Element extends org.nativescript.mason.masonkit.EventTarget {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Element>;
 					/**
 					 * Constructs a new instance of the org.nativescript.mason.masonkit.Element interface with the provided implementation. An empty constructor exists calling super() when extending the interface class.
@@ -989,54 +1077,61 @@ declare module org {
 						replaceChildAt(param0: org.nativescript.mason.masonkit.Element, param1: number): void;
 						replaceChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
 						removeChildAt(param0: number): void;
+						getNode(): org.nativescript.mason.masonkit.Node;
+						addEventListener(param0: string, param1: any): java.util.UUID;
+						removeEventListener(param0: string, param1: java.util.UUID): void;
+						dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
 					});
 					public constructor();
 					public configure(param0: any): void;
 					public getView(): globalAndroid.view.View;
 					public computeMaxContent(): void;
-					public addChildAt(param0: org.nativescript.mason.masonkit.Element, param1: number): void;
-					public attachAndApply(): void;
 					public layout(): org.nativescript.mason.masonkit.Layout;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
 					public removeChildAt(param0: number): void;
-					public onNodeAttached(): void;
-					public onNodeDetached(): void;
-					public computeWithViewSize(): void;
-					public computeWithMaxContent(): void;
 					public append(param0: org.nativescript.mason.masonkit.Element): void;
 					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
 					public append(param0: org.nativescript.mason.masonkit.Node): void;
-					public markNodeDirty(): void;
-					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
-					public append(param0: androidNative.Array<string>): void;
 					public replaceChildAt(param0: string, param1: number): void;
-					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
 					public prepend(param0: org.nativescript.mason.masonkit.Node): void;
-					public replaceChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
-					public syncStyle(param0: string, param1: string): void;
 					public computeMinContent(): void;
-					public addChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
 					public computeAndLayout(): org.nativescript.mason.masonkit.Layout;
 					public compute(): void;
 					public invalidateLayout(): void;
 					public computeWithViewSize(param0: boolean): void;
 					public prepend(param0: org.nativescript.mason.masonkit.Element): void;
 					public prepend(param0: androidNative.Array<string>): void;
-					public addChildAt(param0: string, param1: number): void;
 					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
-					public appendView(param0: globalAndroid.view.View): void;
 					public prependView(param0: globalAndroid.view.View): void;
 					public replaceChildAt(param0: org.nativescript.mason.masonkit.Element, param1: number): void;
 					public compute(param0: number, param1: number): void;
 					public prepend(param0: string): void;
-					public computeWithSize(param0: number, param1: number): void;
+					public addEventListener(param0: string, param1: any): java.util.UUID;
 					public isNodeDirty(): boolean;
 					public computeWithMinContent(): void;
-					public getNode(): org.nativescript.mason.masonkit.Node;
 					public invalidateLayout(param0: boolean): void;
+					public computeAndLayout(param0: number, param1: number): org.nativescript.mason.masonkit.Layout;
+					public addChildAt(param0: org.nativescript.mason.masonkit.Element, param1: number): void;
+					public attachAndApply(): void;
+					public onNodeAttached(): void;
+					public onNodeDetached(): void;
+					public computeWithViewSize(): void;
+					public computeWithMaxContent(): void;
+					public markNodeDirty(): void;
+					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public append(param0: androidNative.Array<string>): void;
+					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
+					public replaceChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
+					public syncStyle(param0: string, param1: string): void;
+					public addChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
+					public addChildAt(param0: string, param1: number): void;
+					public appendView(param0: globalAndroid.view.View): void;
+					public computeWithSize(param0: number, param1: number): void;
+					public removeEventListener(param0: string, param1: java.util.UUID): void;
+					public getNode(): org.nativescript.mason.masonkit.Node;
 					public append(param0: string): void;
 					public prependView(param0: androidNative.Array<globalAndroid.view.View>): void;
-					public computeAndLayout(param0: number, param1: number): org.nativescript.mason.masonkit.Layout;
 					public appendView(param0: androidNative.Array<globalAndroid.view.View>): void;
 				}
 				export module Element {
@@ -1044,9 +1139,11 @@ declare module org {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.Element.DefaultImpls>;
 						public static computeWithMinContent($this: org.nativescript.mason.masonkit.Element): void;
 						public static attachAndApply($this: org.nativescript.mason.masonkit.Element): void;
+						public static removeEventListener($this: org.nativescript.mason.masonkit.Element, type: string, id: java.util.UUID): void;
 						public static onNodeDetached($this: org.nativescript.mason.masonkit.Element): void;
 						public static computeAndLayout($this: org.nativescript.mason.masonkit.Element, width: number, height: number): org.nativescript.mason.masonkit.Layout;
 						public static markNodeDirty($this: org.nativescript.mason.masonkit.Element): void;
+						public static addEventListener($this: org.nativescript.mason.masonkit.Element, type: string, listener: any): java.util.UUID;
 						public static computeWithMaxContent($this: org.nativescript.mason.masonkit.Element): void;
 						public static layout(layouts: org.nativescript.mason.masonkit.Element): org.nativescript.mason.masonkit.Layout;
 						public static prependView(element: org.nativescript.mason.masonkit.Element, it: androidNative.Array<globalAndroid.view.View>): void;
@@ -1081,7 +1178,8 @@ declare module org {
 						public static append(element: org.nativescript.mason.masonkit.Element, it: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
 						public static addChildAt($this: org.nativescript.mason.masonkit.Element, element: org.nativescript.mason.masonkit.Element, index: number): void;
 						public static addChildAt(element: org.nativescript.mason.masonkit.Element, $this$addChildAt_u24lambda_u2417: string, index: number): void;
-						public static syncStyle(element: org.nativescript.mason.masonkit.Element, it: string, state: string): void;
+						public static dispatch($this: org.nativescript.mason.masonkit.Element, event: org.nativescript.mason.masonkit.events.Event): void;
+						public static syncStyle(element: org.nativescript.mason.masonkit.Element, it: string, value: string): void;
 						public static prepend(element: org.nativescript.mason.masonkit.Element, it: androidNative.Array<string>): void;
 						public static append(element: org.nativescript.mason.masonkit.Element, it: androidNative.Array<string>): void;
 						public static prepend(element: org.nativescript.mason.masonkit.Element, it: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
@@ -1107,6 +1205,40 @@ declare module org {
 // 		}
 // 	}
 // }
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export class EventTarget {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.EventTarget>;
+					/**
+					 * Constructs a new instance of the org.nativescript.mason.masonkit.EventTarget interface with the provided implementation. An empty constructor exists calling super() when extending the interface class.
+					 */
+					public constructor(implementation: {
+						getNode(): org.nativescript.mason.masonkit.Node;
+						addEventListener(param0: string, param1: any): java.util.UUID;
+						removeEventListener(param0: string, param1: java.util.UUID): void;
+						dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
+					});
+					public constructor();
+					public removeEventListener(param0: string, param1: java.util.UUID): void;
+					public dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
+					public addEventListener(param0: string, param1: any): java.util.UUID;
+					public getNode(): org.nativescript.mason.masonkit.Node;
+				}
+				export module EventTarget {
+					export class DefaultImpls {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.EventTarget.DefaultImpls>;
+						public static removeEventListener($this: org.nativescript.mason.masonkit.EventTarget, type: string, id: java.util.UUID): void;
+						public static addEventListener($this: org.nativescript.mason.masonkit.EventTarget, type: string, listener: any): java.util.UUID;
+						public static dispatch($this: org.nativescript.mason.masonkit.EventTarget, event: org.nativescript.mason.masonkit.events.Event): void;
+					}
+				}
+			}
+		}
+	}
+}
 
 declare module org {
 	export module nativescript {
@@ -1293,7 +1425,7 @@ declare module org {
 					public delete(font: org.nativescript.mason.masonkit.FontFace): void;
 					public add(font: org.nativescript.mason.masonkit.FontFace): void;
 					public getStatus(): org.nativescript.mason.masonkit.FontFaceSet.FontFaceSetStatus;
-					public check(font: string, check: string): boolean;
+					public check(font: string, value: string): boolean;
 					public load(context: globalAndroid.content.Context, font: string, text: string, callback: any): void;
 					public setOnStatus(value: any): void;
 					public getSize(): number;
@@ -1592,38 +1724,41 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
+				export class HueTrackDrawable {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.HueTrackDrawable>;
+					public constructor(trackHeightPx: number, density: number);
+					public setGap(this_: number, centerX: boolean): void;
+					public draw(top: globalAndroid.graphics.Canvas): void;
+					public getIntrinsicHeight(): number;
+					public setAlpha(alpha: number): void;
+					public setColorFilter(colorFilter: globalAndroid.graphics.ColorFilter): void;
+					public getOpacity(): number;
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
 				export class Img implements org.nativescript.mason.masonkit.Element, org.nativescript.mason.masonkit.MeasureFunc {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Img>;
-					public getView(): globalAndroid.view.View;
 					public computeMaxContent(): void;
-					public configure(param0: any): void;
-					public replaceChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
 					public layout(): org.nativescript.mason.masonkit.Layout;
-					public addChildAt(node: org.nativescript.mason.masonkit.Node, index: number): void;
 					public computeWithViewSize(layout: boolean): void;
-					public getStyle(): org.nativescript.mason.masonkit.Style;
-					public removeChildAt(param0: number): void;
-					public syncStyle(state: string, textState: string): void;
 					public getMImgMatrix$masonkit_release(): globalAndroid.graphics.Matrix;
-					public append(param0: org.nativescript.mason.masonkit.Element): void;
 					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
-					public append(param0: org.nativescript.mason.masonkit.Node): void;
 					public prependView(view: globalAndroid.view.View): void;
 					public replaceChildAt(param0: string, param1: number): void;
 					public replaceChildAt(text: string, index: number): void;
 					public prepend(param0: org.nativescript.mason.masonkit.Node): void;
 					public computeMinContent(): void;
-					public computeAndLayout(): org.nativescript.mason.masonkit.Layout;
-					public getDstF(): globalAndroid.graphics.RectF;
 					public compute(): void;
-					public onDraw(dx: globalAndroid.graphics.Canvas): void;
-					public invalidateLayout(): void;
 					public getOnStateChange(): any;
 					public setCurrentBitmap$masonkit_release(value: globalAndroid.graphics.Bitmap): void;
-					public computeWithViewSize(param0: boolean): void;
 					public prepend(param0: org.nativescript.mason.masonkit.Element): void;
-					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
-					public appendView(view: globalAndroid.view.View): void;
 					public prepend(param0: androidNative.Array<string>): void;
 					public removeChildAt(index: number): void;
 					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
@@ -1634,61 +1769,83 @@ declare module org {
 					public compute(param0: number, param1: number): void;
 					public addChildAt(text: string, index: number): void;
 					public prepend(nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
-					public prepend(param0: string): void;
 					public compute(width: number, height: number): void;
-					public getSrcF(): globalAndroid.graphics.RectF;
-					public setSrc(it: string): void;
+					public addEventListener(param0: string, param1: any): java.util.UUID;
 					public computeWithMinContent(): void;
 					public isNodeDirty(): boolean;
-					public prepend(elements: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
 					public invalidateLayout(param0: boolean): void;
 					public append(texts: androidNative.Array<string>): void;
 					public constructor(context: globalAndroid.content.Context);
+					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
+					public onNodeAttached(): void;
+					public onNodeDetached(): void;
+					public append(node: org.nativescript.mason.masonkit.Node): void;
+					public markNodeDirty(): void;
+					public addEventListener(type: string, listener: any): java.util.UUID;
+					public prepend(element: org.nativescript.mason.masonkit.Element): void;
+					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet, context: boolean);
+					public replaceChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
+					public syncStyle(param0: string, param1: string): void;
+					public addChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
+					public replaceChildAt(node: org.nativescript.mason.masonkit.Node, index: number): void;
+					public invalidateLayout(invalidateRoot: boolean): void;
+					public append(text: string): void;
+					public setOnStateChange(value: any): void;
+					public addChildAt(param0: string, param1: number): void;
+					public appendView(param0: globalAndroid.view.View): void;
+					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, size: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public computeWithSize(param0: number, param1: number): void;
+					public append(elements: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
+					public append(nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public prependView(param0: androidNative.Array<globalAndroid.view.View>): void;
+					public getView(): globalAndroid.view.View;
+					public configure(param0: any): void;
+					public replaceChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
+					public addChildAt(node: org.nativescript.mason.masonkit.Node, index: number): void;
+					public getStyle(): org.nativescript.mason.masonkit.Style;
+					public removeChildAt(param0: number): void;
+					public syncStyle(state: string, textState: string): void;
+					public append(param0: org.nativescript.mason.masonkit.Element): void;
+					public dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
+					public append(param0: org.nativescript.mason.masonkit.Node): void;
+					public computeAndLayout(): org.nativescript.mason.masonkit.Layout;
+					public getDstF(): globalAndroid.graphics.RectF;
+					public onDraw(dx: globalAndroid.graphics.Canvas): void;
+					public invalidateLayout(): void;
+					public computeWithViewSize(param0: boolean): void;
+					public measure(param0: org.nativescript.mason.masonkit.Size<java.lang.Float>, param1: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
+					public appendView(view: globalAndroid.view.View): void;
+					public prepend(param0: string): void;
+					public getSrcF(): globalAndroid.graphics.RectF;
+					public setSrc(it: string): void;
+					public prepend(elements: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
 					public computeAndLayout(width: number, height: number): org.nativescript.mason.masonkit.Layout;
 					public computeAndLayout(param0: number, param1: number): org.nativescript.mason.masonkit.Layout;
 					public addChildAt(param0: org.nativescript.mason.masonkit.Element, param1: number): void;
 					public setImageResource(resId: number): void;
 					public attachAndApply(): void;
-					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
 					public getSrc(): string;
-					public onNodeAttached(): void;
 					public computeWithViewSize(): void;
-					public onNodeDetached(): void;
 					public computeWithMaxContent(): void;
+					public removeEventListener(type: string, id: java.util.UUID): void;
 					public onMeasure(layout: number, width: number): void;
-					public append(node: org.nativescript.mason.masonkit.Node): void;
 					public prepend(node: org.nativescript.mason.masonkit.Node): void;
-					public markNodeDirty(): void;
-					public prepend(element: org.nativescript.mason.masonkit.Element): void;
-					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public append(param0: androidNative.Array<string>): void;
-					public constructor($this$_init__u24lambda_u241: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet, context: boolean);
+					public dispatch(event: org.nativescript.mason.masonkit.events.Event): void;
 					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
-					public replaceChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
-					public syncStyle(param0: string, param1: string): void;
-					public addChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
 					public configure(block: any): void;
 					public setImageBitmap(bm: globalAndroid.graphics.Bitmap): void;
 					public append(element: org.nativescript.mason.masonkit.Element): void;
-					public replaceChildAt(node: org.nativescript.mason.masonkit.Node, index: number): void;
 					public getCurrentBitmap$masonkit_release(): globalAndroid.graphics.Bitmap;
-					public invalidateLayout(invalidateRoot: boolean): void;
-					public append(text: string): void;
-					public setOnStateChange(value: any): void;
-					public addChildAt(param0: string, param1: number): void;
 					public prepend(strings: androidNative.Array<string>): void;
-					public appendView(param0: globalAndroid.view.View): void;
 					public prepend(string: string): void;
 					public prependView(views: androidNative.Array<globalAndroid.view.View>): void;
-					public measure(it: org.nativescript.mason.masonkit.Size<java.lang.Float>, size: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public addChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
-					public computeWithSize(param0: number, param1: number): void;
+					public removeEventListener(param0: string, param1: java.util.UUID): void;
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public computeWithSize(width: number, height: number): void;
-					public append(elements: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
 					public append(param0: string): void;
-					public append(nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
-					public prependView(param0: androidNative.Array<globalAndroid.view.View>): void;
 					public appendView(param0: androidNative.Array<globalAndroid.view.View>): void;
 				}
 				export module Img {
@@ -1744,7 +1901,7 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
-				export class Input implements org.nativescript.mason.masonkit.Element, org.nativescript.mason.masonkit.MeasureFunc {
+				export class Input implements org.nativescript.mason.masonkit.Element, org.nativescript.mason.masonkit.MeasureFunc, org.nativescript.mason.masonkit.StyleChangeListener {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Input>;
 					public computeMaxContent(): void;
 					public getCheckBoxInput$masonkit_release(): globalAndroid.widget.CheckBox;
@@ -1754,10 +1911,11 @@ declare module org {
 					public setMaxLength(value: number): void;
 					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public prependView(view: globalAndroid.view.View): void;
+					public onTextStyleChanged(param0: number): void;
 					public measure(width: org.nativescript.mason.masonkit.Size<java.lang.Float>, height: org.nativescript.mason.masonkit.Size<java.lang.Float>): org.nativescript.mason.masonkit.Size<java.lang.Float>;
 					public replaceChildAt(param0: string, param1: number): void;
-					public getDateInput$masonkit_release(): org.nativescript.mason.masonkit.Input.DateInput;
 					public replaceChildAt(text: string, index: number): void;
+					public getMultiple(): boolean;
 					public prepend(param0: org.nativescript.mason.masonkit.Node): void;
 					public computeMinContent(): void;
 					public compute(): void;
@@ -1773,30 +1931,37 @@ declare module org {
 					public addChildAt(text: string, index: number): void;
 					public prepend(nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public compute(width: number, height: number): void;
+					public addEventListener(param0: string, param1: any): java.util.UUID;
 					public isNodeDirty(): boolean;
 					public computeWithMinContent(): void;
 					public invalidateLayout(param0: boolean): void;
 					public append(texts: androidNative.Array<string>): void;
 					public constructor(context: globalAndroid.content.Context);
-					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet, override: boolean);
 					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
 					public onNodeAttached(): void;
 					public onNodeDetached(): void;
+					public getFileInput(): org.nativescript.mason.masonkit.input.FileInputControl;
 					public append(node: org.nativescript.mason.masonkit.Node): void;
 					public markNodeDirty(): void;
 					public prepend(element: org.nativescript.mason.masonkit.Element): void;
+					public addEventListener(type: string, listener: any): java.util.UUID;
 					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public getButtonInput$masonkit_release(): globalAndroid.widget.TextView;
+					public constructor($this$toColorInt$iv: globalAndroid.content.Context, $i$f$toColorInt: globalAndroid.util.AttributeSet, $this$toColorInt$iv: boolean);
 					public replaceChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
 					public getRadioInput$masonkit_release(): globalAndroid.widget.RadioButton;
 					public setSize(value: number): void;
 					public syncStyle(param0: string, param1: string): void;
 					public addChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
+					public onDetachedFromWindow(): void;
 					public dispatchDraw(canvas: globalAndroid.graphics.Canvas): void;
 					public replaceChildAt(node: org.nativescript.mason.masonkit.Node, index: number): void;
 					public invalidateLayout(invalidateRoot: boolean): void;
 					public append(text: string): void;
 					public addChildAt(param0: string, param1: number): void;
 					public appendView(param0: globalAndroid.view.View): void;
+					public getColorInput$masonkit_release(): org.nativescript.mason.masonkit.input.ColorInput;
+					public getTextInput$masonkit_release(): org.nativescript.mason.masonkit.input.TextInput;
 					public computeWithSize(param0: number, param1: number): void;
 					public getName(): string;
 					public append(elements: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
@@ -1809,13 +1974,17 @@ declare module org {
 					public replaceChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
 					public addChildAt(node: org.nativescript.mason.masonkit.Node, index: number): void;
 					public getStyle(): org.nativescript.mason.masonkit.Style;
+					public onBeforeInput$masonkit_release($this$onBeforeInput_u24lambda_u243: string, event: string, this_: org.nativescript.mason.masonkit.events.EventOptions): boolean;
 					public removeChildAt(param0: number): void;
 					public constructor(context: globalAndroid.content.Context, mason: org.nativescript.mason.masonkit.Mason, type: org.nativescript.mason.masonkit.Input.Type);
 					public syncStyle(state: string, textState: string): void;
 					public append(param0: org.nativescript.mason.masonkit.Element): void;
+					public dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
+					public onTextStyleChanged(fontSize: number): void;
 					public append(param0: org.nativescript.mason.masonkit.Node): void;
 					public setType(value: org.nativescript.mason.masonkit.Input.Type): void;
 					public onSizeChanged(it: number, element$iv: number, $i$f$forEach: number, $this$forEach$iv: number): void;
+					public getChecked(): boolean;
 					public computeAndLayout(): org.nativescript.mason.masonkit.Layout;
 					public invalidateLayout(): void;
 					public computeWithViewSize(param0: boolean): void;
@@ -1834,46 +2003,37 @@ declare module org {
 					public attachAndApply(): void;
 					public computeWithViewSize(): void;
 					public computeWithMaxContent(): void;
+					public removeEventListener(type: string, id: java.util.UUID): void;
 					public getValue(): string;
 					public prepend(node: org.nativescript.mason.masonkit.Node): void;
 					public append(param0: androidNative.Array<string>): void;
-					public getTextInput$masonkit_release(): globalAndroid.widget.EditText;
-					public getButtonInput$masonkit_release(): org.nativescript.mason.masonkit.Button;
+					public dispatch(event: org.nativescript.mason.masonkit.events.Event): void;
 					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
 					public configure(block: any): void;
 					public append(element: org.nativescript.mason.masonkit.Element): void;
+					public getNumberInput$masonkit_release(): org.nativescript.mason.masonkit.input.NumberControl;
+					public getRangeInput$masonkit_release(): globalAndroid.widget.SeekBar;
+					public setCheckboxColors(checkBox: globalAndroid.widget.CheckBox, checkedColor: number, uncheckedColor: number): void;
 					public prepend(strings: androidNative.Array<string>): void;
+					public setChecked(value: boolean): void;
 					public prepend(string: string): void;
 					public prependView(views: androidNative.Array<globalAndroid.view.View>): void;
+					public getAccept(): string;
 					public addChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
+					public removeEventListener(param0: string, param1: java.util.UUID): void;
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public computeWithSize(width: number, height: number): void;
+					public setMultiple(value: boolean): void;
 					public append(param0: string): void;
+					public getDateInput$masonkit_release(): org.nativescript.mason.masonkit.input.DateInput;
+					public setAccept(value: string): void;
 					public appendView(param0: androidNative.Array<globalAndroid.view.View>): void;
+					public getValueAsNumber(): number;
+					public setValueAsNumber(value: number): void;
+					public getValueAsDate(): java.util.Date;
+					public setValueAsDate(value: java.util.Date): void;
 				}
 				export module Input {
-					export class DateInput {
-						public static class: java.lang.Class<org.nativescript.mason.masonkit.Input.DateInput>;
-						public onMeasure(child: number, element$iv: number): void;
-						public getYearInput$masonkit_release(): globalAndroid.widget.EditText;
-						public setValue(this_: string): void;
-						public onLayout(right: boolean, child: number, element$iv: number, $i$f$forEach: number, $this$forEach$iv: number): void;
-						public getDayInput$masonkit_release(): globalAndroid.widget.EditText;
-						public getValue(): string;
-						public constructor(it: globalAndroid.content.Context);
-						public getMonthInput$masonkit_release(): globalAndroid.widget.EditText;
-					}
-					export class InputEditText {
-						public static class: java.lang.Class<org.nativescript.mason.masonkit.Input.InputEditText>;
-						public getInput$masonkit_release(): org.nativescript.mason.masonkit.Input;
-						public onDraw(offset: globalAndroid.graphics.Canvas): void;
-						public constructor($this$cursorPaint_u24lambda_u240: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet);
-						public setInput$masonkit_release(value: org.nativescript.mason.masonkit.Input): void;
-						public isSuggestionsEnabled(): boolean;
-						public onAttachedToWindow(): void;
-						public onDetachedFromWindow(): void;
-						public constructor(context: globalAndroid.content.Context);
-					}
 					export class Type {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.Input.Type>;
 						public static Text: org.nativescript.mason.masonkit.Input.Type;
@@ -1884,6 +2044,11 @@ declare module org {
 						public static Date: org.nativescript.mason.masonkit.Input.Type;
 						public static Radio: org.nativescript.mason.masonkit.Input.Type;
 						public static Number: org.nativescript.mason.masonkit.Input.Type;
+						public static Range: org.nativescript.mason.masonkit.Input.Type;
+						public static Tel: org.nativescript.mason.masonkit.Input.Type;
+						public static Url: org.nativescript.mason.masonkit.Input.Type;
+						public static Color: org.nativescript.mason.masonkit.Input.Type;
+						public static File: org.nativescript.mason.masonkit.Input.Type;
 						public static getEntries(): any;
 						public static values(): androidNative.Array<org.nativescript.mason.masonkit.Input.Type>;
 						public static valueOf(value: string): org.nativescript.mason.masonkit.Input.Type;
@@ -2132,20 +2297,21 @@ declare module org {
 			export module masonkit {
 				export class Mason {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Mason>;
-					public createTextNode($this$createTextNode_u24lambda_u2412: org.nativescript.mason.masonkit.MeasureFunc, func: boolean): org.nativescript.mason.masonkit.Node;
 					public static getShared(): org.nativescript.mason.masonkit.Mason;
+					public createNode($this$createNode_u24lambda_u247: org.nativescript.mason.masonkit.MeasureFunc, func: boolean): org.nativescript.mason.masonkit.Node;
 					public finalize(): void;
 					public createNode(): org.nativescript.mason.masonkit.Node;
+					public createLineBreakNode($this$createLineBreakNode_u24lambda_u2416: org.nativescript.mason.masonkit.MeasureFunc): org.nativescript.mason.masonkit.Node;
+					public createBr(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.Br;
 					public createTextView(context: globalAndroid.content.Context, type: org.nativescript.mason.masonkit.enums.TextType): org.nativescript.mason.masonkit.TextView;
-					public createImageNode($this$createImageNode_u24lambda_u2413: org.nativescript.mason.masonkit.MeasureFunc): org.nativescript.mason.masonkit.Node;
 					public createNode(children: androidNative.Array<org.nativescript.mason.masonkit.Node>): org.nativescript.mason.masonkit.Node;
-					public nodeForView($this$nodeForView_u24lambda_u2415_u24lambda_u2414: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
 					public createTextView(context: globalAndroid.content.Context, type: org.nativescript.mason.masonkit.enums.TextType, isAnonymous: boolean): org.nativescript.mason.masonkit.TextView;
+					public addEventListener(answer$iv: org.nativescript.mason.masonkit.Node, $i$f$getOrPut: string, value$iv: any): java.util.UUID;
+					public createImageNode($this$createImageNode_u24lambda_u2415: org.nativescript.mason.masonkit.MeasureFunc): org.nativescript.mason.masonkit.Node;
 					public createTextNode(children: androidNative.Array<org.nativescript.mason.masonkit.Node>): org.nativescript.mason.masonkit.Node;
 					public constructor();
 					public styleForViewOrNode(view: any): org.nativescript.mason.masonkit.Style;
 					public clear(): void;
-					public createNode($this$createNode_u24lambda_u245: org.nativescript.mason.masonkit.MeasureFunc, func: boolean): org.nativescript.mason.masonkit.Node;
 					public createScrollView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.Scroll;
 					public createTextView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.TextView;
 					public setDeviceScale(value: number): void;
@@ -2155,16 +2321,19 @@ declare module org {
 					public getNodes$masonkit_release(): java.util.WeakHashMap<java.lang.Long,org.nativescript.mason.masonkit.Node>;
 					public requestLayout(view: globalAndroid.view.View): void;
 					public printTree(node: org.nativescript.mason.masonkit.Node): void;
+					public createTextNode($this$createTextNode_u24lambda_u2414: org.nativescript.mason.masonkit.MeasureFunc, func: boolean): org.nativescript.mason.masonkit.Node;
 					public createView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.View;
 					public createImageView(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.Img;
+					public dispatch(listeners: org.nativescript.mason.masonkit.events.Event): void;
 					public configureStyleForView(this_: globalAndroid.view.View, view: any): void;
 					public createTextNode(): org.nativescript.mason.masonkit.Node;
 					public getNativePtr$masonkit_release(): number;
 					public createTextNode(map: androidNative.Array<org.nativescript.mason.masonkit.Node>, item$iv$iv: boolean): org.nativescript.mason.masonkit.Node;
+					public removeEventListener(node: org.nativescript.mason.masonkit.Node, type: string, id: java.util.UUID): void;
+					public nodeForView($this$nodeForView_u24lambda_u2418_u24lambda_u2417: globalAndroid.view.View): org.nativescript.mason.masonkit.Node;
 					public getScale(): number;
 					public createNode(it: androidNative.Array<org.nativescript.mason.masonkit.Node>, item$iv$iv: boolean): org.nativescript.mason.masonkit.Node;
 					public getNativePtr(): number;
-					public createBr(): org.nativescript.mason.masonkit.Node;
 					public styleForView(this_: globalAndroid.view.View): org.nativescript.mason.masonkit.Style;
 					public createInput(context: globalAndroid.content.Context): org.nativescript.mason.masonkit.Input;
 				}
@@ -2859,7 +3028,7 @@ declare module org {
 					public addView(node: org.nativescript.mason.masonkit.Node, $i$f$suppressChildOperations$masonkit_release: globalAndroid.view.View, this_$iv: globalAndroid.view.ViewGroup.LayoutParams): void;
 					public syncNode(it: org.nativescript.mason.masonkit.Node, list: java.util.List<any>): void;
 					public addView(node: org.nativescript.mason.masonkit.Node, $i$f$suppressChildOperations$masonkit_release: globalAndroid.view.View, this_$iv: number, this_: globalAndroid.view.ViewGroup.LayoutParams): void;
-					public syncNode(it: org.nativescript.mason.masonkit.Node, nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
+					public syncNode(it: org.nativescript.mason.masonkit.Node, array: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public addView(node: org.nativescript.mason.masonkit.Node, $i$f$suppressChildOperations$masonkit_release: globalAndroid.view.View): void;
 					public addView(node: org.nativescript.mason.masonkit.Node, $i$f$suppressChildOperations$masonkit_release: globalAndroid.view.View, this_$iv: number): void;
 					public invalidateLayout(it: org.nativescript.mason.masonkit.Node, this_: boolean): void;
@@ -2928,6 +3097,32 @@ declare module org {
 	export module nativescript {
 		export module mason {
 			export module masonkit {
+				export class SaturationValueView {
+					public static class: java.lang.Class<org.nativescript.mason.masonkit.SaturationValueView>;
+					public constructor($this$selectorPaint_u24lambda_u240: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet);
+					public setSat$masonkit_release(value: number): void;
+					public setSV(s: number, v: number): void;
+					public getOnSVChanged(): any;
+					public onDraw(it: globalAndroid.graphics.Canvas): void;
+					public getHue(): number;
+					public onTouchEvent(y: globalAndroid.view.MotionEvent): boolean;
+					public onSizeChanged(w: number, h: number, oldw: number, oldh: number): void;
+					public getValueV(): number;
+					public setValueV$masonkit_release(value: number): void;
+					public setHue(value: number): void;
+					public setOnSVChanged(value: any): void;
+					public constructor(context: globalAndroid.content.Context);
+					public getSat(): number;
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
 				export class Scroll extends org.nativescript.mason.masonkit.TwoDScrollView implements org.nativescript.mason.masonkit.Element {
 					public static class: java.lang.Class<org.nativescript.mason.masonkit.Scroll>;
 					public scrollRoot: org.nativescript.mason.masonkit.View;
@@ -2954,8 +3149,9 @@ declare module org {
 					public addChildAt(text: string, index: number): void;
 					public prepend(nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public compute(width: number, height: number): void;
-					public isNodeDirty(): boolean;
+					public addEventListener(param0: string, param1: any): java.util.UUID;
 					public computeWithMinContent(): void;
+					public isNodeDirty(): boolean;
 					public invalidateLayout(param0: boolean): void;
 					public append(texts: androidNative.Array<string>): void;
 					public constructor(context: globalAndroid.content.Context);
@@ -2970,6 +3166,7 @@ declare module org {
 					public append(node: org.nativescript.mason.masonkit.Node): void;
 					public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet, defStyleAttr: number);
 					public markNodeDirty(): void;
+					public addEventListener(type: string, listener: any): java.util.UUID;
 					public prepend(element: org.nativescript.mason.masonkit.Element): void;
 					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public replaceChildAt(param0: org.nativescript.mason.masonkit.Node, param1: number): void;
@@ -2998,6 +3195,7 @@ declare module org {
 					public syncStyle(state: string, textState: string): void;
 					public onLayout(this_: boolean, changed: number, l: number, t: number, r: number): void;
 					public append(param0: org.nativescript.mason.masonkit.Element): void;
+					public dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
 					public append(param0: org.nativescript.mason.masonkit.Node): void;
 					public onSizeChanged(it: number, element$iv: number, $i$f$forEach: number, $this$forEach$iv: number): void;
 					public setEnableScrollX(value: boolean): void;
@@ -3016,8 +3214,10 @@ declare module org {
 					public addView(child: globalAndroid.view.View): void;
 					public computeWithViewSize(): void;
 					public computeWithMaxContent(): void;
+					public removeEventListener(type: string, id: java.util.UUID): void;
 					public prepend(node: org.nativescript.mason.masonkit.Node): void;
 					public append(param0: androidNative.Array<string>): void;
+					public dispatch(event: org.nativescript.mason.masonkit.events.Event): void;
 					public append(param0: androidNative.Array<org.nativescript.mason.masonkit.Element>): void;
 					public addView(child: globalAndroid.view.View, index: number, params: globalAndroid.view.ViewGroup.LayoutParams): void;
 					public configure(block: any): void;
@@ -3027,6 +3227,7 @@ declare module org {
 					public prepend(string: string): void;
 					public prependView(views: androidNative.Array<globalAndroid.view.View>): void;
 					public addChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
+					public removeEventListener(param0: string, param1: java.util.UUID): void;
 					public generateDefaultLayoutParams(): globalAndroid.widget.FrameLayout.LayoutParams;
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public computeWithSize(width: number, height: number): void;
@@ -3414,7 +3615,7 @@ declare module org {
 					public setJustifyContent(value: org.nativescript.mason.masonkit.enums.JustifyContent): void;
 					public getBackgroundColor(): number;
 					public setMaxSizeHeight(it: number, height: number): void;
-					public setBorderWidth($this$setBorderWidth_u24lambda_u2453_u24lambda_u2449: number, width: number): void;
+					public setBorderWidth($this$setBorderWidth_u24lambda_u2453_u24lambda_u2449: number, value: number): void;
 					public setOverflow(value: org.nativescript.mason.masonkit.Point<org.nativescript.mason.masonkit.enums.Overflow>): void;
 					public setDirty$masonkit_release(value: number): void;
 					public setPosition(value: org.nativescript.mason.masonkit.enums.Position): void;
@@ -4236,7 +4437,7 @@ declare module org {
 					}
 					export class ViewSpan {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextEngine.ViewSpan>;
-						public draw(middleY: globalAndroid.graphics.Canvas, raiseAmount: string, offset: number, offset: number, span: number, $this$draw_u24lambda_u241: number, $i$f$withTranslation: number, checkpoint$iv: number, $this$withTranslation$iv: globalAndroid.graphics.Paint): void;
+						public draw(middleY: globalAndroid.graphics.Canvas, raiseAmount: string, offset: number, offset: number, value: number, $this$draw_u24lambda_u241: number, $i$f$withTranslation: number, checkpoint$iv: number, $this$withTranslation$iv: globalAndroid.graphics.Paint): void;
 						public getSize(aboveDescent: globalAndroid.graphics.Paint, xHeight: string, halfHeight: number, raiseAmount: number, offset: globalAndroid.graphics.Paint.FontMetricsInt): number;
 						public constructor(childNode: org.nativescript.mason.masonkit.Node, viewHelper: org.nativescript.mason.masonkit.TextEngine.ViewHelper);
 						public getChildNode(): org.nativescript.mason.masonkit.Node;
@@ -4285,6 +4486,16 @@ declare module org {
 					public deleteData(this_: number, offset: number): org.nativescript.mason.masonkit.CharacterData;
 				}
 				export module TextNode {
+					export class Companion {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextNode.Companion>;
+						public processText$masonkit_release(this_: string, text: org.nativescript.mason.masonkit.Style): string;
+						public applyAttributes$masonkit_release(color: globalAndroid.text.SpannableStringBuilder, value: number, it: number, attr: org.nativescript.mason.masonkit.TextDefaultAttributes): void;
+					}
+					export module Companion {
+						export class WhenMappings {
+							public static class: java.lang.Class<org.nativescript.mason.masonkit.TextNode.Companion.WhenMappings>;
+						}
+					}
 					export class FixedLineHeightSpan {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextNode.FixedLineHeightSpan>;
 						public chooseHeight(it: string, this_: number, text: number, start: number, end: number, spanstartv: globalAndroid.graphics.Paint.FontMetricsInt, lineHeight: globalAndroid.text.TextPaint): void;
@@ -4295,9 +4506,6 @@ declare module org {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextNode.RelativeLineHeightSpan>;
 						public chooseHeight(originalHeight: string, targetHeight: number, diff: number, half: number, fm: number, this_: globalAndroid.graphics.Paint.FontMetricsInt): void;
 						public constructor(multiplier: number);
-					}
-					export class WhenMappings {
-						public static class: java.lang.Class<org.nativescript.mason.masonkit.TextNode.WhenMappings>;
 					}
 				}
 			}
@@ -4504,6 +4712,7 @@ declare module org {
 					public compute(param0: number, param1: number): void;
 					public prepend(nodes: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public compute(width: number, height: number): void;
+					public addEventListener(param0: string, param1: any): java.util.UUID;
 					public computeWithMinContent(): void;
 					public isNodeDirty(): boolean;
 					public invalidateLayout(param0: boolean): void;
@@ -4520,6 +4729,7 @@ declare module org {
 					public append(node: org.nativescript.mason.masonkit.Node): void;
 					public setDecorationColor(value: number): void;
 					public markNodeDirty(): void;
+					public addEventListener(type: string, listener: any): java.util.UUID;
 					public prepend(element: org.nativescript.mason.masonkit.Element): void;
 					public prepend(param0: androidNative.Array<org.nativescript.mason.masonkit.Node>): void;
 					public getTextAlign(): org.nativescript.mason.masonkit.enums.TextAlign;
@@ -4556,6 +4766,7 @@ declare module org {
 					public onCharacterDataChanged$masonkit_release(node: org.nativescript.mason.masonkit.TextNode): void;
 					public getLetterSpacingValue(): number;
 					public append(param0: org.nativescript.mason.masonkit.Element): void;
+					public dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
 					public setLetterSpacingValue(value: number): void;
 					public append(param0: org.nativescript.mason.masonkit.Node): void;
 					public getFontStretch(): string;
@@ -4587,9 +4798,11 @@ declare module org {
 					public setWhiteSpace(value: org.nativescript.mason.masonkit.Styles.WhiteSpace): void;
 					public computeWithViewSize(): void;
 					public computeWithMaxContent(): void;
+					public removeEventListener(type: string, id: java.util.UUID): void;
 					public prepend(node: org.nativescript.mason.masonkit.Node): void;
 					public attachTextNode$masonkit_release(node: org.nativescript.mason.masonkit.TextNode, index: number): void;
 					public append(param0: androidNative.Array<string>): void;
+					public dispatch(event: org.nativescript.mason.masonkit.events.Event): void;
 					public getTextWrap(): org.nativescript.mason.masonkit.Styles.TextWrap;
 					public setTextTransform(value: org.nativescript.mason.masonkit.Styles.TextTransform): void;
 					public getFontFace$masonkit_release(): org.nativescript.mason.masonkit.FontFace;
@@ -4606,6 +4819,7 @@ declare module org {
 					public prepend(string: string): void;
 					public prependView(views: androidNative.Array<globalAndroid.view.View>): void;
 					public addChildAt(element: org.nativescript.mason.masonkit.Element, index: number): void;
+					public removeEventListener(param0: string, param1: java.util.UUID): void;
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public computeWithSize(width: number, height: number): void;
 					public onDraw(canvas: globalAndroid.graphics.Canvas): void;
@@ -4797,6 +5011,7 @@ declare module org {
 					public getMaxSizeJsonValue(): string;
 					public getGridRowEnd(): string;
 					public setGridRowEnd(value: string): void;
+					public dispatch(param0: org.nativescript.mason.masonkit.events.Event): void;
 					public setJustifyContent(value: org.nativescript.mason.masonkit.enums.JustifyContent): void;
 					public setMaxSizeHeight(value: number, type: number): void;
 					public setGap(width: number, widthType: number, height: number, heightType: number): void;
@@ -4825,11 +5040,13 @@ declare module org {
 					public getAlignSelf(): org.nativescript.mason.masonkit.enums.AlignSelf;
 					public getGridAutoRows(): string;
 					public computeWithMaxContent(): void;
+					public removeEventListener(type: string, id: java.util.UUID): void;
 					public setPaddingWithValueType(value: number, type: number): void;
 					public setOverflowX(value: org.nativescript.mason.masonkit.enums.Overflow): void;
 					public getInsetTop(): org.nativescript.mason.masonkit.LengthPercentageAuto;
 					public getSizeCssValue(): string;
 					public append(param0: androidNative.Array<string>): void;
+					public dispatch(event: org.nativescript.mason.masonkit.events.Event): void;
 					public getAspectRatio(): java.lang.Float;
 					public setFlexBasis(value: number, type: number): void;
 					public setMarginRight(value: number, type: number): void;
@@ -4838,6 +5055,7 @@ declare module org {
 					public getFlexShrink(): number;
 					public removeAllViews(): void;
 					public getMarginTop(): org.nativescript.mason.masonkit.LengthPercentageAuto;
+					public removeEventListener(param0: string, param1: java.util.UUID): void;
 					public getNode(): org.nativescript.mason.masonkit.Node;
 					public computeWithSize(width: number, height: number): void;
 					public getScrollBarWidth(): number;
@@ -4873,8 +5091,9 @@ declare module org {
 					public setMinSize(width: org.nativescript.mason.masonkit.Dimension, height: org.nativescript.mason.masonkit.Dimension): void;
 					public setMaxSize(width: org.nativescript.mason.masonkit.Dimension, height: org.nativescript.mason.masonkit.Dimension): void;
 					public compute(width: number, height: number): void;
-					public isNodeDirty(): boolean;
+					public addEventListener(param0: string, param1: any): java.util.UUID;
 					public computeWithMinContent(): void;
+					public isNodeDirty(): boolean;
 					public getDisplay(): org.nativescript.mason.masonkit.enums.Display;
 					public static createFlexView(mason: org.nativescript.mason.masonkit.Mason, context: globalAndroid.content.Context): org.nativescript.mason.masonkit.View;
 					public setSizeWidth(value: number, type: number): void;
@@ -4888,6 +5107,7 @@ declare module org {
 					public getSizeWidth(): org.nativescript.mason.masonkit.Dimension;
 					public setMaxSizeWidth(value: number, type: number): void;
 					public markNodeDirty(): void;
+					public addEventListener(type: string, listener: any): java.util.UUID;
 					public prepend(element: org.nativescript.mason.masonkit.Element): void;
 					public setAlignSelf(value: org.nativescript.mason.masonkit.enums.AlignSelf): void;
 					public setGridRowStart(value: string): void;
@@ -5038,8 +5258,8 @@ declare module org {
 				export module ViewUtils {
 					export class Companion {
 						public static class: java.lang.Class<org.nativescript.mason.masonkit.ViewUtils.Companion>;
-						public onDraw(view: globalAndroid.view.View, canvas: globalAndroid.graphics.Canvas, style: org.nativescript.mason.masonkit.Style, superDraw: any): void;
-						public dispatchDraw(view: globalAndroid.view.View, canvas: globalAndroid.graphics.Canvas, style: org.nativescript.mason.masonkit.Style, superDraw: any): void;
+						public dispatchDraw(view: globalAndroid.view.View, canvas: globalAndroid.graphics.Canvas, style: org.nativescript.mason.masonkit.Style, ignoreBorder: boolean, superDraw: any): void;
+						public onDraw(view: globalAndroid.view.View, canvas: globalAndroid.graphics.Canvas, style: org.nativescript.mason.masonkit.Style, ignoreBorder: boolean, superDraw: any): void;
 					}
 				}
 			}
@@ -5820,6 +6040,257 @@ declare module org {
 						export class WhenMappings {
 							public static class: java.lang.Class<org.nativescript.mason.masonkit.enums.VerticalAlign.WhenMappings>;
 						}
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export module events {
+					export class Event {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.events.Event>;
+						public getComposed(): boolean;
+						public setDefaultPrevented$masonkit_release(value: boolean): void;
+						public getTarget(): org.nativescript.mason.masonkit.EventTarget;
+						public constructor(type: string, options: org.nativescript.mason.masonkit.events.EventOptions);
+						public setCurrentTarget$masonkit_release(value: org.nativescript.mason.masonkit.EventTarget): void;
+						public stopImmediatePropagation(): void;
+						public getType(): string;
+						public getPropagationStopped(): boolean;
+						public preventDefault(): void;
+						public setImmediatePropagationStopped$masonkit_release(value: boolean): void;
+						public getDefaultPrevented(): boolean;
+						public setPropagationStopped$masonkit_release(value: boolean): void;
+						public getTimeStamp(): number;
+						public getCurrentTarget(): org.nativescript.mason.masonkit.EventTarget;
+						public stopPropagation(): void;
+						public getImmediatePropagationStopped(): boolean;
+						public getCancelable(): boolean;
+						public getBubbles(): boolean;
+						public setTarget$masonkit_release(value: org.nativescript.mason.masonkit.EventTarget): void;
+					}
+					export module Event {
+						export class InputType {
+							public static class: java.lang.Class<org.nativescript.mason.masonkit.events.Event.InputType>;
+							public static InsertText: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static DeleteContentBackward: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static DeleteContentForward: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static InsertLineBreak: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static InsertReplacementText: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static HistoryUndo: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static HistoryRedo: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static InsertCompositionText: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static DeleteCompositionText: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static InsertFromPaste: org.nativescript.mason.masonkit.events.Event.InputType;
+							public static getEntries(): any;
+							public getValue(): string;
+							public static values(): androidNative.Array<org.nativescript.mason.masonkit.events.Event.InputType>;
+							public static valueOf(value: string): org.nativescript.mason.masonkit.events.Event.InputType;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export module events {
+					export class EventOptions {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.events.EventOptions>;
+						public isComposing(): boolean;
+						public constructor();
+						public setComposing(value: boolean): void;
+						public setTarget(value: any): void;
+						public getType(): string;
+						public setType(value: string): void;
+						public getTarget(): any;
+						public setBubbles(value: boolean): void;
+						public setCancelable(value: boolean): void;
+						public getCancelable(): boolean;
+						public getBubbles(): boolean;
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export module events {
+					export class FileInputEvent extends org.nativescript.mason.masonkit.events.Event {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.events.FileInputEvent>;
+						public getInputType(): string;
+						public constructor(type: string, data: java.util.List<string>, rawData: java.util.List<any>);
+						public constructor(type: string, options: org.nativescript.mason.masonkit.events.EventOptions);
+						public constructor(type: string, data: string, inputType: string, options: org.nativescript.mason.masonkit.events.EventOptions, rawData: java.util.List<any>);
+						public getData(): string;
+						public constructor(type: string, data: java.util.List<string>, inputType: string, rawData: java.util.List<any>);
+						public getRawData(): java.util.List<globalAndroid.net.Uri>;
+						public constructor(type: string, data: java.util.List<string>, inputType: string, options: org.nativescript.mason.masonkit.events.EventOptions, rawData: java.util.List<any>);
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export module events {
+					export class InputEvent extends org.nativescript.mason.masonkit.events.Event {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.events.InputEvent>;
+						public getInputType(): string;
+						public constructor(type: string, data: number, inputType: string);
+						public constructor(type: string, options: org.nativescript.mason.masonkit.events.EventOptions);
+						public constructor(type: string, data: java.util.List<string>);
+						public constructor(type: string, data: string, inputType: string, options: org.nativescript.mason.masonkit.events.EventOptions);
+						public getData(): string;
+						public constructor(type: string, data: boolean, inputType: string, options: org.nativescript.mason.masonkit.events.EventOptions);
+						public constructor(type: string, data: boolean);
+						public constructor(type: string, data: java.util.List<string>, inputType: string, options: org.nativescript.mason.masonkit.events.EventOptions);
+						public constructor(type: string, data: number, inputType: string, options: org.nativescript.mason.masonkit.events.EventOptions);
+						public constructor(type: string, data: number);
+						public constructor(type: string, data: java.util.List<string>, inputType: string);
+						public constructor(type: string, data: boolean, inputType: string);
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export module input {
+					export class ColorInput {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.input.ColorInput>;
+						public setOwner(value: org.nativescript.mason.masonkit.Element): void;
+						public getOwner(): org.nativescript.mason.masonkit.Element;
+						public getColorView(): globalAndroid.view.View;
+						public constructor(this_: globalAndroid.content.Context, context: globalAndroid.util.AttributeSet);
+						public constructor(context: globalAndroid.content.Context);
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export module input {
+					export class DateInput {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.input.DateInput>;
+						public getYearInput$masonkit_release(): globalAndroid.widget.EditText;
+						public onLayout(right: boolean, i: number, left: number, childCount: number, this_: number): void;
+						public setValue(this_: string): void;
+						public getOwner$masonkit_release(): org.nativescript.mason.masonkit.Input;
+						public setOwner$masonkit_release(value: org.nativescript.mason.masonkit.Input): void;
+						public getDayInput$masonkit_release(): globalAndroid.widget.EditText;
+						public getValue(): string;
+						public constructor(it: globalAndroid.content.Context);
+						public getMonthInput$masonkit_release(): globalAndroid.widget.EditText;
+						public onMeasure(i: number, totalWidth: number): void;
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export module input {
+					export class FileInputControl {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.input.FileInputControl>;
+						public getOwner$masonkit_release(): org.nativescript.mason.masonkit.Element;
+						public getLabelText(): string;
+						public setOnPickFile(value: any): void;
+						public setOwner$masonkit_release(value: org.nativescript.mason.masonkit.Element): void;
+						public onMeasure(height: number, this_: number): void;
+						public getOnPickFile(): any;
+						public getFileButton$masonkit_release(): globalAndroid.widget.TextView;
+						public constructor(it: globalAndroid.content.Context, attr: globalAndroid.util.AttributeSet, $this$fileButton_u24lambda_u241: number);
+						public getFileLabel$masonkit_release(): globalAndroid.widget.TextView;
+						public setOnContentSizeChanged(value: any): void;
+						public getOnContentSizeChanged(): any;
+						public onLayout(this_: boolean, changed: number, l: number, t: number, r: number): void;
+						public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
+						public setLabelText(value: string): void;
+						public constructor(context: globalAndroid.content.Context);
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export module input {
+					export class NumberControl {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.input.NumberControl>;
+						public setMaxValue(value: java.lang.Integer): void;
+						public getEditText(): globalAndroid.widget.EditText;
+						public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet, defStyleAttr: number);
+						public getStep(): number;
+						public getMinValue(): java.lang.Integer;
+						public setMinValue(value: java.lang.Integer): void;
+						public setValue(v: number): void;
+						public getMaxValue(): java.lang.Integer;
+						public constructor(context: globalAndroid.content.Context, attrs: globalAndroid.util.AttributeSet);
+						public setStep(value: number): void;
+						public constructor(context: globalAndroid.content.Context);
+						public getValue(): number;
+					}
+				}
+			}
+		}
+	}
+}
+
+declare module org {
+	export module nativescript {
+		export module mason {
+			export module masonkit {
+				export module input {
+					export class TextInput {
+						public static class: java.lang.Class<org.nativescript.mason.masonkit.input.TextInput>;
+						public onDraw(offset: globalAndroid.graphics.Canvas): void;
+						public isSuggestionsEnabled(): boolean;
+						public onAttachedToWindow(): void;
+						public redo(): void;
+						public onDetachedFromWindow(): void;
+						public constructor($this$cursorPaint_u24lambda_u244: globalAndroid.content.Context, this_: globalAndroid.util.AttributeSet);
+						public undo(): void;
+						public getInput$masonkit_release(): org.nativescript.mason.masonkit.Input;
+						public setInput$masonkit_release(value: org.nativescript.mason.masonkit.Input): void;
+						public getCursorPaint$masonkit_release(): globalAndroid.graphics.Paint;
+						public onKeyDown(keyCode: number, event: globalAndroid.view.KeyEvent): boolean;
+						public constructor(context: globalAndroid.content.Context);
+						public onCreateInputConnection(this_: globalAndroid.view.inputmethod.EditorInfo): globalAndroid.view.inputmethod.InputConnection;
 					}
 				}
 			}

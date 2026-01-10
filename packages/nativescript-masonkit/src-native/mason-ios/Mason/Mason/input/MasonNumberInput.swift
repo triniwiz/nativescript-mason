@@ -125,7 +125,7 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
               type: "beforeinput",
               bubbles: true,
               cancelable: true,
-              composed: true
+              isComposing: true
           )
       )
       event.target = owner
@@ -187,7 +187,7 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
                type: "input",
                bubbles: true,
                cancelable: false,
-               composed: true
+               isComposing: true
            )
        )
        event.target = owner
@@ -222,7 +222,7 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
               type: "beforeinput",
               bubbles: true,
               cancelable: true,
-              composed: true
+              isComposing: true
           )
       )
       before.target = owner
@@ -241,7 +241,7 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
               type: "input",
               bubbles: true,
               cancelable: false,
-              composed: true
+              isComposing: true
           )
       )
       input.target = owner
@@ -260,7 +260,7 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
               type: "change",
               bubbles: true,
               cancelable: false,
-              composed: true
+              isComposing: true
           )
       )
       event.target = owner

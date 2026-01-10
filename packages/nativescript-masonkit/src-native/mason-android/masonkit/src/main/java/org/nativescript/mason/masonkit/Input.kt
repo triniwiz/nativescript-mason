@@ -4,111 +4,49 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.StateListDrawable
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
-import android.text.Editable
 import android.text.InputFilter
 import android.text.InputFilter.LengthFilter
 import android.text.InputType
-import android.text.TextWatcher
+import android.text.SpannableStringBuilder
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
 import android.widget.CheckBox
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.RadioButton
 import android.widget.SeekBar
+import android.widget.TextView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
-import androidx.core.text.TextUtilsCompat
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.events.Event
+import org.nativescript.mason.masonkit.events.EventOptions
+import org.nativescript.mason.masonkit.events.FileInputEvent
 import org.nativescript.mason.masonkit.events.InputEvent
+import org.nativescript.mason.masonkit.input.ColorInput
+import org.nativescript.mason.masonkit.input.DateInput
+import org.nativescript.mason.masonkit.input.FileInputControl
+import org.nativescript.mason.masonkit.input.NumberControl
+import org.nativescript.mason.masonkit.input.TextInput
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import kotlin.math.max
-import kotlin.math.min
 
 @SuppressLint("DiscouragedPrivateApi")
 class Input @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
 ) : FrameLayout(context, attrs), Element, MeasureFunc, StyleChangeListener {
-
-  @SuppressLint("AppCompatCustomView")
-  class InputEditText @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null
-  ) : EditText(context, attrs) {
-    internal var input: Input? = null
-
-
-    init {
-      if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-        isCursorVisible = false
-      }
-    }
-
-    override fun isSuggestionsEnabled(): Boolean {
-      return false
-    }
-
-    private val cursorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-      color = input?.style?.resolvedColor ?: Color.BLACK
-      strokeWidth = resources.displayMetrics.density
-    }
-
-    private var showCursor = true
-    private val blinkInterval = 500L // milliseconds
-
-    private val blinkRunnable = object : Runnable {
-      override fun run() {
-        showCursor = !showCursor
-        invalidate()
-        postDelayed(this, blinkInterval)
-      }
-    }
-
-    override fun onAttachedToWindow() {
-      super.onAttachedToWindow()
-      if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-        post(blinkRunnable)
-      }
-    }
-
-    override fun onDetachedFromWindow() {
-      if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-        removeCallbacks(blinkRunnable)
-      }
-      super.onDetachedFromWindow()
-    }
-
-    override fun onDraw(canvas: Canvas) {
-      super.onDraw(canvas)
-
-      if (!isFocused || selectionStart < 0 || !showCursor) return
-
-      val layout = layout ?: return
-      val offset = selectionStart
-      val line = layout.getLineForOffset(offset)
-
-      val x = layout.getPrimaryHorizontal(offset) + totalPaddingLeft
-      val top = layout.getLineTop(line) + totalPaddingTop
-      val bottom = layout.getLineBottom(line) + totalPaddingTop
-
-      // Draw a vertical cursor line
-      canvas.drawLine(x, top.toFloat(), x, bottom.toFloat(), cursorPaint)
-    }
-
-  }
 
   override val view: View
     get() = this
@@ -155,8 +93,29 @@ class Input @JvmOverloads constructor(
     }
   }
 
-  internal val textInput: EditText by lazy {
-    InputEditText(context).apply {
+
+  internal fun onBeforeInput(
+    type: String,
+    data: String? = null,
+    options: EventOptions? = null
+  ): Boolean {
+    val event = InputEvent(
+      type = "beforeinput",
+      data = data,
+      inputType = type,
+      options
+    ).apply {
+      target = this@Input
+    }
+
+    node.mason.dispatch(event)
+
+    return !event.defaultPrevented
+  }
+
+  internal val textInput: TextInput by lazy {
+    TextInput(context).apply {
+      input = this@Input
       isSingleLine = true
       maxLines = 1
       textSize = style.fontSize.toFloat()
@@ -170,43 +129,17 @@ class Input @JvmOverloads constructor(
         textCursorDrawable = null
       }
 
-      setOnFocusChangeListener { _, hasFocus ->
-        node.mason.dispatch(
-          Event(
-            type = if (hasFocus) "focus" else "blur",
-          ).apply {
-            target = this@Input
-          }
-        )
-      }
-
-      addTextChangedListener(object : TextWatcher {
-        override fun afterTextChanged(s: Editable?) {
-          node.mason.dispatch(
-            InputEvent(
-              type = "input",
-              inputType = "insertText",
-              data = s?.toString()
-            ).apply {
-              target = this@Input
-            }
-          )
-        }
-
-        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-      })
-
       filters = arrayOf(beforeFilter)
     }
   }
 
-  internal val buttonInput: android.widget.Button by lazy {
-    android.widget.Button(context).apply {
-      textSize = style.fontSize.toFloat()
+  internal val buttonInput: TextView by lazy {
+    TextView(context).apply {
       background = null
+      includeFontPadding = false
       setPadding(0, 0, 0, 0)
       isAllCaps = false
+      gravity = android.view.Gravity.CENTER_HORIZONTAL or android.view.Gravity.CENTER_VERTICAL
       setOnClickListener {
         node.mason.dispatch(
           Event(
@@ -399,11 +332,11 @@ class Input @JvmOverloads constructor(
   }
 
   var multiple: Boolean = false
-
+  var accept: String = "*/*"
   val fileInput = FileInputControl(context).apply {
     owner = this@Input
     onPickFile = {
-      pickFile(multiple = this@Input.multiple)
+      pickFile(multiple = this@Input.multiple, accept)
     }
     onContentSizeChanged = {
       invalidateLayout()
@@ -414,18 +347,76 @@ class Input @JvmOverloads constructor(
 
   private var multiFilePickerLauncher: ActivityResultLauncher<Array<String>>? = null
 
+  private fun dispatchInput(files: List<Uri>) {
+    val payload = files.map { getFileName(it) }
+
+    node.mason.dispatch(
+      FileInputEvent(
+        type = "input",
+        data = payload,
+        inputType = "insertFromFile",
+        EventOptions().apply {
+          bubbles = true
+          cancelable = false
+        }, files
+      ).apply {
+        target = this@Input
+      }
+    )
+  }
+
+  private fun dispatchBeforeInput(files: List<Uri>): Boolean {
+    val event = InputEvent(
+      type = "beforeinput",
+      data = null,
+      inputType = "insertFromFile",
+      EventOptions().apply {
+        bubbles = true
+        cancelable = true
+      }
+    ).apply {
+      target = this@Input
+    }
+
+    node.mason.dispatch(event)
+    return !event.defaultPrevented
+  }
+
+
+  private fun dispatchChange(files: List<Uri>) {
+    val payload = files.map { getFileName(it) }
+    node.mason.dispatch(
+      FileInputEvent(
+        type = "change",
+        data = payload,
+        null,
+        EventOptions().apply {
+          bubbles = true
+        },
+        emptyList()
+      ).apply {
+        target = this@Input
+      },
+    )
+  }
+
   private fun handlePickedFiles(uris: List<Uri>) {
     if (uris.isEmpty()) return
 
+    val allowed = dispatchBeforeInput(uris)
+    if (!allowed) return
+
     if (multiple) {
-      if (uris.size == 1) {
-        fileInput.labelText = getFileName(uris.first())
-      } else {
-        fileInput.labelText = "${uris.size} files selected"
-      }
+      fileInput.labelText =
+        if (uris.size == 1) getFileName(uris.first())
+        else "${uris.size} files selected"
     } else {
       fileInput.labelText = getFileName(uris.first())
     }
+
+    dispatchInput(uris)
+
+    dispatchChange(uris)
   }
 
   private fun getFileName(uri: Uri): String {
@@ -437,46 +428,62 @@ class Input @JvmOverloads constructor(
     } ?: ""
   }
 
-  @Synchronized
-  @Throws(Throwable::class)
-  protected fun finalize() {
+
+  override fun onDetachedFromWindow() {
+    super.onDetachedFromWindow()
     filePickerLauncher?.unregister()
     multiFilePickerLauncher?.unregister()
+    filePickerLauncher = null
+    multiFilePickerLauncher = null
   }
 
-  private fun pickFile(multiple: Boolean) {
-    val mimeTypes = arrayOf(
-      "image/png",
-      "image/jpeg",
-      "image/webp"
-    )
+  private fun pickFile(multiple: Boolean, accept: String) {
+    val mimeTypes = accept.split(",").map { it.trim() }
 
     val hash = hashCode()
     (context as? androidx.activity.ComponentActivity)?.let {
-      filePickerLauncher = it.activityResultRegistry.register(
-        "picker:${hash}",
-        ActivityResultContracts.OpenDocument()
-      ) { uri ->
-        if (uri != null) {
-          handlePickedFiles(listOf(uri))
+      if (filePickerLauncher == null) {
+        filePickerLauncher = it.activityResultRegistry.register(
+          "picker:${hash}",
+          ActivityResultContracts.OpenDocument()
+        ) { uri ->
+          if (uri != null) {
+            handlePickedFiles(listOf(uri))
+          }
         }
       }
 
-      filePickerLauncher = it.activityResultRegistry.register(
-        "picker:${hash}",
-        ActivityResultContracts.OpenMultipleDocuments()
-      ) { uris ->
-        if (uris.isNotEmpty()) {
-          handlePickedFiles(uris)
+      if (multiFilePickerLauncher == null) {
+        multiFilePickerLauncher = it.activityResultRegistry.register(
+          "picker:${hash}",
+          ActivityResultContracts.OpenMultipleDocuments()
+        ) { uris ->
+          if (uris.isNotEmpty()) {
+            handlePickedFiles(uris)
+          }
         }
       }
+
     }
 
     if (multiple) {
-      multiFilePickerLauncher?.launch(mimeTypes)
+      multiFilePickerLauncher?.launch(mimeTypes.toTypedArray())
     } else {
-      filePickerLauncher?.launch(mimeTypes)
+      filePickerLauncher?.launch(mimeTypes.toTypedArray())
     }
+  }
+
+  private fun resetFileInput() {
+    fileInput.labelText = ""
+    node.mason.dispatch(
+      FileInputEvent(
+        type = "input",
+        data = emptyList(),
+        inputType = "deleteContent",
+        EventOptions().apply { bubbles = true },
+        emptyList()
+      ).apply { target = this@Input }
+    )
   }
 
 
@@ -497,6 +504,10 @@ class Input @JvmOverloads constructor(
   private fun setupType(initial: Boolean = false) {
     if (!initial) {
       removeAllViews()
+      style.inBatch = true
+      style.border = ""
+      style.borderRadius = ""
+      style.textAlign = TextAlign.Auto
     }
     when (type) {
       Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> {
@@ -541,8 +552,8 @@ class Input @JvmOverloads constructor(
 
       Type.Button -> {
         configure {
-          val x = (2 * resources.displayMetrics.density).toInt()
-          val y = (resources.displayMetrics.density).toInt()
+          (2 * resources.displayMetrics.density).toInt()
+          (resources.displayMetrics.density).toInt()
 //          textInput.setPadding(
 //            x, y, x, y
 //          )
@@ -557,7 +568,10 @@ class Input @JvmOverloads constructor(
           style.borderRadius = "4px"
           style.textAlign = TextAlign.Center
         }
-        addView(buttonInput)
+
+        addView(
+          buttonInput, -2, -2
+        )
       }
 
       Type.Checkbox -> {
@@ -574,8 +588,8 @@ class Input @JvmOverloads constructor(
 
       Type.Number -> {
         configure {
-          val x = (2 * resources.displayMetrics.density).toInt()
-          val y = (resources.displayMetrics.density).toInt()
+          (2 * resources.displayMetrics.density).toInt()
+          (resources.displayMetrics.density).toInt()
 //          style.padding = Rect(
 //            LengthPercentage.Points(y),
 //            LengthPercentage.Points(x),
@@ -596,8 +610,8 @@ class Input @JvmOverloads constructor(
 
       Type.Color -> {
         configure {
-          val x = (2 * resources.displayMetrics.density).toInt()
-          val y = (resources.displayMetrics.density).toInt()
+          (2 * resources.displayMetrics.density).toInt()
+          (resources.displayMetrics.density).toInt()
 //          textInput.setPadding(
 //            x, y, x, y
 //          )
@@ -617,6 +631,7 @@ class Input @JvmOverloads constructor(
         addView(fileInput)
       }
     }
+    style.inBatch = false
   }
 
   @JvmOverloads
@@ -647,7 +662,7 @@ class Input @JvmOverloads constructor(
       field = value
       when (type) {
         Type.Text, Type.Email,
-        Type.Password -> {
+        Type.Password, Type.Url, Type.Tel -> {
           textInput.hint = value
         }
 
@@ -695,15 +710,25 @@ class Input @JvmOverloads constructor(
       }
     }
 
+  private fun syncTextStyle(value: String, view: TextView, ignoreLineHeight: Boolean = false) {
+    val text = SpannableStringBuilder(TextNode.processText(value, style))
+    val attributes = node.getDefaultAttributes()
+    if (ignoreLineHeight) {
+      attributes.lineHeight = null
+    }
+    TextNode.applyAttributes(text, 0, text.length, attributes)
+    view.setText(text, TextView.BufferType.SPANNABLE)
+  }
+
   var value: String
     set(value) {
       when (type) {
-        Type.Text, Type.Email, Type.Password -> {
-          textInput.setText(value)
+        Type.Tel, Type.Url, Type.Text, Type.Email, Type.Password -> {
+          syncTextStyle(value, textInput)
         }
 
         Type.Button -> {
-          buttonInput.setText(value)
+          syncTextStyle(value, buttonInput)
         }
 
         Type.Checkbox -> {
@@ -714,10 +739,12 @@ class Input @JvmOverloads constructor(
         Type.Radio -> {}
         Type.Number -> {}
         Type.Range -> {}
-        Type.Tel -> {}
-        Type.Url -> {}
         Type.Color -> {}
-        Type.File -> {}
+        Type.File -> {
+          if (value.isEmpty()) {
+            resetFileInput()
+          }
+        }
       }
     }
     get() {
@@ -744,6 +771,62 @@ class Input @JvmOverloads constructor(
       }
     }
 
+  var valueAsNumber: Double
+    get() = when (type) {
+      Type.Number -> numberInput.value.toDouble()
+      Type.Range -> rangeInput.progress.toDouble()
+      Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> textInput.text.toString()
+        .toDoubleOrNull()
+        ?: Double.NaN
+
+      else -> Double.NaN
+    }
+    set(v) {
+      when (type) {
+        Type.Number -> numberInput.value = v.toInt()
+        Type.Range -> rangeInput.progress = v.toInt()
+        Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> textInput.setText(v.toString())
+        else -> {}
+      }
+    }
+
+  var valueAsDate: Date
+    get() {
+      return when (type) {
+        Type.Date -> {
+          val parts = dateInput.value.split("-")
+          if (parts.size == 3) {
+            val y = parts[0].toIntOrNull() ?: 0
+            val m = (parts[1].toIntOrNull() ?: 1) - 1
+            val d = parts[2].toIntOrNull() ?: 1
+            Calendar.getInstance().apply {
+              set(Calendar.YEAR, y)
+              set(Calendar.MONTH, m)
+              set(Calendar.DAY_OF_MONTH, d)
+              set(Calendar.HOUR_OF_DAY, 0)
+              set(Calendar.MINUTE, 0)
+              set(Calendar.SECOND, 0)
+              set(Calendar.MILLISECOND, 0)
+            }.time
+          } else {
+            Date(0)
+          }
+        }
+
+        else -> Date(0)
+      }
+    }
+    set(v) {
+      if (type == Type.Date) {
+        val cal = Calendar.getInstance().apply { time = v }
+        val yr = cal.get(Calendar.YEAR)
+        val mon = cal.get(Calendar.MONTH) + 1
+        val day = cal.get(Calendar.DAY_OF_MONTH)
+        val formatted = String.format(Locale.getDefault(), "%04d-%02d-%02d", yr, mon, day)
+        dateInput.value = formatted
+      }
+    }
+
   var checked: Boolean = false
     set(value) {
       field = value
@@ -762,22 +845,46 @@ class Input @JvmOverloads constructor(
     }
 
   internal fun layoutChild(l: Int, t: Int, r: Int, b: Int) {
+    val width = r - l
+    val height = b - t
     when (type) {
       Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> {
+        textInput.measure(
+          MeasureSpec.makeMeasureSpec(
+            width, MeasureSpec.EXACTLY
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height, MeasureSpec.EXACTLY
+          )
+        )
         textInput.layout(l, t, r, b)
       }
 
       Type.Button -> {
+        buttonInput.measure(
+          MeasureSpec.makeMeasureSpec(
+            width, MeasureSpec.EXACTLY
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height, MeasureSpec.EXACTLY
+          )
+        )
         buttonInput.layout(l, t, r, b)
       }
 
       Type.Checkbox -> {
+        checkBoxInput.measure(
+          MeasureSpec.makeMeasureSpec(
+            width, MeasureSpec.EXACTLY
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height, MeasureSpec.EXACTLY
+          )
+        )
         checkBoxInput.layout(l, t, r, b)
       }
 
       Type.Date -> {
-        val width = r - l
-        val height = b - t
         dateInput.measure(
           MeasureSpec.makeMeasureSpec(
             width, MeasureSpec.EXACTLY
@@ -790,6 +897,14 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Radio -> {
+        radioInput.measure(
+          MeasureSpec.makeMeasureSpec(
+            width, MeasureSpec.EXACTLY
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height, MeasureSpec.EXACTLY
+          )
+        )
         radioInput.layout(l, t, r, b)
       }
 
@@ -806,12 +921,18 @@ class Input @JvmOverloads constructor(
       }
 
       Type.Range -> {
+        rangeInput.measure(
+          MeasureSpec.makeMeasureSpec(
+            width, MeasureSpec.EXACTLY
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height, MeasureSpec.EXACTLY
+          )
+        )
         rangeInput.layout(l, t, r, b)
       }
 
       Type.Color -> {
-        val width = r - l
-        val height = b - t
         colorInput.measure(
           MeasureSpec.makeMeasureSpec(
             width, MeasureSpec.EXACTLY
@@ -890,6 +1011,15 @@ class Input @JvmOverloads constructor(
         size.height = fileInput.measuredHeight.toFloat()
       }
 
+      Type.Button -> {
+        buttonInput.measure(0, 0)
+        size.width = max(buttonInput.measuredWidth.toFloat(), 64 * resources.displayMetrics.density)
+
+        val fm = style.paint.fontMetrics
+        size.height =
+          max(fm.descent - fm.ascent, 32 * resources.displayMetrics.density)
+      }
+
       else -> {
         ch = style.paint.measureText("0")
       }
@@ -916,10 +1046,7 @@ class Input @JvmOverloads constructor(
       }
     }
 
-    if (type == Type.Button) {
-      size.width = min(size.width, 64 * resources.displayMetrics.density)
-      size.height = min(size.height, 32 * resources.displayMetrics.density)
-    }
+
     return size
   }
 
@@ -934,77 +1061,37 @@ class Input @JvmOverloads constructor(
 
     when (type) {
       Type.Text, Type.Email, Type.Password, Type.Number, Type.Tel, Type.Url -> {
-        if (fontSize) {
-          textInput.textSize = style.fontSize.toFloat()
-        }
-        if (fontColor) {
-          textInput.setTextColor(style.resolvedColor)
-        }
-
-        if (font) {
-          style.resolvedFontFace.font?.let {
-            textInput.typeface = it
-          }
-        }
-
-
-        val isLeftToRight =
-          TextUtilsCompat.getLayoutDirectionFromLocale(Locale.getDefault()) == LAYOUT_DIRECTION_LTR
-        if (textAlign) {
-          val align = style.resolvedTextAlign
-          if (align == TextAlign.Justify) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-              textInput.justificationMode =
-                android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-              //  textInput.justificationMode = 1
-            }
-          } else {
-            textInput.textAlignment = when (align) {
-              TextAlign.Auto -> View.TEXT_ALIGNMENT_GRAVITY
-              TextAlign.Left -> if (isLeftToRight) {
-                View.TEXT_ALIGNMENT_TEXT_START
-              } else {
-                View.TEXT_ALIGNMENT_TEXT_END
-              }
-
-              TextAlign.Right -> if (isLeftToRight) {
-                View.TEXT_ALIGNMENT_TEXT_END
-              } else {
-                View.TEXT_ALIGNMENT_TEXT_START
-              }
-
-              TextAlign.Center -> View.TEXT_ALIGNMENT_CENTER
-              TextAlign.Justify -> View.TEXT_ALIGNMENT_INHERIT
-              TextAlign.Start -> TEXT_ALIGNMENT_TEXT_START
-              TextAlign.End -> TEXT_ALIGNMENT_TEXT_END
-            }
-          }
-
+        if (fontSize || fontColor || font || textAlign) {
+          textInput.cursorPaint.textSize = style.resolvedFontSize.toFloat()
+          textInput.cursorPaint.color = style.resolvedColor
+          syncTextStyle(textInput.text.toString(), textInput)
         }
       }
 
       Type.Button -> {
-        if (fontSize) {
-          buttonInput.textSize = style.fontSize.toFloat()
-        }
-        if (fontColor) {
-          buttonInput.setTextColor(style.resolvedColor)
-        }
-
-        if (font) {
-          style.resolvedFontFace.font?.let {
-            buttonInput.typeface = it
-          }
+        if (fontSize || fontColor || font || textAlign) {
+          syncTextStyle(buttonInput.text.toString(), buttonInput)
         }
       }
 
       Type.Checkbox -> {}
-      Type.Date -> {}
+      Type.Date -> {
+        if (fontSize || fontColor || font || textAlign) {
+          syncTextStyle(dateInput.dayInput.text.toString(), dateInput.dayInput)
+          syncTextStyle(dateInput.monthInput.text.toString(), dateInput.monthInput)
+          syncTextStyle(dateInput.yearInput.text.toString(), dateInput.yearInput)
+        }
+      }
+
       Type.Radio -> {}
       Type.Range -> {}
       Type.Color -> {}
-      Type.File -> {}
+      Type.File -> {
+        if (fontSize || fontColor || font || textAlign) {
+          syncTextStyle(fileInput.fileButton.text.toString(), fileInput.fileButton)
+          syncTextStyle(fileInput.fileLabel.text.toString(), fileInput.fileLabel)
+        }
+      }
     }
   }
 }

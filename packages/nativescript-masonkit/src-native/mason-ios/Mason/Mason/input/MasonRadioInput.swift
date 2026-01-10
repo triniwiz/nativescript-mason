@@ -68,7 +68,7 @@ class MasonRadioInput: UIControl {
               type: "input",
               bubbles: true,
               cancelable: false,
-              composed: true
+              isComposing: true
           )
       )
       input.target = owner
@@ -82,7 +82,7 @@ class MasonRadioInput: UIControl {
               type: "change",
               bubbles: true,
               cancelable: false,
-              composed: true
+              isComposing: true
           )
       )
       change.target = owner
@@ -119,7 +119,7 @@ class MasonRadioInput: UIControl {
                type: "beforeinput",
                bubbles: true,
                cancelable: true,
-               composed: true
+               isComposing: true
            )
        )
        before.target = owner

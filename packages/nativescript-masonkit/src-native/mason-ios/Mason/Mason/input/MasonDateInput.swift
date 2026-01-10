@@ -142,7 +142,7 @@ class MasonDateInput: UIView {
                type: "change",
                bubbles: true,
                cancelable: false,
-               composed: true
+               isComposing: true
            )
        )
        change.target = owner
@@ -208,7 +208,7 @@ class MasonDateInput: UIView {
                 type: "beforeinput",
                 bubbles: true,
                 cancelable: true,
-                composed: true
+                isComposing: true
             )
         )
         before.target = owner
@@ -240,7 +240,7 @@ class MasonDateInput: UIView {
                 type: "input",
                 bubbles: true,
                 cancelable: false,
-                composed: true
+                isComposing: true
             )
         )
         input.target = owner
@@ -287,7 +287,7 @@ class MasonDateInput: UIView {
                   type: "beforeinput",
                   bubbles: true,
                   cancelable: true,
-                  composed: true
+                  isComposing: true
               )
           )
           before.target = owner
@@ -315,7 +315,7 @@ class MasonDateInput: UIView {
                   type: "input",
                   bubbles: true,
                   cancelable: false,
-                  composed: true
+                  isComposing: true
               )
           )
           input.target = owner
@@ -329,7 +329,7 @@ class MasonDateInput: UIView {
                   type: "change",
                   bubbles: true,
                   cancelable: false,
-                  composed: true
+                  isComposing: true
               )
           )
           change.target = owner

@@ -10,6 +10,19 @@ class InputEvent(
   @JvmOverloads
   constructor(
     type: String,
+    data: List<String>,
+    inputType: String? = null,
+    options: EventOptions? = null
+  ) : this(
+    type,
+    "$data",
+    inputType,
+    options
+  )
+
+  @JvmOverloads
+  constructor(
+    type: String,
     data: Boolean,
     inputType: String? = null,
     options: EventOptions? = null

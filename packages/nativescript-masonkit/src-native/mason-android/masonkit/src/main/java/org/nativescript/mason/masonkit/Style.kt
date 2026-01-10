@@ -4,8 +4,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.text.TextPaint
-import android.util.Log
-import android.util.TypedValue
 import android.view.View
 import androidx.core.graphics.withClip
 import dalvik.annotation.optimization.FastNative
@@ -417,7 +415,8 @@ class Style internal constructor(internal var node: Node) {
         defaultPaint?.apply {
           Mason.shared.scale
           textSize =
-            16f * ((node.view as? View)?.resources?.displayMetrics?.density ?: Mason.shared.scale)
+            Constants.DEFAULT_FONT_SIZE * ((node.view as? View)?.resources?.displayMetrics?.density
+              ?: Mason.shared.scale)
         }
         defaultPaint!!.apply {
           if (font.font == null) {
@@ -425,7 +424,7 @@ class Style internal constructor(internal var node: Node) {
               font.loadSync(it.context) {}
             }
           }
-         // this.typeface = font.font
+          // this.typeface = font.font
         }
       }
     }

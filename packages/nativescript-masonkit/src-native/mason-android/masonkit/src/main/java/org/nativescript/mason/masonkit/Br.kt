@@ -1,6 +1,8 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.text.BoringLayout
+import android.text.Layout
 import android.util.Log
 import android.view.View
 
@@ -58,7 +60,7 @@ class Br(context: Context, mason: Mason) : Element, MeasureFunc {
         if (lineHeight > 0) {
           ret.height = lineHeight
         } else {
-          val height = style.paint.fontMetrics.run { descent - ascent }
+          val height = style.paint.textSize * 1.2f
           ret.height = height
         }
       }

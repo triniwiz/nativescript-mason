@@ -36,19 +36,14 @@ export class Input extends InputBase {
       case 'number':
         return org.nativescript.mason.masonkit.Input.Type.Number;
       case 'range':
-        //@ts-ignore
         return org.nativescript.mason.masonkit.Input.Type.Range;
       case 'tel':
-        //@ts-ignore
         return org.nativescript.mason.masonkit.Input.Type.Tel;
       case 'url':
-        //@ts-ignore
         return org.nativescript.mason.masonkit.Input.Type.Url;
       case 'color':
-        //@ts-ignore
         return org.nativescript.mason.masonkit.Input.Type.Color;
       case 'file':
-        //@ts-ignore
         return org.nativescript.mason.masonkit.Input.Type.File;
     }
     return org.nativescript.mason.masonkit.Input.Type.Text;
@@ -80,6 +75,36 @@ export class Input extends InputBase {
     if (this._view) {
       this._view.setPlaceholder(value);
     }
+  }
+
+  set value(value: string) {
+    if (this._view) {
+      this._view.setValue(value);
+    }
+  }
+
+  get value() {
+    return this._view ? this._view.getValue() : '';
+  }
+
+  set valueAsNumber(value: number) {
+    if (this._view) {
+      this._view.setValueAsNumber(value);
+    }
+  }
+
+  get valueAsNumber(): number {
+    return this._view ? this._view.getValueAsNumber() : NaN;
+  }
+
+  set valueAsDate(value: Date | null) {
+    if (this._view) {
+      this._view.setValueAsDate(Utils.dataSerialize(value));
+    }
+  }
+
+  get valueAsDate(): Date | null {
+    return this._view ? Utils.dataDeserialize(this._view.getValueAsDate()) : null;
   }
 
   get _view() {

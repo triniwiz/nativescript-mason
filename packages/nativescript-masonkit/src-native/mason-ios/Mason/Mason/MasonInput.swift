@@ -147,7 +147,7 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
               type: "beforeinput",
               bubbles: true,
               cancelable: true,
-              composed: true
+              isComposing: true
           )
       )
       before.target = self
@@ -164,7 +164,7 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
               type: "change",
               bubbles: true,
               cancelable: false,
-              composed: true
+              isComposing: true
           )
       )
       change.target = self

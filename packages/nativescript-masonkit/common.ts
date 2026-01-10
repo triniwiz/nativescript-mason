@@ -51,7 +51,7 @@ import { leftProperty } from '@nativescript/core/ui/layouts/absolute-layout';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_ } from './symbols';
 
 // Angular zone detection
-declare const Zone: any;
+declare const Zone: any, kotlin;
 
 function getViewStyle(view: WeakRef<NSViewBase> | WeakRef<TextBase>): MasonStyle {
   const ret: NSViewBase & { _styleHelper: MasonStyle } = (__ANDROID__ ? view.get() : view.deref()) as never;
@@ -157,10 +157,38 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     super();
   }
 
+  _pendingEventsRegistration: Array<{ arg: string; callback: any; thisArg?: any }> = [];
+
   _registerNativeEvent(arg: string, callback: any, thisArg?: any) {
+    if (!this[native_]) {
+      this._pendingEventsRegistration.push({ arg, callback, thisArg });
+      return;
+    }
     //@ts-ignore
     if (this._view) {
       if (__ANDROID__) {
+        const ref = new WeakRef(this);
+        const cb = new kotlin.jvm.functions.Function1({
+          invoke(event: org.nativescript.mason.masonkit.events.Event) {
+            const owner = ref.get();
+            if (owner) {
+              let ret;
+              if (arg === 'input') {
+                ret = new InputEvent();
+              } else {
+                ret = new Event();
+              }
+              ret[native_] = event;
+              ret._target = owner;
+              callback.call(thisArg || owner, ret);
+            }
+          },
+        });
+
+        //@ts-ignore
+        const id = (this._view as never as org.nativescript.mason.masonkit.Element).addEventListener(arg, cb);
+
+        callback['mason:event:id'] = id;
       }
       if (__APPLE__) {
         //@ts-ignore
@@ -182,18 +210,40 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   }
 
   _unregisterNativeEvent(arg: string, callback: any, thisArg?: any) {
+    const id = callback['mason:event:id'];
+    if (!this[native_]) {
+      this._pendingEventsRegistration = this._pendingEventsRegistration.filter((registration) => {
+        return !(registration.arg === arg && registration.callback === callback && registration.thisArg === thisArg);
+      });
+      return;
+    }
     //@ts-ignore
     if (this._view) {
       if (__ANDROID__) {
+        if (!id) {
+          //@ts-ignore
+          const removed = (this._view as org.nativescript.mason.masonkit.Element).removeEventListener(arg, id);
+
+          callback['mason:event:id'] = undefined;
+        }
       }
       if (__APPLE__) {
-        const id = callback['mason:event:id'];
         if (!id) {
           //@ts-ignore
           const removed = (this._view as NSObject).mason_removeEventListenerId(arg, id);
 
           callback['mason:event:id'] = undefined;
         }
+      }
+    }
+  }
+
+  initNativeView(): void {
+    super.initNativeView();
+    if (this._pendingEventsRegistration.length > 0) {
+      const pending = this._pendingEventsRegistration.splice(0);
+      for (const registration of pending) {
+        this._registerNativeEvent(registration.arg, registration.callback, registration.thisArg);
       }
     }
   }
@@ -1526,7 +1576,136 @@ srcProperty.register(ImageBase);
 export class Event {
   [native_];
 
+  get bubbles() {
+    if (__ANDROID__) {
+      return this[native_]?.getBubbles();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.bubbles;
+    }
+
+    return false;
+  }
+
+  get cancelable() {
+    if (__ANDROID__) {
+      return this[native_]?.getCancelable();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.cancelable;
+    }
+
+    return false;
+  }
+
+  get isComposing() {
+    if (__ANDROID__) {
+      return this[native_]?.getIsComposing();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.isComposing;
+    }
+
+    return false;
+  }
+
+  get timeStamp() {
+    if (__ANDROID__) {
+      return this[native_]?.getTimeStamp();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.timeStamp;
+    }
+
+    return false;
+  }
+
+  get defaultPrevented() {
+    if (__ANDROID__) {
+      return this[native_]?.getDefaultPrevented();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.defaultPrevented;
+    }
+
+    return false;
+  }
+
+  get propagationStopped() {
+    if (__ANDROID__) {
+      return this[native_]?.getPropagationStopped();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.propagationStopped;
+    }
+
+    return false;
+  }
+
+  get immediatePropagationStopped() {
+    if (__ANDROID__) {
+      return this[native_]?.getImmediatePropagationStopped();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.immediatePropagationStopped;
+    }
+
+    return false;
+  }
+
+  get currentTarget() {
+    if (__ANDROID__) {
+      return this[native_]?.getCurrentTarget();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.currentTarget;
+    }
+
+    return false;
+  }
+
+  stopImmediatePropagation(): void {
+    if (__ANDROID__) {
+      return this[native_]?.stopImmediatePropagation();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.stopImmediatePropagation();
+    }
+  }
+
+  stopPropagation(): void {
+    if (__ANDROID__) {
+      return this[native_]?.stopPropagation();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.stopPropagation();
+    }
+  }
+
+  preventDefault(): void {
+    if (__ANDROID__) {
+      return this[native_]?.preventDefault();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.preventDefault();
+    }
+  }
+
   get type(): string {
+    if (__ANDROID__) {
+      return this[native_]?.getType();
+    }
     return this[native_]?.type;
   }
 
@@ -1535,4 +1714,54 @@ export class Event {
   }
 }
 
-export class InputEvent extends Event {}
+export class InputEvent extends Event {
+  get data() {
+    if (__ANDROID__) {
+      if (this[native_] instanceof org.nativescript.mason.masonkit.events.FileInputEvent) {
+        const data = this[native_]?.getRawData();
+        if (!data) {
+          return null;
+        }
+        const ret = [];
+        const size = data.size();
+        for (let i = 0; i < size; i++) {
+          ret.push(data.get(i).toString());
+        }
+        return ret;
+      }
+      return this[native_]?.getData();
+    }
+
+    if (__APPLE__) {
+      if (this[native_] instanceof MasonFileInputEvent) {
+        const data = this[native_]?.rawData;
+        if (!data) {
+          return null;
+        }
+        const ret = [];
+        const size = data.count;
+        for (let i = 0; i < size; i++) {
+          const item = data.objectAtIndex(i) as NSURL;
+          ret.push(item.absoluteString);
+        }
+        return ret;
+      }
+
+      return this[native_]?.data;
+    }
+
+    return false;
+  }
+
+  get inputType() {
+    if (__ANDROID__) {
+      return this[native_]?.getInputType();
+    }
+
+    if (__APPLE__) {
+      return this[native_]?.inputType;
+    }
+
+    return false;
+  }
+}

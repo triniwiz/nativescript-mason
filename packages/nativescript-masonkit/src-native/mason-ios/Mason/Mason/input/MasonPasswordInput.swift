@@ -45,7 +45,7 @@ class MasonPasswordInput: UITextField, UITextFieldDelegate {
         type: "input",
         bubbles: true,
         cancelable: false,
-        composed: true
+        isComposing: true
       )
     )
     event.target = owner
@@ -65,7 +65,7 @@ class MasonPasswordInput: UITextField, UITextFieldDelegate {
         type: "change",
         bubbles: true,
         cancelable: false,
-        composed: true
+        isComposing: true
       )
     )
     event.target = owner
@@ -89,7 +89,7 @@ class MasonPasswordInput: UITextField, UITextFieldDelegate {
         type: "beforeinput",
         bubbles: true,
         cancelable: true,
-        composed: true,
+        isComposing: true,
       )
     )
     
@@ -118,7 +118,7 @@ class MasonPasswordInput: UITextField, UITextFieldDelegate {
         type: "beforeinput",
         bubbles: true,
         cancelable: true,
-        composed: true,
+        isComposing: true,
       )
     )
     
@@ -173,7 +173,7 @@ class MasonPasswordInput: UITextField, UITextFieldDelegate {
         type: "beforeinput",
         bubbles: true,
         cancelable: true,
-        composed: true,
+        isComposing: true,
       )
     )
     

@@ -99,7 +99,7 @@ class MasonFileInput: UIView, UIDocumentPickerDelegate, UIImagePickerControllerD
         type: "click",
         bubbles: true,
         cancelable: true,
-        composed: true
+        isComposing: true
       )
     )
     click.target = owner
@@ -166,6 +166,10 @@ class MasonFileInput: UIView, UIDocumentPickerDelegate, UIImagePickerControllerD
   public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
     guard !urls.isEmpty else { return }
     
+    let payload = urls.map { url in
+      url.lastPathComponent
+    }
+    
     if owner?.multiple ?? false {
       labelText = urls.count == 1
       ? urls[0].lastPathComponent
@@ -176,14 +180,16 @@ class MasonFileInput: UIView, UIDocumentPickerDelegate, UIImagePickerControllerD
     
     guard let owner = owner else { return }
     
-    let change = MasonEvent(
+    let change = MasonFileInputEvent(
       type: "change",
+      data: payload.joined(separator: ","),
       options: MasonEventOptions(
         type: "change",
         bubbles: true,
         cancelable: false,
-        composed: true
-      )
+        isComposing: true
+      ),
+      rawData: urls
     )
     change.target = owner
     owner.node.mason.dispatch(change, owner.node)

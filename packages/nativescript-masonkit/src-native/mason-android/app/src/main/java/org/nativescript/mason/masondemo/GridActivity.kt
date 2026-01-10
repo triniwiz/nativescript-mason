@@ -32,8 +32,9 @@ import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.VerticalAlign
-import org.nativescript.mason.masonkit.events.Event
 import org.nativescript.mason.masonkit.events.InputEvent
+import java.util.Timer
+import kotlin.concurrent.schedule
 
 class GridActivity : AppCompatActivity() {
   lateinit var metrics: DisplayMetrics
@@ -151,21 +152,33 @@ class GridActivity : AppCompatActivity() {
 
     root.append(mason.createBr(this))
 
-    val file = mason.createInput(this, Input.Type.File)
+    val file = mason.createInput(this)
+    file.multiple = true
+
+    Timer().schedule(3000L) {
+      runOnUiThread {
+        file.type = Input.Type.File
+      }
+    }
+
     root.append(file)
+
+    file.addEventListener("change") {
+      Log.d("com.test", "file ${(it as InputEvent).data}")
+    }
 
     root.append(mason.createBr(this))
 
     val date = mason.createInput(this, Input.Type.Date)
     root.append(date)
 
-    date.addEventListener("input"){
+    date.addEventListener("input") {
       Log.d("com.test", "input ${(it as InputEvent).data}")
     }
 
     val color = mason.createInput(this, Input.Type.Color)
     root.append(color)
-    color.addEventListener("input"){
+    color.addEventListener("input") {
       Log.d("com.test", "input ${(it as InputEvent).data}")
     }
   }

@@ -53,7 +53,7 @@ class MasonRangeInput: UISlider {
                 type: "input",
                 bubbles: true,
                 cancelable: false,
-                composed: true
+                isComposing: true
             )
         )
         input.target = owner
@@ -73,7 +73,7 @@ class MasonRangeInput: UISlider {
                 type: "change",
                 bubbles: true,
                 cancelable: false,
-                composed: true
+                isComposing: true
             )
         )
         change.target = owner

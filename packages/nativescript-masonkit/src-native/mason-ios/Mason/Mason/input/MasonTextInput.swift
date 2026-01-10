@@ -146,7 +146,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
         type: "input",
         bubbles: true,
         cancelable: false,
-        composed: true
+        isComposing: true
       )
     )
     event.target = owner
@@ -164,7 +164,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
         type: "change",
         bubbles: true,
         cancelable: false,
-        composed: true
+        isComposing: true
       )
     )
     event.target = owner
@@ -188,7 +188,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
         type: "beforeinput",
         bubbles: true,
         cancelable: true,
-        composed: true,
+        isComposing: true,
       )
     )
     
@@ -217,7 +217,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
         type: "beforeinput",
         bubbles: true,
         cancelable: true,
-        composed: true,
+        isComposing: true,
       )
     )
     
@@ -273,7 +273,7 @@ class MasonTextInput: UITextView, UITextViewDelegate {
         type: "beforeinput",
         bubbles: true,
         cancelable: true,
-        composed: true,
+        isComposing: true,
       )
     )
     

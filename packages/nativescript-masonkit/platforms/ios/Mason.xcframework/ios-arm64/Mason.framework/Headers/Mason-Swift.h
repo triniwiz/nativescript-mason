@@ -679,15 +679,17 @@ SWIFT_CLASS_NAMED("MasonEvent")
 @property (nonatomic, readonly, copy) NSString * _Nonnull type;
 @property (nonatomic, readonly) BOOL bubbles;
 @property (nonatomic, readonly) BOOL cancelable;
-@property (nonatomic, readonly) BOOL composed;
+@property (nonatomic, readonly) BOOL isComposing;
 @property (nonatomic, readonly) double timeStamp;
 @property (nonatomic, readonly) BOOL defaultPrevented;
 @property (nonatomic, readonly) BOOL propagationStopped;
+@property (nonatomic, readonly) BOOL immediatePropagationStopped;
 @property (nonatomic, readonly) id _Nullable target;
 @property (nonatomic, readonly) id _Nullable currentTarget;
 - (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
 - (void)preventDefault;
 - (void)stopPropagation;
+- (void)stopImmediatePropagation;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
@@ -697,11 +699,21 @@ SWIFT_CLASS_NAMED("MasonEventOptions")
 @property (nonatomic, copy) NSString * _Nonnull type;
 @property (nonatomic) BOOL bubbles;
 @property (nonatomic) BOOL cancelable;
-@property (nonatomic) BOOL composed;
+@property (nonatomic) BOOL isComposing;
 @property (nonatomic) id _Nullable target;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type bubbles:(BOOL)bubbles cancelable:(BOOL)cancelable composed:(BOOL)composed OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type bubbles:(BOOL)bubbles cancelable:(BOOL)cancelable isComposing:(BOOL)isComposing OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+@class NSURL;
+SWIFT_CLASS_NAMED("MasonFileInputEvent")
+@interface MasonFileInputEvent : MasonEvent
+@property (nonatomic, readonly, copy) NSString * _Nullable data;
+@property (nonatomic, readonly, copy) NSString * _Nullable inputType;
+@property (nonatomic, readonly, copy) NSArray<NSURL *> * _Nonnull rawData;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type data:(NSString * _Nullable)inputData inputType:(NSString * _Nullable)masonInputType options:(MasonEventOptions * _Nullable)options rawData:(NSArray<NSURL *> * _Nonnull)inputRawData OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonFloat, "MasonFloat", open) {
@@ -743,8 +755,8 @@ SWIFT_CLASS_NAMED("MasonInput")
 SWIFT_CLASS_NAMED("MasonInputEvent")
 @interface MasonInputEvent : MasonEvent
 @property (nonatomic, readonly, copy) NSString * _Nullable data;
-@property (nonatomic, readonly, copy) NSString * _Nonnull inputType;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type data:(NSString * _Nullable)inputData inputType:(NSString * _Nonnull)masonInputType options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, readonly, copy) NSString * _Nullable inputType;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type data:(NSString * _Nullable)inputData inputType:(NSString * _Nullable)masonInputType options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
 - (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
 @end
 
