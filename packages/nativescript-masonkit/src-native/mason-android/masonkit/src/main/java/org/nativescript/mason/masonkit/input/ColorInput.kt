@@ -30,14 +30,26 @@ import org.nativescript.mason.masonkit.events.EventOptions
 import org.nativescript.mason.masonkit.events.InputEvent
 
 class ColorInput @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null
+  context: Context, attrs: AttributeSet? = null
 ) : FrameLayout(context, attrs) {
   var owner: Element? = null
   val colorView = View(context)
   private var hueTrackDrawable: HueTrackDrawable? = null
+  var selectedColor: Int = Color.BLACK
+    set(value) {
+      field = value
+      selectedColorHex = null
+    }
+  internal var selectedColorHex: String? = null
+
+  internal fun syncSelectedColor(){
+    if (selectedColorHex == null){
+      selectedColorHex = String.format("#%06X", 0xFFFFFF and selectedColor)
+    }
+  }
 
   init {
-    colorView.setBackgroundColor(Color.BLACK)
+    colorView.setBackgroundColor(selectedColor)
     val padding = (4 * resources.displayMetrics.density).toInt()
     setPadding(padding, padding, padding, padding)
     addView(
@@ -74,7 +86,8 @@ class ColorInput @JvmOverloads constructor(
       var h = 0f
       var s = 0f
       var l = 0f
-      var selectedColor = Color.BLACK
+
+      var dlgSelectedColor = this@ColorInput.selectedColor
       var outMode = 0 // 0 = RGB, 1 = HSL, 2 = HEX
 
       fun updateOutputFields(col: Int) {
@@ -133,7 +146,7 @@ class ColorInput @JvmOverloads constructor(
 
       outSwitcher?.setOnClickListener {
         outMode = (outMode + 1) % 3
-        updateOutputFields(selectedColor)
+        updateOutputFields(dlgSelectedColor)
       }
 
 
@@ -166,7 +179,7 @@ class ColorInput @JvmOverloads constructor(
               val rr = r.coerceIn(0, 255)
               val gg = g.coerceIn(0, 255)
               val bb = b.coerceIn(0, 255)
-              selectedColor = Color.rgb(rr, gg, bb)
+              dlgSelectedColor = Color.rgb(rr, gg, bb)
             }
 
             1 -> {
@@ -181,14 +194,14 @@ class ColorInput @JvmOverloads constructor(
                   (ll / 100f).coerceIn(0f, 1f)
                 )
               )
-              selectedColor = rgb
+              dlgSelectedColor = rgb
             }
 
             else -> {
               // HEX
               val txt = hexView.text.toString().trim()
               try {
-                selectedColor =
+                dlgSelectedColor =
                   if (txt.startsWith("#")) txt.toColorInt() else "#${txt}".toColorInt()
               } catch (_: Exception) {
               }
@@ -196,9 +209,9 @@ class ColorInput @JvmOverloads constructor(
           }
         } catch (_: Exception) {
         }
-        // propagate selectedColor into UI (seekbar, SV, preview)
+
         val hsvTmp = FloatArray(3)
-        Color.colorToHSV(selectedColor, hsvTmp)
+        Color.colorToHSV(dlgSelectedColor, hsvTmp)
         h = hsvTmp[0]
         svView.hue = h
         svView.sat = hsvTmp[1]
@@ -208,11 +221,11 @@ class ColorInput @JvmOverloads constructor(
         } catch (_: Exception) {
         }
         updatePreview()
-        updateOutputFields(selectedColor)
+        updateOutputFields(dlgSelectedColor)
         // emit input event when user edits numeric/hex fields
         dispatchInputEvent(
           type = "input",
-          value = selectedColor,
+          value = dlgSelectedColor,
           cancelable = false
         )
       }
@@ -223,7 +236,7 @@ class ColorInput @JvmOverloads constructor(
       lText.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) applyEditedOutputs() }
       hexView.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) applyEditedOutputs() }
 
-      // create a hue gradient bitmap for the SeekBar after layout
+
       var huePressed = false
       hue.viewTreeObserver.addOnGlobalLayoutListener(object :
         ViewTreeObserver.OnGlobalLayoutListener {
@@ -232,7 +245,6 @@ class ColorInput @JvmOverloads constructor(
           val hPx = hue.height.coerceAtLeast((6 * resources.displayMetrics.density).toInt())
           if (w <= 0 || hPx <= 0) return
           // initialize hue track drawable and set initial gap
-          // compute thumb center X robustly: prefer thumb bounds if available
           val posX = run {
             val tb = try {
               hue.thumb?.bounds
@@ -310,14 +322,14 @@ class ColorInput @JvmOverloads constructor(
           hText.setText(progress.toString())
           sText.setText("${(s * 100).toInt()}")
           lText.setText("${(l * 100).toInt()}")
-          selectedColor = rgb
+          dlgSelectedColor = rgb
           val trackColor = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
           setHueThumb(hue, trackColor, huePressed)
-          updateOutputFields(selectedColor)
-          // emit live input event for hue changes (mirrors web `input` behavior)
+          updateOutputFields(dlgSelectedColor)
+          // emit live input event for hue changes
           dispatchInputEvent(
             type = "input",
-            value = selectedColor,
+            value = dlgSelectedColor,
             cancelable = false
           )
           // update hue drawable gap
@@ -356,14 +368,14 @@ class ColorInput @JvmOverloads constructor(
           ColorUtils.colorToHSL(rgb, hsl)
           s = hsl[1]
           l = hsl[2]
-          selectedColor = rgb
+          dlgSelectedColor = rgb
           val trackColorSV = Color.HSVToColor(floatArrayOf(h, 1f, 1f))
           setHueThumb(hue, trackColorSV, huePressed)
-          updateOutputFields(selectedColor)
+          updateOutputFields(dlgSelectedColor)
           // emit live input event for saturation/value changes
           dispatchInputEvent(
             type = "input",
-            value = selectedColor,
+            value = dlgSelectedColor,
             cancelable = false
           )
           // keep gap updated when SV changes
@@ -389,7 +401,7 @@ class ColorInput @JvmOverloads constructor(
 
       updatePreview()
       // initialize output fields to current color/mode
-      updateOutputFields(selectedColor)
+      updateOutputFields(dlgSelectedColor)
 
       dlg.setContentView(root)
       dlg.show()
@@ -402,18 +414,19 @@ class ColorInput @JvmOverloads constructor(
         // Emit cancel event
         dispatchInputEvent(
           type = "cancel",
-          value = selectedColor,
+          value = dlgSelectedColor,
           cancelable = false
         )
         dlg.dismiss()
       }
       btnOk?.setOnClickListener {
-        // persist selected color back to the colorView
-        colorView.setBackgroundColor(selectedColor)
-        // Emit change event for final color selection (mirrors web `change`)
+        // commit dialog color into this ColorInput instance and persist in view
+        this@ColorInput.selectedColor = dlgSelectedColor
+        colorView.setBackgroundColor(this@ColorInput.selectedColor)
+        // Emit change event for final color selection
         dispatchInputEvent(
           type = "change",
-          value = selectedColor,
+          value = this@ColorInput.selectedColor,
           cancelable = false
         )
         dlg.dismiss()
@@ -427,13 +440,13 @@ class ColorInput @JvmOverloads constructor(
     cancelable: Boolean = false
   ): Boolean {
     val event = InputEvent(
-        type = type,
-        data = String.format("#%06X", 0xFFFFFF and value),
-        null,
-        EventOptions().apply {
-            bubbles = true
-            this.cancelable = cancelable
-        }
+      type = type,
+      data = String.format("#%06X", 0xFFFFFF and value),
+      null,
+      EventOptions().apply {
+        bubbles = true
+        this.cancelable = cancelable
+      }
     ).apply {
       target = owner
     }
@@ -505,7 +518,8 @@ class ColorInput @JvmOverloads constructor(
           seek.thumb = d
         }
       }
-    } catch (e: Exception) {}
+    } catch (e: Exception) {
+    }
   }
 
 }

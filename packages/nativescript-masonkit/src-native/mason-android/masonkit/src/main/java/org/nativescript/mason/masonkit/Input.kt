@@ -766,7 +766,13 @@ class Input @JvmOverloads constructor(
         Type.Range -> ""
         Type.Tel -> ""
         Type.Url -> ""
-        Type.Color -> ""
+        Type.Color -> {
+          if (colorInput.selectedColorHex == null) {
+            colorInput.syncSelectedColor()
+          }
+          return colorInput.selectedColorHex ?: "#000000"
+        }
+
         Type.File -> ""
       }
     }
