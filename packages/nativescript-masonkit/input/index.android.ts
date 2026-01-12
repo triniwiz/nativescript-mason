@@ -1,9 +1,8 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { InputBase, multipleProperty, valueProperty } from './common';
+import { defaultValueProperty, getValueProperty, InputBase, multipleProperty, setValueProperty, placeholderProperty, typeProperty } from './common';
 import { Tree } from '../tree';
 import { Style } from '../style';
 import { style_, isMasonView_, native_ } from '../symbols';
-import { placeholderProperty, typeProperty } from './common';
 import { InputType } from '..';
 
 @CSSType('input')
@@ -45,6 +44,8 @@ export class Input extends InputBase {
         return org.nativescript.mason.masonkit.Input.Type.Color;
       case 'file':
         return org.nativescript.mason.masonkit.Input.Type.File;
+      case 'submit':
+        return org.nativescript.mason.masonkit.Input.Type.Submit;
     }
     return org.nativescript.mason.masonkit.Input.Type.Text;
   }
@@ -57,11 +58,16 @@ export class Input extends InputBase {
     }
   }
 
-  [valueProperty.setNative](value) {
-    this._type = value;
-    if (this._view) {
-      this._view.setValue(value);
-    }
+  [defaultValueProperty]() {
+    return '';
+  }
+
+  [getValueProperty]() {
+    return this._view.getValue();
+  }
+
+  [setValueProperty](value) {
+    this._view.setValue(value);
   }
 
   [typeProperty.setNative](value: InputType) {
@@ -75,16 +81,6 @@ export class Input extends InputBase {
     if (this._view) {
       this._view.setPlaceholder(value);
     }
-  }
-
-  set value(value: string) {
-    if (this._view) {
-      this._view.setValue(value);
-    }
-  }
-
-  get value() {
-    return this._view ? this._view.getValue() : '';
   }
 
   set valueAsNumber(value: number) {

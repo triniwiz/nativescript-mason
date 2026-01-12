@@ -65,12 +65,12 @@ class MasonRadioInput: UIControl {
           data: nil,
           inputType: "insertReplacementText",
           options: MasonEventOptions(
-              type: "input",
-              bubbles: true,
-              cancelable: false,
               isComposing: true
           )
-      )
+      ).apply{ event in
+        event.bubbles = true
+        event.cancelable = false
+      }
       input.target = owner
       owner.node.mason.dispatch(input, owner.node)
 
@@ -79,12 +79,12 @@ class MasonRadioInput: UIControl {
           data: nil,
           inputType: "insertReplacementText",
           options: MasonEventOptions(
-              type: "change",
-              bubbles: true,
-              cancelable: false,
               isComposing: true
           )
-      )
+      ).apply{ event in
+        event.bubbles = true
+        event.cancelable = false
+      }
       change.target = owner
       owner.node.mason.dispatch(change, owner.node)
   }
@@ -116,12 +116,12 @@ class MasonRadioInput: UIControl {
            data: nil,
            inputType: "insertReplacementText",
            options: MasonEventOptions(
-               type: "beforeinput",
-               bubbles: true,
-               cancelable: true,
                isComposing: true
            )
-       )
+       ).apply{ event in
+         event.bubbles = true
+         event.cancelable = true
+       }
        before.target = owner
        owner.node.mason.dispatch(before, owner.node)
 

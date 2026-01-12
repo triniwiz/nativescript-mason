@@ -856,7 +856,9 @@ declare const enum MasonInputType {
 
 	Color = 11,
 
-	File = 12
+	File = 12,
+
+	Submit = 13
 }
 
 declare const enum MasonJustifyContent {

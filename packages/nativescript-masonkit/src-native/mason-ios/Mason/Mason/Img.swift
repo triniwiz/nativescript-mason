@@ -155,7 +155,7 @@ public class MasonImageLayer: CALayer {
 
 @objcMembers
 @objc(MasonImg)
-public class Img: UIView, MasonElement, MasonElementObjc {
+public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
   
   public let node: MasonNode
   public let mason: NSCMason

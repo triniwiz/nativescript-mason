@@ -10,7 +10,7 @@ import UIKit
 
 @objcMembers
 @objc(MasonButton)
-public class Button: UIControl, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer {
+public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer {
   public let node: MasonNode
   public let mason: NSCMason
   

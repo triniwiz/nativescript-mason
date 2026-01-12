@@ -232,7 +232,7 @@ final public class CSSBorderRenderer {
   }
   @objc deinit
 }
-@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objcMembers @objc(MasonButton) @_Concurrency.MainActor @preconcurrency public class Button : UIKit.UIControl, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
+@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers @objcMembers @objc(MasonButton) @_Concurrency.MainActor @preconcurrency public class Button : UIKit.UIControl, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @_Concurrency.MainActor @preconcurrency @objc public var engine: Mason.TextEngine {
@@ -438,13 +438,6 @@ public protocol MasonElement : ObjectiveC.NSObjectProtocol {
   var style: Mason.MasonStyle { get }
   var node: Mason.MasonNode { get }
   var uiView: UIKit.UIView { get }
-  @discardableResult
-  func addEventListener(_ node: Mason.MasonNode, _ event: Swift.String, _ listener: @escaping (Mason.MasonEvent) -> Swift.Void) -> Foundation.UUID
-  @discardableResult
-  func removeEventListener(_ node: Mason.MasonNode, _ event: Swift.String, id: Foundation.UUID) -> Swift.Bool
-  @discardableResult
-  func removeEventListener(_ node: Mason.MasonNode, _ event: Swift.String) -> Swift.Bool
-  func dispatch(_ event: Mason.MasonEvent, _ node: Mason.MasonNode)
   func markNodeDirty()
   func isNodeDirty() -> Swift.Bool
   func configure(_ block: (Mason.MasonStyle) -> Swift.Void)
@@ -481,13 +474,7 @@ public protocol MasonElement : ObjectiveC.NSObjectProtocol {
   func replaceChildAt(node: Mason.MasonNode, _ index: Swift.Int)
 }
 extension Mason.MasonElement {
-  @discardableResult
-  public func addEventListener(_ node: Mason.MasonNode, _ event: Swift.String, _ listener: @escaping (Mason.MasonEvent) -> Swift.Void) -> Foundation.UUID
-  @discardableResult
-  public func removeEventListener(_ node: Mason.MasonNode, _ event: Swift.String, id: Foundation.UUID) -> Swift.Bool
-  @discardableResult
-  public func removeEventListener(_ node: Mason.MasonNode, _ event: Swift.String) -> Swift.Bool
-  public func dispatch(_ event: Mason.MasonEvent, _ node: Mason.MasonNode)
+  public func dispatch(_ event: Mason.MasonEvent)
   public func getDefaultAttributes() -> [Foundation.NSAttributedString.Key : Any]
   public func syncStyle(_ state: Swift.String, _ textState: Swift.String)
   public func addChildAt(text: Swift.String, _ index: Swift.Int)
@@ -553,7 +540,25 @@ extension Mason.MasonElement {
   public func encode(to encoder: any Swift.Encoder) throws
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonInput) @_Concurrency.MainActor @preconcurrency public class MasonInput : UIKit.UIView, Mason.MasonElement {
+public protocol MasonEventTarget {
+  var node: Mason.MasonNode { get }
+  @discardableResult
+  func addEventListener(_ event: Swift.String, _ listener: @escaping (Mason.MasonEvent) -> Swift.Void) -> Foundation.UUID
+  @discardableResult
+  func removeEventListener(_ event: Swift.String, id: Foundation.UUID) -> Swift.Bool
+  @discardableResult
+  func removeEventListener(_ event: Swift.String) -> Swift.Bool
+  func dispatch(_ event: Mason.MasonEvent)
+}
+extension Mason.MasonEventTarget {
+  @discardableResult
+  public func addEventListener(_ event: Swift.String, _ listener: @escaping (Mason.MasonEvent) -> Swift.Void) -> Foundation.UUID
+  @discardableResult
+  public func removeEventListener(_ event: Swift.String, id: Foundation.UUID) -> Swift.Bool
+  @discardableResult
+  public func removeEventListener(_ event: Swift.String) -> Swift.Bool
+}
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonInput) @_Concurrency.MainActor @preconcurrency public class MasonInput : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement {
   @objc @_Concurrency.MainActor @preconcurrency final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @objc @_Concurrency.MainActor @preconcurrency public var multiple: Swift.Bool {
@@ -811,20 +816,28 @@ extension Mason.MasonElement {
   @objc override dynamic public init()
   @objc deinit
 }
-@objcMembers @objc(MasonEventOptions) public class MasonEventOptions : ObjectiveC.NSObject {
-  @objc public var type: Swift.String
-  @objc public var bubbles: Swift.Bool
-  @objc public var cancelable: Swift.Bool
+@_inheritsConvenienceInitializers @objcMembers @objc(MasonEventOptions) public class MasonEventOptions : ObjectiveC.NSObject {
   @objc public var isComposing: Swift.Bool
-  @objc public var target: Any?
-  @objc public init(type: Swift.String, bubbles: Swift.Bool, cancelable: Swift.Bool, isComposing: Swift.Bool)
+  @objc override dynamic public init()
+  @objc public init(isComposing: Swift.Bool = false)
+  @objc deinit
+}
+@_inheritsConvenienceInitializers @objcMembers @objc(MasonMouseEventOptions) public class MasonMouseEventOptions : Mason.MasonEventOptions {
+  @objc override dynamic public init()
+  @objc override public init(isComposing: Swift.Bool = super)
   @objc deinit
 }
 @objcMembers @objc(MasonEvent) public class MasonEvent : ObjectiveC.NSObject {
   @objc final public let type: Swift.String
-  @objc final public let bubbles: Swift.Bool
-  @objc final public let cancelable: Swift.Bool
-  @objc final public let isComposing: Swift.Bool
+  @objc public var bubbles: Swift.Bool {
+    get
+  }
+  @objc public var cancelable: Swift.Bool {
+    get
+  }
+  @objc public var isComposing: Swift.Bool {
+    get
+  }
   @objc final public let timeStamp: Swift.Double
   @objc public var defaultPrevented: Swift.Bool {
     get
@@ -841,7 +854,7 @@ extension Mason.MasonElement {
   @objc public var currentTarget: Any? {
     get
   }
-  @objc public init(type: Swift.String, options: Mason.MasonEventOptions? = nil)
+  @objc public init(type eventType: Swift.String, bubbles eventBubbles: Swift.Bool = false, cancelable eventCancelable: Swift.Bool = false, options: Mason.MasonEventOptions? = nil)
   @objc public func preventDefault()
   @objc public func stopPropagation()
   @objc public func stopImmediatePropagation()
@@ -858,6 +871,61 @@ extension Mason.MasonElement {
   @objc final public let inputType: Swift.String?
   @objc final public let rawData: [Foundation.URL]
   @objc public init(type: Swift.String, data inputData: Swift.String? = nil, inputType masonInputType: Swift.String? = nil, options: Mason.MasonEventOptions? = nil, rawData inputRawData: [Foundation.URL])
+  @objc deinit
+}
+@objcMembers @objc(MasonMouseEvent) public class MasonMouseEvent : Mason.MasonEvent {
+  @objc public var button: Swift.Int {
+    get
+  }
+  @objc public var buttons: Swift.Int {
+    get
+  }
+  @objc public var clientX: Swift.Float {
+    get
+  }
+  @objc public var clientY: Swift.Float {
+    get
+  }
+  @objc public var ctrlKey: Swift.Bool {
+    get
+  }
+  @objc public var shiftKey: Swift.Bool {
+    get
+  }
+  @objc public var altKey: Swift.Bool {
+    get
+  }
+  @objc public var metaKey: Swift.Bool {
+    get
+  }
+  @objc public var detail: Swift.Int {
+    get
+  }
+  @objc public var screenX: Swift.Float {
+    get
+  }
+  @objc public var screenY: Swift.Float {
+    get
+  }
+  @objc public var relatedTarget: Any? {
+    get
+  }
+  @objc public var region: Any? {
+    get
+  }
+  @objc public var movementX: Swift.Int {
+    get
+  }
+  @objc public var movementY: Swift.Int {
+    get
+  }
+  @objc public var pageX: Swift.Float {
+    get
+  }
+  @objc public var pageY: Swift.Float {
+    get
+  }
+  @objc public init(type: Swift.String, options: Mason.MasonMouseEventOptions? = nil)
   @objc deinit
 }
 @objcMembers @objc(MasonDimensionRectCompat) public class MasonDimensionRectCompat : ObjectiveC.NSObject, Swift.Codable {
@@ -1416,79 +1484,6 @@ public struct MasonPoint<T> : Swift.Codable where T : Swift.Decodable, T : Swift
   @objc override dynamic public init()
   @objc deinit
 }
-extension UIKit.UIColor {
-  public static func colorFromARGB(_ argb: Swift.UInt32) -> UIKit.UIColor
-  public static func colorFromRGBA(_ rgba: Swift.UInt32) -> UIKit.UIColor
-  public func toUInt32() -> Swift.UInt32
-}
-extension UIKit.UIImage {
-  public static func triangle(direction: UIKit.UIImage.Direction, color: UIKit.UIColor, size: CoreFoundation.CGSize = CGSize(width: 8, height: 5), scale: CoreFoundation.CGFloat = UIScreen.main.scale) -> UIKit.UIImage
-  public enum Direction {
-    case up, down
-    public static func == (a: UIKit.UIImage.Direction, b: UIKit.UIImage.Direction) -> Swift.Bool
-    public func hash(into hasher: inout Swift.Hasher)
-    public var hashValue: Swift.Int {
-      get
-    }
-  }
-  public enum ChevronDirection {
-    case up, down, left, right
-    public static func == (a: UIKit.UIImage.ChevronDirection, b: UIKit.UIImage.ChevronDirection) -> Swift.Bool
-    public func hash(into hasher: inout Swift.Hasher)
-    public var hashValue: Swift.Int {
-      get
-    }
-  }
-  public static func chevron(direction: UIKit.UIImage.ChevronDirection, color: UIKit.UIColor, size: CoreFoundation.CGSize = CGSize(width: 16, height: 6), lineWidth: CoreFoundation.CGFloat = 1.5, scale: CoreFoundation.CGFloat = UIScreen.main.scale) -> UIKit.UIImage
-  public func mason_resize(to size: CoreFoundation.CGSize) -> UIKit.UIImage?
-}
-@objc extension ObjectiveC.NSObject {
-  @discardableResult
-  @objc dynamic public func mason_addEventListener(_ event: Swift.String, _ listener: @escaping (Mason.MasonEvent) -> Swift.Void) -> Foundation.UUID
-  @discardableResult
-  @objc dynamic public func mason_removeEventListener(_ event: Swift.String, id: Foundation.UUID) -> Swift.Bool
-  @discardableResult
-  @objc dynamic public func mason_removeEventListener(_ event: Swift.String) -> Swift.Bool
-  @objc dynamic public func mason_dispatch(_ event: Mason.MasonEvent, _ node: Mason.MasonNode)
-  @objc dynamic public func mason_syncStyle(_ state: Swift.String, _ textState: Swift.String)
-  @objc dynamic public func mason_addView(_ view: UIKit.UIView)
-  @objc dynamic public func mason_addView(_ view: UIKit.UIView, at: Swift.Int)
-  @objc dynamic public func mason_markNodeDirty()
-  @objc dynamic public func mason_isNodeDirty() -> Swift.Bool
-  @objc dynamic public func mason_configure(_ block: (Mason.MasonStyle) -> Swift.Void)
-  @discardableResult
-  @objc dynamic public func mason_layout() -> Mason.MasonLayout
-  @objc dynamic public func mason_compute()
-  @objc dynamic public func mason_compute(width: Swift.Float, height: Swift.Float)
-  @objc dynamic public func mason_computeMaxContent()
-  @objc dynamic public func mason_computeMinContent()
-  @objc dynamic public func mason_computeWithSize(_ width: Swift.Float, _ height: Swift.Float)
-  @objc dynamic public func mason_computeWithViewSize()
-  @objc dynamic public func mason_computeWithViewSize(layout: Swift.Bool)
-  @objc dynamic public func mason_computeWithMaxContent()
-  @objc dynamic public func mason_computeWithMinContent()
-  @objc dynamic public func mason_attachAndApply()
-  @objc dynamic public func mason_requestLayout()
-  @objc dynamic public func mason_invalidateLayout()
-  @objc dynamic public func mason_append(_ element: any Mason.MasonElementObjc)
-  @objc dynamic public func mason_append(text: Swift.String)
-  @objc dynamic public func mason_append(node: Mason.MasonNode)
-  @objc dynamic public func mason_append(texts: [Swift.String])
-  @objc dynamic public func mason_append(elements: [any Mason.MasonElementObjc])
-  @objc dynamic public func mason_append(nodes: [Mason.MasonNode])
-  @objc dynamic public func mason_prepend(_ element: any Mason.MasonElementObjc)
-  @objc dynamic public func mason_prepend(text: Swift.String)
-  @objc dynamic public func mason_prepend(node: Mason.MasonNode)
-  @objc dynamic public func mason_prepend(texts: [Swift.String])
-  @objc dynamic public func mason_prepend(elements: [any Mason.MasonElementObjc])
-  @objc dynamic public func mason_prepend(nodes: [Mason.MasonNode])
-  @objc dynamic public func mason_addChildAt(text: Swift.String, _ index: Swift.Int)
-  @objc dynamic public func mason_addChildAt(element: any Mason.MasonElementObjc, _ index: Swift.Int)
-  @objc dynamic public func mason_addChildAt(node: Mason.MasonNode, _ index: Swift.Int)
-  @objc dynamic public func mason_replaceChildAt(text: Swift.String, _ index: Swift.Int)
-  @objc dynamic public func mason_replaceChildAt(element: any Mason.MasonElementObjc, _ index: Swift.Int)
-  @objc dynamic public func mason_replaceChildAt(node: Mason.MasonNode, _ index: Swift.Int)
-}
 @objc(MasonTextContainer) public protocol TextContainer : ObjectiveC.NSObjectProtocol {
   @objc var engine: Mason.TextEngine { get }
   @objc var node: Mason.MasonNode { get }
@@ -1538,7 +1533,7 @@ public enum InlineSegmentPayload {
   @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
+@_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let type: Mason.MasonTextType
   @_Concurrency.MainActor @preconcurrency @objc public var engine: Mason.TextEngine {
@@ -1675,6 +1670,79 @@ extension Mason.MasonText {
 extension Mason.MasonTextNode {
   @objc dynamic public func attributed() -> Foundation.NSAttributedString
 }
+extension UIKit.UIColor {
+  public static func colorFromARGB(_ argb: Swift.UInt32) -> UIKit.UIColor
+  public static func colorFromRGBA(_ rgba: Swift.UInt32) -> UIKit.UIColor
+  public func toUInt32() -> Swift.UInt32
+}
+extension UIKit.UIImage {
+  public static func triangle(direction: UIKit.UIImage.Direction, color: UIKit.UIColor, size: CoreFoundation.CGSize = CGSize(width: 8, height: 5), scale: CoreFoundation.CGFloat = UIScreen.main.scale) -> UIKit.UIImage
+  public enum Direction {
+    case up, down
+    public static func == (a: UIKit.UIImage.Direction, b: UIKit.UIImage.Direction) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+  public enum ChevronDirection {
+    case up, down, left, right
+    public static func == (a: UIKit.UIImage.ChevronDirection, b: UIKit.UIImage.ChevronDirection) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+  public static func chevron(direction: UIKit.UIImage.ChevronDirection, color: UIKit.UIColor, size: CoreFoundation.CGSize = CGSize(width: 16, height: 6), lineWidth: CoreFoundation.CGFloat = 1.5, scale: CoreFoundation.CGFloat = UIScreen.main.scale) -> UIKit.UIImage
+  public func mason_resize(to size: CoreFoundation.CGSize) -> UIKit.UIImage?
+}
+@objc extension ObjectiveC.NSObject {
+  @discardableResult
+  @objc dynamic public func mason_addEventListener(_ event: Swift.String, _ listener: @escaping (Mason.MasonEvent) -> Swift.Void) -> Foundation.UUID
+  @discardableResult
+  @objc dynamic public func mason_removeEventListener(_ event: Swift.String, id: Foundation.UUID) -> Swift.Bool
+  @discardableResult
+  @objc dynamic public func mason_removeEventListener(_ event: Swift.String) -> Swift.Bool
+  @objc dynamic public func mason_dispatch(_ event: Mason.MasonEvent)
+  @objc dynamic public func mason_syncStyle(_ state: Swift.String, _ textState: Swift.String)
+  @objc dynamic public func mason_addView(_ view: UIKit.UIView)
+  @objc dynamic public func mason_addView(_ view: UIKit.UIView, at: Swift.Int)
+  @objc dynamic public func mason_markNodeDirty()
+  @objc dynamic public func mason_isNodeDirty() -> Swift.Bool
+  @objc dynamic public func mason_configure(_ block: (Mason.MasonStyle) -> Swift.Void)
+  @discardableResult
+  @objc dynamic public func mason_layout() -> Mason.MasonLayout
+  @objc dynamic public func mason_compute()
+  @objc dynamic public func mason_compute(width: Swift.Float, height: Swift.Float)
+  @objc dynamic public func mason_computeMaxContent()
+  @objc dynamic public func mason_computeMinContent()
+  @objc dynamic public func mason_computeWithSize(_ width: Swift.Float, _ height: Swift.Float)
+  @objc dynamic public func mason_computeWithViewSize()
+  @objc dynamic public func mason_computeWithViewSize(layout: Swift.Bool)
+  @objc dynamic public func mason_computeWithMaxContent()
+  @objc dynamic public func mason_computeWithMinContent()
+  @objc dynamic public func mason_attachAndApply()
+  @objc dynamic public func mason_requestLayout()
+  @objc dynamic public func mason_invalidateLayout()
+  @objc dynamic public func mason_append(_ element: any Mason.MasonElementObjc)
+  @objc dynamic public func mason_append(text: Swift.String)
+  @objc dynamic public func mason_append(node: Mason.MasonNode)
+  @objc dynamic public func mason_append(texts: [Swift.String])
+  @objc dynamic public func mason_append(elements: [any Mason.MasonElementObjc])
+  @objc dynamic public func mason_append(nodes: [Mason.MasonNode])
+  @objc dynamic public func mason_prepend(_ element: any Mason.MasonElementObjc)
+  @objc dynamic public func mason_prepend(text: Swift.String)
+  @objc dynamic public func mason_prepend(node: Mason.MasonNode)
+  @objc dynamic public func mason_prepend(texts: [Swift.String])
+  @objc dynamic public func mason_prepend(elements: [any Mason.MasonElementObjc])
+  @objc dynamic public func mason_prepend(nodes: [Mason.MasonNode])
+  @objc dynamic public func mason_addChildAt(text: Swift.String, _ index: Swift.Int)
+  @objc dynamic public func mason_addChildAt(element: any Mason.MasonElementObjc, _ index: Swift.Int)
+  @objc dynamic public func mason_addChildAt(node: Mason.MasonNode, _ index: Swift.Int)
+  @objc dynamic public func mason_replaceChildAt(text: Swift.String, _ index: Swift.Int)
+  @objc dynamic public func mason_replaceChildAt(element: any Mason.MasonElementObjc, _ index: Swift.Int)
+  @objc dynamic public func mason_replaceChildAt(node: Mason.MasonNode, _ index: Swift.Int)
+}
 @objc @_inheritsConvenienceInitializers public class BackgroundCALayer : QuartzCore.CALayer {
   @objc override dynamic public func draw(in ctx: CoreGraphics.CGContext)
   public func invalidate()
@@ -1700,7 +1768,7 @@ extension Mason.MasonTextNode {
   @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonImg) @_Concurrency.MainActor @preconcurrency public class Img : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonImg) @_Concurrency.MainActor @preconcurrency public class Img : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
   @_Concurrency.MainActor @preconcurrency @objc public var uiView: UIKit.UIView {
@@ -2274,6 +2342,7 @@ public enum VerticalAlign {
   case Url
   case Color
   case File
+  case Submit
   public var description: Swift.String {
     get
   }
@@ -2282,7 +2351,7 @@ public enum VerticalAlign {
     get
   }
 }
-@_hasMissingDesignatedInitializers @objcMembers @objc(MasonUIView) @_Concurrency.MainActor @preconcurrency public class MasonUIView : UIKit.UIView, Mason.MasonElement, Mason.MasonElementObjc {
+@_hasMissingDesignatedInitializers @objcMembers @objc(MasonUIView) @_Concurrency.MainActor @preconcurrency public class MasonUIView : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
@@ -2508,7 +2577,7 @@ public enum VerticalAlign {
   @objc @_Concurrency.MainActor @preconcurrency public func getColumnGap() -> Mason.MasonLengthPercentageCompat
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objc(MasonScroll) @objcMembers @_Concurrency.MainActor @preconcurrency public class Scroll : UIKit.UIScrollView, UIKit.UIScrollViewDelegate, Mason.MasonElement, Mason.MasonElementObjc {
+@_hasMissingDesignatedInitializers @objc(MasonScroll) @objcMembers @_Concurrency.MainActor @preconcurrency public class Scroll : UIKit.UIScrollView, UIKit.UIScrollViewDelegate, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
   @_Concurrency.MainActor @preconcurrency @objc override dynamic public func draw(_ rect: CoreFoundation.CGRect)
   @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
   @objc @_Concurrency.MainActor @preconcurrency final public let mason: Mason.NSCMason
@@ -2525,7 +2594,7 @@ public enum VerticalAlign {
   @objc @_Concurrency.MainActor @preconcurrency public func setSize(_ width: Swift.Float, _ height: Swift.Float)
   @objc deinit
 }
-@_hasMissingDesignatedInitializers @objc(MasonBr) @objcMembers public class MasonBr : ObjectiveC.NSObject, Mason.MasonElement, Mason.MasonElementObjc {
+@_hasMissingDesignatedInitializers @objc(MasonBr) @objcMembers public class MasonBr : ObjectiveC.NSObject, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc {
   @objc final public let mason: Mason.NSCMason
   @objc public var node: Mason.MasonNode
   @objc public var uiView: UIKit.UIView {
@@ -2548,12 +2617,12 @@ extension Mason.MasonNodeType : Swift.Equatable {}
 extension Mason.MasonNodeType : Swift.Hashable {}
 extension Mason.NSCFontFaceSetStatus : Swift.Equatable {}
 extension Mason.NSCFontFaceSetStatus : Swift.Hashable {}
+extension Mason.MasonTextType : Swift.Equatable {}
+extension Mason.MasonTextType : Swift.Hashable {}
 extension UIKit.UIImage.Direction : Swift.Equatable {}
 extension UIKit.UIImage.Direction : Swift.Hashable {}
 extension UIKit.UIImage.ChevronDirection : Swift.Equatable {}
 extension UIKit.UIImage.ChevronDirection : Swift.Hashable {}
-extension Mason.MasonTextType : Swift.Equatable {}
-extension Mason.MasonTextType : Swift.Hashable {}
 extension Mason.LoadingState : Swift.Equatable {}
 extension Mason.LoadingState : Swift.Hashable {}
 extension Mason.MasonDimensionCompatType : Swift.Equatable {}

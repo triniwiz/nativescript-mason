@@ -686,7 +686,7 @@ SWIFT_CLASS_NAMED("MasonEvent")
 @property (nonatomic, readonly) BOOL immediatePropagationStopped;
 @property (nonatomic, readonly) id _Nullable target;
 @property (nonatomic, readonly) id _Nullable currentTarget;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)eventType bubbles:(BOOL)eventBubbles cancelable:(BOOL)eventCancelable options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
 - (void)preventDefault;
 - (void)stopPropagation;
 - (void)stopImmediatePropagation;
@@ -696,14 +696,9 @@ SWIFT_CLASS_NAMED("MasonEvent")
 
 SWIFT_CLASS_NAMED("MasonEventOptions")
 @interface MasonEventOptions : NSObject
-@property (nonatomic, copy) NSString * _Nonnull type;
-@property (nonatomic) BOOL bubbles;
-@property (nonatomic) BOOL cancelable;
 @property (nonatomic) BOOL isComposing;
-@property (nonatomic) id _Nullable target;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type bubbles:(BOOL)bubbles cancelable:(BOOL)cancelable isComposing:(BOOL)isComposing OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)init SWIFT_UNAVAILABLE;
-+ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithIsComposing:(BOOL)isComposing OBJC_DESIGNATED_INITIALIZER;
 @end
 
 @class NSURL;
@@ -713,7 +708,7 @@ SWIFT_CLASS_NAMED("MasonFileInputEvent")
 @property (nonatomic, readonly, copy) NSString * _Nullable inputType;
 @property (nonatomic, readonly, copy) NSArray<NSURL *> * _Nonnull rawData;
 - (nonnull instancetype)initWithType:(NSString * _Nonnull)type data:(NSString * _Nullable)inputData inputType:(NSString * _Nullable)masonInputType options:(MasonEventOptions * _Nullable)options rawData:(NSArray<NSURL *> * _Nonnull)inputRawData OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)eventType bubbles:(BOOL)eventBubbles cancelable:(BOOL)eventCancelable options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonFloat, "MasonFloat", open) {
@@ -757,7 +752,7 @@ SWIFT_CLASS_NAMED("MasonInputEvent")
 @property (nonatomic, readonly, copy) NSString * _Nullable data;
 @property (nonatomic, readonly, copy) NSString * _Nullable inputType;
 - (nonnull instancetype)initWithType:(NSString * _Nonnull)type data:(NSString * _Nullable)inputData inputType:(NSString * _Nullable)masonInputType options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)eventType bubbles:(BOOL)eventBubbles cancelable:(BOOL)eventCancelable options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonInputType, "MasonInputType", open) {
@@ -774,6 +769,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonInputType, "MasonInputType", open) {
   MasonInputTypeUrl = 10,
   MasonInputTypeColor = 11,
   MasonInputTypeFile = 12,
+  MasonInputTypeSubmit = 13,
 };
 
 SWIFT_CLASS_NAMED("MasonLayout")
@@ -908,6 +904,36 @@ SWIFT_CLASS_NAMED("MasonLengthPercentageSizeCompat")
 @property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull height;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+@class MasonMouseEventOptions;
+SWIFT_CLASS_NAMED("MasonMouseEvent")
+@interface MasonMouseEvent : MasonEvent
+@property (nonatomic, readonly) NSInteger button;
+@property (nonatomic, readonly) NSInteger buttons;
+@property (nonatomic, readonly) float clientX;
+@property (nonatomic, readonly) float clientY;
+@property (nonatomic, readonly) BOOL ctrlKey;
+@property (nonatomic, readonly) BOOL shiftKey;
+@property (nonatomic, readonly) BOOL altKey;
+@property (nonatomic, readonly) BOOL metaKey;
+@property (nonatomic, readonly) NSInteger detail;
+@property (nonatomic, readonly) float screenX;
+@property (nonatomic, readonly) float screenY;
+@property (nonatomic, readonly) id _Nullable relatedTarget;
+@property (nonatomic, readonly) id _Nullable region;
+@property (nonatomic, readonly) NSInteger movementX;
+@property (nonatomic, readonly) NSInteger movementY;
+@property (nonatomic, readonly) float pageX;
+@property (nonatomic, readonly) float pageY;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonMouseEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)eventType bubbles:(BOOL)eventBubbles cancelable:(BOOL)eventCancelable options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
+@end
+
+SWIFT_CLASS_NAMED("MasonMouseEventOptions")
+@interface MasonMouseEventOptions : MasonEventOptions
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithIsComposing:(BOOL)isComposing OBJC_DESIGNATED_INITIALIZER;
 @end
 
 enum MasonNodeType : int32_t;
@@ -1507,7 +1533,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (NSUUID * _Nonnull)mason_addEventListener:(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
-- (void)mason_dispatch:(MasonEvent * _Nonnull)event :(MasonNode * _Nonnull)node;
+- (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)state :(NSString * _Nonnull)textState;
 - (void)mason_addView:(UIView * _Nonnull)view;
 - (void)mason_addView:(UIView * _Nonnull)view at:(NSInteger)at;
@@ -2387,7 +2413,7 @@ SWIFT_CLASS_NAMED("MasonEvent")
 @property (nonatomic, readonly) BOOL immediatePropagationStopped;
 @property (nonatomic, readonly) id _Nullable target;
 @property (nonatomic, readonly) id _Nullable currentTarget;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)eventType bubbles:(BOOL)eventBubbles cancelable:(BOOL)eventCancelable options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
 - (void)preventDefault;
 - (void)stopPropagation;
 - (void)stopImmediatePropagation;
@@ -2397,14 +2423,9 @@ SWIFT_CLASS_NAMED("MasonEvent")
 
 SWIFT_CLASS_NAMED("MasonEventOptions")
 @interface MasonEventOptions : NSObject
-@property (nonatomic, copy) NSString * _Nonnull type;
-@property (nonatomic) BOOL bubbles;
-@property (nonatomic) BOOL cancelable;
 @property (nonatomic) BOOL isComposing;
-@property (nonatomic) id _Nullable target;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type bubbles:(BOOL)bubbles cancelable:(BOOL)cancelable isComposing:(BOOL)isComposing OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)init SWIFT_UNAVAILABLE;
-+ (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithIsComposing:(BOOL)isComposing OBJC_DESIGNATED_INITIALIZER;
 @end
 
 @class NSURL;
@@ -2414,7 +2435,7 @@ SWIFT_CLASS_NAMED("MasonFileInputEvent")
 @property (nonatomic, readonly, copy) NSString * _Nullable inputType;
 @property (nonatomic, readonly, copy) NSArray<NSURL *> * _Nonnull rawData;
 - (nonnull instancetype)initWithType:(NSString * _Nonnull)type data:(NSString * _Nullable)inputData inputType:(NSString * _Nullable)masonInputType options:(MasonEventOptions * _Nullable)options rawData:(NSArray<NSURL *> * _Nonnull)inputRawData OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)eventType bubbles:(BOOL)eventBubbles cancelable:(BOOL)eventCancelable options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonFloat, "MasonFloat", open) {
@@ -2458,7 +2479,7 @@ SWIFT_CLASS_NAMED("MasonInputEvent")
 @property (nonatomic, readonly, copy) NSString * _Nullable data;
 @property (nonatomic, readonly, copy) NSString * _Nullable inputType;
 - (nonnull instancetype)initWithType:(NSString * _Nonnull)type data:(NSString * _Nullable)inputData inputType:(NSString * _Nullable)masonInputType options:(MasonEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
-- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)eventType bubbles:(BOOL)eventBubbles cancelable:(BOOL)eventCancelable options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
 @end
 
 typedef SWIFT_ENUM_NAMED(NSInteger, MasonInputType, "MasonInputType", open) {
@@ -2475,6 +2496,7 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonInputType, "MasonInputType", open) {
   MasonInputTypeUrl = 10,
   MasonInputTypeColor = 11,
   MasonInputTypeFile = 12,
+  MasonInputTypeSubmit = 13,
 };
 
 SWIFT_CLASS_NAMED("MasonLayout")
@@ -2609,6 +2631,36 @@ SWIFT_CLASS_NAMED("MasonLengthPercentageSizeCompat")
 @property (nonatomic, strong) MasonLengthPercentageCompat * _Nonnull height;
 - (nonnull instancetype)init SWIFT_UNAVAILABLE;
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
+@end
+
+@class MasonMouseEventOptions;
+SWIFT_CLASS_NAMED("MasonMouseEvent")
+@interface MasonMouseEvent : MasonEvent
+@property (nonatomic, readonly) NSInteger button;
+@property (nonatomic, readonly) NSInteger buttons;
+@property (nonatomic, readonly) float clientX;
+@property (nonatomic, readonly) float clientY;
+@property (nonatomic, readonly) BOOL ctrlKey;
+@property (nonatomic, readonly) BOOL shiftKey;
+@property (nonatomic, readonly) BOOL altKey;
+@property (nonatomic, readonly) BOOL metaKey;
+@property (nonatomic, readonly) NSInteger detail;
+@property (nonatomic, readonly) float screenX;
+@property (nonatomic, readonly) float screenY;
+@property (nonatomic, readonly) id _Nullable relatedTarget;
+@property (nonatomic, readonly) id _Nullable region;
+@property (nonatomic, readonly) NSInteger movementX;
+@property (nonatomic, readonly) NSInteger movementY;
+@property (nonatomic, readonly) float pageX;
+@property (nonatomic, readonly) float pageY;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)type options:(MasonMouseEventOptions * _Nullable)options OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithType:(NSString * _Nonnull)eventType bubbles:(BOOL)eventBubbles cancelable:(BOOL)eventCancelable options:(MasonEventOptions * _Nullable)options SWIFT_UNAVAILABLE;
+@end
+
+SWIFT_CLASS_NAMED("MasonMouseEventOptions")
+@interface MasonMouseEventOptions : MasonEventOptions
+- (nonnull instancetype)init OBJC_DESIGNATED_INITIALIZER;
+- (nonnull instancetype)initWithIsComposing:(BOOL)isComposing OBJC_DESIGNATED_INITIALIZER;
 @end
 
 enum MasonNodeType : int32_t;
@@ -3208,7 +3260,7 @@ SWIFT_CLASS_PROPERTY(@property (nonatomic, class, strong) NSCMason * _Nonnull sh
 - (NSUUID * _Nonnull)mason_addEventListener:(NSString * _Nonnull)event :(void (^ _Nonnull)(MasonEvent * _Nonnull))listener;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event id:(NSUUID * _Nonnull)id;
 - (BOOL)mason_removeEventListener:(NSString * _Nonnull)event;
-- (void)mason_dispatch:(MasonEvent * _Nonnull)event :(MasonNode * _Nonnull)node;
+- (void)mason_dispatch:(MasonEvent * _Nonnull)event;
 - (void)mason_syncStyle:(NSString * _Nonnull)state :(NSString * _Nonnull)textState;
 - (void)mason_addView:(UIView * _Nonnull)view;
 - (void)mason_addView:(UIView * _Nonnull)view at:(NSInteger)at;

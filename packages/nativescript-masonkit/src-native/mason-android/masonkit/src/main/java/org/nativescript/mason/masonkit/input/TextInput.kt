@@ -42,6 +42,10 @@ class TextInput @JvmOverloads constructor(
       isCursorVisible = false
     }
 
+    isFocusable = true
+    isFocusableInTouchMode = true
+    isEnabled = true
+
     ViewCompat.setOnReceiveContentListener(
       this,
       ViewCompat.getOnReceiveContentMimeTypes(this) ?: arrayOf(
@@ -109,10 +113,30 @@ class TextInput @JvmOverloads constructor(
 
       override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
       override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+        // Handle deletions
         if (before > 0 && count == 0) {
           lastInputType = Event.InputType.DeleteContentBackward.value
           lastInputData = null
           input?.onBeforeInput(lastInputType!!)
+          return
+        }
+
+        // Handle simple insertions that some IMEs perform via direct text changes
+        // (without going through InputConnection.commitText).
+        if (before == 0 && count > 0) {
+          val inserted = s?.subSequence(start, start + count)
+
+          lastInputType = Event.InputType.InsertText.value
+          lastInputData = inserted
+          lastIsComposing = isComposingText
+
+          input?.onBeforeInput(
+            lastInputType!!,
+            inserted?.toString(),
+            EventOptions().apply {
+              isComposing = lastIsComposing
+            }
+          )
         }
       }
     })

@@ -2640,6 +2640,7 @@ public enum MasonInputType: Int, RawRepresentable, CustomStringConvertible {
   case Url
   case Color
   case File
+  case Submit
   public var description: String {
     switch(self){case .Text:
       return "text"
@@ -2667,6 +2668,8 @@ public enum MasonInputType: Int, RawRepresentable, CustomStringConvertible {
       return "color"
     case .File:
       return "file"
+    case .Submit:
+      return "submit"
     }
   }
   
@@ -2730,6 +2733,8 @@ public enum MasonInputType: Int, RawRepresentable, CustomStringConvertible {
       11
     case .File:
       12
+    case .Submit:
+      13
     }
   }
 }

@@ -10,17 +10,36 @@ import UIKit
 @objcMembers
 @objc(MasonEventOptions)
 public class MasonEventOptions: NSObject {
-  public var type: String = ""
-  public var bubbles: Bool = false
-  public var cancelable: Bool = false
-  public var isComposing: Bool = false
-  public var target: Any? = nil
-  public init(type: String, bubbles: Bool, cancelable: Bool, isComposing: Bool) {
-    self.type = type
-    self.bubbles = bubbles
-    self.cancelable = cancelable
+  public var isComposing: Bool
+  
+  public override init() {
+    isComposing = false
+  }
+  
+  public init(isComposing: Bool = false) {
     self.isComposing = isComposing
   }
+}
+
+@objcMembers
+@objc(MasonMouseEventOptions)
+public class MasonMouseEventOptions: MasonEventOptions {
+  var screenX: Float = 0
+  var screenY: Float = 0
+  var clientX: Float = 0
+  var clientY: Float = 0
+  var ctrlKey: Bool = false
+  var shiftKey: Bool = false
+  var altKey: Bool = false
+  var metaKey: Bool = false
+  var button: Int = 0
+  var buttons: Int = 0
+  var relatedTarget: Any? = nil
+  var region: Any? = nil
+  var movementX: Int = 0
+  var movementY: Int = 0
+  var pageX: Float = 0
+  var pageY: Float = 0
 }
 
 
@@ -28,9 +47,9 @@ public class MasonEventOptions: NSObject {
 @objc(MasonEvent)
 public class MasonEvent: NSObject {
   public let type: String
-  public let bubbles: Bool
-  public let cancelable: Bool
-  public let isComposing: Bool
+  public internal(set) var bubbles: Bool
+  public internal(set) var cancelable: Bool
+  public internal(set) var isComposing: Bool
   public let timeStamp: Double
   
   public internal(set) var defaultPrevented = false
@@ -40,10 +59,10 @@ public class MasonEvent: NSObject {
   public internal(set) var target: Any?
   public internal(set) var currentTarget: Any?
   
-  public init(type: String, options: MasonEventOptions? = nil) {
-    self.type = type
-    self.bubbles = options?.bubbles ?? false
-    self.cancelable = options?.cancelable ?? false
+  public init(type eventType: String, bubbles eventBubbles: Bool = false, cancelable eventCancelable: Bool = false, options: MasonEventOptions? = nil) {
+    self.type = eventType
+    self.bubbles = eventBubbles
+    self.cancelable = eventCancelable
     self.isComposing = options?.isComposing ?? false
     self.timeStamp = CACurrentMediaTime() * 1000
   }
@@ -89,5 +108,55 @@ public class MasonFileInputEvent: MasonEvent {
     data = inputData
     rawData = inputRawData
     super.init(type: type, options: options)
+  }
+}
+
+
+@objcMembers
+@objc(MasonMouseEvent)
+public class MasonMouseEvent: MasonEvent {
+  
+  public internal(set) var button: Int = 0
+  public internal(set) var buttons: Int = 1
+
+  public internal(set) var clientX: Float = 0
+  public internal(set) var clientY: Float = 0
+
+  public internal(set) var ctrlKey: Bool = false
+  public internal(set) var shiftKey: Bool = false
+  public internal(set) var altKey: Bool = false
+  public internal(set) var metaKey: Bool = false
+
+  public internal(set) var detail: Int = 1
+  
+  public internal(set) var screenX: Float = 0
+  public internal(set) var screenY: Float = 0
+  public internal(set) var relatedTarget: Any? = nil
+  public internal(set) var region: Any? = nil
+  public internal(set) var movementX: Int = 0
+  public internal(set) var movementY: Int = 0
+  public internal(set) var pageX: Float = 0
+  public internal(set) var pageY: Float = 0
+  
+  public init(type: String, options: MasonMouseEventOptions? = nil) {
+    super.init(type: type, options: options)
+    self.button = options?.button ?? 0
+    self.buttons = options?.buttons ?? 1
+    self.clientX = options?.clientX ?? 0
+    self.clientY = options?.clientY ?? 0
+    self.ctrlKey = options?.ctrlKey ?? false
+    self.shiftKey = options?.shiftKey ?? false
+    self.altKey = options?.altKey ?? false
+    self.shiftKey = options?.shiftKey ?? false
+    self.metaKey = options?.metaKey ?? false
+    self.detail = options?.buttons ?? 1
+    self.screenX = options?.screenX ?? 0
+    self.screenY = options?.screenY ?? 0
+    self.relatedTarget = options?.relatedTarget
+    self.region = options?.region
+    self.movementX = options?.movementX ?? 0
+    self.movementY = options?.movementY ?? 0
+    self.pageX = options?.pageX ?? 0
+    self.pageY = options?.pageY ?? 0
   }
 }

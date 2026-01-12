@@ -17,6 +17,7 @@ import android.text.SpannableStringBuilder
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
+import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.FrameLayout
 import android.widget.RadioButton
@@ -128,12 +129,30 @@ class Input @JvmOverloads constructor(
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         textCursorDrawable = null
       }
-
       filters = arrayOf(beforeFilter)
     }
   }
 
   internal val buttonInput: TextView by lazy {
+    TextView(context).apply {
+      background = null
+      includeFontPadding = false
+      setPadding(0, 0, 0, 0)
+      isAllCaps = false
+      gravity = android.view.Gravity.CENTER_HORIZONTAL or android.view.Gravity.CENTER_VERTICAL
+      setOnClickListener {
+        node.mason.dispatch(
+          Event(
+            type = "click",
+          ).apply {
+            target = this@Input
+          }
+        )
+      }
+    }
+  }
+
+  internal val submitInput: TextView by lazy {
     TextView(context).apply {
       background = null
       includeFontPadding = false
@@ -322,7 +341,9 @@ class Input @JvmOverloads constructor(
   }
 
   internal val numberInput: NumberControl by lazy {
-    NumberControl(context)
+    NumberControl(context).apply {
+      input = this@Input
+    }
   }
 
   internal val colorInput: ColorInput by lazy {
@@ -488,7 +509,7 @@ class Input @JvmOverloads constructor(
 
 
   enum class Type {
-    Text, Button, Checkbox, Email, Password, Date, Radio, Number, Range, Tel, Url, Color, File
+    Text, Button, Checkbox, Email, Password, Date, Radio, Number, Range, Tel, Url, Color, File, Submit
   }
 
   private var initializing = true
@@ -550,7 +571,7 @@ class Input @JvmOverloads constructor(
         addView(textInput)
       }
 
-      Type.Button -> {
+      Type.Button, Type.Submit -> {
         configure {
           (2 * resources.displayMetrics.density).toInt()
           (resources.displayMetrics.density).toInt()
@@ -569,9 +590,15 @@ class Input @JvmOverloads constructor(
           style.textAlign = TextAlign.Center
         }
 
-        addView(
-          buttonInput, -2, -2
-        )
+        if (type == Type.Submit) {
+          addView(
+            submitInput, -2, -2
+          )
+        } else {
+          addView(
+            buttonInput, -2, -2
+          )
+        }
       }
 
       Type.Checkbox -> {
@@ -643,6 +670,11 @@ class Input @JvmOverloads constructor(
     if (!::node.isInitialized && !override) {
       setup(Mason.shared, type)
     }
+
+    isFocusable = false
+    isFocusableInTouchMode = false
+
+    descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
   }
 
   private fun setup(mason: Mason, type: Type) {
@@ -686,13 +718,18 @@ class Input @JvmOverloads constructor(
           }
         }
 
-        Type.Button -> {
-          if (value > -1) {
-            buttonInput.filters = arrayOf(
+        Type.Button, Type.Submit -> {
+          val filters = if (value > -1) {
+            arrayOf(
               LengthFilter(value)
             )
           } else {
-            buttonInput.filters = arrayOf()
+            arrayOf()
+          }
+          if (type == Type.Submit) {
+            submitInput.filters = filters
+          } else {
+            buttonInput.filters = filters
           }
         }
 
@@ -731,25 +768,52 @@ class Input @JvmOverloads constructor(
           syncTextStyle(value, buttonInput)
         }
 
-        Type.Checkbox -> {
-
+        Type.Submit -> {
+          syncTextStyle(value, submitInput)
         }
 
-        Type.Date -> {}
-        Type.Radio -> {}
-        Type.Number -> {}
-        Type.Range -> {}
-        Type.Color -> {}
+        Type.Checkbox -> {
+          checkBoxInput.isChecked = value == "true"
+        }
+
+        Type.Date -> {
+          dateInput.value = value
+        }
+
+        Type.Radio -> {
+          radioInput.isChecked = value == "true"
+        }
+
+        Type.Number -> {
+          value.toIntOrNull()?.let {
+            numberInput.value = it
+          }
+        }
+
+        Type.Range -> {
+          value.toIntOrNull()?.let {
+            rangeInput.progress = it
+          }
+        }
+
+        Type.Color -> {
+          parseColor(value)?.let {
+            colorInput.selectedColor = it
+            colorInput.colorView.setBackgroundColor(it)
+          }
+        }
+
         Type.File -> {
           if (value.isEmpty()) {
             resetFileInput()
           }
+          fileInput.labelText = value
         }
       }
     }
     get() {
       return when (type) {
-        Type.Text, Type.Email, Type.Password -> {
+        Type.Text, Type.Email, Type.Password, Type.Tel, Type.Url -> {
           textInput.text.toString()
         }
 
@@ -757,15 +821,35 @@ class Input @JvmOverloads constructor(
           buttonInput.text.toString()
         }
 
-        Type.Checkbox, Type.Radio -> ""
+        Type.Submit -> {
+          submitInput.text.toString()
+        }
+
+        Type.Checkbox -> {
+          if (checkBoxInput.isChecked) {
+            "true"
+          } else {
+            "false"
+          }
+        }
+
+        Type.Radio -> {
+          if (radioInput.isChecked) {
+            "true"
+          } else {
+            "false"
+          }
+        }
+
         Type.Date -> {
           dateInput.value
         }
 
-        Type.Number -> ""
-        Type.Range -> ""
-        Type.Tel -> ""
-        Type.Url -> ""
+        Type.Number -> {
+          "${numberInput.value}"
+        }
+
+        Type.Range -> "${rangeInput.progress}"
         Type.Color -> {
           if (colorInput.selectedColorHex == null) {
             colorInput.syncSelectedColor()
@@ -773,7 +857,9 @@ class Input @JvmOverloads constructor(
           return colorInput.selectedColorHex ?: "#000000"
         }
 
-        Type.File -> ""
+        Type.File -> {
+          fileInput.labelText
+        }
       }
     }
 
@@ -836,8 +922,16 @@ class Input @JvmOverloads constructor(
   var checked: Boolean = false
     set(value) {
       field = value
-      if (type == Type.Checkbox) {
-        checkBoxInput.isChecked = value
+      when (type) {
+        Type.Checkbox -> {
+          checkBoxInput.isChecked = value
+        }
+
+        Type.Radio -> {
+          radioInput.isChecked = value
+        }
+
+        else -> {}
       }
     }
 
@@ -876,6 +970,18 @@ class Input @JvmOverloads constructor(
           )
         )
         buttonInput.layout(l, t, r, b)
+      }
+
+      Type.Submit -> {
+        submitInput.measure(
+          MeasureSpec.makeMeasureSpec(
+            width, MeasureSpec.EXACTLY
+          ),
+          MeasureSpec.makeMeasureSpec(
+            height, MeasureSpec.EXACTLY
+          )
+        )
+        submitInput.layout(l, t, r, b)
       }
 
       Type.Checkbox -> {
@@ -1077,6 +1183,12 @@ class Input @JvmOverloads constructor(
       Type.Button -> {
         if (fontSize || fontColor || font || textAlign) {
           syncTextStyle(buttonInput.text.toString(), buttonInput)
+        }
+      }
+
+      Type.Submit -> {
+        if (fontSize || fontColor || font || textAlign) {
+          syncTextStyle(submitInput.text.toString(), submitInput)
         }
       }
 

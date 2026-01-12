@@ -143,12 +143,12 @@ class MasonTextInput: UITextView, UITextViewDelegate {
       data: textView.text,
       inputType: lastInputType ?? "insertText",
       options: MasonEventOptions(
-        type: "input",
-        bubbles: true,
-        cancelable: false,
         isComposing: true
       )
-    )
+    ).apply{ event in
+      event.bubbles = true
+      event.cancelable = false
+    }
     event.target = owner
     owner.node.mason.dispatch(event, owner.node)
     
@@ -161,12 +161,12 @@ class MasonTextInput: UITextView, UITextViewDelegate {
     let event = MasonEvent(
       type: "change",
       options: MasonEventOptions(
-        type: "change",
-        bubbles: true,
-        cancelable: false,
         isComposing: true
       )
-    )
+    ).apply{ event in
+      event.bubbles = true
+      event.cancelable = false
+    }
     event.target = owner
     owner.node.mason.dispatch(event, owner.node)
   }
@@ -185,12 +185,12 @@ class MasonTextInput: UITextView, UITextViewDelegate {
       data: nil,
       inputType: "insertFromPaste",
       options: MasonEventOptions(
-        type: "beforeinput",
-        bubbles: true,
-        cancelable: true,
         isComposing: true,
       )
-    )
+    ).apply{ event in
+      event.bubbles = true
+      event.cancelable = true
+    }
     
     event.target = owner
     
@@ -214,12 +214,12 @@ class MasonTextInput: UITextView, UITextViewDelegate {
       data: nil,
       inputType: "deleteByCut",
       options: MasonEventOptions(
-        type: "beforeinput",
-        bubbles: true,
-        cancelable: true,
         isComposing: true,
       )
-    )
+    ).apply{ event in
+      event.bubbles = true
+      event.cancelable = true
+    }
     
     event.target = owner
     
@@ -270,12 +270,12 @@ class MasonTextInput: UITextView, UITextViewDelegate {
       data: nil,
       inputType: type,
       options: MasonEventOptions(
-        type: "beforeinput",
-        bubbles: true,
-        cancelable: true,
         isComposing: true,
       )
-    )
+    ).apply{ event in
+      event.bubbles = true
+      event.cancelable = true
+    }
     
     event.target = owner
     

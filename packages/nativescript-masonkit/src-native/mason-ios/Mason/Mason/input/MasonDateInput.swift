@@ -139,12 +139,12 @@ class MasonDateInput: UIView {
            data: value,
            inputType: "insertReplacementText",
            options: MasonEventOptions(
-               type: "change",
-               bubbles: true,
-               cancelable: false,
                isComposing: true
            )
-       )
+       ).apply{ event in
+         event.bubbles = true
+         event.cancelable = false
+       }
        change.target = owner
        owner.node.mason.dispatch(change, owner.node)
   }
@@ -205,12 +205,12 @@ class MasonDateInput: UIView {
             data: value,
             inputType: "insertText",
             options: MasonEventOptions(
-                type: "beforeinput",
-                bubbles: true,
-                cancelable: true,
                 isComposing: true
             )
-        )
+        ).apply{ event in
+          event.bubbles = true
+          event.cancelable = true
+        }
         before.target = owner
         owner.node.mason.dispatch(before, owner.node)
 
@@ -237,12 +237,12 @@ class MasonDateInput: UIView {
             data: value,
             inputType: "insertText",
             options: MasonEventOptions(
-                type: "input",
-                bubbles: true,
-                cancelable: false,
                 isComposing: true
             )
-        )
+        ).apply{ event in
+          event.bubbles = true
+          event.cancelable = false
+        }
         input.target = owner
         owner.node.mason.dispatch(input, owner.node)
   }
@@ -265,7 +265,7 @@ class MasonDateInput: UIView {
     picker.datePickerMode = .date
     picker.preferredDatePickerStyle = .inline
     
-    let alert = UIAlertController(title: "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", message: nil, preferredStyle: .actionSheet)
+    let alert = UIAlertController(title: "", message: nil, preferredStyle: .actionSheet)
     alert.view.addSubview(picker)
     
     picker.translatesAutoresizingMaskIntoConstraints = false
@@ -284,12 +284,12 @@ class MasonDateInput: UIView {
               data: nil,
               inputType: "insertReplacementText",
               options: MasonEventOptions(
-                  type: "beforeinput",
-                  bubbles: true,
-                  cancelable: true,
                   isComposing: true
               )
-          )
+          ).apply{ event in
+            event.bubbles = true
+            event.cancelable = true
+          }
           before.target = owner
           owner.node.mason.dispatch(before, owner.node)
 
@@ -312,12 +312,12 @@ class MasonDateInput: UIView {
               data: self.value,
               inputType: "insertReplacementText",
               options: MasonEventOptions(
-                  type: "input",
-                  bubbles: true,
-                  cancelable: false,
                   isComposing: true
               )
-          )
+          ).apply{ event in
+            event.bubbles = true
+            event.cancelable = false
+          }
           input.target = owner
           owner.node.mason.dispatch(input, owner.node)
 
@@ -326,12 +326,12 @@ class MasonDateInput: UIView {
               data: self.value,
               inputType: "insertReplacementText",
               options: MasonEventOptions(
-                  type: "change",
-                  bubbles: true,
-                  cancelable: false,
                   isComposing: true
               )
-          )
+          ).apply{ event in
+            event.bubbles = true
+            event.cancelable = false
+          }
           change.target = owner
           owner.node.mason.dispatch(change, owner.node)
     }))

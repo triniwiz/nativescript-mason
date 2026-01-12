@@ -122,12 +122,12 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
           data: string.isEmpty ? nil : string,
           inputType: inputType,
           options: MasonEventOptions(
-              type: "beforeinput",
-              bubbles: true,
-              cancelable: true,
               isComposing: true
           )
-      )
+      ).apply{ event in
+        event.bubbles = true
+        event.cancelable = true
+      }
       event.target = owner
 
       owner.node.mason.dispatch(event, owner.node)
@@ -184,12 +184,12 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
            data: textField.text,
            inputType: "insertText",
            options: MasonEventOptions(
-               type: "input",
-               bubbles: true,
-               cancelable: false,
                isComposing: true
            )
-       )
+       ).apply{ event in
+         event.bubbles = true
+         event.cancelable = false
+       }
        event.target = owner
 
        owner.node.mason.dispatch(event, owner.node)
@@ -219,12 +219,12 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
           data: "\(value + delta)",
           inputType: "insertReplacementText",
           options: MasonEventOptions(
-              type: "beforeinput",
-              bubbles: true,
-              cancelable: true,
               isComposing: true
           )
-      )
+      ).apply{ event in
+        event.bubbles = true
+        event.cancelable = true
+      }
       before.target = owner
 
       owner.node.mason.dispatch(before, owner.node)
@@ -238,12 +238,12 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
           data: "\(value)",
           inputType: "insertReplacementText",
           options: MasonEventOptions(
-              type: "input",
-              bubbles: true,
-              cancelable: false,
               isComposing: true
           )
-      )
+      ).apply{ event in
+        event.bubbles = true
+        event.cancelable = false
+      }
       input.target = owner
 
       owner.node.mason.dispatch(input, owner.node)
@@ -257,12 +257,12 @@ class MasonNumberInput: UIView, UITextFieldDelegate {
           data: textField.text,
           inputType: "insertText",
           options: MasonEventOptions(
-              type: "change",
-              bubbles: true,
-              cancelable: false,
               isComposing: true
           )
-      )
+      ).apply{ event in
+        event.bubbles = true
+        event.cancelable = false
+      }
       event.target = owner
 
       owner.node.mason.dispatch(event, owner.node)

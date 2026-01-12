@@ -8,7 +8,7 @@ import UIKit
 
 @objc(MasonScroll)
 @objcMembers
-public class Scroll: UIScrollView, UIScrollViewDelegate, MasonElement, MasonElementObjc, StyleChangeListener {
+public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
   func onTextStyleChanged(change: Int64) {
     MasonNode.invalidateDescendantTextViews(node, change)
   }

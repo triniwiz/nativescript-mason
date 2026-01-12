@@ -10,6 +10,18 @@ import UIKit
 let BLACK_COLOR = UInt32(bitPattern:-16777216)
 let WHITE_COLOR = UInt32(bitPattern:-1)
 
+protocol Applyable {}
+extension Applyable {
+    @inline(__always)
+    func apply(_ block: (inout Self) -> Void) -> Self {
+        var copy = self
+        block(&copy)
+        return copy
+    }
+}
+
+extension NSObject: Applyable {}
+
 extension UInt32 {
   internal func rgbaToHexCSS() -> String {
     let color = self
@@ -417,26 +429,26 @@ func syncStyle<T: MasonElement>(_ element: T,_ state: String, _ textState: Strin
   
   @discardableResult
   @objc public func mason_addEventListener(_ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID {
-    guard let element = self as? MasonElement else { return UUID()}
-    return element.addEventListener(element.node, event, listener)
+    guard let element = self as? MasonEventTarget else { return UUID()}
+    return element.addEventListener(event, listener)
   }
 
   @discardableResult
   @objc public func mason_removeEventListener(_ event: String, id: UUID) -> Bool {
-    guard let element = self as? MasonElement else { return false}
-    return element.removeEventListener(element.node, event, id: id)
+    guard let element = self as? MasonEventTarget else { return false}
+    return element.removeEventListener(event, id: id)
   }
   
   @discardableResult
   @objc public func mason_removeEventListener(_ event: String) -> Bool {
-    guard let element = self as? MasonElement else { return false}
-    return element.removeEventListener(element.node, event)
+    guard let element = self as? MasonEventTarget else { return false}
+    return element.removeEventListener(event)
   }
   
 
-  @objc public func mason_dispatch(_ event: MasonEvent, _ node: MasonNode) {
-    guard let element = self as? MasonElement else { return}
-    element.dispatch(event, node)
+  @objc public func mason_dispatch(_ event: MasonEvent) {
+    guard let element = self as? MasonEventTarget else { return}
+    element.dispatch(event)
   }
   
   @objc public func mason_syncStyle(_ state: String, _ textState: String){

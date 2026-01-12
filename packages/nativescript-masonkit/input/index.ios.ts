@@ -1,5 +1,5 @@
 import { CSSType, Utils } from '@nativescript/core';
-import { acceptProperty, InputBase, multipleProperty, valueProperty } from './common';
+import { acceptProperty, defaultValueProperty, getValueProperty, InputBase, multipleProperty, setValueProperty } from './common';
 import { style_, isMasonView_, native_ } from '../symbols';
 import { Tree } from '../tree';
 import { placeholderProperty, typeProperty } from './common';
@@ -40,6 +40,8 @@ export class Input extends InputBase {
         return MasonInputType.Color;
       case 'file':
         return MasonInputType.File;
+      case 'submit':
+        return MasonInputType.Submit;
     }
     return MasonInputType.Text;
   }
@@ -56,21 +58,16 @@ export class Input extends InputBase {
     }
   }
 
-  [valueProperty.setNative](value) {
-    this._type = value;
-    if (this._view) {
-      this._view.value = value;
-    }
+  [defaultValueProperty]() {
+    return '';
   }
 
-  set value(value: string) {
-    if (this._view) {
-      this._view.value = value;
-    }
+  [getValueProperty]() {
+    return this._view.value;
   }
 
-  get value() {
-    return this._view ? this._view.value : '';
+  [setValueProperty](value) {
+    this._view.value = value;
   }
 
   set valueAsNumber(value: number) {

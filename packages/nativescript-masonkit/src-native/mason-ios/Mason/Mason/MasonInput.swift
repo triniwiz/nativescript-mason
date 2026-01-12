@@ -9,50 +9,50 @@ import UIKit
 
 // MARK: - Helpers
 internal extension UITextField {
-    private struct AssociatedKeys { static var maxDigits = "maxDigits" }
-
-    var maxDigits: Int {
-        get { objc_getAssociatedObject(self, AssociatedKeys.maxDigits) as? Int ?? 1 }
-        set { objc_setAssociatedObject(self, AssociatedKeys.maxDigits, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
-    }
-
-    func configure(maxDigits: Int, hint: String, width: CGFloat) {
-        self.maxDigits = maxDigits
-        self.keyboardType = .numberPad
-        self.textAlignment = .center
-        self.font = .systemFont(ofSize: 14)
-        self.textColor = .placeholderText
-        self.text = hint
-        self.borderStyle = .none
-        self.widthAnchor.constraint(equalToConstant: width).isActive = true
-    }
+  private struct AssociatedKeys { static var maxDigits = "maxDigits" }
+  
+  var maxDigits: Int {
+    get { objc_getAssociatedObject(self, AssociatedKeys.maxDigits) as? Int ?? 1 }
+    set { objc_setAssociatedObject(self, AssociatedKeys.maxDigits, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
+  }
+  
+  func configure(maxDigits: Int, hint: String, width: CGFloat) {
+    self.maxDigits = maxDigits
+    self.keyboardType = .numberPad
+    self.textAlignment = .center
+    self.font = .systemFont(ofSize: 14)
+    self.textColor = .placeholderText
+    self.text = hint
+    self.borderStyle = .none
+    self.widthAnchor.constraint(equalToConstant: width).isActive = true
+  }
 }
 
 internal extension String {
-    func paddingLeft(toLength: Int, withPad: String) -> String {
-        if self.count < toLength {
-            return String(repeating: withPad, count: toLength - self.count) + self
-        }
-        return self
+  func paddingLeft(toLength: Int, withPad: String) -> String {
+    if self.count < toLength {
+      return String(repeating: withPad, count: toLength - self.count) + self
     }
+    return self
+  }
 }
 
 
 internal extension UIView {
-    var parentViewController: UIViewController? {
-        var responder: UIResponder? = self
-        while let r = responder {
-            if let vc = r as? UIViewController { return vc }
-            responder = r.next
-        }
-        return nil
+  var parentViewController: UIViewController? {
+    var responder: UIResponder? = self
+    while let r = responder {
+      if let vc = r as? UIViewController { return vc }
+      responder = r.next
     }
+    return nil
+  }
 }
 
 
 @objcMembers
 @objc(MasonInput)
-public class MasonInput: UIView, MasonElement, StyleChangeListener{
+public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListener{
   func onTextStyleChanged(change: Int64) {
     let change = TextStyleChangeMasks(rawValue: change)
     let color = change.contains(.color)
@@ -82,6 +82,8 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
     case .Color:
       break
     case .File:
+      break
+    case .Submit:
       break
     }
   }
@@ -117,7 +119,7 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
     field.autocorrectionType = .no
     return field
   }()
-
+  
   internal lazy var passwordInput: MasonPasswordInput = {
     let input = MasonPasswordInput()
     input.owner = self
@@ -133,43 +135,22 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
   
   internal lazy var buttonInput: UIButton  = {
     let btn = UIButton()
-    btn.addTarget(self, action: #selector(buttonTapped), for: .touchUpInside)
+    let recognizer = MasonGestureRecognizer(targetView: btn)
+    recognizer.owner = self
+    btn.addGestureRecognizer(recognizer)
     return btn
   }()
   
   
-  @objc private func buttonTapped() {
-      let before = MasonInputEvent(
-          type: "beforeinput",
-          data: nil,
-          inputType: "activate",
-          options: MasonEventOptions(
-              type: "beforeinput",
-              bubbles: true,
-              cancelable: true,
-              isComposing: true
-          )
-      )
-      before.target = self
-      node.mason.dispatch(before, node)
-      
-      if before.defaultPrevented { return }
-      
-      // change (non-cancellable)
-      let change = MasonInputEvent(
-          type: "change",
-          data: nil,
-          inputType: "activate",
-          options: MasonEventOptions(
-              type: "change",
-              bubbles: true,
-              cancelable: false,
-              isComposing: true
-          )
-      )
-      change.target = self
-      node.mason.dispatch(change, node)
-  }
+  internal lazy var submitInput: UIButton  = {
+    let btn = UIButton()
+    let recognizer = MasonGestureRecognizer(targetView: btn)
+    recognizer.owner = self
+    recognizer.isSubmit = true
+    btn.addGestureRecognizer(recognizer)
+    return btn
+  }()
+  
   
   internal lazy var checkboxInput: MasonCheckboxInput  = {
     let cb = MasonCheckboxInput()
@@ -197,7 +178,7 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
     
     range.setThumbImage(rangeThumbImage(innerColor: .systemGray.darker()), for: .normal)
     range.setThumbImage(rangeThumbImage(innerColor: .systemGreen.darker()), for: .highlighted)
-
+    
     return range
   }()
   
@@ -262,60 +243,66 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
     }
   }
   public var value: String {
-      set {
-          switch type {
-          case .Text, .Email, .Url, .Tel:
-              textInput.text = newValue
-          case .Password:
-              passwordInput.text = newValue
-          case .Button:
-              let attributes = node.getDefaultAttributes()
-              let title = NSAttributedString(string: newValue, attributes: attributes)
-              buttonInput.setAttributedTitle(title, for: .normal)
-          case .Checkbox:
-              checkboxInput.isChecked = (newValue == "true")
-          case .Date:
-              dateInput.value = newValue
-          case .Radio:
-              radioInput.isSelected = (newValue == "true")
-          case .Number:
-              numberInput.value = Int(newValue) ?? 0
-          case .Range:
-              rangeInput.value = Float(newValue) ?? 0
-          case .Color:
-              if let color = UIColor(css: newValue) {
-                  colorInput.selectedColor = color
-              }
-          case .File:
-              fileInput.labelText = newValue
-          }
+    set {
+      switch type {
+      case .Text, .Email, .Url, .Tel:
+        textInput.text = newValue
+      case .Password:
+        passwordInput.text = newValue
+      case .Button, .Submit:
+        let attributes = node.getDefaultAttributes()
+        let title = NSAttributedString(string: newValue, attributes: attributes)
+        if(type == MasonInputType.Submit){
+          submitInput.setAttributedTitle(title, for: .normal)
+        }else {
+          buttonInput.setAttributedTitle(title, for: .normal)
+        }
+      case .Checkbox:
+        checkboxInput.isChecked = (newValue == "true")
+      case .Date:
+        dateInput.value = newValue
+      case .Radio:
+        radioInput.isSelected = (newValue == "true")
+      case .Number:
+        numberInput.value = Int(newValue) ?? 0
+      case .Range:
+        rangeInput.value = Float(newValue) ?? 0
+      case .Color:
+        if let color = UIColor(css: newValue) {
+          colorInput.selectedColor = color
+        }
+      case .File:
+        fileInput.labelText = newValue
       }
-      get {
-          switch type {
-          case .Text, .Email, .Url, .Tel:
-              return textInput.text ?? ""
-          case .Password:
-              return passwordInput.text ?? ""
-          case .Button:
-              return buttonInput.currentAttributedTitle?.string ?? ""
-          case .Checkbox:
-              return checkboxInput.isChecked ? "true" : "false"
-          case .Date:
-              return dateInput.value
-          case .Radio:
-              return radioInput.isSelected ? "true" : "false"
-          case .Number:
-              return String(numberInput.value)
-          case .Range:
-              return String(rangeInput.value)
-          case .Color:
-              return colorInput.selectedColor?.toCSS(includeAlpha: true) ?? "#000000"
-          case .File:
-              return fileInput.labelText
-          }
+    }
+    get {
+      switch type {
+      case .Text, .Email, .Url, .Tel:
+        return textInput.text ?? ""
+      case .Password:
+        return passwordInput.text ?? ""
+      case .Button:
+        return buttonInput.currentAttributedTitle?.string ?? ""
+      case .Submit:
+        return submitInput.currentAttributedTitle?.string ?? ""
+      case .Checkbox:
+        return checkboxInput.isChecked ? "true" : "false"
+      case .Date:
+        return dateInput.value
+      case .Radio:
+        return radioInput.isSelected ? "true" : "false"
+      case .Number:
+        return String(numberInput.value)
+      case .Range:
+        return String(rangeInput.value)
+      case .Color:
+        return colorInput.selectedColor?.toCSS(includeAlpha: true) ?? "#000000"
+      case .File:
+        return fileInput.labelText
       }
+    }
   }
-
+  
   
   
   public var valueAsNumber: Double {
@@ -343,7 +330,7 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
         value = ""
         return
       }
-
+      
       switch type {
       case .Number:
         numberInput.value = Int(newValue)
@@ -370,7 +357,7 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
       simple.locale = Locale(identifier: "en_US_POSIX")
       simple.timeZone = TimeZone(secondsFromGMT: 0)
       simple.dateFormat = "yyyy-MM-dd"
-
+      
       switch type {
       case .Date:
         let s = dateInput.value
@@ -395,13 +382,13 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
         value = ""
         return
       }
-
+      
       let simple = DateFormatter()
       simple.calendar = Calendar(identifier: .gregorian)
       simple.locale = Locale(identifier: "en_US_POSIX")
       simple.timeZone = TimeZone(secondsFromGMT: 0)
       simple.dateFormat = "yyyy-MM-dd"
-
+      
       switch type {
       case .Date:
         dateInput.value = simple.string(from: d)
@@ -441,6 +428,8 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
       case .Color:
         break
       case .File:
+        break
+      case .Submit:
         break
       }
     }
@@ -500,7 +489,7 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
       case .Text, .Email, .Password, .Url, .Tel, .Number:
         size.width = max(CGFloat(self.size) * (ch.width * scale) , 150)
         size.height = ch.height * scale
-      case .Button:
+      case .Button, .Submit:
         let value = self.measureText(self.value)
         size.width = min(value.width * scale, 64 * scale)
         size.height = min(value.height * scale, 32 * scale)
@@ -558,7 +547,7 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
       inputSize = bounds.insetBy(dx: inset.left, dy: inset.top)
     }
     switch type {
-    case .Text, .Email:
+    case .Text, .Email, .Url, .Tel:
       textInput.frame = inputSize
       break
     case .Password:
@@ -588,6 +577,9 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
     case .Date:
       dateInput.frame = inputSize
       break
+    case .Submit:
+      submitInput.frame = inputSize
+      break
     default:
       break
     }
@@ -595,8 +587,13 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
   
   private func configureInput(_ type: MasonInputType){
     let scale = NSCMason.scale
+    if(!initializing){
+      for subview in subviews {
+        subview.removeFromSuperview()
+      }
+    }
     switch type {
-    case .Text, .Email, .Password:
+    case .Text, .Email, .Password, .Tel, .Url:
       textInput.tintColor = UIColor.colorFromARGB(style.resolvedColor)
       configure { style in
         style.border = "2px"
@@ -605,15 +602,19 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
         style.textAlign = TextAlign.Center
       }
       switch(type){
+      case .Tel:
+        textInput.keyboardType = .phonePad
+      case .Url:
+        textInput.keyboardType = .URL
       case .Email:
         textInput.keyboardType = .emailAddress
         break
       case .Password:
-         // For password use a real secure `UITextField` instead of `UITextView`.
-         passwordInput.isSecureTextEntry = true
-         passwordInput.textContentType = .password
-         passwordInput.autocapitalizationType = .none
-         passwordInput.autocorrectionType = .no
+        // For password use a real secure `UITextField` instead of `UITextView`.
+        passwordInput.isSecureTextEntry = true
+        passwordInput.textContentType = .password
+        passwordInput.autocapitalizationType = .none
+        passwordInput.autocorrectionType = .no
         break
       default:
         break
@@ -632,14 +633,18 @@ public class MasonInput: UIView, MasonElement, StyleChangeListener{
       }
       addSubview(dateInput)
       break
-    case .Button:
+    case .Button, .Submit:
       configure { style in
         style.border = "2px"
         style.borderRadius = "4px"
         style.padding = MasonRect(.Points(1), .Points(6), .Points(1), .Points(6))
         style.textAlign = TextAlign.Center
       }
-      addSubview(buttonInput)
+      if(type == MasonInputType.Submit){
+        addSubview(submitInput)
+      }else {
+        addSubview(buttonInput)
+      }
       break
     case .Checkbox:
       addSubview(checkboxInput)

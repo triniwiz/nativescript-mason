@@ -244,7 +244,7 @@ public class MasonTextLayer: CALayer {
 // MARK: - MasonText Main Class
 @objc(MasonText)
 @objcMembers
-public class MasonText: UIView, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer {
+public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener, TextContainer {
   // MARK: Properties
   public let node: MasonNode
   public let type: MasonTextType

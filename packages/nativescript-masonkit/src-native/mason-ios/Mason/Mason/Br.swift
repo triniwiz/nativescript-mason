@@ -9,7 +9,7 @@ import UIKit
 
 @objc(MasonBr)
 @objcMembers
-public class MasonBr: NSObject, MasonElement, MasonElementObjc {
+public class MasonBr: NSObject,MasonEventTarget, MasonElement, MasonElementObjc {
   public let mason: NSCMason
   public var node: MasonNode
   

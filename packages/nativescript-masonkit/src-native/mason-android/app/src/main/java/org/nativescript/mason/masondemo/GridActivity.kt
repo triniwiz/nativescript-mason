@@ -110,6 +110,13 @@ class GridActivity : AppCompatActivity() {
     input.placeholder = "Enter Text"
     root.append(input)
 
+
+    input.addEventListener("input") {
+      if (it is InputEvent) {
+        Log.d("com.test", "input ${(it).data} ${it.inputType}")
+      }
+    }
+
     root.append(mason.createBr(this))
 
     val btn = mason.createInput(this, Input.Type.Button)
@@ -163,24 +170,14 @@ class GridActivity : AppCompatActivity() {
 
     root.append(file)
 
-    file.addEventListener("change") {
-      Log.d("com.test", "file ${(it as InputEvent).data}")
-    }
 
     root.append(mason.createBr(this))
 
     val date = mason.createInput(this, Input.Type.Date)
     root.append(date)
 
-    date.addEventListener("input") {
-      Log.d("com.test", "input ${(it as InputEvent).data}")
-    }
-
     val color = mason.createInput(this, Input.Type.Color)
     root.append(color)
-    color.addEventListener("input") {
-      Log.d("com.test", "input ${(it as InputEvent).data}")
-    }
   }
 
   fun textShadow(body: Scroll) {

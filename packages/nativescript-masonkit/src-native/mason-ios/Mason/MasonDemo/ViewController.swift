@@ -476,7 +476,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     body.append(root)
     root.style.padding = MasonRect(uniform: .Points(40))
     
-    let input = root.mason.createInput()
+    let input = root.mason.createInput(.Tel)
     input.placeholder = "Enter text..."
     
     
@@ -487,6 +487,15 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     let button = root.mason.createInput(.Button)
     button.value = "Button"
+    
+    button.addEventListener("click") { event in
+      print(event)
+      event.preventDefault()
+    }
+    
+    button.addEventListener("click") { event in
+      print(event)
+    }
     
     root.append(button)
     

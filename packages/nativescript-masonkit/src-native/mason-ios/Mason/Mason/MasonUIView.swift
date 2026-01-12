@@ -10,7 +10,7 @@ import Foundation
 
 @objcMembers
 @objc(MasonUIView)
-public class MasonUIView: UIView, MasonElement, MasonElementObjc, StyleChangeListener {
+public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementObjc, StyleChangeListener {
   func onTextStyleChanged(change: Int64) {
     MasonNode.invalidateDescendantTextViews(node, change)
   }

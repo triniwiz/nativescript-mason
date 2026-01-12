@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit.input
 import android.R
 import android.content.Context
 import android.content.res.ColorStateList
+import android.os.Build
 import android.text.Editable
 import android.text.InputType
 import android.text.TextWatcher
@@ -16,13 +17,16 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
+import org.nativescript.mason.masonkit.Input
+import org.nativescript.mason.masonkit.events.Event
+import org.nativescript.mason.masonkit.events.InputEvent
 import kotlin.math.max
 import kotlin.math.min
 
 class NumberControl @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+  context: Context,
+  attrs: AttributeSet? = null,
+  defStyleAttr: Int = 0
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
   val editText = EditText(context)
@@ -31,6 +35,8 @@ class NumberControl @JvmOverloads constructor(
   private val decrementButton = ImageButton(context)
 
   private var skip = false
+
+  internal var input: Input? = null
 
   var value: Int = 0
     set(v) {
@@ -74,6 +80,34 @@ class NumberControl @JvmOverloads constructor(
         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
       })
     }
+
+    editText.setOnFocusChangeListener { _, hasFocus ->
+      if (!hasFocus) {
+        // focus lost → commit value as "change"
+        input?.node?.mason?.dispatch(
+          InputEvent(
+            type = "change",
+            data = value.toString(),
+            inputType = Event.InputType.InsertReplacementText.value
+          ).apply { target = input }
+        )
+      }
+    }
+
+    editText.setOnEditorActionListener { v, actionId, event ->
+      if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+        input?.node?.mason?.dispatch(
+          InputEvent(
+            type = "change",
+            data = value.toString(),
+            inputType = Event.InputType.InsertReplacementText.value
+          ).apply { target = input }
+        )
+        true
+      } else {
+        false
+      }
+    }
   }
 
   private fun setupStepper() {
@@ -82,12 +116,19 @@ class NumberControl @JvmOverloads constructor(
       gravity = Gravity.FILL
       isClickable = true
       // default background similar to iOS systemGray6
-      background = ContextCompat.getDrawable(context, org.nativescript.mason.masonkit.R.drawable.stepper_bg_web)
+      background = ContextCompat.getDrawable(
+        context,
+        org.nativescript.mason.masonkit.R.drawable.stepper_bg_web
+      )
     }
 
     // Use lightweight chevron icons and tint them for pressed state to match iOS style
     val defaultTint = "#636366".toColorInt()
-    val pressedTint = ContextCompat.getColor(context, R.color.system_neutral2_100)
+    val pressedTint = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      ContextCompat.getColor(context, R.color.system_neutral2_100)
+    } else {
+      ContextCompat.getColor(context, R.color.darker_gray)
+    }
 
     val tintList = ColorStateList(
       arrayOf(
@@ -188,6 +229,7 @@ class NumberControl @JvmOverloads constructor(
 
   private fun setValueInner(newValue: Int, updateText: Boolean = true) {
     val text = editText.text?.toString()
+    val oldValue = value
     if (text.isNullOrEmpty() && text?.toIntOrNull() == null) {
       skip = true
       value = 0
@@ -206,8 +248,31 @@ class NumberControl @JvmOverloads constructor(
       value = v
       skip = false
     }
+
+    dispatchValueChanged(oldValue, v)
   }
 
   private fun dp(value: Int): Int =
     (value * resources.displayMetrics.density).toInt()
+
+  private fun dispatchValueChanged(old: Int, new: Int) {
+    input?.let {
+      // beforeinput
+      it.onBeforeInput(
+        Event.InputType.InsertReplacementText.value,
+        new.toString()
+      )
+
+      // input
+      it.node.mason.dispatch(
+        InputEvent(
+          type = "input",
+          data = new.toString(),
+          inputType = Event.InputType.InsertReplacementText.value
+        ).apply {
+          target = it
+        }
+      )
+    }
+  }
 }

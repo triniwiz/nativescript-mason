@@ -93,15 +93,15 @@ class MasonFileInput: UIView, UIDocumentPickerDelegate, UIImagePickerControllerD
       return
     }
     
-    let click = MasonEvent(
+    let click = MasonMouseEvent(
       type: "click",
-      options: MasonEventOptions(
-        type: "click",
-        bubbles: true,
-        cancelable: true,
+      options: MasonMouseEventOptions(
         isComposing: true
       )
-    )
+    ).apply { event in
+      event.bubbles = true
+      event.cancelable = true
+    }
     click.target = owner
     owner.node.mason.dispatch(click, owner.node)
     
@@ -184,13 +184,13 @@ class MasonFileInput: UIView, UIDocumentPickerDelegate, UIImagePickerControllerD
       type: "change",
       data: payload.joined(separator: ","),
       options: MasonEventOptions(
-        type: "change",
-        bubbles: true,
-        cancelable: false,
         isComposing: true
       ),
       rawData: urls
-    )
+    ).apply { event in
+      event.bubbles = true
+      event.cancelable = false
+    }
     change.target = owner
     owner.node.mason.dispatch(change, owner.node)
   }

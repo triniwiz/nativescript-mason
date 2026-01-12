@@ -28,19 +28,6 @@ public protocol MasonElement: NSObjectProtocol {
   
   var uiView: UIView { get }
   
-  @discardableResult
-  func addEventListener(_ node: MasonNode, _ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID
-
-  
-  @discardableResult
-  func removeEventListener(_ node: MasonNode, _ event: String, id: UUID) -> Bool
-  
-  @discardableResult
-  func removeEventListener(_ node: MasonNode, _ event: String) -> Bool
-  
-
-  func dispatch(_ event: MasonEvent, _ node: MasonNode)
-  
   func markNodeDirty()
   
   func isNodeDirty() -> Bool
@@ -170,25 +157,7 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
 }
 
 extension MasonElement {
-  
-  @discardableResult
-  public func addEventListener(_ node: MasonNode, _ event: String, _ listener: @escaping (MasonEvent) -> Void) -> UUID {
-    return node.mason.addEventListener(node, event, listener)
-  }
-
-  
-  @discardableResult
-  public func removeEventListener(_ node: MasonNode, _ event: String, id: UUID) -> Bool {
-    return node.mason.removeEventListener(node, event, id: id)
-  }
-  
-  @discardableResult
-  public func removeEventListener(_ node: MasonNode, _ event: String) -> Bool {
-    return node.mason.removeEventListener(node, event)
-  }
-  
-
-  public func dispatch(_ event: MasonEvent, _ node: MasonNode) {
+  public func dispatch(_ event: MasonEvent) {
     node.mason.dispatch(event, node)
   }
   

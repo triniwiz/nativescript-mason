@@ -2049,6 +2049,7 @@ declare module org {
 						public static Url: org.nativescript.mason.masonkit.Input.Type;
 						public static Color: org.nativescript.mason.masonkit.Input.Type;
 						public static File: org.nativescript.mason.masonkit.Input.Type;
+						public static Submit: org.nativescript.mason.masonkit.Input.Type;
 						public static getEntries(): any;
 						public static values(): androidNative.Array<org.nativescript.mason.masonkit.Input.Type>;
 						public static valueOf(value: string): org.nativescript.mason.masonkit.Input.Type;
