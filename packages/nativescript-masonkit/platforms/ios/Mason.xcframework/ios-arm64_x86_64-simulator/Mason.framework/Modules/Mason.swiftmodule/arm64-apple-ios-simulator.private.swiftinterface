@@ -305,6 +305,195 @@ extension Mason.Button {
   @objc public func createImageNode() -> Mason.MasonNode
   @objc public func createLineBreakNode() -> Mason.MasonNode
 }
+@objc(MasonTextType) public enum MasonTextType : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
+  case None
+  case P
+  case Span
+  case Code
+  case H1
+  case H2
+  case H3
+  case H4
+  case H5
+  case H6
+  case Li
+  case Blockquote
+  case B
+  case Pre
+  public typealias RawValue = Swift.Int32
+  public var rawValue: Mason.MasonTextType.RawValue {
+    get
+  }
+  public init?(rawValue: Mason.MasonTextType.RawValue)
+  public var description: Swift.String {
+    get
+  }
+}
+public enum InlineSegmentPayload {
+  case text(width: Swift.Float, ascent: Swift.Float, descent: Swift.Float)
+  case inline(id: Swift.OpaquePointer, width: Swift.Float, height: Swift.Float, baseline: Swift.Float)
+}
+@objc @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers public class MasonTextLayer : QuartzCore.CALayer {
+  @objc override dynamic public init()
+  @objc override dynamic public init(layer: Any)
+  @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
+  @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
+  @objc @_Concurrency.MainActor @preconcurrency final public let type: Mason.MasonTextType
+  @_Concurrency.MainActor @preconcurrency @objc public var engine: Mason.TextEngine {
+    @objc get
+    @objc set
+  }
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public class var layerClass: Swift.AnyClass {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var textValues: Foundation.NSMutableData {
+    @objc get
+  }
+  @_Concurrency.MainActor @preconcurrency @objc public func onTextStyleChanged(change: Swift.Int64)
+  @_Concurrency.MainActor @preconcurrency @objc public var uiView: UIKit.UIView {
+    @objc get
+  }
+  @_Concurrency.MainActor @preconcurrency @objc public var style: Mason.MasonStyle {
+    @objc get
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason, type textType: Mason.MasonTextType)
+  @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason)
+  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func setNeedsDisplay()
+  @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
+  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
+  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, at: Swift.Int)
+  @_Concurrency.MainActor @preconcurrency public var textOverflow: Mason.TextOverflow {
+    get
+    set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var textOverflowCompat: Mason.TextOverflowCompat {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var color: Swift.UInt32 {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public func setColor(ui color: UIKit.UIColor)
+  @objc @_Concurrency.MainActor @preconcurrency public var backgroundColorValue: Swift.UInt32 {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public func setBackgroundColor(ui color: UIKit.UIColor)
+  @objc @_Concurrency.MainActor @preconcurrency public var decorationColor: Swift.UInt32 {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public func setDecorationColor(ui color: UIKit.UIColor)
+  @objc @_Concurrency.MainActor @preconcurrency public var decorationLine: Mason.DecorationLine {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var fontSize: Swift.Int32 {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var fontStyle: Mason.FontStyle {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public func setFontStyle(_ style: Mason.FontStyle, slant: Swift.Int32)
+  @objc @_Concurrency.MainActor @preconcurrency public var fontWeight: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var textTransform: Mason.TextTransform {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var whiteSpace: Mason.WhiteSpace {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var textWrap: Mason.TextWrap {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var lineHeight: Swift.Float {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency.MainActor @preconcurrency public var textContent: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc deinit
+}
+extension Mason.MasonText {
+  @objc @discardableResult
+  @_Concurrency.MainActor @preconcurrency dynamic public func removeChild(_ child: Mason.MasonNode) -> Mason.MasonNode?
+}
+extension Mason.MasonText {
+  @objc @_Concurrency.MainActor @preconcurrency dynamic public func addChild(_ child: Mason.MasonNode)
+}
+@objc public protocol MasonCharacterData {
+  @objc var data: Swift.String { get set }
+  @objc var length: Swift.Int { get }
+  @objc @discardableResult
+  func appendData(_ s: Swift.String) -> Self
+  @objc @discardableResult
+  func insertData(_ s: Swift.String, at offset: Swift.Int) -> Self
+  @objc @discardableResult
+  func deleteData(offset: Swift.Int, count: Swift.Int) -> Self
+  @objc @discardableResult
+  func replaceData(offset: Swift.Int, count: Swift.Int, with s: Swift.String) -> Self
+  @objc func substringData(offset: Swift.Int, count: Swift.Int) -> Swift.String
+  @objc @discardableResult
+  func deleteData(range: Foundation.NSRange) -> Self
+  @objc @discardableResult
+  func replaceData(range: Foundation.NSRange, with s: Swift.String) -> Self
+}
+@_hasMissingDesignatedInitializers @objc(MasonTextNode) @objcMembers public class MasonTextNode : Mason.MasonNode, Mason.MasonCharacterData {
+  @objc public var data: Swift.String {
+    @objc get
+    @objc set
+  }
+  @objc public init(mason doc: Mason.NSCMason, data text: Swift.String, attributes attrs: [Foundation.NSAttributedString.Key : Any]? = nil)
+  @objc override dynamic public func appendChild(_ child: Mason.MasonNode)
+  @objc public var length: Swift.Int {
+    @objc get
+  }
+  @objc public func substringData(offset: Swift.Int, count: Swift.Int) -> Swift.String
+  @discardableResult
+  @objc public func appendData(_ s: Swift.String) -> Self
+  @discardableResult
+  @objc public func insertData(_ s: Swift.String, at offset: Swift.Int) -> Self
+  @discardableResult
+  @objc public func deleteData(offset: Swift.Int, count: Swift.Int) -> Self
+  @discardableResult
+  @objc public func replaceData(offset: Swift.Int, count: Swift.Int, with s: Swift.String) -> Self
+  @discardableResult
+  @objc public func deleteData(range: Foundation.NSRange) -> Self
+  @discardableResult
+  @objc public func replaceData(range: Foundation.NSRange, with s: Swift.String) -> Self
+  @objc deinit
+}
+extension Mason.MasonTextNode {
+  @objc dynamic public func attributed() -> Foundation.NSAttributedString
+}
+@objc(MasonTextContainer) public protocol TextContainer : ObjectiveC.NSObjectProtocol {
+  @objc var engine: Mason.TextEngine { get }
+  @objc var node: Mason.MasonNode { get }
+  @objc func onTextStyleChanged(change: Swift.Int64)
+}
+extension Mason.TextContainer {
+  public func onTextStyleChanged(change: Swift.Int64)
+}
+@_hasMissingDesignatedInitializers @objc(MasonTextEngine) public class TextEngine : ObjectiveC.NSObject {
+  public var textContent: Swift.String {
+    get
+    set
+  }
+  @objc deinit
+}
 @_inheritsConvenienceInitializers @objcMembers @objc(MeasureOutput) public class MeasureOutput : ObjectiveC.NSObject {
   @objc override dynamic public init()
   @objc deinit
@@ -1484,192 +1673,6 @@ public struct MasonPoint<T> : Swift.Codable where T : Swift.Decodable, T : Swift
   @objc override dynamic public init()
   @objc deinit
 }
-@objc(MasonTextContainer) public protocol TextContainer : ObjectiveC.NSObjectProtocol {
-  @objc var engine: Mason.TextEngine { get }
-  @objc var node: Mason.MasonNode { get }
-  @objc func onTextStyleChanged(change: Swift.Int64)
-}
-extension Mason.TextContainer {
-  public func onTextStyleChanged(change: Swift.Int64)
-}
-@_hasMissingDesignatedInitializers @objc(MasonTextEngine) public class TextEngine : ObjectiveC.NSObject {
-  public var textContent: Swift.String {
-    get
-    set
-  }
-  @objc deinit
-}
-@objc(MasonTextType) public enum MasonTextType : Swift.Int, Swift.RawRepresentable, Swift.CustomStringConvertible {
-  case None
-  case P
-  case Span
-  case Code
-  case H1
-  case H2
-  case H3
-  case H4
-  case H5
-  case H6
-  case Li
-  case Blockquote
-  case B
-  case Pre
-  public typealias RawValue = Swift.Int32
-  public var rawValue: Mason.MasonTextType.RawValue {
-    get
-  }
-  public init?(rawValue: Mason.MasonTextType.RawValue)
-  public var description: Swift.String {
-    get
-  }
-}
-public enum InlineSegmentPayload {
-  case text(width: Swift.Float, ascent: Swift.Float, descent: Swift.Float)
-  case inline(id: Swift.OpaquePointer, width: Swift.Float, height: Swift.Float, baseline: Swift.Float)
-}
-@objc @_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers public class MasonTextLayer : QuartzCore.CALayer {
-  @objc override dynamic public init()
-  @objc override dynamic public init(layer: Any)
-  @objc override dynamic public func draw(in context: CoreGraphics.CGContext)
-  @objc deinit
-}
-@_hasMissingDesignatedInitializers @objc(MasonText) @objcMembers @_Concurrency.MainActor @preconcurrency public class MasonText : UIKit.UIView, Mason.MasonEventTarget, Mason.MasonElement, Mason.MasonElementObjc, Mason.TextContainer {
-  @_Concurrency.MainActor @preconcurrency @objc final public let node: Mason.MasonNode
-  @objc @_Concurrency.MainActor @preconcurrency final public let type: Mason.MasonTextType
-  @_Concurrency.MainActor @preconcurrency @objc public var engine: Mason.TextEngine {
-    @objc get
-    @objc set
-  }
-  @_Concurrency.MainActor @preconcurrency @objc override dynamic public class var layerClass: Swift.AnyClass {
-    @objc get
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var textValues: Foundation.NSMutableData {
-    @objc get
-  }
-  @_Concurrency.MainActor @preconcurrency @objc public func onTextStyleChanged(change: Swift.Int64)
-  @_Concurrency.MainActor @preconcurrency @objc public var uiView: UIKit.UIView {
-    @objc get
-  }
-  @_Concurrency.MainActor @preconcurrency @objc public var style: Mason.MasonStyle {
-    @objc get
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason, type textType: Mason.MasonTextType)
-  @objc @_Concurrency.MainActor @preconcurrency public init(mason: Mason.NSCMason)
-  @_Concurrency.MainActor @preconcurrency @objc override dynamic public func setNeedsDisplay()
-  @objc @_Concurrency.MainActor @preconcurrency public func requestLayout()
-  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView)
-  @objc @_Concurrency.MainActor @preconcurrency public func addView(_ view: UIKit.UIView, at: Swift.Int)
-  @_Concurrency.MainActor @preconcurrency public var textOverflow: Mason.TextOverflow {
-    get
-    set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var textOverflowCompat: Mason.TextOverflowCompat {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var color: Swift.UInt32 {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public func setColor(ui color: UIKit.UIColor)
-  @objc @_Concurrency.MainActor @preconcurrency public var backgroundColorValue: Swift.UInt32 {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public func setBackgroundColor(ui color: UIKit.UIColor)
-  @objc @_Concurrency.MainActor @preconcurrency public var decorationColor: Swift.UInt32 {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public func setDecorationColor(ui color: UIKit.UIColor)
-  @objc @_Concurrency.MainActor @preconcurrency public var decorationLine: Mason.DecorationLine {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var fontSize: Swift.Int32 {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var fontStyle: Mason.FontStyle {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public func setFontStyle(_ style: Mason.FontStyle, slant: Swift.Int32)
-  @objc @_Concurrency.MainActor @preconcurrency public var fontWeight: Swift.String {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var textTransform: Mason.TextTransform {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var whiteSpace: Mason.WhiteSpace {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var textWrap: Mason.TextWrap {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var lineHeight: Swift.Float {
-    @objc get
-    @objc set
-  }
-  @objc @_Concurrency.MainActor @preconcurrency public var textContent: Swift.String {
-    @objc get
-    @objc set
-  }
-  @objc deinit
-}
-extension Mason.MasonText {
-  @objc @discardableResult
-  @_Concurrency.MainActor @preconcurrency dynamic public func removeChild(_ child: Mason.MasonNode) -> Mason.MasonNode?
-}
-extension Mason.MasonText {
-  @objc @_Concurrency.MainActor @preconcurrency dynamic public func addChild(_ child: Mason.MasonNode)
-}
-@objc public protocol MasonCharacterData {
-  @objc var data: Swift.String { get set }
-  @objc var length: Swift.Int { get }
-  @objc @discardableResult
-  func appendData(_ s: Swift.String) -> Self
-  @objc @discardableResult
-  func insertData(_ s: Swift.String, at offset: Swift.Int) -> Self
-  @objc @discardableResult
-  func deleteData(offset: Swift.Int, count: Swift.Int) -> Self
-  @objc @discardableResult
-  func replaceData(offset: Swift.Int, count: Swift.Int, with s: Swift.String) -> Self
-  @objc func substringData(offset: Swift.Int, count: Swift.Int) -> Swift.String
-  @objc @discardableResult
-  func deleteData(range: Foundation.NSRange) -> Self
-  @objc @discardableResult
-  func replaceData(range: Foundation.NSRange, with s: Swift.String) -> Self
-}
-@_hasMissingDesignatedInitializers @objc(MasonTextNode) @objcMembers public class MasonTextNode : Mason.MasonNode, Mason.MasonCharacterData {
-  @objc public var data: Swift.String
-  @objc public init(mason doc: Mason.NSCMason, data text: Swift.String, attributes attrs: [Foundation.NSAttributedString.Key : Any]? = nil)
-  @objc override dynamic public func appendChild(_ child: Mason.MasonNode)
-  @objc public var length: Swift.Int {
-    @objc get
-  }
-  @objc public func substringData(offset: Swift.Int, count: Swift.Int) -> Swift.String
-  @discardableResult
-  @objc public func appendData(_ s: Swift.String) -> Self
-  @discardableResult
-  @objc public func insertData(_ s: Swift.String, at offset: Swift.Int) -> Self
-  @discardableResult
-  @objc public func deleteData(offset: Swift.Int, count: Swift.Int) -> Self
-  @discardableResult
-  @objc public func replaceData(offset: Swift.Int, count: Swift.Int, with s: Swift.String) -> Self
-  @discardableResult
-  @objc public func deleteData(range: Foundation.NSRange) -> Self
-  @discardableResult
-  @objc public func replaceData(range: Foundation.NSRange, with s: Swift.String) -> Self
-  @objc deinit
-}
-extension Mason.MasonTextNode {
-  @objc dynamic public func attributed() -> Foundation.NSAttributedString
-}
 extension UIKit.UIColor {
   public static func colorFromARGB(_ argb: Swift.UInt32) -> UIKit.UIColor
   public static func colorFromRGBA(_ rgba: Swift.UInt32) -> UIKit.UIColor
@@ -2613,12 +2616,12 @@ extension Mason.NSCFontFaceStatus : Swift.Equatable {}
 extension Mason.NSCFontFaceStatus : Swift.Hashable {}
 extension Mason.CSSBorderRenderer.Side : Swift.Equatable {}
 extension Mason.CSSBorderRenderer.Side : Swift.Hashable {}
+extension Mason.MasonTextType : Swift.Equatable {}
+extension Mason.MasonTextType : Swift.Hashable {}
 extension Mason.MasonNodeType : Swift.Equatable {}
 extension Mason.MasonNodeType : Swift.Hashable {}
 extension Mason.NSCFontFaceSetStatus : Swift.Equatable {}
 extension Mason.NSCFontFaceSetStatus : Swift.Hashable {}
-extension Mason.MasonTextType : Swift.Equatable {}
-extension Mason.MasonTextType : Swift.Hashable {}
 extension UIKit.UIImage.Direction : Swift.Equatable {}
 extension UIKit.UIImage.Direction : Swift.Hashable {}
 extension UIKit.UIImage.ChevronDirection : Swift.Equatable {}

@@ -3,6 +3,7 @@
   xmlns:text="@triniwiz/nativescript-masonkit/text"
   xmlns:scroll="@triniwiz/nativescript-masonkit/scroll"
   xmlns:web="@triniwiz/nativescript-masonkit/web"
+  xmlns:br="@triniwiz/nativescript-masonkit/br"
   >
   <Page.actionBar>
     <ActionBar title="nativescript-masonkit" icon="" class="action-bar"></ActionBar>
@@ -122,8 +123,12 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
 -->
 
 
-<ui:View>
 
+<ui:View>
+<TextField hint="Type here..." textChange="{{ onChange }}"></TextField>
+<text:Text loaded="{{ textLoaded }}"></text:Text>
+
+<!--
 <ui:View class="wrapper">
   <ui:View class="box header">
    <text:Text textContent="Header" />
@@ -139,7 +144,7 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
   
   <ui:View class="box content">
    <text:Text textContent="Content" />
-    <text:Br />
+    <br:Br />
     <text:Text textContent="More content than we had before so this column is now quite tall." />
   </ui:View>
   <ui:View class="box footer">
@@ -147,7 +152,10 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
   </ui:View>
 </ui:View>
 
+-->
+
 <!-- <ui:Input placeholder="Type here..." /> -->
+
 
 </ui:View>
 

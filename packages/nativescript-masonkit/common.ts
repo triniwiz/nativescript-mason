@@ -48,7 +48,8 @@ import {
   verticalAlignProperty,
 } from './properties';
 import { leftProperty } from '@nativescript/core/ui/layouts/absolute-layout';
-import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_ } from './symbols';
+import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_ } from './symbols';
+import { Tree } from './tree';
 
 // Angular zone detection
 declare const Zone: any, kotlin;
@@ -544,26 +545,134 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
+  private _updateTextNode(
+    node,
+    operation: {
+      type: 'add' | 'replace' | 'insert';
+      index?: number;
+      isBreak?: boolean;
+    } = null,
+  ) {
+    let textNode;
+    if (__ANDROID__) {
+      if (node[textNode_]) {
+        (node[textNode_] as org.nativescript.mason.masonkit.TextNode).setData(node.text ?? '');
+        textNode = node[textNode_];
+      } else {
+        textNode = new org.nativescript.mason.masonkit.TextNode(Tree.instance.native as never, node.text ?? '');
+        node[textNode_] = textNode;
+      }
+      if (operation) {
+        switch (operation.type) {
+          case 'add':
+            //@ts-ignore
+            this._view.addChildAt(textNode, this._children.length);
+            //@ts-ignore
+            this._children.push({ [text_]: node.text, [textNode_]: textNode, [textNodeIndex_]: this._children.length });
+            break;
+          case 'replace':
+            //@ts-ignore
+            this._view.replaceChildAt(textNode, operation.index);
+
+            if (this._children.length >= operation.index) {
+              //@ts-ignore
+              this._children[operation.index] = { text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index };
+            } else {
+              //@ts-ignore
+              this._children.push({ text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index });
+            }
+
+            break;
+          case 'insert':
+            //@ts-ignore
+            this._view.addChildAt(textNode, operation.index);
+
+            if (this._children.length >= operation.index) {
+              //@ts-ignore
+              this._children[operation.index] = { text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index };
+            } else {
+              //@ts-ignore
+              this._children.push({ text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index });
+            }
+
+            break;
+        }
+      }
+    }
+
+    if (__APPLE__) {
+      if (node[textNode_]) {
+        (node[textNode_] as MasonTextNode).data = node.text;
+        textNode = node[textNode_];
+        if (operation && 'index' in operation && node[textNodeIndex_] === operation.index) {
+          return;
+        }
+      } else {
+        textNode = MasonTextNode.alloc().initWithMasonDataAttributes(Tree.instance.native as never, node.text, null);
+        node[textNode_] = textNode;
+        node[textNodeIndex_] = operation?.index ?? this._children.length;
+      }
+
+      if (operation) {
+        switch (operation.type) {
+          case 'add':
+            //@ts-ignore
+            this._view.mason_addChildAtNode(textNode, this._children.length);
+
+            //@ts-ignore
+            this._children.push({ [text_]: node.text, [textNode_]: textNode, [textNodeIndex_]: this._children.length });
+
+            break;
+          case 'replace':
+            //@ts-ignore
+            this._view.mason_replaceChildAtNode(textNode, operation.index);
+
+            if (this._children.length >= operation.index) {
+              //@ts-ignore
+              this._children[operation.index] = { text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index };
+            } else {
+              //@ts-ignore
+              this._children.push({ text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index });
+            }
+
+            break;
+          case 'insert':
+            //@ts-ignore
+            this._view.mason_addChildAtNode(textNode, operation.index);
+
+            if (this._children.length >= operation.index) {
+              //@ts-ignore
+              this._children[operation.index] = { text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index };
+            } else {
+              //@ts-ignore
+              this._children.push({ text: node.text, [textNode_]: textNode, [textNodeIndex_]: operation.index });
+            }
+
+            break;
+        }
+      }
+    }
+  }
+
   set text(value: string) {
     if ((frameWork === FrameWork.Vue && global.VUE3_ELEMENT_REF) || (frameWork === FrameWork.React && global.REACT_ELEMENT_REF)) {
       const view_ref = (this[global.VUE3_ELEMENT_REF] as any) ?? (this[global.REACT_ELEMENT_REF] as any);
       if (Array.isArray(view_ref.childNodes)) {
         if (view_ref.childNodes.length === 0) {
-          this.addChild({ [text_]: value });
+          this.replaceChild({ [text_]: value }, 0);
           return;
         }
         if (view_ref.childNodes.length === 1) {
           const node = view_ref.childNodes[0];
           if (node && node.nodeType === 'text') {
-            this.addChild({ [text_]: node.text });
+            this._updateTextNode(node, { type: 'add' });
           }
           return;
         }
 
         (view_ref.childNodes as any[]).forEach((node, index) => {
           if (node.nodeType === 'text') {
-            //  nativeView.replaceChildAt(node.text, index);
-            this.replaceChild({ [text_]: node.text }, index);
+            this._updateTextNode(node, { type: 'replace', index, isBreak: node.nodeName === 'br' });
           }
         });
       }
@@ -587,14 +696,22 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           const existing = this._children[index];
           if (existing && Object.is(existing['node'], node)) {
             // todo direct set text
-            this.replaceChild({ [text_]: node.text, node }, index);
+            this._updateTextNode(node, { type: 'replace', index });
             continue;
           }
-          this.replaceChild({ [text_]: node.text, node }, index);
+          this._updateTextNode(node, { type: 'replace', index });
         } else if (node.nodeName === 'br') {
-          this.replaceChild(node, index);
+          this._updateTextNode(node, { type: 'replace', index, isBreak: true });
         }
       }
+
+      return;
+    }
+    console.warn('Text nodes are not supported in this framework/environment.', this[native_]);
+
+    if (this[native_]) {
+      // @ts-ignore
+      this.textContent = value;
     }
   }
 

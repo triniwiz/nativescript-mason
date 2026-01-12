@@ -30,7 +30,13 @@ public class MasonTextNode: MasonNode, MasonCharacterData {
    
   internal var container: TextContainer?
   
-  public var data: String
+  public var data: String {
+    didSet {
+      if let container = container as? MasonElement {
+        container.requestLayout()
+      }
+    }
+  }
   
   internal var attributes: [NSAttributedString.Key: Any] = [:]
   

@@ -340,6 +340,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       }
       return
     }
+    textLayer.setNeedsDisplay()
     let root = node.getRootNode()
     let view = if(root.type == .document){
       root.document?.documentElement as? MasonElement
@@ -399,7 +400,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       break
     case .P:
       style.display = .Block
-      style.margin = MasonRect(.Points(0), .Points(0), .Points(16 * scale), .Points(16 * scale))
+      style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
       break
     case .Span:
       break
@@ -409,37 +410,37 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       fontSize = 32
       style.display = .Block
       style.font.weight = .bold
-      style.margin = MasonRect(.Points(0), .Points(0), .Points(16 * scale), .Points(16 * scale))
+      style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
       break
     case .H2:
       fontSize = 24
       style.display = .Block
       style.font.weight = .bold
-      style.margin = MasonRect(.Points(0), .Points(0), .Points(14 * scale), .Points(14 * scale))
+      style.margin = MasonRect(.Points(14 * scale), .Points(0), .Points(14 * scale), .Points(0))
       break
     case .H3:
       fontSize = 18
       style.display = .Block
       style.font.weight = .bold
-      style.margin = MasonRect(.Points(0), .Points(0), .Points(12 * scale), .Points(12 * scale))
+      style.margin = MasonRect(.Points(12 * scale), .Points(0), .Points(12 * scale), .Points(0))
       break
     case .H4:
       fontSize = 16
       style.display = .Block
       style.font.weight = .bold
-      style.margin = MasonRect(.Points(0), .Points(0), .Points(10 * scale), .Points(10 * scale))
+      style.margin = MasonRect(.Points(10 * scale), .Points(0), .Points(10 * scale), .Points(0))
       break
     case .H5:
       fontSize = 13
       style.display = .Block
       style.font.weight = .bold
-      style.margin = MasonRect(.Points(0), .Points(0), .Points(8 * scale), .Points(8 * scale))
+      style.margin = MasonRect(.Points(8 * scale), .Points(0), .Points(8 * scale), .Points(0))
       break
     case .H6:
       fontSize = 10
       style.display = .Block
       style.font.weight = .bold
-      style.margin = MasonRect(.Points(0), .Points(0), .Points(6 * scale), .Points(6 * scale))
+      style.margin = MasonRect(.Points(6 * scale), .Points(0), .Points(6 * scale), .Points(0))
       break
     case .Li:
       break

@@ -479,8 +479,17 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let input = root.mason.createInput(.Tel)
     input.placeholder = "Enter text..."
     
+    let view = root.mason.createTextView(type: .P)
+    let data = MasonTextNode(mason: root.mason, data: "")
+    view.append(node: data)
+    input.addEventListener("input") { event in
+      data.data = input.value
+    }
+    
     
     root.append(input)
+    
+    root.append(view)
     
     root.append(text: "\n")
     root.mason_addChildAt(element: mason.createBr(), -1)
@@ -489,7 +498,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     button.value = "Button"
     
     button.addEventListener("click") { event in
-      print(event)
       event.preventDefault()
     }
     
