@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.util.Log
 import android.view.ViewGroup
 import org.nativescript.mason.masonkit.View.Companion.mapMeasureSpec
 import org.nativescript.mason.masonkit.enums.BoxSizing
@@ -175,7 +176,8 @@ class Scroll @JvmOverloads constructor(
       Overflow.Visible -> {
         if (boxing == BoxSizing.BorderBox) {
           // (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
-          layout.width.toInt()
+       //   layout.width.toInt()
+          (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
         } else {
           layout.contentSize.width.toInt()
         }
@@ -190,7 +192,8 @@ class Scroll @JvmOverloads constructor(
       Overflow.Visible -> {
         if (boxing == BoxSizing.BorderBox) {
           //(layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
-          layout.height.toInt()
+//          layout.height.toInt()
+          (layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
         } else {
           layout.contentSize.height.toInt()
         }
