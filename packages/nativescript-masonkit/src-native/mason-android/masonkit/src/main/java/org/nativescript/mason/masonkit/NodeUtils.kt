@@ -86,7 +86,7 @@ internal object NodeUtils {
               (masonView.parent as? ViewGroup)?.removeView(masonView)
             }
 
-            ((parent.view as org.nativescript.mason.masonkit.View).parent as Scroll).addView(masonView)
+            (parent.view as org.nativescript.mason.masonkit.View).addView(masonView)
           } else {
             (parent.view as org.nativescript.mason.masonkit.View).addView(view)
           }
