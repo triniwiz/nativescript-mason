@@ -88,6 +88,10 @@ internal object NodeUtils {
 
             (parent.view as org.nativescript.mason.masonkit.View).addView(masonView)
           } else {
+            if (view.parent != null) {
+              (view.parent as? ViewGroup)?.removeView(view)
+            }
+
             (parent.view as org.nativescript.mason.masonkit.View).addView(view)
           }
         }
