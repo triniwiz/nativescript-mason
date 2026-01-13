@@ -3017,8 +3017,20 @@ public class MasonStyle: NSObject {
     }
     
     if (isDirty != -1) {
+      
+      let element = node.view as? MasonElement
+      
+      if(isDirty > -1){
+        let zIndexDirty = (UInt64(isDirty) & StateKeys.zIndex.rawValue) != 0
+        if(zIndexDirty){
+          element?.uiView.layer.zPosition = CGFloat(zIndex)
+        }
+      }
+      
+      
+      
       isDirty = -1
-      (node.view as? MasonElement)?.requestLayout()
+      element?.requestLayout()
     }
     
   }

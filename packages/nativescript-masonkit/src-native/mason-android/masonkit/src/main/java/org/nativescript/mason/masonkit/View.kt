@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.util.AttributeSet
 import android.util.SparseArray
 import android.util.TypedValue
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import androidx.core.content.withStyledAttributes
@@ -105,6 +106,35 @@ class View @JvmOverloads constructor(
     invalidate()
   }
 
+
+  override fun getChildDrawingOrder(childCount: Int, drawingPosition: Int): Int {
+    val view = zSortedChildren[drawingPosition]
+    return indexOfChild(view)
+  }
+
+
+  override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+    // higher zIndex should receive touch first
+    for (i in zSortedChildren.size - 1 downTo 0) {
+      val child = zSortedChildren[i]
+      if (child.visibility != VISIBLE) continue
+      if (dispatchToChild(child, ev)) return true
+    }
+    return super.dispatchTouchEvent(ev)
+  }
+
+  private fun dispatchToChild(child: android.view.View, ev: MotionEvent): Boolean {
+    val offsetX = scrollX - child.left
+    val offsetY = scrollY - child.top
+
+    ev.offsetLocation(offsetX.toFloat(), offsetY.toFloat())
+    val handled = child.dispatchTouchEvent(ev)
+    ev.offsetLocation(-offsetX.toFloat(), -offsetY.toFloat())
+
+    return handled
+  }
+
+
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     style.mBackground?.layers?.forEach { it.shader = null } // force rebuild on next draw
     style.mBorderRenderer.invalidate()
@@ -187,7 +217,7 @@ class View @JvmOverloads constructor(
       width = if (boxing == BoxSizing.BorderBox) {
         (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
       } else {
-        layout.contentSize.height.toInt()
+        layout.contentSize.width.toInt()
       }
     }
 

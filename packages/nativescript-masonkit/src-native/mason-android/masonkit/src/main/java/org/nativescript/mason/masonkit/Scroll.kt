@@ -12,7 +12,6 @@ class Scroll @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
 ) : TwoDScrollView(context, attrs), Element {
 
-
   internal lateinit var scrollRoot: View
 
   override val view: android.view.View
@@ -30,7 +29,6 @@ class Scroll @JvmOverloads constructor(
       }
     }
     set(value) {}
-
 
   override var enableScrollY: Boolean
     get() {
@@ -138,7 +136,6 @@ class Scroll @JvmOverloads constructor(
     }
   }
 
-
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     // todo cache layout
     val layout = layout()
@@ -180,7 +177,7 @@ class Scroll @JvmOverloads constructor(
           // (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
           layout.width.toInt()
         } else {
-          layout.contentSize.height.toInt()
+          layout.contentSize.width.toInt()
         }
       }
 
@@ -209,7 +206,7 @@ class Scroll @JvmOverloads constructor(
 
   override fun generateDefaultLayoutParams(): LayoutParams {
     return LayoutParams(
-      LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
+      LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT
     )
   }
 }

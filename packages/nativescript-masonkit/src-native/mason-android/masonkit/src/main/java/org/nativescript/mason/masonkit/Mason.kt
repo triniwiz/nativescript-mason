@@ -199,7 +199,6 @@ class Mason {
     return node
   }
 
-
   fun createView(context: Context): View {
     return View(context, this)
   }

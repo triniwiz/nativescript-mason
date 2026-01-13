@@ -617,8 +617,8 @@ export const leftProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'left',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
-  valueConverter: masonLengthParse,
+  equalityComparer: CorePercentLength.equals,
+  valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -632,8 +632,8 @@ export const rightProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'right',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
-  valueConverter: masonLengthParse,
+  equalityComparer: CorePercentLength.equals,
+  valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -647,8 +647,8 @@ export const topProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'top',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
-  valueConverter: masonLengthParse,
+  equalityComparer: CorePercentLength.equals,
+  valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {
@@ -662,8 +662,8 @@ export const bottomProperty = new CssProperty<Style, LengthAuto>({
   cssName: 'bottom',
   defaultValue: 'auto',
   // @ts-ignore
-  equalityComparer: CoreLength.equals,
-  valueConverter: masonLengthParse,
+  equalityComparer: CorePercentLength.equals,
+  valueConverter: masonLengthPercentParse,
   valueChanged(target, oldValue, newValue) {
     const view = getViewStyle(target.viewRef);
     if (view) {

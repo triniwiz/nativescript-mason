@@ -468,7 +468,48 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   //  button()
     
    // grid_template_areas_500(body)
-    input()
+   // input()
+    zOrder()
+  }
+  
+  func zOrder(){
+    
+    let root = mason.createView()
+    body.append(root)
+    
+    
+    let a = mason.createView()
+    a.style.size = .init(.Points(100), .Points(100))
+    a.append(text: "A")
+    a.style.background = "red"
+    a.style.zIndex = 3
+    a.style.position = .Absolute
+    
+    let b = mason.createView()
+    b.style.size = .init(.Points(200), .Points(200))
+    b.append(text: "B")
+    b.style.background = "green"
+    b.style.zIndex = 2
+    b.style.position = .Absolute
+    
+    
+    
+    let c = mason.createView()
+    c.style.zIndex = 1
+    c.style.position = .Absolute
+    c.style.size = .init(.Points(300), .Points(300))
+    c.append(text: "C")
+    c.style.background = "yellow"
+    
+    root.append(a)
+    root.append(b)
+    root.append(c)
+
+
+
+    
+    self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
+    
   }
   
   func input(){

@@ -29,6 +29,7 @@ import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.JustifyContent
 import org.nativescript.mason.masonkit.enums.ObjectFit
 import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.VerticalAlign
@@ -93,8 +94,57 @@ class GridActivity : AppCompatActivity() {
     // verticalAlignImages(body)
     // radius(body)
     // textShadow(body)
-    input(body)
+    // input(body)
+    zOrder(body)
     setContentView(body)
+  }
+
+
+  fun zOrder(body: Scroll) {
+
+    val root = mason.createView(this)
+    body.append(root)
+
+
+
+    val a = mason.createView(this)
+    a.append("A")
+
+    a.configure {
+      a.style.size = Size(Dimension.Points(100F), Dimension.Points(100F))
+      a.style.background = "red"
+      a.style.zIndex = 3
+      a.style.position = Position.Absolute
+      a.style.inset = Rect(
+        LengthPercentageAuto.Points(200f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(0f),
+        LengthPercentageAuto.Points(200f)
+      )
+    }
+
+    val b = mason.createView(this)
+    b.style.size = Size(Dimension.Points(200F), Dimension.Points(200F))
+    b.append("B")
+    b.style.background = "green"
+    b.style.zIndex = 2
+    b.style.position = Position.Absolute
+
+
+    val c = mason.createView(this)
+    c.style.zIndex = 1
+    c.style.position = Position.Absolute
+    c.style.size = Size(Dimension.Points(300F), Dimension.Points(300F))
+    c.append("C")
+    c.style.background = "yellow"
+
+    root.append(a)
+    root.append(b)
+    root.append(c)
+
+
+
+
   }
 
   fun input(body: Scroll) {

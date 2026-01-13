@@ -32,6 +32,7 @@ import {
   gridTemplateRowsProperty,
   justifyItemsProperty,
   justifySelfProperty,
+  leftProperty,
   marginProperty,
   maxHeightProperty,
   maxWidthProperty,
@@ -47,7 +48,6 @@ import {
   topProperty,
   verticalAlignProperty,
 } from './properties';
-import { leftProperty } from '@nativescript/core/ui/layouts/absolute-layout';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_ } from './symbols';
 import { Tree } from './tree';
 
