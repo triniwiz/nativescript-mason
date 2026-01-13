@@ -8,6 +8,7 @@ import android.view.View
 import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
+import org.nativescript.mason.masonkit.events.Event
 
 class Button @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
@@ -105,6 +106,16 @@ class Button @JvmOverloads constructor(
     background = null
     isClickable = true
     isFocusable = true
+
+    setOnClickListener {
+      node.mason.dispatch(
+        Event(
+          type = "click",
+        ).apply {
+          target = this@Button
+        }
+      )
+    }
 
     node.style.setStyleChangeListener(this)
   }

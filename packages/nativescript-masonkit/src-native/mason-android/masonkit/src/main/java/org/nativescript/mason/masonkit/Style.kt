@@ -227,6 +227,7 @@ object StyleKeys {
   const val VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496
   const val VERTICAL_ALIGN_ENUM_OFFSET = 500
   const val FIRST_BASELINE_OFFSET = 504
+  const val Z_INDEX = 508
 }
 
 @JvmInline
@@ -278,6 +279,8 @@ value class StateKeys internal constructor(val bits: Long) {
     val FLOAT = StateKeys(1L shl 43)
     val CLEAR = StateKeys(1L shl 44)
     val OBJECT_FIT = StateKeys(1L shl 45)
+    val Z_INDEX = StateKeys(1L shl 46)
+
   }
 
   infix fun or(other: StateKeys): StateKeys = StateKeys(bits or other.bits)
@@ -501,7 +504,7 @@ class Style internal constructor(internal var node: Node) {
     isValueInitialized = true
     if (node.isPlaceholder) {
       // use the same capacity set in rust
-      return@lazy ByteBuffer.allocateDirect(508).apply {
+      return@lazy ByteBuffer.allocateDirect(512).apply {
         order(ByteOrder.nativeOrder());
 
         // default ratio to NAN
@@ -780,6 +783,15 @@ class Style internal constructor(internal var node: Node) {
         }
       )
       setOrAppendState(StateKeys.FORCE_INLINE)
+    }
+
+  var zIndex: Int
+    get() {
+      return values.getInt(StyleKeys.Z_INDEX)
+    }
+    set(value) {
+      values.putInt(StyleKeys.Z_INDEX, value)
+      setOrAppendState(StateKeys.Z_INDEX)
     }
 
 
@@ -2638,6 +2650,7 @@ class Style internal constructor(internal var node: Node) {
     val borderRadius = isDirty and StateKeys.BORDER_RADIUS.bits
     val borderStyle = isDirty and StateKeys.BORDER_STYLE.bits
     val borderColor = isDirty and StateKeys.BORDER_COLOR.bits
+    val zIndex = isDirty and StateKeys.Z_INDEX.bits
 
     if (borderState != 0L || borderRadius != 0L || borderStyle != 0L || borderColor != 0L) {
       mBorderRenderer.invalidate()
@@ -2764,12 +2777,22 @@ class Style internal constructor(internal var node: Node) {
         gridState.gridArea,
         gridState.gridTemplateAreas
       )
+
+      if (zIndex != 0L) {
+        (node.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
+      }
+
       resetState()
       (node.view as? Element)?.invalidateLayout()
       return
     }
 
     if (isDirty != -1L) {
+
+      if (zIndex != 0L) {
+        (node.view as? org.nativescript.mason.masonkit.View)?.onChildZIndexChanged()
+      }
+
       resetState()
       (node.view as? Element)?.invalidateLayout()
       return

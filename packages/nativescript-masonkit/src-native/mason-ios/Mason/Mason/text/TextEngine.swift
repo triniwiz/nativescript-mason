@@ -675,8 +675,6 @@ public class TextEngine: NSObject {
         }
       }
     }
-    
-    print(linesCount, text.string)
 
     // Draw main text (no shadow)
     for i in 0..<linesCount {

@@ -5980,6 +5980,7 @@ declare module org {
 						public static Strong: org.nativescript.mason.masonkit.enums.TextType;
 						public static Em: org.nativescript.mason.masonkit.enums.TextType;
 						public static I: org.nativescript.mason.masonkit.enums.TextType;
+						public static A: org.nativescript.mason.masonkit.enums.TextType;
 						public getCssValue(): string;
 						public static valueOf(value: string): org.nativescript.mason.masonkit.enums.TextType;
 						public static values(): androidNative.Array<org.nativescript.mason.masonkit.enums.TextType>;

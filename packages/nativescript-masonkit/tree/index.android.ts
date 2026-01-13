@@ -27,6 +27,12 @@ enum TextType {
   Blockquote = 11,
 
   B = 12,
+
+  Pre = 13,
+  Strong = 14,
+  Em = 15,
+  I = 16,
+  A = 17,
 }
 
 export class Tree {
@@ -79,6 +85,16 @@ export class Tree {
         return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Blockquote);
       case TextType.B:
         return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.B);
+      case TextType.Pre:
+        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Pre);
+      case TextType.Strong:
+        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Strong);
+      case TextType.Em:
+        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.Em);
+      case TextType.I:
+        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.I);
+      case TextType.A:
+        return this.native.createTextView(context, org.nativescript.mason.masonkit.enums.TextType.A);
       default:
         return this.native.createTextView(context);
     }

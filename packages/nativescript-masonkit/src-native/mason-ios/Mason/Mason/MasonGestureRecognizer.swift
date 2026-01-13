@@ -15,7 +15,11 @@ class MasonGestureRecognizer: UIGestureRecognizer {
   private let isButton: Bool
   init(targetView: UIView) {
     self.targetView = targetView
-    isButton = targetView is UIButton
+    if let a = targetView as? MasonText {
+      isButton = a.type == .A
+    }else {
+      isButton = targetView is UIButton || targetView is Button
+    }
     super.init(target: nil, action: nil)
   }
   

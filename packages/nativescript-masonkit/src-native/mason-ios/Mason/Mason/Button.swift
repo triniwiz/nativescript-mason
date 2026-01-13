@@ -106,6 +106,10 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
     isOpaque = false
     style.setStyleChangeListener(listener: self)
     
+    let recognizer = MasonGestureRecognizer(targetView: self)
+    recognizer.owner = self
+    addGestureRecognizer(recognizer)
+    
     let scale = Float((window?.screen.scale ?? CGFloat(NSCMason.scale)))
     let x =  6 * scale
     let y =  scale

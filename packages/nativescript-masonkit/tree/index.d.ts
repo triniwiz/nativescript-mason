@@ -26,6 +26,12 @@ const enum TextType {
   Blockquote = 11,
 
   B = 12,
+
+  Pre = 13,
+  Strong = 14,
+  Em = 15,
+  I = 16,
+  A = 17,
 }
 
 export class Tree {

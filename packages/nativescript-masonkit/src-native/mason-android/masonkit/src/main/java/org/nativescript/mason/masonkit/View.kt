@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.util.SparseArray
 import android.util.TypedValue
 import android.view.ViewGroup
@@ -29,8 +28,7 @@ import kotlin.math.roundToInt
 
 class View @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0, override: Boolean = false
-) : ViewGroup(context, attrs, defStyleAttr), Element,
-  StyleChangeListener {
+) : ViewGroup(context, attrs, defStyleAttr), Element, StyleChangeListener {
 
   override lateinit var node: Node
 
@@ -50,6 +48,8 @@ class View @JvmOverloads constructor(
     node.style.setStyleChangeListener(this)
   }
 
+  private val zSortedChildren = mutableListOf<android.view.View>()
+
   init {
     if (!override) {
       if (!::node.isInitialized) {
@@ -62,6 +62,47 @@ class View @JvmOverloads constructor(
     // css visible default
     clipChildren = false
     clipToPadding = false
+
+    isChildrenDrawingOrderEnabled = true
+  }
+
+
+  override fun onViewAdded(child: android.view.View) {
+    super.onViewAdded(child)
+    onChildStructureChangedSafe()
+  }
+
+  override fun onViewRemoved(child: android.view.View) {
+    super.onViewRemoved(child)
+    onChildStructureChangedSafe()
+  }
+
+  private var inMutation = false
+
+  private fun onChildStructureChangedSafe() {
+    if (inMutation) return
+    inMutation = true
+    rebuildZOrder()
+    inMutation = false
+  }
+
+  internal fun onChildZIndexChanged() {
+    rebuildZOrder()
+  }
+
+  private fun rebuildZOrder() {
+    zSortedChildren.clear()
+    for (i in 0 until childCount) {
+      zSortedChildren.add(getChildAt(i))
+    }
+
+    zSortedChildren.sortWith(compareBy<android.view.View> {
+      (it as? Element)?.style?.zIndex ?: 0
+    }.thenBy {
+      indexOfChild(it)
+    })
+
+    invalidate()
   }
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -144,9 +185,7 @@ class View @JvmOverloads constructor(
 
     if (style.overflowX == Overflow.Visible) {
       width = if (boxing == BoxSizing.BorderBox) {
-        (layout.x + layout.contentSize.width
-          + layout.border.right + layout.border.left
-          + layout.padding.right + layout.padding.left).toInt()
+        (layout.x + layout.contentSize.width + layout.border.right + layout.border.left + layout.padding.right + layout.padding.left).toInt()
       } else {
         layout.contentSize.height.toInt()
       }
@@ -154,9 +193,7 @@ class View @JvmOverloads constructor(
 
     if (style.overflowY == Overflow.Visible) {
       height = if (boxing == BoxSizing.BorderBox) {
-        (layout.y + layout.contentSize.height
-          + layout.border.top + layout.border.bottom
-          + layout.padding.top + layout.padding.bottom).toInt()
+        (layout.y + layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
       } else {
         layout.contentSize.height.toInt()
       }
@@ -193,6 +230,8 @@ class View @JvmOverloads constructor(
     }
 
     node.appendChild(childNode)
+
+    onChildStructureChangedSafe()
   }
 
   override fun addView(child: android.view.View?, index: Int) {
@@ -218,6 +257,8 @@ class View @JvmOverloads constructor(
     }
 
     node.addChildAt(childNode, index)
+
+    onChildStructureChangedSafe()
   }
 
   override fun addView(child: android.view.View?, params: ViewGroup.LayoutParams?) {
@@ -241,6 +282,8 @@ class View @JvmOverloads constructor(
     }
 
     node.appendChild(childNode)
+
+    onChildStructureChangedSafe()
   }
 
   override fun addView(child: android.view.View?, index: Int, params: ViewGroup.LayoutParams?) {
@@ -265,6 +308,8 @@ class View @JvmOverloads constructor(
     }
 
     node.addChildAt(childNode, index)
+
+    onChildStructureChangedSafe()
   }
 
   override fun removeView(view: android.view.View?) {
@@ -288,6 +333,8 @@ class View @JvmOverloads constructor(
     }
 
     node.removeChild(childNode)
+
+    onChildStructureChangedSafe()
   }
 
   override fun removeViewAt(index: Int) {
@@ -297,6 +344,8 @@ class View @JvmOverloads constructor(
       return
     }
     node.removeChildAt(index)
+
+    onChildStructureChangedSafe()
   }
 
   override fun removeAllViews() {
@@ -306,6 +355,8 @@ class View @JvmOverloads constructor(
       return
     }
     node.removeChildren()
+
+    onChildStructureChangedSafe()
   }
 
   override fun removeViewInLayout(view: android.view.View) {

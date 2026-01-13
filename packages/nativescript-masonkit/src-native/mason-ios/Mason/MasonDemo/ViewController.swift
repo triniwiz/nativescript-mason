@@ -476,6 +476,26 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     body.append(root)
     root.style.padding = MasonRect(uniform: .Points(40))
     
+    let link = mason.createTextView(type: .A)
+    root.append(link)
+    link.textContent = "Google"
+    
+    link.addEventListener("click") { event in
+      print("????")
+    }
+    
+    
+    let btn = mason.createButton()
+    root.append(btn)
+    btn.textContent = "Button Element"
+    
+    btn.addEventListener("click") { event in
+      print("clicked button")
+    }
+    
+    
+    root.append(mason.createBr())
+    
     let input = root.mason.createInput(.Tel)
     input.placeholder = "Enter text..."
     

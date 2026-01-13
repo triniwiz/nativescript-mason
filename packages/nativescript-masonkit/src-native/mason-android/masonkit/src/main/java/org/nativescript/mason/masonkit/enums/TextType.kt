@@ -4,7 +4,7 @@ enum class TextType(val value: Int) {
   None(0), P(1), Span(2), Code(3), H1(4), H2(5), H3(6), H4(7), H5(8), H6(9), Li(10), Blockquote(11), B(
     12
   ),
-  Pre(13), Strong(14), Em(15), I(16);
+  Pre(13), Strong(14), Em(15), I(16), A(17);
 
   val cssValue: String
     get() {
@@ -26,6 +26,7 @@ enum class TextType(val value: Int) {
         Strong -> "strong"
         Em -> "em"
         I -> "i"
+        A -> "A"
       }
     }
 
@@ -49,6 +50,7 @@ enum class TextType(val value: Int) {
         14 -> Strong
         15 -> Em
         16 -> I
+        17 -> A
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

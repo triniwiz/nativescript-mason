@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AddChildFromBuilder, CustomLayoutView, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty } from '@nativescript/core';
+import { AddChildFromBuilder, CustomLayoutView, View as NSView, ViewBase as NSViewBase, getViewById, Property, widthProperty, heightProperty, View, CoreTypes, Length as CoreLength, PercentLength as CorePercentLength, marginLeftProperty, marginRightProperty, marginTopProperty, marginBottomProperty, minWidthProperty, minHeightProperty, fontSizeProperty, fontWeightProperty, fontStyleProperty, colorProperty, Color, lineHeightProperty, letterSpacingProperty, textAlignmentProperty, borderLeftWidthProperty, borderTopWidthProperty, borderRightWidthProperty, borderBottomWidthProperty, backgroundColorProperty, paddingLeftProperty, paddingRightProperty, paddingTopProperty, paddingBottomProperty, zIndexProperty } from '@nativescript/core';
 import { Display, Gap, GridAutoFlow, JustifyItems, JustifySelf, Length, LengthAuto, Overflow, Position, BoxSizing, VerticalAlign, FlexDirection } from '.';
 import { alignItemsProperty, alignSelfProperty, flexDirectionProperty, flexGrowProperty, flexShrinkProperty, flexWrapProperty, justifyContentProperty } from '@nativescript/core/ui/layouts/flexbox-layout';
 import { _forceStyleUpdate, _setGridAutoRows } from './utils';
@@ -486,6 +486,15 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     this._children.splice(0);
   }
 
+  [zIndexProperty.setNative](value: number) {
+    // @ts-ignore
+    const style = this._styleHelper;
+    if (style) {
+      // @ts-ignore
+      style.zIndex = value;
+    }
+  }
+
   set verticalAlign(value) {
     this.style.verticalAlign = value;
   }
@@ -707,7 +716,6 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
 
       return;
     }
-    console.warn('Text nodes are not supported in this framework/environment.', this[native_]);
 
     if (this[native_]) {
       // @ts-ignore

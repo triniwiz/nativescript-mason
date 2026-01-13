@@ -180,6 +180,7 @@ enum StyleKeys {
   VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496,
   VERTICAL_ALIGN_ENUM_OFFSET = 500,
   FIRST_BASELINE_OFFSET = 504,
+  Z_INDEX = 508,
 }
 
 enum TextStyleKeys {
@@ -298,6 +299,11 @@ class StateKeys {
   static readonly BORDER_STYLE = new StateKeys(1n << 40n);
   static readonly BORDER_RADIUS = new StateKeys(1n << 41n);
   static readonly BORDER_COLOR = new StateKeys(1n << 42n);
+
+  static readonly FLOAT = new StateKeys(1n << 43n);
+  static readonly CLEAR = new StateKeys(1n << 44n);
+  static readonly OBJECT_FIT = new StateKeys(1n << 45n);
+  static readonly Z_INDEX = new StateKeys(1n << 46n);
 
   or(other: StateKeys): StateKeys {
     return new StateKeys(this.bits | other.bits);
@@ -3214,6 +3220,15 @@ export class Style {
     }
   }
 
+  get zIndex(): number {
+    return getInt32(this.style_view, StyleKeys.Z_INDEX);
+  }
+
+  set zIndex(value: number) {
+    setInt32(this.style_view, StyleKeys.Z_INDEX, value);
+    this.setOrAppendState(StateKeys.Z_INDEX);
+  }
+
   toJSON() {
     return {
       display: this.display,
@@ -3264,6 +3279,7 @@ export class Style {
       gridTemplateRows: this.gridTemplateRows,
       gridTemplateColumns: this.gridTemplateColumns,
       filter: this.filter,
+      zIndex: this.zIndex,
     };
   }
 }

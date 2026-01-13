@@ -30,6 +30,12 @@ const enum TextType {
   Blockquote = 11,
 
   B = 12,
+
+  Pre = 13,
+  Strong = 14,
+  Em = 15,
+  I = 16,
+  A = 17,
 }
 
 @CSSType('Text')
@@ -86,6 +92,22 @@ export class Text extends TextBase {
           break;
         case TextType.B:
           view = Tree.instance.createTextView(context, TextType.B as number) as never;
+          break;
+
+        case TextType.Pre:
+          view = Tree.instance.createTextView(context, TextType.Pre as number) as never;
+          break;
+        case TextType.Strong:
+          view = Tree.instance.createTextView(context, TextType.Strong as number) as never;
+          break;
+        case TextType.Em:
+          view = Tree.instance.createTextView(context, TextType.Em as number) as never;
+          break;
+        case TextType.I:
+          view = Tree.instance.createTextView(context, TextType.I as number) as never;
+          break;
+        case TextType.A:
+          view = Tree.instance.createTextView(context, TextType.A as number) as never;
           break;
         default:
           view = Tree.instance.createTextView(context, TextType.None as number) as never;

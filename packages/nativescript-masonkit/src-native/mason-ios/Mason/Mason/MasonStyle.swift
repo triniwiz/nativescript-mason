@@ -217,6 +217,7 @@ struct StyleKeys {
   static let VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496
   static let VERTICAL_ALIGN_ENUM_OFFSET = 500
   static let FIRST_BASELINE_OFFSET = 504
+  static let Z_INDEX = 508
 }
 
 
@@ -267,9 +268,13 @@ internal struct StateKeys: OptionSet {
   static let minContentHeight = StateKeys(rawValue: 1 << 37)
   static let maxContentWidth  = StateKeys(rawValue: 1 << 38)
   static let maxContentHeight = StateKeys(rawValue: 1 << 39)
-  static let float = StateKeys(rawValue: 1 << 40)
-  static let clear = StateKeys(rawValue: 1 << 41)
-  static let objectFit = StateKeys(rawValue: 1 << 42)
+  static let borderStyle = StateKeys(rawValue: 1 << 40)
+  static let borderRadius = StateKeys(rawValue: 1 << 41)
+  static let borderColor = StateKeys(rawValue: 1 << 42)
+  static let float = StateKeys(rawValue: 1 << 43)
+  static let clear = StateKeys(rawValue: 1 << 44)
+  static let objectFit = StateKeys(rawValue: 1 << 45)
+  static let zIndex = StateKeys(rawValue: 1 << 46)
 }
 
 
@@ -830,6 +835,19 @@ public class MasonStyle: NSObject {
   
   internal func resetAllBorders(){
     mBorderRender.resetAllBorders()
+  }
+  
+  
+  // MARK: - zIndex
+  
+  public var zIndex: Int32 {
+    get {
+      return getInt32(StyleKeys.Z_INDEX)
+    }
+    set {
+      setInt32(StyleKeys.Z_INDEX, newValue)
+      setOrAppendState(.zIndex)
+    }
   }
   
   
@@ -2982,6 +3000,15 @@ public class MasonStyle: NSObject {
         gridState.gridArea,
         gridState.gridTemplateAreas,
       )
+      
+      let element = node.view as? MasonElement
+      
+      if(isDirty > -1){
+        let zIndexDirty = (UInt64(isDirty) & StateKeys.zIndex.rawValue) != 0
+        if(zIndexDirty){
+          element?.uiView.layer.zPosition = CGFloat(zIndex)
+        }
+      }
       
       isSlowDirty = false
       isDirty = -1

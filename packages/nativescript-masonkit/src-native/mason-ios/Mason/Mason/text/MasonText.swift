@@ -96,6 +96,10 @@ public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
   case Blockquote
   case B
   case Pre
+  case Strong
+  case Em
+  case I
+  case A
   
   public typealias RawValue = Int32
   
@@ -129,9 +133,17 @@ public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
       return 12
     case .Pre:
       return 13
+    case .Strong:
+      return 14
+    case .Em:
+      return 15
+    case .I:
+      return 16
+    case .A:
+      return 17
     }
   }
-  
+
   
   public init?(rawValue: RawValue) {
     switch rawValue {
@@ -163,6 +175,14 @@ public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
       self = .B
     case 13:
       self = .Pre
+    case 14:
+      self = .Strong
+    case 15:
+      self = .Em
+    case 16:
+      self = .I
+    case 17:
+      self = .A
     default:
       return nil
     }
@@ -198,6 +218,14 @@ public enum MasonTextType: Int, RawRepresentable, CustomStringConvertible {
       return "b"
     case .Pre:
       return "pre"
+    case .Strong:
+      return "strong"
+    case .Em:
+      return "em"
+    case .I:
+      return "i"
+    case .A:
+      return "a"
     }
   }
   
@@ -450,12 +478,22 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       style.display = .Block
       style.margin = MasonRect(.Points(indent), .Points(0), .Points(indent), .Points(0))
       break
-    case .B:
+    case .B, .Strong:
       style.font.weight = .bold
       break
     case .Pre:
       style.font = NSCFontFace(family: "ui-monospace")
       whiteSpace = .Pre
+      break
+    case .I, .Em:
+      style.font.style = "italic"
+      break
+    case .A:
+      node.style.display = Display.Inline
+      node.style.decorationLine = DecorationLine.Underline
+      let recognizer = MasonGestureRecognizer(targetView: self)
+      recognizer.owner = self
+      addGestureRecognizer(recognizer)
       break
     }
     

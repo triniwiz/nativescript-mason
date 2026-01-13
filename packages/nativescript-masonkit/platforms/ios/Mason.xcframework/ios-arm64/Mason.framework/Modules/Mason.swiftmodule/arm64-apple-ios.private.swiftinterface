@@ -988,6 +988,10 @@ public let MasonLengthPercentageRectZero: Mason.MasonRect<Mason.MasonLengthPerce
     @objc set
   }
   @objc public init(node: Mason.MasonNode)
+  @objc public var zIndex: Swift.Int32 {
+    @objc get
+    @objc set
+  }
   @objc public var verticalAlign: Mason.MasonVerticalAlignValue {
     @objc get
     @objc set
@@ -1514,6 +1518,10 @@ extension Mason.TextContainer {
   case Blockquote
   case B
   case Pre
+  case Strong
+  case Em
+  case I
+  case A
   public typealias RawValue = Swift.Int32
   public var rawValue: Mason.MasonTextType.RawValue {
     get

@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.os.Build
 import android.util.AttributeSet
 import android.util.TypedValue
+import android.view.KeyEvent
 import android.view.View
 import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.Styles.TextJustify
@@ -13,6 +14,7 @@ import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
+import org.nativescript.mason.masonkit.events.Event
 import java.nio.ByteBuffer
 
 val white_space = "\\s+".toRegex()
@@ -54,6 +56,7 @@ class TextView @JvmOverloads constructor(
   ) {
     this.type = type
     setup(mason, isAnonymous)
+    z
   }
 
   init {
@@ -218,6 +221,36 @@ class TextView @JvmOverloads constructor(
           style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           node.style.margin = margin(16f, 16f)
+        }
+
+        TextType.A -> {
+          style.font = FontFace("sans-serif")
+          node.style.display = Display.Inline
+          node.style.decorationLine = Styles.DecorationLine.Underline
+
+
+          isClickable = true
+          isFocusable = true
+          isFocusableInTouchMode = true
+
+          setOnClickListener {
+            node.mason.dispatch(
+              Event(
+                type = "click",
+              ).apply {
+                target = this@TextView
+              }
+            )
+          }
+
+          setOnKeyListener { v, keyCode, event ->
+            if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP) {
+              performClick()
+              true
+            } else {
+              false
+            }
+          }
         }
 
         else -> {}

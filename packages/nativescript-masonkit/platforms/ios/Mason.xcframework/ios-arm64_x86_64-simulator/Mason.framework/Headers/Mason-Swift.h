@@ -1000,6 +1000,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, strong) NSMutableData * _Nonnull values;
 @property (nonatomic, strong) NSMutableData * _Nonnull textValues;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)node OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic) int32_t zIndex;
 @property (nonatomic, strong) MasonVerticalAlignValue * _Nonnull verticalAlign;
 @property (nonatomic) enum MasonObjectFit objectFit;
 @property (nonatomic, getter=float, setter=setFloat:) enum MasonFloat float_;
@@ -1214,6 +1215,10 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
   MasonTextTypeBlockquote = 11,
   MasonTextTypeB = 12,
   MasonTextTypePre = 13,
+  MasonTextTypeStrong = 14,
+  MasonTextTypeEm = 15,
+  MasonTextTypeI = 16,
+  MasonTextTypeA = 17,
 };
 
 SWIFT_CLASS_NAMED("MasonUIView")
@@ -2727,6 +2732,7 @@ SWIFT_CLASS_NAMED("MasonStyle")
 @property (nonatomic, strong) NSMutableData * _Nonnull values;
 @property (nonatomic, strong) NSMutableData * _Nonnull textValues;
 - (nonnull instancetype)initWithNode:(MasonNode * _Nonnull)node OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic) int32_t zIndex;
 @property (nonatomic, strong) MasonVerticalAlignValue * _Nonnull verticalAlign;
 @property (nonatomic) enum MasonObjectFit objectFit;
 @property (nonatomic, getter=float, setter=setFloat:) enum MasonFloat float_;
@@ -2941,6 +2947,10 @@ typedef SWIFT_ENUM_NAMED(NSInteger, MasonTextType, "MasonTextType", open) {
   MasonTextTypeBlockquote = 11,
   MasonTextTypeB = 12,
   MasonTextTypePre = 13,
+  MasonTextTypeStrong = 14,
+  MasonTextTypeEm = 15,
+  MasonTextTypeI = 16,
+  MasonTextTypeA = 17,
 };
 
 SWIFT_CLASS_NAMED("MasonUIView")

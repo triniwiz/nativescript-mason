@@ -1983,7 +1983,12 @@ declare const enum MasonTextType {
 
 	B = 12,
 
-	Pre = 13
+	Pre = 13,
+
+	Strong = 14,
+	Em = 15,
+	I = 16,
+	A = 17,
 }
 
 declare const enum MasonTextWrap {

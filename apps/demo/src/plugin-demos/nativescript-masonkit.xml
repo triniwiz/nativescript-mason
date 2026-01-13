@@ -1,13 +1,13 @@
-<Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="navigatingTo" class="p"
-  xmlns:ui="@triniwiz/nativescript-masonkit"
+<Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="navigatingTo"
+  xmlns:ui="@triniwiz/nativescript-masonkit/view"
   xmlns:text="@triniwiz/nativescript-masonkit/text"
   xmlns:scroll="@triniwiz/nativescript-masonkit/scroll"
   xmlns:web="@triniwiz/nativescript-masonkit/web"
   xmlns:br="@triniwiz/nativescript-masonkit/br"
   >
-  <Page.actionBar>
+  <!-- <Page.actionBar>
     <ActionBar title="nativescript-masonkit" icon="" class="action-bar"></ActionBar>
-  </Page.actionBar>
+  </Page.actionBar> -->
 
 <!-- <ui:View class="body" width="100%" height="100%"> -->
 
@@ -124,7 +124,7 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
 
 
 
-<ui:View>
+<ui:View iosOverflowSafeArea="true" backgroundColor="red">
 <TextField hint="Type here..." textChange="{{ onChange }}"></TextField>
 <text:Text loaded="{{ textLoaded }}"></text:Text>
 

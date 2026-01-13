@@ -33,6 +33,11 @@ const enum TextType {
   B = 12,
 
   Pre = 13,
+
+  Strong = 14,
+  Em = 15,
+  I = 16,
+  A = 17,
 }
 
 export class Text extends TextBase {
@@ -88,6 +93,21 @@ export class Text extends TextBase {
           break;
         case TextType.B:
           view = Tree.instance.createTextView(null, MasonTextType.B as number) as never;
+          break;
+        case TextType.Pre:
+          view = Tree.instance.createTextView(null, MasonTextType.Pre as number) as never;
+          break;
+        case TextType.Strong:
+          view = Tree.instance.createTextView(null, MasonTextType.Strong as number) as never;
+          break;
+        case TextType.Em:
+          view = Tree.instance.createTextView(null, MasonTextType.Em as number) as never;
+          break;
+        case TextType.I:
+          view = Tree.instance.createTextView(null, MasonTextType.I as number) as never;
+          break;
+        case TextType.A:
+          view = Tree.instance.createTextView(null, MasonTextType.A as number) as never;
           break;
       }
 

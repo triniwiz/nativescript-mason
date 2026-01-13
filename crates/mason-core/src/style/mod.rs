@@ -546,6 +546,7 @@ pub enum StyleKeys {
     VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496,
     VERTICAL_ALIGN_ENUM_OFFSET = 500,
     FIRST_BASELINE_OFFSET = 504,
+    Z_INDEX = 508
 }
 
 bitflags! {
@@ -1052,7 +1053,7 @@ impl Style {
     }
     fn default_data() -> Vec<u8> {
         // last item + 4 bytes
-        let mut buffer = vec![0_u8; 508];
+        let mut buffer = vec![0_u8; 512];
 
         {
             let float_slice = unsafe {

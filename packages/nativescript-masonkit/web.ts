@@ -27,6 +27,11 @@ const enum TextType {
   Blockquote = 11,
 
   B = 12,
+  Pre = 13,
+  Strong = 14,
+  Em = 15,
+  I = 16,
+  A = 17,
 }
 
 @CSSType('div')
@@ -149,5 +154,21 @@ export class B extends Text {
   constructor() {
     // @ts-ignore
     super(TextType.B);
+  }
+}
+
+@CSSType('strong')
+export class Strong extends Text {
+  constructor() {
+    // @ts-ignore
+    super(TextType.Strong);
+  }
+}
+
+@CSSType('a')
+export class A extends Text {
+  constructor() {
+    // @ts-ignore
+    super(TextType.A);
   }
 }
