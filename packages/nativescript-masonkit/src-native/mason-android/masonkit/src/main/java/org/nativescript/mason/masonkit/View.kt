@@ -142,10 +142,6 @@ class View @JvmOverloads constructor(
   }
 
 
-  override fun onDraw(canvas: Canvas) {
-    super.onDraw(canvas)
-  }
-
   override fun dispatchDraw(canvas: Canvas) {
     ViewUtils.dispatchDraw(this, canvas, style) {
       super.dispatchDraw(it)
@@ -499,15 +495,15 @@ class View @JvmOverloads constructor(
 
       when (attribute) {
         R.styleable.mason_mason_alignContent -> {
-          node.style.alignContent = AlignContent.fromInt(value.roundToInt())
+          node.style.alignContent = AlignContent.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_alignItems -> {
-          node.style.alignItems = AlignItems.fromInt(value.roundToInt())
+          node.style.alignItems = AlignItems.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_alignSelf -> {
-          node.style.alignSelf = AlignSelf.fromInt(value.roundToInt())
+          node.style.alignSelf = AlignSelf.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_aspectRatio -> {
@@ -548,11 +544,11 @@ class View @JvmOverloads constructor(
 
         R.styleable.mason_mason_direction -> {
           // TODO handle direction
-          node.style.direction = Direction.fromInt(value.roundToInt())
+          node.style.direction = Direction.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_display -> {
-          node.style.display = Display.fromInt(value.roundToInt())
+          node.style.display = Display.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_flexBasis -> {
@@ -560,7 +556,7 @@ class View @JvmOverloads constructor(
         }
 
         R.styleable.mason_mason_flexDirection -> {
-          node.style.flexDirection = FlexDirection.fromInt(value.roundToInt())
+          node.style.flexDirection = FlexDirection.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_flexGrow -> {
@@ -572,15 +568,15 @@ class View @JvmOverloads constructor(
         }
 
         R.styleable.mason_mason_justifyContent -> {
-          node.style.justifyContent = JustifyContent.fromInt(value.roundToInt())
+          node.style.justifyContent = JustifyContent.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_justifyItems -> {
-          node.style.justifyItems = JustifyItems.fromInt(value.roundToInt())
+          node.style.justifyItems = JustifyItems.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_justifySelf -> {
-          node.style.justifySelf = JustifySelf.fromInt(value.roundToInt())
+          node.style.justifySelf = JustifySelf.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_marginLeft -> {
@@ -632,7 +628,7 @@ class View @JvmOverloads constructor(
         }
 
         R.styleable.mason_mason_overflow -> {
-          val overflow = Overflow.fromInt(value.roundToInt())
+          val overflow = Overflow.from(value.roundToInt().toByte())
           node.style.overflow = Point(overflow, overflow)
         }
 
@@ -701,7 +697,7 @@ class View @JvmOverloads constructor(
         }
 
         R.styleable.mason_mason_position -> {
-          node.style.position = Position.fromInt(value.roundToInt())
+          node.style.position = Position.from(value.roundToInt().toByte())
         }
 
         R.styleable.mason_mason_height -> {
@@ -713,7 +709,7 @@ class View @JvmOverloads constructor(
         }
 
         R.styleable.mason_mason_flexWrap -> {
-          node.style.flexWrap = FlexWrap.fromInt(value.roundToInt())
+          node.style.flexWrap = FlexWrap.from(value.roundToInt().toByte())
         }
       }
     }
@@ -1212,7 +1208,7 @@ class View @JvmOverloads constructor(
       checkAndUpdateStyle()
     }
 
-  fun setFlexBasis(value: Float, type: Int) {
+  fun setFlexBasis(value: Float, type: Byte) {
     style.setFlexBasis(value, type)
     checkAndUpdateStyle()
   }
@@ -1275,13 +1271,13 @@ class View @JvmOverloads constructor(
 
   fun setPadding(
     left: Float,
-    leftType: Int,
+    leftType: Byte,
     top: Float,
-    topType: Int,
+    topType: Byte,
     right: Float,
-    rightType: Int,
+    rightType: Byte,
     bottom: Float,
-    bottomType: Int
+    bottomType: Byte
   ) {
     style.padding = Rect(
       LengthPercentage.fromTypeValue(leftType, left) ?: style.padding.left,
@@ -1293,27 +1289,27 @@ class View @JvmOverloads constructor(
   }
 
 
-  fun setPaddingLeft(value: Float, type: Int) {
+  fun setPaddingLeft(value: Float, type: Byte) {
     style.setPaddingLeft(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setPaddingRight(value: Float, type: Int) {
+  fun setPaddingRight(value: Float, type: Byte) {
     style.setPaddingRight(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setPaddingTop(value: Float, type: Int) {
+  fun setPaddingTop(value: Float, type: Byte) {
     style.setPaddingTop(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setPaddingBottom(value: Float, type: Int) {
+  fun setPaddingBottom(value: Float, type: Byte) {
     style.setPaddingBottom(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setPaddingWithValueType(value: Float, type: Int) {
+  fun setPaddingWithValueType(value: Float, type: Byte) {
     style.setPaddingWithValueType(value, type)
     checkAndUpdateStyle()
   }
@@ -1367,13 +1363,13 @@ class View @JvmOverloads constructor(
 
   fun setBorder(
     left: Float,
-    leftType: Int,
+    leftType: Byte,
     top: Float,
-    topType: Int,
+    topType: Byte,
     right: Float,
-    rightType: Int,
+    rightType: Byte,
     bottom: Float,
-    bottomType: Int
+    bottomType: Byte
   ) {
     style.borderWidth = Rect(
       LengthPercentage.fromTypeValue(leftType, left) ?: style.borderWidth.left,
@@ -1384,27 +1380,27 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setBorderLeft(value: Float, type: Int) {
+  fun setBorderLeft(value: Float, type: Byte) {
     style.setBorderLeftWidth(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setBorderRight(value: Float, type: Int) {
+  fun setBorderRight(value: Float, type: Byte) {
     style.setBorderRightWidth(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setBorderTop(value: Float, type: Int) {
+  fun setBorderTop(value: Float, type: Byte) {
     style.setBorderTopWidth(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setBorderBottom(value: Float, type: Int) {
+  fun setBorderBottom(value: Float, type: Byte) {
     style.setBorderBottomWidth(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setBorderWithValueType(value: Float, type: Int) {
+  fun setBorderWithValueType(value: Float, type: Byte) {
     style.setBorderWidth(value, type)
     checkAndUpdateStyle()
   }
@@ -1461,13 +1457,13 @@ class View @JvmOverloads constructor(
 
   fun setMargin(
     left: Float,
-    leftType: Int,
+    leftType: Byte,
     top: Float,
-    topType: Int,
+    topType: Byte,
     right: Float,
-    rightType: Int,
+    rightType: Byte,
     bottom: Float,
-    bottomType: Int
+    bottomType: Byte
   ) {
     style.margin = Rect(
       LengthPercentageAuto.fromTypeValue(leftType, left) ?: style.margin.left,
@@ -1478,27 +1474,27 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setMarginLeft(value: Float, type: Int) {
+  fun setMarginLeft(value: Float, type: Byte) {
     style.setMarginLeft(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setMarginRight(value: Float, type: Int) {
+  fun setMarginRight(value: Float, type: Byte) {
     style.setMarginRight(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setMarginTop(value: Float, type: Int) {
+  fun setMarginTop(value: Float, type: Byte) {
     style.setMarginTop(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setMarginBottom(value: Float, type: Int) {
+  fun setMarginBottom(value: Float, type: Byte) {
     style.setMarginBottom(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setMarginWithValueType(value: Float, type: Int) {
+  fun setMarginWithValueType(value: Float, type: Byte) {
     style.setMarginWithValueType(value, type)
     checkAndUpdateStyle()
   }
@@ -1556,13 +1552,13 @@ class View @JvmOverloads constructor(
 
   fun setInset(
     left: Float,
-    leftType: Int,
+    leftType: Byte,
     top: Float,
-    topType: Int,
+    topType: Byte,
     right: Float,
-    rightType: Int,
+    rightType: Byte,
     bottom: Float,
-    bottomType: Int
+    bottomType: Byte
   ) {
     style.inset = Rect(
       LengthPercentageAuto.fromTypeValue(leftType, left) ?: style.inset.left,
@@ -1573,27 +1569,27 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setInsetLeft(value: Float, type: Int) {
+  fun setInsetLeft(value: Float, type: Byte) {
     style.setInsetLeft(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setInsetRight(value: Float, type: Int) {
+  fun setInsetRight(value: Float, type: Byte) {
     style.setInsetRight(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setInsetTop(value: Float, type: Int) {
+  fun setInsetTop(value: Float, type: Byte) {
     style.setInsetTop(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setInsetBottom(value: Float, type: Int) {
+  fun setInsetBottom(value: Float, type: Byte) {
     style.setInsetBottom(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setInsetWithValueType(value: Float, type: Int) {
+  fun setInsetWithValueType(value: Float, type: Byte) {
     style.setInsetWithValueType(value, type)
     checkAndUpdateStyle()
   }
@@ -1636,9 +1632,9 @@ class View @JvmOverloads constructor(
 
   fun setMinSize(
     width: Float,
-    widthType: Int,
+    widthType: Byte,
     height: Float,
-    heightType: Int,
+    heightType: Byte,
   ) {
     style.minSize = Size(
       Dimension.fromTypeValue(widthType, width) ?: style.minSize.width,
@@ -1647,12 +1643,12 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setMinSizeWidth(value: Float, type: Int) {
+  fun setMinSizeWidth(value: Float, type: Byte) {
     style.setMinSizeWidth(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setMinSizeHeight(value: Float, type: Int) {
+  fun setMinSizeHeight(value: Float, type: Byte) {
     style.setMinSizeHeight(value, type)
     checkAndUpdateStyle()
   }
@@ -1695,9 +1691,9 @@ class View @JvmOverloads constructor(
 
   fun setSize(
     width: Float,
-    widthType: Int,
+    widthType: Byte,
     height: Float,
-    heightType: Int,
+    heightType: Byte,
   ) {
     style.size = Size(
       Dimension.fromTypeValue(widthType, width) ?: style.size.width,
@@ -1706,12 +1702,12 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setSizeWidth(value: Float, type: Int) {
+  fun setSizeWidth(value: Float, type: Byte) {
     style.setSizeWidth(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setSizeHeight(value: Float, type: Int) {
+  fun setSizeHeight(value: Float, type: Byte) {
     style.setSizeHeight(value, type)
     checkAndUpdateStyle()
   }
@@ -1754,9 +1750,9 @@ class View @JvmOverloads constructor(
 
   fun setMaxSize(
     width: Float,
-    widthType: Int,
+    widthType: Byte,
     height: Float,
-    heightType: Int,
+    heightType: Byte,
   ) {
     style.maxSize = Size(
       Dimension.fromTypeValue(widthType, width) ?: style.size.width,
@@ -1765,12 +1761,12 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setMaxSizeWidth(value: Float, type: Int) {
+  fun setMaxSizeWidth(value: Float, type: Byte) {
     style.setMaxSizeWidth(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setMaxSizeHeight(value: Float, type: Int) {
+  fun setMaxSizeHeight(value: Float, type: Byte) {
     style.setMaxSizeHeight(value, type)
     checkAndUpdateStyle()
   }
@@ -1805,9 +1801,9 @@ class View @JvmOverloads constructor(
 
   fun setGap(
     width: Float,
-    widthType: Int,
+    widthType: Byte,
     height: Float,
-    heightType: Int,
+    heightType: Byte,
   ) {
     style.gap = Size(
       LengthPercentage.fromTypeValue(widthType, width) ?: style.gap.width,
@@ -1816,20 +1812,20 @@ class View @JvmOverloads constructor(
     checkAndUpdateStyle()
   }
 
-  fun setGapRow(value: Float, type: Int) {
+  fun setGapRow(value: Float, type: Byte) {
     setRowGap(value, type)
   }
 
-  fun setRowGap(value: Float, type: Int) {
+  fun setRowGap(value: Float, type: Byte) {
     style.setGapRow(value, type)
     checkAndUpdateStyle()
   }
 
-  fun setGapColumn(value: Float, type: Int) {
+  fun setGapColumn(value: Float, type: Byte) {
     setColumnGap(value, type)
   }
 
-  fun setColumnGap(value: Float, type: Int) {
+  fun setColumnGap(value: Float, type: Byte) {
     style.setGapColumn(value, type)
     checkAndUpdateStyle()
   }

@@ -259,11 +259,11 @@ public final class CSSBorderRenderer {
     internal let owner: MasonStyle
     public var width: MasonLengthPercentage {
       get {
-        return MasonLengthPercentage.fromValueType(owner.getFloat(keys.widthValue), Int(owner.getInt32(keys.widthType)))!
+        return MasonLengthPercentage.fromValueType(owner.getFloat(keys.widthValue), owner.getInt8(keys.widthType))!
       }
       
       set {
-        owner.setInt32(keys.widthType, newValue.type)
+        owner.setInt8(keys.widthType, newValue.type)
         owner.setFloat(keys.widthValue, newValue.value)
       }
     }
@@ -429,8 +429,8 @@ public final class CSSBorderRenderer {
   private func resolveRadius(rect: CGRect) -> BorderRadius {
     // Fetch corner radii from style buffer
     func corner(xType: Int, xValue: Int, yType: Int, yValue: Int, exp: Int) -> CornerRadius {
-      let h = MasonLengthPercentage.fromValueType(Float(xValue), xType) ?? .Zero
-      let v = MasonLengthPercentage.fromValueType(Float(yValue), yType) ?? .Zero
+      let h = MasonLengthPercentage.fromValueType(Float(xValue), Int8(xType)) ?? .Zero
+      let v = MasonLengthPercentage.fromValueType(Float(yValue), Int8(yType)) ?? .Zero
       let exponent = CGFloat(exp)
       return CornerRadius(horizontal: h, vertical: v, exponent: exponent)
     }

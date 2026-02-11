@@ -842,7 +842,7 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     checkAndUpdateStyle()
   }
   
-  @objc public func setGapWithWidthHeightType(_ width: Float , _ width_type: Int,_ height: Float, _ height_type: Int) {
+  @objc public func setGapWithWidthHeightType(_ width: Float , _ width_type: Int8,_ height: Float, _ height_type: Int8) {
     guard let width = MasonLengthPercentage.fromValueType(width, width_type) else {return}
     guard let height = MasonLengthPercentage.fromValueType(height, height_type) else {return}
     node.style.gap = MasonSize(

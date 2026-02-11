@@ -202,7 +202,6 @@ class CSSFilters {
         val key = makeShadowCacheKey(source, offsetX, offsetY, blurRadius, color, width, height)
         dropShadowCache.get(key)?.let { cached ->
           // cached is immutable/shared — return directly
-          android.util.Log.d("CSSFilters", "createDropShadowBitmap: cache hit")
           return cached
         }
 

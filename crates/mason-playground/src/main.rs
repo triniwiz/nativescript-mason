@@ -1,9 +1,11 @@
-use mason_core::style::{DisplayMode, Overflow, StyleKeys};
+use mason_core::style::{DisplayMode, Overflow};
 use mason_core::{
     AlignContent, AlignItems, Dimension, Display, FlexDirection, InlineSegment, JustifyContent,
     LengthPercentage, LengthPercentageAuto, Mason, MeasureOutput, NodeRef, Rect, Size,
 };
 use std::ffi::{c_longlong, c_void};
+use std::thread::{sleep, spawn};
+use std::time::Duration;
 use taffy::prelude::{auto, TaffyGridLine, TaffyMaxContent};
 use taffy::style_helpers::length;
 use taffy::{AlignSelf, AvailableSpace, Line, NodeId};
@@ -14,7 +16,48 @@ struct NodeData {
     text: Option<String>,
 }
 
+fn sample() {
+    let mut mason = Mason::default();
+    let root = mason.create_node();
+    mason.with_style_mut(root.id(), |style| {
+        style.set_size(Size {
+            width: Dimension::length(100.),
+            height: Dimension::length(100.),
+        })
+    });
+    mason.compute(root.id());
+    mason.print_tree(root.id());
+}
+
+fn gc() {
+    let mut mason = Mason::default();
+    let mut clone = mason.clone();
+    let root = mason.create_node();
+    let child = mason.create_node();
+    let (tx, rx) = std::sync::mpsc::channel::<()>();
+    spawn(move || {
+        {
+            clone.with_style_mut(child.id(), |style| {
+                style.set_size(Size {
+                    width: Dimension::length(100.),
+                    height: Dimension::length(100.),
+                })
+            });
+            let _ = child;
+        }
+        for _ in 0..1000 {
+            clone.create_node();
+        }
+        sleep(Duration::from_millis(20000));
+        tx.send(()).unwrap();
+    });
+
+    mason.compute(root.id());
+    rx.recv().unwrap();
+}
 fn main() {
+    gc()
+    //  sample();
     // flex_example();
     //percent_example()
     // t();
@@ -45,13 +88,13 @@ fn main() {
     // grid_sizing();
     // grid_sizing_taffy();
     // grid_template_areas();
-  //  grid_template_areas_500();
+    //  grid_template_areas_500();
 
     // inline();
     //  mixed();
     // inline_block();
     // inline_segments();
-    
+
     /*
     let mut mason = Mason::new();
     let root = mason.create_node();
@@ -121,6 +164,93 @@ fn main() {
     mason.print_tree(root.id());
 
     */
+
+    // let mut mason = Mason::new();
+    // let root = mason.create_node();
+    //
+    // mason.with_style_mut(root.id(), |style| {
+    //     style.set_display_mode(DisplayMode::ListItem);
+    // });
+    //
+    // mason.compute_wh(root.id(), 2000., 2000.);
+    //
+    // mason.layout(root.id());
+    //
+    // mason.print_tree(root.id());
+    // li();
+    // creation();
+    // span()
+}
+
+fn creation() {
+    let mut mason = Mason::new();
+    let mut nodes: Vec<NodeRef> = vec![];
+    println!("before creation {:?}", mason.arena_state());
+    for _ in 0..1_000_000 {
+        let node = mason.create_node();
+        nodes.push(node);
+    }
+
+    println!("before drop {:?}", mason.arena_state());
+
+    drop(nodes);
+
+    println!("after drop {:?}", mason.arena_state());
+}
+
+fn li() {
+    let mut mason = Mason::new();
+    let root = mason.create_node();
+
+    let list = mason.create_node();
+    mason.with_style_mut(list.id(), |style| {
+        style.set_item_is_list(true);
+        style.set_height(Dimension::length(1000f32))
+    });
+
+    mason.add_child(root.id(), list.id());
+
+    // emulator list of 1k
+
+    extern "C" fn measure_marker(
+        data: *const c_void,
+        width: f32,
+        height: f32,
+        available_space_width: f32,
+        available_space_height: f32,
+    ) -> c_longlong {
+        println!(
+            "marker measure {} {} ... {} {}",
+            width, height, available_space_width, available_space_height
+        );
+        MeasureOutput::make(40., 40.)
+    }
+
+    for i in 0..1000 {
+        let item = mason.create_list_item_node();
+
+        mason.set_measure(item.id(), Some(measure_marker), 0 as _);
+
+        let item_inner = mason.create_node();
+
+        mason.with_style_mut(item_inner.id(), |style| {
+            style.set_item_is_list(true);
+            style.set_size(Size {
+                width: Dimension::length(200f32),
+                height: Dimension::length(300f32),
+            })
+        });
+
+        mason.add_child(item.id(), item_inner.id());
+
+        mason.add_child(list.id(), item.id());
+    }
+
+    mason.compute_wh(list.id(), 1080., 3600.);
+
+    mason.layout(root.id());
+
+    mason.print_tree(root.id());
 }
 
 fn inline_block() {
@@ -415,7 +545,7 @@ fn grid_template_areas_500() {
             style.set_grid_area(area);
         });
 
-        let segments = mason.get_segments(child.id());
+        // let segments = mason.get_segments(child.id());
         mason.set_measure(child.id(), Some(grid_template_areas_inline), 0 as _);
     };
 
@@ -1936,20 +2066,22 @@ fn span() {
     mason.with_style_mut(p.id(), |style| {
         style.set_display_mode(DisplayMode::Box);
         style.set_width(Dimension::length(600.));
+        println!("style {:?}", style);
     });
 
-    let text = mason.create_node();
+    let text = mason.create_text_node();
     mason.set_measure(text.id(), Some(measure_text), 0 as _);
 
     mason.with_style_mut(text.id(), |style| {
         style.set_display_mode(DisplayMode::Inline);
-        let size = style.data().len();
-        let buf = style.data_mut().as_mut_ptr() as *mut f32;
-        let style_int = unsafe { std::slice::from_raw_parts_mut(buf, size / 4) };
-        style_int[StyleKeys::MIN_CONTENT_WIDTH as usize / 4] = 20.;
-        style_int[StyleKeys::MAX_CONTENT_WIDTH as usize / 4] = 300.;
-        style_int[StyleKeys::MIN_CONTENT_HEIGHT as usize / 4] = 200.;
-        style_int[StyleKeys::MAX_CONTENT_HEIGHT as usize / 4] = 300.;
+        style.set_min_content(Size {
+            width: 20.,
+            height: 200.,
+        });
+        style.set_max_content(Size {
+            width: 300.,
+            height: 300.,
+        });
     });
 
     mason.add_child(p.id(), text.id());

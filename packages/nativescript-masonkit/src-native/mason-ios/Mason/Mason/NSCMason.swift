@@ -214,5 +214,24 @@ public class NSCMason: NSObject {
     return MasonNode(masonLineBreak: self)
   }
   
+  
+  public func createListView(isOrdered: Bool = false)-> MasonList {
+    let list = MasonList(mason: self)
+    list.isOrdered = isOrdered
+    return list
+  }
+
+  public func createListItemNode(measure: @escaping MasonNode.MeasureFunc) -> MasonNode {
+    return MasonNode(listItem: self, measureFunc: measure)
+  }
+  
+  public func createListItemNode() -> MasonNode {
+    return MasonNode(listItem: self)
+  }
+
+  public func createListItem() -> MasonLi {
+    return MasonLi(mason: self)
+  }
+  
   @objc static let scale = Float(UIScreen.main.scale)
 }

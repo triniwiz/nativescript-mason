@@ -11,6 +11,22 @@ interface MeasureFunc {
 internal class MeasureFuncImpl(
   private val measureFunc: WeakReference<MeasureFunc>,
 ) {
+
+  internal var hasObjectId = false
+  internal val objectId by lazy {
+    hasObjectId = true
+    ObjectManager.shared.add(this)
+  }
+
+  @Synchronized
+  @Throws(Throwable::class)
+  protected fun finalize() {
+    if (hasObjectId) {
+      ObjectManager.shared.remove(objectId)
+    }
+  }
+
+
   @Keep
   fun measure(knownDimensionsSpec: Long, availableSpaceSpec: Long): Long {
     val knownWidth = MeasureOutput.getWidth(knownDimensionsSpec)

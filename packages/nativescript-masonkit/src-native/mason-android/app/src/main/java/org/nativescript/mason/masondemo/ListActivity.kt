@@ -116,7 +116,7 @@ class ListActivity : AppCompatActivity() {
       root.append(tv)
       val image = list.mason.createImageView(context)
       image.configure {
-        it.size = org.nativescript.mason.masonkit.Size(
+        it.size = Size(
           Dimension.Points(50 * context.resources.displayMetrics.density),
           Dimension.Points(50 * context.resources.displayMetrics.density),
         )
@@ -127,6 +127,7 @@ class ListActivity : AppCompatActivity() {
     }
 
     override fun onBindViewHolder(viewHolder: ViewHolder, position: Int) {
+      Log.d("com.test", "onBindViewHolder $position")
       list.array.value?.let {
         val url = it[position]
         viewHolder.textView.textContent = url

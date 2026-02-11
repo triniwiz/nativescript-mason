@@ -207,14 +207,15 @@ class Border(val owner: Style, side: Side) {
   var width: LengthPercentage
     get() {
       return LengthPercentage.fromTypeValue(
-        owner.values.getInt(keys.widthType),
+        owner.values.get(keys.widthType),
         owner.values.getFloat(keys.widthValue)
       )!!
     }
     set(value) {
       val old = width
       if (old != value) {
-        owner.values.putInt(keys.widthType, value.type)
+        owner.prepareMut()
+        owner.values.put(keys.widthType, value.type)
         owner.values.putFloat(keys.widthValue, value.value)
         if (setState) {
           owner.setOrAppendState(StateKeys.BORDER)
@@ -229,6 +230,7 @@ class Border(val owner: Style, side: Side) {
     set(value) {
       val old = color
       if (old != value) {
+        owner.prepareMut()
         owner.values.putInt(keys.color, value)
         if (setState) {
           owner.setOrAppendState(StateKeys.BORDER_COLOR)
@@ -238,12 +240,13 @@ class Border(val owner: Style, side: Side) {
 
   var style: BorderStyle
     get() {
-      return BorderStyle.fromInt(owner.values.getInt(keys.style))
+      return BorderStyle.from(owner.values.get(keys.style))
     }
     set(value) {
       val old = style
       if (old != value) {
-        owner.values.putInt(keys.style, value.value)
+        owner.prepareMut()
+        owner.values.put(keys.style, value.value)
         if (setState) {
           owner.setOrAppendState(StateKeys.BORDER_STYLE)
         }
@@ -254,20 +257,21 @@ class Border(val owner: Style, side: Side) {
     get() {
       return Point(
         LengthPercentage.fromTypeValue(
-          owner.values.getInt(keys.corner1RadiusXType),
+          owner.values.get(keys.corner1RadiusXType),
           owner.values.getFloat(keys.corner1RadiusXValue),
         )!!,
         LengthPercentage.fromTypeValue(
-          owner.values.getInt(keys.corner1RadiusYType),
+          owner.values.get(keys.corner1RadiusYType),
           owner.values.getFloat(keys.corner1RadiusYValue),
         )!!
       )
     }
     set(value) {
-      owner.values.putInt(keys.corner1RadiusXType, value.x.type)
+      owner.prepareMut()
+      owner.values.put(keys.corner1RadiusXType, value.x.type)
       owner.values.putFloat(keys.corner1RadiusXValue, value.x.value)
 
-      owner.values.putInt(keys.corner1RadiusYType, value.y.type)
+      owner.values.put(keys.corner1RadiusYType, value.y.type)
       owner.values.putFloat(keys.corner1RadiusYValue, value.y.value)
 
       if (setState) {
@@ -281,20 +285,21 @@ class Border(val owner: Style, side: Side) {
     get() {
       return Point(
         LengthPercentage.fromTypeValue(
-          owner.values.getInt(keys.corner2RadiusXType),
+          owner.values.get(keys.corner2RadiusXType),
           owner.values.getFloat(keys.corner2RadiusXValue),
         )!!,
         LengthPercentage.fromTypeValue(
-          owner.values.getInt(keys.corner2RadiusYType),
+          owner.values.get(keys.corner2RadiusYType),
           owner.values.getFloat(keys.corner2RadiusYValue),
         )!!
       )
     }
     set(value) {
-      owner.values.putInt(keys.corner2RadiusXType, value.x.type)
+      owner.prepareMut()
+      owner.values.put(keys.corner2RadiusXType, value.x.type)
       owner.values.putFloat(keys.corner2RadiusXValue, value.x.value)
 
-      owner.values.putInt(keys.corner2RadiusYType, value.y.type)
+      owner.values.put(keys.corner2RadiusYType, value.y.type)
       owner.values.putFloat(keys.corner2RadiusYValue, value.y.value)
 
       if (setState) {
@@ -306,6 +311,7 @@ class Border(val owner: Style, side: Side) {
   var corner1Exponent: Float
     get() = owner.values.getFloat(keys.corner1Exponent)
     set(value) {
+      owner.prepareMut()
       owner.values.putFloat(keys.corner1Exponent, value)
       if (setState) {
         owner.setOrAppendState(StateKeys.BORDER_RADIUS)
@@ -315,6 +321,7 @@ class Border(val owner: Style, side: Side) {
   var corner2Exponent: Float
     get() = owner.values.getFloat(keys.corner2Exponent)
     set(value) {
+      owner.prepareMut()
       owner.values.putFloat(keys.corner2Exponent, value)
       if (setState) {
         owner.setOrAppendState(StateKeys.BORDER_RADIUS)

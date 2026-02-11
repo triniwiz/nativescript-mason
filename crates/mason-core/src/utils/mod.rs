@@ -9,7 +9,7 @@ use taffy::{
     TextAlign,
 };
 
-pub const fn border_style_from_enum(value: i32) -> Option<BorderStyle> {
+pub const fn border_style_from_enum(value: i8) -> Option<BorderStyle> {
     match value {
         0 => Some(BorderStyle::None),
         1 => Some(BorderStyle::Hidden),
@@ -24,7 +24,7 @@ pub const fn border_style_from_enum(value: i32) -> Option<BorderStyle> {
         _ => None,
     }
 }
-pub const fn border_style_to_enum(value: BorderStyle) -> i32 {
+pub const fn border_style_to_enum(value: BorderStyle) -> i8 {
     match value {
         BorderStyle::None => 0,
         BorderStyle::Hidden => 1,
@@ -39,7 +39,7 @@ pub const fn border_style_to_enum(value: BorderStyle) -> i32 {
     }
 }
 
-pub const fn box_sizing_from_enum(value: i32) -> Option<BoxSizing> {
+pub const fn box_sizing_from_enum(value: i8) -> Option<BoxSizing> {
     match value {
         0 => Some(BoxSizing::BorderBox),
         1 => Some(BoxSizing::ContentBox),
@@ -47,14 +47,14 @@ pub const fn box_sizing_from_enum(value: i32) -> Option<BoxSizing> {
     }
 }
 
-pub const fn box_sizing_to_enum(value: BoxSizing) -> i32 {
+pub const fn box_sizing_to_enum(value: BoxSizing) -> i8 {
     match value {
         BoxSizing::BorderBox => 0,
         BoxSizing::ContentBox => 1,
     }
 }
 
-pub const fn text_align_from_enum(value: i32) -> Option<TextAlign> {
+pub const fn text_align_from_enum(value: i8) -> Option<TextAlign> {
     match value {
         0 => Some(TextAlign::Auto),
         1 => Some(TextAlign::LegacyLeft),
@@ -63,7 +63,7 @@ pub const fn text_align_from_enum(value: i32) -> Option<TextAlign> {
         _ => None,
     }
 }
-pub const fn text_align_to_enum(value: TextAlign) -> i32 {
+pub const fn text_align_to_enum(value: TextAlign) -> i8 {
     match value {
         TextAlign::Auto => 0,
         TextAlign::LegacyLeft => 1,
@@ -72,7 +72,7 @@ pub const fn text_align_to_enum(value: TextAlign) -> i32 {
     }
 }
 
-pub const fn align_content_from_enum(value: i32) -> Option<AlignContent> {
+pub const fn align_content_from_enum(value: i8) -> Option<AlignContent> {
     match value {
         0 => Some(AlignContent::Start),
         1 => Some(AlignContent::End),
@@ -87,7 +87,7 @@ pub const fn align_content_from_enum(value: i32) -> Option<AlignContent> {
     }
 }
 
-pub const fn align_content_to_enum(value: AlignContent) -> i32 {
+pub const fn align_content_to_enum(value: AlignContent) -> i8 {
     match value {
         AlignContent::Start => 0,
         AlignContent::End => 1,
@@ -101,7 +101,7 @@ pub const fn align_content_to_enum(value: AlignContent) -> i32 {
     }
 }
 
-pub const fn align_items_from_enum(value: i32) -> Option<AlignItems> {
+pub const fn align_items_from_enum(value: i8) -> Option<AlignItems> {
     match value {
         0 => Some(AlignItems::Start),
         1 => Some(AlignItems::End),
@@ -114,7 +114,7 @@ pub const fn align_items_from_enum(value: i32) -> Option<AlignItems> {
     }
 }
 
-pub const fn overflow_from_enum(value: i32) -> Option<Overflow> {
+pub const fn overflow_from_enum(value: i8) -> Option<Overflow> {
     match value {
         0 => Some(Overflow::Visible),
         1 => Some(Overflow::Hidden),
@@ -125,7 +125,7 @@ pub const fn overflow_from_enum(value: i32) -> Option<Overflow> {
     }
 }
 
-pub const fn overflow_to_enum(value: Overflow) -> i32 {
+pub const fn overflow_to_enum(value: Overflow) -> i8 {
     match value {
         Overflow::Visible => 0,
         Overflow::Hidden => 1,
@@ -135,7 +135,7 @@ pub const fn overflow_to_enum(value: Overflow) -> i32 {
     }
 }
 
-pub const fn align_items_to_enum(value: AlignItems) -> i32 {
+pub const fn align_items_to_enum(value: AlignItems) -> i8 {
     match value {
         AlignItems::Start => 0,
         AlignItems::End => 1,
@@ -147,7 +147,7 @@ pub const fn align_items_to_enum(value: AlignItems) -> i32 {
     }
 }
 
-pub const fn align_self_from_enum(value: i32) -> Option<AlignSelf> {
+pub const fn align_self_from_enum(value: i8) -> Option<AlignSelf> {
     match value {
         0 => Some(AlignSelf::Start),
         1 => Some(AlignSelf::End),
@@ -160,7 +160,7 @@ pub const fn align_self_from_enum(value: i32) -> Option<AlignSelf> {
     }
 }
 
-pub const fn align_self_to_enum(value: AlignSelf) -> i32 {
+pub const fn align_self_to_enum(value: AlignSelf) -> i8 {
     match value {
         AlignSelf::Start => 0,
         AlignSelf::End => 1,
@@ -172,7 +172,7 @@ pub const fn align_self_to_enum(value: AlignSelf) -> i32 {
     }
 }
 
-pub const fn align_self_op_to_enum(value: Option<AlignSelf>) -> Option<i32> {
+pub const fn align_self_op_to_enum(value: Option<AlignSelf>) -> Option<i8> {
     match value {
         None => None,
         Some(value) => Some(match value {
@@ -187,7 +187,7 @@ pub const fn align_self_op_to_enum(value: Option<AlignSelf>) -> Option<i32> {
     }
 }
 
-pub const fn display_from_enum(value: i32) -> Option<Display> {
+pub const fn display_from_enum(value: i8) -> Option<Display> {
     match value {
         0 => Some(Display::None),
         1 => Some(Display::Flex),
@@ -197,7 +197,7 @@ pub const fn display_from_enum(value: i32) -> Option<Display> {
     }
 }
 
-pub const fn display_to_enum(value: Display) -> i32 {
+pub const fn display_to_enum(value: Display) -> i8 {
     match value {
         Display::None => 0,
         Display::Flex => 1,
@@ -206,7 +206,7 @@ pub const fn display_to_enum(value: Display) -> i32 {
     }
 }
 
-pub const fn flex_direction_from_enum(value: i32) -> Option<FlexDirection> {
+pub const fn flex_direction_from_enum(value: i8) -> Option<FlexDirection> {
     match value {
         0 => Some(FlexDirection::Row),
         1 => Some(FlexDirection::Column),
@@ -216,7 +216,7 @@ pub const fn flex_direction_from_enum(value: i32) -> Option<FlexDirection> {
     }
 }
 
-pub const fn flex_direction_to_enum(value: FlexDirection) -> i32 {
+pub const fn flex_direction_to_enum(value: FlexDirection) -> i8 {
     match value {
         FlexDirection::Row => 0,
         FlexDirection::Column => 1,
@@ -225,7 +225,7 @@ pub const fn flex_direction_to_enum(value: FlexDirection) -> i32 {
     }
 }
 
-pub const fn flex_wrap_from_enum(value: i32) -> Option<FlexWrap> {
+pub const fn flex_wrap_from_enum(value: i8) -> Option<FlexWrap> {
     match value {
         0 => Some(FlexWrap::NoWrap),
         1 => Some(FlexWrap::Wrap),
@@ -234,7 +234,7 @@ pub const fn flex_wrap_from_enum(value: i32) -> Option<FlexWrap> {
     }
 }
 
-pub const fn flex_wrap_to_enum(value: FlexWrap) -> i32 {
+pub const fn flex_wrap_to_enum(value: FlexWrap) -> i8 {
     match value {
         FlexWrap::NoWrap => 0,
         FlexWrap::Wrap => 1,
@@ -242,7 +242,7 @@ pub const fn flex_wrap_to_enum(value: FlexWrap) -> i32 {
     }
 }
 
-pub const fn justify_content_from_enum(value: i32) -> Option<JustifyContent> {
+pub const fn justify_content_from_enum(value: i8) -> Option<JustifyContent> {
     match value {
         0 => Some(JustifyContent::Start),
         1 => Some(JustifyContent::End),
@@ -257,7 +257,7 @@ pub const fn justify_content_from_enum(value: i32) -> Option<JustifyContent> {
     }
 }
 
-pub const fn justify_content_to_enum(value: JustifyContent) -> i32 {
+pub const fn justify_content_to_enum(value: JustifyContent) -> i8 {
     match value {
         JustifyContent::Start => 0,
         JustifyContent::End => 1,
@@ -271,7 +271,7 @@ pub const fn justify_content_to_enum(value: JustifyContent) -> i32 {
     }
 }
 
-pub const fn position_from_enum(value: i32) -> Option<Position> {
+pub const fn position_from_enum(value: i8) -> Option<Position> {
     match value {
         0 => Some(Position::Relative),
         1 => Some(Position::Absolute),
@@ -279,14 +279,14 @@ pub const fn position_from_enum(value: i32) -> Option<Position> {
     }
 }
 
-pub const fn position_to_enum(value: Position) -> i32 {
+pub const fn position_to_enum(value: Position) -> i8 {
     match value {
         Position::Relative => 0,
         Position::Absolute => 1,
     }
 }
 
-pub const fn grid_auto_flow_from_enum(value: i32) -> Option<GridAutoFlow> {
+pub const fn grid_auto_flow_from_enum(value: i8) -> Option<GridAutoFlow> {
     match value {
         0 => Some(GridAutoFlow::Row),
         1 => Some(GridAutoFlow::Column),
@@ -296,7 +296,7 @@ pub const fn grid_auto_flow_from_enum(value: i32) -> Option<GridAutoFlow> {
     }
 }
 
-pub const fn grid_auto_flow_to_enum(value: GridAutoFlow) -> i32 {
+pub const fn grid_auto_flow_to_enum(value: GridAutoFlow) -> i8 {
     match value {
         GridAutoFlow::Row => 0,
         GridAutoFlow::Column => 1,
@@ -305,7 +305,7 @@ pub const fn grid_auto_flow_to_enum(value: GridAutoFlow) -> i32 {
     }
 }
 
-pub const fn boxing_size_from_enum(value: i32) -> Option<BoxSizing> {
+pub const fn boxing_size_from_enum(value: i8) -> Option<BoxSizing> {
     match value {
         0 => Some(BoxSizing::BorderBox),
         1 => Some(BoxSizing::ContentBox),
@@ -313,27 +313,29 @@ pub const fn boxing_size_from_enum(value: i32) -> Option<BoxSizing> {
     }
 }
 
-pub const fn boxing_size_to_enum(value: BoxSizing) -> i32 {
+pub const fn boxing_size_to_enum(value: BoxSizing) -> i8 {
     match value {
         BoxSizing::BorderBox => 0,
         BoxSizing::ContentBox => 1,
     }
 }
 
-pub const fn display_mode_from_enum(value: i32) -> Option<DisplayMode> {
+pub const fn display_mode_from_enum(value: i8) -> Option<DisplayMode> {
     match value {
         0 => Some(DisplayMode::None),
         1 => Some(DisplayMode::Inline),
         2 => Some(DisplayMode::Box),
+        3 => Some(DisplayMode::ListItem),
         _ => None,
     }
 }
 
-pub const fn display_mode_to_enum(value: DisplayMode) -> i32 {
+pub const fn display_mode_to_enum(value: DisplayMode) -> i8 {
     match value {
         DisplayMode::None => 0,
         DisplayMode::Inline => 1,
         DisplayMode::Box => 2,
+        DisplayMode::ListItem => 3
     }
 }
 
@@ -517,7 +519,7 @@ pub fn to_line_css(start: &GridPlacement<Atom>, end: &GridPlacement<Atom>) -> Op
     Some(format!("{} / {}", start, end))
 }
 
-pub const fn float_from_enum(value: i32) -> Option<Float> {
+pub const fn float_from_enum(value: i8) -> Option<Float> {
     match value {
         0 => Some(Float::None),
         1 => Some(Float::Left),
@@ -526,7 +528,7 @@ pub const fn float_from_enum(value: i32) -> Option<Float> {
     }
 }
 
-pub const fn float_to_enum(value: Float) -> i32 {
+pub const fn float_to_enum(value: Float) -> i8 {
     match value {
         Float::None => 0,
         Float::Left => 1,
@@ -534,7 +536,7 @@ pub const fn float_to_enum(value: Float) -> i32 {
     }
 }
 
-pub const fn clear_from_enum(value: i32) -> Option<Clear> {
+pub const fn clear_from_enum(value: i8) -> Option<Clear> {
     match value {
         0 => Some(Clear::None),
         1 => Some(Clear::Left),
@@ -544,7 +546,7 @@ pub const fn clear_from_enum(value: i32) -> Option<Clear> {
     }
 }
 
-pub const fn clear_to_enum(value: Clear) -> i32 {
+pub const fn clear_to_enum(value: Clear) -> i8 {
     match value {
         Clear::None => 0,
         Clear::Left => 1,
@@ -553,7 +555,7 @@ pub const fn clear_to_enum(value: Clear) -> i32 {
     }
 }
 
-pub const fn object_fit_from_enum(value: i32) -> Option<ObjectFit> {
+pub const fn object_fit_from_enum(value: i8) -> Option<ObjectFit> {
     match value {
         0 => Some(ObjectFit::Contain),
         1 => Some(ObjectFit::Cover),
@@ -564,7 +566,7 @@ pub const fn object_fit_from_enum(value: i32) -> Option<ObjectFit> {
     }
 }
 
-pub const fn object_to_enum(value: ObjectFit) -> i32 {
+pub const fn object_to_enum(value: ObjectFit) -> i8 {
     match value {
         ObjectFit::Contain => 0,
         ObjectFit::Cover => 1,

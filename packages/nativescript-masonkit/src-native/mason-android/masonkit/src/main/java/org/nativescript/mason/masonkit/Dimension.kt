@@ -7,17 +7,17 @@ sealed class Dimension(val isZero: Boolean) {
 
   companion object {
     @JvmStatic
-    fun fromTypeValue(type: Int, value: Float): Dimension? {
+    fun fromTypeValue(type: Byte, value: Float): Dimension? {
       return when (type) {
-        0 -> Auto
-        1 -> Points(value)
-        2 -> Percent(value)
+        0.toByte() -> Auto
+        1.toByte() -> Points(value)
+        2.toByte() -> Percent(value)
         else -> null
       }
     }
   }
 
-  internal val type: Int
+  internal val type: Byte
     get() = when (this) {
       is Auto -> 0
       is Points -> 1

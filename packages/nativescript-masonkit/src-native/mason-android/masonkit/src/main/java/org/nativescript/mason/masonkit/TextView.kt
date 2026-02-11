@@ -56,7 +56,6 @@ class TextView @JvmOverloads constructor(
   ) {
     this.type = type
     setup(mason, isAnonymous)
-    z
   }
 
   init {

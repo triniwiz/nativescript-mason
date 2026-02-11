@@ -1,4 +1,6 @@
 pub use crate::tree::{Id, Tree};
+use parking_lot::lock_api::MappedRwLockReadGuard;
+use parking_lot::{RawRwLock, RwLockReadGuard};
 use std::ffi::{c_float, c_longlong, c_void};
 use std::sync::atomic::Ordering;
 pub use style_atoms::Atom;
@@ -19,6 +21,7 @@ mod node;
 use crate::node::AppleNode;
 
 pub use crate::node::InlineSegment;
+use crate::style::arena::ArenaStats;
 pub use crate::style::Style;
 pub use node::NodeRef;
 
@@ -33,25 +36,28 @@ pub static JVM: std::sync::OnceLock<jni::JavaVM> = std::sync::OnceLock::new();
 #[cfg(target_os = "android")]
 #[derive(Debug, Clone)]
 pub struct JVMCache {
-    pub(crate) measure_clazz: jni::objects::GlobalRef,
-    pub(crate) measure_measure_id: jni::objects::JMethodID,
+    pub(crate) measure_measure_id: jni::objects::JStaticMethodID,
     pub(crate) node_clazz: jni::objects::GlobalRef,
-    pub(crate) node_set_computed_size_id: jni::objects::JMethodID,
+    pub(crate) node_set_computed_size_id: jni::objects::JStaticMethodID,
+    pub object_manager_clazz: jni::objects::GlobalRef,
+    pub object_manager_add_id: jni::objects::JStaticMethodID,
 }
 
 #[cfg(target_os = "android")]
 impl JVMCache {
     pub fn new(
-        measure_clazz: jni::objects::GlobalRef,
-        measure_measure_id: jni::objects::JMethodID,
         node_clazz: jni::objects::GlobalRef,
-        node_set_computed_size_id: jni::objects::JMethodID,
+        measure_measure_id: jni::objects::JStaticMethodID,
+        node_set_computed_size_id: jni::objects::JStaticMethodID,
+        object_manager_clazz: jni::objects::GlobalRef,
+        object_manager_add_id: jni::objects::JStaticMethodID,
     ) -> Self {
         Self {
-            measure_clazz,
             measure_measure_id,
             node_clazz,
             node_set_computed_size_id,
+            object_manager_clazz,
+            object_manager_add_id,
         }
     }
 }
@@ -82,7 +88,7 @@ impl MeasureOutput {
 
 fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
     let layout = taffy.layout(node);
-    if let Some(children) = taffy.children.get(node) {
+    if let Some(children) = taffy.inner().children.get(node) {
         let len = children.len();
         output.reserve(len * 22);
 
@@ -109,7 +115,7 @@ fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
         output.push(layout.padding.right);
         output.push(layout.padding.bottom);
         output.push(layout.padding.left);
-        
+
         output.push(layout.content_size.width);
         output.push(layout.content_size.height);
 
@@ -128,8 +134,10 @@ fn copy_output(taffy: &Tree, node: Id, output: &mut Vec<f32>) {
 
 // static mut TREE: Lazy<Rc<RefCell<Tree>>> = Lazy::new(|| Rc::new(RefCell::new(Tree::new())));
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Mason(Tree);
+
+unsafe impl Send for Mason {}
 
 impl Default for Mason {
     fn default() -> Self {
@@ -138,6 +146,9 @@ impl Default for Mason {
 }
 
 impl Mason {
+    pub fn arena_state(&self) -> ArenaStats {
+        self.0.inner().style_arena.stats()
+    }
     pub fn new() -> Self {
         Self::with_capacity(128)
     }
@@ -147,11 +158,14 @@ impl Mason {
     }
 
     pub fn set_device_scale(&mut self, scale: f32) {
-        self.0.density.store(scale.to_bits(), Ordering::Release);
+        self.0
+            .inner_mut()
+            .density
+            .store(scale.to_bits(), Ordering::Release);
     }
 
     pub fn get_device_scale(&self) -> f32 {
-        f32::from_bits(self.0.density.load(Ordering::Acquire))
+        f32::from_bits(self.0.inner().density.load(Ordering::Acquire))
     }
 
     pub fn with_capacity(size: usize) -> Self {
@@ -183,16 +197,74 @@ impl Mason {
         self.0.create_image_node()
     }
 
-
     #[track_caller]
     pub fn create_line_break_node(&mut self) -> NodeRef {
         self.0.create_line_break_node()
     }
 
+    #[track_caller]
+    pub fn create_list_item_node(&mut self) -> NodeRef {
+        self.0.create_list_item_node()
+    }
+
+    pub fn prepare_mut(&mut self, node: &NodeRef) {
+        self.0.prepare_mut(node.id.into())
+    }
+
+    #[cfg(not(any(target_os = "android", target_vendor = "apple")))]
+    #[track_caller]
+    pub fn node_state_data(&mut self, node: Id) -> &[u8] {
+        self.0
+            .nodes()
+            .get(node)
+            .map(|data| unsafe {
+                std::slice::from_raw_parts(data.state.as_ptr(), data.state.len())
+            })
+            .unwrap_or(&[])
+    }
+
     #[cfg(target_os = "android")]
     #[track_caller]
-    pub fn style_data(&mut self, node: Id) -> jni::objects::GlobalRef {
-        self.0.nodes.get_mut(node).unwrap().style.buffer.clone()
+    pub fn node_state_data(&mut self, node: Id) -> jni::sys::jint {
+        self.0
+            .nodes_mut()
+            .get_mut(node)
+            .map(|data| data.state_buffer)
+            .unwrap_or(-1 as _)
+    }
+
+    #[cfg(target_vendor = "apple")]
+    #[track_caller]
+    pub fn node_state_data(&mut self, node: Id) -> *mut c_void {
+        use objc2::Message;
+        self.0
+            .nodes_mut()
+            .get_mut(node)
+            .map(|data| objc2::rc::Retained::into_raw(data.style().buffer()) as *mut c_void)
+            .unwrap_or(0 as _)
+    }
+
+    #[cfg(not(any(target_os = "android", target_vendor = "apple")))]
+    #[track_caller]
+    pub fn style_data(&mut self, node: Id) -> &[u8] {
+        self.0
+            .nodes()
+            .get(node)
+            .map(|data| {
+                let (ptr, len) = data.style().raw();
+                unsafe { std::slice::from_raw_parts(ptr, len) }
+            })
+            .unwrap_or(&[])
+    }
+
+    #[cfg(target_os = "android")]
+    #[track_caller]
+    pub fn style_data(&mut self, node: Id) -> jni::sys::jint {
+        self.0
+            .nodes_mut()
+            .get_mut(node)
+            .map(|data| data.style().buffer())
+            .unwrap_or(-1 as _)
     }
 
     #[cfg(target_vendor = "apple")]
@@ -200,55 +272,63 @@ impl Mason {
     pub fn style_data(&mut self, node: Id) -> *mut c_void {
         use objc2::Message;
         self.0
-            .nodes
+            .nodes_mut()
             .get_mut(node)
-            .map(|data| {
-                data.style.buffer.retain();
-                objc2::rc::Retained::as_ptr(&data.style.buffer) as *mut c_void
-            })
+            .map(|data| objc2::rc::Retained::into_raw(data.style().buffer()) as *mut c_void)
             .unwrap_or(0 as _)
     }
 
     #[track_caller]
     pub fn style_data_raw(&self, node: Id) -> (*const u8, usize) {
         self.0
-            .nodes
+            .nodes()
             .get(node)
-            .map(|data| data.style.raw())
+            .map(|data| data.style().raw())
             .unwrap_or((0 as _, 0))
     }
 
     #[track_caller]
     pub fn style_data_raw_mut(&mut self, node: Id) -> (*mut u8, usize) {
         self.0
-            .nodes
+            .nodes_mut()
             .get_mut(node)
-            .map(|data| data.style.raw_mut())
+            .map(|data| data.style_mut().raw_mut())
+            .unwrap_or((0 as _, 0))
+    }
+
+    #[track_caller]
+    pub fn node_state_data_raw_mut(&mut self, node: Id) -> (*mut u8, usize) {
+        self.0
+            .nodes_mut()
+            .get_mut(node)
+            .map(|data| (data.state.as_mut_ptr(), data.state.len()))
             .unwrap_or((0 as _, 0))
     }
 
     #[cfg(target_os = "android")]
     #[track_caller]
-    pub fn setup(&mut self, node: Id, measure: Option<jni::objects::GlobalRef>) {
-        let has_measure = measure.is_some();
-        if let Some(node) = self.0.node_data.get_mut(node) {
+    pub fn setup(&mut self, node: Id, measure: jni::sys::jint) {
+        let has_measure = measure != -1;
+        let mut tree = self.0.inner_mut();
+        if let Some(node) = tree.node_data.get_mut(node) {
             node.measure = measure;
         }
 
-        if let Some(node) = self.0.nodes.get_mut(node) {
+        if let Some(node) = tree.nodes.get_mut(node) {
             node.has_measure = has_measure;
         }
     }
 
     #[cfg(target_os = "android")]
     #[track_caller]
-    pub fn set_measure(&mut self, node: Id, measure: Option<jni::objects::GlobalRef>) {
-        let has_measure = measure.is_some();
-        if let Some(node) = self.0.node_data.get_mut(node) {
+    pub fn set_measure(&mut self, node: Id, measure: jni::sys::jint) {
+        let has_measure = measure != -1;
+        let mut tree = self.0.inner_mut();
+        if let Some(node) = tree.node_data.get_mut(node) {
             node.measure = measure;
         }
 
-        if let Some(node) = self.0.nodes.get_mut(node) {
+        if let Some(node) = tree.nodes.get_mut(node) {
             node.has_measure = has_measure;
         }
     }
@@ -264,7 +344,7 @@ impl Mason {
         data: *mut c_void,
     ) {
         let has_measure = measure.is_some();
-        if let Some(node) = self.0.node_data.get_mut(node) {
+        if let Some(node) = self.0.node_data_mut().get_mut(node) {
             node.measure = measure;
             node.data = data;
 
@@ -274,7 +354,7 @@ impl Mason {
             // }
         }
 
-        if let Some(node) = self.0.nodes.get_mut(node) {
+        if let Some(node) = self.0.nodes_mut().get_mut(node) {
             node.has_measure = has_measure;
         }
     }
@@ -282,7 +362,7 @@ impl Mason {
     #[cfg(target_vendor = "apple")]
     #[track_caller]
     pub fn set_apple_data(&mut self, node: Id, data: *mut c_void) {
-        if let Some(node) = self.0.node_data.get_mut(node) {
+        if let Some(node) = self.0.node_data_mut().get_mut(node) {
             if data.is_null() {
                 node.apple_data = None;
             } else if let Some(apple_node) = AppleNode::from_ptr(data as *mut _) {
@@ -293,16 +373,16 @@ impl Mason {
 
     #[cfg(target_os = "android")]
     #[track_caller]
-    pub fn set_android_node(&mut self, node: Id, android_node: jni::objects::GlobalRef) {
-        if let Some(node) = self.0.node_data.get_mut(node) {
-            node.android_data = Some(crate::node::AndroidNode(android_node));
+    pub fn set_android_node(&mut self, node: Id, android_node: Option<jni::sys::jint>) {
+        if let Some(node) = self.0.node_data_mut().get_mut(node) {
+            node.android_data = android_node.map(node::AndroidNode);
         }
     }
 
     #[cfg(target_os = "android")]
     #[track_caller]
     pub fn clear_android_node(&mut self, node: Id) {
-        if let Some(node) = self.0.node_data.get_mut(node) {
+        if let Some(node) = self.0.node_data_mut().get_mut(node) {
             node.android_data = None;
         }
     }
@@ -314,7 +394,7 @@ impl Mason {
     }
 
     pub fn compute_layout(&mut self, node_id: Id, available_space: Size<AvailableSpace>) {
-        let use_rounding = self.0.use_rounding;
+        let use_rounding = self.0.use_rounding();
         self.0
             .compute_layout(node_id.into(), available_space, use_rounding);
     }
@@ -361,66 +441,79 @@ impl Mason {
     }
 
     pub fn append_segment(&mut self, node: Id, segment: InlineSegment) {
-        if let Some(data) = self.0.node_data.get_mut(node) {
+        if let Some(data) = self.0.node_data_mut().get_mut(node) {
             data.inline_segments.push(segment);
         }
     }
 
     pub fn clear_segments(&mut self, node: Id) {
-        if let Some(data) = self.0.node_data.get_mut(node) {
+        if let Some(data) = self.0.node_data_mut().get_mut(node) {
             data.inline_segments.clear();
         }
     }
 
     pub fn set_segments(&mut self, node: Id, segments: Vec<InlineSegment>) {
-        if let Some(data) = self.0.node_data.get_mut(node) {
+        if let Some(data) = self.0.node_data_mut().get_mut(node) {
             data.inline_segments = segments;
         }
     }
 
-    pub fn get_segments(&mut self, node: Id) -> &[InlineSegment] {
-        self.0
-            .node_data
-            .get(node)
-            .map(|data| data.inline_segments.as_slice())
-            .unwrap_or(&[])
+    pub fn get_segments(&self, node: Id) -> MappedRwLockReadGuard<'_, RawRwLock, [InlineSegment]> {
+        RwLockReadGuard::map(self.0 .0.read(), |data| {
+            data.node_data
+                .get(node)
+                .map(|data| data.inline_segments.as_slice())
+                .unwrap_or(&[])
+        })
     }
 
     pub fn set_children(&mut self, parent: Id, children: &[Id]) {
-        if let Some(current_children) = self.0.children.get_mut(parent) {
-            if children.is_empty() && current_children.is_empty() {
-                return;
-            }
-            if current_children == children {
-                return;
-            }
+        let mut tree = &mut self.0 .0.write();
+        let mut has_children = false;
+        {
+            if let Some(current_children) = tree.children.get_mut(parent) {
+                if children.is_empty() && current_children.is_empty() {
+                    return;
+                }
+                if current_children == children {
+                    return;
+                }
 
-            current_children.clear();
-            current_children.extend_from_slice(children);
+                current_children.clear();
+                current_children.extend_from_slice(children);
 
+                has_children = true;
+            }
+        }
+
+        if has_children {
             for child in children.iter() {
-                if let Some(Some(removed)) = self.0.parents.insert(*child, Some(parent)) {
+                if let Some(Some(removed)) = tree.parents.insert(*child, Some(parent)) {
                     if removed == parent {
                         continue;
                     }
-                    if let Some(node) = self.0.nodes.get_mut(removed) {
-                        if let Some(previous_children) = self.0.children.get_mut(removed) {
-                            previous_children.retain(|&id| id != *child);
-                        }
+
+                    if let Some(previous_children) = tree.children.get_mut(removed) {
+                        previous_children.retain(|&id| id != *child);
+                    }
+
+                    if let Some(node) = tree.nodes.get_mut(removed) {
                         node.mark_dirty();
                     }
                 }
             }
-        } else {
-            self.0.children.insert(parent, children.to_vec());
-            for child in children.iter() {
-                if let Some(Some(removed)) = self.0.parents.insert(*child, Some(parent)) {
-                    if let Some(node) = self.0.nodes.get_mut(removed) {
-                        if let Some(previous_children) = self.0.children.get_mut(removed) {
-                            previous_children.retain(|&id| id != *child);
-                        }
-                        node.mark_dirty();
-                    }
+            return;
+        }
+
+        tree.children.insert(parent, children.to_vec());
+        for child in children.iter() {
+            if let Some(Some(removed)) = tree.parents.insert(*child, Some(parent)) {
+                if let Some(previous_children) = tree.children.get_mut(removed) {
+                    previous_children.retain(|&id| id != *child);
+                }
+
+                if let Some(node) = tree.nodes.get_mut(removed) {
+                    node.mark_dirty();
                 }
             }
         }
@@ -502,12 +595,11 @@ impl Mason {
         self.0.child_at(node, index)
     }
 
-    pub fn set_style(&mut self, node: Id, style: Style) {
-        self.0.set_style(node, style);
-    }
-
-    pub fn style(&mut self, node: Id) -> Option<&Style> {
-        self.0.nodes.get(node).map(|node| &node.style)
+    pub fn style(&mut self, node: Id) -> Option<MappedRwLockReadGuard<'_, RawRwLock, Style>> {
+        RwLockReadGuard::try_map(self.0 .0.read(), |data| {
+            data.nodes.get(node).map(|node| node.style())
+        })
+        .ok()
     }
 
     pub fn with_style<F>(&self, node: Id, func: F)

@@ -38,13 +38,16 @@ sealed class GridTrackRepetition {
 
   companion object {
     @JvmStatic
-    fun fromInt(type: Int, value: Short): GridTrackRepetition {
+    fun from(type: Byte, value: Short): GridTrackRepetition {
       return when (type) {
-        0 -> AutoFill
-        1 -> AutoFit
-        2 -> Count(value)
+        0.toByte() -> AutoFill
+        1.toByte() -> AutoFit
+        2.toByte() -> Count(value)
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }
+
+    @JvmStatic
+    fun from(type: Int, value: Short): GridTrackRepetition = from(type.toByte(), value)
   }
 }

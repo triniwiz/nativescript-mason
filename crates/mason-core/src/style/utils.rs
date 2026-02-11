@@ -8,7 +8,7 @@ use taffy::geometry::Point;
 use crate::style::StyleKeys;
 use crate::Style;
 use taffy::style::{
-    Display, LengthPercentage, LengthPercentageAuto, MinTrackSizingFunction, TrackSizingFunction,
+    LengthPercentage, LengthPercentageAuto, MinTrackSizingFunction, TrackSizingFunction,
 };
 use taffy::style_helpers::{
     FromLength, FromPercent, TaffyAuto, TaffyFitContent, TaffyMaxContent, TaffyMinContent,
@@ -17,7 +17,7 @@ use taffy::{CompactLength, Dimension, MaxTrackSizingFunction, Rect, Size};
 
 #[inline(always)]
 #[track_caller]
-pub fn length_percentage_auto_from_type_value(value_type: i32, value: f32) -> LengthPercentageAuto {
+pub fn length_percentage_auto_from_type_value(value_type: i8, value: f32) -> LengthPercentageAuto {
     match value_type {
         0 => LengthPercentageAuto::auto(),
         1 => LengthPercentageAuto::length(value),
@@ -27,7 +27,7 @@ pub fn length_percentage_auto_from_type_value(value_type: i32, value: f32) -> Le
 }
 
 #[inline(always)]
-pub fn length_percentage_auto_to_type_value(value: LengthPercentageAuto) -> (i32, f32) {
+pub fn length_percentage_auto_to_type_value(value: LengthPercentageAuto) -> (i8, f32) {
     if value.is_auto() {
         return (0, 0.0);
     }
@@ -53,7 +53,7 @@ pub fn length_percentage_auto_to_format_type_value(value: LengthPercentageAuto) 
 }
 
 #[inline(always)]
-pub fn length_percentage_to_type_value(value: LengthPercentage) -> (i32, f32) {
+pub fn length_percentage_to_type_value(value: LengthPercentage) -> (i8, f32) {
     let raw = value.into_raw();
     match raw.tag() {
         CompactLength::LENGTH_TAG => (0, raw.value()),
@@ -74,7 +74,7 @@ pub fn length_percentage_to_format_type_value(value: LengthPercentage) -> String
 
 #[inline(always)]
 #[track_caller]
-pub fn length_percentage_from_type_value(value_type: i32, value: f32) -> LengthPercentage {
+pub fn length_percentage_from_type_value(value_type: i8, value: f32) -> LengthPercentage {
     match value_type {
         0 => LengthPercentage::length(value),
         1 => LengthPercentage::percent(value),
@@ -84,7 +84,7 @@ pub fn length_percentage_from_type_value(value_type: i32, value: f32) -> LengthP
 
 #[inline(always)]
 #[track_caller]
-pub fn dimension_from_type_value(value_type: i32, value: f32) -> Dimension {
+pub fn dimension_from_type_value(value_type: i8, value: f32) -> Dimension {
     // todo handle calc when supported
     match value_type {
         0 => Dimension::auto(),
@@ -95,7 +95,7 @@ pub fn dimension_from_type_value(value_type: i32, value: f32) -> Dimension {
 }
 
 #[inline(always)]
-pub fn dimension_to_type_value(value: Dimension) -> (i32, f32) {
+pub fn dimension_to_type_value(value: Dimension) -> (i8, f32) {
     if value.is_auto() {
         return (0, 0.0);
     }
@@ -120,7 +120,7 @@ pub fn dimension_to_format_type_value(value: Dimension) -> String {
     }
 }
 
-pub const fn dimension_with_auto(t: i32, v: f32) -> LengthPercentageAuto {
+pub const fn dimension_with_auto(t: i8, v: f32) -> LengthPercentageAuto {
     match t {
         0 => LengthPercentageAuto::AUTO,
         1 => LengthPercentageAuto::length(v),
@@ -129,7 +129,7 @@ pub const fn dimension_with_auto(t: i32, v: f32) -> LengthPercentageAuto {
     }
 }
 
-const fn dimension(t: i32, v: f32) -> LengthPercentage {
+const fn dimension(t: i8, v: f32) -> LengthPercentage {
     match t {
         0 => LengthPercentage::length(v),
         1 => LengthPercentage::percent(v),
@@ -138,9 +138,9 @@ const fn dimension(t: i32, v: f32) -> LengthPercentage {
 }
 
 pub fn min_max_from_values(
-    min_type: i32,
+    min_type: i8,
     min_value: f32,
-    max_type: i32,
+    max_type: i8,
     max_value: f32,
 ) -> TrackSizingFunction {
     TrackSizingFunction {
@@ -231,254 +231,76 @@ pub fn set_aspect_ratio(style: &mut Style, ratio: Option<f32>) {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn from_ffi(
-    display: i32,
-    position: i32,
-    _direction: i32,
-    flex_direction: i32,
-    flex_wrap: i32,
-    _overflow: i32,
-    align_items: i32,
-    align_self: i32,
-    align_content: i32,
-    justify_items: i32,
-    justify_self: i32,
-    justify_content: i32,
-    inset_left_type: i32,
-    inset_left_value: f32,
-    inset_right_type: i32,
-    inset_right_value: f32,
-    inset_top_type: i32,
-    inset_top_value: f32,
-    inset_bottom_type: i32,
-    inset_bottom_value: f32,
-    margin_left_type: i32,
-    margin_left_value: f32,
-    margin_right_type: i32,
-    margin_right_value: f32,
-    margin_top_type: i32,
-    margin_top_value: f32,
-    margin_bottom_type: i32,
-    margin_bottom_value: f32,
-    padding_left_type: i32,
-    padding_left_value: f32,
-    padding_right_type: i32,
-    padding_right_value: f32,
-    padding_top_type: i32,
-    padding_top_value: f32,
-    padding_bottom_type: i32,
-    padding_bottom_value: f32,
-    border_left_type: i32,
-    border_left_value: f32,
-    border_right_type: i32,
-    border_right_value: f32,
-    border_top_type: i32,
-    border_top_value: f32,
-    border_bottom_type: i32,
-    border_bottom_value: f32,
-    flex_grow: f32,
-    flex_shrink: f32,
-    flex_basis_type: i32,
-    flex_basis_value: f32,
-    width_type: i32,
-    width_value: f32,
-    height_type: i32,
-    height_value: f32,
-    min_width_type: i32,
-    min_width_value: f32,
-    min_height_type: i32,
-    min_height_value: f32,
-    max_width_type: i32,
-    max_width_value: f32,
-    max_height_type: i32,
-    max_height_value: f32,
-    gap_row_type: i32,
-    gap_row_value: f32,
-    gap_column_type: i32,
-    gap_column_value: f32,
-    aspect_ratio: f32,
-    grid_auto_rows: Option<&str>,
-    grid_auto_columns: Option<&str>,
-    grid_auto_flow: i32,
-    grid_column: Option<&str>,
-    grid_column_start: Option<&str>,
-    grid_column_end: Option<&str>,
-    grid_row: Option<&str>,
-    grid_row_start: Option<&str>,
-    grid_row_end: Option<&str>,
-    grid_template_rows: Option<&str>,
-    grid_template_columns: Option<&str>,
-    overflow_x: i32,
-    overflow_y: i32,
-    scrollbar_width: f32,
-    text_align: i32,
-    box_sizing: i32,
-    grid_area: Option<&str>,
-    grid_template_areas: Option<&str>,
-) -> Style {
-    let mut style = Style::default();
-    style.set_display(Display::Block);
-    update_from_ffi(
-        &mut style,
-        display,
-        position,
-        _direction,
-        flex_direction,
-        flex_wrap,
-        _overflow,
-        align_items,
-        align_self,
-        align_content,
-        justify_items,
-        justify_self,
-        justify_content,
-        inset_left_type,
-        inset_left_value,
-        inset_right_type,
-        inset_right_value,
-        inset_top_type,
-        inset_top_value,
-        inset_bottom_type,
-        inset_bottom_value,
-        margin_left_type,
-        margin_left_value,
-        margin_right_type,
-        margin_right_value,
-        margin_top_type,
-        margin_top_value,
-        margin_bottom_type,
-        margin_bottom_value,
-        padding_left_type,
-        padding_left_value,
-        padding_right_type,
-        padding_right_value,
-        padding_top_type,
-        padding_top_value,
-        padding_bottom_type,
-        padding_bottom_value,
-        border_left_type,
-        border_left_value,
-        border_right_type,
-        border_right_value,
-        border_top_type,
-        border_top_value,
-        border_bottom_type,
-        border_bottom_value,
-        flex_grow,
-        flex_shrink,
-        flex_basis_type,
-        flex_basis_value,
-        width_type,
-        width_value,
-        height_type,
-        height_value,
-        min_width_type,
-        min_width_value,
-        min_height_type,
-        min_height_value,
-        max_width_type,
-        max_width_value,
-        max_height_type,
-        max_height_value,
-        gap_row_type,
-        gap_row_value,
-        gap_column_type,
-        gap_column_value,
-        aspect_ratio,
-        grid_auto_rows,
-        grid_auto_columns,
-        grid_auto_flow,
-        grid_column,
-        grid_column_start,
-        grid_column_end,
-        grid_row,
-        grid_row_start,
-        grid_row_end,
-        grid_template_rows,
-        grid_template_columns,
-        overflow_x,
-        overflow_y,
-        scrollbar_width,
-        text_align,
-        box_sizing,
-        grid_area,
-        grid_template_areas,
-    );
-
-    style
-}
-
-#[allow(clippy::too_many_arguments)]
 pub fn update_from_ffi(
     style: &mut Style,
-    display: i32,
-    position: i32,
-    _direction: i32,
-    flex_direction: i32,
-    flex_wrap: i32,
-    _overflow: i32,
-    align_items: i32,
-    align_self: i32,
-    align_content: i32,
-    justify_items: i32,
-    justify_self: i32,
-    justify_content: i32,
-    inset_left_type: i32,
+    display: i8,
+    position: i8,
+    _direction: i8,
+    flex_direction: i8,
+    flex_wrap: i8,
+    _overflow: i8,
+    align_items: i8,
+    align_self: i8,
+    align_content: i8,
+    justify_items: i8,
+    justify_self: i8,
+    justify_content: i8,
+    inset_left_type: i8,
     inset_left_value: f32,
-    inset_right_type: i32,
+    inset_right_type: i8,
     inset_right_value: f32,
-    inset_top_type: i32,
+    inset_top_type: i8,
     inset_top_value: f32,
-    inset_bottom_type: i32,
+    inset_bottom_type: i8,
     inset_bottom_value: f32,
-    margin_left_type: i32,
+    margin_left_type: i8,
     margin_left_value: f32,
-    margin_right_type: i32,
+    margin_right_type: i8,
     margin_right_value: f32,
-    margin_top_type: i32,
+    margin_top_type: i8,
     margin_top_value: f32,
-    margin_bottom_type: i32,
+    margin_bottom_type: i8,
     margin_bottom_value: f32,
-    padding_left_type: i32,
+    padding_left_type: i8,
     padding_left_value: f32,
-    padding_right_type: i32,
+    padding_right_type: i8,
     padding_right_value: f32,
-    padding_top_type: i32,
+    padding_top_type: i8,
     padding_top_value: f32,
-    padding_bottom_type: i32,
+    padding_bottom_type: i8,
     padding_bottom_value: f32,
-    border_left_type: i32,
+    border_left_type: i8,
     border_left_value: f32,
-    border_right_type: i32,
+    border_right_type: i8,
     border_right_value: f32,
-    border_top_type: i32,
+    border_top_type: i8,
     border_top_value: f32,
-    border_bottom_type: i32,
+    border_bottom_type: i8,
     border_bottom_value: f32,
     flex_grow: f32,
     flex_shrink: f32,
-    flex_basis_type: i32,
+    flex_basis_type: i8,
     flex_basis_value: f32,
-    width_type: i32,
+    width_type: i8,
     width_value: f32,
-    height_type: i32,
+    height_type: i8,
     height_value: f32,
-    min_width_type: i32,
+    min_width_type: i8,
     min_width_value: f32,
-    min_height_type: i32,
+    min_height_type: i8,
     min_height_value: f32,
-    max_width_type: i32,
+    max_width_type: i8,
     max_width_value: f32,
-    max_height_type: i32,
+    max_height_type: i8,
     max_height_value: f32,
-    gap_row_type: i32,
+    gap_row_type: i8,
     gap_row_value: f32,
-    gap_column_type: i32,
+    gap_column_type: i8,
     gap_column_value: f32,
     aspect_ratio: f32,
     grid_auto_rows: Option<&str>,
     grid_auto_columns: Option<&str>,
-    grid_auto_flow: i32,
+    grid_auto_flow: i8,
     grid_column: Option<&str>,
     grid_column_start: Option<&str>,
     grid_column_end: Option<&str>,
@@ -487,11 +309,11 @@ pub fn update_from_ffi(
     grid_row_end: Option<&str>,
     grid_template_rows: Option<&str>,
     grid_template_columns: Option<&str>,
-    overflow_x: i32,
-    overflow_y: i32,
+    overflow_x: i8,
+    overflow_y: i8,
     scrollbar_width: f32,
-    text_align: i32,
-    box_sizing: i32,
+    text_align: i8,
+    box_sizing: i8,
     grid_area: Option<&str>,
     grid_template_areas: Option<&str>,
 ) {
@@ -747,54 +569,104 @@ fn set_style_data(style: &mut [u8], position: StyleKeys, value: &[u8]) {
 #[inline(always)]
 pub(crate) fn set_style_data_i16(style: &mut [u8], position: StyleKeys, value: i16) {
     let offset = position as usize;
-    unsafe {
-        let ptr = style.as_mut_ptr().add(offset) as *mut i16;
-        *ptr = value;
-    }
+    let ptr = &mut style[offset..offset + 2];
+
+    let value = if cfg!(target_endian = "little") {
+        value.to_le_bytes()
+    } else {
+        value.to_be_bytes()
+    };
+
+    ptr.copy_from_slice(&value);
 }
 
 #[inline(always)]
 pub(crate) fn set_style_data_i32(style: &mut [u8], position: StyleKeys, value: i32) {
     let offset = position as usize;
-    unsafe {
-        let ptr = style.as_mut_ptr().add(offset) as *mut i32;
-        *ptr = value;
-    }
+    let ptr = &mut style[offset..offset + 4];
+
+    let value = if cfg!(target_endian = "little") {
+        value.to_le_bytes()
+    } else {
+        value.to_be_bytes()
+    };
+
+    ptr.copy_from_slice(&value);
+}
+
+#[inline(always)]
+pub(crate) fn set_style_data_u32(style: &mut [u8], position: StyleKeys, value: u32) {
+    let offset = position as usize;
+    let ptr = &mut style[offset..offset + 4];
+
+    let value = if cfg!(target_endian = "little") {
+        value.to_le_bytes()
+    } else {
+        value.to_be_bytes()
+    };
+
+    ptr.copy_from_slice(&value);
 }
 
 #[inline(always)]
 pub(crate) fn set_style_data_f32(style: &mut [u8], position: StyleKeys, value: f32) {
     let offset = position as usize;
-    unsafe {
-        let ptr = style.as_mut_ptr().add(offset) as *mut f32;
-        *ptr = value;
-    }
+    let ptr = &mut style[offset..offset + 4];
+
+    let value = if cfg!(target_endian = "little") {
+        value.to_le_bytes()
+    } else {
+        value.to_be_bytes()
+    };
+
+    ptr.copy_from_slice(&value);
 }
 
 #[inline(always)]
 pub(crate) fn get_style_data_i16(style: &[u8], position: StyleKeys) -> i16 {
     let offset = position as usize;
-    unsafe {
-        let ptr = style.as_ptr().add(offset) as *const i16;
-        *ptr
+    let ptr: [u8; 2] = <[u8; 2]>::try_from(&style[offset..offset + 2]).unwrap();
+
+    if cfg!(target_endian = "little") {
+        i16::from_le_bytes(ptr)
+    } else {
+        i16::from_be_bytes(ptr)
     }
 }
 
 #[inline(always)]
 pub(crate) fn get_style_data_i32(style: &[u8], position: StyleKeys) -> i32 {
     let offset = position as usize;
-    unsafe {
-        let ptr = style.as_ptr().add(offset) as *const i32;
-        *ptr
+    let ptr: [u8; 4] = <[u8; 4]>::try_from(&style[offset..offset + 4]).unwrap();
+
+    if cfg!(target_endian = "little") {
+        i32::from_le_bytes(ptr)
+    } else {
+        i32::from_be_bytes(ptr)
+    }
+}
+
+#[inline(always)]
+pub(crate) fn get_style_data_u32(style: &[u8], position: StyleKeys) -> u32 {
+    let offset = position as usize;
+    let ptr: [u8; 4] = <[u8; 4]>::try_from(&style[offset..offset + 4]).unwrap();
+
+    if cfg!(target_endian = "little") {
+        u32::from_le_bytes(ptr)
+    } else {
+        u32::from_be_bytes(ptr)
     }
 }
 
 #[inline(always)]
 pub(crate) fn get_style_data_f32(style: &[u8], position: StyleKeys) -> f32 {
     let offset = position as usize;
-    unsafe {
-        let ptr = style.as_ptr().add(offset) as *const f32;
-        *ptr
+    let ptr: [u8; 4] = <[u8; 4]>::try_from(&style[offset..offset + 4]).unwrap();
+
+    if cfg!(target_endian = "little") {
+        f32::from_le_bytes(ptr)
+    } else {
+        f32::from_be_bytes(ptr)
     }
 }
 
@@ -830,6 +702,42 @@ pub(crate) fn get_style_data_u8(style: &[u8], position: StyleKeys) -> u8 {
     let offset = position as usize;
     unsafe {
         let ptr = style.as_ptr().add(offset);
+        *ptr
+    }
+}
+
+#[inline(always)]
+pub(crate) fn set_style_data_i8(style: &mut [u8], position: StyleKeys, value: i8) {
+    let offset = position as usize;
+    unsafe {
+        let ptr = style.as_mut_ptr().add(offset) as *mut i8;
+        *ptr = value;
+    }
+}
+
+#[inline(always)]
+pub(crate) fn get_style_data_i8(style: &[u8], position: StyleKeys) -> i8 {
+    let offset = position as usize;
+    unsafe {
+        let ptr = style.as_ptr().add(offset) as *const i8;
+        *ptr
+    }
+}
+
+#[inline(always)]
+pub(crate) fn set_style_data_i8_raw(style: &mut [u8], position: usize, value: i8) {
+    let offset = position;
+    unsafe {
+        let ptr = style.as_mut_ptr().add(offset) as *mut i8;
+        *ptr = value;
+    }
+}
+
+#[inline(always)]
+pub(crate) fn get_style_data_i8_raw(style: &[u8], position: usize) -> i8 {
+    let offset = position;
+    unsafe {
+        let ptr = style.as_ptr().add(offset) as *const i8;
         *ptr
     }
 }

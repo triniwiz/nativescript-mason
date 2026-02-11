@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.text.TextPaint
+import android.util.Log
 import android.view.View
 import androidx.core.graphics.withClip
 import dalvik.annotation.optimization.FastNative
@@ -25,6 +26,8 @@ import org.nativescript.mason.masonkit.enums.GridAutoFlow
 import org.nativescript.mason.masonkit.enums.JustifyContent
 import org.nativescript.mason.masonkit.enums.JustifyItems
 import org.nativescript.mason.masonkit.enums.JustifySelf
+import org.nativescript.mason.masonkit.enums.ListStylePosition
+import org.nativescript.mason.masonkit.enums.ListStyleType
 import org.nativescript.mason.masonkit.enums.ObjectFit
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.Position
@@ -52,182 +55,191 @@ internal fun Int.rgbaToHexCSS(): String {
 
 object StyleKeys {
   const val DISPLAY = 0
-  const val POSITION = 4
-  const val DIRECTION = 8
-  const val FLEX_DIRECTION = 12
-  const val FLEX_WRAP = 16
-  const val OVERFLOW_X = 20
-  const val OVERFLOW_Y = 24
+  const val POSITION = 1
+  const val DIRECTION = 2
+  const val FLEX_DIRECTION = 3
+  const val FLEX_WRAP = 4
+  const val OVERFLOW_X = 5
+  const val OVERFLOW_Y = 6
 
-  const val ALIGN_ITEMS = 28
-  const val ALIGN_SELF = 32
-  const val ALIGN_CONTENT = 36
+  const val ALIGN_ITEMS = 7
+  const val ALIGN_SELF = 8
+  const val ALIGN_CONTENT = 9
 
-  const val JUSTIFY_ITEMS = 40
-  const val JUSTIFY_SELF = 44
-  const val JUSTIFY_CONTENT = 48
+  const val JUSTIFY_ITEMS = 10
+  const val JUSTIFY_SELF = 11
+  const val JUSTIFY_CONTENT = 12
 
-  const val INSET_LEFT_TYPE = 52
-  const val INSET_LEFT_VALUE = 56
-  const val INSET_RIGHT_TYPE = 60
-  const val INSET_RIGHT_VALUE = 64
-  const val INSET_TOP_TYPE = 68
-  const val INSET_TOP_VALUE = 72
-  const val INSET_BOTTOM_TYPE = 76
-  const val INSET_BOTTOM_VALUE = 80
+  const val INSET_LEFT_TYPE = 13
+  const val INSET_LEFT_VALUE = 14 // float (4 bytes: 14-17)
+  const val INSET_RIGHT_TYPE = 18
+  const val INSET_RIGHT_VALUE = 19 // float (4 bytes: 19-22)
+  const val INSET_TOP_TYPE = 23
+  const val INSET_TOP_VALUE = 24 // float (4 bytes: 24-27)
+  const val INSET_BOTTOM_TYPE = 28
+  const val INSET_BOTTOM_VALUE = 29 // float (4 bytes: 29-32)
 
-  const val MARGIN_LEFT_TYPE = 84
-  const val MARGIN_LEFT_VALUE = 88
-  const val MARGIN_RIGHT_TYPE = 92
-  const val MARGIN_RIGHT_VALUE = 96
-  const val MARGIN_TOP_TYPE = 100
-  const val MARGIN_TOP_VALUE = 104
-  const val MARGIN_BOTTOM_TYPE = 108
-  const val MARGIN_BOTTOM_VALUE = 112
+  const val MARGIN_LEFT_TYPE = 33
+  const val MARGIN_LEFT_VALUE = 34 // float (4 bytes: 34-37)
+  const val MARGIN_RIGHT_TYPE = 38
+  const val MARGIN_RIGHT_VALUE = 39 // float (4 bytes: 39-42)
+  const val MARGIN_TOP_TYPE = 43
+  const val MARGIN_TOP_VALUE = 44 // float (4 bytes: 44-47)
+  const val MARGIN_BOTTOM_TYPE = 48
+  const val MARGIN_BOTTOM_VALUE = 49 // float (4 bytes: 49-52)
 
-  const val PADDING_LEFT_TYPE = 116
-  const val PADDING_LEFT_VALUE = 120
-  const val PADDING_RIGHT_TYPE = 124
-  const val PADDING_RIGHT_VALUE = 128
-  const val PADDING_TOP_TYPE = 132
-  const val PADDING_TOP_VALUE = 136
-  const val PADDING_BOTTOM_TYPE = 140
-  const val PADDING_BOTTOM_VALUE = 144
+  const val PADDING_LEFT_TYPE = 53
+  const val PADDING_LEFT_VALUE = 54 // float (4 bytes: 54-57)
+  const val PADDING_RIGHT_TYPE = 58
+  const val PADDING_RIGHT_VALUE = 59 // float (4 bytes: 59-62)
+  const val PADDING_TOP_TYPE = 63
+  const val PADDING_TOP_VALUE = 64 // float (4 bytes: 64-67)
+  const val PADDING_BOTTOM_TYPE = 68
+  const val PADDING_BOTTOM_VALUE = 69 // float (4 bytes: 69-72)
 
-  const val BORDER_LEFT_TYPE = 148
-  const val BORDER_LEFT_VALUE = 152
-  const val BORDER_RIGHT_TYPE = 156
-  const val BORDER_RIGHT_VALUE = 160
-  const val BORDER_TOP_TYPE = 164
-  const val BORDER_TOP_VALUE = 168
-  const val BORDER_BOTTOM_TYPE = 172
-  const val BORDER_BOTTOM_VALUE = 176
+  const val BORDER_LEFT_TYPE = 73
+  const val BORDER_LEFT_VALUE = 74 // float (4 bytes: 74-77)
+  const val BORDER_RIGHT_TYPE = 78
+  const val BORDER_RIGHT_VALUE = 79 // float (4 bytes: 79-82)
+  const val BORDER_TOP_TYPE = 83
+  const val BORDER_TOP_VALUE = 84 // float (4 bytes: 84-87)
+  const val BORDER_BOTTOM_TYPE = 88
+  const val BORDER_BOTTOM_VALUE = 89 // float (4 bytes: 89-92)
 
-  const val FLEX_GROW = 180
-  const val FLEX_SHRINK = 184
+  const val FLEX_GROW = 93 // float (4 bytes: 93-96)
+  const val FLEX_SHRINK = 97 // float (4 bytes: 97-100)
 
-  const val FLEX_BASIS_TYPE = 188
-  const val FLEX_BASIS_VALUE = 192
+  const val FLEX_BASIS_TYPE = 101
+  const val FLEX_BASIS_VALUE = 102 // float (4 bytes: 102-105)
 
-  const val WIDTH_TYPE = 196
-  const val WIDTH_VALUE = 200
-  const val HEIGHT_TYPE = 204
-  const val HEIGHT_VALUE = 208
+  const val WIDTH_TYPE = 106
+  const val WIDTH_VALUE = 107 // float (4 bytes: 107-110)
+  const val HEIGHT_TYPE = 111
+  const val HEIGHT_VALUE = 112 // float (4 bytes: 112-115)
 
-  const val MIN_WIDTH_TYPE = 212
-  const val MIN_WIDTH_VALUE = 216
-  const val MIN_HEIGHT_TYPE = 220
-  const val MIN_HEIGHT_VALUE = 224
+  const val MIN_WIDTH_TYPE = 116
+  const val MIN_WIDTH_VALUE = 117 // float (4 bytes: 117-120)
+  const val MIN_HEIGHT_TYPE = 121
+  const val MIN_HEIGHT_VALUE = 122 // float (4 bytes: 122-125)
 
-  const val MAX_WIDTH_TYPE = 228
-  const val MAX_WIDTH_VALUE = 232
-  const val MAX_HEIGHT_TYPE = 236
-  const val MAX_HEIGHT_VALUE = 240
+  const val MAX_WIDTH_TYPE = 126
+  const val MAX_WIDTH_VALUE = 127 // float (4 bytes: 127-130)
+  const val MAX_HEIGHT_TYPE = 131
+  const val MAX_HEIGHT_VALUE = 132 // float (4 bytes: 132-135)
 
-  const val GAP_ROW_TYPE = 244
-  const val GAP_ROW_VALUE = 248
-  const val GAP_COLUMN_TYPE = 252
-  const val GAP_COLUMN_VALUE = 256
+  const val GAP_ROW_TYPE = 136
+  const val GAP_ROW_VALUE = 137 // float (4 bytes: 137-140)
+  const val GAP_COLUMN_TYPE = 141
+  const val GAP_COLUMN_VALUE = 142 // float (4 bytes: 142-145)
 
-  const val ASPECT_RATIO = 260
-  const val GRID_AUTO_FLOW = 264
-  const val GRID_COLUMN_START_TYPE = 268
-  const val GRID_COLUMN_START_VALUE = 272
-  const val GRID_COLUMN_END_TYPE = 276
-  const val GRID_COLUMN_END_VALUE = 280
-  const val GRID_ROW_START_TYPE = 284
-  const val GRID_ROW_START_VALUE = 288
-  const val GRID_ROW_END_TYPE = 292
-  const val GRID_ROW_END_VALUE = 296
-  const val SCROLLBAR_WIDTH = 300
-  const val ALIGN = 304
-  const val BOX_SIZING = 308
-  const val OVERFLOW = 312
-  const val ITEM_IS_TABLE = 316 //Byte
-  const val ITEM_IS_REPLACED = 320 //Byte
-  const val DISPLAY_MODE = 324
-  const val FORCE_INLINE = 328
-  const val MIN_CONTENT_WIDTH = 332
-  const val MIN_CONTENT_HEIGHT = 336
-  const val MAX_CONTENT_WIDTH = 340
-  const val MAX_CONTENT_HEIGHT = 344
+  const val ASPECT_RATIO = 146 // float (4 bytes: 146-149)
+  const val GRID_AUTO_FLOW = 150
+  const val GRID_COLUMN_START_TYPE = 151
+  const val GRID_COLUMN_START_VALUE = 152 // float (4 bytes: 152-155)
+  const val GRID_COLUMN_END_TYPE = 156
+  const val GRID_COLUMN_END_VALUE = 157 // float (4 bytes: 157-160)
+  const val GRID_ROW_START_TYPE = 161
+  const val GRID_ROW_START_VALUE = 162 // float (4 bytes: 162-165)
+  const val GRID_ROW_END_TYPE = 166
+  const val GRID_ROW_END_VALUE = 167 // float (4 bytes: 167-170)
+  const val SCROLLBAR_WIDTH = 171 // float (4 bytes: 171-174)
+  const val TEXT_ALIGN = 175
+  const val BOX_SIZING = 176
+  const val OVERFLOW = 177
+  const val ITEM_IS_TABLE = 178
+  const val ITEM_IS_REPLACED = 179
+  const val DISPLAY_MODE = 180
+  const val FORCE_INLINE = 181
+  const val MIN_CONTENT_WIDTH = 182 // float (4 bytes: 182-185)
+  const val MIN_CONTENT_HEIGHT = 186 // float (4 bytes: 186-189)
+  const val MAX_CONTENT_WIDTH = 190 // float (4 bytes: 190-193)
+  const val MAX_CONTENT_HEIGHT = 194 // float (4 bytes: 194-197)
 
   // ----------------------------
   // Border Style (per side)
   // ----------------------------
-  const val BORDER_LEFT_STYLE = 348
-  const val BORDER_RIGHT_STYLE = 352
-  const val BORDER_TOP_STYLE = 356
-  const val BORDER_BOTTOM_STYLE = 360
+  const val BORDER_LEFT_STYLE = 198
+  const val BORDER_RIGHT_STYLE = 199
+  const val BORDER_TOP_STYLE = 200
+  const val BORDER_BOTTOM_STYLE = 201
 
   // ----------------------------
   // Border Color (per side)
   // ----------------------------
-  const val BORDER_LEFT_COLOR = 364
-  const val BORDER_RIGHT_COLOR = 368
-  const val BORDER_TOP_COLOR = 372
-  const val BORDER_BOTTOM_COLOR = 376
+  const val BORDER_LEFT_COLOR = 202 // u32 (4 bytes: 202-205)
+  const val BORDER_RIGHT_COLOR = 206 // u32 (4 bytes: 206-209)
+  const val BORDER_TOP_COLOR = 210 // u32 (4 bytes: 210-213)
+  const val BORDER_BOTTOM_COLOR = 214 // u32 (4 bytes: 214-217)
 
   // ============================================================
   // Border Radius (elliptical + squircle exponent)
-  // Each corner = 20 bytes:
-  //   x_type (4), x_value (4), y_type (4), y_value (4), exponent (4)
+  // Each corner = 5 fields (12 bytes total):
+  //   x_type (1), x_value (4), y_type (1), y_value (4), exponent (4)
   // ============================================================
 
   // ----------------------------
-  // Top-left corner (20 bytes)
+  // Top-left corner (12 bytes)
   // ----------------------------
-  const val BORDER_RADIUS_TOP_LEFT_X_TYPE = 380
-  const val BORDER_RADIUS_TOP_LEFT_X_VALUE = 384
-  const val BORDER_RADIUS_TOP_LEFT_Y_TYPE = 388
-  const val BORDER_RADIUS_TOP_LEFT_Y_VALUE = 392
-  const val BORDER_RADIUS_TOP_LEFT_EXPONENT = 396
+  const val BORDER_RADIUS_TOP_LEFT_X_TYPE = 218
+  const val BORDER_RADIUS_TOP_LEFT_X_VALUE = 219 // float (4 bytes: 219-222)
+  const val BORDER_RADIUS_TOP_LEFT_Y_TYPE = 223
+  const val BORDER_RADIUS_TOP_LEFT_Y_VALUE = 224 // float (4 bytes: 224-227)
+  const val BORDER_RADIUS_TOP_LEFT_EXPONENT = 228 // float (4 bytes: 228-231)
 
   // ----------------------------
   // Top-right corner
   // ----------------------------
-  const val BORDER_RADIUS_TOP_RIGHT_X_TYPE = 400
-  const val BORDER_RADIUS_TOP_RIGHT_X_VALUE = 404
-  const val BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 408
-  const val BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 412
-  const val BORDER_RADIUS_TOP_RIGHT_EXPONENT = 416
+  const val BORDER_RADIUS_TOP_RIGHT_X_TYPE = 232
+  const val BORDER_RADIUS_TOP_RIGHT_X_VALUE = 233 // float (4 bytes: 233-236)
+  const val BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 237
+  const val BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238 // float (4 bytes: 238-241)
+  const val BORDER_RADIUS_TOP_RIGHT_EXPONENT = 242 // float (4 bytes: 242-245)
 
   // ----------------------------
   // Bottom-right corner
   // ----------------------------
-  const val BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 420
-  const val BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 424
-  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 428
-  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 432
-  const val BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 436
+  const val BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 246
+  const val BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 247 // float (4 bytes: 247-250)
+  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 251
+  const val BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 252 // float (4 bytes: 252-255)
+  const val BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 256 // float (4 bytes: 256-259)
 
   // ----------------------------
   // Bottom-left corner
   // ----------------------------
-  const val BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 440
-  const val BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 444
-  const val BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448
-  const val BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452
-  const val BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456
+  const val BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 260
+  const val BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 261 // float (4 bytes: 261-264)
+  const val BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 265
+  const val BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 266 // float (4 bytes: 266-269)
+  const val BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270 // float (4 bytes: 270-273)
 
   // ----------------------------
   // Float
   // ----------------------------
-  const val FLOAT = 460
-  const val CLEAR = 464
+  const val FLOAT = 274
+  const val CLEAR = 275
 
-  const val OBJECT_FIT = 468
+  const val OBJECT_FIT = 276
 
-  const val FONT_METRICS_ASCENT_OFFSET = 472
-  const val FONT_METRICS_DESCENT_OFFSET = 476
-  const val FONT_METRICS_X_HEIGHT_OFFSET = 480
-  const val FONT_METRICS_LEADING_OFFSET = 484
-  const val FONT_METRICS_CAP_HEIGHT_OFFSET = 488
-  const val VERTICAL_ALIGN_OFFSET_OFFSET = 492
-  const val VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496
-  const val VERTICAL_ALIGN_ENUM_OFFSET = 500
-  const val FIRST_BASELINE_OFFSET = 504
-  const val Z_INDEX = 508
+  const val FONT_METRICS_ASCENT_OFFSET = 277 // float (4 bytes: 277-280)
+  const val FONT_METRICS_DESCENT_OFFSET = 281 // float (4 bytes: 281-284)
+  const val FONT_METRICS_X_HEIGHT_OFFSET = 285 // float (4 bytes: 285-288)
+  const val FONT_METRICS_LEADING_OFFSET = 289 // float (4 bytes: 289-292)
+  const val FONT_METRICS_CAP_HEIGHT_OFFSET = 293 // float (4 bytes: 293-296)
+  const val VERTICAL_ALIGN_OFFSET_OFFSET = 297 // float (4 bytes: 297-300)
+  const val VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301
+  const val VERTICAL_ALIGN_ENUM_OFFSET = 302 // float (4 bytes: 302-305)
+  const val FIRST_BASELINE_OFFSET = 306 // float (4 bytes: 306-309)
+  const val Z_INDEX = 310 // float (4 bytes: 310-313)
+  const val ITEM_IS_LIST = 314
+  const val ITEM_IS_LIST_ITEM = 315
+  const val LIST_STYLE_POSITION = 316
+  const val LIST_STYLE_TYPE = 317
+  const val LIST_STYLE_POSITION_STATE = 318
+  const val LIST_STYLE_TYPE_STATE = 319
+
+  const val REF_COUNT = 320 // int
+
 }
 
 @JvmInline
@@ -280,6 +292,8 @@ value class StateKeys internal constructor(val bits: Long) {
     val CLEAR = StateKeys(1L shl 44)
     val OBJECT_FIT = StateKeys(1L shl 45)
     val Z_INDEX = StateKeys(1L shl 46)
+    val LIST_STYLE_POSITION = StateKeys(1L shl 47)
+    val LIST_STYLE_TYPE = StateKeys(1L shl 48)
 
   }
 
@@ -382,7 +396,6 @@ class Style internal constructor(internal var node: Node) {
     owner = this@Style
   }
 
-
   data class FontMetrics(
     val ascent: Float,
     val descent: Float,
@@ -452,7 +465,7 @@ class Style internal constructor(internal var node: Node) {
     // We approximate them based on the font
     val xHeight = getXHeight(paint) ?: (ascent * 0.5f)
     val capHeight = getCapHeight(paint) ?: (ascent * 0.7f)
-
+    prepareMut()
     values.putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
     values.putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
     values.putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight)
@@ -465,6 +478,7 @@ class Style internal constructor(internal var node: Node) {
    */
   internal fun updateFirstBaseline() {
     val baseline = -paint.fontMetrics.ascent
+    prepareMut()
     values.putFloat(StyleKeys.FIRST_BASELINE_OFFSET, baseline)
   }
 
@@ -472,7 +486,7 @@ class Style internal constructor(internal var node: Node) {
    * Clear metrics when node no longer has text
    */
   internal fun clearFontMetrics() {
-
+    prepareMut()
     values.putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, 14f)
     values.putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, 4f)
     values.putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7f)
@@ -500,50 +514,50 @@ class Style internal constructor(internal var node: Node) {
     return if (capBounds.height() > 0) capBounds.height().toFloat() else null
   }
 
-  val values: ByteBuffer by lazy {
+  private val mPlaceholder by lazy {
     isValueInitialized = true
-    if (node.isPlaceholder) {
-      // use the same capacity set in rust
-      return@lazy ByteBuffer.allocateDirect(512).apply {
-        order(ByteOrder.nativeOrder());
+    // use the same capacity set in rust
+    ByteBuffer.allocateDirect(320).apply {
+      order(ByteOrder.nativeOrder())
 
-        // default ratio to NAN
-        putFloat(StyleKeys.ASPECT_RATIO, Float.NaN)
-        // default shrink to 1
-        putFloat(StyleKeys.FLEX_SHRINK, 1f)
+      // default ratio to NAN
+      putFloat(StyleKeys.ASPECT_RATIO, Float.NaN)
+      // default shrink to 1
+      putFloat(StyleKeys.FLEX_SHRINK, 1f)
 
-        putFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, 1f)
-        putFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, 1f)
-        putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, 1f)
-        putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, 1f)
+      putFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, 1f)
+      putFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, 1f)
+      putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, 1f)
+      putFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, 1f)
 
 
-        // Default font metrics
+      // Default font metrics
 
-        putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, 14f)
-        putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, 4f)
-        putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7f)
-        putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, 0f)
-        putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10f)
+      putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, 14f)
+      putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, 4f)
+      putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7f)
+      putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, 0f)
+      putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10f)
 
-        putFloat(StyleKeys.FIRST_BASELINE_OFFSET, Float.NaN)
+      putFloat(StyleKeys.FIRST_BASELINE_OFFSET, Float.NaN)
 
-        putInt(StyleKeys.OBJECT_FIT, ObjectFit.Fill.value)
-        putInt(StyleKeys.DISPLAY, Display.Block.value)
+      put(StyleKeys.OBJECT_FIT, ObjectFit.Fill.value)
+      put(StyleKeys.DISPLAY, Display.Block.value)
 
-        // default Normal -> -1
-        putInt(StyleKeys.ALIGN_ITEMS, -1)
-        putInt(StyleKeys.ALIGN_SELF, -1)
-        putInt(StyleKeys.ALIGN_CONTENT, -1)
+      // default Normal -> -1
+      put(StyleKeys.ALIGN_ITEMS, -1)
+      put(StyleKeys.ALIGN_SELF, -1)
+      put(StyleKeys.ALIGN_CONTENT, -1)
 
-        putInt(StyleKeys.JUSTIFY_ITEMS, -1)
-        putInt(StyleKeys.JUSTIFY_SELF, -1)
-        putInt(StyleKeys.JUSTIFY_CONTENT, -1)
+      put(StyleKeys.JUSTIFY_ITEMS, -1)
+      put(StyleKeys.JUSTIFY_SELF, -1)
+      put(StyleKeys.JUSTIFY_CONTENT, -1)
 
-        putInt(StyleKeys.MARGIN_LEFT_TYPE, 1)
-        putInt(StyleKeys.MARGIN_TOP_TYPE, 1)
-        putInt(StyleKeys.MARGIN_RIGHT_TYPE, 1)
-        putInt(StyleKeys.MARGIN_BOTTOM_TYPE, 1)
+      put(StyleKeys.MARGIN_LEFT_TYPE, 1)
+      put(StyleKeys.MARGIN_TOP_TYPE, 1)
+      put(StyleKeys.MARGIN_RIGHT_TYPE, 1)
+      put(StyleKeys.MARGIN_BOTTOM_TYPE, 1)
+      put(StyleKeys.REF_COUNT, 1)
 
 //          putInt(StyleKeys.PADDING_LEFT_TYPE, 0)
 //          putInt(StyleKeys.PADDING_TOP_TYPE, 0)
@@ -555,16 +569,63 @@ class Style internal constructor(internal var node: Node) {
 //          putInt(StyleKeys.BORDER_TOP_TYPE, 0)
 //          putInt(StyleKeys.BORDER_RIGHT_TYPE, 0)
 //          putInt(StyleKeys.BORDER_BOTTOM_TYPE, 0)
-      }
     }
-    nativeGetStyleBuffer(node.mason.nativePtr, node.nativePtr).apply {
-      order(ByteOrder.nativeOrder())
+  }
+  private var mValues: ByteBuffer? = null
+
+  private var mWritableValue: ByteBuffer? = null
+
+  internal fun prepareMut() {
+    if (node.isPlaceholder) {
+      return
+    }
+
+    val mutable = values[StyleKeys.REF_COUNT] == 1.toByte()
+
+    if (!mutable) {
+      val buffer =
+        ObjectManager.shared[nativePrepareMut(node.mason.nativePtr, node.nativePtr)] as ByteBuffer
+      buffer.apply {
+        order(ByteOrder.nativeOrder())
+      }
+
+      isValueInitialized = true
+      mWritableValue = buffer
+    } else {
+      isValueInitialized = true
+      mWritableValue = values
     }
   }
 
+  val writableValue: ByteBuffer
+    get() {
+      if (node.isPlaceholder) {
+        return mPlaceholder
+      }
+      prepareMut()
+
+      return (mWritableValue)!!
+    }
+
+  val values: ByteBuffer
+    get() {
+      return mWritableValue ?: mValues ?: run {
+        val buffer =
+          ObjectManager.shared[nativeGetStyleBuffer(
+            node.mason.nativePtr,
+            node.nativePtr
+          )] as ByteBuffer
+        buffer.apply {
+          order(ByteOrder.nativeOrder())
+        }
+        mValues = buffer
+        buffer
+      }
+    }
+
   val textValues: ByteBuffer by lazy {
     isTextValueInitialized = true
-    ByteBuffer.allocateDirect(151).apply {
+    ByteBuffer.allocateDirect(57).apply {
       order(ByteOrder.nativeOrder())
 
       // Initialize all values with INHERIT state
@@ -574,7 +635,7 @@ class Style internal constructor(internal var node: Node) {
       putInt(TextStyleKeys.SIZE, Constants.DEFAULT_FONT_SIZE)
       put(TextStyleKeys.SIZE_STATE, StyleState.INHERIT)
 
-      putInt(TextStyleKeys.FONT_WEIGHT, FontFace.NSCFontWeight.Normal.weight)
+      put(TextStyleKeys.FONT_WEIGHT, FontFace.NSCFontWeight.Normal.weight.toByte())
       put(TextStyleKeys.FONT_WEIGHT_STATE, StyleState.INHERIT)
 
       put(TextStyleKeys.FONT_STYLE_STATE, StyleState.INHERIT)
@@ -596,10 +657,10 @@ class Style internal constructor(internal var node: Node) {
       put(TextStyleKeys.WHITE_SPACE_STATE, StyleState.INHERIT)
       put(TextStyleKeys.TRANSFORM_STATE, StyleState.INHERIT)
 
-      putInt(TextStyleKeys.TEXT_ALIGN, TextAlign.Start.value)
+      put(TextStyleKeys.TEXT_ALIGN, TextAlign.Start.value)
       put(TextStyleKeys.TEXT_ALIGN_STATE, StyleState.INHERIT)
 
-      putInt(TextStyleKeys.TEXT_JUSTIFY, TextJustify.None.value)
+      put(TextStyleKeys.TEXT_JUSTIFY, TextJustify.None.value)
       put(TextStyleKeys.TEXT_JUSTIFY_STATE, StyleState.INHERIT)
     }
   }
@@ -769,13 +830,19 @@ class Style internal constructor(internal var node: Node) {
     styleChangeListener?.onTextStyleChanged(change)
   }
 
+  private inline val isMutable: Boolean
+    get() {
+      return values[StyleKeys.REF_COUNT] == 1.toByte()
+    }
+
   // allow overriding of the display
   internal var forceInline: Boolean
     get() {
-      return values.getInt(StyleKeys.FORCE_INLINE) != 0
+      return values.get(StyleKeys.FORCE_INLINE) != Constants.ZERO
     }
     set(value) {
-      values.putInt(
+      prepareMut()
+      values.put(
         StyleKeys.FORCE_INLINE, if (value) {
           1
         } else {
@@ -790,6 +857,7 @@ class Style internal constructor(internal var node: Node) {
       return values.getInt(StyleKeys.Z_INDEX)
     }
     set(value) {
+      prepareMut()
       values.putInt(StyleKeys.Z_INDEX, value)
       setOrAppendState(StateKeys.Z_INDEX)
     }
@@ -797,29 +865,32 @@ class Style internal constructor(internal var node: Node) {
 
   var objectFit: ObjectFit
     get() {
-      return ObjectFit.fromInt(values.getInt(StyleKeys.OBJECT_FIT))
+      return ObjectFit.from(values.get(StyleKeys.OBJECT_FIT))
     }
     set(value) {
-      values.putInt(StyleKeys.OBJECT_FIT, value.value)
+      prepareMut()
+      values.put(StyleKeys.OBJECT_FIT, value.value)
       setOrAppendState(StateKeys.OBJECT_FIT)
     }
 
 
   var float: org.nativescript.mason.masonkit.enums.Float
     get() {
-      return org.nativescript.mason.masonkit.enums.Float.fromInt(values.getInt(StyleKeys.FLOAT))
+      return org.nativescript.mason.masonkit.enums.Float.from(values.get(StyleKeys.FLOAT))
     }
     set(value) {
-      values.putInt(StyleKeys.FLOAT, value.value)
+      prepareMut()
+      values.put(StyleKeys.FLOAT, value.value)
       setOrAppendState(StateKeys.FLOAT)
     }
 
   var clear: org.nativescript.mason.masonkit.enums.Clear
     get() {
-      return org.nativescript.mason.masonkit.enums.Clear.fromInt(values.getInt(StyleKeys.CLEAR))
+      return org.nativescript.mason.masonkit.enums.Clear.from(values.get(StyleKeys.CLEAR))
     }
     set(value) {
-      values.putInt(StyleKeys.CLEAR, value.value)
+      prepareMut()
+      values.put(StyleKeys.CLEAR, value.value)
       setOrAppendState(StateKeys.CLEAR)
     }
 
@@ -873,10 +944,10 @@ class Style internal constructor(internal var node: Node) {
 
   var textJustify: TextJustify
     get() {
-      return TextJustify.fromInt(textValues.getInt(TextStyleKeys.TEXT_JUSTIFY))
+      return TextJustify.from(textValues.get(TextStyleKeys.TEXT_JUSTIFY))
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.TEXT_JUSTIFY, value.value)
+      textValues.put(TextStyleKeys.TEXT_JUSTIFY, value.value)
       textValues.put(TextStyleKeys.TEXT_JUSTIFY_STATE, StyleState.SET)
       if (inBatch) {
         setOrAppendState(TextStateKeys.TEXT_JUSTIFY)
@@ -993,24 +1064,24 @@ class Style internal constructor(internal var node: Node) {
     set(value) {
       val previous = fontStyle
       if (previous != value) {
-        textValues.putInt(TextStyleKeys.FONT_STYLE_TYPE, value.style.value)
+        textValues.put(TextStyleKeys.FONT_STYLE_TYPE, value.style.value.toByte())
         textValues.put(TextStyleKeys.FONT_STYLE_STATE, StyleState.SET)
         font.style = value
         notifyTextStyleChanged(TextStyleChangeMask.FONT_STYLE)
       }
     }
     get() {
-      val style = textValues.getInt(TextStyleKeys.FONT_STYLE_TYPE)
+      val style = textValues.get(TextStyleKeys.FONT_STYLE_TYPE)
       when (style) {
-        0 -> {
+        0.toByte() -> {
           return FontFace.NSCFontStyle.Normal
         }
 
-        1 -> {
+        1.toByte() -> {
           return FontFace.NSCFontStyle.Italic
         }
 
-        2 -> {
+        2.toByte() -> {
           return FontFace.NSCFontStyle.Oblique()
         }
 
@@ -1033,30 +1104,30 @@ class Style internal constructor(internal var node: Node) {
 
   var textWrap: TextWrap
     get() {
-      return TextWrap.fromInt(textValues.getInt(TextStyleKeys.TEXT_WRAP))
+      return TextWrap.from(textValues.get(TextStyleKeys.TEXT_WRAP))
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.TEXT_WRAP, value.value)
+      textValues.put(TextStyleKeys.TEXT_WRAP, value.value)
       textValues.put(TextStyleKeys.TEXT_WRAP_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.TEXT_WRAP)
     }
 
   var whiteSpace: Styles.WhiteSpace
     get() {
-      return Styles.WhiteSpace.fromInt(textValues.getInt(TextStyleKeys.WHITE_SPACE))
+      return Styles.WhiteSpace.from(textValues.get(TextStyleKeys.WHITE_SPACE))
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.WHITE_SPACE, value.value)
+      textValues.put(TextStyleKeys.WHITE_SPACE, value.value)
       textValues.put(TextStyleKeys.WHITE_SPACE_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.WHITE_SPACE)
     }
 
   var textTransform: Styles.TextTransform
     get() {
-      return Styles.TextTransform.fromInt(textValues.getInt(TextStyleKeys.TRANSFORM))
+      return Styles.TextTransform.from(textValues.get(TextStyleKeys.TRANSFORM))
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.TRANSFORM, value.value)
+      textValues.put(TextStyleKeys.TRANSFORM, value.value)
       textValues.put(TextStyleKeys.TRANSFORM_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.TEXT_TRANSFORM)
     }
@@ -1066,21 +1137,23 @@ class Style internal constructor(internal var node: Node) {
       return VerticalAlign.fromStyle(this)
     }
     set(value) {
-
       when (value) {
         VerticalAlign.Length -> {
+          prepareMut()
           values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0)
           values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0)
           values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value)
         }
 
         VerticalAlign.Percent -> {
+          prepareMut()
           values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, 0)
           values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 1)
           values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, value.value)
         }
 
         else -> {
+          prepareMut()
           values.put(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, value.type)
           values.put(StyleKeys.VERTICAL_ALIGN_IS_PERCENT_OFFSET, 0)
           values.putFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, 0f)
@@ -1103,10 +1176,10 @@ class Style internal constructor(internal var node: Node) {
 
   var decorationLine: Styles.DecorationLine
     get() {
-      return Styles.DecorationLine.fromInt(textValues.getInt(TextStyleKeys.DECORATION_LINE))
+      return Styles.DecorationLine.from(textValues.get(TextStyleKeys.DECORATION_LINE))
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.DECORATION_LINE, value.value)
+      textValues.put(TextStyleKeys.DECORATION_LINE, value.value)
       textValues.put(TextStyleKeys.DECORATION_LINE_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.DECORATION_LINE)
     }
@@ -1123,12 +1196,12 @@ class Style internal constructor(internal var node: Node) {
 
   var decorationStyle: Styles.DecorationStyle
     get() {
-      return Styles.DecorationStyle.fromInt(
-        textValues.getInt(TextStyleKeys.DECORATION_STYLE)
+      return Styles.DecorationStyle.from(
+        textValues.get(TextStyleKeys.DECORATION_STYLE)
       )
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.DECORATION_STYLE, value.value)
+      textValues.put(TextStyleKeys.DECORATION_STYLE, value.value)
       textValues.put(TextStyleKeys.DECORATION_STYLE_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.DECORATION_STYLE)
     }
@@ -1170,7 +1243,7 @@ class Style internal constructor(internal var node: Node) {
   var textOverflow: Styles.TextOverflow = Styles.TextOverflow.Clip
     set(value) {
       field = value
-      textValues.putInt(TextStyleKeys.TRANSFORM, value.value)
+      textValues.put(TextStyleKeys.TRANSFORM, value.value)
       textValues.put(TextStyleKeys.TRANSFORM_STATE, StyleState.SET)
       notifyTextStyleChanged(TextStyleChangeMask.TEXT_OVERFLOW)
     }
@@ -1178,18 +1251,22 @@ class Style internal constructor(internal var node: Node) {
 
   var display: Display
     get() {
-      val mode = DisplayMode.fromInt(values.getInt(StyleKeys.DISPLAY_MODE))
+      val mode = DisplayMode.from(values.get(StyleKeys.DISPLAY_MODE))
       return when (mode) {
         DisplayMode.None -> {
-          Display.fromInt(values.getInt(StyleKeys.DISPLAY))
+          Display.from(values.get(StyleKeys.DISPLAY))
         }
 
         DisplayMode.Inline -> {
           Display.Inline
         }
 
+        DisplayMode.ListItem -> {
+          Display.ListItem
+        }
+
         DisplayMode.Box -> {
-          when (Display.fromInt(values.getInt(StyleKeys.DISPLAY))) {
+          when (Display.from(values.get(StyleKeys.DISPLAY))) {
             Display.Flex -> Display.InlineFlex
             Display.Grid -> Display.InlineGrid
             Display.Block -> Display.InlineBlock
@@ -1225,163 +1302,185 @@ class Style internal constructor(internal var node: Node) {
           displayMode = DisplayMode.Box
           Display.Grid.value
         }
+
+        Display.ListItem -> {
+          displayMode = DisplayMode.ListItem
+          Display.Block.value
+        }
       }
 
-      values.putInt(StyleKeys.DISPLAY_MODE, displayMode.value)
-      values.putInt(StyleKeys.DISPLAY, display)
+      prepareMut()
+      values.put(StyleKeys.DISPLAY_MODE, displayMode.value)
+      values.put(StyleKeys.DISPLAY, display)
       setOrAppendState(arrayOf(StateKeys.DISPLAY_MODE, StateKeys.DISPLAY))
     }
 
   var position: Position
     get() {
-      return Position.fromInt(values.getInt(StyleKeys.POSITION))
+      return Position.from(values.get(StyleKeys.POSITION))
     }
     set(value) {
-      values.putInt(StyleKeys.POSITION, value.value)
+      prepareMut()
+      values.put(StyleKeys.POSITION, value.value)
       setOrAppendState(StateKeys.POSITION)
     }
 
   // TODO
   var direction: Direction
     get() {
-      return Direction.fromInt(values.getInt(StyleKeys.DIRECTION))
+      return Direction.from(values.get(StyleKeys.DIRECTION))
     }
     set(value) {
-      values.putInt(StyleKeys.DIRECTION, value.value)
+      prepareMut()
+      values.put(StyleKeys.DIRECTION, value.value)
       setOrAppendState(StateKeys.DIRECTION)
     }
 
   var flexDirection: FlexDirection
     get() {
-      return FlexDirection.fromInt(values.getInt(StyleKeys.FLEX_DIRECTION))
+      return FlexDirection.from(values.get(StyleKeys.FLEX_DIRECTION))
     }
     set(value) {
-      values.putInt(StyleKeys.FLEX_DIRECTION, value.value)
+      prepareMut()
+      values.put(StyleKeys.FLEX_DIRECTION, value.value)
       setOrAppendState(StateKeys.FLEX_DIRECTION)
     }
 
   var flexWrap: FlexWrap
     get() {
-      return FlexWrap.fromInt(values.getInt(StyleKeys.FLEX_WRAP))
+      return FlexWrap.from(values.get(StyleKeys.FLEX_WRAP))
     }
     set(value) {
-      values.putInt(StyleKeys.FLEX_WRAP, value.value)
+      prepareMut()
+      values.put(StyleKeys.FLEX_WRAP, value.value)
       setOrAppendState(StateKeys.FLEX_WRAP)
     }
 
   var overflow: Point<Overflow>
     get() {
       return Point(
-        Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW_X)),
-        Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW_Y))
+        Overflow.from(values.get(StyleKeys.OVERFLOW_X)),
+        Overflow.from(values.get(StyleKeys.OVERFLOW_Y))
       )
     }
     set(value) {
-      values.putInt(StyleKeys.OVERFLOW_X, value.x.value)
-      values.putInt(StyleKeys.OVERFLOW_Y, value.x.value)
+      prepareMut()
+      values.put(StyleKeys.OVERFLOW_X, value.x.value)
+      values.put(StyleKeys.OVERFLOW_Y, value.x.value)
       setOrAppendState(arrayOf(StateKeys.OVERFLOW_X, StateKeys.OVERFLOW_Y))
     }
 
   var overflowX: Overflow
     get() {
-      return Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW_X))
+      return Overflow.from(values.get(StyleKeys.OVERFLOW_X))
     }
     set(value) {
-      values.putInt(StyleKeys.OVERFLOW_X, value.value)
+      prepareMut()
+      values.put(StyleKeys.OVERFLOW_X, value.value)
       setOrAppendState(StateKeys.OVERFLOW_X)
     }
 
   var overflowY: Overflow
     get() {
-      return Overflow.fromInt(values.getInt(StyleKeys.OVERFLOW_Y))
+      return Overflow.from(values.get(StyleKeys.OVERFLOW_Y))
     }
     set(value) {
-      values.putInt(StyleKeys.OVERFLOW_Y, value.value)
+      prepareMut()
+      values.put(StyleKeys.OVERFLOW_Y, value.value)
       setOrAppendState(StateKeys.OVERFLOW_Y)
     }
 
   var alignItems: AlignItems
     get() {
-      return AlignItems.fromInt(values.getInt(StyleKeys.ALIGN_ITEMS))
+      return AlignItems.from(values.get(StyleKeys.ALIGN_ITEMS))
     }
     set(value) {
-      values.putInt(StyleKeys.ALIGN_ITEMS, value.value)
+      prepareMut()
+      values.put(StyleKeys.ALIGN_ITEMS, value.value)
       setOrAppendState(StateKeys.ALIGN_ITEMS)
     }
 
   var alignSelf: AlignSelf
     get() {
-      return AlignSelf.fromInt(values.getInt(StyleKeys.ALIGN_SELF))
+      return AlignSelf.from(values.get(StyleKeys.ALIGN_SELF))
     }
     set(value) {
-      values.putInt(StyleKeys.ALIGN_SELF, value.value)
+      prepareMut()
+      values.put(StyleKeys.ALIGN_SELF, value.value)
       setOrAppendState(StateKeys.ALIGN_SELF)
     }
 
   var alignContent: AlignContent
     get() {
-      return AlignContent.fromInt(values.getInt(StyleKeys.ALIGN_CONTENT))
+      return AlignContent.from(values.get(StyleKeys.ALIGN_CONTENT))
     }
     set(value) {
-      values.putInt(StyleKeys.ALIGN_CONTENT, value.value)
+      prepareMut()
+      values.put(StyleKeys.ALIGN_CONTENT, value.value)
       setOrAppendState(StateKeys.ALIGN_CONTENT)
     }
 
 
   var justifyItems: JustifyItems
     get() {
-      return JustifyItems.fromInt(values.getInt(StyleKeys.JUSTIFY_ITEMS))
+      return JustifyItems.from(values.get(StyleKeys.JUSTIFY_ITEMS))
     }
     set(value) {
-      values.putInt(StyleKeys.JUSTIFY_ITEMS, value.value)
+      prepareMut()
+      values.put(StyleKeys.JUSTIFY_ITEMS, value.value)
       setOrAppendState(StateKeys.JUSTIFY_ITEMS)
     }
 
 
   var justifySelf: JustifySelf
     get() {
-      return JustifySelf.fromInt(values.getInt(StyleKeys.JUSTIFY_SELF))
+      return JustifySelf.from(values.get(StyleKeys.JUSTIFY_SELF))
     }
     set(value) {
-      values.putInt(StyleKeys.JUSTIFY_SELF, value.value)
+      prepareMut()
+      values.put(StyleKeys.JUSTIFY_SELF, value.value)
       setOrAppendState(StateKeys.JUSTIFY_SELF)
     }
 
   var justifyContent: JustifyContent
     get() {
-      return JustifyContent.fromInt(values.getInt(StyleKeys.JUSTIFY_CONTENT))
+      return JustifyContent.from(values.get(StyleKeys.JUSTIFY_CONTENT))
     }
     set(value) {
-      values.putInt(StyleKeys.JUSTIFY_CONTENT, value.value)
+      prepareMut()
+      values.put(StyleKeys.JUSTIFY_CONTENT, value.value)
       setOrAppendState(StateKeys.JUSTIFY_CONTENT)
     }
 
 
   var align: Align
     get() {
-      return Align.fromInt(values.getInt(StyleKeys.ALIGN))
+      return Align.from(values.get(StyleKeys.TEXT_ALIGN))
     }
     set(value) {
-      values.putInt(StyleKeys.ALIGN, value.value)
+      prepareMut()
+      values.put(StyleKeys.TEXT_ALIGN, value.value)
       setOrAppendState(StateKeys.ALIGN)
     }
 
   var textAlign: TextAlign
     get() {
-      return TextAlign.fromInt(textValues.getInt(TextStyleKeys.TEXT_ALIGN))
+      return TextAlign.from(textValues.get(TextStyleKeys.TEXT_ALIGN))
     }
     set(value) {
-      textValues.putInt(TextStyleKeys.TEXT_ALIGN, value.value)
+      prepareMut()
+      textValues.put(TextStyleKeys.TEXT_ALIGN, value.value)
       textValues.put(TextStyleKeys.TEXT_ALIGN_STATE, StyleState.SET)
       setOrAppendState(TextStateKeys.TEXT_ALIGN)
     }
 
   var boxSizing: BoxSizing
     get() {
-      return BoxSizing.fromInt(values.getInt(StyleKeys.BOX_SIZING))
+      return BoxSizing.from(values.get(StyleKeys.BOX_SIZING))
     }
     set(value) {
-      values.putInt(StyleKeys.BOX_SIZING, value.value)
+      prepareMut()
+      values.put(StyleKeys.BOX_SIZING, value.value)
       setOrAppendState(StateKeys.BOX_SIZING)
     }
 
@@ -1390,89 +1489,96 @@ class Style internal constructor(internal var node: Node) {
     get() {
       return Rect(
         left = LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.INSET_LEFT_TYPE), values.getFloat(StyleKeys.INSET_LEFT_VALUE)
+          values.get(StyleKeys.INSET_LEFT_TYPE), values.getFloat(StyleKeys.INSET_LEFT_VALUE)
         )!!,
         top = LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.INSET_TOP_TYPE), values.getFloat(StyleKeys.INSET_TOP_VALUE)
+          values.get(StyleKeys.INSET_TOP_TYPE), values.getFloat(StyleKeys.INSET_TOP_VALUE)
         )!!,
         right = LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.INSET_RIGHT_TYPE), values.getFloat(StyleKeys.INSET_RIGHT_VALUE)
+          values.get(StyleKeys.INSET_RIGHT_TYPE), values.getFloat(StyleKeys.INSET_RIGHT_VALUE)
         )!!,
         bottom = LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.INSET_BOTTOM_TYPE), values.getFloat(StyleKeys.INSET_BOTTOM_VALUE)
+          values.get(StyleKeys.INSET_BOTTOM_TYPE), values.getFloat(StyleKeys.INSET_BOTTOM_VALUE)
         )!!
       )
     }
     set(value) {
-      values.putInt(StyleKeys.INSET_LEFT_TYPE, value.left.type)
+      prepareMut()
+      values.put(StyleKeys.INSET_LEFT_TYPE, value.left.type)
       values.putFloat(StyleKeys.INSET_LEFT_VALUE, value.left.value)
 
-      values.putInt(StyleKeys.INSET_RIGHT_TYPE, value.right.type)
+      values.put(StyleKeys.INSET_RIGHT_TYPE, value.right.type)
       values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value.right.value)
 
-      values.putInt(StyleKeys.INSET_TOP_TYPE, value.top.type)
+      values.put(StyleKeys.INSET_TOP_TYPE, value.top.type)
       values.putFloat(StyleKeys.INSET_TOP_VALUE, value.top.value)
 
-      values.putInt(StyleKeys.INSET_BOTTOM_TYPE, value.bottom.type)
+      values.put(StyleKeys.INSET_BOTTOM_TYPE, value.bottom.type)
       values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value.bottom.value)
 
       setOrAppendState(StateKeys.INSET)
     }
 
-  fun setInsetLeft(value: Float, type: Int) {
+  fun setInsetLeft(value: Float, type: Byte) {
     val left = LengthPercentageAuto.fromTypeValue(type, value)
 
     left?.let {
-      values.putInt(StyleKeys.INSET_LEFT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.INSET_LEFT_TYPE, type)
       values.putFloat(StyleKeys.INSET_LEFT_VALUE, value)
       setOrAppendState(StateKeys.INSET)
     }
   }
 
-  fun setInsetRight(value: Float, type: Int) {
+  fun setInsetRight(value: Float, type: Byte) {
     val right = LengthPercentageAuto.fromTypeValue(type, value)
 
     right?.let {
-      values.putInt(StyleKeys.INSET_RIGHT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.INSET_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value)
       setOrAppendState(StateKeys.INSET)
     }
   }
 
-  fun setInsetTop(value: Float, type: Int) {
+  fun setInsetTop(value: Float, type: Byte) {
     val top = LengthPercentageAuto.fromTypeValue(type, value)
 
     top?.let {
-      values.putInt(StyleKeys.INSET_TOP_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.INSET_TOP_TYPE, type)
       values.putFloat(StyleKeys.INSET_TOP_VALUE, value)
       setOrAppendState(StateKeys.INSET)
     }
   }
 
-  fun setInsetBottom(value: Float, type: Int) {
+  fun setInsetBottom(value: Float, type: Byte) {
     val bottom = LengthPercentageAuto.fromTypeValue(type, value)
 
     bottom?.let {
-      values.putInt(StyleKeys.INSET_BOTTOM_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.INSET_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value)
       setOrAppendState(StateKeys.INSET)
     }
   }
 
-  fun setInsetWithValueType(value: Float, type: Int) {
+  fun setInsetWithValueType(value: Float, type: Byte) {
+
     val inset = LengthPercentageAuto.fromTypeValue(type, value)
 
     inset?.let {
-      values.putInt(StyleKeys.INSET_LEFT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.INSET_LEFT_TYPE, type)
       values.putFloat(StyleKeys.INSET_LEFT_VALUE, value)
 
-      values.putInt(StyleKeys.INSET_RIGHT_TYPE, type)
+      values.put(StyleKeys.INSET_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value)
 
-      values.putInt(StyleKeys.INSET_TOP_TYPE, type)
+      values.put(StyleKeys.INSET_TOP_TYPE, type)
       values.putFloat(StyleKeys.INSET_TOP_VALUE, value)
 
-      values.putInt(StyleKeys.INSET_BOTTOM_TYPE, type)
+      values.put(StyleKeys.INSET_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value)
       setOrAppendState(StateKeys.INSET)
     }
@@ -1482,32 +1588,33 @@ class Style internal constructor(internal var node: Node) {
     get() {
       return Rect(
         left = LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
+          values.get(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
         )!!,
         top = LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
+          values.get(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
         )!!,
 
         right = LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
+          values.get(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
         )!!,
         bottom = LengthPercentageAuto.fromTypeValue(
-          values.getInt(StyleKeys.MARGIN_BOTTOM_TYPE),
+          values.get(StyleKeys.MARGIN_BOTTOM_TYPE),
           values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
         )!!
       )
     }
     set(value) {
-      values.putInt(StyleKeys.MARGIN_LEFT_TYPE, value.left.type)
+      prepareMut()
+      values.put(StyleKeys.MARGIN_LEFT_TYPE, value.left.type)
       values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value.left.value)
 
-      values.putInt(StyleKeys.MARGIN_RIGHT_TYPE, value.right.type)
+      values.put(StyleKeys.MARGIN_RIGHT_TYPE, value.right.type)
       values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value.right.value)
 
-      values.putInt(StyleKeys.MARGIN_TOP_TYPE, value.top.type)
+      values.put(StyleKeys.MARGIN_TOP_TYPE, value.top.type)
       values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value.top.value)
 
-      values.putInt(StyleKeys.MARGIN_BOTTOM_TYPE, value.bottom.type)
+      values.put(StyleKeys.MARGIN_BOTTOM_TYPE, value.bottom.type)
       values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value.bottom.value)
 
       setOrAppendState(StateKeys.MARGIN)
@@ -1547,60 +1654,65 @@ class Style internal constructor(internal var node: Node) {
     )
   }
 
-  fun setMarginLeft(value: Float, type: Int) {
+  fun setMarginLeft(value: Float, type: Byte) {
     val left = LengthPercentageAuto.fromTypeValue(type, value)
 
     left?.let {
-      values.putInt(StyleKeys.MARGIN_LEFT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.MARGIN_LEFT_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value)
       setOrAppendState(StateKeys.MARGIN)
     }
   }
 
-  fun setMarginRight(value: Float, type: Int) {
+  fun setMarginRight(value: Float, type: Byte) {
     val right = LengthPercentageAuto.fromTypeValue(type, value)
 
     right?.let {
-      values.putInt(StyleKeys.MARGIN_RIGHT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.MARGIN_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value)
       setOrAppendState(StateKeys.MARGIN)
     }
   }
 
-  fun setMarginTop(value: Float, type: Int) {
+  fun setMarginTop(value: Float, type: Byte) {
     val top = LengthPercentageAuto.fromTypeValue(type, value)
 
     top?.let {
-      values.putInt(StyleKeys.MARGIN_TOP_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.MARGIN_TOP_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value)
       setOrAppendState(StateKeys.MARGIN)
     }
   }
 
-  fun setMarginBottom(value: Float, type: Int) {
+  fun setMarginBottom(value: Float, type: Byte) {
     val bottom = LengthPercentageAuto.fromTypeValue(type, value)
 
     bottom?.let {
-      values.putInt(StyleKeys.MARGIN_BOTTOM_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.MARGIN_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value)
       setOrAppendState(StateKeys.MARGIN)
     }
   }
 
-  fun setMarginWithValueType(value: Float, type: Int) {
+  fun setMarginWithValueType(value: Float, type: Byte) {
     val margin = LengthPercentageAuto.fromTypeValue(type, value)
 
     margin?.let {
-      values.putInt(StyleKeys.MARGIN_LEFT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.MARGIN_LEFT_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value)
 
-      values.putInt(StyleKeys.MARGIN_RIGHT_TYPE, type)
+      values.put(StyleKeys.MARGIN_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value)
 
-      values.putInt(StyleKeys.MARGIN_TOP_TYPE, type)
+      values.put(StyleKeys.MARGIN_TOP_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value)
 
-      values.putInt(StyleKeys.MARGIN_BOTTOM_TYPE, type)
+      values.put(StyleKeys.MARGIN_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value)
       setOrAppendState(StateKeys.MARGIN)
     }
@@ -1609,20 +1721,20 @@ class Style internal constructor(internal var node: Node) {
   var padding: Rect<LengthPercentage>
     get() {
       val left = LengthPercentage.fromTypeValue(
-        values.getInt(StyleKeys.PADDING_LEFT_TYPE), values.getFloat(StyleKeys.PADDING_LEFT_VALUE)
+        values.get(StyleKeys.PADDING_LEFT_TYPE), values.getFloat(StyleKeys.PADDING_LEFT_VALUE)
       )!!
 
       val top = LengthPercentage.fromTypeValue(
-        values.getInt(StyleKeys.PADDING_TOP_TYPE), values.getFloat(StyleKeys.PADDING_TOP_VALUE)
+        values.get(StyleKeys.PADDING_TOP_TYPE), values.getFloat(StyleKeys.PADDING_TOP_VALUE)
       )!!
 
       val right = LengthPercentage.fromTypeValue(
-        values.getInt(StyleKeys.PADDING_RIGHT_TYPE),
+        values.get(StyleKeys.PADDING_RIGHT_TYPE),
         values.getFloat(StyleKeys.PADDING_RIGHT_VALUE)
       )!!
 
       val bottom = LengthPercentage.fromTypeValue(
-        values.getInt(StyleKeys.PADDING_BOTTOM_TYPE),
+        values.get(StyleKeys.PADDING_BOTTOM_TYPE),
         values.getFloat(StyleKeys.PADDING_BOTTOM_VALUE)
       )!!
 
@@ -1631,17 +1743,17 @@ class Style internal constructor(internal var node: Node) {
       )
     }
     set(value) {
-
-      values.putInt(StyleKeys.PADDING_TOP_TYPE, value.top.type)
+      prepareMut()
+      values.put(StyleKeys.PADDING_TOP_TYPE, value.top.type)
       values.putFloat(StyleKeys.PADDING_TOP_VALUE, value.top.value)
 
-      values.putInt(StyleKeys.PADDING_RIGHT_TYPE, value.right.type)
+      values.put(StyleKeys.PADDING_RIGHT_TYPE, value.right.type)
       values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value.right.value)
 
-      values.putInt(StyleKeys.PADDING_BOTTOM_TYPE, value.bottom.type)
+      values.put(StyleKeys.PADDING_BOTTOM_TYPE, value.bottom.type)
       values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value.bottom.value)
 
-      values.putInt(StyleKeys.PADDING_LEFT_TYPE, value.left.type)
+      values.put(StyleKeys.PADDING_LEFT_TYPE, value.left.type)
       values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value.left.value)
 
       setOrAppendState(StateKeys.PADDING)
@@ -1681,60 +1793,65 @@ class Style internal constructor(internal var node: Node) {
     )
   }
 
-  fun setPaddingLeft(value: Float, type: Int) {
+  fun setPaddingLeft(value: Float, type: Byte) {
     val left = LengthPercentage.fromTypeValue(type, value)
 
     left?.let {
-      values.putInt(StyleKeys.PADDING_LEFT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.PADDING_LEFT_TYPE, type)
       values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value)
       setOrAppendState(StateKeys.PADDING)
     }
   }
 
-  fun setPaddingRight(value: Float, type: Int) {
+  fun setPaddingRight(value: Float, type: Byte) {
     val right = LengthPercentage.fromTypeValue(type, value)
 
     right?.let {
-      values.putInt(StyleKeys.PADDING_RIGHT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.PADDING_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value)
       setOrAppendState(StateKeys.PADDING)
     }
   }
 
-  fun setPaddingTop(value: Float, type: Int) {
+  fun setPaddingTop(value: Float, type: Byte) {
     val top = LengthPercentage.fromTypeValue(type, value)
 
     top?.let {
-      values.putInt(StyleKeys.PADDING_TOP_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.PADDING_TOP_TYPE, type)
       values.putFloat(StyleKeys.PADDING_TOP_VALUE, value)
       setOrAppendState(StateKeys.PADDING)
     }
   }
 
-  fun setPaddingBottom(value: Float, type: Int) {
+  fun setPaddingBottom(value: Float, type: Byte) {
     val bottom = LengthPercentage.fromTypeValue(type, value)
 
     bottom?.let {
-      values.putInt(StyleKeys.PADDING_BOTTOM_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.PADDING_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value)
       setOrAppendState(StateKeys.PADDING)
     }
   }
 
-  fun setPaddingWithValueType(value: Float, type: Int) {
+  fun setPaddingWithValueType(value: Float, type: Byte) {
     val padding = LengthPercentage.fromTypeValue(type, value)
 
     padding?.let {
-      values.putInt(StyleKeys.PADDING_LEFT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.PADDING_LEFT_TYPE, type)
       values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value)
 
-      values.putInt(StyleKeys.PADDING_RIGHT_TYPE, type)
+      values.put(StyleKeys.PADDING_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value)
 
-      values.putInt(StyleKeys.PADDING_TOP_TYPE, type)
+      values.put(StyleKeys.PADDING_TOP_TYPE, type)
       values.putFloat(StyleKeys.PADDING_TOP_VALUE, value)
 
-      values.putInt(StyleKeys.PADDING_BOTTOM_TYPE, type)
+      values.put(StyleKeys.PADDING_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value)
       setOrAppendState(StateKeys.PADDING)
     }
@@ -1795,18 +1912,19 @@ class Style internal constructor(internal var node: Node) {
 
   internal fun getRadiusPoint(keys: IKeyCorner): Point<LengthPercentage> {
     val x = LengthPercentage.fromTypeValue(
-      values.getInt(keys.xType), values.getFloat(keys.xValue)
+      values.get(keys.xType), values.getFloat(keys.xValue)
     )!!
     val y = LengthPercentage.fromTypeValue(
-      values.getInt(keys.yType), values.getFloat(keys.yValue)
+      values.get(keys.yType), values.getFloat(keys.yValue)
     )!!
     return Point(x, y)
   }
 
   internal fun setRadiusPoint(keys: IKeyCorner, value: Point<LengthPercentage>) {
-    values.putInt(keys.xType, value.x.type)
+    prepareMut()
+    values.put(keys.xType, value.x.type)
     values.putFloat(keys.xValue, value.x.value)
-    values.putInt(keys.yType, value.y.type)
+    values.put(keys.yType, value.y.type)
     values.putFloat(keys.yValue, value.y.value)
     setOrAppendState(StateKeys.BORDER_RADIUS)
   }
@@ -2061,14 +2179,14 @@ class Style internal constructor(internal var node: Node) {
       mBorderBottom.width = value
     }
 
-  fun setBorderLeftWidth(value: Float, type: Int) {
+  fun setBorderLeftWidth(value: Float, type: Byte) {
     val left = LengthPercentage.fromTypeValue(type, value)
     left?.let {
       mBorderLeft.width = it
     }
   }
 
-  fun setBorderRightWidth(value: Float, type: Int) {
+  fun setBorderRightWidth(value: Float, type: Byte) {
     val right = LengthPercentage.fromTypeValue(type, value)
 
     right?.let {
@@ -2076,7 +2194,7 @@ class Style internal constructor(internal var node: Node) {
     }
   }
 
-  fun setBorderTopWidth(value: Float, type: Int) {
+  fun setBorderTopWidth(value: Float, type: Byte) {
     val top = LengthPercentage.fromTypeValue(type, value)
 
     top?.let {
@@ -2084,7 +2202,7 @@ class Style internal constructor(internal var node: Node) {
     }
   }
 
-  fun setBorderBottomWidth(value: Float, type: Int) {
+  fun setBorderBottomWidth(value: Float, type: Byte) {
     val bottom = LengthPercentage.fromTypeValue(type, value)
 
     bottom?.let {
@@ -2092,7 +2210,7 @@ class Style internal constructor(internal var node: Node) {
     }
   }
 
-  fun setBorderWidth(value: Float, type: Int) {
+  fun setBorderWidth(value: Float, type: Byte) {
     val border = LengthPercentage.fromTypeValue(type, value)
 
     border?.let {
@@ -2127,6 +2245,7 @@ class Style internal constructor(internal var node: Node) {
       return values.getFloat(StyleKeys.FLEX_GROW)
     }
     set(value) {
+      prepareMut()
       values.putFloat(StyleKeys.FLEX_GROW, value)
       setOrAppendState(StateKeys.FLEX_GROW)
     }
@@ -2136,19 +2255,21 @@ class Style internal constructor(internal var node: Node) {
       return values.getFloat(StyleKeys.FLEX_SHRINK)
     }
     set(value) {
+      prepareMut()
       values.putFloat(StyleKeys.FLEX_SHRINK, value)
       setOrAppendState(StateKeys.FLEX_SHRINK)
     }
 
   var flexBasis: Dimension
     get() {
-      val type = values.getInt(StyleKeys.FLEX_BASIS_TYPE)
+      val type = values.get(StyleKeys.FLEX_BASIS_TYPE)
       val value = values.getFloat(StyleKeys.FLEX_BASIS_VALUE)
       // always valid
       return Dimension.fromTypeValue(type, value)!!
     }
     set(value) {
-      values.putInt(StyleKeys.FLEX_BASIS_TYPE, value.type)
+      prepareMut()
+      values.put(StyleKeys.FLEX_BASIS_TYPE, value.type)
       values.putFloat(StyleKeys.FLEX_BASIS_VALUE, value.value)
       setOrAppendState(StateKeys.FLEX_BASIS)
     }
@@ -2159,14 +2280,16 @@ class Style internal constructor(internal var node: Node) {
       return values.getFloat(StyleKeys.SCROLLBAR_WIDTH)
     }
     set(value) {
+      prepareMut()
       values.putFloat(StyleKeys.SCROLLBAR_WIDTH, value)
       setOrAppendState(StateKeys.SCROLLBAR_WIDTH)
     }
 
 
-  fun setFlexBasis(value: Float, type: Int) {
+  fun setFlexBasis(value: Float, type: Byte) {
     Dimension.fromTypeValue(type, value)?.let {
-      values.putInt(StyleKeys.FLEX_BASIS_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.FLEX_BASIS_TYPE, type)
       values.putFloat(StyleKeys.FLEX_BASIS_VALUE, value)
       setOrAppendState(StateKeys.FLEX_BASIS)
     }
@@ -2174,36 +2297,39 @@ class Style internal constructor(internal var node: Node) {
 
   var minSize: Size<Dimension>
     get() {
-      val widthType = values.getInt(StyleKeys.MIN_WIDTH_TYPE)
+      val widthType = values.get(StyleKeys.MIN_WIDTH_TYPE)
       val widthValue = values.getFloat(StyleKeys.MIN_WIDTH_VALUE)
       val width = Dimension.fromTypeValue(widthType, widthValue)
 
-      val heightType = values.getInt(StyleKeys.MIN_HEIGHT_TYPE)
+      val heightType = values.get(StyleKeys.MIN_HEIGHT_TYPE)
       val heightValue = values.getFloat(StyleKeys.MIN_HEIGHT_VALUE)
       val height = Dimension.fromTypeValue(heightType, heightValue)
       return Size(width!!, height!!)
     }
     set(value) {
-      values.putInt(StyleKeys.MIN_WIDTH_TYPE, value.width.type)
+      prepareMut()
+      values.put(StyleKeys.MIN_WIDTH_TYPE, value.width.type)
       values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value.width.value)
-      values.putInt(StyleKeys.MIN_HEIGHT_TYPE, value.height.type)
+      values.put(StyleKeys.MIN_HEIGHT_TYPE, value.height.type)
       values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value.height.value)
       setOrAppendState(StateKeys.MIN_SIZE)
     }
 
-  fun setMinSizeWidth(value: Float, type: Int) {
+  fun setMinSizeWidth(value: Float, type: Byte) {
     val width = Dimension.fromTypeValue(type, value)
     width?.let {
-      values.putInt(StyleKeys.MIN_WIDTH_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.MIN_WIDTH_TYPE, type)
       values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value)
       setOrAppendState(StateKeys.MIN_SIZE)
     }
   }
 
-  fun setMinSizeHeight(value: Float, type: Int) {
+  fun setMinSizeHeight(value: Float, type: Byte) {
     val height = Dimension.fromTypeValue(type, value)
     height?.let {
-      values.putInt(StyleKeys.MIN_HEIGHT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.MIN_HEIGHT_TYPE, type)
       values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value)
       setOrAppendState(StateKeys.MIN_SIZE)
     }
@@ -2211,119 +2337,130 @@ class Style internal constructor(internal var node: Node) {
 
 
   fun setMinSizeWidth(value: Dimension) {
-    values.putInt(StyleKeys.MIN_WIDTH_TYPE, value.type)
+    prepareMut()
+    values.put(StyleKeys.MIN_WIDTH_TYPE, value.type)
     values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value.value)
     setOrAppendState(StateKeys.MIN_SIZE)
   }
 
   fun setMinSizeHeight(value: Dimension) {
-    values.putInt(StyleKeys.MIN_HEIGHT_TYPE, value.type)
+    prepareMut()
+    values.put(StyleKeys.MIN_HEIGHT_TYPE, value.type)
     values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value.value)
     setOrAppendState(StateKeys.MIN_SIZE)
   }
 
   internal val isSizeAuto: Boolean
     get() {
-      return values.getInt(StyleKeys.WIDTH_TYPE) == 0
-        && values.getInt(StyleKeys.HEIGHT_TYPE) == 0
+      return values.get(StyleKeys.WIDTH_TYPE) == Constants.ZERO
+        && values.get(StyleKeys.HEIGHT_TYPE) == Constants.ZERO
     }
 
   internal fun setSize(width: Int, height: Int) {
-    values.putInt(StyleKeys.WIDTH_TYPE, 1)
+    prepareMut()
+    values.put(StyleKeys.WIDTH_TYPE, 1)
     values.putFloat(StyleKeys.WIDTH_VALUE, width.toFloat())
 
-    values.putInt(StyleKeys.HEIGHT_TYPE, 1)
+    values.put(StyleKeys.HEIGHT_TYPE, 1)
     values.putFloat(StyleKeys.HEIGHT_VALUE, height.toFloat())
     setOrAppendState(StateKeys.SIZE)
   }
 
   var size: Size<Dimension>
     get() {
-      val widthType = values.getInt(StyleKeys.WIDTH_TYPE)
+      val widthType = values.get(StyleKeys.WIDTH_TYPE)
       val widthValue = values.getFloat(StyleKeys.WIDTH_VALUE)
       val width = Dimension.fromTypeValue(widthType, widthValue)
 
-      val heightType = values.getInt(StyleKeys.HEIGHT_TYPE)
+      val heightType = values.get(StyleKeys.HEIGHT_TYPE)
       val heightValue = values.getFloat(StyleKeys.HEIGHT_VALUE)
       val height = Dimension.fromTypeValue(heightType, heightValue)
       return Size(width!!, height!!)
     }
     set(value) {
-      values.putInt(StyleKeys.WIDTH_TYPE, value.width.type)
+      prepareMut()
+      values.put(StyleKeys.WIDTH_TYPE, value.width.type)
       values.putFloat(StyleKeys.WIDTH_VALUE, value.width.value)
 
-      values.putInt(StyleKeys.HEIGHT_TYPE, value.height.type)
+      values.put(StyleKeys.HEIGHT_TYPE, value.height.type)
       values.putFloat(StyleKeys.HEIGHT_VALUE, value.height.value)
       setOrAppendState(StateKeys.SIZE)
     }
 
 
-  fun setSizeWidth(value: Float, type: Int) {
+  fun setSizeWidth(value: Float, type: Byte) {
     val width = Dimension.fromTypeValue(type, value)
 
     width?.let {
-      values.putInt(StyleKeys.WIDTH_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.WIDTH_TYPE, type)
       values.putFloat(StyleKeys.WIDTH_VALUE, value)
       setOrAppendState(StateKeys.SIZE)
     }
   }
 
   fun setSizeWidth(value: Dimension) {
-    values.putInt(StyleKeys.WIDTH_TYPE, value.type)
+    prepareMut()
+    values.put(StyleKeys.WIDTH_TYPE, value.type)
     values.putFloat(StyleKeys.WIDTH_VALUE, value.value)
     setOrAppendState(StateKeys.SIZE)
   }
 
-  fun setSizeHeight(value: Float, type: Int) {
+  fun setSizeHeight(value: Float, type: Byte) {
     val height = Dimension.fromTypeValue(type, value)
 
     height?.let {
-      values.putInt(StyleKeys.HEIGHT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.HEIGHT_TYPE, type)
       values.putFloat(StyleKeys.HEIGHT_VALUE, value)
       setOrAppendState(StateKeys.SIZE)
     }
   }
 
   fun setSizeHeight(value: Dimension) {
-    values.putInt(StyleKeys.HEIGHT_TYPE, value.type)
+    prepareMut()
+    values.put(StyleKeys.HEIGHT_TYPE, value.type)
     values.putFloat(StyleKeys.HEIGHT_VALUE, value.value)
     setOrAppendState(StateKeys.SIZE)
   }
 
   var maxSize: Size<Dimension>
     get() {
-      val widthType = values.getInt(StyleKeys.MAX_WIDTH_TYPE)
+      val widthType = values.get(StyleKeys.MAX_WIDTH_TYPE)
       val widthValue = values.getFloat(StyleKeys.MAX_WIDTH_VALUE)
       val width = Dimension.fromTypeValue(widthType, widthValue)
 
-      val heightType = values.getInt(StyleKeys.MAX_HEIGHT_TYPE)
+      val heightType = values.get(StyleKeys.MAX_HEIGHT_TYPE)
       val heightValue = values.getFloat(StyleKeys.MAX_HEIGHT_VALUE)
       val height = Dimension.fromTypeValue(heightType, heightValue)
       return Size(width!!, height!!)
     }
     set(value) {
-      values.putInt(StyleKeys.MAX_WIDTH_TYPE, value.width.type)
+      prepareMut()
+      values.put(StyleKeys.MAX_WIDTH_TYPE, value.width.type)
       values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value.width.value)
-      values.putInt(StyleKeys.MAX_HEIGHT_TYPE, value.height.type)
+      values.put(StyleKeys.MAX_HEIGHT_TYPE, value.height.type)
       values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value.height.value)
       setOrAppendState(StateKeys.MAX_SIZE)
     }
 
-  fun setMaxSizeWidth(value: Float, type: Int) {
+  fun setMaxSizeWidth(value: Float, type: Byte) {
     val width = Dimension.fromTypeValue(type, value)
 
     width?.let {
-      values.putInt(StyleKeys.MAX_WIDTH_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.MAX_WIDTH_TYPE, type)
       values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value)
       setOrAppendState(StateKeys.MAX_SIZE)
     }
   }
 
-  fun setMaxSizeHeight(value: Float, type: Int) {
+  fun setMaxSizeHeight(value: Float, type: Byte) {
     val height = Dimension.fromTypeValue(type, value)
 
     height?.let {
-      values.putInt(StyleKeys.MAX_HEIGHT_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.MAX_HEIGHT_TYPE, type)
       values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value)
       setOrAppendState(StateKeys.MAX_SIZE)
     }
@@ -2331,66 +2468,72 @@ class Style internal constructor(internal var node: Node) {
 
 
   fun setMaxSizeWidth(value: Dimension) {
-    values.putInt(StyleKeys.MAX_WIDTH_TYPE, value.type)
+    prepareMut()
+    values.put(StyleKeys.MAX_WIDTH_TYPE, value.type)
     values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value.value)
     setOrAppendState(StateKeys.MAX_SIZE)
   }
 
   fun setMaxSizeHeight(value: Dimension) {
-    values.putInt(StyleKeys.MAX_HEIGHT_TYPE, value.type)
+    prepareMut()
+    values.put(StyleKeys.MAX_HEIGHT_TYPE, value.type)
     values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value.value)
     setOrAppendState(StateKeys.MAX_SIZE)
   }
 
   var gap: Size<LengthPercentage>
     get() {
-      val widthType = values.getInt(StyleKeys.GAP_ROW_TYPE)
+      val widthType = values.get(StyleKeys.GAP_ROW_TYPE)
       val widthValue = values.getFloat(StyleKeys.GAP_ROW_VALUE)
       val width = LengthPercentage.fromTypeValue(widthType, widthValue)
 
-      val heightType = values.getInt(StyleKeys.GAP_COLUMN_TYPE)
+      val heightType = values.get(StyleKeys.GAP_COLUMN_TYPE)
       val heightValue = values.getFloat(StyleKeys.GAP_COLUMN_VALUE)
       val height = LengthPercentage.fromTypeValue(heightType, heightValue)
       return Size(width!!, height!!)
     }
     set(value) {
-      values.putInt(StyleKeys.GAP_ROW_TYPE, value.width.type)
+      prepareMut()
+      values.put(StyleKeys.GAP_ROW_TYPE, value.width.type)
       values.putFloat(StyleKeys.GAP_ROW_VALUE, value.width.value)
-      values.putInt(StyleKeys.GAP_COLUMN_TYPE, value.height.type)
+      values.put(StyleKeys.GAP_COLUMN_TYPE, value.height.type)
       values.putFloat(StyleKeys.GAP_COLUMN_VALUE, value.height.value)
       setOrAppendState(StateKeys.GAP)
     }
 
-  fun setGap(widthValue: Float, widthType: Int, heightValue: Float, heightType: Int) {
+  fun setGap(widthValue: Float, widthType: Byte, heightValue: Float, heightType: Byte) {
     val width = LengthPercentage.fromTypeValue(widthType, widthValue)
 
     val height = LengthPercentage.fromTypeValue(heightType, heightValue)
 
     if (width != null && height != null) {
-      values.putInt(StyleKeys.GAP_ROW_TYPE, widthType)
+      prepareMut()
+      values.put(StyleKeys.GAP_ROW_TYPE, widthType)
       values.putFloat(StyleKeys.GAP_ROW_VALUE, widthValue)
-      values.putInt(StyleKeys.GAP_COLUMN_TYPE, heightType)
+      values.put(StyleKeys.GAP_COLUMN_TYPE, heightType)
       values.putFloat(StyleKeys.GAP_COLUMN_VALUE, heightValue)
       setOrAppendState(StateKeys.GAP)
     }
   }
 
 
-  fun setGapRow(value: Float, type: Int) {
+  fun setGapRow(value: Float, type: Byte) {
     val width = LengthPercentage.fromTypeValue(type, value)
 
     width?.let {
-      values.putInt(StyleKeys.GAP_ROW_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.GAP_ROW_TYPE, type)
       values.putFloat(StyleKeys.GAP_ROW_VALUE, value)
       setOrAppendState(StateKeys.GAP)
     }
   }
 
-  fun setGapColumn(value: Float, type: Int) {
+  fun setGapColumn(value: Float, type: Byte) {
     val height = LengthPercentage.fromTypeValue(type, value)
 
     height?.let {
-      values.putInt(StyleKeys.GAP_COLUMN_TYPE, type)
+      prepareMut()
+      values.put(StyleKeys.GAP_COLUMN_TYPE, type)
       values.putFloat(StyleKeys.GAP_COLUMN_VALUE, value)
       setOrAppendState(StateKeys.GAP)
     }
@@ -2406,6 +2549,7 @@ class Style internal constructor(internal var node: Node) {
       }
     }
     set(value) {
+      prepareMut()
       values.putFloat(StyleKeys.ASPECT_RATIO, value ?: Float.NaN)
       setOrAppendState(StateKeys.ASPECT_RATIO)
     }
@@ -2505,10 +2649,11 @@ class Style internal constructor(internal var node: Node) {
 
   var gridAutoFlow: GridAutoFlow
     get() {
-      return GridAutoFlow.fromInt(values.getInt(StyleKeys.GRID_AUTO_FLOW))
+      return GridAutoFlow.from(values.get(StyleKeys.GRID_AUTO_FLOW))
     }
     set(value) {
-      values.putInt(StyleKeys.GRID_AUTO_FLOW, value.value)
+      prepareMut()
+      values.put(StyleKeys.GRID_AUTO_FLOW, value.value)
       setOrAppendState(StateKeys.GRID_AUTO_FLOW)
     }
 
@@ -2807,25 +2952,25 @@ class Style internal constructor(internal var node: Node) {
     var marginBottom: LengthPercentageAuto = LengthPercentageAuto.Auto
 
     LengthPercentageAuto.fromTypeValue(
-      values.getInt(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
+      values.get(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
     )?.let {
       marginLeft = it
     }
 
     LengthPercentageAuto.fromTypeValue(
-      values.getInt(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
+      values.get(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
     )?.let {
       marginRight = it
     }
 
     LengthPercentageAuto.fromTypeValue(
-      values.getInt(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
+      values.get(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
     )?.let {
       marginTop = it
     }
 
     LengthPercentageAuto.fromTypeValue(
-      values.getInt(StyleKeys.MARGIN_BOTTOM_TYPE), values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
+      values.get(StyleKeys.MARGIN_BOTTOM_TYPE), values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
     )?.let {
       marginBottom = it
     }
@@ -2835,13 +2980,36 @@ class Style internal constructor(internal var node: Node) {
 
   fun getNativeSize(): Size<Dimension> {
     val width = Dimension.fromTypeValue(
-      values.getInt(StyleKeys.WIDTH_TYPE), values.getFloat(StyleKeys.WIDTH_VALUE)
+      values.get(StyleKeys.WIDTH_TYPE), values.getFloat(StyleKeys.WIDTH_VALUE)
     )
     val height = Dimension.fromTypeValue(
-      values.getInt(StyleKeys.HEIGHT_TYPE), values.getFloat(StyleKeys.HEIGHT_VALUE)
+      values.get(StyleKeys.HEIGHT_TYPE), values.getFloat(StyleKeys.HEIGHT_VALUE)
     )
     return Size(width as Dimension, height as Dimension)
   }
+
+  var listStylePosition: ListStylePosition
+    get() {
+      return ListStylePosition.from(values.get(StyleKeys.LIST_STYLE_POSITION))
+    }
+    set(value) {
+      prepareMut()
+      values.put(StyleKeys.LIST_STYLE_POSITION, value.value.toByte())
+      values.put(StyleKeys.LIST_STYLE_POSITION_STATE, StyleState.SET)
+      setOrAppendState(StateKeys.LIST_STYLE_POSITION)
+    }
+
+
+  var listStyleType: ListStyleType
+    get() {
+      return ListStyleType.from(values.get(StyleKeys.LIST_STYLE_TYPE))
+    }
+    set(value) {
+      prepareMut()
+      values.put(StyleKeys.LIST_STYLE_TYPE, value.value.toByte())
+      values.put(StyleKeys.LIST_STYLE_TYPE_STATE, StyleState.SET)
+      setOrAppendState(StateKeys.LIST_STYLE_TYPE)
+    }
 
   override fun toString(): String {
     var ret = "(MasonStyle)("
@@ -2893,6 +3061,19 @@ class Style internal constructor(internal var node: Node) {
 
 
   /* Resolved Styles */
+
+  private val parentStyleWithValues: Style?
+    get() {
+      var parent = node.parent
+      while (parent != null) {
+        // Check if parent has text values initialized
+        if (parent.style.isValueInitialized) {
+          return parent.style
+        }
+        parent = parent.parent
+      }
+      return null
+    }
 
   // Helper to find parent style with text values initialized
   private val parentStyleWithTextValues: Style?
@@ -3026,11 +3207,11 @@ class Style internal constructor(internal var node: Node) {
     get() {
       val state = textValues.get(TextStyleKeys.DECORATION_LINE_STATE)
       return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedDecorationLine ?: Styles.DecorationLine.fromInt(
-          textValues.getInt(TextStyleKeys.DECORATION_LINE)
+        parentStyleWithTextValues?.resolvedDecorationLine ?: Styles.DecorationLine.from(
+          textValues.get(TextStyleKeys.DECORATION_LINE)
         )
       } else {
-        Styles.DecorationLine.fromInt(textValues.getInt(TextStyleKeys.DECORATION_LINE))
+        Styles.DecorationLine.from(textValues.get(TextStyleKeys.DECORATION_LINE))
       }
     }
 
@@ -3049,11 +3230,11 @@ class Style internal constructor(internal var node: Node) {
     get() {
       val state = textValues.get(TextStyleKeys.DECORATION_STYLE_STATE)
       return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedDecorationStyle ?: Styles.DecorationStyle.fromInt(
-          textValues.getInt(TextStyleKeys.DECORATION_STYLE)
+        parentStyleWithTextValues?.resolvedDecorationStyle ?: Styles.DecorationStyle.from(
+          textValues.get(TextStyleKeys.DECORATION_STYLE)
         )
       } else {
-        Styles.DecorationStyle.fromInt(textValues.getInt(TextStyleKeys.DECORATION_STYLE))
+        Styles.DecorationStyle.from(textValues.get(TextStyleKeys.DECORATION_STYLE))
       }
     }
 
@@ -3081,17 +3262,17 @@ class Style internal constructor(internal var node: Node) {
       }
     }
 
-  internal val resolvedTextWrap: Styles.TextWrap
+  internal val resolvedTextWrap: TextWrap
     get() {
       val state = textValues.get(TextStyleKeys.TEXT_WRAP_STATE)
       return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedTextWrap ?: Styles.TextWrap.fromInt(
-          textValues.getInt(
+        parentStyleWithTextValues?.resolvedTextWrap ?: TextWrap.from(
+          textValues.get(
             TextStyleKeys.TEXT_WRAP
           )
         )
       } else {
-        Styles.TextWrap.fromInt(textValues.getInt(TextStyleKeys.TEXT_WRAP))
+        TextWrap.from(textValues.get(TextStyleKeys.TEXT_WRAP))
       }
     }
 
@@ -3100,9 +3281,9 @@ class Style internal constructor(internal var node: Node) {
       val state = textValues.get(TextStyleKeys.WHITE_SPACE_STATE)
       return if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedWhiteSpace
-          ?: Styles.WhiteSpace.fromInt(textValues.getInt(TextStyleKeys.WHITE_SPACE))
+          ?: Styles.WhiteSpace.from(textValues.get(TextStyleKeys.WHITE_SPACE))
       } else {
-        Styles.WhiteSpace.fromInt(textValues.getInt(TextStyleKeys.WHITE_SPACE))
+        Styles.WhiteSpace.from(textValues.get(TextStyleKeys.WHITE_SPACE))
       }
     }
 
@@ -3111,9 +3292,9 @@ class Style internal constructor(internal var node: Node) {
       val state = textValues.get(TextStyleKeys.TRANSFORM_STATE)
       return if (state == StyleState.INHERIT) {
         parentStyleWithTextValues?.resolvedTextTransform
-          ?: Styles.TextTransform.fromInt(textValues.getInt(TextStyleKeys.TRANSFORM))
+          ?: Styles.TextTransform.from(textValues.get(TextStyleKeys.TRANSFORM))
       } else {
-        Styles.TextTransform.fromInt(textValues.getInt(TextStyleKeys.TRANSFORM))
+        Styles.TextTransform.from(textValues.get(TextStyleKeys.TRANSFORM))
       }
     }
 
@@ -3121,13 +3302,13 @@ class Style internal constructor(internal var node: Node) {
     get() {
       val state = textValues.get(TextStyleKeys.TEXT_ALIGN_STATE)
       return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedTextAlign ?: TextAlign.fromInt(
-          textValues.getInt(
+        parentStyleWithTextValues?.resolvedTextAlign ?: TextAlign.from(
+          textValues.get(
             TextStyleKeys.TEXT_ALIGN
           )
         )
       } else {
-        TextAlign.fromInt(textValues.getInt(TextStyleKeys.TEXT_ALIGN))
+        TextAlign.from(textValues.get(TextStyleKeys.TEXT_ALIGN))
       }
     }
 
@@ -3135,13 +3316,13 @@ class Style internal constructor(internal var node: Node) {
     get() {
       val state = textValues.get(TextStyleKeys.TEXT_JUSTIFY_STATE)
       return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedTextJustify ?: TextJustify.fromInt(
-          textValues.getInt(
+        parentStyleWithTextValues?.resolvedTextJustify ?: TextJustify.from(
+          textValues.get(
             TextStyleKeys.TEXT_JUSTIFY
           )
         )
       } else {
-        TextJustify.fromInt(textValues.getInt(TextStyleKeys.TEXT_JUSTIFY))
+        TextJustify.from(textValues.get(TextStyleKeys.TEXT_JUSTIFY))
       }
     }
 
@@ -3194,6 +3375,29 @@ class Style internal constructor(internal var node: Node) {
     notifyTextStyleChanged(TextStyleChangeMask.FONT_STYLE)
   }
 
+  internal val resolvedListStyleType: ListStyleType
+    get() {
+      return parentStyleWithTextValues?.resolvedListStyleType ?: ListStyleType.from(
+        values.get(
+          StyleKeys.LIST_STYLE_TYPE
+        )
+      )
+    }
+
+  internal val resolvedListStyleTypeRaw: Byte
+    get() {
+      return parentStyleWithTextValues?.resolvedListStyleTypeRaw ?: values.get(
+        StyleKeys.LIST_STYLE_TYPE
+      )
+    }
+
+  internal val resolvedListStylePosition: ListStylePosition
+    get() {
+      return parentStyleWithTextValues?.resolvedListStylePosition ?: ListStylePosition.from(
+        values.get(StyleKeys.LIST_STYLE_POSITION)
+      )
+    }
+
 
   /* Resolved Styles */
 
@@ -3234,19 +3438,19 @@ class Style internal constructor(internal var node: Node) {
       val height = node.computedLayout.height
       val padding = node.computedLayout.padding
 
-      val overflowX = style.values.getInt(StyleKeys.OVERFLOW_X)
-      val overflowY = style.values.getInt(StyleKeys.OVERFLOW_Y)
+      val overflowX = style.values.get(StyleKeys.OVERFLOW_X)
+      val overflowY = style.values.get(StyleKeys.OVERFLOW_Y)
 
       // Nothing to do if both axes are visible
       if (overflowX == Overflow.Visible.value && overflowY == Overflow.Visible.value) return
 
-      val clipX = when (overflowX) {
+      val clipX = when (overflowX.toInt()) {
         1, 3 -> true
         4 -> style.node.overflowWidth > width
         else -> false
       }
 
-      val clipY = when (overflowY) {
+      val clipY = when (overflowY.toInt()) {
         1, 3 -> true
         4 -> style.node.overflowHeight > height
         else -> false
@@ -3265,7 +3469,14 @@ class Style internal constructor(internal var node: Node) {
     external fun nativeGetStyleBuffer(
       mason: Long,
       node: Long,
-    ): ByteBuffer
+    ): Int
+
+    @FastNative
+    @JvmStatic
+    external fun nativePrepareMut(
+      mason: Long,
+      node: Long,
+    ): Int
 
 
     @JvmStatic
@@ -3350,86 +3561,86 @@ class Style internal constructor(internal var node: Node) {
     external fun nativeUpdateWithValues(
       mason: Long,
       node: Long,
-      display: Int,
-      position: Int,
-      direction: Int,
-      flexDirection: Int,
-      flexWrap: Int,
-      overflow: Int,
-      alignItems: Int,
-      alignSelf: Int,
-      alignContent: Int,
-      justifyItems: Int,
-      justifySelf: Int,
-      justifyContent: Int,
+      display: Byte,
+      position: Byte,
+      direction: Byte,
+      flexDirection: Byte,
+      flexWrap: Byte,
+      overflow: Byte,
+      alignItems: Byte,
+      alignSelf: Byte,
+      alignContent: Byte,
+      justifyItems: Byte,
+      justifySelf: Byte,
+      justifyContent: Byte,
 
-      insetLeftType: Int,
+      insetLeftType: Byte,
       insetLeftValue: Float,
-      insetRightType: Int,
+      insetRightType: Byte,
       insetRightValue: Float,
-      insetTopType: Int,
+      insetTopType: Byte,
       insetTopValue: Float,
-      insetBottomType: Int,
+      insetBottomType: Byte,
       insetBottomValue: Float,
 
-      marginLeftType: Int,
+      marginLeftType: Byte,
       marginLeftValue: Float,
-      marginRightType: Int,
+      marginRightType: Byte,
       marginRightValue: Float,
-      marginTopType: Int,
+      marginTopType: Byte,
       marginTopValue: Float,
-      marginBottomType: Int,
+      marginBottomType: Byte,
       marginBottomValue: Float,
 
-      paddingLeftType: Int,
+      paddingLeftType: Byte,
       paddingLeftValue: Float,
-      paddingRightType: Int,
+      paddingRightType: Byte,
       paddingRightValue: Float,
-      paddingTopType: Int,
+      paddingTopType: Byte,
       paddingTopValue: Float,
-      paddingBottomType: Int,
+      paddingBottomType: Byte,
       paddingBottomValue: Float,
 
-      borderLeftType: Int,
+      borderLeftType: Byte,
       borderLeftValue: Float,
-      borderRightType: Int,
+      borderRightType: Byte,
       borderRightValue: Float,
-      borderTopType: Int,
+      borderTopType: Byte,
       borderTopValue: Float,
-      borderBottomType: Int,
+      borderBottomType: Byte,
       borderBottomValue: Float,
 
       flexGrow: Float,
       flexShrink: Float,
 
-      flexBasisType: Int,
+      flexBasisType: Byte,
       flexBasisValue: Float,
 
-      widthType: Int,
+      widthType: Byte,
       widthValue: Float,
-      heightType: Int,
+      heightType: Byte,
       heightValue: Float,
 
-      minWidthType: Int,
+      minWidthType: Byte,
       minWidthValue: Float,
-      minHeightType: Int,
+      minHeightType: Byte,
       minHeightValue: Float,
 
-      maxWidthType: Int,
+      maxWidthType: Byte,
       maxWidthValue: Float,
-      maxHeightType: Int,
+      maxHeightType: Byte,
       maxHeightValue: Float,
 
-      gapRowType: Int,
+      gapRowType: Byte,
       gapRowValue: Float,
-      gapColumnType: Int,
+      gapColumnType: Byte,
       gapColumnValue: Float,
 
       aspectRatio: Float,
 
       gridAutoRows: String?,
       gridAutoColumns: String?,
-      gridAutoFlow: Int,
+      gridAutoFlow: Byte,
       gridColumn: String?,
       gridColumnStart: String?,
       gridColumnEnd: String?,
@@ -3438,11 +3649,11 @@ class Style internal constructor(internal var node: Node) {
       gridRowEnd: String?,
       gridTemplateRows: String?,
       gridTemplateColumns: String?,
-      overflowX: Int,
-      overflowY: Int,
+      overflowX: Byte,
+      overflowY: Byte,
       scrollbarWidth: Float,
-      textAlign: Int,
-      boxSizing: Int,
+      textAlign: Byte,
+      boxSizing: Byte,
       gridArea: String?,
       gridTemplateAreas: String?,
     )

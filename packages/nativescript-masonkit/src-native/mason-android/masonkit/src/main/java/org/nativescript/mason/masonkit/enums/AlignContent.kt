@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit.enums
 
-enum class AlignContent(val value: Int) {
+enum class AlignContent(val value: Byte) {
   Normal(-1), Start(0), End(1), Center(2), Stretch(3), SpaceBetween(4), SpaceAround(5), SpaceEvenly(
     6
   ),
@@ -24,18 +24,18 @@ enum class AlignContent(val value: Int) {
 
 
   companion object {
-    fun fromInt(value: Int): AlignContent {
+    fun from(value: Byte): AlignContent {
       return when (value) {
-        -1 -> Normal
-        0 -> Start
-        1 -> End
-        2 -> Center
-        3 -> Stretch
-        4 -> SpaceBetween
-        5 -> SpaceAround
-        6 -> SpaceEvenly
-        7 -> FlexStart
-        8 -> FlexEnd
+        (-1).toByte() -> Normal
+        0.toByte() -> Start
+        1.toByte() -> End
+        2.toByte() -> Center
+        3.toByte() -> Stretch
+        4.toByte() -> SpaceBetween
+        5.toByte() -> SpaceAround
+        6.toByte() -> SpaceEvenly
+        7.toByte() -> FlexStart
+        8.toByte() -> FlexEnd
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

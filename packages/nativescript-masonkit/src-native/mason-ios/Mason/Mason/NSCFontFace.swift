@@ -410,7 +410,19 @@ let srcPattern = #"src:\s*url\(([^)]+)\)\s*format\('([^']+)'\);"#
 @objc(NSCFontFace)
 public class NSCFontFace: NSObject {
   internal var owner: MasonStyle? = nil
-  internal var uiFont: UIFont? = nil
+  internal var uiFont: UIFont? = nil {
+    didSet {
+      if let cgFont = self.font {
+        self.ctFont = CTFontCreateWithGraphicsFont(
+            cgFont,
+            CGFloat(owner?.fontSize ?? Constants.DEFAULT_FONT_SIZE),
+            nil,
+            nil
+        )
+      }
+    }
+  }
+  internal var ctFont: CTFont? = nil
   public internal(set) var font: CGFont? = nil
   internal var fontFamily: String
   public internal(set) var fontData: NSData? = nil

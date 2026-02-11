@@ -3,6 +3,8 @@ package org.nativescript.mason.masondemo
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.os.StrictMode
+import android.os.StrictMode.ThreadPolicy
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.TypedValue
@@ -10,15 +12,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Element
+import org.nativescript.mason.masonkit.Img
 import org.nativescript.mason.masonkit.Input
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
+import org.nativescript.mason.masonkit.Li
+import org.nativescript.mason.masonkit.ListView
 import org.nativescript.mason.masonkit.Mason
 import org.nativescript.mason.masonkit.Point
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
 import org.nativescript.mason.masonkit.Styles
+import org.nativescript.mason.masonkit.TextNode
 import org.nativescript.mason.masonkit.TextStyleChangeMask
 import org.nativescript.mason.masonkit.TextStyleKeys
 import org.nativescript.mason.masonkit.TextView
@@ -35,7 +41,9 @@ import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.enums.VerticalAlign
 import org.nativescript.mason.masonkit.events.InputEvent
 import java.util.Timer
+import java.util.concurrent.Executors
 import kotlin.concurrent.schedule
+
 
 class GridActivity : AppCompatActivity() {
   lateinit var metrics: DisplayMetrics
@@ -49,7 +57,7 @@ class GridActivity : AppCompatActivity() {
     metrics = resources.displayMetrics
     mason.setDeviceScale(metrics.density)
 
-    val body = mason.createScrollView(this)
+    val body = mason.createView(this)
 //    body.style.overflowY = Overflow.Scroll
 
 //    Timer().schedule(1000L) {
@@ -86,25 +94,99 @@ class GridActivity : AppCompatActivity() {
 
     //grid_template_areas_600(body)
 
-    //  backgroundTest(body)
-    // filter(body)
+   // backgroundTest(body)
+     //filter(body)
     //  objectFit(body)
     //   buttons(body)
     // verticalAlignment(body)
     // verticalAlignImages(body)
     // radius(body)
-    // textShadow(body)
+    //  textShadow(body)
     // input(body)
-    zOrder(body)
+    // zOrder(body)
+    StrictMode.setThreadPolicy(
+      ThreadPolicy.Builder()
+        .detectAll()
+        .penaltyLog()
+        .build()
+    )
+    list(body)
     setContentView(body)
   }
 
+  fun views() {
+    for (i in 0 until 1_000_000) {
+      Mason.shared.createView(this)
+    }
+
+    System.gc()
+    System.runFinalization()
+
+  }
+
+
+  fun list(body: View) {
+    val list = mason.createListView(this)
+    list.isOrdered = true
+    list.style.overflowY = Overflow.Scroll
+
+
+    val arr = ArrayList<String>(1)
+
+    Executors.newSingleThreadExecutor().execute {
+      repeat(1) {
+        arr.add("https://robohash.org/${it + 1}?set=set4")
+      }
+
+      runOnUiThread {
+        list.values.putInt(ListView.Keys.COUNT, arr.size)
+        list.notifyDataSetChanged()
+      }
+    }
+
+    list.listener = object : ListView.Listener {
+      override fun onCreate(type: Int): Li {
+        val li = mason.createListItem(this@GridActivity)
+        val text = mason.createTextView(this@GridActivity)
+        text.append("")
+        li.append(text)
+        val img = mason.createImageView(this@GridActivity)
+        img.style.size = Size(Dimension.Points(50f), Dimension.Points(50f))
+        li.append(img)
+        return li
+      }
+
+      override fun onBind(holder: ListView.Holder, index: Int) {
+        arr.getOrNull(index)?.let { url ->
+          val txt = holder.view.node.getChildAt(0)?.view as? TextView
+          (txt?.node?.getChildAt(0) as? TextNode)?.let {
+            it.data = url
+          }
+
+          val img = holder.view.node.getChildAt(1)?.view as? Img
+          img?.src = url
+
+        }
+      }
+
+      override fun getItemViewType(position: Int): Int {
+        return 0
+      }
+    }
+    list.configure {
+      it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+    }
+
+    body.configure {
+      it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+    }
+    body.addView(list)
+  }
 
   fun zOrder(body: Scroll) {
 
     val root = mason.createView(this)
     body.append(root)
-
 
 
     val a = mason.createView(this)
@@ -141,8 +223,6 @@ class GridActivity : AppCompatActivity() {
     root.append(a)
     root.append(b)
     root.append(c)
-
-
 
 
   }
@@ -686,7 +766,7 @@ class GridActivity : AppCompatActivity() {
     }
   }
 
-  fun filter(body: Scroll) {
+  fun filter(body: View) {
     val rootLayout = mason.createView(this)
     rootLayout.style.padding = Rect.uniform(
       LengthPercentage.Points(toPx(10f))
@@ -799,7 +879,7 @@ class GridActivity : AppCompatActivity() {
     body.append(rootLayout)
   }
 
-  fun backgroundTest(body: Scroll) {
+  fun backgroundTest(body: View) {
     val rootLayout = mason.createView(this)
     rootLayout.style.size = Size(
       Dimension.Points(toPx(500f)), Dimension.Points(toPx(500f))

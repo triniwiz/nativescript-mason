@@ -571,7 +571,6 @@ class MasonElementHelpers: NSObject {
         }
       }
       
-      
       let point = CGPoint(x: x, y: y)
       
       let size = CGSizeMake(width, height)

@@ -322,7 +322,6 @@ public class TextEngine: NSObject {
       }
     }
     
-    
     engine.node.cachedWidth = size.width
     engine.node.cachedHeight = size.height
     

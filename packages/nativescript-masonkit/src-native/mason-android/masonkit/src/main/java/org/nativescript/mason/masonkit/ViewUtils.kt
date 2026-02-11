@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.os.Build
+import android.util.Log
 import androidx.core.graphics.withSave
 
 class ViewUtils {
@@ -33,7 +34,6 @@ class ViewUtils {
         if (hasRadii) {
           canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
         }
-
         // Draw solid background color
         style.mBackground?.let { background ->
           background.color?.let { color ->

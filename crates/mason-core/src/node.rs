@@ -1,13 +1,17 @@
 use crate::style::Style;
-use crate::tree::Id;
+use crate::tree::{Id, TreeInner};
 use crate::MeasureOutput;
+use std::fmt::Debug;
 
 #[cfg(target_vendor = "apple")]
 use objc2::runtime::NSObject;
 
-use std::rc::Rc;
+use parking_lot::RwLock;
+use std::sync::Arc;
 use taffy::{AvailableSpace, Cache, ClearState, Layout, Size};
 
+use crate::style::arena::{StyleArena, StyleHandle};
+use crate::style::utils::{get_style_data_i8_raw, set_style_data_i8_raw};
 #[cfg(target_os = "android")]
 use crate::{JVM, JVM_CACHE};
 
@@ -33,38 +37,29 @@ impl AppleNode {
 }
 
 #[cfg(target_os = "android")]
-#[derive(Debug, Clone)]
-pub struct AndroidNode(pub(crate) jni::objects::GlobalRef);
+#[derive(Debug, Clone, Copy)]
+pub struct AndroidNode(pub(crate) jni::sys::jint);
 
 #[cfg(target_os = "android")]
 impl AndroidNode {
-    pub fn set_computed_size(&mut self, width: f32, height: f32) {
+    pub fn set_computed_size(&self, width: f32, height: f32) {
         if let Some(jvm) = crate::JVM.get() {
             let vm = jvm.attach_current_thread();
             let mut env = vm.unwrap();
-            match crate::JVM_CACHE.get() {
-                Some(cache) => unsafe {
-                    _ = env.call_method_unchecked(
-                        self.0.as_obj(),
+            if let Some(cache) = crate::JVM_CACHE.get() {
+                let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
+                let _ = unsafe {
+                    env.call_static_method_unchecked(
+                        node,
                         cache.node_set_computed_size_id,
                         jni::signature::ReturnType::Primitive(jni::signature::Primitive::Void),
                         &[
+                            jni::sys::jvalue { i: self.0 },
                             jni::sys::jvalue { f: width },
                             jni::sys::jvalue { f: height },
                         ],
-                    );
-                },
-                _ => {
-                    _ = env.call_method(
-                        self.0.as_obj(),
-                        "setComputedSize",
-                        "(FF)V",
-                        &[
-                            jni::objects::JValue::from(width),
-                            jni::objects::JValue::from(height),
-                        ],
-                    );
-                }
+                    )
+                };
             }
         }
     }
@@ -82,7 +77,7 @@ pub struct NodeMeasure {
     #[cfg(not(target_os = "android"))]
     pub(crate) data: *mut std::os::raw::c_void,
     #[cfg(target_os = "android")]
-    pub(crate) measure: Option<jni::objects::GlobalRef>,
+    pub(crate) measure: jni::sys::jint,
     #[cfg(not(target_os = "android"))]
     pub(crate) measure: Option<
         extern "C" fn(
@@ -102,18 +97,20 @@ impl NodeMeasure {
         known_dimensions: taffy::Size<Option<f32>>,
         available_space: taffy::Size<AvailableSpace>,
     ) -> taffy::geometry::Size<f32> {
-        match (self.measure.as_ref(), crate::JVM.get()) {
-            (Some(measure), Some(jvm)) => {
+        match crate::JVM.get() {
+            Some(jvm) => {
                 let vm = jvm.attach_current_thread();
                 let mut env = vm.unwrap();
 
-                let result = match crate::JVM_CACHE.get() {
-                    Some(cache) => unsafe {
-                        env.call_method_unchecked(
-                            measure.as_obj(),
+                if let Some(cache) = crate::JVM_CACHE.get() {
+                    let node = unsafe { jni::objects::JClass::from_raw(cache.node_clazz.as_raw()) };
+                    let result = unsafe {
+                        env.call_static_method_unchecked(
+                            node,
                             cache.measure_measure_id,
                             jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
                             &[
+                                jni::sys::jvalue { i: self.measure },
                                 jni::sys::jvalue {
                                     j: MeasureOutput::make(
                                         known_dimensions.width.unwrap_or(f32::NAN),
@@ -136,42 +133,21 @@ impl NodeMeasure {
                                 },
                             ],
                         )
-                    },
-                    _ => env.call_method(
-                        measure.as_obj(),
-                        "measure",
-                        "(JJ)J",
-                        &[
-                            jni::objects::JValue::from(MeasureOutput::make(
-                                known_dimensions.width.unwrap_or(f32::NAN),
-                                known_dimensions.height.unwrap_or(f32::NAN),
-                            )),
-                            jni::objects::JValue::from(MeasureOutput::make(
-                                match available_space.width {
-                                    AvailableSpace::MinContent => -1.,
-                                    AvailableSpace::MaxContent => -2.,
-                                    AvailableSpace::Definite(value) => value,
-                                },
-                                match available_space.height {
-                                    AvailableSpace::MinContent => -1.,
-                                    AvailableSpace::MaxContent => -2.,
-                                    AvailableSpace::Definite(value) => value,
-                                },
-                            )),
-                        ],
-                    ),
-                };
+                    };
 
-                match result {
-                    Ok(result) => {
-                        let size = result.j().unwrap_or_default();
-                        let width = MeasureOutput::get_width(size);
-                        let height = MeasureOutput::get_height(size);
+                    return match result {
+                        Ok(result) => {
+                            let size = result.j().unwrap_or_default();
+                            let width = MeasureOutput::get_width(size);
+                            let height = MeasureOutput::get_height(size);
 
-                        Size { width, height }
-                    }
-                    Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
+                            Size { width, height }
+                        }
+                        Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
+                    };
                 }
+
+                known_dimensions.map(|v| v.unwrap_or(0.0))
             }
             _ => known_dimensions.map(|v| v.unwrap_or(0.0)),
         }
@@ -242,9 +218,9 @@ pub struct NodeData {
     #[cfg(target_vendor = "apple")]
     pub apple_data: Option<AppleNode>,
     #[cfg(target_os = "android")]
-    pub android_data: Option<AndroidNode>,
+    pub(crate) android_data: Option<AndroidNode>,
     #[cfg(target_os = "android")]
-    pub(crate) measure: Option<jni::objects::GlobalRef>,
+    pub(crate) measure: jni::sys::jint,
     #[cfg(not(target_os = "android"))]
     pub(crate) measure: Option<
         extern "C" fn(
@@ -270,7 +246,7 @@ impl NodeData {
     pub(crate) fn new() -> Self {
         unsafe {
             Self {
-                measure: None,
+                measure: -1,
                 android_data: None,
                 inline_segments: vec![],
             }
@@ -296,17 +272,22 @@ impl NodeData {
         known_dimensions: taffy::Size<Option<f32>>,
         available_space: taffy::Size<AvailableSpace>,
     ) -> taffy::geometry::Size<f32> {
-        match (self.measure.as_ref(), crate::JVM.get()) {
-            (Some(measure), Some(jvm)) => {
+        match crate::JVM.get() {
+            Some(jvm) => {
                 let vm = jvm.attach_current_thread();
                 let mut env = vm.unwrap();
-                let result = match crate::JVM_CACHE.get() {
-                    Some(cache) => unsafe {
-                        env.call_method_unchecked(
-                            measure.as_obj(),
+
+                if let Some(cache) = crate::JVM_CACHE.get() {
+                    unsafe {
+                        let node = unsafe {
+                            jni::objects::JClass::from_raw(cache.node_clazz.clone().as_raw())
+                        };
+                        let result = env.call_static_method_unchecked(
+                            node,
                             cache.measure_measure_id,
                             jni::signature::ReturnType::Primitive(jni::signature::Primitive::Long),
                             &[
+                                jni::sys::jvalue { i: self.measure },
                                 jni::sys::jvalue {
                                     j: MeasureOutput::make(
                                         known_dimensions.width.unwrap_or(f32::NAN),
@@ -328,42 +309,22 @@ impl NodeData {
                                     ),
                                 },
                             ],
-                        )
-                    },
-                    _ => env.call_method(
-                        measure.as_obj(),
-                        "measure",
-                        "(JJ)J",
-                        &[
-                            jni::objects::JValue::from(MeasureOutput::make(
-                                known_dimensions.width.unwrap_or(f32::NAN),
-                                known_dimensions.height.unwrap_or(f32::NAN),
-                            )),
-                            jni::objects::JValue::from(MeasureOutput::make(
-                                match available_space.width {
-                                    AvailableSpace::MinContent => -1.,
-                                    AvailableSpace::MaxContent => -2.,
-                                    AvailableSpace::Definite(value) => value,
-                                },
-                                match available_space.height {
-                                    AvailableSpace::MinContent => -1.,
-                                    AvailableSpace::MaxContent => -2.,
-                                    AvailableSpace::Definite(value) => value,
-                                },
-                            )),
-                        ],
-                    ),
-                };
-                match result {
-                    Ok(result) => {
-                        let size = result.j().unwrap_or_default();
-                        let width = MeasureOutput::get_width(size);
-                        let height = MeasureOutput::get_height(size);
+                        );
 
-                        Size { width, height }
+                        return match result {
+                            Ok(result) => {
+                                let size = result.j().unwrap_or_default();
+                                let width = MeasureOutput::get_width(size);
+                                let height = MeasureOutput::get_height(size);
+
+                                Size { width, height }
+                            }
+                            Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
+                        };
                     }
-                    Err(_) => known_dimensions.map(|v| v.unwrap_or(0.0)),
                 }
+
+                known_dimensions.map(|v| v.unwrap_or(0.0))
             }
             _ => known_dimensions.map(|v| v.unwrap_or(0.0)),
         }
@@ -418,7 +379,7 @@ impl NodeData {
             #[cfg(not(target_os = "android"))]
             measure: self.measure,
             #[cfg(target_os = "android")]
-            measure: self.measure.clone(),
+            measure: self.measure,
         }
     }
 }
@@ -459,27 +420,39 @@ pub enum NodeType {
     Normal,
     Text,
     Image,
-    Virtual,
     LineBreak,
 }
+
+#[repr(usize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[allow(non_camel_case_types)]
+pub enum NodeStateKeys {
+    IS_NODE_DIRTY = 0,
+    IS_VIRTUAL = 1,
+    IS_MUTABLE = 2,
+}
+
+pub const NODE_STATE_BUFFER_SIZE: usize = 3;
+
 #[derive(Debug, Clone)]
 pub struct Node {
     pub(crate) style: Style,
     pub(crate) cache: Cache,
     pub(crate) unrounded_layout: Layout,
     pub(crate) final_layout: Layout,
-    pub(crate) guard: Rc<()>,
+    pub(crate) guard: Arc<()>,
     pub(crate) has_measure: bool,
     pub(crate) type_: NodeType,
     pub(crate) is_anonymous: bool,
-    // pub(crate) pseudo_states: PseudoStates,
-    // pub(crate) pseudo_styles: PseudoStyles
+    pub(crate) state: [u8; NODE_STATE_BUFFER_SIZE],
+    #[cfg(target_os = "android")]
+    pub(crate) state_buffer: jni::sys::jint,
 }
 
 impl Node {
-    pub fn new() -> Self {
+    pub fn new(arena: *mut StyleArena) -> Self {
         Self {
-            style: Style::default(),
+            style: Style::new(arena),
             cache: Default::default(),
             unrounded_layout: Default::default(),
             final_layout: Default::default(),
@@ -487,10 +460,62 @@ impl Node {
             has_measure: false,
             type_: NodeType::Normal,
             is_anonymous: false,
+            state: [0u8; NODE_STATE_BUFFER_SIZE],
+            #[cfg(target_os = "android")]
+            state_buffer: -1,
         }
     }
 
+    pub fn new_with_handle(arena: *mut StyleArena, handle: StyleHandle) -> Self {
+        Self {
+            style: Style::new_with_handle(arena, handle),
+            cache: Default::default(),
+            unrounded_layout: Default::default(),
+            final_layout: Default::default(),
+            guard: Default::default(),
+            has_measure: false,
+            type_: NodeType::Normal,
+            is_anonymous: false,
+            state: [0u8; NODE_STATE_BUFFER_SIZE],
+            #[cfg(target_os = "android")]
+            state_buffer: -1,
+        }
+    }
+
+    pub fn style(&self) -> &Style {
+        &self.style
+    }
+
+    pub fn style_mut(&mut self) -> &mut Style {
+        self.style.prepare_mut();
+        &mut self.style
+    }
+
+    // don't mutable the raw buffer w/o calling prepare_mut
+    pub(crate) fn inner_style_mut(&mut self) -> &mut Style {
+        &mut self.style
+    }
+
+    pub(crate) fn set_node_state(&mut self, value: bool) {
+        set_style_data_i8_raw(
+            self.state.as_mut_slice(),
+            NodeStateKeys::IS_NODE_DIRTY as usize,
+            if value { 1 } else { 0 },
+        );
+    }
+
+    #[inline(always)]
+    pub fn is_virtual(&self) -> bool {
+        get_style_data_i8_raw(self.state.as_slice(), NodeStateKeys::IS_VIRTUAL as usize) != 0
+    }
+
+    #[inline(always)]
+    pub fn is_mutable(&self) -> bool {
+        get_style_data_i8_raw(self.state.as_slice(), NodeStateKeys::IS_MUTABLE as usize) != 0
+    }
+
     pub fn mark_dirty(&mut self) -> ClearState {
+        self.set_node_state(true);
         self.cache.clear()
     }
 
@@ -505,13 +530,31 @@ impl Node {
     }
 
     #[inline]
-    pub fn is_virtual(&self) -> bool {
-        self.type_ == NodeType::Virtual
+    pub fn is_list(&self) -> bool {
+        self.style.get_item_is_list()
+    }
+
+    #[inline]
+    pub fn is_list_item(&self) -> bool {
+        self.style.get_item_is_list_item()
     }
 
     #[inline]
     pub fn is_line_container(&self) -> bool {
         self.type_ == NodeType::LineBreak
+    }
+
+    #[inline]
+    pub fn get_is_virtual(&self) -> bool {
+        get_style_data_i8_raw(self.state.as_slice(), NodeStateKeys::IS_VIRTUAL as usize) != 0
+    }
+    #[inline]
+    pub fn set_is_virtual(&mut self, value: bool) {
+        set_style_data_i8_raw(
+            self.state.as_mut_slice(),
+            NodeStateKeys::IS_VIRTUAL as usize,
+            if value { 1 } else { 0 },
+        );
     }
 
     pub fn compute_style(&self) -> Style {
@@ -559,8 +602,11 @@ impl Node {
 #[derive(Debug, Clone)]
 pub struct NodeRef {
     pub(crate) id: Id,
-    pub(crate) guard: Rc<()>,
+    pub(crate) guard: Arc<()>,
+    pub(crate) tree: Arc<RwLock<TreeInner>>,
 }
+
+unsafe impl Send for NodeRef {}
 
 impl NodeRef {
     pub fn id(&self) -> Id {
@@ -571,5 +617,30 @@ impl NodeRef {
 impl PartialEq for NodeRef {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl Drop for NodeRef {
+    fn drop(&mut self) {
+        // 2 this ref + default ref
+        if Arc::strong_count(&self.guard) == 2 {
+            let mut tree = self.tree.write();
+            let has_parent = tree
+                .parents
+                .get(self.id)
+                .map(|p| p.is_some())
+                .unwrap_or(false);
+            let has_children = tree
+                .children
+                .get(self.id)
+                .map(|children| !children.is_empty())
+                .unwrap_or(false);
+            if !has_parent && !has_children {
+                // todo clean up state buffer
+                if let Some(node) = tree.nodes.remove(self.id) {
+                    tree.style_arena.release(node.style.handle);
+                }
+            }
+        }
     }
 }

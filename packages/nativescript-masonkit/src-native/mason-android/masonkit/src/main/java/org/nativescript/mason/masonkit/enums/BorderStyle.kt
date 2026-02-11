@@ -1,7 +1,7 @@
 package org.nativescript.mason.masonkit.enums
 
 
-enum class BorderStyle(val value: Int, val css: String) {
+enum class BorderStyle(val value: Byte, val css: String) {
   None(0, "none"), Hidden(1, "hidden"), Dotted(2, "dotted"), Dashed(3, "dashed"), Solid(
     4,
     "solid"
@@ -12,18 +12,18 @@ enum class BorderStyle(val value: Int, val css: String) {
   );
 
   companion object {
-    fun fromInt(value: Int): BorderStyle {
+    fun from(value: Byte): BorderStyle {
       return when (value) {
-        0 -> None
-        1 -> Hidden
-        2 -> Dotted
-        3 -> Dashed
-        4 -> Solid
-        5 -> Double
-        6 -> Groove
-        7 -> Ridge
-        8 -> Inset
-        9 -> Outset
+        0.toByte() -> None
+        1.toByte() -> Hidden
+        2.toByte() -> Dotted
+        3.toByte() -> Dashed
+        4.toByte() -> Solid
+        5.toByte() -> Double
+        6.toByte() -> Groove
+        7.toByte() -> Ridge
+        8.toByte() -> Inset
+        9.toByte() -> Outset
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

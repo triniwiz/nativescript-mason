@@ -1,9 +1,9 @@
 use crate::style::{JAVA_FLOAT_TYPE, JAVA_INT_TYPE, JAVA_LONG_TYPE};
 use crate::INLINE_SEGMENT;
 use jni::objects::{JClass, JObject, JObjectArray, JPrimitiveArray, ReleaseMode};
+use jni::signature::ReturnType;
 use jni::sys::{
-    jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, jobject, jobjectArray, JNI_FALSE,
-    JNI_TRUE,
+    jboolean, jfloat, jfloatArray, jint, jlong, jlongArray, jobjectArray, JNI_FALSE, JNI_TRUE,
 };
 use jni::JNIEnv;
 use mason_core::{AvailableSpace, Id, InlineSegment, Mason, NodeRef, Size};
@@ -73,19 +73,11 @@ pub extern "system" fn NodeNativeNewNodeNormal(
     native_new_node(taffy, is_anonymous)
 }
 
-#[no_mangle]
-pub extern "system" fn NodeNativeNewNodeWithContext(
-    env: JNIEnv,
-    _: JClass,
-    taffy: jlong,
-    measure: JObject,
-    is_anonymous: jboolean,
-) -> jlong {
+fn native_new_node_with_context(taffy: jlong, measure: jint, is_anonymous: jboolean) -> jlong {
     if taffy == 0 {
         return 0;
     }
 
-    let measure = env.new_global_ref(measure).unwrap();
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
 
@@ -95,10 +87,30 @@ pub extern "system" fn NodeNativeNewNodeWithContext(
             mason.create_node()
         };
 
-        mason.setup(node.id(), Some(measure));
+        mason.setup(node.id(), measure);
 
         Box::into_raw(Box::new(node)) as jlong
     }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewNodeWithContextNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    measure: jint,
+    is_anonymous: jboolean,
+) -> jlong {
+    native_new_node_with_context(taffy, measure, is_anonymous)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewNodeWithContext(
+    taffy: jlong,
+    measure: jint,
+    is_anonymous: jboolean,
+) -> jlong {
+    native_new_node_with_context(taffy, measure, is_anonymous)
 }
 
 #[no_mangle]
@@ -150,19 +162,11 @@ pub extern "system" fn NodeNativeNewTextNodeNormal(
     native_new_text_node(taffy, is_anonymous)
 }
 
-#[no_mangle]
-pub extern "system" fn NodeNativeNewTextNodeWithContext(
-    env: JNIEnv,
-    _: JClass,
-    taffy: jlong,
-    measure: JObject,
-    is_anonymous: jboolean,
-) -> jlong {
+fn native_new_text_node_with_context(taffy: jlong, measure: jint, is_anonymous: jboolean) -> jlong {
     if taffy == 0 {
         return 0;
     }
 
-    let measure = env.new_global_ref(measure).unwrap();
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
 
@@ -172,10 +176,30 @@ pub extern "system" fn NodeNativeNewTextNodeWithContext(
             mason.create_text_node()
         };
 
-        mason.setup(node.id(), Some(measure));
+        mason.setup(node.id(), measure);
 
         Box::into_raw(Box::new(node)) as jlong
     }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewTextNodeWithContext(
+    taffy: jlong,
+    measure: jint,
+    is_anonymous: jboolean,
+) -> jlong {
+    native_new_text_node_with_context(taffy, measure, is_anonymous)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewTextNodeWithContextNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    measure: jint,
+    is_anonymous: jboolean,
+) -> jlong {
+    native_new_text_node_with_context(taffy, measure, is_anonymous)
 }
 
 #[no_mangle]
@@ -919,28 +943,31 @@ pub extern "system" fn nativeGetChildren(
     }
 }
 
-#[no_mangle]
-pub extern "system" fn NodeNativeSetContext(
-    env: JNIEnv,
-    _: JObject,
-    taffy: jlong,
-    node: jlong,
-    measure: JObject,
-) {
+fn native_set_context(taffy: jlong, node: jlong, measure: jint) {
     if taffy == 0 || node == 0 {
         return;
     }
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
-        let measure = if measure.is_null() {
-            None
-        } else {
-            Some(env.new_global_ref(measure).unwrap())
-        };
-
         mason.set_measure(node.id(), measure);
     }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeSetContext(taffy: jlong, node: jlong, measure: jint) {
+    native_set_context(taffy, node, measure)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeSetContextNormal(
+    _: JNIEnv,
+    _: JObject,
+    taffy: jlong,
+    node: jlong,
+    measure: jint,
+) {
+    native_set_context(taffy, node, measure)
 }
 
 fn native_remove_context(taffy: jlong, node: jlong) {
@@ -950,7 +977,7 @@ fn native_remove_context(taffy: jlong, node: jlong) {
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
         let node = &*(node as *mut NodeRef);
-        mason.set_measure(node.id(), None);
+        mason.set_measure(node.id(), -1);
     }
 }
 
@@ -1105,14 +1132,7 @@ pub extern "system" fn NodeNativeSetSegments(
     }
 }
 
-#[no_mangle]
-pub extern "system" fn NodeNativeSetAndroidNode(
-    mut env: JNIEnv,
-    _: JClass,
-    taffy: jlong,
-    node: jlong,
-    android_node: jobject,
-) {
+fn native_set_android_node(taffy: jlong, node: jlong, android_node: jint) {
     if taffy == 0 || node == 0 {
         return;
     }
@@ -1122,14 +1142,28 @@ pub extern "system" fn NodeNativeSetAndroidNode(
 
         let node = &*(node as *mut NodeRef);
 
-        if android_node.is_null() {
+        if android_node == -1 {
             mason.clear_android_node(node.id());
         } else {
-            let object = JObject::from_raw(android_node);
-            let instance = env.new_global_ref(object).unwrap();
-            mason.set_android_node(node.id(), instance);
+            mason.set_android_node(node.id(), Some(android_node));
         }
     }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeSetAndroidNode(taffy: jlong, node: jlong, android_node: jint) {
+    native_set_android_node(taffy, node, android_node);
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeSetAndroidNodeNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    node: jlong,
+    android_node: jint,
+) {
+    native_set_android_node(taffy, node, android_node);
 }
 
 #[no_mangle]
@@ -1156,27 +1190,35 @@ pub extern "system" fn NodeNativeNewImageNodeNormal(_: JNIEnv, _: JClass, taffy:
     }
 }
 
-#[no_mangle]
-pub extern "system" fn NodeNativeNewImageNodeWithContext(
-    env: JNIEnv,
-    _: JClass,
-    taffy: jlong,
-    measure: JObject,
-) -> jlong {
+fn native_new_image_node_with_context(taffy: jlong, measure: jint) -> jlong {
     if taffy == 0 {
         return 0;
     }
 
-    let measure = env.new_global_ref(measure).unwrap();
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
 
         let node = mason.create_image_node();
 
-        mason.setup(node.id(), Some(measure));
+        mason.setup(node.id(), measure);
 
         Box::into_raw(Box::new(node)) as jlong
     }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewImageNodeWithContext(taffy: jlong, measure: jint) -> jlong {
+    native_new_image_node_with_context(taffy, measure)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewImageNodeWithContextNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    measure: jint,
+) -> jlong {
+    native_new_image_node_with_context(taffy, measure)
 }
 
 #[no_mangle]
@@ -1195,25 +1237,135 @@ pub extern "system" fn NodeNativeNewLineBreakNodeNormal(
     }
 }
 
-#[no_mangle]
-pub extern "system" fn NodeNativeNewLineBreakNodeWithContext(
-    env: JNIEnv,
-    _: JClass,
-    taffy: jlong,
-    measure: JObject,
-) -> jlong {
+fn native_new_line_break_node_with_context(taffy: jlong, measure: jint) -> jlong {
     if taffy == 0 {
         return 0;
     }
 
-    let measure = env.new_global_ref(measure).unwrap();
     unsafe {
         let mason = &mut *(taffy as *mut Mason);
 
         let node = mason.create_line_break_node();
 
-        mason.setup(node.id(), Some(measure));
+        mason.setup(node.id(), measure);
 
         Box::into_raw(Box::new(node)) as jlong
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewLineBreakNodeWithContext(taffy: jlong, measure: jint) -> jlong {
+    native_new_line_break_node_with_context(taffy, measure)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewLineBreakNodeWithContextNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    measure: jint,
+) -> jlong {
+    native_new_line_break_node_with_context(taffy, measure)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewListItemNodeNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+        Box::into_raw(Box::new(mason.create_list_item_node())) as jlong
+    }
+}
+
+fn native_new_list_item_node_with_context(taffy: jlong, measure: jint) -> jlong {
+    if taffy == 0 {
+        return 0;
+    }
+
+    unsafe {
+        let mason = &mut *(taffy as *mut Mason);
+
+        let node = mason.create_list_item_node();
+
+        mason.setup(node.id(), measure);
+
+        Box::into_raw(Box::new(node)) as jlong
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewListItemNodeWithContext(taffy: jlong, measure: jint) -> jlong {
+    native_new_list_item_node_with_context(taffy, measure)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeNewListItemNodeWithContextNormal(
+    _: JNIEnv,
+    _: JClass,
+    taffy: jlong,
+    measure: jint,
+) -> jlong {
+    native_new_list_item_node_with_context(taffy, measure)
+}
+
+#[no_mangle]
+pub extern "system" fn NodeNativeGetStateBuffer(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    node: jlong,
+) -> jint {
+    if mason == 0 || node == 0 {
+        return -1;
+    }
+    unsafe {
+        let mason = &mut *(mason as *mut Mason);
+        let node = &mut *(node as *mut NodeRef);
+
+        let data = mason.node_state_data(node.id());
+        if data >= 0 {
+            return data;
+        }
+
+        let (ptr, len) = mason.node_state_data_raw_mut(node.id());
+
+        if ptr.is_null() || len == 0 {
+            return -1;
+        }
+
+        unsafe {
+            match env.new_direct_byte_buffer(ptr as _, len) {
+                Ok(buffer) => match mason_core::JVM_CACHE.get() {
+                    Some(cache) => {
+                        let manager =
+                            unsafe { JClass::from_raw(cache.object_manager_clazz.as_raw()) };
+                        let result = unsafe {
+                            env.call_static_method_unchecked(
+                                manager,
+                                cache.object_manager_add_id,
+                                ReturnType::Primitive(jni::signature::Primitive::Int),
+                                &[jni::sys::jvalue {
+                                    l: buffer.into_raw(),
+                                }],
+                            )
+                        };
+
+                        match result {
+                            Ok(result) => result.i().unwrap_or(-1),
+                            Err(_) => -1,
+                        }
+                    }
+                    None => -1,
+                },
+                Err(_) => -1,
+            }
+        }
     }
 }

@@ -16,16 +16,16 @@ sealed class LengthPercentage {
     }
 
     @JvmStatic
-    fun fromTypeValue(type: Int, value: Float): LengthPercentage? {
+    fun fromTypeValue(type: Byte, value: Float): LengthPercentage? {
       return when (type) {
-        0 -> Points(value)
-        1 -> Percent(value)
+        0.toByte() -> Points(value)
+        1.toByte() -> Percent(value)
         else -> null
       }
     }
   }
 
-  internal val type: Int
+  internal val type: Byte
     get() = when (this) {
       is Points -> 0
       is Zero -> 0

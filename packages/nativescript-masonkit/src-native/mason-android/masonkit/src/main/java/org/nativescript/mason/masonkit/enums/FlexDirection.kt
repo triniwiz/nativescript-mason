@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit.enums
 
-enum class FlexDirection(val value: Int) {
+enum class FlexDirection(val value: Byte) {
   Row(0), Column(1), RowReverse(2), ColumnReverse(3);
 
   val cssValue: String
@@ -14,12 +14,12 @@ enum class FlexDirection(val value: Int) {
     }
 
   companion object {
-    fun fromInt(value: Int): FlexDirection {
+    fun from(value: Byte): FlexDirection {
       return when (value) {
-        0 -> Row
-        1 -> Column
-        2 -> RowReverse
-        3 -> ColumnReverse
+        0.toByte() -> Row
+        1.toByte() -> Column
+        2.toByte() -> RowReverse
+        3.toByte() -> ColumnReverse
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

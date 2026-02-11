@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit.enums
 
-enum class Position(val value: Int) {
+enum class Position(val value: Byte) {
   Relative(0), Absolute(1);
 
   val cssValue: String
@@ -12,10 +12,10 @@ enum class Position(val value: Int) {
     }
 
   companion object {
-    fun fromInt(value: Int): Position {
+    fun from(value: Byte): Position {
       return when (value) {
-        0 -> Relative
-        1 -> Absolute
+        0.toByte() -> Relative
+        1.toByte() -> Absolute
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

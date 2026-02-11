@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit.enums
 
-enum class ObjectFit(val value: Int) {
+enum class ObjectFit(val value: Byte) {
   Contain(0),
   Cover(1),
   Fill(2),
@@ -8,13 +8,13 @@ enum class ObjectFit(val value: Int) {
   ScaleDown(4);
 
   companion object {
-    fun fromInt(value: Int): ObjectFit {
+    fun from(value: Byte): ObjectFit {
       return when (value) {
-        0 -> Contain
-        1 -> Cover
-        2 -> Fill
-        3 -> None
-        4 -> ScaleDown
+        0.toByte() -> Contain
+        1.toByte() -> Cover
+        2.toByte() -> Fill
+        3.toByte() -> None
+        4.toByte() -> ScaleDown
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

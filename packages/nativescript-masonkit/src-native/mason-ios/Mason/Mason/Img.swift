@@ -5,7 +5,7 @@
 //  Created by Osei Fortune on 07/05/2025.
 //
 import UIKit
-
+@_implementationOnly import SDWebImage
 
 @objc(MasonLoadingState)
 public enum LoadingState: Int, RawRepresentable {
@@ -43,37 +43,64 @@ public enum LoadingState: Int, RawRepresentable {
 
 
 public class MasonImageLayer: CALayer {
-  weak var view: Img? = nil
+  weak var view: Img?
+  
+  var image: UIImage? {
+    didSet {
+      contentsLayer.contents = image?.cgImage
+    }
+  }
+  
+  internal var fit: ObjectFit = .Fill
+  
+  let contentsLayer = CALayer()
+
+  private func setup(){
+    contentsLayer.contentsGravity = .resizeAspectFill
+    contentsLayer.contentsScale = UIScreen.main.scale
+    addSublayer(contentsLayer)
+  }
   
   public override init() {
     super.init()
     needsDisplayOnBoundsChange = true
+    setup()
   }
   
-  required init?(coder: NSCoder) {
-    super.init(coder: coder)
+  public init(view: Img) {
+    self.view = view
+    super.init()
     needsDisplayOnBoundsChange = true
+    setup()
   }
   
   public override init(layer: Any) {
+    let other = layer as! MasonImageLayer
+    self.view = other.view
     super.init(layer: layer)
     needsDisplayOnBoundsChange = true
+    setup()
   }
   
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
   
   public override func draw(in context: CGContext) {
     guard bounds.width > 0, bounds.height > 0  else {
       return
     }
     
-    guard let view = view,
-          let image = view.image else {
-      context.clear(bounds)
-      return
-    }
+    guard let view = view else { return }
+
+//    guard let view = view, let image = image else {
+//      context.clear(bounds)
+//      return
+//    }
     
     view.style.mBackground.draw(on: self, in: context, rect: bounds)
     
+    /*
     let imageSize = CGSize(width: image.size.width * 3, height: image.size.height * 3)
     let viewSize = bounds.size
     
@@ -149,7 +176,15 @@ public class MasonImageLayer: CALayer {
     UIGraphicsPopContext()
     context.restoreGState()
     
+    */
+    
     view.style.mBorderRender.draw(in: context, rect: bounds)
+  }
+  
+  
+  public override func layoutSublayers() {
+      super.layoutSublayers()
+      contentsLayer.frame = bounds
   }
 }
 
@@ -190,77 +225,110 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
   
   public var image: UIImage? {
     didSet {
+      masonLayer.image = image
+      node.markDirty()
       requestLayout()
-      setNeedsLayout()
-      setNeedsDisplay()
     }
   }
   
   public func requestLayout() {
     let change = style.objectFit
-    if(fit != change){
+    if(masonLayer.fit != change){
       setObjectFit(change)
     }
+    node.parentElement?.requestLayout()
   }
   
   func setObjectFit(_ fit: ObjectFit) {
-    setNeedsDisplay()
+    masonLayer.fit = fit
+    switch fit {
+      case .Fill:
+          masonLayer.contentsLayer.contentsGravity = .resize
+      case .Contain:
+          masonLayer.contentsLayer.contentsGravity = .resizeAspect
+      case .Cover:
+          masonLayer.contentsLayer.contentsGravity = .resizeAspectFill
+      default:
+          masonLayer.contentsLayer.contentsGravity = .resizeAspect
+      }
   }
   
-//  public override func setNeedsDisplay() {
-//    super.setNeedsDisplay()
-//    masonLayer.setNeedsDisplay()
-//  }
+  internal var state: LoadingState? = nil
   
-  private var fit: ObjectFit = .Fill
-  
-  private var currentTask: URLSessionDataTask?
-  public var src: String? {
-    didSet {
-      currentTask?.cancel()
-      guard let src = src, let url = URL(string: src) else {return}
-      let request = URLRequest(url: url)
-      
-      currentTask = URLSession.shared.dataTask(with: request, completionHandler: { data, response, error in
-        guard let data = data,  let image = UIImage(data: data) else {
+  internal func loadImage(){
+    let current = CFRunLoopGetCurrent()
+    guard let src = src, let url = URL(string: src) else {
+      if let current = current {
+        CFRunLoopPerformBlock(current, CFRunLoopMode.commonModes.rawValue) {
+          self.state = .Loaded
           self.image = nil
-          self.requestLayout()
-          self.setNeedsDisplay()
-          self.onStateChange?(.Loaded, error)
-          return
-        }
-        
-        DispatchQueue.main.async {
-          self.image = image
-          self.node.markDirty()
-          self.requestLayout()
-          self.setNeedsDisplay()
           self.onStateChange?(.Loaded, nil)
         }
-      })
-      onStateChange?(.Loading, nil)
-      currentTask?.resume()
+        CFRunLoopWakeUp(current)
+      }else {
+        self.state = .Loaded
+        self.image = nil
+        self.onStateChange?(.Loaded, nil)
+      }
+      self.state = nil
+      return
+    }
+    self.state = .Loading
+    onStateChange?(.Loading, nil)
+    if let image = SDImageCache.shared.imageFromCache(forKey: src) {
+      if let current = current {
+        CFRunLoopPerformBlock(current, CFRunLoopMode.commonModes.rawValue) {
+          self.state = .Loaded
+          self.image = image
+          self.onStateChange?(.Loaded, nil)
+        }
+        CFRunLoopWakeUp(current)
+      }else {
+        self.state = .Loaded
+        self.image = image
+        self.onStateChange?(.Loaded, nil)
+      }
+    }else {
+      SDWebImageManager.shared.loadImage(with: url, progress: nil) { image, _ , error, type, finished, _ in
+        if let current = current {
+          CFRunLoopPerformBlock(current, CFRunLoopMode.commonModes.rawValue) {
+            self.state = .Loaded
+            self.image = image
+            self.onStateChange?(.Loaded, error)
+          }
+          CFRunLoopWakeUp(current)
+        }else {
+          self.state = .Loaded
+          self.image = image
+          self.onStateChange?(.Loaded, error)
+        }
+      }
+    }
+  }
+  public var src: String? {
+    didSet {
+      loadImage()
     }
   }
   
   public func updateImage(_ image: UIImage?) {
     if(image != nil){
+      self.state = .Loading
       onStateChange?(.Loading, nil)
     }
+    self.state = .Loaded
     self.image = image
-    node.markDirty()
-    requestLayout()
-    setNeedsDisplay()
     onStateChange?(.Loaded, nil)
   }
+  
   
   init(mason doc: NSCMason) {
     node = doc.createImageNode()
     mason = doc
     super.init(frame: .zero)
-    isOpaque = false
     masonLayer.view = self
     masonLayer.contentsScale = UIScreen.main.scale
+    isOpaque = false
     node.view = self
     node.measureFunc = { known, available in
       return Img.measure(self, known, available)
@@ -306,8 +374,7 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
     
     view.node.cachedWidth = ret.width
     view.node.cachedHeight = ret.height
-    
-    
+        
     return ret
   }
 }

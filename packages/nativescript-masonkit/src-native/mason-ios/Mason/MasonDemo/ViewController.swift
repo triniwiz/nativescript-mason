@@ -8,7 +8,7 @@
 import UIKit
 import Mason
 
-class ViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
+class ViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, MasonList.MasonListDelegate {
   
   let scale = Float(UIScreen.main.scale)
   
@@ -465,11 +465,88 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
    // radius()
-  //  button()
+    button()
     
    // grid_template_areas_500(body)
    // input()
-    zOrder()
+  //  zOrder()
+  //  webList()
+  }
+  
+  
+  var uiData: [String] = []
+  
+  func list(_ list: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+    
+    let d = list.dequeueReusableCell(withReuseIdentifier: "default", for: indexPath) as? MasonList.MasonListCell ?? MasonList.MasonListCell.initWithEmptyBackground()
+    
+    let li = mason.createListItem()
+    d.view = li
+    d.contentView.addSubview(li)
+    let txt = mason.createTextView()
+    if(uiData.isEmpty){
+      txt.append(text: "")
+    }else {
+      txt.append(text: uiData[indexPath.row])
+    }
+
+    li.append(txt)
+    let img = mason.createImageView()
+//    img.style.border = "10px solid blue"
+//    img.style.background = "pink"
+    img.style.size = MasonSize(MasonDimension.Points(100), MasonDimension.Points(100))
+    li.append(img)
+    return d
+  }
+  
+  func list(_ list: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+    guard let cell = cell as? MasonList.MasonListCell else {return}
+    if let li = cell.contentView.subviews.first as? MasonLi {
+      if(uiData.isEmpty){
+        return
+      }
+       let url = uiData[indexPath.row] 
+      if let txt = li.subviews.first as? MasonText {
+        if let node = txt.node.getChildren().first as? MasonTextNode {
+          node.data = url
+        }
+      }
+      
+      if let img = li.subviews.last as? Img {
+        img.src = url
+      }
+    }
+  }
+  
+  func webList() {
+    let ul = mason.createListView()
+    ul.isOrdered = true
+    ul.style.overflowY = Overflow.Scroll
+    ul.register(cellClass: MasonList.MasonListCell.self, forCellWithReuseIdentifier: "default")
+
+    var arr = Array<String>(repeating: "", count: 1000)
+    
+    ul.delegate = self
+    
+
+    ul.configure { it in
+      it.size = MasonSize(MasonDimension.Percent(1), MasonDimension.Percent(1))
+    }
+    body.addView(ul)
+    
+    
+    self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
+    
+    DispatchQueue.global().async {
+      for i in 0..<arr.count {
+        arr[i] = "https://robohash.org/\(i + 1)?set=set4"
+      }
+      DispatchQueue.main.async {
+        self.uiData = arr
+        ul.values.mutableBytes.advanced(by: 0).assumingMemoryBound(to: UInt32.self).pointee = UInt32(arr.count)
+        ul.reload()
+      }
+    }
   }
   
   func zOrder(){
@@ -1020,8 +1097,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
-    
-    mason.printTree(body.node)
 
   }
   

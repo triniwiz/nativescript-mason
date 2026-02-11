@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit.enums
 
-enum class GridAutoFlow(val value: Int) {
+enum class GridAutoFlow(val value: Byte) {
   Row(0), Column(1), RowDense(2), ColumnDense(3);
 
   val cssValue: String
@@ -14,12 +14,12 @@ enum class GridAutoFlow(val value: Int) {
     }
 
   companion object {
-    fun fromInt(value: Int): GridAutoFlow {
+    fun from(value: Byte): GridAutoFlow {
       return when (value) {
-        0 -> Row
-        1 -> Column
-        2 -> RowDense
-        3 -> ColumnDense
+        0.toByte() -> Row
+        1.toByte() -> Column
+        2.toByte() -> RowDense
+        3.toByte() -> ColumnDense
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

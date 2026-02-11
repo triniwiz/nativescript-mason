@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit.enums
 
-enum class BoxSizing(val value: Int) {
+enum class BoxSizing(val value: Byte) {
   BorderBox(0), ContentBox(1);
 
   val cssValue: String
@@ -12,10 +12,10 @@ enum class BoxSizing(val value: Int) {
     }
 
   companion object {
-    fun fromInt(value: Int): BoxSizing {
+    fun from(value: Byte): BoxSizing {
       return when (value) {
-        0 -> BorderBox
-        1 -> ContentBox
+        0.toByte() -> BorderBox
+        1.toByte() -> ContentBox
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

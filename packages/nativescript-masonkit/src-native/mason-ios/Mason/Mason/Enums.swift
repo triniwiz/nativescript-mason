@@ -15,7 +15,7 @@ public enum MasonDimensionCompatType: Int, RawRepresentable, Codable {
   case Points
   case Percent
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -51,7 +51,7 @@ public enum MasonLengthPercentageAutoCompatType: Int, RawRepresentable, Codable 
   case Points
   case Percent
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -85,7 +85,7 @@ public enum MasonLengthPercentageCompatType: Int, RawRepresentable, Codable {
   case Points
   case Percent
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -115,7 +115,7 @@ public enum BoxSizing: Int, RawRepresentable {
   case BorderBox
   case ContentBox
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -147,7 +147,7 @@ public enum Align: Int, RawRepresentable {
   case Right
   case Center
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -190,7 +190,7 @@ public enum TextAlign: Int, RawRepresentable {
   case Start
   case End
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -257,7 +257,7 @@ public enum MasonDimension: Codable, Equatable {
   case Percent(Float)
   
   
-  static func fromValueType(_ value: Float, _ type: Int) -> MasonDimension? {
+  static func fromValueType(_ value: Float, _ type: Int8) -> MasonDimension? {
     switch(type){
     case 0:
       return Auto
@@ -283,7 +283,7 @@ public enum MasonDimension: Codable, Equatable {
     }
   }
   
-  internal var type: Int32 {
+  internal var type: Int8 {
     get {
       switch (self) {
       case .Auto: return 0
@@ -416,7 +416,7 @@ public enum MasonLengthPercentage: Codable, Equatable {
   }
   
   
-  static func fromValueType(_ value: Float, _ type: Int) -> MasonLengthPercentage? {
+  static func fromValueType(_ value: Float, _ type: Int8) -> MasonLengthPercentage? {
     switch(type){
     case 0:
       return Points(value)
@@ -427,7 +427,7 @@ public enum MasonLengthPercentage: Codable, Equatable {
     }
   }
   
-  internal var type: Int32 {
+  internal var type: Int8 {
     get {
       switch (self) {
       case .Points: return 0
@@ -536,7 +536,7 @@ public enum MasonLengthPercentageAuto: Codable {
   case Points(Float)
   case Percent(Float)
   
-  static func fromValueType(_ value: Float, _ type: Int) -> MasonLengthPercentageAuto? {
+  static func fromValueType(_ value: Float, _ type: Int8) -> MasonLengthPercentageAuto? {
     switch(type){
     case 0:
       return Auto
@@ -549,7 +549,7 @@ public enum MasonLengthPercentageAuto: Codable {
     }
   }
   
-  internal var type: Int32 {
+  internal var type: Int8 {
     get {
       switch (self) {
       case .Auto: return 0
@@ -667,7 +667,7 @@ public enum AlignItems: Int, RawRepresentable {
   case FlexStart
   case FlexEnd
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -747,7 +747,7 @@ public enum AlignSelf: Int, RawRepresentable {
   case FlexStart
   case FlexEnd
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -829,7 +829,7 @@ public enum AlignContent: Int, RawRepresentable  {
   case FlexStart
   case FlexEnd
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -916,7 +916,7 @@ public enum Direction: Int, RawRepresentable {
   case LTR
   case RTL
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -966,7 +966,7 @@ public enum Display: Int, RawRepresentable, CustomStringConvertible {
   case InlineFlex
   case InlineGrid
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1047,7 +1047,7 @@ public enum FlexDirection: Int, RawRepresentable, CustomStringConvertible {
   case RowReverse
   case ColumnReverse
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1108,7 +1108,7 @@ public enum JustifyItems: Int, RawRepresentable {
   case FlexStart
   case FlexEnd
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1188,7 +1188,7 @@ public enum JustifySelf: Int, RawRepresentable {
   case FlexStart
   case FlexEnd
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1270,7 +1270,7 @@ public enum JustifyContent: Int, RawRepresentable {
   case FlexStart
   case FlexEnd
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1359,7 +1359,7 @@ public enum Overflow: Int, RawRepresentable, Codable {
   case Clip
   case Auto
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1415,7 +1415,7 @@ internal enum DisplayMode: Int, RawRepresentable {
   case Inline
   case Box
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1450,7 +1450,7 @@ public enum Position: Int, RawRepresentable {
   case Relative
   case Absolute
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1492,7 +1492,7 @@ public enum FlexWrap: Int, RawRepresentable {
   case WrapReverse
   
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1539,7 +1539,7 @@ public enum GridAutoFlow: Int, RawRepresentable {
   case ColumnDense
   
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1592,7 +1592,7 @@ public enum GridPlacement: Codable {
   
   
   
-  static func fromValueType(_ value: Int16, _ type: Int) -> GridPlacement? {
+  static func fromValueType(_ value: Int16, _ type: Int8) -> GridPlacement? {
     switch(type){
     case 0:
       return Auto
@@ -1676,7 +1676,7 @@ public enum GridPlacementCompatType: Int, RawRepresentable {
   case Line
   case Span
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1770,7 +1770,7 @@ public enum DecorationLine: Int, RawRepresentable {
   case Overline
   case LineThrough
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1826,7 +1826,7 @@ public enum TextTransform: Int, RawRepresentable {
   case FullSizeKana
   case MathAuto
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1896,7 +1896,7 @@ public enum FontStyle: Int, RawRepresentable, CustomStringConvertible {
   case Italic
   case Oblique
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -1959,7 +1959,7 @@ public enum TextWrap: Int, RawRepresentable, CustomStringConvertible {
   case Balance
   case Pretty
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -2018,7 +2018,7 @@ public enum WhiteSpace: Int, RawRepresentable, CustomStringConvertible {
   case NoWrap
   case BreakSpaces
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -2087,7 +2087,7 @@ public enum LineHeight: Int, RawRepresentable, CustomStringConvertible {
   case PreWrap
   case PreLine
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -2141,7 +2141,7 @@ public enum TextOverflow: CustomStringConvertible {
   case Clip
   case Ellipse(String?)
   case Custom(String)
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   var rawValue: Int32 {
     switch(self){
     case .Clip:
@@ -2221,7 +2221,7 @@ public enum TextJustify: Int, RawRepresentable, CustomStringConvertible {
   case InterCharacter
   case Distribute
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -2285,7 +2285,7 @@ public enum DecorationStyle: Int, RawRepresentable, CustomStringConvertible  {
   case Dashed
   case Wavy
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -2348,7 +2348,7 @@ public enum MasonFloat: Int, RawRepresentable, CustomStringConvertible {
   case Left
   case Right
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -2400,7 +2400,7 @@ public enum Clear: Int, RawRepresentable, CustomStringConvertible {
   case Right
   case Both
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -2458,7 +2458,7 @@ public enum ObjectFit: Int, RawRepresentable, CustomStringConvertible {
   case None
   case ScaleDown
   
-  public typealias RawValue = Int32
+  public typealias RawValue = Int8
   
   public var rawValue: RawValue {
     switch self {
@@ -2625,8 +2625,8 @@ public class MasonVerticalAlignValue: NSObject {
 
 
 @objc(MasonInputType)
-public enum MasonInputType: Int, RawRepresentable, CustomStringConvertible {
-  public typealias RawValue = Int32
+public enum MasonInputType: Int8, RawRepresentable, CustomStringConvertible {
+  public typealias RawValue = Int8
   case Text
   case Button
   case Checkbox
@@ -2736,5 +2736,119 @@ public enum MasonInputType: Int, RawRepresentable, CustomStringConvertible {
     case .Submit:
       13
     }
+  }
+}
+
+
+@objc(MasonListStylePosition)
+public enum ListStylePosition: Int, RawRepresentable, CustomStringConvertible {
+  case Outside
+  case Inside
+  
+  public typealias RawValue = Int8
+  
+  public var rawValue: RawValue {
+    switch self {
+    case .Outside:
+      return 0
+    case .Inside:
+      return 1
+    }
+  }
+  
+  
+  public init?(rawValue: RawValue) {
+    switch rawValue {
+    case 0:
+      self = .Outside
+    case 1:
+      self = .Inside
+    default:
+      return nil
+    }
+  }
+  
+  var cssValue: String {
+    switch self {
+    case .Outside:
+      return "outside"
+    case .Inside:
+      return "inside"
+    }
+  }
+  
+  public var description: String {
+    return cssValue
+  }
+}
+
+
+@objc(MasonListStyleType)
+public enum ListStyleType: Int, RawRepresentable, CustomStringConvertible {
+  case None
+  case Custom
+  case Disc
+  case Circle
+  case Square
+  case Decimal
+  
+  public typealias RawValue = Int8
+  
+  public var rawValue: RawValue {
+    switch self {
+    case .None:
+      return 0
+    case .Custom:
+      return 1
+    case .Disc:
+      return 2
+    case .Circle:
+      return 3
+    case .Square:
+      return 4
+    case .Decimal:
+      return 5
+    }
+  }
+  
+  
+  public init?(rawValue: RawValue) {
+    switch rawValue {
+    case 0:
+      self = .None
+    case 1:
+      self = .Custom
+    case 2:
+      self = .Disc
+    case 3:
+      self = .Circle
+    case 4:
+      self = .Square
+    case 5:
+      self = .Decimal
+    default:
+      return nil
+    }
+  }
+  
+  var cssValue: String {
+    switch self {
+    case .None:
+      return "none"
+    case .Custom:
+      return "custom"
+    case .Disc:
+      return "disc"
+    case .Circle:
+      return "circle"
+    case .Square:
+      return "sqquare"
+    case .Decimal:
+      return "decimal"
+    }
+  }
+  
+  public var description: String {
+    return cssValue
   }
 }

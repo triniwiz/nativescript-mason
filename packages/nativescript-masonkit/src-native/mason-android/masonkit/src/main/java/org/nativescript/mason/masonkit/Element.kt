@@ -246,6 +246,36 @@ interface Element : EventTarget {
     }
   }
 
+  fun recomputeRoot() {
+    val root = node.getRootNode() ?: node
+
+    if (root.type == NodeType.Document) {
+      // If root is document, use documentElement to compute
+
+      root.document?.documentElement?.compute(
+        root.computeCache.width,
+        root.computeCache.height
+      )
+      return
+    }
+
+    // Otherwise use the topmost element (root)
+    if (root.view is Element && root.computeCacheDirty) {
+      val width = if (root.computeCache.width == Float.MIN_VALUE) {
+        -1f
+      } else {
+        root.computeCache.width
+      }
+
+      val height = if (root.computeCache.height == Float.MIN_VALUE) {
+        -1f
+      } else {
+        root.computeCache.height
+      }
+      (root.view as Element).compute(width, height)
+    }
+  }
+
 
   fun appendView(view: View) {
     val child = node.mason.nodeForView(view)
@@ -395,7 +425,7 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
       val bottom = y + layoutHeight
 
       // only set padding on a text element
-      if (view is TextContainer) {
+      if (view is TextContainer || view is ListView) {
         view.setPadding(
           layout.padding.left.toInt(),
           layout.padding.top.toInt(),
@@ -444,11 +474,11 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
     }
 
     for (i in 0 until children.count()) {
-      val child = children[i]
+      val child = children.getOrNull(i) ?: continue
       if (child.type == NodeType.Text) {
         continue
       }
-      val layoutChild = layout.children[i]
+      val layoutChild = layout.children.getOrNull(i) ?: continue
       applyLayoutRecursive(child, layoutChild)
     }
   }

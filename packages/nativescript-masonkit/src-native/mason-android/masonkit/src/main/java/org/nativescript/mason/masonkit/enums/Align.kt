@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit.enums
 
-enum class Align(val value: Int) {
+enum class Align(val value: Byte) {
   Auto(0), Left(1), Right(2), Center(3);
 
   val cssValue: String
@@ -14,12 +14,12 @@ enum class Align(val value: Int) {
     }
 
   companion object {
-    fun fromInt(value: Int): Align {
+    fun from(value: Byte): Align {
       return when (value) {
-        0 -> Auto
-        1 -> Left
-        2 -> Right
-        3 -> Center
+        0.toByte() -> Auto
+        1.toByte() -> Left
+        2.toByte() -> Right
+        3.toByte() -> Center
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

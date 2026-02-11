@@ -1,6 +1,6 @@
 package org.nativescript.mason.masonkit.enums
 
-enum class FlexWrap(val value: Int) {
+enum class FlexWrap(val value: Byte) {
   NoWrap(0), Wrap(1), WrapReverse(2);
 
   val cssValue: String
@@ -13,11 +13,11 @@ enum class FlexWrap(val value: Int) {
     }
 
   companion object {
-    fun fromInt(value: Int): FlexWrap {
+    fun from(value: Byte): FlexWrap {
       return when (value) {
-        0 -> NoWrap
-        1 -> Wrap
-        2 -> WrapReverse
+        0.toByte() -> NoWrap
+        1.toByte() -> Wrap
+        2.toByte() -> WrapReverse
         else -> throw IllegalArgumentException("Unknown enum value: $value")
       }
     }

@@ -26,6 +26,8 @@ const MEASURE_JNI_CLASS: &str = "org/nativescript/mason/masonkit/MeasureFuncImpl
 
 const NODE_CLASS: &str = "org/nativescript/mason/masonkit/Node";
 
+const OBJECT_MANAGER_CLASS: &str = "org/nativescript/mason/masonkit/ObjectManager";
+
 #[derive(Clone)]
 pub struct InlineSegmentCacheItem {
     clazz: GlobalRef,
@@ -190,13 +192,16 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeNodeNewImageWithContext",
                 "nativeNodeNewLineBreak",
                 "nativeNodeNewLineBreakWithContext",
+                "nativeNodeNewListItem",
+                "nativeNodeNewListItemWithContext",
+                "nativeGetStateBuffer",
             ];
 
             let native_helper_signatures = if ret >= ANDROID_O {
                 [
                     "(J)V",
                     "(JZ)J",
-                    "(JLjava/lang/Object;Z)J",
+                    "(JIZ)J",
                     "(JJ)I",
                     "(JJFF)V",
                     "(JJJ)V",
@@ -219,21 +224,24 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJ)[J",
                     "(JJ)[F",
                     "(JZ)J",
-                    "(JLjava/lang/Object;Z)J",
+                    "(JIZ)J",
                     "(JJ[J)V",
                     "(JJ[Lorg/nativescript/mason/masonkit/InlineSegment;)V",
-                    "(JJLjava/lang/Object;)V",
-                    "(JJLorg/nativescript/mason/masonkit/Node;)V",
+                    "(JJI)V",
+                    "(JJI)V",
                     "(J)J",
-                    "(JLjava/lang/Object;)J",
+                    "(JI)J",
                     "(J)J",
-                    "(JLjava/lang/Object;)J",
+                    "(JI)J",
+                    "(J)J",
+                    "(JI)J",
+                    "(JJ)I",
                 ]
             } else {
                 [
                     "!(J)V",
                     "!(JZ)J",
-                    "!(JLjava/lang/Object;Z)J",
+                    "!(JIZ)J",
                     "!(JJ)I",
                     "!(JJFF)V",
                     "!(JJJ)V",
@@ -256,15 +264,18 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJ)[J",
                     "!(JJ)[F",
                     "!(JZ)J",
-                    "!(JLjava/lang/Object;Z)J",
+                    "!(JIZ)J",
                     "!(JJ[J)V",
                     "!(JJ[Lorg/nativescript/mason/masonkit/InlineSegment;)V",
-                    "!(JJLjava/lang/Object;)V",
-                    "!(JJLorg/nativescript/mason/masonkit/Node;)V",
+                    "!(JJI)V",
+                    "!(JJI)V",
                     "!(J)J",
-                    "!(JLjava/lang/Object;)J",
+                    "!(JI)J",
                     "!(J)J",
-                    "!(JLjava/lang/Object;)J",
+                    "!(JI)J",
+                    "!(J)J",
+                    "!(JI)J",
+                    "!(JJ)I",
                 ]
             };
 
@@ -304,12 +315,15 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::NodeNativeNewImageNodeWithContext as *mut c_void,
                     node::NodeNativeNewLineBreakNodeNormal as *mut c_void,
                     node::NodeNativeNewLineBreakNodeWithContext as *mut c_void,
+                    node::NodeNativeNewListItemNodeNormal as *mut c_void,
+                    node::NodeNativeNewListItemNodeWithContext as *mut c_void,
+                    node::NodeNativeGetStateBuffer as *mut c_void,
                 ]
             } else {
                 [
                     node::NodeNativeDestroyNormal as *mut c_void,
                     node::NodeNativeNewNodeNormal as *mut c_void,
-                    node::NodeNativeNewNodeWithContext as *mut c_void,
+                    node::NodeNativeNewNodeWithContextNormal as *mut c_void,
                     node::NodeNativeGetChildCountNormal as *mut c_void,
                     node::NodeNativeComputeWHNormal as *mut c_void,
                     node::NodeNativeComputeSizeNormal as *mut c_void,
@@ -332,15 +346,18 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     node::nativeGetChildren as *mut c_void,
                     node::nativeLayout as *mut c_void,
                     node::NodeNativeNewTextNodeNormal as *mut c_void,
-                    node::NodeNativeNewTextNodeWithContext as *mut c_void,
+                    node::NodeNativeNewTextNodeWithContextNormal as *mut c_void,
                     node::NodeNativeSetChildren as *mut c_void,
                     node::NodeNativeSetSegments as *mut c_void,
-                    node::NodeNativeSetContext as *mut c_void,
-                    node::NodeNativeSetAndroidNode as *mut c_void,
+                    node::NodeNativeSetContextNormal as *mut c_void,
+                    node::NodeNativeSetAndroidNodeNormal as *mut c_void,
                     node::NodeNativeNewImageNodeNormal as *mut c_void,
-                    node::NodeNativeNewImageNodeWithContext as *mut c_void,
+                    node::NodeNativeNewImageNodeWithContextNormal as *mut c_void,
                     node::NodeNativeNewLineBreakNodeNormal as *mut c_void,
-                    node::NodeNativeNewLineBreakNodeWithContext as *mut c_void,
+                    node::NodeNativeNewLineBreakNodeWithContextNormal as *mut c_void,
+                    node::NodeNativeNewListItemNodeNormal as *mut c_void,
+                    node::NodeNativeNewListItemNodeWithContextNormal as *mut c_void,
+                    node::NodeNativeGetStateBuffer as *mut c_void,
                 ]
             };
 
@@ -375,11 +392,12 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeGetGridRowEnd",
                 "nativeGetGridTemplateRows",
                 "nativeGetGridTemplateColumns",
+                "nativePrepareMut",
             ];
 
             let style_signatures = if ret >= ANDROID_O {
                 [
-                    "(JJ)Ljava/nio/ByteBuffer;",
+                    "(JJ)I",
                     "(JJ)Ljava/lang/String;",
                     "(JJ)Ljava/lang/String;",
                     "(JJ)Ljava/lang/String;",
@@ -392,10 +410,11 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "(JJ)Ljava/lang/String;",
                     "(JJ)Ljava/lang/String;",
                     "(JJ)Ljava/lang/String;",
+                    "(JJ)I",
                 ]
             } else {
                 [
-                    "!(JJ)Ljava/nio/ByteBuffer;",
+                    "!(JJ)I",
                     "!(JJ)Ljava/lang/String;",
                     "!(JJ)Ljava/lang/String;",
                     "!(JJ)Ljava/lang/String;",
@@ -408,6 +427,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     "!(JJ)Ljava/lang/String;",
                     "!(JJ)Ljava/lang/String;",
                     "!(JJ)Ljava/lang/String;",
+                    "(JJ)I",
                 ]
             };
 
@@ -426,6 +446,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     style::StyleNativeGetGridRowEnd as *mut c_void,
                     style::StyleNativeGetGridTemplateRows as *mut c_void,
                     style::StyleNativeGetGridTemplateColumns as *mut c_void,
+                    style::nativePrepareMut as *mut c_void,
                 ]
             } else {
                 [
@@ -442,6 +463,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     style::StyleNativeGetGridRowEnd as *mut c_void,
                     style::StyleNativeGetGridTemplateRows as *mut c_void,
                     style::StyleNativeGetGridTemplateColumns as *mut c_void,
+                    style::nativePrepareMut as *mut c_void,
                 ]
             };
 
@@ -502,24 +524,29 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 )
             });
 
-            let measure_clazz = env.find_class(MEASURE_JNI_CLASS).unwrap();
+            let object_manager_clazz = env.find_class(OBJECT_MANAGER_CLASS).unwrap();
 
             let node_clazz = env.find_class(NODE_CLASS).unwrap();
 
             let measure_id = env
-                .get_method_id(&measure_clazz, "measure", "(JJ)J")
+                .get_static_method_id(&node_clazz, "measure", "(IJJ)J")
                 .unwrap();
 
-            let set_computed_size = env
-                .get_method_id(&node_clazz, "setComputedSize", "(FF)V")
+            let set_computed_size_id = env
+                .get_static_method_id(&node_clazz, "setComputedSize", "(IFF)V")
+                .unwrap();
+
+            let object_manager_add_id = env
+                .get_static_method_id(&object_manager_clazz, "addItem", "(Ljava/lang/Object;)I")
                 .unwrap();
 
             JVM_CACHE.get_or_init(|| {
                 JVMCache::new(
-                    env.new_global_ref(measure_clazz).unwrap(),
-                    measure_id,
                     env.new_global_ref(node_clazz).unwrap(),
-                    set_computed_size,
+                    measure_id,
+                    set_computed_size_id,
+                    env.new_global_ref(object_manager_clazz).unwrap(),
+                    object_manager_add_id,
                 )
             });
         }
@@ -638,5 +665,22 @@ pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePrintTre
         let mason = &*(mason as *const Mason);
         let node = &*(node as *const NodeRef);
         mason.print_tree(node.id());
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_org_nativescript_mason_masonkit_Mason_nativePrintArenaStats(
+    _: JNIEnv,
+    _: JObject,
+    mason: jlong,
+) {
+    if mason == 0 {
+        return;
+    }
+    unsafe {
+        let mason = &*(mason as *const Mason);
+        let stats = mason.arena_state();
+
+        log::info!("Arena stats: {:#?}", stats);
     }
 }

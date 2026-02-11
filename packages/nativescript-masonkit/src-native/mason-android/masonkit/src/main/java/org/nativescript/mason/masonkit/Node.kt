@@ -1,17 +1,26 @@
 package org.nativescript.mason.masonkit
 
-import android.util.Log
 import android.util.SizeF
 import android.view.View
 import android.view.View.MeasureSpec
 import android.view.ViewGroup
+import dalvik.annotation.optimization.FastNative
 import org.nativescript.mason.masonkit.enums.TextType
 import java.lang.ref.WeakReference
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+object NodeStateKeys {
+  const val IS_NODE_DIRTY = 0
+  const val IS_VIRTUAL = 1
+  const val IS_MUTABLE = 2
+}
 
 
 open class Node internal constructor(
   internal val mason: Mason, internal var nativePtr: Long, nodeType: NodeType = NodeType.Element
-) {
+) : NativeObject {
+
   internal var computeCacheDirty = false
   internal var isPlaceholder = false
   internal var isImage = false
@@ -30,7 +39,6 @@ open class Node internal constructor(
   // cache overflow size
   internal var overflowWidth = 0
   internal var overflowHeight = 0
-
   internal var knownWidth: Float? = null
   internal var knownHeight: Float? = null
   internal var availableWidth: Float? = null
@@ -50,6 +58,38 @@ open class Node internal constructor(
       }
       return p
     }
+
+  override fun nativePtr(): Long {
+    return nativePtr
+  }
+
+  private var hasObjectId = false
+
+  override fun hasObjectId(): Boolean {
+    return hasObjectId
+  }
+
+  internal val objectId by lazy {
+    hasObjectId = true
+    ObjectManager.shared.add(WeakReference(this))
+  }
+
+  override fun objectId(): Int {
+    return objectId
+  }
+
+  override val objectType: NativeObjectType
+    get() = NativeObjectType.Node
+
+  internal var mIsTracked: Boolean = false
+  override val isTracked: Boolean
+    get() {
+      return mIsTracked
+    }
+
+  override fun setTracked(value: Boolean) {
+    mIsTracked = value
+  }
 
   internal var isAnonymous = false
 
@@ -79,6 +119,16 @@ open class Node internal constructor(
   internal fun setDefaultMeasureFunction() {
     setMeasureFunction(measureFunc)
   }
+
+  internal val isDirty: Boolean
+    get() {
+      if (!style.isValueInitialized) {
+        return true
+      }
+      return stateValue.get(NodeStateKeys.IS_NODE_DIRTY) > 0
+    }
+
+  internal var measureFuncImpl: MeasureFuncImpl? = null;
 
   internal var measureFunc: MeasureFunc = object : MeasureFunc {
     override fun measure(
@@ -312,7 +362,50 @@ open class Node internal constructor(
     return children
   }
 
+  internal val stateValue by lazy {
+    val buffer =
+      ObjectManager.shared[NativeHelpers.nativeGetStateBuffer(
+        mason.nativePtr,
+        nativePtr
+      )] as ByteBuffer
+    buffer.apply {
+      order(ByteOrder.nativeOrder())
+    }
+    buffer
+  }
+
   companion object {
+
+    @JvmStatic
+    private fun getObject(id: Int): Any? {
+      val ref = ObjectManager.shared[id] as? WeakReference<*> ?: return null
+      return ref.get()
+    }
+
+    @JvmStatic
+    fun measure(id: Int, knownDimensionsSpec: Long, availableSpaceSpec: Long): Long {
+      return (ObjectManager.shared[id] as? MeasureFuncImpl)?.measure(
+        knownDimensionsSpec, availableSpaceSpec
+      ) ?: MeasureOutput.make(0f, 0f)
+    }
+
+    @JvmStatic
+    fun setComputedSize(node: Int, width: Float, height: Float) {
+      (getObject(node) as? Node)?.setComputedSize(
+        width, height
+      )
+    }
+
+    @JvmStatic
+    fun getComputedSize(node: Int): Long {
+      return (ObjectManager.shared[node] as? Node)?.let {
+        MeasureOutput.make(
+          it.cachedWidth,
+          it.cachedHeight
+        )
+      } ?: MeasureOutput.make(0f, 0f)
+    }
+
     // Efficient single-pass invalidation that only walks each TextView once
     internal fun invalidateDescendantTextViews(node: Node, state: Int) {
       // Early exit if node has no initialized text values
@@ -334,7 +427,8 @@ open class Node internal constructor(
     }
   }
 
-  open fun appendChild(child: Node) {
+  @JvmOverloads
+  open fun appendChild(child: Node, attach: Boolean = true) {
     if (child is TextNode) {
       var pending = false
       val container = if (view is TextContainer) {
@@ -352,7 +446,9 @@ open class Node internal constructor(
         if (child.nativePtr != 0L) {
           NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
         }
-        NodeUtils.addView(this, child.view as? View)
+        if (attach) {
+          NodeUtils.addView(this, child.view as? View)
+        }
       }
 
       container.children.add(child)
@@ -368,7 +464,10 @@ open class Node internal constructor(
       if (child.nativePtr != 0L) {
         NativeHelpers.nativeNodeAddChild(mason.nativePtr, nativePtr, child.nativePtr)
       }
-      NodeUtils.addView(this, child.view as? View)
+
+      if (attach) {
+        NodeUtils.addView(this, child.view as? View)
+      }
 
       // Single pass invalidation of descendants with text styles
       invalidateDescendantTextViews(child, TextStyleChangeMask.ALL)
@@ -447,7 +546,8 @@ open class Node internal constructor(
             // prepare a new after-container if needed
             var afterContainer: Node? = null
             if (hasRight) {
-              afterContainer = getOrCreateAnonymousTextContainer(append = false, checkLast = false)
+              afterContainer =
+                getOrCreateAnonymousTextContainer(append = false, checkLast = false)
               // move right-side text nodes into afterContainer
               val moved =
                 containerNode.children.subList(idxInContainer + 1, containerNode.children.size)
@@ -856,10 +956,12 @@ open class Node internal constructor(
   }
 
   fun setMeasureFunction(measure: MeasureFunc) {
-    NativeHelpers.nativeNodeSetContext(
-      mason.nativePtr, nativePtr, MeasureFuncImpl(WeakReference(measure))
-    )
+    val func = MeasureFuncImpl(WeakReference(measure))
+    measureFuncImpl = func
     measureFunc = measure
+    NativeHelpers.nativeNodeSetContext(
+      mason.nativePtr, nativePtr, func.objectId
+    )
   }
 
   fun removeMeasureFunction() {
@@ -874,16 +976,12 @@ open class Node internal constructor(
         return Size(width, height)
       }
     }
-  }
 
-  @Synchronized
-  @Throws(Throwable::class)
-  protected fun finalize() {
-    if (nativePtr != 0L) {
-      NativeHelpers.nativeNodeDestroy(nativePtr)
-      nativePtr = 0
-      parent?.removeChild(this)
-    }
+    val func = MeasureFuncImpl(WeakReference(measureFunc))
+    measureFuncImpl = func
+
+    NativeHelpers.nativeNodeSetContext(mason.nativePtr, nativePtr, func.objectId)
+
   }
 
   fun removeChild(child: Node): Node? {

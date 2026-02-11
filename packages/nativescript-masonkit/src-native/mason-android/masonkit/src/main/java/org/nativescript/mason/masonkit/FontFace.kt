@@ -10,7 +10,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
 import java.nio.ByteBuffer
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.regex.Matcher
 import java.util.regex.Pattern
@@ -144,7 +143,6 @@ class FontFace {
 
   var status = FontFaceStatus.unloaded
 
-  private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
   class NSCFontStyle private constructor(internal val style: Style) {
     internal enum class Style(internal val value: Int) {
@@ -454,7 +452,7 @@ class FontFace {
       return fontDescriptors.weight
     }
     set(value) {
-      val old = weight
+      val old = fontDescriptors.weight
       if (value != old) {
         fontDescriptors.weight = value
         updateFontWeight(old)
@@ -511,7 +509,7 @@ class FontFace {
       return fontDescriptors.style
     }
     set(value) {
-      val old = style
+      val old = fontDescriptors.style
       fontDescriptors.style = value
       updateFontStyle(old)
     }

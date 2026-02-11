@@ -1,6 +1,8 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.os.Looper
+import android.util.Log
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
 import org.nativescript.mason.masonkit.enums.TextType
@@ -9,21 +11,34 @@ import java.lang.ref.WeakReference
 import java.util.UUID
 import java.util.WeakHashMap
 
+
 class Mason {
+
+  internal val gc by lazy {
+    GC(this)
+  }
 
   internal val nativePtr by lazy {
     nativeInit()
   }
   private var isAlive = true
 
-  internal val nodes = WeakHashMap<Long, Node>()
+  internal val nodes = HashMap<Long, WeakReference<Node>>()
+  private val viewNodes = WeakHashMap<android.view.View, WeakReference<Node>>()
 
   private val nodeEventListeners =
     mutableMapOf<Node, MutableMap<String, MutableMap<UUID, (Event) -> Unit>>>()
 
-  private val viewNodes = WeakHashMap<android.view.View, Node>()
   var scale: Float = 1f
     private set
+
+  fun drain() {
+    gc.drain()
+  }
+
+  private fun track(native: NativeObject) {
+    gc.track(native)
+  }
 
   fun setDeviceScale(value: Float) {
     scale = value
@@ -40,6 +55,10 @@ class Mason {
 
   fun printTree(node: Node) {
     nativePrintTree(nativePtr, node.nativePtr)
+  }
+
+  fun printArenaStats() {
+    nativePrintArenaStats(nativePtr)
   }
 
   fun addEventListener(
@@ -91,7 +110,6 @@ class Mason {
     }
   }
 
-
   @JvmOverloads
   fun createNode(children: Array<Node>? = null, isAnonymous: Boolean = false): Node {
     val nodePtr = children?.let {
@@ -104,29 +122,35 @@ class Mason {
       children?.let {
         children.forEach {
           it.parent = this
-          NativeHelpers.nativeSetAndroidNode(nativePtr, it.nativePtr, it)
+          NativeHelpers.nativeSetAndroidNode(nativePtr, it.nativePtr, it.objectId)
         }
         this.children.addAll(children)
       }
-      nodes[nodePtr] = this
+      nodes[nodePtr] = WeakReference(this)
       this.isAnonymous = isAnonymous
     }
 
-    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+    track(node)
 
     return node
   }
 
   fun createNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
-    val nodePtr = NativeHelpers.nativeNodeNewWithContext(nativePtr, func, isAnonymous)
+    val nodePtr = NativeHelpers.nativeNodeNewWithContext(nativePtr, func.objectId, isAnonymous)
     val node = Node(this, nodePtr).apply {
-      nodes[nodePtr] = this
+      nodes[nodePtr] = WeakReference(this)
       measureFunc = measure
+      measureFuncImpl = func
       this.isAnonymous = isAnonymous
     }
-    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
 
+    track(node)
+
+    drain()
     return node
   }
 
@@ -147,54 +171,65 @@ class Mason {
       children?.let {
         children.forEach {
           it.parent = this
-          NativeHelpers.nativeSetAndroidNode(nativePtr, it.nativePtr, it)
+          NativeHelpers.nativeSetAndroidNode(nativePtr, it.nativePtr, it.objectId)
         }
         this.children.addAll(children)
         this.isAnonymous = isAnonymous
       }
-      nodes[nodePtr] = this
+      nodes[nodePtr] = WeakReference(this)
     }
 
-    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+    track(node)
 
     return node
   }
 
   fun createTextNode(measure: MeasureFunc, isAnonymous: Boolean = false): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
-    val nodePtr = NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func, isAnonymous)
+    val nodePtr = NativeHelpers.nativeNodeNewTextWithContext(nativePtr, func.objectId, isAnonymous)
     val node = Node(this, nodePtr).apply {
-      nodes[nodePtr] = this
+      nodes[nodePtr] = WeakReference(this)
       measureFunc = measure
+      measureFuncImpl = func
       this.isAnonymous = isAnonymous
     }
 
-    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+    track(node)
 
     return node
   }
 
-
   fun createImageNode(measure: MeasureFunc): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
-    val nodePtr = NativeHelpers.nativeNodeNewImageWithContext(nativePtr, func)
+    val nodePtr = NativeHelpers.nativeNodeNewImageWithContext(nativePtr, func.objectId)
     val node = Node(this, nodePtr).apply {
-      nodes[nodePtr] = this
+      nodes[nodePtr] = WeakReference(this)
       measureFunc = measure
+      measureFuncImpl = func
     }
-    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+
+    track(node)
 
     return node
   }
 
   fun createLineBreakNode(measure: MeasureFunc): Node {
     val func = MeasureFuncImpl(WeakReference(measure))
-    val nodePtr = NativeHelpers.nativeNodeNewLineBreakWithContext(nativePtr, func)
+    val nodePtr = NativeHelpers.nativeNodeNewLineBreakWithContext(nativePtr, func.objectId)
     val node = Node(this, nodePtr).apply {
-      nodes[nodePtr] = this
+      nodes[nodePtr] = WeakReference(this)
       measureFunc = measure
+      measureFuncImpl = func
     }
-    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node)
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+    track(node)
 
     return node
   }
@@ -203,6 +238,32 @@ class Mason {
     return View(context, this)
   }
 
+  @JvmOverloads
+  fun createListView(context: Context, isOrdered: Boolean = false): ListView {
+    return ListView(context, this).apply {
+      this.isOrdered = isOrdered
+    }
+  }
+
+  fun createListItemNode(measure: MeasureFunc): Node {
+    val func = MeasureFuncImpl(WeakReference(measure))
+    val nodePtr = NativeHelpers.nativeNodeNewListItemWithContext(nativePtr, func.objectId)
+    val node = Node(this, nodePtr).apply {
+      nodes[nodePtr] = WeakReference(this)
+      measureFunc = measure
+      measureFuncImpl = func
+    }
+
+    NativeHelpers.nativeSetAndroidNode(nativePtr, node.nativePtr, node.objectId)
+
+    track(node)
+
+    return node
+  }
+
+  fun createListItem(context: Context): Li {
+    return Li(context, this)
+  }
 
   @JvmOverloads
   fun createTextView(
@@ -245,23 +306,23 @@ class Mason {
   fun nodeForView(view: android.view.View): Node {
     return when (view) {
       is Element -> {
-        nodes[view.node.nativePtr] ?: run {
+        nodes[view.node.nativePtr]?.get() ?: run {
           val node = createNode().apply {
             this.view = view
           }
-          nodes[view.node.nativePtr] = node
+          nodes[view.node.nativePtr] = WeakReference(node)
           node
         }
       }
 
       else -> {
-        viewNodes[view] ?: run {
+        viewNodes[view]?.get() ?: run {
           // is leaf to ensure it triggers android's view measure
           val node = createNode().apply {
             this.view = view
             setDefaultMeasureFunction()
           }
-          viewNodes[view] = node
+          viewNodes[view] = WeakReference(node)
           node
         }
       }
@@ -284,14 +345,14 @@ class Mason {
   }
 
   fun requestLayout(node: Long) {
-    nodes[node]?.style?.updateNativeStyle()
+    nodes[node]?.get()?.style?.updateNativeStyle()
   }
 
   fun requestLayout(view: android.view.View) {
     if (view is Element) {
       view.style.updateNativeStyle()
     } else {
-      viewNodes[view]?.style?.updateNativeStyle()
+      viewNodes[view]?.get()?.style?.updateNativeStyle()
     }
   }
 
@@ -347,6 +408,9 @@ class Mason {
     @JvmStatic
     @CriticalNative
     private external fun nativeSetDeviceScale(mason: Long, scale: Float)
+
+    @JvmStatic
+    private external fun nativePrintArenaStats(mason: Long)
 
   }
 }

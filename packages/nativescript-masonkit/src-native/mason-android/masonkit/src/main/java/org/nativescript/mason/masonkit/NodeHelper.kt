@@ -260,7 +260,7 @@ class NodeHelper(val mason: Mason) {
 
   }
 
-  fun setFlexBasis(view: android.view.View, value: Float, type: Int) {
+  fun setFlexBasis(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setFlexBasis(value, type)
 
@@ -341,13 +341,13 @@ class NodeHelper(val mason: Mason) {
   fun setPadding(
     view: android.view.View,
     left: Float,
-    leftType: Int,
+    leftType: Byte,
     top: Float,
-    topType: Int,
+    topType: Byte,
     right: Float,
-    rightType: Int,
+    rightType: Byte,
     bottom: Float,
-    bottomType: Int
+    bottomType: Byte
   ) {
     val node = mason.nodeForView(view)
     node.style.padding = Rect(
@@ -360,31 +360,31 @@ class NodeHelper(val mason: Mason) {
   }
 
 
-  fun setPaddingLeft(view: android.view.View, value: Float, type: Int) {
+  fun setPaddingLeft(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setPaddingLeft(value, type)
 
   }
 
-  fun setPaddingRight(view: android.view.View, value: Float, type: Int) {
+  fun setPaddingRight(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setPaddingRight(value, type)
 
   }
 
-  fun setPaddingTop(view: android.view.View, value: Float, type: Int) {
+  fun setPaddingTop(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setPaddingTop(value, type)
 
   }
 
-  fun setPaddingBottom(view: android.view.View, value: Float, type: Int) {
+  fun setPaddingBottom(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setPaddingBottom(value, type)
 
   }
 
-  fun setPaddingWithValueType(view: android.view.View, value: Float, type: Int) {
+  fun setPaddingWithValueType(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setPaddingWithValueType(value, type)
 
@@ -469,13 +469,13 @@ class NodeHelper(val mason: Mason) {
   fun setBorderWidth(
     view: android.view.View,
     left: Float,
-    leftType: Int,
+    leftType: Byte,
     top: Float,
-    topType: Int,
+    topType: Byte,
     right: Float,
-    rightType: Int,
+    rightType: Byte,
     bottom: Float,
-    bottomType: Int
+    bottomType: Byte
   ) {
     val node = mason.nodeForView(view)
     val borderWidth = node.style.borderWidth
@@ -488,31 +488,31 @@ class NodeHelper(val mason: Mason) {
 
   }
 
-  fun setBorderLeftWidth(view: android.view.View, value: Float, type: Int) {
+  fun setBorderLeftWidth(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setBorderLeftWidth(value, type)
 
   }
 
-  fun setBorderRightWidth(view: android.view.View, value: Float, type: Int) {
+  fun setBorderRightWidth(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setBorderRightWidth(value, type)
 
   }
 
-  fun setBorderTopWidth(view: android.view.View, value: Float, type: Int) {
+  fun setBorderTopWidth(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setBorderTopWidth(value, type)
 
   }
 
-  fun setBorderBottomWidth(view: android.view.View, value: Float, type: Int) {
+  fun setBorderBottomWidth(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setBorderBottomWidth(value, type)
 
   }
 
-  fun setBorderWithValueType(view: android.view.View, value: Float, type: Int) {
+  fun setBorderWithValueType(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setBorderWidth(value, type)
 
@@ -581,13 +581,13 @@ class NodeHelper(val mason: Mason) {
   fun setMargin(
     view: android.view.View,
     left: Float,
-    leftType: Int,
+    leftType: Byte,
     top: Float,
-    topType: Int,
+    topType: Byte,
     right: Float,
-    rightType: Int,
+    rightType: Byte,
     bottom: Float,
-    bottomType: Int
+    bottomType: Byte
   ) {
     val node = mason.nodeForView(view)
     node.style.margin = Rect(
@@ -599,31 +599,31 @@ class NodeHelper(val mason: Mason) {
 
   }
 
-  fun setMarginLeft(view: android.view.View, value: Float, type: Int) {
+  fun setMarginLeft(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setMarginLeft(value, type)
 
   }
 
-  fun setMarginRight(view: android.view.View, value: Float, type: Int) {
+  fun setMarginRight(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setMarginRight(value, type)
 
   }
 
-  fun setMarginTop(view: android.view.View, value: Float, type: Int) {
+  fun setMarginTop(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setMarginTop(value, type)
 
   }
 
-  fun setMarginBottom(view: android.view.View, value: Float, type: Int) {
+  fun setMarginBottom(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setMarginBottom(value, type)
 
   }
 
-  fun setMarginWithValueType(view: android.view.View, value: Float, type: Int) {
+  fun setMarginWithValueType(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setMarginWithValueType(value, type)
 
@@ -692,13 +692,13 @@ class NodeHelper(val mason: Mason) {
   fun setInset(
     view: android.view.View,
     left: Float,
-    leftType: Int,
+    leftType: Byte,
     top: Float,
-    topType: Int,
+    topType: Byte,
     right: Float,
-    rightType: Int,
+    rightType: Byte,
     bottom: Float,
-    bottomType: Int
+    bottomType: Byte
   ) {
     val node = mason.nodeForView(view)
     node.style.inset = Rect(
@@ -710,31 +710,31 @@ class NodeHelper(val mason: Mason) {
 
   }
 
-  fun setInsetLeft(view: android.view.View, value: Float, type: Int) {
+  fun setInsetLeft(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setInsetLeft(value, type)
 
   }
 
-  fun setInsetRight(view: android.view.View, value: Float, type: Int) {
+  fun setInsetRight(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setInsetRight(value, type)
 
   }
 
-  fun setInsetTop(view: android.view.View, value: Float, type: Int) {
+  fun setInsetTop(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setInsetTop(value, type)
 
   }
 
-  fun setInsetBottom(view: android.view.View, value: Float, type: Int) {
+  fun setInsetBottom(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setInsetBottom(value, type)
 
   }
 
-  fun setInsetWithValueType(view: android.view.View, value: Float, type: Int) {
+  fun setInsetWithValueType(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setInsetWithValueType(value, type)
 
@@ -786,9 +786,9 @@ class NodeHelper(val mason: Mason) {
   fun setMinSize(
     view: android.view.View,
     width: Float,
-    widthType: Int,
+    widthType: Byte,
     height: Float,
-    heightType: Int,
+    heightType: Byte,
   ) {
     val node = mason.nodeForView(view)
     node.style.minSize = Size(
@@ -812,13 +812,13 @@ class NodeHelper(val mason: Mason) {
   }
 
 
-  fun setMinSizeWidth(view: android.view.View, value: Float, type: Int) {
+  fun setMinSizeWidth(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setMinSizeWidth(value, type)
 
   }
 
-  fun setMinSizeHeight(view: android.view.View, value: Float, type: Int) {
+  fun setMinSizeHeight(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setMinSizeHeight(value, type)
 
@@ -870,9 +870,9 @@ class NodeHelper(val mason: Mason) {
   fun setSize(
     view: android.view.View,
     width: Float,
-    widthType: Int,
+    widthType: Byte,
     height: Float,
-    heightType: Int,
+    heightType: Byte,
   ) {
     val node = mason.nodeForView(view)
     node.style.size = Size(
@@ -882,7 +882,7 @@ class NodeHelper(val mason: Mason) {
 
   }
 
-  fun setSizeWidth(view: android.view.View, value: Float, type: Int) {
+  fun setSizeWidth(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setSizeWidth(value, type)
 
@@ -894,7 +894,7 @@ class NodeHelper(val mason: Mason) {
 
   }
 
-  fun setSizeHeight(view: android.view.View, value: Float, type: Int) {
+  fun setSizeHeight(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setSizeHeight(value, type)
 
@@ -946,9 +946,9 @@ class NodeHelper(val mason: Mason) {
   fun setMaxSize(
     view: android.view.View,
     width: Float,
-    widthType: Int,
+    widthType: Byte,
     height: Float,
-    heightType: Int,
+    heightType: Byte,
   ) {
     val node = mason.nodeForView(view)
     node.style.maxSize = Size(
@@ -958,13 +958,13 @@ class NodeHelper(val mason: Mason) {
 
   }
 
-  fun setMaxSizeWidth(view: android.view.View, value: Float, type: Int) {
+  fun setMaxSizeWidth(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setMaxSizeWidth(value, type)
 
   }
 
-  fun setMaxSizeHeight(view: android.view.View, value: Float, type: Int) {
+  fun setMaxSizeHeight(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setMaxSizeHeight(value, type)
 
@@ -1020,9 +1020,9 @@ class NodeHelper(val mason: Mason) {
   fun setGap(
     view: android.view.View,
     width: Float,
-    widthType: Int,
+    widthType: Byte,
     height: Float,
-    heightType: Int,
+    heightType: Byte,
   ) {
     val node = mason.nodeForView(view)
     node.style.gap = Size(
@@ -1032,21 +1032,21 @@ class NodeHelper(val mason: Mason) {
 
   }
 
-  fun setGapRow(view: android.view.View, value: Float, type: Int) {
+  fun setGapRow(view: android.view.View, value: Float, type: Byte) {
     setRowGap(view, value, type)
   }
 
-  fun setRowGap(view: android.view.View, value: Float, type: Int) {
+  fun setRowGap(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setGapRow(value, type)
 
   }
 
-  fun setGapColumn(view: android.view.View, value: Float, type: Int) {
+  fun setGapColumn(view: android.view.View, value: Float, type: Byte) {
     setColumnGap(view, value, type)
   }
 
-  fun setColumnGap(view: android.view.View, value: Float, type: Int) {
+  fun setColumnGap(view: android.view.View, value: Float, type: Byte) {
     val node = mason.nodeForView(view)
     node.style.setGapColumn(value, type)
 

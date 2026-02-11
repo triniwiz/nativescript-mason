@@ -369,14 +369,24 @@ fun parseRgbColor(input: String): Int? {
     .split(Regex("""[\s,]+"""))
     .filter { it.isNotEmpty() }
 
-  if (components.size != 3) return null
-
-  val r = parseColorChannel(components[0]) ?: return null
-  val g = parseColorChannel(components[1]) ?: return null
-  val b = parseColorChannel(components[2]) ?: return null
-  val a = parseAlpha(alphaPart)
-
-  return (a shl 24) or (r shl 16) or (g shl 8) or b
+  return when (components.size) {
+    3 -> {
+      val r = parseColorChannel(components[0]) ?: return null
+      val g = parseColorChannel(components[1]) ?: return null
+      val b = parseColorChannel(components[2]) ?: return null
+      val a = parseAlpha(alphaPart)
+      (a shl 24) or (r shl 16) or (g shl 8) or b
+    }
+    4 -> {
+      // Legacy rgba(r, g, b, a) comma-separated format
+      val r = parseColorChannel(components[0]) ?: return null
+      val g = parseColorChannel(components[1]) ?: return null
+      val b = parseColorChannel(components[2]) ?: return null
+      val a = if (alphaPart != null) parseAlpha(alphaPart) else parseAlpha(components[3])
+      (a shl 24) or (r shl 16) or (g shl 8) or b
+    }
+    else -> null
+  }
 }
 
 fun parseColor(value: String): Int? {

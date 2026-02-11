@@ -37,23 +37,25 @@ public class NativeHelpers {
     long[] children
   );
 
+  @CriticalNative
   static native long nativeNodeNewWithContext(
     long mason,
-    Object context,
+    int context,
     boolean isAnonymous
   );
 
+  @CriticalNative
   static native long nativeNodeNewTextWithContext(
     long mason,
-    Object context,
+    int context,
     boolean isAnonymous
   );
-
 
   static native long nativeNodeNewLineBreak(long mason);
 
+  @CriticalNative
   static native long nativeNodeNewLineBreakWithContext(long mason,
-                                                       Object context);
+                                                       int context);
 
   @CriticalNative
   static native void nativeNodeDestroy(long mason);
@@ -127,7 +129,8 @@ public class NativeHelpers {
   @FastNative
   static native float[] nativeNodeLayout(long mason, long node);
 
-  static native void nativeNodeSetContext(long mason, long node, Object measureFunc);
+  @CriticalNative
+  static native void nativeNodeSetContext(long mason, long node, int measureFunc);
 
   static native float[] nativeNodeComputeAndLayout(long mason, long node);
 
@@ -139,17 +142,33 @@ public class NativeHelpers {
 
   static native void nativeNodeSetSegments(long masonPtr, long nodePtr, InlineSegment[] segments);
 
-  static native void nativeSetAndroidNode(long masonPtr, long nodePtr, Node node);
+  @CriticalNative
+  static native void nativeSetAndroidNode(long masonPtr, long nodePtr, int node);
 
-  @FastNative
+  @CriticalNative
   static native long nativeNodeNewImage(
     long mason
   );
 
+  @CriticalNative
   static native long nativeNodeNewImageWithContext(
     long mason,
-    Object context
+    int context
   );
+
+  @CriticalNative
+  static native long nativeNodeNewListItem(
+    long mason
+  );
+
+  @CriticalNative
+  static native long nativeNodeNewListItemWithContext(
+    long mason,
+    int context
+  );
+
+  @FastNative
+  static native int nativeGetStateBuffer(long mason, long node);
 
 
   /* Node */

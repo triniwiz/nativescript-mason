@@ -1,5 +1,9 @@
 use crate::node::{Node, NodeData, NodeRef, NodeType};
+use crate::style::arena::{StyleArena, StyleHandle};
+use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
+use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
+use parking_lot::{RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use std::fmt::Debug;
 use std::sync::atomic::AtomicU32;
@@ -37,7 +41,7 @@ struct SubtreeAnalysis {
 }
 
 #[derive(Debug)]
-pub struct Tree {
+pub(crate) struct TreeInner {
     pub(crate) nodes: SlotMap<Id, Node>,
     pub(crate) parents: SecondaryMap<Id, Option<Id>>,
     pub(crate) children: SecondaryMap<Id, Vec<Id>>,
@@ -48,15 +52,18 @@ pub struct Tree {
     // pending child ids for the inline run - set_unrounded_layout will consume these
     pub(crate) inline_run_pending: Vec<Id>,
     pub(crate) density: Arc<AtomicU32>,
+    pub(crate) style_arena: Box<StyleArena>,
 }
 
-impl Default for Tree {
-    fn default() -> Self {
-        Self::new()
+impl TreeInner {
+    pub fn density(&self) -> &Arc<AtomicU32> {
+        &self.density
     }
-}
 
-impl Tree {
+    pub fn density_mut(&mut self) -> &mut Arc<AtomicU32> {
+        &mut self.density
+    }
+
     pub fn new() -> Self {
         Self {
             nodes: Default::default(),
@@ -67,6 +74,7 @@ impl Tree {
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
             density: Arc::new(AtomicU32::new(1f32.to_bits())),
+            style_arena: Box::default(),
         }
     }
 
@@ -80,7 +88,123 @@ impl Tree {
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
             density: Arc::new(AtomicU32::new(1f32.to_bits())),
+            style_arena: Box::default(),
         }
+    }
+
+    #[inline(always)]
+    pub fn node_from_id(&self, node_id: NodeId) -> &Node {
+        self.nodes.get(node_id.into()).unwrap()
+    }
+
+    #[inline(always)]
+    pub fn node_from_id_mut(&mut self, node_id: NodeId) -> &mut Node {
+        self.nodes.get_mut(node_id.into()).unwrap()
+    }
+
+    #[inline(always)]
+    pub fn prepare_mut(&mut self, node_id: NodeId) {
+        if let Some(node) = self.nodes.get_mut(node_id.into()) {
+            let _ = node.style_mut();
+        }
+    }
+}
+
+impl Default for TreeInner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Tree(pub(crate) Arc<RwLock<TreeInner>>);
+
+impl Default for Tree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Tree {
+    #[inline(always)]
+    pub fn prepare_mut(&mut self, node_id: NodeId) {
+        self.inner_mut().prepare_mut(node_id);
+    }
+    fn density(&self) -> MappedRwLockReadGuard<'_, RawRwLock, Arc<AtomicU32>> {
+        RwLockReadGuard::map(self.0.read(), |v| &v.density)
+    }
+
+    fn density_mut(&mut self) -> MappedRwLockWriteGuard<'_, RawRwLock, Arc<AtomicU32>> {
+        RwLockWriteGuard::map(self.0.write(), |v| &mut v.density)
+    }
+
+    pub fn use_rounding(&self) -> bool {
+        self.inner().use_rounding
+    }
+
+    pub fn set_use_rounding(&mut self, value: bool) {
+        self.inner_mut().use_rounding = value;
+    }
+
+    pub fn inline_run_nesting(&self) -> usize {
+        self.inner().inline_run_nesting
+    }
+
+    pub fn set_inline_run_nesting(&mut self, value: usize) {
+        self.inner_mut().inline_run_nesting = value;
+    }
+
+    pub fn new() -> Self {
+        Self(Default::default())
+    }
+
+    pub fn with_capacity(value: usize) -> Self {
+        Self(Arc::new(RwLock::new(TreeInner::with_capacity(value))))
+    }
+
+    fn inner_ptr(&self) -> &Arc<RwLock<TreeInner>> {
+        &self.0
+    }
+
+    pub(crate) fn inner_mut(&mut self) -> MappedRwLockWriteGuard<'_, RawRwLock, TreeInner> {
+        RwLockWriteGuard::map(self.0.write(), |v| v)
+    }
+
+    pub(crate) fn inner(&self) -> MappedRwLockReadGuard<'_, RawRwLock, TreeInner> {
+        RwLockReadGuard::map(self.0.read(), |v| v)
+    }
+
+    pub fn nodes(&self) -> MappedRwLockReadGuard<'_, RawRwLock, SlotMap<Id, Node>> {
+        RwLockReadGuard::map(self.0.read(), |v| &v.nodes)
+    }
+
+    pub fn nodes_mut(&mut self) -> MappedRwLockWriteGuard<'_, RawRwLock, SlotMap<Id, Node>> {
+        RwLockWriteGuard::map(self.0.write(), |v| &mut v.nodes)
+    }
+
+    pub fn node_data(&self) -> MappedRwLockReadGuard<'_, RawRwLock, SecondaryMap<Id, NodeData>> {
+        RwLockReadGuard::map(self.0.read(), |v| &v.node_data)
+    }
+
+    pub fn node_data_mut(
+        &mut self,
+    ) -> MappedRwLockWriteGuard<'_, RawRwLock, SecondaryMap<Id, NodeData>> {
+        RwLockWriteGuard::map(self.0.write(), |v| &mut v.node_data)
+    }
+
+    pub fn children_mut(
+        &mut self,
+    ) -> MappedRwLockWriteGuard<'_, RawRwLock, SecondaryMap<Id, Vec<Id>>> {
+        RwLockWriteGuard::map(self.0.write(), |v| &mut v.children)
+    }
+
+    pub fn parents(&self) -> MappedRwLockReadGuard<'_, RawRwLock, SecondaryMap<Id, Option<Id>>> {
+        RwLockReadGuard::map(self.0.read(), |v| &v.parents)
+    }
+    pub fn parents_mut(
+        &mut self,
+    ) -> MappedRwLockWriteGuard<'_, RawRwLock, SecondaryMap<Id, Option<Id>>> {
+        RwLockWriteGuard::map(self.0.write(), |v| &mut v.parents)
     }
 
     pub fn print_tree(&self, root: Id) {
@@ -88,35 +212,59 @@ impl Tree {
     }
 
     #[inline(always)]
-    fn node_from_id(&self, node_id: NodeId) -> &Node {
-        self.nodes.get(node_id.into()).unwrap()
+    fn node_from_id(&self, node_id: NodeId) -> MappedRwLockReadGuard<'_, RawRwLock, Node> {
+        RwLockReadGuard::map(self.0.read(), |v| v.nodes.get(node_id.into()).unwrap())
     }
 
     #[inline(always)]
-    fn node_from_id_mut(&mut self, node_id: NodeId) -> &mut Node {
-        self.nodes.get_mut(node_id.into()).unwrap()
+    fn node_from_id_mut(&mut self, node_id: NodeId) -> MappedRwLockWriteGuard<'_, RawRwLock, Node> {
+        RwLockWriteGuard::map(self.0.write(), |v| v.nodes.get_mut(node_id.into()).unwrap())
     }
 
-    pub fn get_node_data(&self, node_id: NodeId) -> &NodeData {
-        self.node_data.get(node_id.into()).unwrap()
+    #[inline(always)]
+    fn style_from_id(&self, node_id: NodeId) -> MappedRwLockReadGuard<'_, RawRwLock, Style> {
+        RwLockReadGuard::map(self.0.read(), |v| {
+            v.nodes.get(node_id.into()).unwrap().style()
+        })
     }
 
-    pub fn get_node_data_mut(&mut self, node_id: NodeId) -> &mut NodeData {
-        self.node_data.get_mut(node_id.into()).unwrap()
+    #[inline(always)]
+    fn style_from_id_mut(
+        &mut self,
+        node_id: NodeId,
+    ) -> MappedRwLockWriteGuard<'_, RawRwLock, Style> {
+        RwLockWriteGuard::map(self.0.write(), |v| {
+            v.nodes.get_mut(node_id.into()).unwrap().style_mut()
+        })
+    }
+
+    pub fn get_node_data(&self, node_id: NodeId) -> MappedRwLockReadGuard<'_, RawRwLock, NodeData> {
+        RwLockReadGuard::map(self.0.read(), |v| v.node_data.get(node_id.into()).unwrap())
+    }
+
+    pub fn get_node_data_mut(
+        &mut self,
+        node_id: NodeId,
+    ) -> MappedRwLockWriteGuard<'_, RawRwLock, NodeData> {
+        RwLockWriteGuard::map(self.0.write(), |v| {
+            v.node_data.get_mut(node_id.into()).unwrap()
+        })
     }
 
     pub fn children(&self, node_id: Id) -> Vec<NodeRef> {
-        self.children
+        let tree = self.inner();
+        tree.children
             .get(node_id)
             .map(|children| {
                 children
                     .iter()
                     .map(|child| {
                         let id = *child;
-                        let node = self.nodes.get(id).unwrap();
+                        let node = tree.nodes.get(id).unwrap();
                         NodeRef {
                             id,
-                            guard: node.guard.clone(),
+                            guard: Arc::clone(&node.guard),
+                            tree: Arc::clone(self.inner_ptr()),
                         }
                     })
                     .collect::<Vec<_>>()
@@ -124,8 +272,8 @@ impl Tree {
             .unwrap_or(vec![])
     }
 
-    pub fn children_id(&self, node_id: Id) -> &[Id] {
-        self.children.get(node_id).unwrap()
+    pub fn children_id(&self, node_id: Id) -> MappedRwLockReadGuard<'_, RawRwLock, Vec<Id>> {
+        RwLockReadGuard::map(self.0.read(), |v| v.children.get(node_id.into()).unwrap())
     }
 
     fn analyze_subtree(&self, id: Id) -> SubtreeAnalysis {
@@ -133,18 +281,18 @@ impl Tree {
         let mut has_mixed_content = false;
         let mut all_inline = true;
 
-        if let Some(children) = self.children.get(id) {
+        if let Some(children) = self.inner().children.get(id) {
             has_children = !children.is_empty();
 
             let mut has_inline = false;
             let mut has_non_inline = false;
 
             for child_id in children {
-                let child = &self.nodes[*child_id];
-                let mode = child.style.display_mode();
+                let child = &self.inner().nodes[*child_id];
+                let mode = child.style().display_mode();
                 let inline_or_box_inline = matches!(mode, DisplayMode::Inline | DisplayMode::Box);
                 // Fix: Check for anonymous inline blocks too
-                let is_inline = child.style.force_inline() || inline_or_box_inline;
+                let is_inline = child.style().force_inline() || inline_or_box_inline;
 
                 if is_inline {
                     has_inline = true;
@@ -176,12 +324,12 @@ impl Tree {
         use_rounding: bool,
     ) {
         // update tree rounding mode so other helpers (Tree::layout etc.) are consistent
-        self.use_rounding = use_rounding;
+        self.set_use_rounding(use_rounding);
 
         // reset any inline-run state before doing a full layout pass to avoid
         // stale pending entries / nesting interfering with cached layouts
-        self.inline_run_pending.clear();
-        self.inline_run_nesting = 0;
+        self.inner_mut().inline_run_pending.clear();
+        self.set_inline_run_nesting(0);
 
         compute_root_layout(self, root, available_space);
 
@@ -190,111 +338,189 @@ impl Tree {
         } else {
             // Ensure final_layout mirrors unrounded_layout so prints / consumers that read
             // final_layout get the correct positions even when rounding is disabled.
-            for (_id, node) in self.nodes.iter_mut() {
+            let mut nodes = self.nodes_mut();
+            for (_id, node) in nodes.iter_mut() {
                 node.final_layout = node.unrounded_layout;
             }
         }
     }
 
-    pub fn layout(&self, node: Id) -> &Layout {
-        let node = &self.nodes[node];
-        if self.use_rounding {
-            return &node.final_layout;
+    pub fn layout(&self, node: Id) -> MappedRwLockReadGuard<'_, RawRwLock, Layout> {
+        if self.use_rounding() {
+            return RwLockReadGuard::map(self.0.read(), |v| &v.nodes[node].final_layout);
         }
-        &node.unrounded_layout
+        RwLockReadGuard::map(self.0.read(), |v| &v.nodes[node].unrounded_layout)
+    }
+
+    fn get_arena(&mut self) -> *mut StyleArena {
+        &mut *self.inner_mut().style_arena
     }
 
     pub fn create_node(&mut self) -> NodeRef {
-        let mut node = Node::new();
-        node.style.device_scale = Some(Arc::clone(&self.density));
+        let mut node = Node::new(self.get_arena());
+        node.inner_style_mut().device_scale = Some(Arc::clone(&*self.density()));
         let guard = node.guard.clone();
-        let id = self.nodes.insert(node);
-        self.parents.insert(id, None);
-        self.children.insert(id, Vec::new());
-        self.node_data.insert(id, NodeData::default());
-        NodeRef { id, guard }
+        let id = {
+            let mut tree = self.inner_mut();
+            let id = tree.nodes.insert(node);
+            tree.parents.insert(id, None);
+            tree.children.insert(id, Vec::new());
+            tree.node_data.insert(id, NodeData::default());
+            id
+        };
+
+        NodeRef {
+            id,
+            guard,
+            tree: Arc::clone(self.inner_ptr()),
+        }
     }
 
     pub fn create_anonymous_node(&mut self) -> NodeRef {
-        let mut node = Node::new();
+        let mut node = Node::new(self.get_arena());
         node.is_anonymous = true;
-        node.style.device_scale = Some(Arc::clone(&self.density));
+        node.inner_style_mut().device_scale = Some(Arc::clone(&*self.density()));
         let guard = node.guard.clone();
-        let id = self.nodes.insert(node);
-        self.parents.insert(id, None);
-        self.children.insert(id, Vec::new());
-        self.node_data.insert(id, NodeData::default());
-        NodeRef { id, guard }
+        let id = {
+            let mut tree = self.inner_mut();
+            let id = tree.nodes.insert(node);
+            tree.parents.insert(id, None);
+            tree.children.insert(id, Vec::new());
+            tree.node_data.insert(id, NodeData::default());
+            id
+        };
+        NodeRef {
+            id,
+            guard,
+            tree: Arc::clone(self.inner_ptr()),
+        }
     }
 
     pub fn create_text_node(&mut self) -> NodeRef {
-        let mut node = Node::new();
-        node.style.device_scale = Some(Arc::clone(&self.density));
-        node.type_ = NodeType::Text;
         // we are defaulting our text element nodes to inline
-        node.style.set_display_mode(DisplayMode::Inline);
+        let mut node = Node::new_with_handle(self.get_arena(), StyleHandle::DEFAULT_INLINE);
+        node.inner_style_mut().device_scale = Some(Arc::clone(&*self.density()));
+        node.type_ = NodeType::Text;
         let guard = node.guard.clone();
-        let id = self.nodes.insert(node);
-        self.parents.insert(id, None);
-        self.children.insert(id, Vec::new());
-        self.node_data.insert(id, NodeData::default());
-        NodeRef { id, guard }
+        let id = {
+            let mut tree = self.inner_mut();
+            let id = tree.nodes.insert(node);
+            tree.parents.insert(id, None);
+            tree.children.insert(id, Vec::new());
+            tree.node_data.insert(id, NodeData::default());
+            id
+        };
+        NodeRef {
+            id,
+            guard,
+            tree: Arc::clone(self.inner_ptr()),
+        }
     }
 
     pub fn create_anonymous_text_node(&mut self) -> NodeRef {
         // should always be inline by default
-        let mut node = Node::new();
-        node.style.device_scale = Some(Arc::clone(&self.density));
+        let mut node = Node::new_with_handle(self.get_arena(), StyleHandle::DEFAULT_INLINE);
+        node.inner_style_mut().device_scale = Some(Arc::clone(&*self.density()));
         node.type_ = NodeType::Text;
         node.is_anonymous = true;
-        node.style.set_display_mode(DisplayMode::Inline);
         let guard = node.guard.clone();
-        let id = self.nodes.insert(node);
-        self.parents.insert(id, None);
-        self.children.insert(id, Vec::new());
-        self.node_data.insert(id, NodeData::default());
-        NodeRef { id, guard }
+        let id = {
+            let mut tree = self.inner_mut();
+            let id = tree.nodes.insert(node);
+            tree.parents.insert(id, None);
+            tree.children.insert(id, Vec::new());
+            tree.node_data.insert(id, NodeData::default());
+            id
+        };
+        NodeRef {
+            id,
+            guard,
+            tree: Arc::clone(self.inner_ptr()),
+        }
     }
 
     pub fn create_image_node(&mut self) -> NodeRef {
-        let mut node = Node::new();
+        let mut node = Node::new_with_handle(self.get_arena(), StyleHandle::DEFAULT_IMG);
         node.type_ = NodeType::Image;
-        node.style.set_item_is_replaced(true);
-        node.style.set_display_mode(DisplayMode::Inline);
-        node.style.device_scale = Some(Arc::clone(&self.density));
+        node.inner_style_mut().device_scale = Some(Arc::clone(&*self.density()));
         let guard = node.guard.clone();
-        let id = self.nodes.insert(node);
-        self.parents.insert(id, None);
-        self.children.insert(id, Vec::new());
-        self.node_data.insert(id, NodeData::default());
-        NodeRef { id, guard }
+        let id = {
+            let mut tree = self.inner_mut();
+            let id = tree.nodes.insert(node);
+            tree.parents.insert(id, None);
+            tree.children.insert(id, Vec::new());
+            tree.node_data.insert(id, NodeData::default());
+            id
+        };
+        NodeRef {
+            id,
+            guard,
+            tree: Arc::clone(self.inner_ptr()),
+        }
     }
 
     pub fn create_line_break_node(&mut self) -> NodeRef {
-        let mut node = Node::new();
+        let mut node = Node::new(self.get_arena());
         node.type_ = NodeType::LineBreak;
-        node.style.device_scale = Some(Arc::clone(&self.density));
+        node.inner_style_mut().device_scale = Some(Arc::clone(&*self.density()));
         let guard = node.guard.clone();
-        let id = self.nodes.insert(node);
-        self.parents.insert(id, None);
-        self.children.insert(id, Vec::new());
-        self.node_data.insert(id, NodeData::default());
-        NodeRef { id, guard }
+        let id = {
+            let mut tree = self.inner_mut();
+            let id = tree.nodes.insert(node);
+            tree.parents.insert(id, None);
+            tree.children.insert(id, Vec::new());
+            tree.node_data.insert(id, NodeData::default());
+            id
+        };
+        NodeRef {
+            id,
+            guard,
+            tree: Arc::clone(self.inner_ptr()),
+        }
+    }
+
+    pub fn create_list_item_node(&mut self) -> NodeRef {
+        let mut node = Node::new_with_handle(self.get_arena(), StyleHandle::DEFAULT_LIST_ITEM);
+        node.inner_style_mut().device_scale = Some(Arc::clone(&*self.density()));
+        let guard = node.guard.clone();
+        let id = {
+            let mut tree = self.inner_mut();
+            let id = tree.nodes.insert(node);
+            tree.parents.insert(id, None);
+            tree.children.insert(id, Vec::new());
+            tree.node_data.insert(id, NodeData::default());
+            id
+        };
+        NodeRef {
+            id,
+            guard,
+            tree: Arc::clone(self.inner_ptr()),
+        }
     }
 
     fn set_parent(&mut self, child: Id, parent: Option<Id>) -> bool {
-        match self.parents.insert(child, parent) {
+        let mut tree = self.0.write();
+        Tree::set_parent_inner(&mut tree, child, parent)
+    }
+
+    fn set_parent_inner(tree: &mut TreeInner, child: Id, parent: Option<Id>) -> bool {
+        match tree.parents.insert(child, parent) {
             Some(old_parent) => old_parent != parent,
             None => true,
         }
     }
 
     pub fn detach(&mut self, child: Id) {
-        if let Some(Some(parent)) = self.parents.remove(child) {
-            if let Some(children) = self.children.get_mut(parent) {
+        let mut tree = self.0.write();
+        Self::detach_inner(&mut tree, child);
+    }
+
+    fn detach_inner(tree: &mut TreeInner, child: Id) {
+        if let Some(Some(parent)) = tree.parents.remove(child) {
+            if let Some(children) = tree.children.get_mut(parent) {
                 children.retain(|&id| id != child);
             }
-            if let Some(node) = self.nodes.get_mut(parent) {
+            if let Some(node) = tree.nodes.get_mut(parent) {
                 node.mark_dirty();
             }
         }
@@ -304,9 +530,10 @@ impl Tree {
         self.detach(child);
         let same = self.set_parent(child, Some(parent));
         if same {
-            let children = self.children.get_mut(parent).unwrap();
+            let mut tree = self.0.write();
+            let children = tree.children.get_mut(parent).unwrap();
             children.push(child);
-            self.mark_dirty(parent);
+            Tree::mark_dirty_inner(&mut tree, parent);
         }
     }
 
@@ -318,23 +545,24 @@ impl Tree {
     }
 
     pub fn prepend(&mut self, parent: Id, child: Id) {
-        self.detach(child);
-        let same = self.set_parent(child, Some(parent));
+        let mut tree = self.0.write();
+        Tree::detach_inner(&mut tree, child);
+        let same = Tree::set_parent_inner(&mut tree, child, Some(parent));
         if same {
-            let children = self.children.get_mut(parent).unwrap();
+            let children = tree.children.get_mut(parent).unwrap();
             children.insert(0, child);
-            self.mark_dirty(parent);
+            Tree::mark_dirty_inner(&mut tree, parent);
         }
     }
 
     pub fn prepend_children(&mut self, parent: Id, children: &[Id]) {
-        let has_parent = self.children.contains_key(parent);
+        let has_parent = self.inner().children.contains_key(parent);
         if has_parent {
             for child in children.iter() {
                 self.detach(*child);
             }
         }
-        if let Some(nodes) = self.children.get_mut(parent) {
+        if let Some(nodes) = self.children_mut().get_mut(parent) {
             let mut joined = children.to_vec();
             joined.append(nodes);
             let _ = std::mem::replace(nodes, joined);
@@ -342,28 +570,32 @@ impl Tree {
     }
 
     pub fn child_count(&self, node: Id) -> usize {
-        self.children.get(node).map_or(0, Vec::len)
+        self.inner().children.get(node).map_or(0, Vec::len)
     }
 
     pub fn child_at(&self, node: Id, index: usize) -> Option<NodeRef> {
-        let children = self.children.get(node)?;
+        let tree = self.0.read();
+        let children = tree.children.get(node)?;
         let child_id = children.get(index)?;
-        let child_node = self.nodes.get(*child_id)?;
+        let child_node = tree.nodes.get(*child_id)?;
         Some(NodeRef {
             id: *child_id,
-            guard: child_node.guard.clone(),
+            guard: Arc::clone(&child_node.guard),
+            tree: Arc::clone(self.inner_ptr()),
         })
     }
 
     pub fn clear(&mut self) {
-        self.nodes.clear();
-        self.parents.clear();
-        self.children.clear();
-        self.node_data.clear();
+        let mut tree = self.inner_mut();
+        tree.nodes.clear();
+        tree.parents.clear();
+        tree.children.clear();
+        tree.node_data.clear();
     }
 
     pub fn is_children_same(&self, node: Id, children: &[Id]) -> bool {
-        let Some(ids) = self.children.get(node) else {
+        let tree = self.0.read();
+        let Some(ids) = tree.children.get(node) else {
             return false;
         };
 
@@ -379,35 +611,37 @@ impl Tree {
     }
 
     pub fn dirty(&self, node: Id) -> bool {
-        self.nodes
+        self.nodes()
             .get(node)
             .map(|node| node.cache.is_empty())
             .unwrap_or(false)
     }
 
     fn reparent_then_append(&mut self, parent: Id, child: Id) {
-        if let Some(Some(parent)) = self.parents.remove(child) {
-            if let Some(children) = self.children.get_mut(parent) {
+        let mut tree = self.0.write();
+        if let Some(Some(parent)) = tree.parents.remove(child) {
+            if let Some(children) = tree.children.get_mut(parent) {
                 children.retain(|&id| id != child);
             }
-            if let Some(node) = self.nodes.get_mut(parent) {
+            if let Some(node) = tree.nodes.get_mut(parent) {
                 node.mark_dirty();
             }
         } else {
-            let same = self.set_parent(child, Some(parent));
+            let same = Tree::set_parent_inner(&mut tree, child, Some(parent));
             if same {
-                let children = self.children.get_mut(parent).unwrap();
+                let children = tree.children.get_mut(parent).unwrap();
                 children.push(child);
-                self.mark_dirty(parent);
+                Tree::mark_dirty_inner(&mut tree, parent);
             }
         }
     }
 
     fn remove_from_parent(&mut self, parent: Id, node: Id) {
-        if let Some(children) = self.children.get_mut(parent) {
+        let mut tree = self.0.write();
+        if let Some(children) = tree.children.get_mut(parent) {
             if let Some(position) = children.iter().position(|&id| id == node) {
                 children.remove(position);
-                if let Some(node) = self.nodes.get_mut(parent) {
+                if let Some(node) = tree.nodes.get_mut(parent) {
                     node.mark_dirty();
                 }
             }
@@ -415,8 +649,9 @@ impl Tree {
     }
 
     pub fn insert_after(&mut self, parent: Id, node: Id, reference: Id) {
+        let mut tree = self.0.write();
         // Find the position of the reference node
-        let Some(children) = self.children.get(parent) else {
+        let Some(children) = tree.children.get(parent) else {
             return;
         };
 
@@ -427,10 +662,10 @@ impl Tree {
             }
 
             // Detach child from its current parent
-            self.detach(node);
+            Tree::detach_inner(&mut tree, node);
 
             // Re-get children after detach (it may have modified the vec)
-            let children = self.children.get_mut(parent).unwrap();
+            let children = tree.children.get_mut(parent).unwrap();
 
             // Find node position again (may have shifted if child was before it)
             let Some(node_pos) = children.iter().position(|&id| id == reference) else {
@@ -439,25 +674,26 @@ impl Tree {
 
             // Insert after the reference node
             children.insert(node_pos + 1, node);
-            self.parents.insert(node, Some(parent));
+            tree.parents.insert(node, Some(parent));
         } else {
             // Detach child from its current parent
-            self.detach(node);
+            Tree::detach_inner(&mut tree, node);
 
             // Re-get children after detach (it may have modified the vec)
-            let children = self.children.get_mut(parent).unwrap();
+            let children = tree.children.get_mut(parent).unwrap();
             children.push(node);
-            self.parents.insert(node, Some(parent));
+            tree.parents.insert(node, Some(parent));
             return;
         }
-        if let Some(node) = self.nodes.get_mut(parent) {
+        if let Some(node) = tree.nodes.get_mut(parent) {
             node.mark_dirty();
         }
     }
 
     pub fn insert_before(&mut self, parent: Id, node: Id, reference: Id) {
+        let mut tree = self.0.write();
         // Find the position of the reference node
-        let Some(children) = self.children.get(parent) else {
+        let Some(children) = tree.children.get(parent) else {
             return;
         };
 
@@ -471,25 +707,26 @@ impl Tree {
         }
 
         // Detach child from its current parent
-        self.detach(node);
+        Tree::detach_inner(&mut tree, node);
 
         // Re-get children after detach (it may have modified the vec)
-        let children = self.children.get_mut(parent).unwrap();
+        let children = tree.children.get_mut(parent).unwrap();
 
         // Find node position again (may have shifted if child was before it)
         let node_pos = children.iter().position(|&id| id == reference).unwrap();
 
         // Insert before the reference node
         children.insert(node_pos, node);
-        self.parents.insert(node, Some(parent));
+        tree.parents.insert(node, Some(parent));
 
-        if let Some(node) = self.nodes.get_mut(parent) {
+        if let Some(node) = tree.nodes.get_mut(parent) {
             node.mark_dirty();
         }
     }
 
     pub fn add_child_at_index(&mut self, node: Id, child: Id, index: usize) {
-        if let Some(children) = self.children.get(node) {
+        let mut tree = self.0.write();
+        if let Some(children) = tree.children.get(node) {
             if let Some(current_index) = children.iter().position(|&id| id == child) {
                 if current_index == index {
                     return;
@@ -497,9 +734,9 @@ impl Tree {
             }
         }
 
-        self.detach(child);
+        Tree::detach_inner(&mut tree, child);
 
-        if let Some(children) = self.children.get_mut(node) {
+        if let Some(children) = tree.children.get_mut(node) {
             if let Some(current_index) = children.iter().position(|&id| id == child) {
                 children.remove(current_index);
                 let insert_index = if current_index < index {
@@ -512,28 +749,33 @@ impl Tree {
                 children.insert(index.min(children.len()), child);
             }
 
-            self.parents.insert(child, Some(node));
+            tree.parents.insert(child, Some(node));
 
-            if let Some(node_data) = self.nodes.get_mut(node) {
+            if let Some(node_data) = tree.nodes.get_mut(node) {
                 node_data.mark_dirty();
             }
         }
     }
 
     pub fn mark_dirty(&mut self, node: Id) {
+        let mut tree = self.0.write();
+        Self::mark_dirty_inner(&mut tree, node);
+    }
+
+    fn mark_dirty_inner(tree: &mut TreeInner, node: Id) {
         let mut current = Some(node);
         while let Some(id) = current {
-            match self.nodes[id].mark_dirty() {
+            match tree.nodes[id].mark_dirty() {
                 ClearState::AlreadyEmpty => break,
                 ClearState::Cleared => {
-                    current = self.parents.get(id).copied().flatten();
+                    current = tree.parents.get(id).copied().flatten();
                 }
             }
         }
     }
 
     pub fn replace_child_at_index(&mut self, node: Id, child: Id, index: usize) -> Option<NodeRef> {
-        let replaced = self.children.get(node).and_then(|children| {
+        let replaced = self.inner().children.get(node).and_then(|children| {
             if index < children.len() {
                 Some(children[index])
             } else {
@@ -542,40 +784,47 @@ impl Tree {
         })?;
 
         if replaced == child {
-            return self.nodes.get_mut(replaced).map(|node| NodeRef {
+            let tree = Arc::clone(&self.inner_ptr());
+            return self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
                 id: replaced,
                 guard: node.guard.clone(),
+                tree,
             });
         }
 
         self.detach(child);
 
-        if let Some(children) = self.children.get_mut(node) {
+        if let Some(children) = self.children_mut().get_mut(node) {
             children[index] = child;
         }
 
-        self.parents.remove(replaced);
+        self.parents_mut().remove(replaced);
 
-        self.parents.insert(child, Some(node));
+        self.parents_mut().insert(child, Some(node));
 
-        if let Some(node_data) = self.nodes.get_mut(node) {
+        if let Some(node_data) = self.nodes_mut().get_mut(node) {
             node_data.mark_dirty();
         }
 
-        self.nodes.get_mut(replaced).map(|node| NodeRef {
+        let tree = Arc::clone(&self.inner_ptr());
+        self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
             id: replaced,
             guard: node.guard.clone(),
+            tree,
         })
     }
 
     pub fn remove_child_at_index(&mut self, node: Id, index: usize) -> Option<NodeRef> {
-        if let Some(children) = self.children.get_mut(node) {
+        let mut tree = self.0.write();
+        let tree = &mut tree;
+        if let Some(children) = tree.children.get_mut(node) {
             if index < children.len() {
                 let removed = children.remove(index);
-                self.detach(removed);
+                Tree::detach_inner(tree, removed);
                 return Some(NodeRef {
                     id: removed,
-                    guard: self.nodes.get_mut(removed)?.guard.clone(),
+                    guard: Arc::clone(&tree.nodes.get_mut(removed)?.guard),
+                    tree: Arc::clone(self.inner_ptr()),
                 });
             }
         }
@@ -583,12 +832,14 @@ impl Tree {
     }
 
     pub fn remove(&mut self, parent: Id, child: Id) -> Option<NodeRef> {
-        let is_child = self.children.get_mut(parent)?.contains(&child);
+        let mut tree = self.0.write();
+        let is_child = tree.children.get_mut(parent)?.contains(&child);
         if is_child {
-            self.detach(child);
-            self.nodes.get(child).map(|node| NodeRef {
+            Tree::detach_inner(&mut tree, child);
+            tree.nodes.get(child).map(|node| NodeRef {
                 id: child,
-                guard: node.guard.clone(),
+                guard: Arc::clone(&node.guard),
+                tree: Arc::clone(self.inner_ptr()),
             })
         } else {
             None
@@ -596,18 +847,25 @@ impl Tree {
     }
 
     pub fn remove_all(&mut self, parent: Id) {
-        if let Some(children) = self.children.get_mut(parent) {
+        let mut tree = self.0.write();
+        let tree = &mut tree;
+        let mut to_remove: Option<Vec<Id>> = None;
+        if let Some(children) = tree.children.get_mut(parent) {
             if children.is_empty() {
                 return;
             }
 
-            for child in children.iter() {
-                self.parents.remove(*child);
-            }
+            to_remove = Some(children.clone());
 
             children.clear();
+        }
 
-            if let Some(node) = self.nodes.get_mut(parent) {
+        if let Some(children) = to_remove {
+            for child in children.iter() {
+                tree.parents.remove(*child);
+            }
+
+            if let Some(node) = tree.nodes.get_mut(parent) {
                 node.mark_dirty();
             }
         }
@@ -619,30 +877,24 @@ impl Tree {
 
         while let Some(id) = current_id {
             last_id = Some(id);
-            current_id = self.parents.get(id).copied().flatten();
+            current_id = self.parents().get(id).copied().flatten();
         }
 
         last_id.and_then(|id| {
-            self.nodes.get(id).map(|node_data| NodeRef {
+            self.nodes().get(id).map(|node_data| NodeRef {
                 id,
                 guard: node_data.guard.clone(),
+                tree: Arc::clone(self.inner_ptr()),
             })
         })
-    }
-
-    pub fn set_style(&mut self, node: Id, style: Style) {
-        if let Some(node) = self.nodes.get_mut(node) {
-            node.style.copy_from(&style);
-            node.mark_dirty();
-        }
     }
 
     pub fn with_style<F>(&self, node: Id, func: F)
     where
         F: FnOnce(&Style),
     {
-        if let Some(node) = self.nodes.get(node) {
-            func(&node.style);
+        if let Some(node) = self.nodes().get(node) {
+            func(node.style());
         }
     }
 
@@ -650,11 +902,27 @@ impl Tree {
     where
         F: FnOnce(&mut Style),
     {
-        if let Some(node) = self.nodes.get_mut(node) {
-            if node.style.device_scale.is_none() {
-                node.style.device_scale = Some(self.density.clone());
+        let mut scale: Option<Arc<AtomicU32>> = None;
+
+        {
+            // ......
+            let tree = self.0.read();
+            if let Some(node) = tree.nodes.get(node) {
+                let style = node.style();
+                if style.device_scale.is_none() {
+                    scale = Some(Arc::clone(&tree.density))
+                }
             }
-            func(&mut node.style);
+        }
+
+        let mut tree = self.0.write();
+        let tree = &mut tree;
+        if let Some(node) = tree.nodes.get_mut(node) {
+            let style = node.style_mut();
+            if let Some(scale) = scale {
+                style.device_scale = Some(scale);
+            }
+            func(style);
             node.mark_dirty();
         }
     }
@@ -662,11 +930,21 @@ impl Tree {
 
 impl TraverseTree for Tree {}
 
-pub struct ChildIter<'a>(std::slice::Iter<'a, Id>);
+pub struct ChildIter<'a> {
+    guard: MappedRwLockReadGuard<'a, RawRwLock, Vec<Id>>,
+    position: usize,
+}
+
 impl Iterator for ChildIter<'_> {
     type Item = NodeId;
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().copied().map(NodeId::from)
+        if self.position < self.guard.len() {
+            let item = self.guard[self.position];
+            self.position += 1;
+            Some(NodeId::from(item))
+        } else {
+            None
+        }
     }
 }
 
@@ -674,15 +952,22 @@ impl TraversePartialTree for Tree {
     type ChildIter<'a> = ChildIter<'a>;
 
     fn child_ids(&self, node_id: NodeId) -> Self::ChildIter<'_> {
-        ChildIter(self.children.get(node_id.into()).unwrap().iter())
+        let guard = RwLockReadGuard::map(self.0.read(), |v| {
+            return v.children.get(node_id.into()).unwrap();
+        });
+        ChildIter { guard, position: 0 }
     }
 
     fn child_count(&self, node_id: NodeId) -> usize {
-        self.children.get(node_id.into()).map_or(0, Vec::len)
+        self.inner()
+            .children
+            .get(node_id.into())
+            .map_or(0, Vec::len)
     }
 
     fn get_child_id(&self, node_id: NodeId, index: usize) -> NodeId {
-        let children = self.children.get(node_id.into()).unwrap();
+        let tree = self.0.read();
+        let children = tree.children.get(node_id.into()).unwrap();
         let child: Id = children[index];
         <Id as Into<NodeId>>::into(child)
     }
@@ -690,13 +975,13 @@ impl TraversePartialTree for Tree {
 
 impl LayoutPartialTree for Tree {
     type CoreContainerStyle<'a>
-        = &'a Style
+        = StyleGuard<'a>
     where
         Self: 'a;
     type CustomIdent = Atom;
 
     fn get_core_container_style(&self, node_id: NodeId) -> Self::CoreContainerStyle<'_> {
-        &self.node_from_id(node_id).style
+        StyleGuard(self.style_from_id(node_id))
     }
 
     fn resolve_calc_value(&self, _val: *const (), _basis: f32) -> f32 {
@@ -707,8 +992,9 @@ impl LayoutPartialTree for Tree {
         // If this node is part of an inline-run we placed, preserve the manual location
         // and only merge the other layout fields. Consume pending entries as they are applied.
         let id: Id = node_id.into();
-        if let Some(pos) = self.inline_run_pending.iter().position(|&x| x == id) {
-            let node = self.node_from_id_mut(node_id);
+        let mut tree = self.inner_mut();
+        if let Some(pos) = tree.inline_run_pending.iter().position(|&x| x == id) {
+            let node = tree.node_from_id_mut(node_id);
             // preserve location, update size/metrics from the computed layout
             node.unrounded_layout.size = layout.size;
             node.unrounded_layout.content_size = layout.content_size;
@@ -716,13 +1002,13 @@ impl LayoutPartialTree for Tree {
             node.unrounded_layout.padding = layout.padding;
             node.unrounded_layout.margin = layout.margin;
             // consume this pending entry
-            self.inline_run_pending.remove(pos);
+            tree.inline_run_pending.remove(pos);
             // if that was the last pending entry, we can clear the nesting guard
-            if self.inline_run_pending.is_empty() {
-                self.inline_run_nesting = self.inline_run_nesting.saturating_sub(1);
+            if tree.inline_run_pending.is_empty() {
+                tree.inline_run_nesting = tree.inline_run_nesting.saturating_sub(1);
             }
         } else {
-            let node = self.node_from_id_mut(node_id);
+            let node = tree.node_from_id_mut(node_id);
             node.unrounded_layout = *layout;
         }
     }
@@ -755,76 +1041,83 @@ impl CacheTree for Tree {
         run_mode: taffy::RunMode,
         layout_output: taffy::LayoutOutput,
     ) {
-        self.node_from_id_mut(node_id).cache.store(
-            known_dimensions,
-            available_space,
-            run_mode,
-            layout_output,
-        )
+        let mut node = self.node_from_id_mut(node_id);
+        node.cache
+            .store(known_dimensions, available_space, run_mode, layout_output);
+        node.set_node_state(false);
     }
 
     #[inline]
     fn cache_clear(&mut self, node_id: NodeId) {
-        self.node_from_id_mut(node_id).cache.clear();
+        let mut node = self.node_from_id_mut(node_id);
+        node.cache.clear();
+        node.set_node_state(true);
     }
 }
 
 impl taffy::LayoutFlexboxContainer for Tree {
     type FlexboxContainerStyle<'a>
-        = &'a Style
+        = StyleGuard<'a>
     where
         Self: 'a;
 
     type FlexboxItemStyle<'a>
-        = &'a Style
+        = StyleGuard<'a>
     where
         Self: 'a;
 
     fn get_flexbox_container_style(&self, node_id: NodeId) -> Self::FlexboxContainerStyle<'_> {
-        &self.node_from_id(node_id).style
+        let style = self.style_from_id(node_id);
+        StyleGuard(style)
     }
 
     fn get_flexbox_child_style(&self, child_node_id: NodeId) -> Self::FlexboxItemStyle<'_> {
-        &self.node_from_id(child_node_id).style
+        let style = self.style_from_id(child_node_id);
+        StyleGuard(style)
     }
 }
 
 impl taffy::LayoutGridContainer for Tree {
     type GridContainerStyle<'a>
-        = &'a Style
+        = StyleGuard<'a>
     where
         Self: 'a;
 
     type GridItemStyle<'a>
-        = &'a Style
+        = StyleGuard<'a>
     where
         Self: 'a;
 
     fn get_grid_container_style(&self, node_id: NodeId) -> Self::GridContainerStyle<'_> {
-        &self.node_from_id(node_id).style
+        let style = self.style_from_id(node_id);
+        StyleGuard(style)
     }
 
     fn get_grid_child_style(&self, child_node_id: NodeId) -> Self::GridItemStyle<'_> {
-        &self.node_from_id(child_node_id).style
+        let style = self.style_from_id(child_node_id);
+        StyleGuard(style)
     }
 }
 
 impl LayoutBlockContainer for Tree {
     type BlockContainerStyle<'a>
-        = &'a Style
+        = StyleGuard<'a>
     where
         Self: 'a;
+
     type BlockItemStyle<'a>
-        = &'a Style
+        = StyleGuard<'a>
     where
         Self: 'a;
 
     fn get_block_container_style(&self, node_id: NodeId) -> Self::BlockContainerStyle<'_> {
-        &self.node_from_id(node_id).style
+        let style = self.style_from_id(node_id);
+        StyleGuard(style)
     }
 
     fn get_block_child_style(&self, child_node_id: NodeId) -> Self::BlockItemStyle<'_> {
-        &self.node_from_id(child_node_id).style
+        let style = self.style_from_id(child_node_id);
+        StyleGuard(style)
     }
 
     fn compute_block_child_layout(
@@ -835,19 +1128,24 @@ impl LayoutBlockContainer for Tree {
     ) -> LayoutOutput {
         compute_cached_layout(self, node_id, inputs, |tree, node_id, inputs| {
             let id: Id = node_id.into();
-            let has_children = tree
-                .children
-                .get(id)
-                .map(|children| !children.is_empty())
-                .unwrap_or(false);
-            let (display_mode, display, padding, border, size, is_text_container) = {
-                let node = tree.nodes.get(id).unwrap();
+            let (has_children, display_mode, display, padding, border, size, is_text_container) = {
+                let inner = tree.0.read();
+                let node = inner.nodes.get(id).unwrap();
+                let style = node.style();
+
+                let has_children = inner
+                    .children
+                    .get(id)
+                    .map(|children| !children.is_empty())
+                    .unwrap_or(false);
+
                 (
-                    node.style.display_mode(),
-                    node.style.get_display(),
-                    node.style.get_padding(),
-                    node.style.get_border(),
-                    node.style.size(),
+                    has_children,
+                    style.display_mode(),
+                    style.get_display(),
+                    style.get_padding(),
+                    style.get_border(),
+                    style.size(),
                     node.is_text_container(),
                 )
             };
@@ -861,7 +1159,8 @@ impl LayoutBlockContainer for Tree {
                         let mut computed_layout = if analysis.all_inline {
                             tree.compute_inline_layout(node_id, inputs, block_ctx)
                         } else if analysis.has_mixed_content {
-                            let children = tree.children.get(id).cloned().unwrap_or_default();
+                            let children =
+                                tree.inner().children.get(id).cloned().unwrap_or_default();
                             tree.compute_mixed_layout(id, children.as_slice(), inputs, block_ctx)
                         } else {
                             compute_block_layout(tree, node_id, inputs, block_ctx)
@@ -884,9 +1183,10 @@ impl LayoutBlockContainer for Tree {
                     (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
                     (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
                     (_, false) => {
+                        let tree = tree.inner();
                         let node = tree.nodes.get(id).unwrap();
                         let has_measure = node.has_measure;
-                        let style = &node.style;
+                        let style = node.style();
                         let style_size = style.get_size();
                         let node_data = tree.node_data.get(id).unwrap();
 
@@ -930,6 +1230,87 @@ impl LayoutBlockContainer for Tree {
                     }
                     tree.compute_inline_layout(node_id, inputs, block_ctx)
                 }
+                DisplayMode::ListItem => {
+                    // Quick path: ask the node to measure the marker (if it
+                    // provides a measure function), reserve that width plus a
+                    // gap for the marker, then measure/layout children with
+                    // the reduced available width. Finally add the reserved
+                    // width back to the computed size so the li includes the
+                    // marker.
+                    let lock = tree.0.read();
+                    let node = lock.nodes.get(id).unwrap();
+
+                    let marker_size = if node.has_measure {
+                        // Call the measure function; many native `Li`
+                        // implementations return the marker size when
+                        // measured.
+                        let node_data = lock.node_data.get(id).unwrap();
+                        node_data.measure(Size::NONE, inputs.available_space)
+                    } else {
+                        Size::ZERO
+                    };
+
+                    let marker_width = marker_size.width;
+                    let marker_gap = 10.0_f32; // match native gap used in Li
+                    let reserved = marker_width + marker_gap;
+
+                    // Adjust available width for children by subtracting
+                    // reserved marker space when definite.
+                    let adjusted_width = inputs
+                        .available_space
+                        .width
+                        .into_option()
+                        .map(|w| (w - reserved).max(0.0));
+
+                    let adjusted_available_width = adjusted_width
+                        .map(AvailableSpace::Definite)
+                        .unwrap_or(inputs.available_space.width);
+
+                    let adjusted_inputs = LayoutInput {
+                        known_dimensions: inputs.known_dimensions,
+                        available_space: Size {
+                            width: adjusted_available_width,
+                            height: inputs.available_space.height,
+                        },
+                        parent_size: inputs.parent_size,
+                        sizing_mode: inputs.sizing_mode,
+                        ..inputs
+                    };
+
+                    drop(lock);
+
+                    let mut computed_layout = if tree.analyze_subtree(id).all_inline {
+                        tree.compute_inline_layout(node_id, adjusted_inputs, block_ctx)
+                    } else if tree.analyze_subtree(id).has_mixed_content {
+                        let children = tree.inner().children.get(id).cloned().unwrap_or_default();
+                        tree.compute_mixed_layout(
+                            id,
+                            children.as_slice(),
+                            adjusted_inputs,
+                            block_ctx,
+                        )
+                    } else {
+                        compute_block_layout(tree, node_id, adjusted_inputs, block_ctx)
+                    };
+
+                    // Add reserved marker space back into reported size
+                    computed_layout.size.width += reserved;
+                    computed_layout.content_size.width += reserved;
+
+                    // Honor explicit size on text-containers like other blocks
+                    if is_text_container {
+                        if let Some(resolved_height) = size
+                            .height
+                            .maybe_resolve(inputs.parent_size.height, |_, _| 0.0)
+                        {
+                            if computed_layout.size.height < resolved_height {
+                                computed_layout.size.height = resolved_height;
+                            }
+                        }
+                    }
+
+                    computed_layout
+                }
             }
         })
     }
@@ -953,14 +1334,14 @@ impl PrintTree for Tree {
             return "IMAGE";
         }
 
+        let mode = node.style().display_mode();
         if node.is_anonymous {
-            if node.style.force_inline() {
+            if node.style().force_inline() {
                 return "ANONYMOUS-INLINE";
             }
 
-            let mode = node.style.display_mode();
             return match mode {
-                DisplayMode::None => match node.style.get_display() {
+                DisplayMode::None => match node.style().get_display() {
                     Display::Block => "ANONYMOUS-BLOCK",
                     Display::Flex => "ANONYMOUS-FLEX",
                     Display::Grid => "ANONYMOUS-GRID",
@@ -972,40 +1353,41 @@ impl PrintTree for Tree {
                     }
                     return "ANONYMOUS-INLINE";
                 }
-                DisplayMode::Box => match node.style.get_display() {
+                DisplayMode::Box => match node.style().get_display() {
                     Display::Block => "ANONYMOUS-INLINE-BLOCK",
                     Display::Flex => "ANONYMOUS-INLINE-FLEX",
                     Display::Grid => "ANONYMOUS-INLINE-GRID",
                     Display::None => "NONE",
                 },
+                DisplayMode::ListItem => "ANONYMOUS-LIST-ITEM",
             };
         }
 
-        if node.style.force_inline() {
+        if node.style().force_inline() {
             return "INLINE";
         }
 
-        let mode = node.style.display_mode();
         match mode {
-            DisplayMode::None => match node.style.get_display() {
+            DisplayMode::None => match node.style().get_display() {
                 Display::Block => "BLOCK",
                 Display::Flex => "FLEX",
                 Display::Grid => "GRID",
                 Display::None => "NONE",
             },
             DisplayMode::Inline => "INLINE",
-            DisplayMode::Box => match node.style.get_display() {
+            DisplayMode::Box => match node.style().get_display() {
                 Display::Block => "INLINE-BLOCK",
                 Display::Flex => "INLINE-FLEX",
                 Display::Grid => "INLINE-GRID",
                 Display::None => "NONE",
             },
+            DisplayMode::ListItem => "LIST-ITEM",
         }
     }
 
     #[inline(always)]
     fn get_final_layout(&self, node_id: NodeId) -> Layout {
-        self.nodes[node_id.into()].final_layout
+        self.nodes()[node_id.into()].final_layout
     }
 }
 

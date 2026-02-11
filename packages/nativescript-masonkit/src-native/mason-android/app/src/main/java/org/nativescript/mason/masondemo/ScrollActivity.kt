@@ -39,15 +39,15 @@ class ScrollActivity : AppCompatActivity() {
 
 
     rootLayout.configure {
-      it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+   //   it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
     }
 
     val sv = mason.createScrollView(this)
     sv.configure {
     //  it.overflowX = Overflow.Scroll
-     // it.overflowY = Overflow.Scroll
-        it.overflow = Point(Overflow.Scroll, Overflow.Scroll)
-      it.size = Size(Dimension.Percent(1f), Dimension.Percent(1f))
+      it.overflowY = Overflow.Scroll
+   //     it.overflow = Point(Overflow.Scroll, Overflow.Scroll)
+      it.size = Size(Dimension.Percent(1f), Dimension.Points(400f))
     }
     sv.setBackgroundColor(Color.RED)
 

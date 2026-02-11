@@ -264,6 +264,20 @@ public class MasonNode: NSObject {
     mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
   }
   
+  internal init(listItem doc : NSCMason) {
+    mason = doc
+    nativePtr = mason_node_new_list_item_node(mason.nativePtr)
+    super.init()
+  }
+  
+  internal init(listItem doc : NSCMason, measureFunc function: @escaping MeasureFunc) {
+    measureFunc = function
+    mason = doc
+    nativePtr = mason_node_new_list_item_node(mason.nativePtr)
+    super.init()
+    mason_node_set_context(mason.nativePtr, nativePtr, Unmanaged.passRetained(self).toOpaque(), measure)
+  }
+  
   deinit {
     guard let nativePtr else { return }
     mason_node_destroy(nativePtr)

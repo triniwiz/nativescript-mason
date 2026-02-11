@@ -43,6 +43,8 @@ public class MasonLayout: NSObject, Codable {
   public var paddingBottom:Float {padding.bottom}
   public var paddingLeft:Float {padding.left}
   
+  public var sizeIsEmpty: Bool { width == 0 && height == 0 }
+  
   
   public var contentSizeIsEmpty: Bool { contentSize.isEmpty() }
   public var contentSizeWidth:Float {contentSize.width}

@@ -69,15 +69,15 @@ enum class VerticalAlign(val type: Byte) {
         }
       }
 
-      return when (type.toInt()) {
-        0 -> Baseline
-        1 -> Top
-        2 -> TextTop
-        3 -> Middle
-        4 -> Bottom
-        5 -> TextBottom
-        6 -> Sub
-        7 -> Super
+      return when (type) {
+        0.toByte() -> Baseline
+        1.toByte() -> Top
+        2.toByte() -> TextTop
+        3.toByte() -> Middle
+        4.toByte() -> Bottom
+        5.toByte() -> TextBottom
+        6.toByte() -> Sub
+        7.toByte() -> Super
         else -> null
       }
     }
