@@ -1,16 +1,16 @@
 use android_logger::Config;
 use itertools::izip;
 use jni::objects::{GlobalRef, JClass, JFieldID, JMethodID, JObject};
+use jni::signature::ReturnType;
 use jni::sys::{jfloat, jint, jlong};
 use jni::JavaVM;
 use jni::{JNIEnv, NativeMethod};
 use log::LevelFilter;
-use once_cell::sync::OnceCell;
-use std::ffi::c_void;
-
 #[cfg(target_os = "android")]
 use mason_core::{JVMCache, JVM, JVM_CACHE};
 use mason_core::{Mason, NodeRef};
+use once_cell::sync::OnceCell;
+use std::ffi::c_void;
 
 mod node;
 pub mod style;
@@ -118,12 +118,13 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                 "nativeInitWithCapacity",
                 "nativeDestroy",
                 "nativeSetDeviceScale",
+                "nativeGetBuffer",
             ];
 
             let mason_signatures = if ret >= ANDROID_O {
-                ["()J", "(J)V", "(I)J", "(J)V", "(JF)V"]
+                ["()J", "(J)V", "(I)J", "(J)V", "(JF)V", "(JI)I"]
             } else {
-                ["!()J", "!(J)V", "!(I)J", "!(J)V", "!(JF)V"]
+                ["!()J", "!(J)V", "!(I)J", "!(J)V", "!(JF)V", "!(JI)I"]
             };
 
             let mason_methods = if ret >= ANDROID_O {
@@ -133,6 +134,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     MasonNativeInitWithCapacity as *mut c_void,
                     MasonNativeDestroy as *mut c_void,
                     MasonNativeSetDeviceScale as *mut c_void,
+                    MasonNativeGetBuffer as *mut c_void,
                 ]
             } else {
                 [
@@ -141,6 +143,7 @@ pub unsafe extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *const c_void) -
                     MasonNativeInitWithCapacityNormal as *mut c_void,
                     MasonNativeDestroy as *mut c_void,
                     MasonNativeSetDeviceScaleNormal as *mut c_void,
+                    MasonNativeGetBuffer as *mut c_void,
                 ]
             };
 
@@ -582,6 +585,66 @@ pub extern "system" fn MasonNativeInitWithCapacityNormal(
     capacity: jint,
 ) -> jlong {
     Box::into_raw(Box::new(Mason::with_capacity(capacity as usize))) as jlong
+}
+
+#[no_mangle]
+pub extern "system" fn MasonNativeGetBuffer(
+    mut env: JNIEnv,
+    _: JClass,
+    mason: jlong,
+    handle: jint,
+) -> jint {
+    if mason == 0 {
+        return -1;
+    }
+
+    match handle.try_into() {
+        Ok(handle) => {
+            unsafe {
+                let mut mason = &mut *(mason as *mut Mason);
+                let buffer = mason.buffer_from(handle).unwrap_or(-1);
+
+                // try to create the buffer if it's valid
+                if buffer == -1 {
+                    if let Some((ptr, len)) = mason.buffer_raw_mut_from(handle) {
+                        return match env.new_direct_byte_buffer(ptr as _, len) {
+                            Ok(buffer) => match mason_core::JVM_CACHE.get() {
+                                Some(cache) => {
+                                    let manager = unsafe {
+                                        JClass::from_raw(cache.object_manager_clazz.as_raw())
+                                    };
+                                    let result = unsafe {
+                                        env.call_static_method_unchecked(
+                                            manager,
+                                            cache.object_manager_add_id,
+                                            ReturnType::Primitive(jni::signature::Primitive::Int),
+                                            &[jni::sys::jvalue {
+                                                l: buffer.into_raw(),
+                                            }],
+                                        )
+                                    };
+
+                                    return match result {
+                                        Ok(result) => {
+                                            let ret = result.i().unwrap_or(-1);
+                                            mason.set_handle_buffer(handle, ret);
+                                             ret
+                                        }
+                                        Err(_) => -1,
+                                    }
+                                }
+                                None => -1,
+                            },
+                            Err(_) => -1,
+                        }
+                    }
+                }
+
+                buffer
+            }
+        }
+        Err(_) => return -1,
+    }
 }
 
 fn native_clear(taffy: jlong) {

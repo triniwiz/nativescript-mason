@@ -1,32 +1,54 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
+import android.graphics.Typeface
+import java.util.Collections
 import java.util.concurrent.Executors
 
 val familyNamePattern = Regex("""\d+px\s+(["']?)([\w\s]+)\1$""")
 
 class FontFaceSet {
-  private val fontCache = mutableSetOf<FontFace>()
-  private var executor = Executors.newSingleThreadExecutor()
+  private val fontCache: MutableSet<FontFace> by lazy {
+    val set = mutableSetOf<FontFace>()
+    val font = FontFace("sans-serif")
+    font.font = Typeface.SANS_SERIF
+    font.status = FontFace.FontFaceStatus.loaded
+    set.add(font)
+    Collections.synchronizedSet(set)
+  }
+  private val executor = Executors.newSingleThreadExecutor()
 
   enum class FontFaceSetStatus {
     loading,
     loaded
   }
 
+  @Volatile
   var status = FontFaceSetStatus.loading
-    private set
+    internal set
 
   var onStatus: ((FontFaceSetStatus) -> Unit)? = null
 
   val iter: Iterator<FontFace>
     get() {
-      return fontCache.iterator()
+      synchronized(fontCache) {
+        return fontCache.toList().iterator()
+      }
     }
+
+  operator fun get(family: String): FontFace {
+    return fontCache.first { it.fontFamily == family }
+  }
+
+  fun getOrNull(family: String): FontFace? {
+    return fontCache.find { it.fontFamily == family }
+  }
 
   val array: Array<FontFace>
     get() {
-      return fontCache.toTypedArray()
+      synchronized(fontCache) {
+        return fontCache.toTypedArray()
+      }
     }
 
   fun add(font: FontFace) {
@@ -52,8 +74,9 @@ class FontFaceSet {
   ): Boolean {
     val matchResult = familyNamePattern.find(font)
     return matchResult?.let { match ->
-      fontCache.find { font ->
-        font.fontFamily == match.groups[2]?.value
+      val familyName = match.groups[2]?.value
+      synchronized(fontCache) {
+        fontCache.find { it.fontFamily == familyName }
       }?.let {
         it.font != null
       } ?: false
@@ -68,22 +91,19 @@ class FontFaceSet {
   ) {
     executor.execute {
       status = FontFaceSetStatus.loading
-      onStatus?.let {
-        it(FontFaceSetStatus.loading)
-      }
+      onStatus?.invoke(FontFaceSetStatus.loading)
       val matchResult = familyNamePattern.find(font)
       if (matchResult != null) {
-        val first = fontCache.find {
-          it.fontFamily == matchResult.groups[2]?.value
+        val familyName = matchResult.groups[2]?.value
+        val first = synchronized(fontCache) {
+          fontCache.find { it.fontFamily == familyName }
         }
 
         if (first != null) {
           first.loadSync(context) {}
           if (first.status == FontFace.FontFaceStatus.loaded) {
             status = FontFaceSetStatus.loaded
-            onStatus?.let {
-              it(FontFaceSetStatus.loaded)
-            }
+            onStatus?.invoke(FontFaceSetStatus.loaded)
           }
           callback(listOf(first), null)
         } else {

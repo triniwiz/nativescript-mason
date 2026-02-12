@@ -28,6 +28,10 @@ impl StyleHandle {
     pub const fn new(handle: Handle) -> Self {
         Self(handle as u32)
     }
+
+    pub const fn from_raw(id: u32) -> Self {
+        Self(id)
+    }
 }
 
 impl StyleHandle {
@@ -208,10 +212,22 @@ impl StyleArena {
         self.buffers[handle.index()].buffer()
     }
 
+    #[cfg(target_vendor = "apple")]
+    #[track_caller]
+    pub fn buffer_opt(&self, handle: StyleHandle) -> Option<objc2::rc::Retained<NSMutableData>> {
+        self.buffers.get(handle.index()).map(|b| b.buffer())
+    }
+
     #[cfg(target_os = "android")]
     #[track_caller]
     pub fn buffer(&self, handle: StyleHandle) -> jni::sys::jint {
         self.buffers[handle.index()].buffer()
+    }
+
+    #[cfg(target_os = "android")]
+    #[track_caller]
+    pub fn buffer_opt(&self, handle: StyleHandle) -> Option<jni::sys::jint> {
+        self.buffers.get(handle.index()).map(|b| b.buffer())
     }
 
     /// Get a handle to the default style (shared by all unstyled nodes)
@@ -318,9 +334,19 @@ impl StyleArena {
         self.buffers[handle.index()].data.as_ptr()
     }
 
+    pub fn get_ptr_opt(&self, handle: StyleHandle) -> Option<*const u8> {
+        self.buffers.get(handle.index()).map(|b| b.data.as_ptr())
+    }
+
     /// Get mutable pointer (caller must ensure exclusive via prepare_mut)
     pub fn get_ptr_mut(&mut self, handle: StyleHandle) -> *mut u8 {
         self.buffers[handle.index()].data.as_mut_ptr()
+    }
+
+    pub fn get_ptr_mut_opt(&mut self, handle: StyleHandle) -> Option<*mut u8> {
+        self.buffers
+            .get_mut(handle.index())
+            .map(|b| b.data.as_mut_ptr())
     }
 
     /// Get read-only reference to buffer data
@@ -372,6 +398,16 @@ impl StyleArena {
 
         if buf.ref_count == 0 {
             self.free_list.push(idx as u32);
+        }
+    }
+
+    #[cfg(target_os = "android")]
+    pub(crate) fn set_handle_buffer(&mut self, handle: StyleHandle, buffer_id: i32) {
+        if let Some(data) = self.buffers.get_mut(handle.index()) {
+            if data.buffer != -1 {
+                return;
+            }
+            data.buffer = buffer_id;
         }
     }
 

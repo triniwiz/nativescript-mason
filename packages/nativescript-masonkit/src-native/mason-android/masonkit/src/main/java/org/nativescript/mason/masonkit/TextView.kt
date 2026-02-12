@@ -133,7 +133,6 @@ class TextView @JvmOverloads constructor(
 
       when (type) {
         TextType.Span -> {
-          style.font = FontFace("sans-serif")
           style.display = Display.Inline
         }
 
@@ -144,7 +143,6 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.H1 -> {
-          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 32
@@ -152,7 +150,6 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.H2 -> {
-          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 24
@@ -160,7 +157,6 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.H3 -> {
-          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 18
@@ -168,7 +164,6 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.H4 -> {
-          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = Constants.DEFAULT_FONT_SIZE
@@ -176,7 +171,6 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.H5 -> {
-          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 13
@@ -184,7 +178,6 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.H6 -> {
-          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           fontFace.weight = FontFace.NSCFontWeight.Bold
           fontSize = 10
@@ -192,16 +185,13 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.Li -> {
-          style.font = FontFace("sans-serif")
         }
 
         TextType.Blockquote -> {
-          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
         }
 
         TextType.B, TextType.Strong -> {
-          style.font = FontFace("sans-serif")
           fontFace.weight = FontFace.NSCFontWeight.Bold
           style.display = Display.Inline
         }
@@ -217,13 +207,11 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.P -> {
-          style.font = FontFace("sans-serif")
           node.style.display = Display.Block
           node.style.margin = margin(16f, 16f)
         }
 
         TextType.A -> {
-          style.font = FontFace("sans-serif")
           node.style.display = Display.Inline
           node.style.decorationLine = Styles.DecorationLine.Underline
 

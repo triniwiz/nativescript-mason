@@ -1,13 +1,14 @@
 package org.nativescript.mason.masonkit
 
 import android.content.Context
-import android.os.Looper
-import android.util.Log
+import android.content.res.Resources
+import android.text.TextPaint
 import com.google.gson.Gson
 import dalvik.annotation.optimization.CriticalNative
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
 import java.lang.ref.WeakReference
+import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.WeakHashMap
 
@@ -29,8 +30,47 @@ class Mason {
   private val nodeEventListeners =
     mutableMapOf<Node, MutableMap<String, MutableMap<UUID, (Event) -> Unit>>>()
 
-  var scale: Float = 1f
+  var scale: Float = Resources.getSystem().displayMetrics.density
     private set
+
+  init {
+    // set default style font metrics
+    val buffer = ObjectManager.shared[nativeGetBuffer(
+      nativePtr, 0 // default handle
+    )] as? ByteBuffer
+
+    buffer?.let {
+      FontFaceSet.instance.getOrNull("sans-serif")?.let { font ->
+        val paint = TextPaint().apply {
+          textSize =
+            Constants.DEFAULT_FONT_SIZE * scale
+          this.typeface = font.font
+        }
+
+        val fm = paint.fontMetrics
+
+        // Android uses negative ascent, positive descent
+        val ascent = -fm.ascent
+        val descent = fm.descent
+        val leading = fm.leading
+
+        val xBounds = android.graphics.Rect()
+
+        val capBounds = android.graphics.Rect()
+
+        // Android doesn't directly expose x-height or cap-height
+        // We approximate them based on the font
+        val xHeight = Style.getXHeight(paint, xBounds) ?: (ascent * 0.5f)
+        val capHeight = Style.getCapHeight(paint, capBounds) ?: (ascent * 0.7f)
+
+        it.putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
+        it.putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
+        it.putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight)
+        it.putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
+        it.putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
+      }
+    }
+  }
 
   fun drain() {
     gc.drain()
@@ -411,6 +451,9 @@ class Mason {
 
     @JvmStatic
     private external fun nativePrintArenaStats(mason: Long)
+
+    @JvmStatic
+    private external fun nativeGetBuffer(mason: Long, handle: Int): Int
 
   }
 }

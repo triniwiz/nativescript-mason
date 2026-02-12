@@ -97,7 +97,6 @@ class Button @JvmOverloads constructor(
       style.syncFontMetrics()
     }
 
-    style.font = FontFace("sans-serif")
     paint.textSize = fontSize
 
     minWidth = 0

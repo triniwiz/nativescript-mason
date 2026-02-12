@@ -4,7 +4,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.text.TextPaint
-import android.util.Log
 import android.view.View
 import androidx.core.graphics.withClip
 import dalvik.annotation.optimization.FastNative
@@ -392,8 +391,27 @@ class Style internal constructor(internal var node: Node) {
   internal var isTextValueInitialized: Boolean = false
   internal var gridState = GridState()
 
+  internal var fontDirty = false
+
   var font: FontFace = FontFace("sans-serif").apply {
     owner = this@Style
+  }
+    set(value) {
+      val old = field
+      if (old !== value) {
+        field = value
+        value.owner = this
+        invalidateResolvedFontFace()
+      }
+    }
+
+  // Cached resolved font face - invalidated when font properties change
+  private var _cachedResolvedFontFace: FontFace? = null
+  private var _resolvedFontFaceDirty = true
+
+  private fun invalidateResolvedFontFace() {
+    _resolvedFontFaceDirty = true
+    _cachedResolvedFontFace = null
   }
 
   data class FontMetrics(
@@ -429,7 +447,6 @@ class Style internal constructor(internal var node: Node) {
           defaultPaint = TextPaint()
         }
         defaultPaint?.apply {
-          Mason.shared.scale
           textSize =
             Constants.DEFAULT_FONT_SIZE * ((node.view as? View)?.resources?.displayMetrics?.density
               ?: Mason.shared.scale)
@@ -449,6 +466,11 @@ class Style internal constructor(internal var node: Node) {
     return FontMetrics.from(this)
   }
 
+  private val xBounds = android.graphics.Rect()
+
+  private val capBounds = android.graphics.Rect()
+
+
   /**
    * Update font metrics on a Mason node when font changes
    */
@@ -463,8 +485,8 @@ class Style internal constructor(internal var node: Node) {
 
     // Android doesn't directly expose x-height or cap-height
     // We approximate them based on the font
-    val xHeight = getXHeight(paint) ?: (ascent * 0.5f)
-    val capHeight = getCapHeight(paint) ?: (ascent * 0.7f)
+    val xHeight = getXHeight(paint, xBounds) ?: (ascent * 0.5f)
+    val capHeight = getCapHeight(paint, capBounds) ?: (ascent * 0.7f)
     prepareMut()
     values.putFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
     values.putFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
@@ -492,26 +514,6 @@ class Style internal constructor(internal var node: Node) {
     values.putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7f)
     values.putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, 0f)
     values.putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10f)
-  }
-
-  private val xBounds = android.graphics.Rect()
-
-  /**
-   * Get x-height by measuring lowercase 'x'
-   */
-  internal fun getXHeight(paint: Paint): Float? {
-    paint.getTextBounds("x", 0, 1, xBounds)
-    return if (xBounds.height() > 0) xBounds.height().toFloat() else null
-  }
-
-  private val capBounds = android.graphics.Rect()
-
-  /**
-   * Get cap-height by measuring uppercase 'H'
-   */
-  internal fun getCapHeight(paint: Paint): Float? {
-    paint.getTextBounds("H", 0, 1, capBounds)
-    return if (capBounds.height() > 0) capBounds.height().toFloat() else null
   }
 
   private val mPlaceholder by lazy {
@@ -1056,6 +1058,7 @@ class Style internal constructor(internal var node: Node) {
         textValues.putInt(TextStyleKeys.FONT_WEIGHT, value.weight)
         textValues.put(TextStyleKeys.FONT_WEIGHT_STATE, StyleState.SET)
         font.weight = value
+        invalidateResolvedFontFace()
         notifyTextStyleChanged(TextStyleChangeMask.FONT_WEIGHT)
       }
     }
@@ -1067,6 +1070,7 @@ class Style internal constructor(internal var node: Node) {
         textValues.put(TextStyleKeys.FONT_STYLE_TYPE, value.style.value.toByte())
         textValues.put(TextStyleKeys.FONT_STYLE_STATE, StyleState.SET)
         font.style = value
+        invalidateResolvedFontFace()
         notifyTextStyleChanged(TextStyleChangeMask.FONT_STYLE)
       }
     }
@@ -3089,16 +3093,23 @@ class Style internal constructor(internal var node: Node) {
       return null
     }
 
-  // Store the resolved FontFace - lazily computed
+  // Store the resolved FontFace - cached and invalidated when font properties change
   internal val resolvedFontFace: FontFace
     get() {
+      if (!_resolvedFontFaceDirty && _cachedResolvedFontFace != null) {
+        return _cachedResolvedFontFace!!
+      }
+
       val familyState = textValues.get(TextStyleKeys.FONT_FAMILY_STATE)
       val weightState = textValues.get(TextStyleKeys.FONT_WEIGHT_STATE)
       val styleState = textValues.get(TextStyleKeys.FONT_STYLE_STATE)
 
       // If all font properties are inherited, use parent's font face
       if (familyState == StyleState.INHERIT && weightState == StyleState.INHERIT && styleState == StyleState.INHERIT) {
-        return parentStyleWithTextValues?.resolvedFontFace ?: font
+        val result = parentStyleWithTextValues?.resolvedFontFace ?: font
+        _cachedResolvedFontFace = result
+        _resolvedFontFaceDirty = false
+        return result
       }
 
       // If family is inherited but weight/style are set, need to create a new FontFace
@@ -3123,6 +3134,8 @@ class Style internal constructor(internal var node: Node) {
 
       // If everything matches current font, return it
       if (font.fontFamily == baseFamily && font.weight == resolvedWeight && font.style == resolvedStyle) {
+        _cachedResolvedFontFace = font
+        _resolvedFontFaceDirty = false
         return font
       }
 
@@ -3133,6 +3146,15 @@ class Style internal constructor(internal var node: Node) {
         owner = this@Style
       }
 
+      // Eagerly load so resolvedFont.font is non-null (cheap with Typeface cache)
+      if (resolvedFont.font == null) {
+        (node.view as? View)?.let { view ->
+          resolvedFont.loadSync(view.context) {}
+        }
+      }
+
+      _cachedResolvedFontFace = resolvedFont
+      _resolvedFontFaceDirty = false
       return resolvedFont
     }
 
@@ -3404,6 +3426,22 @@ class Style internal constructor(internal var node: Node) {
   companion object {
     init {
       Mason.initLib()
+    }
+
+    /**
+     * Get x-height by measuring lowercase 'x'
+     */
+    internal fun getXHeight(paint: Paint, xBounds: android.graphics.Rect): Float? {
+      paint.getTextBounds("x", 0, 1, xBounds)
+      return if (xBounds.height() > 0) xBounds.height().toFloat() else null
+    }
+
+    /**
+     * Get cap-height by measuring uppercase 'H'
+     */
+    internal fun getCapHeight(paint: Paint, capBounds: android.graphics.Rect): Float? {
+      paint.getTextBounds("H", 0, 1, capBounds)
+      return if (capBounds.height() > 0) capBounds.height().toFloat() else null
     }
 
     internal fun applyClip(canvas: Canvas, clip: BackgroundClip, node: Node) {

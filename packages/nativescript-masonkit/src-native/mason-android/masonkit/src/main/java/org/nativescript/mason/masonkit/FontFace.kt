@@ -10,6 +10,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
 import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.regex.Matcher
 import java.util.regex.Pattern
@@ -27,7 +28,7 @@ val FONT_FACE_PATTERN: Pattern = Pattern.compile("@font-face\\s*\\{([^}]+)\\}")
 class FontFace {
   internal var owner: Style? = null
   var font: Typeface? = null
-    private set
+    internal set
 
   var fontFamily: String
     private set
@@ -59,6 +60,28 @@ class FontFace {
     @JvmStatic
     private val executors = Executors.newSingleThreadExecutor()
 
+    private data class TypefaceCacheKey(
+      val family: String,
+      val source: String?,
+      val weight: Int,
+      val italic: Boolean
+    )
+
+    @JvmStatic
+    private val typefaceCache = ConcurrentHashMap<TypefaceCacheKey, Typeface>()
+
+    @JvmStatic
+    internal fun getCachedTypeface(
+      family: String,
+      source: String?,
+      weight: Int,
+      italic: Boolean,
+      provider: () -> Typeface
+    ): Typeface {
+      val key = TypefaceCacheKey(family, source, weight, italic)
+      return typefaceCache.getOrPut(key, provider)
+    }
+
     @JvmStatic
     fun clearFontCache(context: Context) {
       executors.execute {
@@ -66,6 +89,7 @@ class FontFace {
         if (fonts.exists()) {
           fonts.deleteRecursively()
         }
+        typefaceCache.clear()
       }
     }
 
@@ -390,6 +414,11 @@ class FontFace {
   ) {
     fontFamily = family
     fontDescriptors = NSCFontDescriptors(family)
+    FontFaceSet.instance.getOrNull(family)?.let {
+      if (fontDescriptors.style == NSCFontStyle.Normal && fontDescriptors.weight == NSCFontWeight.Normal) {
+        font = it.font
+      }
+    }
   }
 
   constructor(
@@ -424,6 +453,23 @@ class FontFace {
     fontDescriptors = descriptors ?: NSCFontDescriptors(family)
   }
 
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is FontFace) return false
+    return fontFamily == other.fontFamily &&
+      localOrRemoteSource == other.localOrRemoteSource &&
+      fontDescriptors.weight == other.fontDescriptors.weight &&
+      fontDescriptors.style.style == other.fontDescriptors.style.style
+  }
+
+  override fun hashCode(): Int {
+    var result = fontFamily.hashCode()
+    result = 31 * result + (localOrRemoteSource?.hashCode() ?: 0)
+    result = 31 * result + fontDescriptors.weight.hashCode()
+    result = 31 * result + fontDescriptors.style.style.hashCode()
+    return result
+  }
 
   interface Callback {
     fun onSuccess()
@@ -463,13 +509,15 @@ class FontFace {
   internal fun updateFontWeight(previous: NSCFontWeight) {
     if (fontDescriptors.weight != previous) {
       font?.let {
-        font = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-          Typeface.create(it, fontDescriptors.weight.weight, fontDescriptors.weight.isBold)
-        } else {
-          Typeface.create(
-            it,
-            fontDescriptors.weight.getStyle(fontDescriptors.style == NSCFontStyle.Italic)
-          )
+        val isItalic = fontDescriptors.style == NSCFontStyle.Italic
+        font = getCachedTypeface(
+          fontFamily, localOrRemoteSource, fontDescriptors.weight.weight, isItalic
+        ) {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            Typeface.create(it, fontDescriptors.weight.weight, fontDescriptors.weight.isBold)
+          } else {
+            Typeface.create(it, fontDescriptors.weight.getStyle(isItalic))
+          }
         }
         owner?.syncFontMetrics()
       }
@@ -486,19 +534,16 @@ class FontFace {
   internal fun updateFontStyle(previous: NSCFontStyle) {
     if (fontDescriptors.style != previous) {
       font?.let {
-        font = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-          Typeface.create(
-            it,
-            fontDescriptors.weight.weight,
-            fontDescriptors.style == NSCFontStyle.Italic,
-          )
-        } else {
-          Typeface.create(
-            it,
-            fontDescriptors.weight.getStyle(fontDescriptors.style == NSCFontStyle.Italic)
-          )
+        val isItalic = fontDescriptors.style == NSCFontStyle.Italic
+        font = getCachedTypeface(
+          fontFamily, localOrRemoteSource, fontDescriptors.weight.weight, isItalic
+        ) {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            Typeface.create(it, fontDescriptors.weight.weight, isItalic)
+          } else {
+            Typeface.create(it, fontDescriptors.weight.getStyle(isItalic))
+          }
         }
-
         owner?.syncFontMetrics()
       }
     }
@@ -578,31 +623,58 @@ class FontFace {
 
   private fun cacheData(context: Context, source: String): Typeface {
     val nsFonts = File(context.filesDir, "ns_fonts")
-    nsFonts.mkdir()
+    nsFonts.mkdirs()
     val uri = source.toUri()
     if (uri.lastPathSegment == null) {
       throw Error("Invalid source $source")
     }
     val path = File(nsFonts, uri.lastPathSegment!!)
+
+    // Fast path: file already cached
     if (path.exists() && path.length() > 0) {
       val ret = handleFontPath(path)
       fontPath = path.absolutePath
       return ret
     }
-    val url = URL(source)
-    val fs = FileOutputStream(path)
-    url.openStream().use { input ->
-      fs.use { output ->
-        input.copyTo(output)
+
+    // Download to a temp file to avoid partial-write corruption
+    val tempFile = File.createTempFile("nsfont_", ".tmp", nsFonts)
+    try {
+      val url = URL(source)
+      url.openStream().use { input ->
+        FileOutputStream(tempFile).use { output ->
+          input.copyTo(output)
+        }
       }
+      // Atomic rename; if another thread already placed the file, that's fine
+      if (!tempFile.renameTo(path)) {
+        tempFile.delete()
+        if (!path.exists() || path.length() == 0L) {
+          throw Error("Failed to cache font from $source")
+        }
+      }
+    } catch (e: Exception) {
+      tempFile.delete()
+      throw e
     }
+
     val ret = handleFontPath(path)
     fontPath = path.absolutePath
     return ret
   }
 
   private fun handleFontPath(file: File): Typeface {
-    return Typeface.createFromFile(file)
+    val isItalic = fontDescriptors.style == NSCFontStyle.Italic
+    return getCachedTypeface(
+      fontFamily, file.absolutePath, fontDescriptors.weight.weight, isItalic
+    ) {
+      val base = Typeface.createFromFile(file)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        Typeface.create(base, fontDescriptors.weight.weight, isItalic)
+      } else {
+        Typeface.create(base, fontDescriptors.weight.getStyle(isItalic))
+      }
+    }
   }
 
   fun load(context: Context, callback: (error: String?) -> Unit) {
@@ -611,7 +683,7 @@ class FontFace {
       return
     }
     status = FontFaceStatus.loading
-    executor.execute {
+    executors.execute {
       loadSync(context, callback)
     }
   }
@@ -644,47 +716,39 @@ class FontFace {
         if (fontData == null && localOrRemoteSource == null) {
           val family = genericFontFamilies[fontFamily]
           if (family != null) {
-            val style = if (fontDescriptors.weight.isBold) {
-              if (fontDescriptors.style == NSCFontStyle.Italic) {
-                Typeface.BOLD_ITALIC
+            val isItalic = fontDescriptors.style == NSCFontStyle.Italic
+            val resolvedFont = getCachedTypeface(
+              fontFamily, null, fontDescriptors.weight.weight, isItalic
+            ) {
+              val style = if (fontDescriptors.weight.isBold) {
+                if (isItalic) Typeface.BOLD_ITALIC else Typeface.BOLD
               } else {
-                Typeface.BOLD
-              }
-            } else {
-              fontDescriptors.style.fontStyle
-            }
-
-            var font = when (fontFamily) {
-              "serif" -> {
-                Typeface.SERIF
+                fontDescriptors.style.fontStyle
               }
 
-              "san-serif" -> {
-                Typeface.SANS_SERIF
+              var base = when (fontFamily) {
+                "serif" -> Typeface.SERIF
+                "sans-serif" -> Typeface.SANS_SERIF
+                "monospace" -> Typeface.MONOSPACE
+                else -> Typeface.create(family, style)
               }
 
-              "monospace" -> {
-                Typeface.MONOSPACE
+              if (fontDescriptors.weight != NSCFontWeight.Normal) {
+                base = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                  Typeface.create(
+                    base,
+                    fontDescriptors.weight.weight,
+                    fontDescriptors.weight.isBold
+                  )
+                } else {
+                  Typeface.create(base, fontDescriptors.weight.getStyle(isItalic))
+                }
               }
-
-              else -> {
-                Typeface.create(family, style)
-              }
-            }
-
-            if (fontDescriptors.weight != NSCFontWeight.Normal) {
-              font = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                Typeface.create(font, fontDescriptors.weight.weight, fontDescriptors.weight.isBold)
-              } else {
-                Typeface.create(
-                  font,
-                  fontDescriptors.weight.getStyle(fontDescriptors.style == NSCFontStyle.Italic)
-                )
-              }
+              base
             }
 
             status = FontFaceStatus.loaded
-            this.font = font
+            this.font = resolvedFont
 
             owner?.syncFontMetrics()
             callback(null)
@@ -703,6 +767,26 @@ class FontFace {
         owner?.syncFontMetrics()
         callback(null)
         return
+      } catch (e: Exception) {
+        status = FontFaceStatus.error
+        callback(e.localizedMessage)
+        return
+      }
+    }
+
+    // Handle local file source (not http)
+    if (localOrRemoteSource != null) {
+      try {
+        val file = File(localOrRemoteSource!!)
+        if (file.exists()) {
+          val loaded = handleFontPath(file)
+          this.font = loaded
+          fontPath = file.absolutePath
+          status = FontFaceStatus.loaded
+          owner?.syncFontMetrics()
+          callback(null)
+          return
+        }
       } catch (e: Exception) {
         status = FontFaceStatus.error
         callback(e.localizedMessage)

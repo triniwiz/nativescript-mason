@@ -1,4 +1,7 @@
 pub use crate::tree::{Id, Tree};
+#[cfg(target_vendor = "apple")]
+use objc2_foundation::NSMutableData;
+
 use parking_lot::lock_api::MappedRwLockReadGuard;
 use parking_lot::{RawRwLock, RwLockReadGuard};
 use std::ffi::{c_float, c_longlong, c_void};
@@ -21,7 +24,7 @@ mod node;
 use crate::node::AppleNode;
 
 pub use crate::node::InlineSegment;
-use crate::style::arena::ArenaStats;
+use crate::style::arena::{ArenaStats, StyleHandle, STYLE_BUFFER_SIZE};
 pub use crate::style::Style;
 pub use node::NodeRef;
 
@@ -595,11 +598,47 @@ impl Mason {
         self.0.child_at(node, index)
     }
 
-    pub fn style(&mut self, node: Id) -> Option<MappedRwLockReadGuard<'_, RawRwLock, Style>> {
+    pub fn style(&self, node: Id) -> Option<MappedRwLockReadGuard<'_, RawRwLock, Style>> {
         RwLockReadGuard::try_map(self.0 .0.read(), |data| {
             data.nodes.get(node).map(|node| node.style())
         })
         .ok()
+    }
+
+    pub fn buffer_raw_from(&self, handle: u32) -> Option<(*const u8, usize)> {
+        let reader = self.0 .0.read();
+        reader
+            .style_arena
+            .get_ptr_opt(StyleHandle::from_raw(handle))
+            .map(|buffer| (buffer, STYLE_BUFFER_SIZE))
+    }
+
+    pub fn buffer_raw_mut_from(&mut self, handle: u32) -> Option<(*mut u8, usize)> {
+        let mut reader = self.0 .0.write();
+        reader
+            .style_arena
+            .get_ptr_mut_opt(StyleHandle::from_raw(handle))
+            .map(|buffer| (buffer, STYLE_BUFFER_SIZE))
+    }
+
+    #[cfg(target_vendor = "apple")]
+    pub fn buffer_from(&self, handle: u32) -> Option<objc2::rc::Retained<NSMutableData>> {
+        let reader = self.0 .0.read();
+        reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn buffer_from(&self, handle: u32) -> Option<jni::sys::jint> {
+        let reader = self.0 .0.read();
+        reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn set_handle_buffer(&mut self, handle: u32, buffer_id: i32) {
+        let mut reader = self.0 .0.write();
+        reader
+            .style_arena
+            .set_handle_buffer(StyleHandle::from_raw(handle), buffer_id);
     }
 
     pub fn with_style<F>(&self, node: Id, func: F)
