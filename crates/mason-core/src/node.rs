@@ -6,7 +6,7 @@ use std::fmt::Debug;
 #[cfg(target_vendor = "apple")]
 use objc2::runtime::NSObject;
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use std::sync::Arc;
 use taffy::{AvailableSpace, Cache, ClearState, Layout, Size};
 
@@ -604,6 +604,7 @@ pub struct NodeRef {
     pub(crate) id: Id,
     pub(crate) guard: Arc<()>,
     pub(crate) tree: Arc<RwLock<TreeInner>>,
+    pub(crate) deferred_cleanup: Arc<Mutex<Vec<Id>>>,
 }
 
 unsafe impl Send for NodeRef {}
@@ -620,26 +621,64 @@ impl PartialEq for NodeRef {
     }
 }
 
+/// Drain deferred node removals. Must be called when no read/write lock
+/// is held on the tree (e.g. before `compute_layout`).
+pub(crate) fn drain_deferred_cleanup(
+    tree: &Arc<RwLock<TreeInner>>,
+    deferred: &Arc<Mutex<Vec<Id>>>,
+) {
+    let ids: Vec<Id> = {
+        let mut queue = deferred.lock();
+        if queue.is_empty() {
+            return;
+        }
+        queue.drain(..).collect()
+    };
+    let mut tree = tree.write();
+    for id in ids {
+        let has_parent = tree
+            .parents
+            .get(id)
+            .map(|p| p.is_some())
+            .unwrap_or(false);
+        let has_children = tree
+            .children
+            .get(id)
+            .map(|children| !children.is_empty())
+            .unwrap_or(false);
+        if !has_parent && !has_children {
+            if let Some(node) = tree.nodes.remove(id) {
+                tree.style_arena.release(node.style.handle);
+            }
+        }
+    }
+}
+
 impl Drop for NodeRef {
     fn drop(&mut self) {
-        // 2 this ref + default ref
+        // 2 = this ref + default ref
         if Arc::strong_count(&self.guard) == 2 {
-            let mut tree = self.tree.write();
-            let has_parent = tree
-                .parents
-                .get(self.id)
-                .map(|p| p.is_some())
-                .unwrap_or(false);
-            let has_children = tree
-                .children
-                .get(self.id)
-                .map(|children| !children.is_empty())
-                .unwrap_or(false);
-            if !has_parent && !has_children {
-                // todo clean up state buffer
-                if let Some(node) = tree.nodes.remove(self.id) {
-                    tree.style_arena.release(node.style.handle);
+            // Try non-blocking write lock first to avoid deadlocking with
+            // concurrent read locks held by the layout algorithm.
+            if let Some(mut tree) = self.tree.try_write() {
+                let has_parent = tree
+                    .parents
+                    .get(self.id)
+                    .map(|p| p.is_some())
+                    .unwrap_or(false);
+                let has_children = tree
+                    .children
+                    .get(self.id)
+                    .map(|children| !children.is_empty())
+                    .unwrap_or(false);
+                if !has_parent && !has_children {
+                    if let Some(node) = tree.nodes.remove(self.id) {
+                        tree.style_arena.release(node.style.handle);
+                    }
                 }
+            } else {
+                // Lock is contended — defer cleanup to avoid deadlock.
+                self.deferred_cleanup.lock().push(self.id);
             }
         }
     }

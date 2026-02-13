@@ -1,9 +1,9 @@
-use crate::node::{Node, NodeData, NodeRef, NodeType};
+use crate::node::{drain_deferred_cleanup, Node, NodeData, NodeRef, NodeType};
 use crate::style::arena::{StyleArena, StyleHandle};
 use crate::style::style_guard::StyleGuard;
 use crate::style::{DisplayMode, Style};
 use parking_lot::lock_api::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
-use parking_lot::{RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{Mutex, RawRwLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use slotmap::{new_key_type, Key, KeyData, SecondaryMap, SlotMap};
 use std::fmt::Debug;
 use std::sync::atomic::AtomicU32;
@@ -117,11 +117,21 @@ impl Default for TreeInner {
 }
 
 #[derive(Debug, Clone)]
-pub struct Tree(pub(crate) Arc<RwLock<TreeInner>>);
+pub struct Tree(
+    pub(crate) Arc<RwLock<TreeInner>>,
+    pub(crate) Arc<Mutex<Vec<Id>>>,
+);
 
 impl Default for Tree {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Tree {
+    /// Returns a reference to the shared deferred-cleanup queue used by `NodeRef::Drop`.
+    fn deferred_cleanup_queue(&self) -> &Arc<Mutex<Vec<Id>>> {
+        &self.1
     }
 }
 
@@ -155,11 +165,14 @@ impl Tree {
     }
 
     pub fn new() -> Self {
-        Self(Default::default())
+        Self(Default::default(), Default::default())
     }
 
     pub fn with_capacity(value: usize) -> Self {
-        Self(Arc::new(RwLock::new(TreeInner::with_capacity(value))))
+        Self(
+            Arc::new(RwLock::new(TreeInner::with_capacity(value))),
+            Default::default(),
+        )
     }
 
     fn inner_ptr(&self) -> &Arc<RwLock<TreeInner>> {
@@ -265,6 +278,7 @@ impl Tree {
                             id,
                             guard: Arc::clone(&node.guard),
                             tree: Arc::clone(self.inner_ptr()),
+                            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
                         }
                     })
                     .collect::<Vec<_>>()
@@ -323,6 +337,12 @@ impl Tree {
         available_space: Size<AvailableSpace>,
         use_rounding: bool,
     ) {
+        // Drain any deferred node removals from NodeRef::Drop before acquiring
+        // locks for the layout pass.  This prevents the deferred queue from
+        // growing unboundedly and cleans up nodes that couldn't be removed
+        // earlier because the tree lock was contended.
+        drain_deferred_cleanup(&self.0, self.deferred_cleanup_queue());
+
         // update tree rounding mode so other helpers (Tree::layout etc.) are consistent
         self.set_use_rounding(use_rounding);
 
@@ -373,6 +393,7 @@ impl Tree {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
+            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
         }
     }
 
@@ -393,6 +414,7 @@ impl Tree {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
+            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
         }
     }
 
@@ -414,6 +436,7 @@ impl Tree {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
+            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
         }
     }
 
@@ -436,6 +459,7 @@ impl Tree {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
+            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
         }
     }
 
@@ -456,6 +480,7 @@ impl Tree {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
+            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
         }
     }
 
@@ -476,6 +501,7 @@ impl Tree {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
+            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
         }
     }
 
@@ -495,6 +521,7 @@ impl Tree {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
+            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
         }
     }
 
@@ -582,6 +609,7 @@ impl Tree {
             id: *child_id,
             guard: Arc::clone(&child_node.guard),
             tree: Arc::clone(self.inner_ptr()),
+            deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
         })
     }
 
@@ -785,10 +813,12 @@ impl Tree {
 
         if replaced == child {
             let tree = Arc::clone(&self.inner_ptr());
+            let deferred = Arc::clone(self.deferred_cleanup_queue());
             return self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
                 id: replaced,
                 guard: node.guard.clone(),
                 tree,
+                deferred_cleanup: deferred,
             });
         }
 
@@ -807,10 +837,12 @@ impl Tree {
         }
 
         let tree = Arc::clone(&self.inner_ptr());
+        let deferred = Arc::clone(self.deferred_cleanup_queue());
         self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
             id: replaced,
             guard: node.guard.clone(),
             tree,
+            deferred_cleanup: deferred,
         })
     }
 
@@ -825,6 +857,7 @@ impl Tree {
                     id: removed,
                     guard: Arc::clone(&tree.nodes.get_mut(removed)?.guard),
                     tree: Arc::clone(self.inner_ptr()),
+                    deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
                 });
             }
         }
@@ -840,6 +873,7 @@ impl Tree {
                 id: child,
                 guard: Arc::clone(&node.guard),
                 tree: Arc::clone(self.inner_ptr()),
+                deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
             })
         } else {
             None
@@ -885,6 +919,7 @@ impl Tree {
                 id,
                 guard: node_data.guard.clone(),
                 tree: Arc::clone(self.inner_ptr()),
+                deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
             })
         })
     }
