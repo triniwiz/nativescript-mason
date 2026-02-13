@@ -393,6 +393,11 @@ class Style internal constructor(internal var node: Node) {
 
   internal var fontDirty = false
 
+  // Guard flag: true while inside Rust measure callback (read lock held, no buffer writes)
+  @JvmField
+  internal var inMeasure = false
+  private var pendingMetricsSync = false
+
   var font: FontFace = FontFace("sans-serif").apply {
     owner = this@Style
   }
@@ -412,6 +417,7 @@ class Style internal constructor(internal var node: Node) {
   private fun invalidateResolvedFontFace() {
     _resolvedFontFaceDirty = true
     _cachedResolvedFontFace = null
+    fontDirty = true
   }
 
   data class FontMetrics(
@@ -472,10 +478,20 @@ class Style internal constructor(internal var node: Node) {
 
 
   /**
-   * Update font metrics on a Mason node when font changes
+   * Update font metrics on a Mason node when font changes.
+   * When called during a Rust measure callback (inMeasure == true),
+   * the write is deferred to avoid deadlocking the rwlock.
    */
   internal fun syncFontMetrics() {
+    if (!fontDirty) return
+    if (inMeasure) {
+      pendingMetricsSync = true
+      return
+    }
+    syncFontMetricsNow()
+  }
 
+  private fun syncFontMetricsNow() {
     val fm = paint.fontMetrics
 
     // Android uses negative ascent, positive descent
@@ -493,6 +509,18 @@ class Style internal constructor(internal var node: Node) {
     values.putFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight)
     values.putFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
     values.putFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
+    fontDirty = false
+  }
+
+  /**
+   * Flush deferred font metrics sync after measure callback returns.
+   * Returns true if a sync was pending (caller should mark node dirty).
+   */
+  internal fun flushPendingMetricsSync(): Boolean {
+    if (!pendingMetricsSync) return false
+    pendingMetricsSync = false
+    syncFontMetricsNow()
+    return true
   }
 
   /**

@@ -88,6 +88,7 @@ class ViewBenchmark {
         view.setSize(100f, 100f)
 
         benchmarkRule.measureRepeated {
+            view.compute(-1f, -1f)
             val layout = view.layout()
             require(layout.width > 0)
         }
@@ -107,6 +108,7 @@ class ViewBenchmark {
         }
 
         benchmarkRule.measureRepeated {
+            parent.compute(-1f, -1f)
             val layout = parent.layout()
             require(layout.width > 0)
         }
@@ -127,6 +129,7 @@ class ViewBenchmark {
         }
 
         benchmarkRule.measureRepeated {
+            root.compute(-1f, -1f)
             val layout = root.layout()
             require(layout.width > 0)
         }
@@ -147,6 +150,7 @@ class ViewBenchmark {
         }
 
         benchmarkRule.measureRepeated {
+            parent.compute(-1f, -1f)
             val layout = parent.layout()
             require(layout.width > 0)
         }
@@ -166,6 +170,7 @@ class ViewBenchmark {
         }
 
         benchmarkRule.measureRepeated {
+            grid.compute(-1F,-1F)
             val layout = grid.layout()
             require(layout.width > 0)
         }

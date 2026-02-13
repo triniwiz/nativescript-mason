@@ -409,6 +409,11 @@ class FontFace {
 
   }
 
+  internal constructor(family: String, ignoreCache: Boolean) {
+    fontFamily = family
+    fontDescriptors = NSCFontDescriptors(family)
+  }
+
   constructor(
     family: String
   ) {
@@ -519,6 +524,7 @@ class FontFace {
             Typeface.create(it, fontDescriptors.weight.getStyle(isItalic))
           }
         }
+        owner?.fontDirty = true
         owner?.syncFontMetrics()
       }
     }
@@ -544,6 +550,7 @@ class FontFace {
             Typeface.create(it, fontDescriptors.weight.getStyle(isItalic))
           }
         }
+        owner?.fontDirty = true
         owner?.syncFontMetrics()
       }
     }
@@ -707,6 +714,7 @@ class FontFace {
         status = FontFaceStatus.loaded
         this.font = font
 
+        owner?.fontDirty = true
         owner?.syncFontMetrics()
         callback(null)
         return
@@ -750,6 +758,7 @@ class FontFace {
             status = FontFaceStatus.loaded
             this.font = resolvedFont
 
+            owner?.fontDirty = true
             owner?.syncFontMetrics()
             callback(null)
             return
@@ -764,6 +773,7 @@ class FontFace {
         this.font = font
         status = FontFaceStatus.loaded
 
+        owner?.fontDirty = true
         owner?.syncFontMetrics()
         callback(null)
         return
@@ -783,6 +793,7 @@ class FontFace {
           this.font = loaded
           fontPath = file.absolutePath
           status = FontFaceStatus.loaded
+          owner?.fontDirty = true
           owner?.syncFontMetrics()
           callback(null)
           return

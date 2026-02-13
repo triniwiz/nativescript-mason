@@ -9,12 +9,12 @@ val familyNamePattern = Regex("""\d+px\s+(["']?)([\w\s]+)\1$""")
 
 class FontFaceSet {
   private val fontCache: MutableSet<FontFace> by lazy {
-    val set = mutableSetOf<FontFace>()
-    val font = FontFace("sans-serif")
-    font.font = Typeface.SANS_SERIF
-    font.status = FontFace.FontFaceStatus.loaded
-    set.add(font)
-    Collections.synchronizedSet(set)
+    Collections.synchronizedSet(mutableSetOf<FontFace>()).apply {
+      val font = FontFace("sans-serif", true)
+      font.font = Typeface.SANS_SERIF
+      font.status = FontFace.FontFaceStatus.loaded
+      add(font)
+    }
   }
   private val executor = Executors.newSingleThreadExecutor()
 

@@ -326,38 +326,56 @@ class TextEngine(val container: TextContainer) {
     knownDimensions: Size<Float?>,
     availableSpace: Size<Float?>
   ): Size<Float> {
-    val layout = measureLayout(
-      paint,
-      knownDimensions.width ?: Float.NaN,
-      knownDimensions.height ?: Float.NaN,
-      availableSpace.width ?: Float.NaN,
-      availableSpace.height ?: Float.NaN
-    )
+    // Guard: Rust holds a read lock during measure — no buffer writes allowed
+    style.inMeasure = true
+    try {
+      val layout = measureLayout(
+        paint,
+        knownDimensions.width ?: Float.NaN,
+        knownDimensions.height ?: Float.NaN,
+        availableSpace.width ?: Float.NaN,
+        availableSpace.height ?: Float.NaN
+      )
 
-    // Use the actual measured dimensions from the layout
-    val width = if (layout != null) {
-      measuredTextWidth
-    } else {
-      0f
+      // Use the actual measured dimensions from the layout
+      val width = if (layout != null) {
+        measuredTextWidth
+      } else {
+        0f
+      }
+
+      val height = if (layout != null) {
+        measuredTextHeight
+      } else {
+        0f
+      }
+
+      // Deferred: syncFontMetrics will set pendingMetricsSync instead of writing
+      style.syncFontMetrics()
+
+      val fontMetrics = paint.fontMetrics
+
+      val minLineHeight = -fontMetrics.ascent + fontMetrics.descent + fontMetrics.leading
+
+      val measuredHeight = layout?.height?.toFloat()
+
+      val finalHeight = measuredHeight?.coerceAtLeast(minLineHeight) ?: height
+
+      return Size(width, finalHeight)
+    } finally {
+      style.inMeasure = false
+      // Schedule flush for after Rust releases the read lock.
+      // View.post runs on the next message-loop iteration when the lock is no longer held.
+      (node.view as? View)?.post {
+        if (style.flushPendingMetricsSync()) {
+          node.dirty()
+          (node.view as? View)?.let {
+            it.invalidate()
+            it.requestLayout()
+          }
+        }
+      }
     }
-
-    val height = if (layout != null) {
-      measuredTextHeight
-    } else {
-      0f
-    }
-
-    style.syncFontMetrics()
-
-    val fontMetrics = paint.fontMetrics
-
-    val minLineHeight = -fontMetrics.ascent + fontMetrics.descent + fontMetrics.leading
-
-    val measuredHeight = layout?.height?.toFloat()
-
-    val finalHeight = measuredHeight?.coerceAtLeast(minLineHeight) ?: height
-
-    return Size(width, finalHeight)
   }
 
   private fun collectAndCacheSegments(

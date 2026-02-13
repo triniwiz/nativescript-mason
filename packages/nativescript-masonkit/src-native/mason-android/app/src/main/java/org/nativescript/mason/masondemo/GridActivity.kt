@@ -131,10 +131,10 @@ class GridActivity : AppCompatActivity() {
     list.style.overflowY = Overflow.Scroll
 
 
-    val arr = ArrayList<String>(1)
+    val arr = ArrayList<String>(1000)
 
     Executors.newSingleThreadExecutor().execute {
-      repeat(1) {
+      repeat(1000) {
         arr.add("https://robohash.org/${it + 1}?set=set4")
       }
 
