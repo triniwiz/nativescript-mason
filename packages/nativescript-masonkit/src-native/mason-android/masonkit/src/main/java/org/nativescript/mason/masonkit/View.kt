@@ -10,7 +10,9 @@ import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import androidx.core.content.withStyledAttributes
 import androidx.core.util.size
-import com.google.gson.Gson
+import com.google.gson.ExclusionStrategy
+import com.google.gson.FieldAttributes
+import com.google.gson.GsonBuilder
 import org.nativescript.mason.masonkit.enums.AlignContent
 import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.AlignSelf
@@ -2052,7 +2054,27 @@ class View @JvmOverloads constructor(
       }
     }
 
-    internal val gson = Gson()
+    internal val gson = GsonBuilder()
+      .addSerializationExclusionStrategy(object : ExclusionStrategy {
+        override fun shouldSkipField(f: FieldAttributes): Boolean {
+          // Skip Kotlin lazy delegate backing fields (their lambdas capture 'this')
+          if (f.name.endsWith("\$delegate")) return true
+          // Skip known circular reference fields
+          if (f.declaringClass == Style::class.java && f.name == "node") return true
+          if (f.declaringClass == FontFace::class.java && f.name == "owner") return true
+          if (f.declaringClass == Border::class.java && f.name == "owner") return true
+          if (f.declaringClass == BorderRenderer::class.java && f.name == "style") return true
+          return false
+        }
+
+        override fun shouldSkipClass(clazz: Class<*>): Boolean {
+          // Skip Android platform types that don't serialize meaningfully
+          if (clazz.name.startsWith("android.")) return true
+          // Skip types that create circular references
+          return clazz == Node::class.java || clazz == Mason::class.java
+        }
+      })
+      .create()
 
     @JvmStatic
     fun createGridView(mason: Mason, context: Context): View {

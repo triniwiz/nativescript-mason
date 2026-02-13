@@ -26,6 +26,7 @@ val FONT_FACE_PATTERN: Pattern = Pattern.compile("@font-face\\s*\\{([^}]+)\\}")
 
 
 class FontFace {
+  @Transient
   internal var owner: Style? = null
   var font: Typeface? = null
     internal set

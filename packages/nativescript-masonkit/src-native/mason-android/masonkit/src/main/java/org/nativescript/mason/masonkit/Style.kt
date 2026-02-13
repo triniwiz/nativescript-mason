@@ -386,7 +386,7 @@ internal object StyleState {
   const val SET: Byte = 1
 }
 
-class Style internal constructor(internal var node: Node) {
+class Style internal constructor(@Transient internal var node: Node) {
   internal var isValueInitialized: Boolean = false
   internal var isTextValueInitialized: Boolean = false
   internal var gridState = GridState()
