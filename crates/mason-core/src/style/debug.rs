@@ -17,13 +17,6 @@ impl Debug for Style {
         let min_size = DisplaySize::from(self.min_size());
 
         let max_size = DisplaySize::from(self.max_size());
-
-        println!("handle {:?}", self.handle);
-        unsafe {
-            let arena = &*self.arena;
-           println!("arena stats {:?}", arena.stats());
-        }
-
         f.debug_struct("Style")
             .field("font_metrics", &self.font_metrics())
             .field("verticalAlign", &self.vertical_align())

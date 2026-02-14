@@ -43,7 +43,14 @@ let familyNamePattern = #"(?:\d+px\s+)(['"]?[\w\s]+['"]?)$"#
 public class NSCFontFaceSet: NSObject {
   private var fontCache: Set<NSCFontFace> = Set()
   
-  public static let instance = NSCFontFaceSet()
+  public static var instance = {
+    let set = NSCFontFaceSet()
+    let ff = NSCFontFace(family: "sans-serif", ignoreCache: true)
+    // load default font
+    ff.loadSync { _ in }
+    set.add(ff)
+    return set
+  }()
   
   public var status = NSCFontFaceSetStatus.loaded
   
@@ -78,6 +85,18 @@ public class NSCFontFaceSet: NSObject {
   
   public func array()-> [Any] {
     return (fontCache as NSSet).allObjects
+  }
+  
+  public func get(_ fontFamily: String)-> NSCFontFace {
+    return fontCache.first { font in
+      font.family == fontFamily
+    }!
+  }
+  
+  public func getOrNil(_ fontFamily: String) -> NSCFontFace?{
+    return fontCache.first { font in
+      font.family == fontFamily
+    }
   }
   
   public func add(_ font: NSCFontFace){

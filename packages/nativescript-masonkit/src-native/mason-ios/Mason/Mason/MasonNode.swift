@@ -11,11 +11,28 @@ import UIKit
 
 private func measure(_ node: UnsafeRawPointer?, _ knownDimensionsWidth: Float, _ knownDimensionsHeight: Float, _ availableSpaceWidth: Float, _ availableSpaceHeight: Float) -> Int64 {
   let node: MasonNode = Unmanaged.fromOpaque(node!).takeUnretainedValue()
-  
+
+  // Guard: Rust holds a read lock during measure — no buffer writes allowed
+  node.style.inMeasure = true
+  defer {
+    node.style.inMeasure = false
+    // Schedule flush for after Rust releases the read lock.
+    // DispatchQueue.main.async runs on the next run-loop iteration when the lock is no longer held.
+    if node.style.pendingMetricsSync {
+      DispatchQueue.main.async { [weak node] in
+        guard let node = node else { return }
+        if node.style.flushPendingMetricsSync() {
+          node.markDirty()
+          node.view?.setNeedsLayout()
+        }
+      }
+    }
+  }
+
   guard let size = node.measureFunc?(CGSize(width: CGFloat(knownDimensionsWidth), height: CGFloat(knownDimensionsHeight)), CGSize(width: CGFloat(availableSpaceWidth), height: CGFloat(availableSpaceHeight))) else {
     return MeasureOutput.make(Float.nan, Float.nan)
   }
-  
+
   return MeasureOutput.make(width: size.width, height: size.height)
 }
 

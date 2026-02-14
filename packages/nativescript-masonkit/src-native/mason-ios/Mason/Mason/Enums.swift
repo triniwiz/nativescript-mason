@@ -258,6 +258,11 @@ public enum MasonDimension: Codable, Equatable {
   
   
   static func fromValueType(_ value: Float, _ type: Int8) -> MasonDimension? {
+    return fromValueType(value, Int(type))
+  }
+  
+  
+  static func fromValueType(_ value: Float, _ type: Int) -> MasonDimension? {
     switch(type){
     case 0:
       return Auto
@@ -417,6 +422,10 @@ public enum MasonLengthPercentage: Codable, Equatable {
   
   
   static func fromValueType(_ value: Float, _ type: Int8) -> MasonLengthPercentage? {
+   return fromValueType(value, Int(type))
+  }
+  
+  static func fromValueType(_ value: Float, _ type: Int) -> MasonLengthPercentage? {
     switch(type){
     case 0:
       return Points(value)
@@ -537,6 +546,10 @@ public enum MasonLengthPercentageAuto: Codable {
   case Percent(Float)
   
   static func fromValueType(_ value: Float, _ type: Int8) -> MasonLengthPercentageAuto? {
+    return fromValueType(value, Int(type))
+  }
+  
+  static func fromValueType(_ value: Float, _ type: Int) -> MasonLengthPercentageAuto? {
     switch(type){
     case 0:
       return Auto
@@ -1593,6 +1606,10 @@ public enum GridPlacement: Codable {
   
   
   static func fromValueType(_ value: Int16, _ type: Int8) -> GridPlacement? {
+    return fromValueType(value, Int(type))
+  }
+  
+  static func fromValueType(_ value: Int16, _ type: Int) -> GridPlacement? {
     switch(type){
     case 0:
       return Auto

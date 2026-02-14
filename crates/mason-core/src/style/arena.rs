@@ -3,6 +3,8 @@ use crate::style::{DisplayMode, StyleKeys};
 use crate::utils::{display_mode_to_enum, display_to_enum};
 use crate::Style;
 #[cfg(target_vendor = "apple")]
+use objc2::AllocAnyThread;
+#[cfg(target_vendor = "apple")]
 use objc2_foundation::NSMutableData;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -63,11 +65,13 @@ impl StyleBuffer {
     #[cfg(target_vendor = "apple")]
     pub fn new(data: &[u8; STYLE_BUFFER_SIZE]) -> Self {
         let mut data = Box::new(*data);
+        let ns_data = NSMutableData::alloc();
         let buffer = unsafe {
-            NSMutableData::dataWithBytesNoCopy_length_freeWhenDone(
+            NSMutableData::initWithBytesNoCopy_length_deallocator(
+                ns_data,
                 std::ptr::NonNull::new_unchecked(data.as_mut_ptr() as *mut _),
                 STYLE_BUFFER_SIZE as _,
-                false,
+                None,
             )
         };
         StyleBuffer {
@@ -122,7 +126,8 @@ impl StyleArena {
     pub fn new(default_data: &[u8; STYLE_BUFFER_SIZE]) -> Self {
         let mut default_buffer = StyleBuffer::new(default_data);
         {
-            let data = default_buffer.data.as_mut_slice();
+            let buffer = default_buffer.buffer();
+            let data = unsafe { buffer.as_mut_bytes_unchecked() };
             Style::init_default_data(data);
             set_style_data_i32(data, StyleKeys::REF_COUNT, 1);
         }

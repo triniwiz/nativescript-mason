@@ -80,6 +80,7 @@ class Background {
         return
       }
       
+      
       style.setUInt32(TextStyleKeys.BACKGROUND_COLOR, color.toUInt32(), text: true)
       style.setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
       style.notifyTextStyleChanged(TextStyleChangeMasks.backgroundColor.rawValue)
@@ -93,7 +94,7 @@ class Background {
     }
   }
   var layers: [BackgroundLayer] = []
-  let style: MasonStyle!
+  unowned let style: MasonStyle
   internal var isActive: Bool = false {
     didSet {
       style.node.view?.setNeedsDisplay()

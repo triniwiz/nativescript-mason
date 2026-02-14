@@ -83,6 +83,8 @@ void mason_print_tree(struct CMason *mason, struct CMasonNode *node);
 
 void mason_set_device_scale(struct CMason *mason, float scale);
 
+void *mason_get_buffer(struct CMason *mason, int handle);
+
 void mason_node_set_segments(struct CMason *mason,
                              struct CMasonNode *node,
                              struct CMasonSegment *segments,

@@ -41,196 +41,190 @@ private func getLengthPercentage(_ value: Float,_ type: Int) -> MasonLengthPerce
 
 struct StyleKeys {
   static let DISPLAY = 0
-  static let POSITION = 4
-  static let DIRECTION = 8
-  static let FLEX_DIRECTION = 12
-  static let FLEX_WRAP = 16
-  static let OVERFLOW_X = 20
-  static let OVERFLOW_Y = 24
-  
-  static let ALIGN_ITEMS = 28
-  static let ALIGN_SELF = 32
-  static let ALIGN_CONTENT = 36
-  
-  static let JUSTIFY_ITEMS = 40
-  static let JUSTIFY_SELF = 44
-  static let JUSTIFY_CONTENT = 48
-  
-  static let INSET_LEFT_TYPE = 52
-  static let INSET_LEFT_VALUE = 56
-  static let INSET_RIGHT_TYPE = 60
-  static let INSET_RIGHT_VALUE = 64
-  static let INSET_TOP_TYPE = 68
-  static let INSET_TOP_VALUE = 72
-  static let INSET_BOTTOM_TYPE = 76
-  static let INSET_BOTTOM_VALUE = 80
-  
-  static let MARGIN_LEFT_TYPE = 84
-  static let MARGIN_LEFT_VALUE = 88
-  static let MARGIN_RIGHT_TYPE = 92
-  static let MARGIN_RIGHT_VALUE = 96
-  static let MARGIN_TOP_TYPE = 100
-  static let MARGIN_TOP_VALUE = 104
-  static let MARGIN_BOTTOM_TYPE = 108
-  static let MARGIN_BOTTOM_VALUE = 112
-  
-  static let PADDING_LEFT_TYPE = 116
-  static let PADDING_LEFT_VALUE = 120
-  static let PADDING_RIGHT_TYPE = 124
-  static let PADDING_RIGHT_VALUE = 128
-  static let PADDING_TOP_TYPE = 132
-  static let PADDING_TOP_VALUE = 136
-  static let PADDING_BOTTOM_TYPE = 140
-  static let PADDING_BOTTOM_VALUE = 144
-  
-  static let BORDER_LEFT_TYPE = 148
-  static let BORDER_LEFT_VALUE = 152
-  static let BORDER_RIGHT_TYPE = 156
-  static let BORDER_RIGHT_VALUE = 160
-  static let BORDER_TOP_TYPE = 164
-  static let BORDER_TOP_VALUE = 168
-  static let BORDER_BOTTOM_TYPE = 172
-  static let BORDER_BOTTOM_VALUE = 176
-  
-  static let FLEX_GROW = 180
-  static let FLEX_SHRINK = 184
-  
-  static let FLEX_BASIS_TYPE = 188
-  static let FLEX_BASIS_VALUE = 192
-  
-  static let WIDTH_TYPE = 196
-  static let WIDTH_VALUE = 200
-  static let HEIGHT_TYPE = 204
-  static let HEIGHT_VALUE = 208
-  
-  static let MIN_WIDTH_TYPE = 212
-  static let MIN_WIDTH_VALUE = 216
-  static let MIN_HEIGHT_TYPE = 220
-  static let MIN_HEIGHT_VALUE = 224
-  
-  static let MAX_WIDTH_TYPE = 228
-  static let MAX_WIDTH_VALUE = 232
-  static let MAX_HEIGHT_TYPE = 236
-  static let MAX_HEIGHT_VALUE = 240
-  
-  static let GAP_ROW_TYPE = 244
-  static let GAP_ROW_VALUE = 248
-  static let GAP_COLUMN_TYPE = 252
-  static let GAP_COLUMN_VALUE = 256
-  
-  static let ASPECT_RATIO = 260
-  static let GRID_AUTO_FLOW = 264
-  static let GRID_COLUMN_START_TYPE = 268
-  static let GRID_COLUMN_START_VALUE = 272
-  static let GRID_COLUMN_END_TYPE = 276
-  static let GRID_COLUMN_END_VALUE = 280
-  static let GRID_ROW_START_TYPE = 284
-  static let GRID_ROW_START_VALUE = 288
-  static let GRID_ROW_END_TYPE = 292
-  static let GRID_ROW_END_VALUE = 296
-  static let SCROLLBAR_WIDTH = 300
-  static let ALIGN = 304
-  static let BOX_SIZING = 308
-  static let OVERFLOW = 312
-  static let ITEM_IS_TABLE = 316 // Byte
-  static let ITEM_IS_REPLACED = 320 //Byte
-  static let DISPLAY_MODE = 324
-  static let FORCE_INLINE = 328
-  static let MIN_CONTENT_WIDTH = 332
-  static let MIN_CONTENT_HEIGHT = 336
-  static let MAX_CONTENT_WIDTH = 340
-  static let MAX_CONTENT_HEIGHT = 344
-  
-  
-  // ----------------------------
-  // Border Style (per side)
-  // ----------------------------
-  static let BORDER_LEFT_STYLE = 348
-  static let BORDER_RIGHT_STYLE = 352
-  static let BORDER_TOP_STYLE = 356
-  static let BORDER_BOTTOM_STYLE = 360
-  
-  // ----------------------------
-  // Border Color (per side)
-  // ----------------------------
-  static let BORDER_LEFT_COLOR = 364
-  static let BORDER_RIGHT_COLOR = 368
-  static let BORDER_TOP_COLOR = 372
-  static let BORDER_BOTTOM_COLOR = 376
-  
-  // ============================================================
-  // Border Radius (elliptical + squircle exponent)
-  // Each corner = 20 bytes:
-  //   x_type (4), x_value (4), y_type (4), y_value (4), exponent (4)
-  // ============================================================
-  
-  // ----------------------------
-  // Top-left corner (20 bytes)
-  // ----------------------------
-  static let BORDER_RADIUS_TOP_LEFT_X_TYPE = 380
-  static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 384
-  static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 388
-  static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 392
-  static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 396
-  
-  // ----------------------------
-  // Top-right corner
-  // ----------------------------
-  static let BORDER_RADIUS_TOP_RIGHT_X_TYPE = 400
-  static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 404
-  static let BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 408
-  static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 412
-  static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 416
-  
-  // ----------------------------
-  // Bottom-right corner
-  // ----------------------------
-  static let BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 420
-  static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 424
-  static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 428
-  static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 432
-  static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 436
-  
-  // ----------------------------
-  // Bottom-left corner
-  // ----------------------------
-  static let BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 440
-  static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 444
-  static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 448
-  static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 452
-  static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 456
-  
-  // ----------------------------
-  // Float
-  // ----------------------------
-  static let FLOAT = 460
-  static let CLEAR = 464
-  
-  static let OBJECT_FIT = 468
-  
-  static let FONT_METRICS_ASCENT_OFFSET = 472
-  static let FONT_METRICS_DESCENT_OFFSET = 476
-  static let FONT_METRICS_X_HEIGHT_OFFSET = 480
-  static let FONT_METRICS_LEADING_OFFSET = 484
-  static let FONT_METRICS_CAP_HEIGHT_OFFSET = 488
-  static let VERTICAL_ALIGN_OFFSET_OFFSET = 492
-  static let VERTICAL_ALIGN_IS_PERCENT_OFFSET = 496
-  static let VERTICAL_ALIGN_ENUM_OFFSET = 500
-  static let FIRST_BASELINE_OFFSET = 504
-  static let Z_INDEX = 508
-  static let ITEM_IS_LIST = 512
-  static let ITEM_IS_LIST_ITEM = 513
-  static let LIST_STYLE_POSITION = 514
-  static let LIST_STYLE_TYPE = 515
+    static let POSITION = 1
+    static let DIRECTION = 2
+    static let FLEX_DIRECTION = 3
+    static let FLEX_WRAP = 4
+    static let OVERFLOW_X = 5
+    static let OVERFLOW_Y = 6
 
-  // dirty state
-  static let IS_NODE_DIRTY = 516
-  
-  // node is virtual
-  static let IS_VIRTUAL = 517
-  
-  static let LIST_STYLE_POSITION_STATE = 518
-  static let LIST_STYLE_TYPE_STATE = 519
+    static let ALIGN_ITEMS = 7
+    static let ALIGN_SELF = 8
+    static let ALIGN_CONTENT = 9
+
+    static let JUSTIFY_ITEMS = 10
+    static let JUSTIFY_SELF = 11
+    static let JUSTIFY_CONTENT = 12
+
+    static let INSET_LEFT_TYPE = 13
+    static let INSET_LEFT_VALUE = 14 // float (4 bytes: 14-17)
+    static let INSET_RIGHT_TYPE = 18
+    static let INSET_RIGHT_VALUE = 19 // float (4 bytes: 19-22)
+    static let INSET_TOP_TYPE = 23
+    static let INSET_TOP_VALUE = 24 // float (4 bytes: 24-27)
+    static let INSET_BOTTOM_TYPE = 28
+    static let INSET_BOTTOM_VALUE = 29 // float (4 bytes: 29-32)
+
+    static let MARGIN_LEFT_TYPE = 33
+    static let MARGIN_LEFT_VALUE = 34 // float (4 bytes: 34-37)
+    static let MARGIN_RIGHT_TYPE = 38
+    static let MARGIN_RIGHT_VALUE = 39 // float (4 bytes: 39-42)
+    static let MARGIN_TOP_TYPE = 43
+    static let MARGIN_TOP_VALUE = 44 // float (4 bytes: 44-47)
+    static let MARGIN_BOTTOM_TYPE = 48
+    static let MARGIN_BOTTOM_VALUE = 49 // float (4 bytes: 49-52)
+
+    static let PADDING_LEFT_TYPE = 53
+    static let PADDING_LEFT_VALUE = 54 // float (4 bytes: 54-57)
+    static let PADDING_RIGHT_TYPE = 58
+    static let PADDING_RIGHT_VALUE = 59 // float (4 bytes: 59-62)
+    static let PADDING_TOP_TYPE = 63
+    static let PADDING_TOP_VALUE = 64 // float (4 bytes: 64-67)
+    static let PADDING_BOTTOM_TYPE = 68
+    static let PADDING_BOTTOM_VALUE = 69 // float (4 bytes: 69-72)
+
+    static let BORDER_LEFT_TYPE = 73
+    static let BORDER_LEFT_VALUE = 74 // float (4 bytes: 74-77)
+    static let BORDER_RIGHT_TYPE = 78
+    static let BORDER_RIGHT_VALUE = 79 // float (4 bytes: 79-82)
+    static let BORDER_TOP_TYPE = 83
+    static let BORDER_TOP_VALUE = 84 // float (4 bytes: 84-87)
+    static let BORDER_BOTTOM_TYPE = 88
+    static let BORDER_BOTTOM_VALUE = 89 // float (4 bytes: 89-92)
+
+    static let FLEX_GROW = 93 // float (4 bytes: 93-96)
+    static let FLEX_SHRINK = 97 // float (4 bytes: 97-100)
+
+    static let FLEX_BASIS_TYPE = 101
+    static let FLEX_BASIS_VALUE = 102 // float (4 bytes: 102-105)
+
+    static let WIDTH_TYPE = 106
+    static let WIDTH_VALUE = 107 // float (4 bytes: 107-110)
+    static let HEIGHT_TYPE = 111
+    static let HEIGHT_VALUE = 112 // float (4 bytes: 112-115)
+
+    static let MIN_WIDTH_TYPE = 116
+    static let MIN_WIDTH_VALUE = 117 // float (4 bytes: 117-120)
+    static let MIN_HEIGHT_TYPE = 121
+    static let MIN_HEIGHT_VALUE = 122 // float (4 bytes: 122-125)
+
+    static let MAX_WIDTH_TYPE = 126
+    static let MAX_WIDTH_VALUE = 127 // float (4 bytes: 127-130)
+    static let MAX_HEIGHT_TYPE = 131
+    static let MAX_HEIGHT_VALUE = 132 // float (4 bytes: 132-135)
+
+    static let GAP_ROW_TYPE = 136
+    static let GAP_ROW_VALUE = 137 // float (4 bytes: 137-140)
+    static let GAP_COLUMN_TYPE = 141
+    static let GAP_COLUMN_VALUE = 142 // float (4 bytes: 142-145)
+
+    static let ASPECT_RATIO = 146 // float (4 bytes: 146-149)
+    static let GRID_AUTO_FLOW = 150
+    static let GRID_COLUMN_START_TYPE = 151
+    static let GRID_COLUMN_START_VALUE = 152 // float (4 bytes: 152-155)
+    static let GRID_COLUMN_END_TYPE = 156
+    static let GRID_COLUMN_END_VALUE = 157 // float (4 bytes: 157-160)
+    static let GRID_ROW_START_TYPE = 161
+    static let GRID_ROW_START_VALUE = 162 // float (4 bytes: 162-165)
+    static let GRID_ROW_END_TYPE = 166
+    static let GRID_ROW_END_VALUE = 167 // float (4 bytes: 167-170)
+    static let SCROLLBAR_WIDTH = 171 // float (4 bytes: 171-174)
+    static let TEXT_ALIGN = 175
+    static let BOX_SIZING = 176
+    static let OVERFLOW = 177
+    static let ITEM_IS_TABLE = 178
+    static let ITEM_IS_REPLACED = 179
+    static let DISPLAY_MODE = 180
+    static let FORCE_INLINE = 181
+    static let MIN_CONTENT_WIDTH = 182 // float (4 bytes: 182-185)
+    static let MIN_CONTENT_HEIGHT = 186 // float (4 bytes: 186-189)
+    static let MAX_CONTENT_WIDTH = 190 // float (4 bytes: 190-193)
+    static let MAX_CONTENT_HEIGHT = 194 // float (4 bytes: 194-197)
+
+    // ----------------------------
+    // Border Style (per side)
+    // ----------------------------
+    static let BORDER_LEFT_STYLE = 198
+    static let BORDER_RIGHT_STYLE = 199
+    static let BORDER_TOP_STYLE = 200
+    static let BORDER_BOTTOM_STYLE = 201
+
+    // ----------------------------
+    // Border Color (per side)
+    // ----------------------------
+    static let BORDER_LEFT_COLOR = 202 // u32 (4 bytes: 202-205)
+    static let BORDER_RIGHT_COLOR = 206 // u32 (4 bytes: 206-209)
+    static let BORDER_TOP_COLOR = 210 // u32 (4 bytes: 210-213)
+    static let BORDER_BOTTOM_COLOR = 214 // u32 (4 bytes: 214-217)
+
+    // ============================================================
+    // Border Radius (elliptical + squircle exponent)
+    // Each corner = 5 fields (12 bytes total):
+    //   x_type (1), x_value (4), y_type (1), y_value (4), exponent (4)
+    // ============================================================
+
+    // ----------------------------
+    // Top-left corner (12 bytes)
+    // ----------------------------
+    static let BORDER_RADIUS_TOP_LEFT_X_TYPE = 218
+    static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 219 // float (4 bytes: 219-222)
+    static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 223
+    static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 224 // float (4 bytes: 224-227)
+    static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 228 // float (4 bytes: 228-231)
+
+    // ----------------------------
+    // Top-right corner
+    // ----------------------------
+    static let BORDER_RADIUS_TOP_RIGHT_X_TYPE = 232
+    static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 233 // float (4 bytes: 233-236)
+    static let BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 237
+    static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238 // float (4 bytes: 238-241)
+    static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 242 // float (4 bytes: 242-245)
+
+    // ----------------------------
+    // Bottom-right corner
+    // ----------------------------
+    static let BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 246
+    static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 247 // float (4 bytes: 247-250)
+    static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 251
+    static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 252 // float (4 bytes: 252-255)
+    static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 256 // float (4 bytes: 256-259)
+
+    // ----------------------------
+    // Bottom-left corner
+    // ----------------------------
+    static let BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 260
+    static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 261 // float (4 bytes: 261-264)
+    static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 265
+    static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 266 // float (4 bytes: 266-269)
+    static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270 // float (4 bytes: 270-273)
+
+    // ----------------------------
+    // Float
+    // ----------------------------
+    static let FLOAT = 274
+    static let CLEAR = 275
+
+    static let OBJECT_FIT = 276
+
+    static let FONT_METRICS_ASCENT_OFFSET = 277 // float (4 bytes: 277-280)
+    static let FONT_METRICS_DESCENT_OFFSET = 281 // float (4 bytes: 281-284)
+    static let FONT_METRICS_X_HEIGHT_OFFSET = 285 // float (4 bytes: 285-288)
+    static let FONT_METRICS_LEADING_OFFSET = 289 // float (4 bytes: 289-292)
+    static let FONT_METRICS_CAP_HEIGHT_OFFSET = 293 // float (4 bytes: 293-296)
+    static let VERTICAL_ALIGN_OFFSET_OFFSET = 297 // float (4 bytes: 297-300)
+    static let VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301
+    static let VERTICAL_ALIGN_ENUM_OFFSET = 302 // float (4 bytes: 302-305)
+    static let FIRST_BASELINE_OFFSET = 306 // float (4 bytes: 306-309)
+    static let Z_INDEX = 310 // float (4 bytes: 310-313)
+    static let ITEM_IS_LIST = 314
+    static let ITEM_IS_LIST_ITEM = 315
+    static let LIST_STYLE_POSITION = 316
+    static let LIST_STYLE_TYPE = 317
+    static let LIST_STYLE_POSITION_STATE = 318
+    static let LIST_STYLE_TYPE_STATE = 319
+
+    static let REF_COUNT = 320 // int
 }
 
 
@@ -437,6 +431,7 @@ public class MasonStyle: NSObject {
     }
     
     set {
+      prepareMut()
       setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, newValue.ascent)
       setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, newValue.descent)
       setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, newValue.x_height)
@@ -445,9 +440,20 @@ public class MasonStyle: NSObject {
     }
   }
   
+  /// Update font metrics on a Mason node when font changes.
+  /// When called during a Rust measure callback (inMeasure == true),
+  /// the write is deferred to avoid deadlocking the rwlock.
   internal func syncFontMetrics(){
+    if inMeasure {
+      pendingMetricsSync = true
+      return
+    }
+    syncFontMetricsNow()
+  }
+
+  private func syncFontMetricsNow(){
     guard let font = font.uiFont else {return}
-    
+
     // UIFont properties:
     // - ascender: positive value, distance from baseline to top
     // - descender: negative value, distance from baseline to bottom
@@ -455,7 +461,7 @@ public class MasonStyle: NSObject {
     // - xHeight: height of lowercase 'x'
     // - capHeight: height of capital letters
     // - leading: extra spacing between lines (usually small or 0)
-    
+
     let scale = NSCMason.scale
     let ascent = Float(font.ascender) * scale
     let descent = Float(-font.descender) * scale  // Make it positive
@@ -463,16 +469,22 @@ public class MasonStyle: NSObject {
     let xHeight = Float(font.xHeight) * scale
     let capHeight = Float(font.capHeight) * scale
     let leading = Float(font.leading) * scale
-    
-    
+
+
     setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
     setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
     setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight)
     setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
     setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
-    
-    
-    
+  }
+
+  /// Flush deferred font metrics sync after measure callback returns.
+  /// Returns true if a sync was pending (caller should mark node dirty).
+  internal func flushPendingMetricsSync() -> Bool {
+    if !pendingMetricsSync { return false }
+    pendingMetricsSync = false
+    syncFontMetricsNow()
+    return true
   }
   
   
@@ -483,6 +495,10 @@ public class MasonStyle: NSObject {
   private var weightName = "normal"
   
   
+  // Guard flag: true while inside Rust measure callback (read lock held, no buffer writes)
+  internal var inMeasure = false
+  internal var pendingMetricsSync = false
+
   internal var isDirty: Int64 = -1
   internal var isTextDirty:Int64 = -1
   internal var isSlowDirty = false {
@@ -493,7 +509,7 @@ public class MasonStyle: NSObject {
       }
     }
   }
-  let node: MasonNode
+  unowned let node: MasonNode
   var inBatch = false {
     didSet {
       if (!inBatch) {
@@ -518,84 +534,116 @@ public class MasonStyle: NSObject {
   }
   
   
-  public lazy var values: NSMutableData = {
-    if(node.isPlaceholder){
-      // use the same capacity set in rust
-      let buffer = NSMutableData(length: 508)
-      
-      
-      setFloat(StyleKeys.ASPECT_RATIO, Float.nan, buffer: buffer)
-      // default shrink to 1
-      setFloat(StyleKeys.FLEX_SHRINK, 1, buffer: buffer)
-      
-      setFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, 1, buffer: buffer)
-      setFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, 1, buffer: buffer)
-      setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, 1, buffer: buffer)
-      setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, 1, buffer: buffer)
-      
-      
-      // Default font metrics
-      
-      setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, 14, buffer: buffer)
-      setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, 4, buffer: buffer)
-      setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7, buffer: buffer)
-      setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, 0, buffer: buffer)
-      setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10, buffer: buffer)
-      
-      setFloat(StyleKeys.FIRST_BASELINE_OFFSET, Float.nan, buffer: buffer)
-      
-      
-      
-      
-      setInt8(StyleKeys.OBJECT_FIT, ObjectFit.Fill.rawValue, buffer: buffer)
-      setInt8(StyleKeys.DISPLAY, Display.Block.rawValue, buffer: buffer)
-      
-      // default Normal -> -1
-      setInt8(StyleKeys.ALIGN_ITEMS, -1, buffer: buffer)
-      setInt8(StyleKeys.ALIGN_SELF, -1, buffer: buffer)
-      setInt8(StyleKeys.ALIGN_CONTENT, -1, buffer: buffer)
-      
-      setInt8(StyleKeys.JUSTIFY_ITEMS, -1, buffer: buffer)
-      setInt8(StyleKeys.JUSTIFY_SELF, -1, buffer: buffer)
-      setInt8(StyleKeys.JUSTIFY_CONTENT, -1, buffer: buffer)
-      
-      setInt8(StyleKeys.MARGIN_LEFT_TYPE, 1, buffer: buffer)
-      setInt8(StyleKeys.MARGIN_TOP_TYPE, 1, buffer: buffer)
-      setInt8(StyleKeys.MARGIN_RIGHT_TYPE, 1, buffer: buffer)
-      setInt8(StyleKeys.MARGIN_BOTTOM_TYPE, 1, buffer: buffer)
-      
-      //          setInt8(StyleKeys.PADDING_LEFT_TYPE, 0, buffer: buffer)
-      //          setInt8(StyleKeys.PADDING_TOP_TYPE, 0, buffer: buffer)
-      //          setInt8(StyleKeys.PADDING_RIGHT_TYPE, 0, buffer: buffer)
-      //          setInt8(StyleKeys.PADDING_BOTTOM_TYPE, 0, buffer: buffer)
-      
-      
-      //          setInt8(StyleKeys.BORDER_LEFT_TYPE, 0, buffer: buffer)
-      //          setInt8(StyleKeys.BORDER_TOP_TYPE, 0, buffer: buffer)
-      //          setInt8(StyleKeys.BORDER_RIGHT_TYPE, 0, buffer: buffer)
-      //          setInt8(StyleKeys.BORDER_BOTTOM_TYPE, 0, buffer: buffer)
-      
-      
-      
+  public func prepareMut() {
+    if (node.isPlaceholder) {
+      return
+    }
+
+    let mutable = getInt32(StyleKeys.REF_COUNT) == 1
+    
+    if (!mutable) {
+      let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
       guard let buffer else {
         // todo
         fatalError("Could not allocate style buffer")
       }
       
       isValueInitialized = true
-      return buffer
-      
+     
+      writableValue = Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
+    } else {
+      isValueInitialized = true
+      writableValue = values
     }
-    let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
+  }
+  
+  private lazy var placeHolderValue: NSMutableData = {
+    // use the same capacity set in rust
+    let buffer = NSMutableData(length: 324)
+    
+    
+    setFloat(StyleKeys.ASPECT_RATIO, Float.nan, buffer: buffer)
+    // default shrink to 1
+    setFloat(StyleKeys.FLEX_SHRINK, 1, buffer: buffer)
+    
+    setFloat(StyleKeys.BORDER_RADIUS_TOP_LEFT_EXPONENT, 1, buffer: buffer)
+    setFloat(StyleKeys.BORDER_RADIUS_TOP_RIGHT_EXPONENT, 1, buffer: buffer)
+    setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_LEFT_EXPONENT, 1, buffer: buffer)
+    setFloat(StyleKeys.BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT, 1, buffer: buffer)
+    
+    
+    // Default font metrics
+    
+    setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, 14, buffer: buffer)
+    setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, 4, buffer: buffer)
+    setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, 7, buffer: buffer)
+    setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, 0, buffer: buffer)
+    setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, 10, buffer: buffer)
+    
+    setFloat(StyleKeys.FIRST_BASELINE_OFFSET, Float.nan, buffer: buffer)
+    
+    
+    
+    
+    setInt8(StyleKeys.OBJECT_FIT, ObjectFit.Fill.rawValue, buffer: buffer)
+    setInt8(StyleKeys.DISPLAY, Display.Block.rawValue, buffer: buffer)
+    
+    // default Normal -> -1
+    setInt8(StyleKeys.ALIGN_ITEMS, -1, buffer: buffer)
+    setInt8(StyleKeys.ALIGN_SELF, -1, buffer: buffer)
+    setInt8(StyleKeys.ALIGN_CONTENT, -1, buffer: buffer)
+    
+    setInt8(StyleKeys.JUSTIFY_ITEMS, -1, buffer: buffer)
+    setInt8(StyleKeys.JUSTIFY_SELF, -1, buffer: buffer)
+    setInt8(StyleKeys.JUSTIFY_CONTENT, -1, buffer: buffer)
+    
+    setInt8(StyleKeys.MARGIN_LEFT_TYPE, 1, buffer: buffer)
+    setInt8(StyleKeys.MARGIN_TOP_TYPE, 1, buffer: buffer)
+    setInt8(StyleKeys.MARGIN_RIGHT_TYPE, 1, buffer: buffer)
+    setInt8(StyleKeys.MARGIN_BOTTOM_TYPE, 1, buffer: buffer)
+    
+    setInt32(StyleKeys.REF_COUNT, 1)
+    
+    
     guard let buffer else {
       // todo
       fatalError("Could not allocate style buffer")
     }
     
     isValueInitialized = true
-    
-    return Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
+    return buffer
   }()
+  
+  private var writableValue: NSMutableData? = nil
+  private var readableValue: NSMutableData? = nil
+  
+  
+  public var values: NSMutableData {
+    get {
+      if(node.isPlaceholder){
+        return placeHolderValue
+      }
+      
+      let value = writableValue ?? readableValue
+      
+      guard let value = value else {
+        
+        let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
+        guard let buffer else {
+          // todo
+          fatalError("Could not allocate style buffer")
+        }
+        
+        isValueInitialized = true
+        
+        readableValue = Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
+        
+        return readableValue!
+        
+      }
+      return value
+    }
+  }
   
   public lazy var textValues: NSMutableData = {
     let buffer = NSMutableData(length: 144)
@@ -853,14 +901,64 @@ public class MasonStyle: NSObject {
     values.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
   }
   
-  private func updateIntField(offset: Int, value: Int32, state: StateKeys){
-    setInt32(offset, value)
+  private func updateIntField(offset: Int, value: Int8, state: StateKeys){
+    setInt8(offset, value)
     setOrAppendState(state)
   }
   
   private func updateFloatField(offset: Int, value: Float, state: StateKeys){
     setFloat(offset, value)
     setOrAppendState(state)
+  }
+  
+  
+  static func getUInt8(_ index: Int, _ buffer: NSData) -> UInt8 {
+    return buffer.bytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee
+  }
+  
+  static func setUInt8(_ index: Int, _ value: UInt8, _ buffer: NSMutableData) {
+    buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt8.self).pointee = value
+  }
+  
+  static func getInt8(_ index: Int, _ buffer: NSData) -> Int8 {
+    buffer.bytes.advanced(by: index).assumingMemoryBound(to: Int8.self).pointee
+  }
+  
+  static func setInt8(_ index: Int, _ value: Int8, _ buffer: NSMutableData) {
+    buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int8.self).pointee = value
+  }
+  
+  
+  static func getInt16(_ index: Int, _ buffer: NSData) -> Int16 {
+    buffer.bytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee
+  }
+  
+  static func setInt16(_ index: Int, _ value: Int16, _ buffer: NSMutableData) {
+    buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int16.self).pointee = value
+  }
+  
+  static func getUInt32(_ index: Int, _ buffer: NSData) -> UInt32 {
+    buffer.bytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee
+  }
+  
+  static func setUInt32(_ index: Int, _ value: UInt32, _ buffer: NSMutableData) {
+    buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: UInt32.self).pointee = value
+  }
+  
+  static func getInt32(_ index: Int, _ buffer: NSData) -> Int32 {
+    buffer.bytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee
+  }
+  
+  static func setInt32(_ index: Int, _ value: Int32, _ buffer: NSMutableData) {
+    buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Int32.self).pointee = value
+  }
+  
+  static func getFloat(_ index: Int, _ buffer: NSData) -> Float {
+   buffer.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
+  }
+  
+  static func setFloat(_ index: Int, _ value: Float, _ buffer: NSMutableData) {
+    buffer.mutableBytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee = value
   }
   
   
@@ -876,6 +974,7 @@ public class MasonStyle: NSObject {
       return ListStylePosition(rawValue: getInt8(StyleKeys.LIST_STYLE_POSITION))!
     }
     set {
+      prepareMut()
       setUInt8(StyleKeys.LIST_STYLE_POSITION, UInt8(newValue.rawValue))
       setUInt8(StyleKeys.LIST_STYLE_POSITION_STATE, StyleState.SET)
       // todo state
@@ -888,6 +987,7 @@ public class MasonStyle: NSObject {
       return ListStyleType(rawValue: getInt8(StyleKeys.LIST_STYLE_TYPE))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.LIST_STYLE_TYPE, newValue.rawValue)
       setInt8(StyleKeys.LIST_STYLE_TYPE_STATE, Int8(StyleState.SET))
       // todo state
@@ -902,6 +1002,7 @@ public class MasonStyle: NSObject {
       return getInt32(StyleKeys.Z_INDEX)
     }
     set {
+      prepareMut()
       setInt32(StyleKeys.Z_INDEX, newValue)
       setOrAppendState(.zIndex)
     }
@@ -914,6 +1015,7 @@ public class MasonStyle: NSObject {
       return MasonVerticalAlignValue(style: self)
     }
     set {
+      prepareMut()
       setFloat(StyleKeys.VERTICAL_ALIGN_OFFSET_OFFSET, newValue.offset)
       setUInt8(StyleKeys.VERTICAL_ALIGN_ENUM_OFFSET, UInt8(newValue.align.rawValue))
       
@@ -934,6 +1036,7 @@ public class MasonStyle: NSObject {
       return ObjectFit(rawValue: getInt8(StyleKeys.OBJECT_FIT))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.OBJECT_FIT, newValue.rawValue)
       setOrAppendState(.objectFit)
     }
@@ -946,6 +1049,7 @@ public class MasonStyle: NSObject {
       return MasonFloat(rawValue: getInt8(StyleKeys.FLOAT))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.FLOAT, newValue.rawValue)
       setOrAppendState(.float)
     }
@@ -957,6 +1061,7 @@ public class MasonStyle: NSObject {
       return Clear(rawValue: getInt8(StyleKeys.CLEAR))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.CLEAR, newValue.rawValue)
       setOrAppendState(.clear)
     }
@@ -969,6 +1074,7 @@ public class MasonStyle: NSObject {
       return getUInt32(TextStyleKeys.COLOR, text: true)
     }
     set {
+      prepareMut()
       setUInt32(TextStyleKeys.COLOR, newValue, text: true)
       setUInt8(TextStyleKeys.COLOR_STATE, StyleState.SET, text: true)
       if(inBatch){
@@ -1088,6 +1194,7 @@ public class MasonStyle: NSObject {
       return getUInt32(TextStyleKeys.BACKGROUND_COLOR, text: true)
     }
     set {
+      prepareMut()
       setUInt32(TextStyleKeys.BACKGROUND_COLOR, newValue, text: true)
       setUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, StyleState.SET, text: true)
       // change view as well ??
@@ -1562,7 +1669,7 @@ public class MasonStyle: NSObject {
         displayMode = .Box
         value = Display.Grid.rawValue
       }
-      
+      prepareMut()
       setInt8(StyleKeys.DISPLAY, value)
       setInt8(StyleKeys.DISPLAY_MODE, displayMode.rawValue)
       setOrAppendState(StateKeys(rawValue: StateKeys.display.rawValue | StateKeys.displayMode.rawValue))
@@ -1574,7 +1681,8 @@ public class MasonStyle: NSObject {
       return Position(rawValue: getInt8(StyleKeys.POSITION))!
     }
     set {
-      setInt32(StyleKeys.POSITION, Int32(newValue.rawValue))
+      prepareMut()
+      setInt8(StyleKeys.POSITION, newValue.rawValue)
       
       setOrAppendState(StateKeys.position)
     }
@@ -1587,8 +1695,9 @@ public class MasonStyle: NSObject {
       return Direction(rawValue: getInt8(StyleKeys.POSITION))!
     }
     set {
+      prepareMut()
       // todo
-      setInt32(StyleKeys.POSITION, Int32(newValue.rawValue))
+      setInt8(StyleKeys.POSITION, newValue.rawValue)
       
       setOrAppendState(StateKeys.direction)
       
@@ -1597,10 +1706,11 @@ public class MasonStyle: NSObject {
   
   public var flexDirection: FlexDirection {
     get {
-      return FlexDirection(rawValue: getInt8(Int(StyleKeys.FLEX_DIRECTION)))!
+      return FlexDirection(rawValue: getInt8(StyleKeys.FLEX_DIRECTION))!
     }
     set {
-      setInt32(StyleKeys.FLEX_DIRECTION, Int32(newValue.rawValue))
+      prepareMut()
+      setInt8(StyleKeys.FLEX_DIRECTION, newValue.rawValue)
       
       setOrAppendState(StateKeys.flexDirection)
     }
@@ -1612,6 +1722,7 @@ public class MasonStyle: NSObject {
       return FlexWrap(rawValue: getInt8(StyleKeys.FLEX_WRAP))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.FLEX_WRAP, newValue.rawValue)
       setOrAppendState(.flexWrap)
     }
@@ -1622,8 +1733,9 @@ public class MasonStyle: NSObject {
       return MasonOverflowPointCompat(Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_X))!, Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_Y))!)
     }
     set {
-      updateIntField(offset: Int(StyleKeys.OVERFLOW_X), value:  Int32(newValue.x.rawValue), state: .overflowX)
-      updateIntField(offset: Int(StyleKeys.OVERFLOW_Y), value:  Int32(newValue.y.rawValue), state: .overflowY)
+      prepareMut()
+      updateIntField(offset: StyleKeys.OVERFLOW_X, value:  newValue.x.rawValue, state: .overflowX)
+      updateIntField(offset: StyleKeys.OVERFLOW_Y, value:  newValue.y.rawValue, state: .overflowY)
     }
   }
   
@@ -1632,8 +1744,9 @@ public class MasonStyle: NSObject {
       return MasonPoint(Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_X))!, Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_Y))!)
     }
     set {
-      updateIntField(offset: Int(StyleKeys.OVERFLOW_X), value:  Int32(newValue.x.rawValue), state: .overflowX)
-      updateIntField(offset: Int(StyleKeys.OVERFLOW_Y), value:  Int32(newValue.y.rawValue), state: .overflowY)
+      prepareMut()
+      updateIntField(offset: StyleKeys.OVERFLOW_X, value:  newValue.x.rawValue, state: .overflowX)
+      updateIntField(offset: StyleKeys.OVERFLOW_Y, value:  newValue.y.rawValue, state: .overflowY)
     }
   }
   
@@ -1642,6 +1755,7 @@ public class MasonStyle: NSObject {
       return Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_X))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.OVERFLOW_X, newValue.rawValue)
       setOrAppendState(.overflowX)
     }
@@ -1652,6 +1766,7 @@ public class MasonStyle: NSObject {
       return Overflow(rawValue: getInt8(StyleKeys.OVERFLOW_Y))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.OVERFLOW_Y, newValue.rawValue)
       setOrAppendState(.overflowY)
     }
@@ -1662,6 +1777,7 @@ public class MasonStyle: NSObject {
       return AlignItems(rawValue: getInt8(StyleKeys.ALIGN_ITEMS))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.ALIGN_ITEMS, newValue.rawValue)
       setOrAppendState(.alignItems)
     }
@@ -1672,6 +1788,7 @@ public class MasonStyle: NSObject {
       return AlignSelf(rawValue: getInt8(StyleKeys.ALIGN_SELF))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.ALIGN_SELF, newValue.rawValue)
       setOrAppendState(.alignSelf)
     }
@@ -1682,6 +1799,7 @@ public class MasonStyle: NSObject {
       return AlignContent(rawValue: getInt8(StyleKeys.ALIGN_CONTENT))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.ALIGN_CONTENT, newValue.rawValue)
       setOrAppendState(.alignContent)
     }
@@ -1692,6 +1810,7 @@ public class MasonStyle: NSObject {
       return JustifyItems(rawValue: getInt8(StyleKeys.JUSTIFY_ITEMS))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.JUSTIFY_ITEMS, newValue.rawValue)
       setOrAppendState(.justifyItems)
     }
@@ -1702,6 +1821,7 @@ public class MasonStyle: NSObject {
       return JustifySelf(rawValue: getInt8(StyleKeys.JUSTIFY_SELF))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.JUSTIFY_SELF, newValue.rawValue)
       setOrAppendState(.justifySelf)
     }
@@ -1712,6 +1832,7 @@ public class MasonStyle: NSObject {
       return JustifyContent(rawValue: getInt8(StyleKeys.JUSTIFY_CONTENT))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.JUSTIFY_CONTENT, newValue.rawValue)
       setOrAppendState(.justifyContent)
     }
@@ -1743,7 +1864,7 @@ public class MasonStyle: NSObject {
       return MasonRect(top, right, bottom, left)
     }
     set {
-      
+      prepareMut()
       setInt8(StyleKeys.INSET_LEFT_TYPE, newValue.left.type)
       setFloat(StyleKeys.INSET_LEFT_VALUE, newValue.left.value)
       
@@ -1779,9 +1900,9 @@ public class MasonStyle: NSObject {
   
   public func setInsetLeft(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentageAuto(value, type) else {return}
-    
-    setInt8(Int(StyleKeys.INSET_LEFT_TYPE), left.type)
-    setFloat(Int(StyleKeys.INSET_LEFT_VALUE), left.value)
+    prepareMut()
+    setInt8(StyleKeys.INSET_LEFT_TYPE, left.type)
+    setFloat(StyleKeys.INSET_LEFT_VALUE, left.value)
     
     
     setOrAppendState(.inset)
@@ -1792,6 +1913,7 @@ public class MasonStyle: NSObject {
       return inset.left
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.INSET_LEFT_TYPE, newValue.type)
       setFloat(StyleKeys.INSET_LEFT_VALUE, newValue.value)
       
@@ -1801,7 +1923,7 @@ public class MasonStyle: NSObject {
   
   public func setInsetRight(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentageAuto(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.INSET_RIGHT_TYPE, right.type)
     setFloat(StyleKeys.INSET_RIGHT_VALUE, right.value)
     
@@ -1813,6 +1935,7 @@ public class MasonStyle: NSObject {
       return inset.right
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.INSET_RIGHT_TYPE, newValue.type)
       setFloat(StyleKeys.INSET_RIGHT_VALUE, newValue.value)
       
@@ -1822,7 +1945,7 @@ public class MasonStyle: NSObject {
   
   public func setInsetTop(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentageAuto(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.INSET_TOP_TYPE, top.type)
     setFloat(StyleKeys.INSET_TOP_VALUE, top.value)
     
@@ -1834,7 +1957,7 @@ public class MasonStyle: NSObject {
       return inset.top
     }
     set {
-      
+      prepareMut()
       setInt8(StyleKeys.INSET_TOP_TYPE, newValue.type)
       setFloat(StyleKeys.INSET_TOP_VALUE, newValue.value)
       
@@ -1844,7 +1967,7 @@ public class MasonStyle: NSObject {
   
   public func setInsetBottom(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentageAuto(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.INSET_BOTTOM_TYPE, bottom.type)
     setFloat(StyleKeys.INSET_BOTTOM_VALUE, bottom.value)
     
@@ -1856,6 +1979,7 @@ public class MasonStyle: NSObject {
       return inset.bottom
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.INSET_BOTTOM_TYPE, newValue.type)
       setFloat(StyleKeys.INSET_BOTTOM_VALUE, newValue.value)
       
@@ -1896,6 +2020,7 @@ public class MasonStyle: NSObject {
       return MasonRect(top, right, bottom, left)
     }
     set {
+      prepareMut()
       setInt8(Int(StyleKeys.MARGIN_LEFT_TYPE), newValue.left.type)
       setFloat(Int(StyleKeys.MARGIN_LEFT_VALUE), newValue.left.value)
       
@@ -1921,6 +2046,7 @@ public class MasonStyle: NSObject {
       return MasonLengthPercentageAuto.fromValueType(value, type)!
     }
     set {
+      prepareMut()
       setInt8(Int(StyleKeys.MARGIN_LEFT_TYPE), newValue.type)
       setFloat(Int(StyleKeys.MARGIN_LEFT_VALUE), newValue.value)
       setOrAppendState(.margin)
@@ -1935,6 +2061,7 @@ public class MasonStyle: NSObject {
       return MasonLengthPercentageAuto.fromValueType(value, type)!
     }
     set {
+      prepareMut()
       setInt8(Int(StyleKeys.MARGIN_TOP_TYPE), newValue.type)
       setFloat(Int(StyleKeys.MARGIN_TOP_VALUE), newValue.value)
       setOrAppendState(.margin)
@@ -1949,6 +2076,7 @@ public class MasonStyle: NSObject {
       return MasonLengthPercentageAuto.fromValueType(value, type)!
     }
     set {
+      prepareMut()
       setInt8(Int(StyleKeys.MARGIN_RIGHT_TYPE), newValue.type)
       setFloat(Int(StyleKeys.MARGIN_RIGHT_VALUE), newValue.value)
       setOrAppendState(.margin)
@@ -1963,6 +2091,7 @@ public class MasonStyle: NSObject {
       return MasonLengthPercentageAuto.fromValueType(value, type)!
     }
     set {
+      prepareMut()
       setInt8(Int(StyleKeys.MARGIN_BOTTOM_TYPE), newValue.type)
       setFloat(Int(StyleKeys.MARGIN_BOTTOM_VALUE), newValue.value)
       setOrAppendState(.margin)
@@ -1988,7 +2117,7 @@ public class MasonStyle: NSObject {
   
   public func setMarginLeft(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentageAuto(value, type) else {return}
-    
+    prepareMut()
     setInt8(Int(StyleKeys.MARGIN_LEFT_TYPE), left.type)
     setFloat(Int(StyleKeys.MARGIN_LEFT_VALUE), left.value)
     
@@ -1997,7 +2126,7 @@ public class MasonStyle: NSObject {
   
   public func setMarginRight(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentageAuto(value, type) else {return}
-    
+    prepareMut()
     setInt8(Int(StyleKeys.MARGIN_RIGHT_TYPE), right.type)
     setFloat(Int(StyleKeys.MARGIN_RIGHT_VALUE), right.value)
     
@@ -2006,7 +2135,7 @@ public class MasonStyle: NSObject {
   
   public func setMarginTop(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentageAuto(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.MARGIN_TOP_TYPE, top.type)
     setFloat(StyleKeys.MARGIN_TOP_VALUE, top.value)
     
@@ -2015,7 +2144,7 @@ public class MasonStyle: NSObject {
   
   public func setMarginBottom(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentageAuto(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.MARGIN_BOTTOM_TYPE, bottom.type)
     setFloat(StyleKeys.MARGIN_BOTTOM_VALUE, bottom.value)
     
@@ -2055,6 +2184,7 @@ public class MasonStyle: NSObject {
       return MasonRect(top, right, bottom, left)
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.PADDING_LEFT_TYPE, newValue.left.type)
       setFloat(StyleKeys.PADDING_LEFT_VALUE, newValue.left.value)
       
@@ -2091,6 +2221,7 @@ public class MasonStyle: NSObject {
   
   public func setPaddingLeft(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentage(value, type) else {return}
+    prepareMut()
     setInt8(StyleKeys.PADDING_LEFT_TYPE, left.type)
     setFloat(StyleKeys.PADDING_LEFT_VALUE, left.value)
     
@@ -2099,7 +2230,7 @@ public class MasonStyle: NSObject {
   
   public func setPaddingRight(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentage(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.PADDING_RIGHT_TYPE, right.type)
     setFloat(StyleKeys.PADDING_RIGHT_VALUE, right.value)
     
@@ -2108,7 +2239,7 @@ public class MasonStyle: NSObject {
   
   public func setPaddingTop(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentage(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.PADDING_TOP_TYPE, top.type)
     setFloat(StyleKeys.PADDING_TOP_VALUE, top.value)
     
@@ -2117,7 +2248,7 @@ public class MasonStyle: NSObject {
   
   public func setPaddingBottom(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentage(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.PADDING_BOTTOM_TYPE, bottom.type)
     setFloat(StyleKeys.PADDING_BOTTOM_VALUE, bottom.value)
     
@@ -2192,7 +2323,7 @@ public class MasonStyle: NSObject {
       return MasonRect(mBorderRender.top.width, mBorderRender.right.width, mBorderRender.bottom.width, mBorderRender.left.width)
     }
     set {
-      
+      prepareMut()
       setInt8(StyleKeys.BORDER_LEFT_TYPE, newValue.left.type)
       setFloat(StyleKeys.BORDER_LEFT_VALUE, newValue.left.value)
       
@@ -2227,7 +2358,7 @@ public class MasonStyle: NSObject {
   
   public func setBorderLeftWidth(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentage(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.BORDER_LEFT_TYPE, left.type)
     setFloat(StyleKeys.BORDER_LEFT_VALUE,  left.value)
     
@@ -2236,7 +2367,7 @@ public class MasonStyle: NSObject {
   
   public func setBorderRightWidth(_ value: Float, _ type: Int) {
     guard let right = getLengthPercentage(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.BORDER_RIGHT_TYPE, right.type)
     setFloat(StyleKeys.BORDER_RIGHT_VALUE, right.value)
     
@@ -2245,7 +2376,7 @@ public class MasonStyle: NSObject {
   
   public func setBorderTopWidth(_ value: Float, _ type: Int) {
     guard let top = getLengthPercentage(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.BORDER_TOP_TYPE, top.type)
     setFloat(StyleKeys.BORDER_TOP_VALUE, top.value)
     
@@ -2254,7 +2385,7 @@ public class MasonStyle: NSObject {
   
   public func setBorderBottomWidth(_ value: Float, _ type: Int) {
     guard let bottom = getLengthPercentage(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.BORDER_TOP_TYPE, bottom.type)
     setFloat(StyleKeys.BORDER_TOP_VALUE, bottom.value)
     
@@ -2273,6 +2404,7 @@ public class MasonStyle: NSObject {
       return getFloat(StyleKeys.FLEX_GROW)
     }
     set {
+      prepareMut()
       setFloat(StyleKeys.FLEX_GROW, newValue)
       setOrAppendState(.flexGrow)
     }
@@ -2283,6 +2415,7 @@ public class MasonStyle: NSObject {
       return getFloat(StyleKeys.FLEX_SHRINK)
     }
     set {
+      prepareMut()
       setFloat(StyleKeys.FLEX_SHRINK, newValue)
       setOrAppendState(.flexShrink)
     }
@@ -2291,7 +2424,7 @@ public class MasonStyle: NSObject {
   public var flexBasis: MasonDimension {
     get {
       let value = getFloat(StyleKeys.FLEX_BASIS_VALUE)
-      switch(getInt32(StyleKeys.FLEX_BASIS_TYPE)){
+      switch(getInt8(StyleKeys.FLEX_BASIS_TYPE)){
       case 0:
         return MasonDimension.Auto
       case 1:
@@ -2303,6 +2436,7 @@ public class MasonStyle: NSObject {
       
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.FLEX_BASIS_TYPE, newValue.type)
       setFloat(StyleKeys.FLEX_BASIS_VALUE, newValue.value)
       
@@ -2331,6 +2465,7 @@ public class MasonStyle: NSObject {
       return MasonDimension.Points(getFloat(StyleKeys.SCROLLBAR_WIDTH))
     }
     set {
+      prepareMut()
       setFloat(StyleKeys.SCROLLBAR_WIDTH, newValue.value)
       setOrAppendState(.scrollbarWidth)
     }
@@ -2342,10 +2477,11 @@ public class MasonStyle: NSObject {
   
   public var align: Align {
     get {
-      return Align(rawValue: getInt8(StyleKeys.ALIGN))!
+      return Align(rawValue: getInt8(StyleKeys.TEXT_ALIGN))!
     }
     set {
-      setInt32(StyleKeys.ALIGN, Int32(newValue.rawValue))
+      prepareMut()
+      setInt8(StyleKeys.TEXT_ALIGN, newValue.rawValue)
       setOrAppendState(StateKeys.align)
     }
   }
@@ -2366,6 +2502,7 @@ public class MasonStyle: NSObject {
       return BoxSizing(rawValue: getInt8(StyleKeys.BOX_SIZING))!
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.BOX_SIZING, newValue.rawValue)
       setOrAppendState(.boxSizing)
     }
@@ -2388,7 +2525,7 @@ public class MasonStyle: NSObject {
       return MasonSize(width, height)
     }
     set {
-      
+      prepareMut()
       setInt8(StyleKeys.MIN_WIDTH_TYPE, newValue.width.type)
       setFloat(StyleKeys.MIN_WIDTH_VALUE, newValue.width.value)
       
@@ -2451,6 +2588,7 @@ public class MasonStyle: NSObject {
       return MasonSize(width, height)
     }
     set {
+      prepareMut()
       setInt8(StyleKeys.WIDTH_TYPE, newValue.width.type)
       setFloat(StyleKeys.WIDTH_VALUE, newValue.width.value)
       
@@ -2483,6 +2621,7 @@ public class MasonStyle: NSObject {
     }
     
     set {
+      prepareMut()
       setInt8(StyleKeys.WIDTH_TYPE, newValue.dimension.type)
       setFloat(StyleKeys.WIDTH_VALUE, newValue.dimension.value)
       
@@ -2496,6 +2635,7 @@ public class MasonStyle: NSObject {
     }
     
     set {
+      prepareMut()
       setInt8(StyleKeys.HEIGHT_TYPE, newValue.dimension.type)
       setFloat(StyleKeys.HEIGHT_VALUE, newValue.dimension.value)
       setOrAppendState(StateKeys.size)
@@ -2504,7 +2644,7 @@ public class MasonStyle: NSObject {
   
   public func setSizeWidth(_ value: Float, _ type: Int) {
     guard let width = getDimension(value, type) else {return}
-    
+    prepareMut()
     
     setInt8(StyleKeys.WIDTH_TYPE, width.type)
     setFloat(StyleKeys.WIDTH_VALUE, width.value)
@@ -2514,7 +2654,7 @@ public class MasonStyle: NSObject {
   
   public func setSizeHeight(_ value: Float, _ type: Int) {
     guard let height = getDimension(value, type) else {return}
-    
+    prepareMut()
     setInt8(StyleKeys.HEIGHT_TYPE, height.type)
     setFloat(StyleKeys.HEIGHT_VALUE, height.value)
     
@@ -2522,7 +2662,7 @@ public class MasonStyle: NSObject {
   }
   
   public func setSizeWidth(_ width: MasonDimension) {
-    
+    prepareMut()
     setInt8(StyleKeys.WIDTH_TYPE, width.type)
     setFloat(StyleKeys.WIDTH_VALUE, width.value)
     
@@ -2531,7 +2671,7 @@ public class MasonStyle: NSObject {
   
   
   public func setSizeHeight(_ height: MasonDimension) {
-    
+    prepareMut()
     setInt8(StyleKeys.HEIGHT_TYPE, height.type)
     setFloat(StyleKeys.HEIGHT_VALUE, height.value)
     
@@ -2561,10 +2701,9 @@ public class MasonStyle: NSObject {
       return MasonSize(width, height)
     }
     set {
-      
+      prepareMut()
       setInt8(StyleKeys.MAX_WIDTH_TYPE, newValue.width.type)
       setFloat(StyleKeys.MAX_WIDTH_VALUE, newValue.width.value)
-      
       
       setInt8(StyleKeys.MAX_HEIGHT_TYPE, newValue.height.type)
       setFloat(StyleKeys.MAX_HEIGHT_VALUE, newValue.height.value)
@@ -2622,11 +2761,11 @@ public class MasonStyle: NSObject {
       return MasonSize(width, height)
     }
     set {
+      prepareMut()
       
       setInt8(StyleKeys.GAP_ROW_TYPE, newValue.width.type)
       
       setFloat(StyleKeys.GAP_ROW_VALUE, newValue.width.value)
-      
       
       setInt8(StyleKeys.GAP_COLUMN_TYPE, newValue.height.type)
       
@@ -2682,6 +2821,7 @@ public class MasonStyle: NSObject {
       return value
     }
     set {
+      prepareMut()
       if let value = newValue {
         if(value.isNaN){
           setFloat(StyleKeys.ASPECT_RATIO, Float.nan)
@@ -2786,7 +2926,7 @@ public class MasonStyle: NSObject {
     }
     
     set {
-      setInt32(StyleKeys.GRID_AUTO_FLOW, Int32(newValue.rawValue))
+      setInt8(StyleKeys.GRID_AUTO_FLOW, newValue.rawValue)
       setOrAppendState(.gridAutoFlow)
     }
   }

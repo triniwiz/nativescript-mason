@@ -250,25 +250,27 @@ public final class CSSBorderRenderer {
     static let bottom = Keys.Bottom()
   }
   
-  public struct BorderSide: CustomStringConvertible {
-    
+  public class BorderSide: CustomStringConvertible {
+
     public var description: String {
       return "BorderSide{ side: \(side),  width: \(width), color: \(color), style: \(style) }"
     }
-    
-    internal let owner: MasonStyle
+
+    unowned let owner: MasonStyle
     public var width: MasonLengthPercentage {
       get {
-        return MasonLengthPercentage.fromValueType(owner.getFloat(keys.widthValue), owner.getInt8(keys.widthType))!
+        return MasonLengthPercentage.fromValueType(owner.getFloat(keys.widthValue), Int(owner.getInt8(keys.widthType)))!
       }
       
       set {
+        owner.prepareMut()
         owner.setInt8(keys.widthType, newValue.type)
         owner.setFloat(keys.widthValue, newValue.value)
       }
     }
     
     public func setColor(color: UInt32){
+      owner.prepareMut()
       owner.setUInt32(keys.color, color)
     }
     
@@ -280,6 +282,7 @@ public final class CSSBorderRenderer {
       }
       
       set {
+        owner.prepareMut()
         owner.setUInt32(keys.color, newValue.toUInt32())
       }
     }
@@ -289,6 +292,7 @@ public final class CSSBorderRenderer {
       }
       
       set {
+        owner.prepareMut()
         owner.setInt32(keys.style, newValue.rawValue)
       }
     }
@@ -367,7 +371,7 @@ public final class CSSBorderRenderer {
   
   public var radius: BorderRadius
   
-  internal var style: MasonStyle
+  unowned var style: MasonStyle
   
   // Cache
   private var lastHash: Int = 0
@@ -429,8 +433,8 @@ public final class CSSBorderRenderer {
   private func resolveRadius(rect: CGRect) -> BorderRadius {
     // Fetch corner radii from style buffer
     func corner(xType: Int, xValue: Int, yType: Int, yValue: Int, exp: Int) -> CornerRadius {
-      let h = MasonLengthPercentage.fromValueType(Float(xValue), Int8(xType)) ?? .Zero
-      let v = MasonLengthPercentage.fromValueType(Float(yValue), Int8(yType)) ?? .Zero
+      let h = MasonLengthPercentage.fromValueType(Float(xValue), xType) ?? .Zero
+      let v = MasonLengthPercentage.fromValueType(Float(yValue), yType) ?? .Zero
       let exponent = CGFloat(exp)
       return CornerRadius(horizontal: h, vertical: v, exponent: exponent)
     }

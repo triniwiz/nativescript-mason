@@ -22,6 +22,36 @@ public class NSCMason: NSObject {
   
   public override init() {
     nativePtr = mason_init()
+    if let ptr = mason_get_buffer(nativePtr, 0) {
+      let buffer = Unmanaged<NSMutableData>.fromOpaque(ptr).takeRetainedValue()
+      guard let font = NSCFontFaceSet.instance.getOrNil("sans-serif") else {return}
+      
+      
+      guard let font = font.uiFont else {return}
+      
+      // UIFont properties:
+      // - ascender: positive value, distance from baseline to top
+      // - descender: negative value, distance from baseline to bottom
+      // - lineHeight: total recommended line height
+      // - xHeight: height of lowercase 'x'
+      // - capHeight: height of capital letters
+      // - leading: extra spacing between lines (usually small or 0)
+      
+      let scale = NSCMason.scale
+      let ascent = Float(font.ascender) * scale
+      let descent = Float(-font.descender) * scale  // Make it positive
+      let lineHeight = Float(font.lineHeight) * scale
+      let xHeight = Float(font.xHeight) * scale
+      let capHeight = Float(font.capHeight) * scale
+      let leading = Float(font.leading) * scale
+      
+      MasonStyle.setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent, buffer)
+      MasonStyle.setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent, buffer)
+      MasonStyle.setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight, buffer)
+      MasonStyle.setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading, buffer)
+      MasonStyle.setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight, buffer)
+      
+    }
   }
   
   deinit {

@@ -409,7 +409,7 @@ let srcPattern = #"src:\s*url\(([^)]+)\)\s*format\('([^']+)'\);"#
 @objcMembers
 @objc(NSCFontFace)
 public class NSCFontFace: NSObject {
-  internal var owner: MasonStyle? = nil
+  internal weak var owner: MasonStyle? = nil
   internal var uiFont: UIFont? = nil {
     didSet {
       if let cgFont = self.font {
@@ -645,7 +645,26 @@ public class NSCFontFace: NSObject {
     fontFamily = family
     fontDescriptors = NSCFontDescriptors(family: family)
     super.init()
+    if let font = NSCFontFaceSet.instance.getOrNil(family) {
+      self.font = font.font
+      self.uiFont = font.uiFont
+      status = .loaded
+    }
   }
+  
+  init(family: String, ignoreCache: Bool = false) {
+    fontFamily = family
+    fontDescriptors = NSCFontDescriptors(family: family)
+    super.init()
+    if(!ignoreCache){
+      if let font = NSCFontFaceSet.instance.getOrNil(family) {
+        self.font = font.font
+        self.uiFont = font.uiFont
+        status = .loaded
+      }
+    }
+  }
+  
   
   public init(family: String, owner style: MasonStyle) {
     fontFamily = family

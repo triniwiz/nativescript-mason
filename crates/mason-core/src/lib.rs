@@ -627,6 +627,15 @@ impl Mason {
         reader.style_arena.buffer_opt(StyleHandle::from_raw(handle))
     }
 
+    #[cfg(target_vendor = "apple")]
+    pub fn buffer_from_ptr(&self, handle: u32) -> Option<*mut c_void> {
+        let reader = self.0 .0.read();
+        reader
+            .style_arena
+            .buffer_opt(StyleHandle::from_raw(handle))
+            .map(|buffer| objc2::rc::Retained::into_raw(buffer) as *mut c_void)
+    }
+
     #[cfg(target_os = "android")]
     pub fn buffer_from(&self, handle: u32) -> Option<jni::sys::jint> {
         let reader = self.0 .0.read();
