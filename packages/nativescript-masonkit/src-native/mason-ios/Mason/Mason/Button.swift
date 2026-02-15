@@ -123,8 +123,9 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
     }
     node.view = self
    
-    node.measureFunc = { [self] known, available in
-      return TextEngine.measure(engine, true, isBlock: true , known, available)
+    node.measureFunc = { [weak self] known, available in
+      guard let self = self else { return .zero }
+      return TextEngine.measure(self.engine, true, isBlock: true , known, available)
     }
     node.setMeasureFunction(node.measureFunc!)
   }

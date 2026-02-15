@@ -330,7 +330,8 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
     masonLayer.contentsScale = UIScreen.main.scale
     isOpaque = false
     node.view = self
-    node.measureFunc = { known, available in
+    node.measureFunc = { [weak self] known, available in
+      guard let self = self else { return .zero }
       return Img.measure(self, known, available)
     }
     node.setMeasureFunction(node.measureFunc!)

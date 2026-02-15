@@ -63,7 +63,7 @@ public class TextEngine: NSObject {
   
   internal var drawState: DrawState = .idle
   
-  let container: TextContainer
+  unowned let container: TextContainer
   
   var node: MasonNode {
     return container.node

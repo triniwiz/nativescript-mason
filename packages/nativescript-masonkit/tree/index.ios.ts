@@ -84,6 +84,10 @@ export class Tree {
     }
   }
 
+  createTextNode() {
+    return this.native.createTextNode('');
+  }
+
   createImageView() {
     return this.native.createImageView();
   }

@@ -23,42 +23,56 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
   
   public class MasonListCell: UICollectionViewCell {
     public var willMove: ((MasonListCell) -> Void)?
-    public var view: MasonElement? = nil
+    public private(set) var view: MasonElement? = nil
     private var cachedSized: CGSize? = nil
     private var cachedWidth: CGFloat = 0
     private var appliedLayoutHash: Int = 0
     internal var index: IndexPath? = nil
-    
+
     public static func initWithEmptyBackground() -> MasonListCell {
       let cell = MasonListCell()
       cell.backgroundColor = .clear
       return cell
     }
-    
+
+    /// Set or replace the root view for this cell.
+    /// If replacing an existing view, the old view hierarchy is cleaned up.
+    public func setView(_ newView: MasonElement?) {
+      guard view !== newView else { return }
+      if let old = view {
+        old.node.removeAllChildren()
+        old.uiView.removeFromSuperview()
+      }
+      view = newView
+      if let newView = newView {
+        contentView.addSubview(newView.uiView)
+      }
+    }
+
     public override func willMove(toSuperview newSuperview: UIView?) {
       willMove?(self)
     }
-    
+
     public override func prepareForReuse() {
       super.prepareForReuse()
-      
+
       cachedSized = nil
       cachedWidth = 0
+      appliedLayoutHash = 0
       index = nil
-      
+
       if let view = view {
+        // Clean up children but keep the root view for recycling
+        view.node.removeAllChildren()
         view.node.computedLayout = MasonLayout.zero
         view.setComputeCache(.init(width: -2, height: -2))
-        
+
         // Reset MasonLi specific state
         if let li = view as? MasonLi {
           li.resetForRecycle()
         }
       }
-      
-      contentView.subviews.forEach { $0.removeFromSuperview() }
-      
-      view = nil
+
       willMove = nil
     }
     
@@ -207,7 +221,12 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
   }()
   
   public var count: Int {
-    return staticViews.count + Int(values.bytes.advanced(by: Keys.COUNT).assumingMemoryBound(to: Int32.self).pointee)
+    set {
+      MasonStyle.setInt32(Keys.COUNT, Int32(newValue), values)
+    }
+    get {
+      return staticViews.count + Int(values.bytes.advanced(by: Keys.COUNT).assumingMemoryBound(to: Int32.self).pointee)
+    }
   }
   
   

@@ -203,7 +203,9 @@ class VBase extends ViewBase implements IViewBase {
 
 export class View extends VBase {}
 
-export class TextBase extends VBase {}
+export class TextBase extends VBase {
+  textContent: string;
+}
 
 export class Text extends TextBase {}
 
@@ -218,3 +220,17 @@ export class Button extends TextBase {}
 export class Br extends TextBase {}
 
 export class Input extends VBase {}
+
+export class TextNode {
+  data: string;
+
+  readonly length: number;
+
+  appendData(s: string): this;
+
+  deleteData(offset: number, count: number): this;
+
+  insertData(s: string, offset: number): this;
+
+  substringData(offset: number, count: number): string;
+}

@@ -17,6 +17,7 @@ import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.text.style.UpdateLayout
 import android.util.DisplayMetrics
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.View.MeasureSpec
@@ -974,11 +975,27 @@ class TextEngine(val container: TextContainer) {
 
     if (parent?.view is TextContainer) {
       (parent.view as TextContainer).engine.invalidateInlineSegments()
+    } else {
+      (parent?.view as? View)?.invalidate()
+      parent?.dirty()
     }
 
-    (node.view as? View)?.let {
-      it.invalidate()
-      it.requestLayout()
+    when (node.view) {
+      is Element -> {
+        (node.view as Element).apply {
+          view.invalidate()
+          invalidateLayout()
+        }
+      }
+
+      is View -> {
+        (node.view as View).apply {
+          invalidate()
+          requestLayout()
+        }
+      }
+
+      else -> {}
     }
   }
 }

@@ -124,7 +124,7 @@ Sed a nisi orci. Maecenas tincidunt porttitor aliquet. Aenean maximus tincidunt 
 
 
 
-<ui:View iosOverflowSafeArea="true" backgroundColor="red">
+<ui:View iosOverflowSafeArea="true">
 <TextField hint="Type here..." textChange="{{ onChange }}"></TextField>
 <text:Text loaded="{{ textLoaded }}"></text:Text>
 

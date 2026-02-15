@@ -92,18 +92,81 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
   public func bind(position: Int, isOrdered: Bool) {
     self.position = position
     self.isOrdered = isOrdered
-    
+
     // Set marker text based on ordered mode
     if isOrdered {
       self.marker = "\(position + 1)."
     } else {
       self.marker = "\u{2022}" // bullet character
     }
-    
-    // Mark node as dirty to trigger re-measurement
+
+    // Calculate marker metrics immediately so layoutSubviews has correct values
+    calculateMarkerMetrics()
+
     node.markDirty()
     setNeedsLayout()
     setNeedsDisplay()
+  }
+
+  /// Calculate marker width/height/size based on current list style and position.
+  private func calculateMarkerMetrics() {
+    let listType = resolveListStyleType()
+    
+
+    guard listType != .None else {
+      markerWidth = 0
+      markerHeight = 0
+      markerSize = 0
+      return
+    }
+
+    let font = style.font
+    if font?.font == nil {
+      font?.loadSync { _ in }
+    }
+
+    let fontSize = font?.uiFont?.pointSize ?? CGFloat(Constants.DEFAULT_FONT_SIZE)
+    let ascent = font?.uiFont?.ascender ?? fontSize * 0.8
+    let descent = font?.uiFont?.descender ?? fontSize * 0.2
+    let textHeight = ascent - descent
+
+    markerSize = Float(fontSize * 0.35)
+
+    var width: CGFloat = 0
+  
+    switch listType {
+    case .None:
+      width = 0
+
+    case .Custom:
+      if !marker.isEmpty, let ctFont = font?.ctFont {
+        let attributes: [NSAttributedString.Key: Any] = [.font: ctFont]
+        let attributed = NSAttributedString(string: marker, attributes: attributes)
+        let line = CTLineCreateWithAttributedString(attributed)
+        width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+      }
+
+    case .Disc, .Circle, .Square:
+      width = CGFloat(markerSize)
+
+    case .Decimal:
+      if position > -1, let ctFont = font?.ctFont {
+        let text = "\(position + 1)."
+        let attributes: [NSAttributedString.Key: Any] = [.font: ctFont]
+        let attributed = NSAttributedString(string: text, attributes: attributes)
+        let line = CTLineCreateWithAttributedString(attributed)
+        width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+      } else if let ctFont = font?.ctFont {
+        let attributes: [NSAttributedString.Key: Any] = [.font: ctFont]
+        let attributed = NSAttributedString(string: "0.", attributes: attributes)
+        let line = CTLineCreateWithAttributedString(attributed)
+        width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+      }
+    }
+
+    let gap = fontSize * 0.5
+    markerWidth = Float(width + gap)
+    markerHeight = Float(textHeight)
   }
   
   
@@ -123,7 +186,7 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
     let x = rect.minX
     
     // Get text color from style or use label color
-    let textColor = UIColor.label
+    let textColor = UIColor.colorFromARGB(style.color)
     
     context.saveGState()
     context.setFillColor(textColor.cgColor)
@@ -223,8 +286,13 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
   private func resolveListStyleType() -> ListStyleType {
     let cell = superview?.superview as? MasonList.MasonListCell
     let list = cell?.collectionView?.superview as? MasonList
+    
+    // Also try to get list from node parent (more reliable during layout)
+    let listFromNode = node.parent?.view as? MasonList
+    let resolvedList = list ?? listFromNode
+    
     // Check parent ListView style first
-    if let parentStyle = list?.style, parentStyle.isValueInitialized {
+    if let parentStyle = resolvedList?.style, parentStyle.isValueInitialized {
       let isSet = parentStyle.getUInt8(StyleKeys.LIST_STYLE_TYPE_STATE) != 0
       if(isSet){
         let typeValue = parentStyle.getUInt8(StyleKeys.LIST_STYLE_TYPE)
@@ -245,8 +313,11 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
       }
     }
     
-    // Default based on ordered mode
-    return isOrdered ? .Decimal : .Disc
+    
+    // Default based on parent list's ordered mode (fallback to local isOrdered)
+    let orderedMode = resolvedList?.isOrdered ?? isOrdered
+
+    return orderedMode ? .Decimal : .Disc
   }
   
   init(mason doc: NSCMason) {
@@ -256,77 +327,15 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
     
     super.init(frame: .zero)
     
-    node.setMeasureFunction { known, available in
+    node.setMeasureFunction { [weak self] known, available in
+      guard let self = self else { return .zero }
       // Sync isOrdered from parent
       if let list = self.node.parent?.view as? MasonList {
         self.isOrdered = list.isOrdered
       }
-      
-      // Get resolved list style type
-      let listType = self.resolveListStyleType()
-      
-      // No marker for None type
-      if listType == .None {
-        self.markerWidth = 0
-        self.markerHeight = 0
-        self.markerSize = 0
-        return .zero
-      }
-      
-      let font = self.style.font
-      if font?.font == nil {
-        font?.loadSync { _ in }
-      }
-      
-      let fontSize = font?.uiFont?.pointSize ?? CGFloat(Constants.DEFAULT_FONT_SIZE)
-      let ascent = font?.uiFont?.ascender ?? fontSize * 0.8
-      let descent = font?.uiFont?.descender ?? fontSize * 0.2
-      let textHeight = ascent - descent
-      
-      // Calculate marker size (35% of font size for shapes)
-      self.markerSize = Float(fontSize * 0.35)
-      
-      var width: CGFloat = 0
-      
-      switch listType {
-      case .None:
-        width = 0
-        
-      case .Custom:
-        // Custom text marker
-        if !self.marker.isEmpty, let ctFont = font?.ctFont {
-          let attributes: [NSAttributedString.Key: Any] = [.font: ctFont]
-          let attributed = NSAttributedString(string: self.marker, attributes: attributes)
-          let line = CTLineCreateWithAttributedString(attributed)
-          width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
-        }
-        
-      case .Disc, .Circle, .Square:
-        // Shape markers use markerSize
-        width = CGFloat(self.markerSize)
-        
-      case .Decimal:
-        // Decimal markers: measure the text
-        if self.position > -1, let ctFont = font?.ctFont {
-          let text = "\(self.position + 1)."
-          let attributes: [NSAttributedString.Key: Any] = [.font: ctFont]
-          let attributed = NSAttributedString(string: text, attributes: attributes)
-          let line = CTLineCreateWithAttributedString(attributed)
-          width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
-        } else if let ctFont = font?.ctFont {
-          // Fallback estimate
-          let attributes: [NSAttributedString.Key: Any] = [.font: ctFont]
-          let attributed = NSAttributedString(string: "0.", attributes: attributes)
-          let line = CTLineCreateWithAttributedString(attributed)
-          width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
-        }
-      }
-      
-      // Add gap to marker width
-      let gap = fontSize * 0.5
-      self.markerWidth = Float(width + gap)
-      self.markerHeight = Float(textHeight)
-      
+
+      self.calculateMarkerMetrics()
+
       return CGSize(width: CGFloat(self.markerWidth), height: CGFloat(self.markerHeight))
     }
     

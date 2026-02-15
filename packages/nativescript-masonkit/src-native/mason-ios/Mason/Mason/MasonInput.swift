@@ -481,7 +481,8 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     super.init(frame: .zero)
     setup(mason, type)
     node.view = self
-    node.measureFunc = { known, available in
+    node.measureFunc = { [weak self] known, available in
+      guard let self = self else { return .zero }
       var size = CGSize(width: 300, height: 150)
       let ch = self.measureText("0")
       let scale = CGFloat(NSCMason.scale)
@@ -521,7 +522,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
         if(!known.width.isNaN && known.width.isFinite){
           size.width = known.width
         }
-        
+
         if(!known.height.isNaN && known.height.isFinite){
           size.height = known.height
         }

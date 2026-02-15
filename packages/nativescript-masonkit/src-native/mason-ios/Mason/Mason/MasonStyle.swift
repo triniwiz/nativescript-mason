@@ -41,190 +41,190 @@ private func getLengthPercentage(_ value: Float,_ type: Int) -> MasonLengthPerce
 
 struct StyleKeys {
   static let DISPLAY = 0
-    static let POSITION = 1
-    static let DIRECTION = 2
-    static let FLEX_DIRECTION = 3
-    static let FLEX_WRAP = 4
-    static let OVERFLOW_X = 5
-    static let OVERFLOW_Y = 6
-
-    static let ALIGN_ITEMS = 7
-    static let ALIGN_SELF = 8
-    static let ALIGN_CONTENT = 9
-
-    static let JUSTIFY_ITEMS = 10
-    static let JUSTIFY_SELF = 11
-    static let JUSTIFY_CONTENT = 12
-
-    static let INSET_LEFT_TYPE = 13
-    static let INSET_LEFT_VALUE = 14 // float (4 bytes: 14-17)
-    static let INSET_RIGHT_TYPE = 18
-    static let INSET_RIGHT_VALUE = 19 // float (4 bytes: 19-22)
-    static let INSET_TOP_TYPE = 23
-    static let INSET_TOP_VALUE = 24 // float (4 bytes: 24-27)
-    static let INSET_BOTTOM_TYPE = 28
-    static let INSET_BOTTOM_VALUE = 29 // float (4 bytes: 29-32)
-
-    static let MARGIN_LEFT_TYPE = 33
-    static let MARGIN_LEFT_VALUE = 34 // float (4 bytes: 34-37)
-    static let MARGIN_RIGHT_TYPE = 38
-    static let MARGIN_RIGHT_VALUE = 39 // float (4 bytes: 39-42)
-    static let MARGIN_TOP_TYPE = 43
-    static let MARGIN_TOP_VALUE = 44 // float (4 bytes: 44-47)
-    static let MARGIN_BOTTOM_TYPE = 48
-    static let MARGIN_BOTTOM_VALUE = 49 // float (4 bytes: 49-52)
-
-    static let PADDING_LEFT_TYPE = 53
-    static let PADDING_LEFT_VALUE = 54 // float (4 bytes: 54-57)
-    static let PADDING_RIGHT_TYPE = 58
-    static let PADDING_RIGHT_VALUE = 59 // float (4 bytes: 59-62)
-    static let PADDING_TOP_TYPE = 63
-    static let PADDING_TOP_VALUE = 64 // float (4 bytes: 64-67)
-    static let PADDING_BOTTOM_TYPE = 68
-    static let PADDING_BOTTOM_VALUE = 69 // float (4 bytes: 69-72)
-
-    static let BORDER_LEFT_TYPE = 73
-    static let BORDER_LEFT_VALUE = 74 // float (4 bytes: 74-77)
-    static let BORDER_RIGHT_TYPE = 78
-    static let BORDER_RIGHT_VALUE = 79 // float (4 bytes: 79-82)
-    static let BORDER_TOP_TYPE = 83
-    static let BORDER_TOP_VALUE = 84 // float (4 bytes: 84-87)
-    static let BORDER_BOTTOM_TYPE = 88
-    static let BORDER_BOTTOM_VALUE = 89 // float (4 bytes: 89-92)
-
-    static let FLEX_GROW = 93 // float (4 bytes: 93-96)
-    static let FLEX_SHRINK = 97 // float (4 bytes: 97-100)
-
-    static let FLEX_BASIS_TYPE = 101
-    static let FLEX_BASIS_VALUE = 102 // float (4 bytes: 102-105)
-
-    static let WIDTH_TYPE = 106
-    static let WIDTH_VALUE = 107 // float (4 bytes: 107-110)
-    static let HEIGHT_TYPE = 111
-    static let HEIGHT_VALUE = 112 // float (4 bytes: 112-115)
-
-    static let MIN_WIDTH_TYPE = 116
-    static let MIN_WIDTH_VALUE = 117 // float (4 bytes: 117-120)
-    static let MIN_HEIGHT_TYPE = 121
-    static let MIN_HEIGHT_VALUE = 122 // float (4 bytes: 122-125)
-
-    static let MAX_WIDTH_TYPE = 126
-    static let MAX_WIDTH_VALUE = 127 // float (4 bytes: 127-130)
-    static let MAX_HEIGHT_TYPE = 131
-    static let MAX_HEIGHT_VALUE = 132 // float (4 bytes: 132-135)
-
-    static let GAP_ROW_TYPE = 136
-    static let GAP_ROW_VALUE = 137 // float (4 bytes: 137-140)
-    static let GAP_COLUMN_TYPE = 141
-    static let GAP_COLUMN_VALUE = 142 // float (4 bytes: 142-145)
-
-    static let ASPECT_RATIO = 146 // float (4 bytes: 146-149)
-    static let GRID_AUTO_FLOW = 150
-    static let GRID_COLUMN_START_TYPE = 151
-    static let GRID_COLUMN_START_VALUE = 152 // float (4 bytes: 152-155)
-    static let GRID_COLUMN_END_TYPE = 156
-    static let GRID_COLUMN_END_VALUE = 157 // float (4 bytes: 157-160)
-    static let GRID_ROW_START_TYPE = 161
-    static let GRID_ROW_START_VALUE = 162 // float (4 bytes: 162-165)
-    static let GRID_ROW_END_TYPE = 166
-    static let GRID_ROW_END_VALUE = 167 // float (4 bytes: 167-170)
-    static let SCROLLBAR_WIDTH = 171 // float (4 bytes: 171-174)
-    static let TEXT_ALIGN = 175
-    static let BOX_SIZING = 176
-    static let OVERFLOW = 177
-    static let ITEM_IS_TABLE = 178
-    static let ITEM_IS_REPLACED = 179
-    static let DISPLAY_MODE = 180
-    static let FORCE_INLINE = 181
-    static let MIN_CONTENT_WIDTH = 182 // float (4 bytes: 182-185)
-    static let MIN_CONTENT_HEIGHT = 186 // float (4 bytes: 186-189)
-    static let MAX_CONTENT_WIDTH = 190 // float (4 bytes: 190-193)
-    static let MAX_CONTENT_HEIGHT = 194 // float (4 bytes: 194-197)
-
-    // ----------------------------
-    // Border Style (per side)
-    // ----------------------------
-    static let BORDER_LEFT_STYLE = 198
-    static let BORDER_RIGHT_STYLE = 199
-    static let BORDER_TOP_STYLE = 200
-    static let BORDER_BOTTOM_STYLE = 201
-
-    // ----------------------------
-    // Border Color (per side)
-    // ----------------------------
-    static let BORDER_LEFT_COLOR = 202 // u32 (4 bytes: 202-205)
-    static let BORDER_RIGHT_COLOR = 206 // u32 (4 bytes: 206-209)
-    static let BORDER_TOP_COLOR = 210 // u32 (4 bytes: 210-213)
-    static let BORDER_BOTTOM_COLOR = 214 // u32 (4 bytes: 214-217)
-
-    // ============================================================
-    // Border Radius (elliptical + squircle exponent)
-    // Each corner = 5 fields (12 bytes total):
-    //   x_type (1), x_value (4), y_type (1), y_value (4), exponent (4)
-    // ============================================================
-
-    // ----------------------------
-    // Top-left corner (12 bytes)
-    // ----------------------------
-    static let BORDER_RADIUS_TOP_LEFT_X_TYPE = 218
-    static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 219 // float (4 bytes: 219-222)
-    static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 223
-    static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 224 // float (4 bytes: 224-227)
-    static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 228 // float (4 bytes: 228-231)
-
-    // ----------------------------
-    // Top-right corner
-    // ----------------------------
-    static let BORDER_RADIUS_TOP_RIGHT_X_TYPE = 232
-    static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 233 // float (4 bytes: 233-236)
-    static let BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 237
-    static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238 // float (4 bytes: 238-241)
-    static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 242 // float (4 bytes: 242-245)
-
-    // ----------------------------
-    // Bottom-right corner
-    // ----------------------------
-    static let BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 246
-    static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 247 // float (4 bytes: 247-250)
-    static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 251
-    static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 252 // float (4 bytes: 252-255)
-    static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 256 // float (4 bytes: 256-259)
-
-    // ----------------------------
-    // Bottom-left corner
-    // ----------------------------
-    static let BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 260
-    static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 261 // float (4 bytes: 261-264)
-    static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 265
-    static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 266 // float (4 bytes: 266-269)
-    static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270 // float (4 bytes: 270-273)
-
-    // ----------------------------
-    // Float
-    // ----------------------------
-    static let FLOAT = 274
-    static let CLEAR = 275
-
-    static let OBJECT_FIT = 276
-
-    static let FONT_METRICS_ASCENT_OFFSET = 277 // float (4 bytes: 277-280)
-    static let FONT_METRICS_DESCENT_OFFSET = 281 // float (4 bytes: 281-284)
-    static let FONT_METRICS_X_HEIGHT_OFFSET = 285 // float (4 bytes: 285-288)
-    static let FONT_METRICS_LEADING_OFFSET = 289 // float (4 bytes: 289-292)
-    static let FONT_METRICS_CAP_HEIGHT_OFFSET = 293 // float (4 bytes: 293-296)
-    static let VERTICAL_ALIGN_OFFSET_OFFSET = 297 // float (4 bytes: 297-300)
-    static let VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301
-    static let VERTICAL_ALIGN_ENUM_OFFSET = 302 // float (4 bytes: 302-305)
-    static let FIRST_BASELINE_OFFSET = 306 // float (4 bytes: 306-309)
-    static let Z_INDEX = 310 // float (4 bytes: 310-313)
-    static let ITEM_IS_LIST = 314
-    static let ITEM_IS_LIST_ITEM = 315
-    static let LIST_STYLE_POSITION = 316
-    static let LIST_STYLE_TYPE = 317
-    static let LIST_STYLE_POSITION_STATE = 318
-    static let LIST_STYLE_TYPE_STATE = 319
-
-    static let REF_COUNT = 320 // int
+  static let POSITION = 1
+  static let DIRECTION = 2
+  static let FLEX_DIRECTION = 3
+  static let FLEX_WRAP = 4
+  static let OVERFLOW_X = 5
+  static let OVERFLOW_Y = 6
+  
+  static let ALIGN_ITEMS = 7
+  static let ALIGN_SELF = 8
+  static let ALIGN_CONTENT = 9
+  
+  static let JUSTIFY_ITEMS = 10
+  static let JUSTIFY_SELF = 11
+  static let JUSTIFY_CONTENT = 12
+  
+  static let INSET_LEFT_TYPE = 13
+  static let INSET_LEFT_VALUE = 14 // float (4 bytes: 14-17)
+  static let INSET_RIGHT_TYPE = 18
+  static let INSET_RIGHT_VALUE = 19 // float (4 bytes: 19-22)
+  static let INSET_TOP_TYPE = 23
+  static let INSET_TOP_VALUE = 24 // float (4 bytes: 24-27)
+  static let INSET_BOTTOM_TYPE = 28
+  static let INSET_BOTTOM_VALUE = 29 // float (4 bytes: 29-32)
+  
+  static let MARGIN_LEFT_TYPE = 33
+  static let MARGIN_LEFT_VALUE = 34 // float (4 bytes: 34-37)
+  static let MARGIN_RIGHT_TYPE = 38
+  static let MARGIN_RIGHT_VALUE = 39 // float (4 bytes: 39-42)
+  static let MARGIN_TOP_TYPE = 43
+  static let MARGIN_TOP_VALUE = 44 // float (4 bytes: 44-47)
+  static let MARGIN_BOTTOM_TYPE = 48
+  static let MARGIN_BOTTOM_VALUE = 49 // float (4 bytes: 49-52)
+  
+  static let PADDING_LEFT_TYPE = 53
+  static let PADDING_LEFT_VALUE = 54 // float (4 bytes: 54-57)
+  static let PADDING_RIGHT_TYPE = 58
+  static let PADDING_RIGHT_VALUE = 59 // float (4 bytes: 59-62)
+  static let PADDING_TOP_TYPE = 63
+  static let PADDING_TOP_VALUE = 64 // float (4 bytes: 64-67)
+  static let PADDING_BOTTOM_TYPE = 68
+  static let PADDING_BOTTOM_VALUE = 69 // float (4 bytes: 69-72)
+  
+  static let BORDER_LEFT_TYPE = 73
+  static let BORDER_LEFT_VALUE = 74 // float (4 bytes: 74-77)
+  static let BORDER_RIGHT_TYPE = 78
+  static let BORDER_RIGHT_VALUE = 79 // float (4 bytes: 79-82)
+  static let BORDER_TOP_TYPE = 83
+  static let BORDER_TOP_VALUE = 84 // float (4 bytes: 84-87)
+  static let BORDER_BOTTOM_TYPE = 88
+  static let BORDER_BOTTOM_VALUE = 89 // float (4 bytes: 89-92)
+  
+  static let FLEX_GROW = 93 // float (4 bytes: 93-96)
+  static let FLEX_SHRINK = 97 // float (4 bytes: 97-100)
+  
+  static let FLEX_BASIS_TYPE = 101
+  static let FLEX_BASIS_VALUE = 102 // float (4 bytes: 102-105)
+  
+  static let WIDTH_TYPE = 106
+  static let WIDTH_VALUE = 107 // float (4 bytes: 107-110)
+  static let HEIGHT_TYPE = 111
+  static let HEIGHT_VALUE = 112 // float (4 bytes: 112-115)
+  
+  static let MIN_WIDTH_TYPE = 116
+  static let MIN_WIDTH_VALUE = 117 // float (4 bytes: 117-120)
+  static let MIN_HEIGHT_TYPE = 121
+  static let MIN_HEIGHT_VALUE = 122 // float (4 bytes: 122-125)
+  
+  static let MAX_WIDTH_TYPE = 126
+  static let MAX_WIDTH_VALUE = 127 // float (4 bytes: 127-130)
+  static let MAX_HEIGHT_TYPE = 131
+  static let MAX_HEIGHT_VALUE = 132 // float (4 bytes: 132-135)
+  
+  static let GAP_ROW_TYPE = 136
+  static let GAP_ROW_VALUE = 137 // float (4 bytes: 137-140)
+  static let GAP_COLUMN_TYPE = 141
+  static let GAP_COLUMN_VALUE = 142 // float (4 bytes: 142-145)
+  
+  static let ASPECT_RATIO = 146 // float (4 bytes: 146-149)
+  static let GRID_AUTO_FLOW = 150
+  static let GRID_COLUMN_START_TYPE = 151
+  static let GRID_COLUMN_START_VALUE = 152 // float (4 bytes: 152-155)
+  static let GRID_COLUMN_END_TYPE = 156
+  static let GRID_COLUMN_END_VALUE = 157 // float (4 bytes: 157-160)
+  static let GRID_ROW_START_TYPE = 161
+  static let GRID_ROW_START_VALUE = 162 // float (4 bytes: 162-165)
+  static let GRID_ROW_END_TYPE = 166
+  static let GRID_ROW_END_VALUE = 167 // float (4 bytes: 167-170)
+  static let SCROLLBAR_WIDTH = 171 // float (4 bytes: 171-174)
+  static let TEXT_ALIGN = 175
+  static let BOX_SIZING = 176
+  static let OVERFLOW = 177
+  static let ITEM_IS_TABLE = 178
+  static let ITEM_IS_REPLACED = 179
+  static let DISPLAY_MODE = 180
+  static let FORCE_INLINE = 181
+  static let MIN_CONTENT_WIDTH = 182 // float (4 bytes: 182-185)
+  static let MIN_CONTENT_HEIGHT = 186 // float (4 bytes: 186-189)
+  static let MAX_CONTENT_WIDTH = 190 // float (4 bytes: 190-193)
+  static let MAX_CONTENT_HEIGHT = 194 // float (4 bytes: 194-197)
+  
+  // ----------------------------
+  // Border Style (per side)
+  // ----------------------------
+  static let BORDER_LEFT_STYLE = 198
+  static let BORDER_RIGHT_STYLE = 199
+  static let BORDER_TOP_STYLE = 200
+  static let BORDER_BOTTOM_STYLE = 201
+  
+  // ----------------------------
+  // Border Color (per side)
+  // ----------------------------
+  static let BORDER_LEFT_COLOR = 202 // u32 (4 bytes: 202-205)
+  static let BORDER_RIGHT_COLOR = 206 // u32 (4 bytes: 206-209)
+  static let BORDER_TOP_COLOR = 210 // u32 (4 bytes: 210-213)
+  static let BORDER_BOTTOM_COLOR = 214 // u32 (4 bytes: 214-217)
+  
+  // ============================================================
+  // Border Radius (elliptical + squircle exponent)
+  // Each corner = 5 fields (12 bytes total):
+  //   x_type (1), x_value (4), y_type (1), y_value (4), exponent (4)
+  // ============================================================
+  
+  // ----------------------------
+  // Top-left corner (12 bytes)
+  // ----------------------------
+  static let BORDER_RADIUS_TOP_LEFT_X_TYPE = 218
+  static let BORDER_RADIUS_TOP_LEFT_X_VALUE = 219 // float (4 bytes: 219-222)
+  static let BORDER_RADIUS_TOP_LEFT_Y_TYPE = 223
+  static let BORDER_RADIUS_TOP_LEFT_Y_VALUE = 224 // float (4 bytes: 224-227)
+  static let BORDER_RADIUS_TOP_LEFT_EXPONENT = 228 // float (4 bytes: 228-231)
+  
+  // ----------------------------
+  // Top-right corner
+  // ----------------------------
+  static let BORDER_RADIUS_TOP_RIGHT_X_TYPE = 232
+  static let BORDER_RADIUS_TOP_RIGHT_X_VALUE = 233 // float (4 bytes: 233-236)
+  static let BORDER_RADIUS_TOP_RIGHT_Y_TYPE = 237
+  static let BORDER_RADIUS_TOP_RIGHT_Y_VALUE = 238 // float (4 bytes: 238-241)
+  static let BORDER_RADIUS_TOP_RIGHT_EXPONENT = 242 // float (4 bytes: 242-245)
+  
+  // ----------------------------
+  // Bottom-right corner
+  // ----------------------------
+  static let BORDER_RADIUS_BOTTOM_RIGHT_X_TYPE = 246
+  static let BORDER_RADIUS_BOTTOM_RIGHT_X_VALUE = 247 // float (4 bytes: 247-250)
+  static let BORDER_RADIUS_BOTTOM_RIGHT_Y_TYPE = 251
+  static let BORDER_RADIUS_BOTTOM_RIGHT_Y_VALUE = 252 // float (4 bytes: 252-255)
+  static let BORDER_RADIUS_BOTTOM_RIGHT_EXPONENT = 256 // float (4 bytes: 256-259)
+  
+  // ----------------------------
+  // Bottom-left corner
+  // ----------------------------
+  static let BORDER_RADIUS_BOTTOM_LEFT_X_TYPE = 260
+  static let BORDER_RADIUS_BOTTOM_LEFT_X_VALUE = 261 // float (4 bytes: 261-264)
+  static let BORDER_RADIUS_BOTTOM_LEFT_Y_TYPE = 265
+  static let BORDER_RADIUS_BOTTOM_LEFT_Y_VALUE = 266 // float (4 bytes: 266-269)
+  static let BORDER_RADIUS_BOTTOM_LEFT_EXPONENT = 270 // float (4 bytes: 270-273)
+  
+  // ----------------------------
+  // Float
+  // ----------------------------
+  static let FLOAT = 274
+  static let CLEAR = 275
+  
+  static let OBJECT_FIT = 276
+  
+  static let FONT_METRICS_ASCENT_OFFSET = 277 // float (4 bytes: 277-280)
+  static let FONT_METRICS_DESCENT_OFFSET = 281 // float (4 bytes: 281-284)
+  static let FONT_METRICS_X_HEIGHT_OFFSET = 285 // float (4 bytes: 285-288)
+  static let FONT_METRICS_LEADING_OFFSET = 289 // float (4 bytes: 289-292)
+  static let FONT_METRICS_CAP_HEIGHT_OFFSET = 293 // float (4 bytes: 293-296)
+  static let VERTICAL_ALIGN_OFFSET_OFFSET = 297 // float (4 bytes: 297-300)
+  static let VERTICAL_ALIGN_IS_PERCENT_OFFSET = 301
+  static let VERTICAL_ALIGN_ENUM_OFFSET = 302 // float (4 bytes: 302-305)
+  static let FIRST_BASELINE_OFFSET = 306 // float (4 bytes: 306-309)
+  static let Z_INDEX = 310 // float (4 bytes: 310-313)
+  static let ITEM_IS_LIST = 314
+  static let ITEM_IS_LIST_ITEM = 315
+  static let LIST_STYLE_POSITION = 316
+  static let LIST_STYLE_TYPE = 317
+  static let LIST_STYLE_POSITION_STATE = 318
+  static let LIST_STYLE_TYPE_STATE = 319
+  
+  static let REF_COUNT = 320 // int
 }
 
 
@@ -367,7 +367,7 @@ internal struct TextStyleChangeMasks: OptionSet {
   static let all = TextStyleChangeMasks(rawValue: -1)
 }
 
-protocol StyleChangeListener{
+protocol StyleChangeListener: AnyObject {
   func onTextStyleChanged(change: Int64)
 }
 
@@ -425,6 +425,8 @@ struct FontMetrics {
 @objcMembers
 public class MasonStyle: NSObject {
   public internal(set) var font: NSCFontFace!
+  private var _cachedResolvedFont: NSCFontFace? = nil
+  private var _resolvedFontKey: UInt64 = 0
   internal var fontMetrics: FontMetrics {
     get {
       return FontMetrics(ascent:  getFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET), descent:  getFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET), x_height: getFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET), leading: getFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET), cap_height: getFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET))
@@ -450,10 +452,10 @@ public class MasonStyle: NSObject {
     }
     syncFontMetricsNow()
   }
-
+  
   private func syncFontMetricsNow(){
     guard let font = font.uiFont else {return}
-
+    
     // UIFont properties:
     // - ascender: positive value, distance from baseline to top
     // - descender: negative value, distance from baseline to bottom
@@ -461,7 +463,7 @@ public class MasonStyle: NSObject {
     // - xHeight: height of lowercase 'x'
     // - capHeight: height of capital letters
     // - leading: extra spacing between lines (usually small or 0)
-
+    
     let scale = NSCMason.scale
     let ascent = Float(font.ascender) * scale
     let descent = Float(-font.descender) * scale  // Make it positive
@@ -469,15 +471,15 @@ public class MasonStyle: NSObject {
     let xHeight = Float(font.xHeight) * scale
     let capHeight = Float(font.capHeight) * scale
     let leading = Float(font.leading) * scale
-
-
+    
+    
     setFloat(StyleKeys.FONT_METRICS_ASCENT_OFFSET, ascent)
     setFloat(StyleKeys.FONT_METRICS_DESCENT_OFFSET, descent)
     setFloat(StyleKeys.FONT_METRICS_X_HEIGHT_OFFSET, xHeight)
     setFloat(StyleKeys.FONT_METRICS_LEADING_OFFSET, leading)
     setFloat(StyleKeys.FONT_METRICS_CAP_HEIGHT_OFFSET, capHeight)
   }
-
+  
   /// Flush deferred font metrics sync after measure callback returns.
   /// Returns true if a sync was pending (caller should mark node dirty).
   internal func flushPendingMetricsSync() -> Bool {
@@ -498,7 +500,7 @@ public class MasonStyle: NSObject {
   // Guard flag: true while inside Rust measure callback (read lock held, no buffer writes)
   internal var inMeasure = false
   internal var pendingMetricsSync = false
-
+  
   internal var isDirty: Int64 = -1
   internal var isTextDirty:Int64 = -1
   internal var isSlowDirty = false {
@@ -522,7 +524,7 @@ public class MasonStyle: NSObject {
   internal var isValueInitialized: Bool  = false
   internal var isTextValueInitialized: Bool = false
   
-  private var styleChangeListener: StyleChangeListener? = nil
+  private weak var styleChangeListener: StyleChangeListener? = nil
   
   internal func setStyleChangeListener(listener: StyleChangeListener?) {
     styleChangeListener = listener
@@ -538,10 +540,12 @@ public class MasonStyle: NSObject {
     if (node.isPlaceholder) {
       return
     }
-
+    
     let mutable = getInt32(StyleKeys.REF_COUNT) == 1
     
+    
     if (!mutable) {
+      mason_style_prepare_style_for_mut(node.mason.nativePtr, node.nativePtr)
       let buffer = mason_style_get_style_buffer_apple(node.mason.nativePtr, node.nativePtr)
       guard let buffer else {
         // todo
@@ -549,7 +553,7 @@ public class MasonStyle: NSObject {
       }
       
       isValueInitialized = true
-     
+      
       writableValue = Unmanaged<NSMutableData>.fromOpaque(buffer).takeRetainedValue()
     } else {
       isValueInitialized = true
@@ -954,7 +958,7 @@ public class MasonStyle: NSObject {
   }
   
   static func getFloat(_ index: Int, _ buffer: NSData) -> Float {
-   buffer.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
+    buffer.bytes.advanced(by: index).assumingMemoryBound(to: Float.self).pointee
   }
   
   static func setFloat(_ index: Int, _ value: Float, _ buffer: NSMutableData) {
@@ -980,7 +984,7 @@ public class MasonStyle: NSObject {
       // todo state
     }
   }
-
+  
   
   public var listStyleType: ListStyleType {
     get {
@@ -1403,6 +1407,7 @@ public class MasonStyle: NSObject {
           font.style = "oblique"
           break
         }
+        invalidateResolvedFontCache()
         notifyTextStyleChanged(TextStyleChangeMasks.fontStyle.rawValue)
       }
     }
@@ -1511,6 +1516,7 @@ public class MasonStyle: NSObject {
         syncFontMetrics()
         
         setUInt8(TextStyleKeys.FONT_FAMILY_STATE, StyleState.SET, text: true)
+        invalidateResolvedFontCache()
         notifyTextStyleChanged(TextStyleChangeMasks.fontFamily.rawValue)
       }
     }
@@ -1567,6 +1573,7 @@ public class MasonStyle: NSObject {
       if previous != weightName {
         setInt32(TextStyleKeys.FONT_WEIGHT, Int32(font.weight.rawValue), text: true)
         setUInt8(TextStyleKeys.FONT_WEIGHT_STATE, StyleState.SET, text: true)
+        invalidateResolvedFontCache()
         notifyTextStyleChanged(TextStyleChangeMasks.fontWeight.rawValue)
       }
     }
@@ -1631,14 +1638,14 @@ public class MasonStyle: NSObject {
   
   public var display: Display {
     get {
-      let mode = DisplayMode(rawValue: getInt8(Int(StyleKeys.DISPLAY_MODE)))!
+      let mode = DisplayMode(rawValue: getInt8(StyleKeys.DISPLAY_MODE))!
       switch mode {
       case .None:
-        return Display(rawValue: getInt8(Int(StyleKeys.DISPLAY)))!
+        return Display(rawValue: getInt8(StyleKeys.DISPLAY))!
       case .Inline:
         return .Inline
       case .Box:
-        switch Display(rawValue: getInt8(Int(StyleKeys.DISPLAY)))! {
+        switch Display(rawValue: getInt8(StyleKeys.DISPLAY))! {
         case .Flex:
           return .InlineFlex
         case .Grid:
@@ -3301,7 +3308,19 @@ extension MasonStyle {
     return nil
   }
   
-  // Store the resolved FontFace - lazily computed
+  private static func resolvedFontCacheKey(family: String, weight: NSCFontWeight, style: NSCFontStyle) -> UInt64 {
+    var hasher = Hasher()
+    hasher.combine(family)
+    hasher.combine(weight)
+    hasher.combine(style)
+    return UInt64(bitPattern: Int64(hasher.finalize()))
+  }
+  
+  internal func invalidateResolvedFontCache() {
+    _cachedResolvedFont = nil
+    _resolvedFontKey = 0
+  }
+  
   internal var resolvedFontFace: NSCFontFace {
     let familyState = getUInt8(TextStyleKeys.FONT_FAMILY_STATE, text: true)
     let weightState = getUInt8(TextStyleKeys.FONT_WEIGHT_STATE, text: true)
@@ -3338,11 +3357,18 @@ extension MasonStyle {
       return font
     }
     
-    // Create a new FontFace with resolved properties
-    let resolvedFont = NSCFontFace(family: baseFamily)
+    // Check one-slot cache
+    let key = MasonStyle.resolvedFontCacheKey(family: baseFamily, weight: resolvedWeight, style: resolvedStyle)
+    if let cached = _cachedResolvedFont, _resolvedFontKey == key {
+      return cached
+    }
     
+    // Create a new FontFace with resolved properties and cache it
+    let resolvedFont = NSCFontFace(family: baseFamily)
     resolvedFont.weight = resolvedWeight
     resolvedFont.style = resolvedStyle.cssValue
+    _cachedResolvedFont = resolvedFont
+    _resolvedFontKey = key
     
     return resolvedFont
   }

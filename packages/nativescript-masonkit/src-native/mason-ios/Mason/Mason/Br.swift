@@ -42,15 +42,16 @@ public class MasonBr: NSObject,MasonEventTarget, MasonElement, MasonElementObjc 
     super.init()
     node.view = view
     
-    node.measureFunc = { known, available in
+    node.measureFunc = { [weak self] known, available in
+      guard let self = self else { return .zero }
       var ret = CGSize.zero
       if(available.width.isFinite && available.width > 0){
         ret.width = available.width
       }
-      
+
       let lineHeightType = self.style.resolvedLineHeightType
       let lineHeight = self.style.resolvedLineHeight
-      
+
       if(lineHeightType == 1){
         ret.height = CGFloat(lineHeight)
       }else {
@@ -61,7 +62,7 @@ public class MasonBr: NSObject,MasonEventTarget, MasonElement, MasonElementObjc 
           ret.height = size.height
         }
       }
-      
+
       return ret
     }
     node.setMeasureFunction(node.measureFunc!)

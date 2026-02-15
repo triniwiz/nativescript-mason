@@ -3838,6 +3838,7 @@ declare module org {
 					public static nativeGetGridAutoColumns(param0: number, param1: number): string;
 					public setGap(value: org.nativescript.mason.masonkit.Size<org.nativescript.mason.masonkit.LengthPercentage>): void;
 					public setBoxSizing(value: org.nativescript.mason.masonkit.enums.BoxSizing): void;
+					public prepareMut(): void;
 				}
 				export module Style {
 					export class Companion {

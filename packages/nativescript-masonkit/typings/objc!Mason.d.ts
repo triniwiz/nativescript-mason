@@ -528,9 +528,9 @@ declare class MasonEvent extends NSObject {
 
 	readonly type: string;
 
-	constructor(o: { type: string; options: MasonEventOptions; });
+	constructor(o: { type: string; bubbles: boolean; cancelable: boolean; options: MasonEventOptions; });
 
-	initWithTypeOptions(type: string, options: MasonEventOptions): this;
+	initWithTypeBubblesCancelableOptions(eventType: string, eventBubbles: boolean, eventCancelable: boolean, options: MasonEventOptions): this;
 
 	preventDefault(): void;
 
@@ -545,19 +545,11 @@ declare class MasonEventOptions extends NSObject {
 
 	static new(): MasonEventOptions; // inherited from NSObject
 
-	bubbles: boolean;
-
-	cancelable: boolean;
-
 	isComposing: boolean;
 
-	target: any;
+	constructor(o: { isComposing: boolean; });
 
-	type: string;
-
-	constructor(o: { type: string; bubbles: boolean; cancelable: boolean; isComposing: boolean; });
-
-	initWithTypeBubblesCancelableIsComposing(type: string, bubbles: boolean, cancelable: boolean, isComposing: boolean): this;
+	initWithIsComposing(isComposing: boolean): this;
 }
 
 declare class MasonFileInputEvent extends MasonEvent {
@@ -978,6 +970,8 @@ declare class MasonLayout extends NSObject {
 
 	readonly scrollbarSizeWidth: number;
 
+	readonly sizeIsEmpty: boolean;
+
 	readonly width: number;
 
 	readonly x: number;
@@ -1137,6 +1131,92 @@ declare class MasonLengthPercentageSizeCompat extends NSObject {
 	width: MasonLengthPercentageCompat;
 }
 
+declare class MasonLi extends UIView implements MasonElementObjc {
+
+	static alloc(): MasonLi; // inherited from NSObject
+
+	static appearance(): MasonLi; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 */
+	static appearanceForTraitCollection(trait: UITraitCollection): MasonLi; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 * @deprecated 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonLi; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonLi; // inherited from UIAppearance
+
+	/**
+	 * @since 5.0
+	 * @deprecated 9.0
+	 */
+	static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonLi; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonLi; // inherited from UIAppearance
+
+	static new(): MasonLi; // inherited from NSObject
+
+	isOrdered: boolean;
+
+	readonly mason: NSCMason;
+
+	readonly debugDescription: string; // inherited from NSObjectProtocol
+
+	readonly description: string; // inherited from NSObjectProtocol
+
+	readonly hash: number; // inherited from NSObjectProtocol
+
+	readonly isProxy: boolean; // inherited from NSObjectProtocol
+
+	readonly node: MasonNode; // inherited from MasonElementObjc
+
+	readonly style: MasonStyle; // inherited from MasonElementObjc
+
+	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+
+	readonly uiView: UIView; // inherited from MasonElementObjc
+
+	readonly  // inherited from NSObjectProtocol
+
+	bindWithPositionIsOrdered(position: number, isOrdered: boolean): void;
+
+	class(): typeof NSObject;
+
+	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
+
+	isEqual(object: any): boolean;
+
+	isKindOfClass(aClass: typeof NSObject): boolean;
+
+	isMemberOfClass(aClass: typeof NSObject): boolean;
+
+	performSelector(aSelector: string): any;
+
+	performSelectorWithObject(aSelector: string, object: any): any;
+
+	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
+
+	requestLayout(): void;
+
+	resetForRecycle(): void;
+
+	respondsToSelector(aSelector: string): boolean;
+
+	retainCount(): number;
+
+	self(): this;
+}
+
 declare const enum MasonLineHeight {
 
 	Normal = 0,
@@ -1148,6 +1228,386 @@ declare const enum MasonLineHeight {
 	PreLine = 3
 }
 
+declare class MasonList extends UIView implements MasonElementObjc, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+
+	static alloc(): MasonList; // inherited from NSObject
+
+	static appearance(): MasonList; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 */
+	static appearanceForTraitCollection(trait: UITraitCollection): MasonList; // inherited from UIAppearance
+
+	/**
+	 * @since 8.0
+	 * @deprecated 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedIn(trait: UITraitCollection, ContainerClass: typeof NSObject): MasonList; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceForTraitCollectionWhenContainedInInstancesOfClasses(trait: UITraitCollection, containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonList; // inherited from UIAppearance
+
+	/**
+	 * @since 5.0
+	 * @deprecated 9.0
+	 */
+	static appearanceWhenContainedIn(ContainerClass: typeof NSObject): MasonList; // inherited from UIAppearance
+
+	/**
+	 * @since 9.0
+	 */
+	static appearanceWhenContainedInInstancesOfClasses(containerTypes: NSArray<typeof NSObject> | typeof NSObject[]): MasonList; // inherited from UIAppearance
+
+	static new(): MasonList; // inherited from NSObject
+
+	count: number;
+
+	delegate: MasonListDelegate;
+
+	isOrdered: boolean;
+
+	readonly mason: NSCMason;
+
+	values: NSMutableData;
+
+	readonly debugDescription: string; // inherited from NSObjectProtocol
+
+	readonly description: string; // inherited from NSObjectProtocol
+
+	readonly hash: number; // inherited from NSObjectProtocol
+
+	readonly isProxy: boolean; // inherited from NSObjectProtocol
+
+	readonly node: MasonNode; // inherited from MasonElementObjc
+
+	readonly style: MasonStyle; // inherited from MasonElementObjc
+
+	readonly superclass: typeof NSObject; // inherited from NSObjectProtocol
+
+	readonly uiView: UIView; // inherited from MasonElementObjc
+
+	readonly  // inherited from NSObjectProtocol
+
+	class(): typeof NSObject;
+
+	/**
+	 * @since 14.0
+	 */
+	collectionViewCanEditItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	/**
+	 * @since 9.0
+	 */
+	collectionViewCanFocusItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	/**
+	 * @since 9.0
+	 */
+	collectionViewCanMoveItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	/**
+	 * @since 6.0
+	 * @deprecated 13.0
+	 */
+	collectionViewCanPerformActionForItemAtIndexPathWithSender(collectionView: UICollectionView, action: string, indexPath: NSIndexPath, sender: any): boolean;
+
+	/**
+	 * @since 16.0
+	 */
+	collectionViewCanPerformPrimaryActionForItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	collectionViewCellForItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): UICollectionViewCell;
+
+	/**
+	 * @since 16.0
+	 */
+	collectionViewContextMenuConfigurationDismissalPreviewForItemAtIndexPath(collectionView: UICollectionView, configuration: UIContextMenuConfiguration, indexPath: NSIndexPath): UITargetedPreview;
+
+	/**
+	 * @since 13.0
+	 * @deprecated 16.0
+	 */
+	collectionViewContextMenuConfigurationForItemAtIndexPathPoint(collectionView: UICollectionView, indexPath: NSIndexPath, point: CGPoint): UIContextMenuConfiguration;
+
+	/**
+	 * @since 16.0
+	 */
+	collectionViewContextMenuConfigurationForItemsAtIndexPathsPoint(collectionView: UICollectionView, indexPaths: NSArray<NSIndexPath> | NSIndexPath[], point: CGPoint): UIContextMenuConfiguration;
+
+	/**
+	 * @since 16.0
+	 */
+	collectionViewContextMenuConfigurationHighlightPreviewForItemAtIndexPath(collectionView: UICollectionView, configuration: UIContextMenuConfiguration, indexPath: NSIndexPath): UITargetedPreview;
+
+	/**
+	 * @since 13.0
+	 */
+	collectionViewDidBeginMultipleSelectionInteractionAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): void;
+
+	collectionViewDidDeselectItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): void;
+
+	collectionViewDidEndDisplayingCellForItemAtIndexPath(collectionView: UICollectionView, cell: UICollectionViewCell, indexPath: NSIndexPath): void;
+
+	collectionViewDidEndDisplayingSupplementaryViewForElementOfKindAtIndexPath(collectionView: UICollectionView, view: UICollectionReusableView, elementKind: string, indexPath: NSIndexPath): void;
+
+	/**
+	 * @since 13.0
+	 */
+	collectionViewDidEndMultipleSelectionInteraction(collectionView: UICollectionView): void;
+
+	collectionViewDidHighlightItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): void;
+
+	collectionViewDidSelectItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): void;
+
+	collectionViewDidUnhighlightItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): void;
+
+	/**
+	 * @since 9.0
+	 */
+	collectionViewDidUpdateFocusInContextWithAnimationCoordinator(collectionView: UICollectionView, context: UICollectionViewFocusUpdateContext, coordinator: UIFocusAnimationCoordinator): void;
+
+	/**
+	 * @since 14.0
+	 */
+	collectionViewIndexPathForIndexTitleAtIndex(collectionView: UICollectionView, title: string, index: number): NSIndexPath;
+
+	collectionViewLayoutInsetForSectionAtIndex(collectionView: UICollectionView, collectionViewLayout: UICollectionViewLayout, section: number): UIEdgeInsets;
+
+	collectionViewLayoutMinimumInteritemSpacingForSectionAtIndex(collectionView: UICollectionView, collectionViewLayout: UICollectionViewLayout, section: number): number;
+
+	collectionViewLayoutMinimumLineSpacingForSectionAtIndex(collectionView: UICollectionView, collectionViewLayout: UICollectionViewLayout, section: number): number;
+
+	collectionViewLayoutReferenceSizeForFooterInSection(collectionView: UICollectionView, collectionViewLayout: UICollectionViewLayout, section: number): CGSize;
+
+	collectionViewLayoutReferenceSizeForHeaderInSection(collectionView: UICollectionView, collectionViewLayout: UICollectionViewLayout, section: number): CGSize;
+
+	collectionViewLayoutSizeForItemAtIndexPath(collectionView: UICollectionView, collectionViewLayout: UICollectionViewLayout, indexPath: NSIndexPath): CGSize;
+
+	/**
+	 * @since 9.0
+	 */
+	collectionViewMoveItemAtIndexPathToIndexPath(collectionView: UICollectionView, sourceIndexPath: NSIndexPath, destinationIndexPath: NSIndexPath): void;
+
+	collectionViewNumberOfItemsInSection(collectionView: UICollectionView, section: number): number;
+
+	/**
+	 * @since 6.0
+	 * @deprecated 13.0
+	 */
+	collectionViewPerformActionForItemAtIndexPathWithSender(collectionView: UICollectionView, action: string, indexPath: NSIndexPath, sender: any): void;
+
+	/**
+	 * @since 16.0
+	 */
+	collectionViewPerformPrimaryActionForItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): void;
+
+	/**
+	 * @since 13.0
+	 * @deprecated 16.0
+	 */
+	collectionViewPreviewForDismissingContextMenuWithConfiguration(collectionView: UICollectionView, configuration: UIContextMenuConfiguration): UITargetedPreview;
+
+	/**
+	 * @since 13.0
+	 * @deprecated 16.0
+	 */
+	collectionViewPreviewForHighlightingContextMenuWithConfiguration(collectionView: UICollectionView, configuration: UIContextMenuConfiguration): UITargetedPreview;
+
+	/**
+	 * @since 15.0
+	 */
+	collectionViewSceneActivationConfigurationForItemAtIndexPathPoint(collectionView: UICollectionView, indexPath: NSIndexPath, point: CGPoint): UIWindowSceneActivationConfiguration;
+
+	/**
+	 * @since 15.0
+	 */
+	collectionViewSelectionFollowsFocusForItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	/**
+	 * @since 13.0
+	 */
+	collectionViewShouldBeginMultipleSelectionInteractionAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	collectionViewShouldDeselectItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	collectionViewShouldHighlightItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	collectionViewShouldSelectItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	/**
+	 * @since 6.0
+	 * @deprecated 13.0
+	 */
+	collectionViewShouldShowMenuForItemAtIndexPath(collectionView: UICollectionView, indexPath: NSIndexPath): boolean;
+
+	/**
+	 * @since 11.0
+	 */
+	collectionViewShouldSpringLoadItemAtIndexPathWithContext(collectionView: UICollectionView, indexPath: NSIndexPath, context: UISpringLoadedInteractionContext): boolean;
+
+	/**
+	 * @since 9.0
+	 */
+	collectionViewShouldUpdateFocusInContext(collectionView: UICollectionView, context: UICollectionViewFocusUpdateContext): boolean;
+
+	/**
+	 * @since 9.0
+	 */
+	collectionViewTargetContentOffsetForProposedContentOffset(collectionView: UICollectionView, proposedContentOffset: CGPoint): CGPoint;
+
+	/**
+	 * @since 9.0
+	 * @deprecated 15.0
+	 */
+	collectionViewTargetIndexPathForMoveFromItemAtIndexPathToProposedIndexPath(collectionView: UICollectionView, currentIndexPath: NSIndexPath, proposedIndexPath: NSIndexPath): NSIndexPath;
+
+	/**
+	 * @since 15.0
+	 */
+	collectionViewTargetIndexPathForMoveOfItemFromOriginalIndexPathAtCurrentIndexPathToProposedIndexPath(collectionView: UICollectionView, originalIndexPath: NSIndexPath, currentIndexPath: NSIndexPath, proposedIndexPath: NSIndexPath): NSIndexPath;
+
+	collectionViewTransitionLayoutForOldLayoutNewLayout(collectionView: UICollectionView, fromLayout: UICollectionViewLayout, toLayout: UICollectionViewLayout): UICollectionViewTransitionLayout;
+
+	collectionViewViewForSupplementaryElementOfKindAtIndexPath(collectionView: UICollectionView, kind: string, indexPath: NSIndexPath): UICollectionReusableView;
+
+	/**
+	 * @since 8.0
+	 */
+	collectionViewWillDisplayCellForItemAtIndexPath(collectionView: UICollectionView, cell: UICollectionViewCell, indexPath: NSIndexPath): void;
+
+	/**
+	 * @since 13.2
+	 */
+	collectionViewWillDisplayContextMenuWithConfigurationAnimator(collectionView: UICollectionView, configuration: UIContextMenuConfiguration, animator: UIContextMenuInteractionAnimating): void;
+
+	/**
+	 * @since 8.0
+	 */
+	collectionViewWillDisplaySupplementaryViewForElementKindAtIndexPath(collectionView: UICollectionView, view: UICollectionReusableView, elementKind: string, indexPath: NSIndexPath): void;
+
+	/**
+	 * @since 13.2
+	 */
+	collectionViewWillEndContextMenuInteractionWithConfigurationAnimator(collectionView: UICollectionView, configuration: UIContextMenuConfiguration, animator: UIContextMenuInteractionAnimating): void;
+
+	/**
+	 * @since 13.0
+	 */
+	collectionViewWillPerformPreviewActionForMenuWithConfigurationAnimator(collectionView: UICollectionView, configuration: UIContextMenuConfiguration, animator: UIContextMenuInteractionCommitAnimating): void;
+
+	conformsToProtocol(aProtocol: any /* Protocol */): boolean;
+
+	/**
+	 * @since 9.0
+	 */
+	indexPathForPreferredFocusedViewInCollectionView(collectionView: UICollectionView): NSIndexPath;
+
+	/**
+	 * @since 14.0
+	 */
+	indexTitlesForCollectionView(collectionView: UICollectionView): NSArray<string>;
+
+	isEqual(object: any): boolean;
+
+	isKindOfClass(aClass: typeof NSObject): boolean;
+
+	isMemberOfClass(aClass: typeof NSObject): boolean;
+
+	numberOfSectionsInCollectionView(collectionView: UICollectionView): number;
+
+	performSelector(aSelector: string): any;
+
+	performSelectorWithObject(aSelector: string, object: any): any;
+
+	performSelectorWithObjectWithObject(aSelector: string, object1: any, object2: any): any;
+
+	registerWithCellClassForCellWithReuseIdentifier(cellClass: typeof NSObject, identifier: string): void;
+
+	reload(): void;
+
+	respondsToSelector(aSelector: string): boolean;
+
+	retainCount(): number;
+
+	/**
+	 * @since 11.0
+	 */
+	scrollViewDidChangeAdjustedContentInset(scrollView: UIScrollView): void;
+
+	scrollViewDidEndDecelerating(scrollView: UIScrollView): void;
+
+	scrollViewDidEndDraggingWillDecelerate(scrollView: UIScrollView, decelerate: boolean): void;
+
+	scrollViewDidEndScrollingAnimation(scrollView: UIScrollView): void;
+
+	scrollViewDidEndZoomingWithViewAtScale(scrollView: UIScrollView, view: UIView, scale: number): void;
+
+	scrollViewDidScroll(scrollView: UIScrollView): void;
+
+	scrollViewDidScrollToTop(scrollView: UIScrollView): void;
+
+	/**
+	 * @since 3.2
+	 */
+	scrollViewDidZoom(scrollView: UIScrollView): void;
+
+	scrollViewShouldScrollToTop(scrollView: UIScrollView): boolean;
+
+	scrollViewWillBeginDecelerating(scrollView: UIScrollView): void;
+
+	scrollViewWillBeginDragging(scrollView: UIScrollView): void;
+
+	/**
+	 * @since 3.2
+	 */
+	scrollViewWillBeginZoomingWithView(scrollView: UIScrollView, view: UIView): void;
+
+	/**
+	 * @since 5.0
+	 */
+	scrollViewWillEndDraggingWithVelocityTargetContentOffset(scrollView: UIScrollView, velocity: CGPoint, targetContentOffset: interop.Pointer | interop.Reference<CGPoint>): void;
+
+	self(): this;
+
+	viewForZoomingInScrollView(scrollView: UIScrollView): UIView;
+}
+
+interface MasonListDelegate {
+
+	listCellForItemAt(list: UICollectionView, indexPath: NSIndexPath): UICollectionViewCell;
+
+	listWillDisplayForItemAt(list: UICollectionView, cell: UICollectionViewCell, indexPath: NSIndexPath): void;
+}
+declare var MasonListDelegate: {
+
+	prototype: MasonListDelegate;
+};
+
+declare const enum MasonListStylePosition {
+
+	Outside = 0,
+
+	Inside = 1
+}
+
+declare const enum MasonListStyleType {
+
+	None = 0,
+
+	Custom = 1,
+
+	Disc = 2,
+
+	Circle = 3,
+
+	Square = 4,
+
+	Decimal = 5
+}
+
 declare const enum MasonLoadingState {
 
 	Loading = 0,
@@ -1155,6 +1615,58 @@ declare const enum MasonLoadingState {
 	Loaded = 1,
 
 	Error = 2
+}
+
+declare class MasonMouseEvent extends MasonEvent {
+
+	static alloc(): MasonMouseEvent; // inherited from NSObject
+
+	static new(): MasonMouseEvent; // inherited from NSObject
+
+	readonly altKey: boolean;
+
+	readonly button: number;
+
+	readonly buttons: number;
+
+	readonly clientX: number;
+
+	readonly clientY: number;
+
+	readonly ctrlKey: boolean;
+
+	readonly detail: number;
+
+	readonly metaKey: boolean;
+
+	readonly movementX: number;
+
+	readonly movementY: number;
+
+	readonly pageX: number;
+
+	readonly pageY: number;
+
+	readonly region: any;
+
+	readonly relatedTarget: any;
+
+	readonly screenX: number;
+
+	readonly screenY: number;
+
+	readonly shiftKey: boolean;
+
+	constructor(o: { type: string; options: MasonMouseEventOptions; });
+
+	initWithTypeOptions(type: string, options: MasonMouseEventOptions): this;
+}
+
+declare class MasonMouseEventOptions extends MasonEventOptions {
+
+	static alloc(): MasonMouseEventOptions; // inherited from NSObject
+
+	static new(): MasonMouseEventOptions; // inherited from NSObject
 }
 
 declare class MasonNode extends NSObject {
@@ -1495,6 +2007,10 @@ declare class MasonStyle extends NSObject {
 
 	lineHeight: number;
 
+	listStylePosition: MasonListStylePosition;
+
+	listStyleType: MasonListStyleType;
+
 	marginCompat: MasonLengthPercentageAutoRectCompat;
 
 	maxSizeCompat: MasonDimensionSizeCompat;
@@ -1533,17 +2049,21 @@ declare class MasonStyle extends NSObject {
 
 	textWrap: MasonTextWrap;
 
-	values: NSMutableData;
+	readonly values: NSMutableData;
 
 	verticalAlign: MasonVerticalAlignValue;
 
 	whiteSpace: MasonWhiteSpace;
+
+	zIndex: number;
 
 	constructor(o: { node: MasonNode; });
 
 	getBackgroundColor(): string;
 
 	initWithNode(node: MasonNode): this;
+
+	prepareMut(): void;
 
 	setBackgroundColorWithString(color: string): void;
 
@@ -1986,9 +2506,12 @@ declare const enum MasonTextType {
 	Pre = 13,
 
 	Strong = 14,
+
 	Em = 15,
+
 	I = 16,
-	A = 17,
+
+	A = 17
 }
 
 declare const enum MasonTextWrap {
@@ -2525,6 +3048,10 @@ declare class NSCFontFaceSet extends NSObject {
 
 	delete(font: NSCFontFace): void;
 
+	get(fontFamily: string): NSCFontFace;
+
+	getOrNil(fontFamily: string): NSCFontFace;
+
 	iter(): NSEnumerator<any>;
 
 	load(font: string, text: string, callback: (p1: NSArray<NSCFontFace>, p2: string) => void): void;
@@ -2601,6 +3128,12 @@ declare class NSCMason extends NSObject {
 
 	createLineBreakNode(): MasonNode;
 
+	createListItem(): MasonLi;
+
+	createListItemNode(): MasonNode;
+
+	createListViewWithIsOrdered(isOrdered: boolean): MasonList;
+
 	createNode(): MasonNode;
 
 	createScrollView(): MasonScroll;
@@ -2657,6 +3190,8 @@ declare class TrackSizingFunction extends NSObject {
 
 declare function mason_clear(mason: interop.Pointer | interop.Reference<any>): void;
 
+declare function mason_get_buffer(mason: interop.Pointer | interop.Reference<any>, handle: number): interop.Pointer | interop.Reference<any>;
+
 declare function mason_init(): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_add_child(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>, child: interop.Pointer | interop.Reference<any>): void;
@@ -2702,6 +3237,10 @@ declare function mason_node_new_image_node(mason: interop.Pointer | interop.Refe
 declare function mason_node_new_line_break_node(mason: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_new_line_break_node_with_context(mason: interop.Pointer | interop.Reference<any>, measure_data: interop.Pointer | interop.Reference<any>, measure: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<any>, p2: number, p3: number, p4: number, p5: number) => number>): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_new_list_item_node(mason: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
+
+declare function mason_node_new_list_item_node_with_context(mason: interop.Pointer | interop.Reference<any>, measure_data: interop.Pointer | interop.Reference<any>, measure: interop.FunctionReference<(p1: interop.Pointer | interop.Reference<any>, p2: number, p3: number, p4: number, p5: number) => number>): interop.Pointer | interop.Reference<any>;
 
 declare function mason_node_new_node(mason: interop.Pointer | interop.Reference<any>, anonymous: boolean): interop.Pointer | interop.Reference<any>;
 
@@ -2768,6 +3307,8 @@ declare function mason_style_get_grid_template_rows_css(mason: interop.Pointer |
 declare function mason_style_get_style_buffer(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<CMasonBuffer>;
 
 declare function mason_style_get_style_buffer_apple(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): interop.Pointer | interop.Reference<any>;
+
+declare function mason_style_prepare_style_for_mut(mason: interop.Pointer | interop.Reference<any>, node: interop.Pointer | interop.Reference<any>): void;
 
 declare function mason_style_release_style_buffer(buffer: interop.Pointer | interop.Reference<CMasonBuffer>): void;
 

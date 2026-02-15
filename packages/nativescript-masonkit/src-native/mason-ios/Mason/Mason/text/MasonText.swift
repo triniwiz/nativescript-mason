@@ -415,9 +415,10 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     textLayer.contentsScale = UIScreen.main.scale
     style.setStyleChangeListener(listener: self)
     node.view = self
-    node.measureFunc = { [self] known, available in
+    node.measureFunc = { [weak self] known, available in
+      guard let self = self else { return .zero }
       let type = self.type
-      return TextEngine.measure(engine, type == .None || type == .Span || type == .Code || type == .B , known, available)
+      return TextEngine.measure(self.engine, type == .None || type == .Span || type == .Code || type == .B , known, available)
     }
     node.setMeasureFunction(node.measureFunc!)
     let scale = NSCMason.scale

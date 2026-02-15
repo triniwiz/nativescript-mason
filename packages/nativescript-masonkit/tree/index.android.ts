@@ -160,4 +160,8 @@ export class Tree {
         return this.native.createInput(context);
     }
   }
+
+  createTextNode() {
+    return this.native.createTextNode();
+  }
 }

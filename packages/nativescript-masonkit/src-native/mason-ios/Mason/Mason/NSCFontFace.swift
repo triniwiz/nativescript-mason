@@ -15,22 +15,22 @@ enum NSCFontStyle: Codable, Equatable, Hashable {
   case oblique(Int?)
   
   var cssValue: String {
-      switch self {
-      case .normal:
-          return "normal"
-      case .italic:
-          return "italic"
-      case .oblique(let value):
-        guard let value = value else {
-          return "oblique"
-        }
-        return "oblique \(value)"
+    switch self {
+    case .normal:
+      return "normal"
+    case .italic:
+      return "italic"
+    case .oblique(let value):
+      guard let value = value else {
+        return "oblique"
       }
+      return "oblique \(value)"
+    }
   }
-
-public var description: String {
-  return cssValue
-}
+  
+  public var description: String {
+    return cssValue
+  }
 }
 
 @objc(NSCFontDisplay)
@@ -213,13 +213,14 @@ public enum NSCFontWeight: Int, RawRepresentable, Codable, CustomStringConvertib
 
 @objcMembers
 @objc(NSCFontDescriptors)
-public class NSCFontDescriptors: NSObject, Codable{
+public class NSCFontDescriptors: NSObject, Codable {
   var weight: NSCFontWeight
   var family: String
   var ascentOverride: String
   var descentOverride: String
   var display: NSCFontDisplay
   internal var styleValue: NSCFontStyle
+  internal var isReadonly: Bool
   var style: String {
     get {
       styleValue.cssValue
@@ -234,7 +235,7 @@ public class NSCFontDescriptors: NSObject, Codable{
       } else {
         parsedStyle = NSCFontFace.matchPattern(fontStylePattern, in: fontStyle) ?? ""
       }
-    
+      
       switch(parsedStyle){
       case "normal":
         styleValue = .normal
@@ -268,7 +269,7 @@ public class NSCFontDescriptors: NSObject, Codable{
     self.featureSettings = "normal";
     self.variationSettings = "normal";
     self.lineGapOverride = "normal";
-    
+    self.isReadonly = false
     super.init()
   }
   
@@ -325,9 +326,9 @@ public class NSCFontDescriptors: NSObject, Codable{
     let fontStyle = "font-style: \(value);"
     if let fontStyleMatch = NSCFontFace.matchObliqueWithAngle(fontStylePattern, in: fontStyle) {
       // todo
-
+      
       let angle = Int(fontStyleMatch.1 ?? "", radix: 10)
-   
+      
       switch(fontStyleMatch.0){
       case "normal":
         styleValue = .normal
@@ -345,20 +346,20 @@ public class NSCFontDescriptors: NSObject, Codable{
       
       
     } else if let fontStyleMatch = NSCFontFace.matchPattern(fontStylePattern, in: fontStyle)  {
-         switch(fontStyleMatch){
-         case "normal":
-           styleValue = .normal
-           break
-         case "italic":
-           styleValue = .italic
-           break
-         case "oblique":
-           styleValue = .oblique(nil)
-           break
-         default:
-           // noop
-           break
-         }
+      switch(fontStyleMatch){
+      case "normal":
+        styleValue = .normal
+        break
+      case "italic":
+        styleValue = .italic
+        break
+      case "oblique":
+        styleValue = .oblique(nil)
+        break
+      default:
+        // noop
+        break
+      }
     }
   }
 }
@@ -414,10 +415,10 @@ public class NSCFontFace: NSObject {
     didSet {
       if let cgFont = self.font {
         self.ctFont = CTFontCreateWithGraphicsFont(
-            cgFont,
-            CGFloat(owner?.fontSize ?? Constants.DEFAULT_FONT_SIZE),
-            nil,
-            nil
+          cgFont,
+          CGFloat(owner?.fontSize ?? Constants.DEFAULT_FONT_SIZE),
+          nil,
+          nil
         )
       }
     }
@@ -427,7 +428,7 @@ public class NSCFontFace: NSObject {
   internal var fontFamily: String
   public internal(set) var fontData: NSData? = nil
   private var localOrRemoteSource: String? = nil
-  internal var fontDescriptors: NSCFontDescriptors
+  internal var fontDescriptors: NSCFontDescriptors!
   private var loaderQueue = DispatchQueue(label: "NSCFontFace Loader Queue")
   private static let bundle = Bundle(identifier: "com.github.triniwiz.Mason")
   static let genericFontFamilies = [
@@ -643,12 +644,15 @@ public class NSCFontFace: NSObject {
   
   public init(family: String) {
     fontFamily = family
-    fontDescriptors = NSCFontDescriptors(family: family)
     super.init()
     if let font = NSCFontFaceSet.instance.getOrNil(family) {
       self.font = font.font
-      self.uiFont = font.uiFont
+      uiFont = font.uiFont
+      ctFont = font.ctFont
+      fontDescriptors = font.fontDescriptors
       status = .loaded
+    }else {
+      fontDescriptors = NSCFontDescriptors(family: family)
     }
   }
   
@@ -659,18 +663,33 @@ public class NSCFontFace: NSObject {
     if(!ignoreCache){
       if let font = NSCFontFaceSet.instance.getOrNil(family) {
         self.font = font.font
-        self.uiFont = font.uiFont
+        uiFont = font.uiFont
+        ctFont = font.ctFont
+        fontDescriptors = font.fontDescriptors
         status = .loaded
+      }else {
+        fontDescriptors = NSCFontDescriptors(family: family)
       }
+    }else {
+      fontDescriptors = NSCFontDescriptors(family: family)
     }
   }
   
   
   public init(family: String, owner style: MasonStyle) {
     fontFamily = family
-    fontDescriptors = NSCFontDescriptors(family: family)
     owner = style
     super.init()
+    
+    if let font = NSCFontFaceSet.instance.getOrNil(family) {
+      self.font = font.font
+      uiFont = font.uiFont
+      ctFont = font.ctFont
+      fontDescriptors = font.fontDescriptors
+      status = .loaded
+    }else {
+      fontDescriptors = NSCFontDescriptors(family: family)
+    }
   }
   
   public init(family: String, source: String) {
@@ -717,21 +736,32 @@ public class NSCFontFace: NSObject {
   
   public var display: NSCFontDisplay = .auto
   
+  private func prepareMut(){
+    if(fontDescriptors.isReadonly){
+      fontDescriptors = fontDescriptors.mutableCopy() as? NSCFontDescriptors
+    }
+  }
+  
   public func setFontDisplay(value: String){
     switch(value){
     case "auto":
+      prepareMut()
       fontDescriptors.display = .auto
       break;
     case "block":
+      prepareMut()
       fontDescriptors.display = .block
       break;
     case "fallback":
+      prepareMut()
       fontDescriptors.display = .fallback
       break;
     case "optional":
+      prepareMut()
       fontDescriptors.display = .optional
       break;
     case "swap":
+      prepareMut()
       fontDescriptors.display = .swap
       break;
     default:
@@ -746,21 +776,22 @@ public class NSCFontFace: NSObject {
     }
     
     set {
+      prepareMut()
       fontDescriptors.setFontStyle(newValue)
       
       if let font = uiFont {
         var descriptor = font.fontDescriptor
-      
+        
         switch(fontDescriptors.styleValue){
         case .normal:
           break
         case .italic:
           if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
-              descriptor = newDescriptor
+            descriptor = newDescriptor
           }
         case .oblique(_):
           if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
-              descriptor = newDescriptor
+            descriptor = newDescriptor
           }
           break
         }
@@ -770,7 +801,7 @@ public class NSCFontFace: NSObject {
         self.uiFont = fontValue
         self.owner?.syncFontMetrics()
       }
-  
+      
     }
   }
   
@@ -789,8 +820,10 @@ public class NSCFontFace: NSObject {
         return
       }
       
+      prepareMut()
+      
       fontDescriptors.weight = newValue
-
+      
       if let font = uiFont {
         var descriptor = font.fontDescriptor
         let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: NSNumber(value: fontDescriptors.weight.uiFontWeight.rawValue)]
@@ -801,7 +834,7 @@ public class NSCFontFace: NSObject {
         switch(fontDescriptors.weight){
         case .semiBold, .bold, .extraBold, .black:
           if let newDescriptor = descriptor.withSymbolicTraits(.traitBold) {
-              descriptor = newDescriptor
+            descriptor = newDescriptor
           }
         default:
           break
@@ -818,7 +851,7 @@ public class NSCFontFace: NSObject {
   }
   
   public func setFontWeight(value: String){
-    // todo clone if descriptors change
+    prepareMut()
     fontDescriptors.setFontWeight(value)
   }
   
@@ -861,7 +894,7 @@ public class NSCFontFace: NSObject {
           return nil
         }
         
-       
+        
         guard let newFont = UIFont(name: name, size: 16) else {
           let font = UIFont.systemFont(ofSize: 16)
           self.font = CTFontCopyGraphicsFont(font, nil)
@@ -880,7 +913,7 @@ public class NSCFontFace: NSObject {
         switch(fontDescriptors.weight){
         case .semiBold, .bold, .extraBold, .black:
           if let newDescriptor = descriptor.withSymbolicTraits(.traitBold) {
-              descriptor = newDescriptor
+            descriptor = newDescriptor
           }
         default:
           break
@@ -891,11 +924,11 @@ public class NSCFontFace: NSObject {
           break
         case .italic:
           if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
-              descriptor = newDescriptor
+            descriptor = newDescriptor
           }
         case .oblique(_):
           if let newDescriptor = descriptor.withSymbolicTraits(.traitItalic) {
-              descriptor = newDescriptor
+            descriptor = newDescriptor
           }
           break
         }

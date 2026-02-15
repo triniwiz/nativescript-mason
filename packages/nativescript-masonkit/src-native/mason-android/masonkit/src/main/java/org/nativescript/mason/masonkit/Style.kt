@@ -605,7 +605,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   private var mWritableValue: ByteBuffer? = null
 
-  internal fun prepareMut() {
+  fun prepareMut() {
     if (node.isPlaceholder) {
       return
     }

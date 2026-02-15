@@ -24,9 +24,8 @@ public class NSCMason: NSObject {
     nativePtr = mason_init()
     if let ptr = mason_get_buffer(nativePtr, 0) {
       let buffer = Unmanaged<NSMutableData>.fromOpaque(ptr).takeRetainedValue()
-      guard let font = NSCFontFaceSet.instance.getOrNil("sans-serif") else {return}
-      
-      
+      guard let font = NSCFontFaceSet.instance.getOrNil("serif") else {return}
+    
       guard let font = font.uiFont else {return}
       
       // UIFont properties:

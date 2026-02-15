@@ -50,6 +50,7 @@ import {
 } from './properties';
 import { isMasonView_, isTextChild_, isText_, isPlaceholder_, text_, native_, textNode_, textNodeIndex_ } from './symbols';
 import { Tree } from './tree';
+import { TextNode } from './text-node';
 
 // Angular zone detection
 declare const Zone: any, kotlin;
@@ -89,7 +90,7 @@ if (global.__ngRegisteredViews || typeof Zone !== 'undefined') {
 
 // @ts-ignore
 
-export const textContentProperty = new Property<TextBase, string>({
+export const textContentProperty = new Property<ViewBase, string>({
   name: 'textContent',
   affectsLayout: true,
   defaultValue: '',
@@ -148,7 +149,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
   readonly android: org.nativescript.mason.masonkit.View;
   readonly ios: MasonUIView;
 
-  _children: (NSView | { text?: string })[] = [];
+  _children: (NSView | { text?: string } | TextNode)[] = [];
   [isMasonView_] = false;
 
   [isTextChild_] = false;
@@ -387,6 +388,20 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
           if (__APPLE__) {
             //@ts-ignore
             this._view.mason_addChildAtText(child[text_] || '', this._children.length);
+          }
+        }
+        this._children.push(child);
+      } else if (child instanceof TextNode) {
+        //@ts-ignore
+        if (this._view) {
+          if (__ANDROID__) {
+            //@ts-ignore
+            this._view.addChildAt(child[native_], this._children.length);
+          }
+
+          if (__APPLE__) {
+            //@ts-ignore
+            this._view.mason_addChildAtNode(child[native_], this._children.length);
           }
         }
         this._children.push(child);
@@ -717,7 +732,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
       return;
     }
 
-    if (this[native_]) {
+    if ('textContent' in this) {
       // @ts-ignore
       this.textContent = value;
     }
@@ -874,7 +889,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  [textAlignmentProperty.setNative](value: CoreTypes.TextAlignmentType) {
+  [textAlignmentProperty.setNative](value) {
     // @ts-ignore
     const style = this._styleHelper;
     if (style) {
@@ -1606,7 +1621,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  [fontWeightProperty.setNative](value: string) {
+  [fontWeightProperty.setNative](value) {
     // @ts-ignore
     if (this._styleHelper) {
       //@ts-ignore
@@ -1614,7 +1629,7 @@ export class ViewBase extends CustomLayoutView implements AddChildFromBuilder {
     }
   }
 
-  [fontStyleProperty.setNative](value: string) {
+  [fontStyleProperty.setNative](value) {
     // @ts-ignore
     if (this._styleHelper) {
       //@ts-ignore
@@ -1682,7 +1697,7 @@ export class TextBase extends ViewBase {
   }
 }
 
-textContentProperty.register(TextBase);
+textContentProperty.register(ViewBase);
 
 export class ButtonBase extends TextBase {}
 

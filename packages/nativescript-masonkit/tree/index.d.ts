@@ -54,4 +54,6 @@ export class Tree {
   createBr(context?);
 
   createInputView(context?, type?: InputType): org.nativescript.mason.masonkit.Input | MasonInput;
+
+  createTextNode(): org.nativescript.mason.masonkit.TextNode | MasonTextNode;
 }

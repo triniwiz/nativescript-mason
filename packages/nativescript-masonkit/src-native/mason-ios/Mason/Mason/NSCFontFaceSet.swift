@@ -42,14 +42,24 @@ let familyNamePattern = #"(?:\d+px\s+)(['"]?[\w\s]+['"]?)$"#
 @objc(NSCFontFaceSet)
 public class NSCFontFaceSet: NSObject {
   private var fontCache: Set<NSCFontFace> = Set()
-  
-  public static var instance = {
-    let set = NSCFontFaceSet()
-    let ff = NSCFontFace(family: "sans-serif", ignoreCache: true)
-    // load default font
-    ff.loadSync { _ in }
-    set.add(ff)
-    return set
+  public static let instance: NSCFontFaceSet = {
+    let ret = NSCFontFaceSet()
+    let serif = NSCFontFace(family: "serif", ignoreCache: true)
+    serif.fontDescriptors.isReadonly = true
+    serif.loadSync { _ in }
+    ret.fontCache.insert(serif)
+
+    let ss = NSCFontFace(family: "sans-serif", ignoreCache: true)
+    ss.fontDescriptors.isReadonly = true
+    ss.loadSync { _ in }
+    ret.fontCache.insert(ss)
+
+    let monospace = NSCFontFace(family: "monospace", ignoreCache: true)
+    monospace.fontDescriptors.isReadonly = true
+    monospace.loadSync { _ in }
+    ret.fontCache.insert(monospace)
+
+    return ret
   }()
   
   public var status = NSCFontFaceSetStatus.loaded
@@ -65,15 +75,15 @@ public class NSCFontFaceSet: NSObject {
       return cached
     }
     
-//    let fontDescriptorAttributes = [
-//        kCTFontNameAttribute: "Courier",
-//        kCTFontTraitsAttribute: [
-//          kCTFontWeightTrait: UIFont.Weight.black.rawValue,
-//        ]
-//    ] as [CFString : Any]
-//    let fontDescriptor = CTFontDescriptorCreateWithAttributes(fontDescriptorAttributes as CFDictionary)
-//    
-//    
+    //    let fontDescriptorAttributes = [
+    //        kCTFontNameAttribute: "Courier",
+    //        kCTFontTraitsAttribute: [
+    //          kCTFontWeightTrait: UIFont.Weight.black.rawValue,
+    //        ]
+    //    ] as [CFString : Any]
+    //    let fontDescriptor = CTFontDescriptorCreateWithAttributes(fontDescriptorAttributes as CFDictionary)
+    //
+    //
     let ctFont = CTFontCreateWithGraphicsFont(cgFont, size, nil, nil)
     uiFontCache.setObject(ctFont, forKey: key)
     return ctFont

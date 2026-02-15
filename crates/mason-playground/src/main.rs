@@ -56,8 +56,8 @@ fn gc() {
     rx.recv().unwrap();
 }
 fn main() {
-    gc()
-    //  sample();
+   // gc()
+      sample();
     // flex_example();
     //percent_example()
     // t();

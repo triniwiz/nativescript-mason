@@ -1,6 +1,6 @@
 import { Observable, EventData, Page } from '@nativescript/core';
 import { DemoSharedNativescriptMasonkit } from '@demo/shared';
-import { Text } from '@triniwiz/nativescript-masonkit';
+import { Text, TextNode } from '@triniwiz/nativescript-masonkit';
 
 let demoShared: DemoSharedNativescriptMasonkit;
 export function navigatingTo(args: EventData) {
@@ -19,7 +19,6 @@ export function textLoaded(args) {
 
 export function loaded(args) {
   const view = args.object;
-  console.log(`view loaded`, view.nativeView);
   // setTimeout(() => {
   //   console.log('display value:', view.display);
 
@@ -73,17 +72,21 @@ export function loaded(args) {
 
 export class DemoModel extends DemoSharedNativescriptMasonkit {
   text: Text;
+  textNode: TextNode;
 
   onChange(args) {
     const textField = args.object;
-    console.log('text changed', this.text);
     if (this.text) {
-      this.text.text = textField.text;
+      //  const data = new TextNode();
+      // this.text.textContent = textField.text;
+      this.textNode.data = textField.text;
     }
   }
 
   textLoaded(args) {
     const view = args.object as Text;
     this.text = view;
+    this.textNode = new TextNode();
+    view.addChild(this.textNode);
   }
 }

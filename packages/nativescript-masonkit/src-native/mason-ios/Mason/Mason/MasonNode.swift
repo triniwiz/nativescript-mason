@@ -136,7 +136,7 @@ public class MasonNode: NSObject {
   
   public typealias MeasureFunc = (CGSize?, CGSize) -> CGSize
   
-  internal var view: UIView? = nil
+  internal weak var view: UIView? = nil
   
   internal var children: [MasonNode] = []
   
@@ -155,7 +155,7 @@ public class MasonNode: NSObject {
   }()
   
   
-  internal var layoutParent: MasonNode? = nil
+  internal weak var layoutParent: MasonNode? = nil
   public internal(set) var parent: MasonNode? {
     get {
       var p = layoutParent
@@ -1091,7 +1091,8 @@ extension MasonNode {
   
   
   func setDefaultMeasureFunction(){
-    self.setMeasureFunction { knownDimensions, availableSpace in
+    self.setMeasureFunction { [weak self] knownDimensions, availableSpace in
+      guard let self = self else { return .zero }
       return MasonNode.measureFunction(self, knownDimensions, availableSpace)
     }
   }
