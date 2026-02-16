@@ -8,8 +8,12 @@ import android.os.StrictMode.ThreadPolicy
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.TypedValue
+import android.widget.LinearLayout
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.Element
 import org.nativescript.mason.masonkit.Img
@@ -56,8 +60,17 @@ class GridActivity : AppCompatActivity() {
     super.onCreate(savedInstanceState)
     metrics = resources.displayMetrics
     mason.setDeviceScale(metrics.density)
+    val root = LinearLayout(this)
 
     val body = mason.createView(this)
+
+    ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+      val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+      v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+      insets
+    }
+
+    enableEdgeToEdge()
 //    body.style.overflowY = Overflow.Scroll
 
 //    Timer().schedule(1000L) {
@@ -104,14 +117,36 @@ class GridActivity : AppCompatActivity() {
     //  textShadow(body)
     // input(body)
     // zOrder(body)
-    StrictMode.setThreadPolicy(
-      ThreadPolicy.Builder()
-        .detectAll()
-        .penaltyLog()
-        .build()
-    )
-    list(body)
-    setContentView(body)
+    //list(body)
+
+    inputTest(body)
+    root.addView(body)
+    setContentView(root)
+  }
+
+  fun inputTest(body: View){
+    body.id = android.view.View.generateViewId()
+    val root = mason.createView(this)
+
+    val input = mason.createInput(this)
+    input.placeholder = "Enter Text"
+
+    val txt = mason.createTextView(this)
+
+    val node = TextNode(mason)
+
+    txt.append(node)
+
+    root.append(input)
+    root.append(mason.createBr(this))
+    root.append(txt)
+
+
+    input.addEventListener("input") {
+      node.data = input.value
+    }
+
+    body.addView(root)
   }
 
   fun views() {
@@ -121,7 +156,6 @@ class GridActivity : AppCompatActivity() {
 
     System.gc()
     System.runFinalization()
-
   }
 
 

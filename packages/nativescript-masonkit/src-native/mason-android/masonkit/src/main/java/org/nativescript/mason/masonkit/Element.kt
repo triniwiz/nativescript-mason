@@ -3,6 +3,7 @@ package org.nativescript.mason.masonkit
 import android.util.Log
 import android.util.SizeF
 import android.view.View
+import android.view.View.MeasureSpec
 import androidx.core.view.isGone
 import org.nativescript.mason.masonkit.enums.BoxSizing
 import org.nativescript.mason.masonkit.enums.Overflow
@@ -432,6 +433,18 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
           layout.padding.top.toInt(),
           layout.padding.right.toInt(),
           layout.padding.bottom.toInt()
+        )
+      }
+
+      // For TextContainer views, explicitly measure with EXACTLY specs so
+      // Android's internal text Layout (mLayout) is recreated with the
+      // correct width.  Without this, the MasonView parent never calls
+      // child.measure(), leaving the internal Layout stale after text
+      // changes and causing text to be clipped or wrapped incorrectly.
+      if (view is TextContainer) {
+        view.measure(
+          MeasureSpec.makeMeasureSpec(layoutWidth, MeasureSpec.EXACTLY),
+          MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY)
         )
       }
 

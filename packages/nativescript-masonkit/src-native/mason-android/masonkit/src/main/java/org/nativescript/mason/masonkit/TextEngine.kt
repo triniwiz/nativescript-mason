@@ -17,7 +17,6 @@ import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
 import android.text.style.UpdateLayout
 import android.util.DisplayMetrics
-import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.View.MeasureSpec
@@ -976,19 +975,27 @@ class TextEngine(val container: TextContainer) {
     if (parent?.view is TextContainer) {
       (parent.view as TextContainer).engine.invalidateInlineSegments()
     } else {
-      (parent?.view as? View)?.invalidate()
       parent?.dirty()
+      parent?.computeCacheDirty = true
+      (parent?.view as? View)?.invalidate()
     }
 
     when (node.view) {
       is Element -> {
         (node.view as Element).apply {
+          val root = node.getRootNode() ?: this.node
+          root.computeCacheDirty = true
           view.invalidate()
           invalidateLayout()
         }
       }
 
       is View -> {
+        findAncestorElement(node)?.let { element ->
+          val root = element.node.getRootNode() ?: element.node
+          root.computeCacheDirty = true
+          root.dirty()
+        }
         (node.view as View).apply {
           invalidate()
           requestLayout()
@@ -997,5 +1004,21 @@ class TextEngine(val container: TextContainer) {
 
       else -> {}
     }
+  }
+
+  /**
+   * Find the nearest ancestor Element in the node tree.
+   * This is needed to trigger native layout recomputation when text changes
+   * in a View that is not itself an Element.
+   */
+  private fun findAncestorElement(node: Node): Element? {
+    var current = node.parent
+    while (current != null) {
+      if (current.view is Element) {
+        return current.view as Element
+      }
+      current = current.parent
+    }
+    return null
   }
 }

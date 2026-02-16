@@ -482,6 +482,12 @@ class TextView @JvmOverloads constructor(
         layout.height.toInt(),
       )
     } else {
+      // Call super to update Android's internal text Layout (mLayout).
+      // Without this, the internal Layout used for rendering may have a stale
+      // width, causing text to be clipped or wrapped incorrectly.
+      super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+
+      // Override measured dimensions with the computed values
       if (specWidthMode == MeasureSpec.EXACTLY && specHeightMode == MeasureSpec.EXACTLY) {
         setMeasuredDimension(
           specWidth, specHeight

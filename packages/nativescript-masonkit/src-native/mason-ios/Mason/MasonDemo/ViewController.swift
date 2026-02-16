@@ -303,8 +303,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     view.addSubview(body)
     
     body.style.size = .init(.Points(Float(view.frame.width * UIScreen.main.scale)), .Points(Float(view.frame.height * UIScreen.main.scale)))
-    
-    
+  
     
     // let root = mason.createView()
     // body.addView(root)
@@ -465,12 +464,38 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 //    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
    // radius()
-    button()
+   // button()
     
    // grid_template_areas_500(body)
    // input()
   //  zOrder()
-  //  webList()
+   // webList()
+    inputTest()
+  }
+  
+  func inputTest(){
+    let root = mason.createView()
+    
+    let input = mason.createInput()
+    input.placeholder = "Enter Text"
+    
+    let txt = mason.createTextView()
+    
+    let node = MasonTextNode(mason: mason, data: "")
+    
+    txt.mason_append(node: node)
+    
+    root.append(input)
+    root.append(mason.createBr())
+    root.append(txt)
+    
+    input.addEventListener("input") { event in
+      node.data = input.value
+    }
+    
+    body.addView(root)
+    
+    body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
   }
   
   
@@ -481,7 +506,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     let d = list.dequeueReusableCell(withReuseIdentifier: "default", for: indexPath) as? MasonList.MasonListCell ?? MasonList.MasonListCell.initWithEmptyBackground()
     
     let li = mason.createListItem()
-    d.view = li
+    d.setView(li)
     d.contentView.addSubview(li)
     let txt = mason.createTextView()
     if(uiData.isEmpty){
@@ -532,10 +557,10 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     ul.configure { it in
       it.size = MasonSize(MasonDimension.Percent(1), MasonDimension.Percent(1))
     }
+
     body.addView(ul)
     
-    
-    self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
+    body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
     
     DispatchQueue.global().async {
       for i in 0..<arr.count {
@@ -543,7 +568,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       }
       DispatchQueue.main.async {
         self.uiData = arr
-        ul.values.mutableBytes.advanced(by: 0).assumingMemoryBound(to: UInt32.self).pointee = UInt32(arr.count)
+        ul.count = arr.count
         ul.reload()
       }
     }

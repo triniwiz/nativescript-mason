@@ -945,6 +945,7 @@ open class Node internal constructor(
 
   fun dirty() {
     NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
+    computeCacheDirty = true
   }
 
   fun isDirty(): Boolean {
