@@ -46,7 +46,7 @@ public final class CSSBorderRenderer {
     case inset
     case outset
     
-    public init?(rawValue: Int32) {
+    public init?(rawValue: Int8) {
       switch rawValue {
       case 0:
         self = BorderStyle.none
@@ -71,7 +71,7 @@ public final class CSSBorderRenderer {
       }
     }
     
-    public var rawValue: Int32 {
+    public var rawValue: Int8 {
       switch self {
       case .none:
         return 0
@@ -288,12 +288,12 @@ public final class CSSBorderRenderer {
     }
     public var style: BorderStyle{
       get {
-        return BorderStyle(rawValue: owner.getInt32(keys.style))!
+        return BorderStyle(rawValue: owner.getInt8(keys.style))!
       }
       
       set {
         owner.prepareMut()
-        owner.setInt32(keys.style, newValue.rawValue)
+        owner.setInt8(keys.style, newValue.rawValue)
       }
     }
     

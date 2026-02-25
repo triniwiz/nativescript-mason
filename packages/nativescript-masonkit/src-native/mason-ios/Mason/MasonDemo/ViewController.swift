@@ -435,13 +435,13 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     // fontSize()
    //   textAlignment()
     //wrapper8()
-    //filter()
+    filter()
   //  renderFloat(body)
 //    let sv = mason.createScrollView()
    // sv.style.overflowY = .Scroll
 //    body.append(sv)
 //    objectFit(sv)
-        //filter()
+       // filter()
    // buttons()
    // background()
    // verticalAlignment()
@@ -470,7 +470,14 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
    // input()
   //  zOrder()
    // webList()
-    inputTest()
+   // inputTest()
+//    let label = UILabel()
+//    label.text = "Hello World!"
+//    label.sizeToFit()
+//    let filter = CSSFilters.CSSFilter()
+//    filter.parse(css: "sepia(0%) drop-shadow(0px 0px 0px rgba(0,0,0,0))")
+//    filter.apply(to: label)
+//    view.addSubview(label)
   }
   
   func inputTest(){
@@ -1244,7 +1251,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   func filter() {
      let rootLayout = mason.createView()
 
-
     let img = mason.createImageView()
      //img.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Firefox_logo%2C_2019.svg/1024px-Firefox_logo%2C_2019.svg.png"
 
@@ -1269,17 +1275,20 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
       img.style.filter = ""
     }
     reset.append(text: "Reset")
+    
+    reset.style.setMarginBottom(20, 1)
 
     rootLayout.append(reset)
 
      let blur = mason.createView()
     
     defaultStyle(blur)
-    blur.background = "red"
+
      setOnClickListener(blur) {
        img.style.filter = "blur(5px);"
      }
-      blur.append(text: "Blur ")
+    
+    blur.append(text: "Blur ")
      blur.append(code("filter: blur(5px);"))
 
      rootLayout.append(blur)
@@ -1289,6 +1298,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
      setOnClickListener(contrast) {
        img.style.filter = "contrast(200%);"
      }
+    
     contrast.append(text: "Contrast ")
      contrast.append(code("filter:contrast(200%);"))
 
@@ -1341,11 +1351,12 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     
     
     let stackedDropShadow = mason.createView()
+    stackedDropShadow.style.margin = .init(.Points(20), .Zero, .Zero, .Zero)
     stackedDropShadow.append(text: "Stacked DropShadow ")
     stackedDropShadow.append(code("filter: drop-shadow(3px 3px red) sepia(100%) drop-shadow(-3px -3px blue)"))
 
      setOnClickListener(stackedDropShadow) {
-       img.style.filter = "drop-shadow(3px 3px red) sepia(100%) drop-shadow(-3px -3px blue)"
+       img.style.filter = "blur(2px) grayscale(50%)"
      }
 
      rootLayout.append(stackedDropShadow)
@@ -1360,7 +1371,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
      body.append(rootLayout)
     
     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-    
    }
   
   func backgroundTest(){

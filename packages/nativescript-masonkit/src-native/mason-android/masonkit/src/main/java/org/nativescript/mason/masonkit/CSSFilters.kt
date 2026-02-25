@@ -2,6 +2,7 @@ package org.nativescript.mason.masonkit
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -23,11 +24,13 @@ import androidx.annotation.RequiresApi
 import androidx.collection.LruCache
 import androidx.core.graphics.createBitmap
 import org.nativescript.mason.masonkit.CSSFilters.FilterHelper.Companion.createDropShadowBitmap
+import java.util.WeakHashMap
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.sin
 
-private val FILTER_REGEX = Regex("""(\w+(?:-\w+)?)\(([^)]+)\)""")
+
+private val FILTER_REGEX = Regex("""(\w+(?:-\w+)?)\(([^()]*(?:\([^()]*\)[^()]*)*)\)""")
 private val SPLIT_REGEX = Regex("\\s+")
 private const val PI_FLOAT = Math.PI.toFloat()
 private const val RAD_TO_DEG = (180f / PI_FLOAT)
@@ -95,7 +98,7 @@ class CSSFilters {
       config: Bitmap.Config = Bitmap.Config.ARGB_8888,
     ): Bitmap {
       val k = "${key(width, height, config)}:source"
-      val cached = pool.get(k)
+      val cached = pool[k]
       return if (cached != null && !cached.isRecycled) {
         cached.eraseColor(Color.TRANSPARENT) // clear previous content
         cached
@@ -110,7 +113,7 @@ class CSSFilters {
       config: Bitmap.Config = Bitmap.Config.ARGB_8888,
     ): Bitmap {
       val k = key(width, height, config)
-      val cached = pool.get(k)
+      val cached = pool[k]
       return if (cached != null && !cached.isRecycled) {
         cached.eraseColor(Color.TRANSPARENT) // clear previous content
         cached
@@ -125,7 +128,7 @@ class CSSFilters {
       if (source == true) {
         k = "$k:source"
       }
-      if (pool.get(k) == null) {
+      if (pool[k] == null) {
         pool.put(k, bitmap)
       }
     }
@@ -200,7 +203,7 @@ class CSSFilters {
 
         // try cache first
         val key = makeShadowCacheKey(source, offsetX, offsetY, blurRadius, color, width, height)
-        dropShadowCache.get(key)?.let { cached ->
+        dropShadowCache[key]?.let { cached ->
           // cached is immutable/shared — return directly
           return cached
         }
@@ -222,7 +225,7 @@ class CSSFilters {
 
         val shadowBmp = pool.getBitmap(outW, outH, source.config ?: Bitmap.Config.ARGB_8888)
         // ensure transparent background
-        shadowBmp.eraseColor(android.graphics.Color.TRANSPARENT)
+        shadowBmp.eraseColor(Color.TRANSPARENT)
         val canvas = destination ?: Canvas(shadowBmp)
 
         var destroyRS = false
@@ -233,44 +236,51 @@ class CSSFilters {
           destroyRS = true
         }
 
-        renderScript?.let { rsInner ->
-          // create a temp bitmap larger than source so blur doesn't get clipped
-          val tempW = source.width + pad * 2
-          val tempH = source.height + pad * 2
-          val tempBmp = pool.getBitmap(tempW, tempH, source.config ?: Bitmap.Config.ARGB_8888)
+        val paint = Paint().apply {
+          isAntiAlias = true
+          isFilterBitmap = true
+          colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+        }
 
-          // draw source centered into tempBmp (pad margin)
-          val tempCanvas = Canvas(tempBmp)
-          tempCanvas.drawBitmap(source, pad.toFloat(), pad.toFloat(), null)
+        if (blurRadius > 0f) {
+          renderScript?.let { rsInner ->
+            // create a temp bitmap larger than source so blur doesn't get clipped
+            val tempW = source.width + pad * 2
+            val tempH = source.height + pad * 2
+            val tempBmp = pool.getBitmap(tempW, tempH, source.config ?: Bitmap.Config.ARGB_8888)
 
-          // run blur on tempBmp -> blurredBmp
-          val input = Allocation.createFromBitmap(rsInner, tempBmp)
-          val output = Allocation.createTyped(rsInner, input.type)
-          val script = ScriptIntrinsicBlur.create(rsInner, Element.U8_4(rsInner))
-          script.setRadius(blurRadius.coerceIn(0f, 25f))
-          script.setInput(input)
-          script.forEach(output)
+            // draw source centered into tempBmp (pad margin)
+            val tempCanvas = Canvas(tempBmp)
+            tempCanvas.drawBitmap(source, pad.toFloat(), pad.toFloat(), null)
 
-          val blurred = pool.getBitmap(tempW, tempH, tempBmp.config ?: Bitmap.Config.ARGB_8888)
-          output.copyTo(blurred)
+            // run blur on tempBmp -> blurredBmp
+            val input = Allocation.createFromBitmap(rsInner, tempBmp)
+            val output = Allocation.createTyped(rsInner, input.type)
+            val script = ScriptIntrinsicBlur.create(rsInner, Element.U8_4(rsInner))
+            script.setRadius(blurRadius.coerceIn(0f, 25f))
+            script.setInput(input)
+            script.forEach(output)
 
-          val paint = Paint().apply {
-            isAntiAlias = true
-            isFilterBitmap = true
-            colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+            val blurred = pool.getBitmap(tempW, tempH, tempBmp.config ?: Bitmap.Config.ARGB_8888)
+            output.copyTo(blurred)
+
+            val targetSourceX = leftPad.toFloat()
+            val targetSourceY = topPad.toFloat()
+
+            val drawX = targetSourceX - pad + offsetX
+            val drawY = targetSourceY - pad + offsetY
+
+            canvas.drawBitmap(blurred, drawX, drawY, paint)
+
+            // return temporary bitmaps to pool
+            pool.putBitmap(tempBmp)
+            pool.putBitmap(blurred)
           }
-
+        } else {
+          // No blur — draw the tinted source directly at the offset
           val targetSourceX = leftPad.toFloat()
           val targetSourceY = topPad.toFloat()
-
-          val drawX = targetSourceX - pad + offsetX
-          val drawY = targetSourceY - pad + offsetY
-
-          canvas.drawBitmap(blurred, drawX, drawY, paint)
-
-          // return temporary bitmaps to pool
-          pool.putBitmap(tempBmp)
-          pool.putBitmap(blurred)
+          canvas.drawBitmap(source, targetSourceX + offsetX, targetSourceY + offsetY, paint)
         }
 
         if (destroyRS) {
@@ -282,6 +292,7 @@ class CSSFilters {
         // return the pooled shadow back to the pool, cachedCopy is the shared result
         pool.putBitmap(shadowBmp)
         dropShadowCache.put(key, cachedCopy)
+
 
         return cachedCopy
       }
@@ -299,14 +310,16 @@ class CSSFilters {
         for (filter in filters) {
           when (filter) {
             is Filter.Blur -> {
-              if (rs == null) {
-                rs = RenderScript.create(view.context)
-              }
-              helper.shadowsOrBlurs.add(
-                createBlurBitmap(
-                  view.context, view.width, view.height, filter.radiusPx, source, rs
+              if (filter.radiusPx > 0f) {
+                if (rs == null) {
+                  rs = RenderScript.create(view.context)
+                }
+                helper.shadowsOrBlurs.add(
+                  createBlurBitmap(
+                    view.context, view.width, view.height, filter.radiusPx, source, rs
+                  )
                 )
-              )
+              }
             }
 
             is Filter.Brightness -> {
@@ -322,6 +335,23 @@ class CSSFilters {
             }
 
             is Filter.DropShadow -> {
+
+              val key = makeShadowCacheKey(
+                source,
+                filter.offsetX,
+                filter.offsetY,
+                filter.blur,
+                filter.color,
+                view.width,
+                view.height
+              )
+
+              keyToView[view]?.add(key) ?: run {
+                keyToView[view] = HashSet<String>().apply {
+                  add(key)
+                }
+              }
+
               helper.shadowsOrBlurs.add(
                 createDropShadowBitmap(
                   view.context,
@@ -429,36 +459,38 @@ class CSSFilters {
         for (filter in filters) {
           when (filter) {
             is Filter.Blur -> {
-              val source =
-                helper.sourceFallback ?: pool.getSourceBitmap(view.width, view.height).also {
-                  val c = Canvas(it)
-                  view.setTag(R.id.tag_suppress_ops, true)
-                  view.draw(c)
-                  view.setTag(R.id.tag_suppress_ops, false)
+              if (filter.radiusPx > 0f) {
+                val source =
+                  helper.sourceFallback ?: pool.getSourceBitmap(view.width, view.height).also {
+                    val c = Canvas(it)
+                    view.setTag(R.id.tag_suppress_ops, true)
+                    view.draw(c)
+                    view.setTag(R.id.tag_suppress_ops, false)
+                  }
+
+                if (rs == null) rs = RenderScript.create(view.context)
+                val input = Allocation.createFromBitmap(rs, source)
+                val output = Allocation.createTyped(rs, input.type)
+                val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
+                script.setRadius(filter.radiusPx.coerceIn(0.0001f, 25f))
+                script.setInput(input)
+                script.forEach(output)
+
+                val blurBmp = pool.getBitmap(view.width, view.height)
+                output.copyTo(blurBmp)
+
+                if (!needsBitmapFallback) {
+                  val blurNode = RenderNode("blurNode")
+                  blurNode.setPosition(0, 0, view.width, view.height)
+                  val blurCanvas = blurNode.beginRecording()
+                  blurCanvas.drawBitmap(
+                    blurBmp, 0F, 0F, null
+                  )
+                  blurNode.endRecording()
+                  helper.shadowsOrBlurs.add(ShadowOrBlur(blurNode))
+                } else {
+                  helper.shadowsOrBlurs.add(ShadowOrBlur(null, blurBmp))
                 }
-
-              if (rs == null) rs = RenderScript.create(view.context)
-              val input = Allocation.createFromBitmap(rs, source)
-              val output = Allocation.createTyped(rs, input.type)
-              val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
-              script.setRadius(filter.radiusPx.coerceIn(0f, 25f))
-              script.setInput(input)
-              script.forEach(output)
-
-              val blurBmp = pool.getBitmap(view.width, view.height)
-              output.copyTo(blurBmp)
-
-              if (!needsBitmapFallback) {
-                val blurNode = RenderNode("blurNode")
-                blurNode.setPosition(0, 0, view.width, view.height)
-                val blurCanvas = blurNode.beginRecording()
-                blurCanvas.drawBitmap(
-                  blurBmp, 0F, 0F, null
-                )
-                blurNode.endRecording()
-                helper.shadowsOrBlurs.add(ShadowOrBlur(blurNode))
-              } else {
-                helper.shadowsOrBlurs.add(ShadowOrBlur(null, blurBmp))
               }
             }
 
@@ -549,11 +581,13 @@ class CSSFilters {
         for (filter in filters) {
           when (filter) {
             is Filter.Blur -> {
-              effects.add(
-                RenderEffect.createBlurEffect(
-                  filter.radiusPx, filter.radiusPx, Shader.TileMode.CLAMP
+              if (filter.radiusPx > 0) {
+                effects.add(
+                  RenderEffect.createBlurEffect(
+                    filter.radiusPx, filter.radiusPx, Shader.TileMode.CLAMP
+                  )
                 )
-              )
+              }
             }
 
             is Filter.Brightness -> {
@@ -582,24 +616,27 @@ class CSSFilters {
                 sourceDrawn = true
               }
 
-              val blurEffect = RenderEffect.createBlurEffect(
-                filter.blur, filter.blur, Shader.TileMode.CLAMP
-              )
-
               val colorFilter = ColorMatrixColorFilter(
-                ColorMatrix().apply {
-                  setScale(
-                    Color.red(filter.color) / 255f,
-                    Color.green(filter.color) / 255f,
-                    Color.blue(filter.color) / 255f,
-                    Color.alpha(filter.color) / 255f
+                ColorMatrix(
+                  floatArrayOf(
+                    0f, 0f, 0f, 0f, Color.red(filter.color).toFloat(),
+                    0f, 0f, 0f, 0f, Color.green(filter.color).toFloat(),
+                    0f, 0f, 0f, 0f, Color.blue(filter.color).toFloat(),
+                    0f, 0f, 0f, Color.alpha(filter.color) / 255f, 0f
                   )
-                }
+                )
               )
 
               val colorEffect = RenderEffect.createColorFilterEffect(colorFilter)
 
-              val shadowEffect = RenderEffect.createChainEffect(colorEffect, blurEffect)
+              val shadowEffect = if (filter.blur > 0f) {
+                val blurEffect = RenderEffect.createBlurEffect(
+                  filter.blur, filter.blur, Shader.TileMode.CLAMP
+                )
+                RenderEffect.createChainEffect(colorEffect, blurEffect)
+              } else {
+                colorEffect
+              }
 
               val offsetEffect = RenderEffect.createOffsetEffect(
                 filter.offsetX,
@@ -612,8 +649,8 @@ class CSSFilters {
               shadowNode.setPosition(
                 0,
                 0,
-                view.width + filter.offsetX.toInt(),
-                view.height + filter.offsetY.toInt()
+                view.width + kotlin.math.abs(filter.offsetX).toInt() + filter.blur.toInt() * 3,
+                view.height + kotlin.math.abs(filter.offsetY).toInt() + filter.blur.toInt() * 3
               )
 
               val shadowCanvas = shadowNode.beginRecording()
@@ -1014,27 +1051,69 @@ class CSSFilters {
       }
     }
 
-    private fun parseCssFloat(value: String, default: Float = 0f): Float {
+    private fun parseCssFloat(
+      value: String,
+      default: Float = 0f,
+      canUseDip: Boolean = false
+    ): Float {
       return when {
         value.endsWith("px") -> value.removeSuffix("px").toFloatOrNull() ?: default
         value.endsWith("%") -> (value.removeSuffix("%").toFloatOrNull() ?: default) / 100f
-        else -> value.toFloatOrNull() ?: default
+        else -> {
+          val ret = value.toFloatOrNull() ?: default
+          if (canUseDip) {
+            ret * Resources.getSystem().displayMetrics.density
+          } else {
+            ret
+          }
+        }
       }
     }
 
     private fun parseDropShadow(value: String): Filter.DropShadow? {
-      val parts = value.trim().split(SPLIT_REGEX)
-      if (parts.size < 3) return null
+      val tokens = mutableListOf<String>()
+      val sb = StringBuilder()
+      var parenDepth = 0
 
-      val offsetX = parseCssFloat(parts[0])
-      val offsetY = parseCssFloat(parts[1])
-      val blur = parseCssFloat(parts[2])
-      val color = if (parts.size >= 4) parseCssColor(
-        parts.subList(3, parts.size).joinToString(" ")
-      ) else Color.BLACK
+      for (c in value.trim()) {
+        when {
+          c == '(' -> {
+            parenDepth++
+            sb.append(c)
+          }
+
+          c == ')' -> {
+            parenDepth--
+            sb.append(c)
+          }
+
+          c.isWhitespace() && parenDepth == 0 -> {
+            if (sb.isNotEmpty()) {
+              tokens.add(sb.toString())
+              sb.clear()
+            }
+          }
+
+          else -> sb.append(c)
+        }
+      }
+
+      if (sb.isNotEmpty()) tokens.add(sb.toString())
+      if (tokens.size < 2) return null
+
+      val offsetX = parseCssFloat(tokens[0], 0f, true)
+      val offsetY = parseCssFloat(tokens[1], 0f, true)
+      val blur = if (tokens.size >= 3) parseCssFloat(tokens[2], 0f, true) else 0f
+
+      val color = if (tokens.size >= 4) {
+        parseCssColor(tokens.subList(3, tokens.size).joinToString(" "))
+      } else {
+        Color.BLACK
+      }
 
       return Filter.DropShadow(offsetX, offsetY, blur, color)
     }
+
 
     // small LRU to avoid re-blurring identical source + params in the same runtime
     private val dropShadowCache = LruCache<String, Bitmap>(32)
@@ -1053,6 +1132,17 @@ class CSSFilters {
         "${offsetX.toDouble()}_${offsetY.toDouble()}_${blurRadius.toDouble()}_$color"
     }
 
+    private val keyToView = WeakHashMap<View, HashSet<String>>()
+
+    @JvmStatic
+    fun invalidateCssFilters(view: View) {
+      keyToView[view]?.let {
+        for (key in it) {
+          dropShadowCache.remove(key)
+        }
+      }
+    }
+
     @JvmStatic
     fun parse(value: String): CSSFilter {
       val filters = mutableListOf<Filter>()
@@ -1062,7 +1152,7 @@ class CSSFilters {
         val value = match.groupValues[2].trim()
 
         when (name) {
-          "blur" -> filters.add(Filter.Blur(parseCssFloat(value)))
+          "blur" -> filters.add(Filter.Blur(parseCssFloat(value, 0f, true)))
           "brightness" -> filters.add(Filter.Brightness(parseCssFloat(value, 1f)))
           "contrast" -> filters.add(Filter.Contrast(parseCssFloat(value, 1f)))
           "saturate" -> filters.add(Filter.Saturate(parseCssFloat(value, 1f)))

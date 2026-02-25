@@ -544,6 +544,7 @@ public enum MasonLengthPercentageAuto: Codable {
   case Auto
   case Points(Float)
   case Percent(Float)
+  case Zero
   
   static func fromValueType(_ value: Float, _ type: Int8) -> MasonLengthPercentageAuto? {
     return fromValueType(value, Int(type))
@@ -568,6 +569,7 @@ public enum MasonLengthPercentageAuto: Codable {
       case .Auto: return 0
       case .Points: return 1
       case .Percent: return 2
+      case .Zero: return 1
       }
     }
   }
@@ -579,6 +581,7 @@ public enum MasonLengthPercentageAuto: Codable {
       case .Points(let points): return points
       case .Percent(let percent): return percent
       case .Auto: return 0
+      case .Zero: return 0
       }
     }
   }
@@ -593,6 +596,8 @@ public enum MasonLengthPercentageAuto: Codable {
         return "\(percent)%"
       case .Auto:
         return "auto"
+      case .Zero:
+        return "0px"
       }
     }
   }
@@ -648,6 +653,10 @@ public enum MasonLengthPercentageAuto: Codable {
   public func encode(to encoder: Encoder) throws {
     switch(self){
     case .Points:
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      try container.encode(value, forKey: .value)
+      try container.encode("px", forKey: .unit)
+    case .Zero:
       var container = encoder.container(keyedBy: CodingKeys.self)
       try container.encode(value, forKey: .value)
       try container.encode("px", forKey: .unit)

@@ -94,6 +94,8 @@ public class MasonLengthPercentageAutoCompat: NSObject, Codable {
             lengthType = .Percent
         case .Auto:
             lengthType = .Auto
+        case .Zero:
+          lengthType = .Points
         }
     }
     
@@ -112,6 +114,8 @@ public class MasonLengthPercentageAutoCompat: NSObject, Codable {
                 return percent
             case .Auto:
                 return 0
+            case .Zero:
+              return  0
             }
         }
     }
