@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.text.TextPaint
+import android.util.Log
 import android.view.View
 import androidx.core.graphics.withClip
 import dalvik.annotation.optimization.FastNative
@@ -613,6 +614,15 @@ class Style internal constructor(@Transient internal var node: Node) {
     val mutable = values[StyleKeys.REF_COUNT] == 1.toByte()
 
     if (!mutable) {
+      // During compute Rust holds the lock — calling nativePrepareMut would deadlock.
+      // Skip the JNI call; writes go to the existing buffer and will be flushed
+      // via updateNativeStyle after compute finishes.
+      Log.d("com.test", "?? ${node.mason.inCompute}")
+      if (node.mason.inCompute) {
+        isValueInitialized = true
+        mWritableValue = values
+        return
+      }
       val buffer =
         ObjectManager.shared[nativePrepareMut(node.mason.nativePtr, node.nativePtr)] as ByteBuffer
       buffer.apply {
@@ -640,6 +650,10 @@ class Style internal constructor(@Transient internal var node: Node) {
   val values: ByteBuffer
     get() {
       return mWritableValue ?: mValues ?: run {
+        // During compute Rust holds the lock — use placeholder to avoid deadlock
+        if (node.mason.inCompute) {
+          return mPlaceholder
+        }
         val buffer =
           ObjectManager.shared[nativeGetStyleBuffer(
             node.mason.nativePtr,
@@ -1552,9 +1566,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   fun setInsetLeft(value: Float, type: Byte) {
-    val left = LengthPercentageAuto.fromTypeValue(type, value)
-
-    left?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.INSET_LEFT_TYPE, type)
       values.putFloat(StyleKeys.INSET_LEFT_VALUE, value)
@@ -1563,9 +1575,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setInsetRight(value: Float, type: Byte) {
-    val right = LengthPercentageAuto.fromTypeValue(type, value)
-
-    right?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.INSET_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.INSET_RIGHT_VALUE, value)
@@ -1574,9 +1584,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setInsetTop(value: Float, type: Byte) {
-    val top = LengthPercentageAuto.fromTypeValue(type, value)
-
-    top?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.INSET_TOP_TYPE, type)
       values.putFloat(StyleKeys.INSET_TOP_VALUE, value)
@@ -1585,9 +1593,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setInsetBottom(value: Float, type: Byte) {
-    val bottom = LengthPercentageAuto.fromTypeValue(type, value)
-
-    bottom?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.INSET_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.INSET_BOTTOM_VALUE, value)
@@ -1596,10 +1602,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setInsetWithValueType(value: Float, type: Byte) {
-
-    val inset = LengthPercentageAuto.fromTypeValue(type, value)
-
-    inset?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.INSET_LEFT_TYPE, type)
       values.putFloat(StyleKeys.INSET_LEFT_VALUE, value)
@@ -1687,9 +1690,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setMarginLeft(value: Float, type: Byte) {
-    val left = LengthPercentageAuto.fromTypeValue(type, value)
-
-    left?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.MARGIN_LEFT_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value)
@@ -1698,9 +1699,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setMarginRight(value: Float, type: Byte) {
-    val right = LengthPercentageAuto.fromTypeValue(type, value)
-
-    right?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.MARGIN_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value)
@@ -1709,9 +1708,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setMarginTop(value: Float, type: Byte) {
-    val top = LengthPercentageAuto.fromTypeValue(type, value)
-
-    top?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.MARGIN_TOP_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value)
@@ -1720,9 +1717,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setMarginBottom(value: Float, type: Byte) {
-    val bottom = LengthPercentageAuto.fromTypeValue(type, value)
-
-    bottom?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.MARGIN_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value)
@@ -1731,9 +1726,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setMarginWithValueType(value: Float, type: Byte) {
-    val margin = LengthPercentageAuto.fromTypeValue(type, value)
-
-    margin?.let {
+    if (LengthPercentageAuto.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.MARGIN_LEFT_TYPE, type)
       values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value)
@@ -1826,9 +1819,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setPaddingLeft(value: Float, type: Byte) {
-    val left = LengthPercentage.fromTypeValue(type, value)
-
-    left?.let {
+    if (LengthPercentage.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.PADDING_LEFT_TYPE, type)
       values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value)
@@ -1837,9 +1828,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setPaddingRight(value: Float, type: Byte) {
-    val right = LengthPercentage.fromTypeValue(type, value)
-
-    right?.let {
+    if (LengthPercentage.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.PADDING_RIGHT_TYPE, type)
       values.putFloat(StyleKeys.PADDING_RIGHT_VALUE, value)
@@ -1848,9 +1837,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setPaddingTop(value: Float, type: Byte) {
-    val top = LengthPercentage.fromTypeValue(type, value)
-
-    top?.let {
+    if (LengthPercentage.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.PADDING_TOP_TYPE, type)
       values.putFloat(StyleKeys.PADDING_TOP_VALUE, value)
@@ -1859,9 +1846,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setPaddingBottom(value: Float, type: Byte) {
-    val bottom = LengthPercentage.fromTypeValue(type, value)
-
-    bottom?.let {
+    if (LengthPercentage.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.PADDING_BOTTOM_TYPE, type)
       values.putFloat(StyleKeys.PADDING_BOTTOM_VALUE, value)
@@ -1870,9 +1855,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setPaddingWithValueType(value: Float, type: Byte) {
-    val padding = LengthPercentage.fromTypeValue(type, value)
-
-    padding?.let {
+    if (LengthPercentage.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.PADDING_LEFT_TYPE, type)
       values.putFloat(StyleKeys.PADDING_LEFT_VALUE, value)
@@ -2319,7 +2302,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
 
   fun setFlexBasis(value: Float, type: Byte) {
-    Dimension.fromTypeValue(type, value)?.let {
+    if (Dimension.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.FLEX_BASIS_TYPE, type)
       values.putFloat(StyleKeys.FLEX_BASIS_VALUE, value)
@@ -2348,8 +2331,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   fun setMinSizeWidth(value: Float, type: Byte) {
-    val width = Dimension.fromTypeValue(type, value)
-    width?.let {
+    if (Dimension.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.MIN_WIDTH_TYPE, type)
       values.putFloat(StyleKeys.MIN_WIDTH_VALUE, value)
@@ -2358,8 +2340,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setMinSizeHeight(value: Float, type: Byte) {
-    val height = Dimension.fromTypeValue(type, value)
-    height?.let {
+    if (Dimension.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.MIN_HEIGHT_TYPE, type)
       values.putFloat(StyleKeys.MIN_HEIGHT_VALUE, value)
@@ -2421,9 +2402,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
 
   fun setSizeWidth(value: Float, type: Byte) {
-    val width = Dimension.fromTypeValue(type, value)
-
-    width?.let {
+    if (Dimension.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.WIDTH_TYPE, type)
       values.putFloat(StyleKeys.WIDTH_VALUE, value)
@@ -2439,9 +2418,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setSizeHeight(value: Float, type: Byte) {
-    val height = Dimension.fromTypeValue(type, value)
-
-    height?.let {
+    if (Dimension.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.HEIGHT_TYPE, type)
       values.putFloat(StyleKeys.HEIGHT_VALUE, value)
@@ -2477,9 +2454,7 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   fun setMaxSizeWidth(value: Float, type: Byte) {
-    val width = Dimension.fromTypeValue(type, value)
-
-    width?.let {
+    if (Dimension.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.MAX_WIDTH_TYPE, type)
       values.putFloat(StyleKeys.MAX_WIDTH_VALUE, value)
@@ -2488,9 +2463,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setMaxSizeHeight(value: Float, type: Byte) {
-    val height = Dimension.fromTypeValue(type, value)
-
-    height?.let {
+    if (Dimension.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.MAX_HEIGHT_TYPE, type)
       values.putFloat(StyleKeys.MAX_HEIGHT_VALUE, value)
@@ -2534,11 +2507,11 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
 
   fun setGap(widthValue: Float, widthType: Byte, heightValue: Float, heightType: Byte) {
-    val width = LengthPercentage.fromTypeValue(widthType, widthValue)
-
-    val height = LengthPercentage.fromTypeValue(heightType, heightValue)
-
-    if (width != null && height != null) {
+    if (LengthPercentage.isValid(widthType, widthValue) && LengthPercentage.isValid(
+        heightType,
+        heightValue
+      )
+    ) {
       prepareMut()
       values.put(StyleKeys.GAP_ROW_TYPE, widthType)
       values.putFloat(StyleKeys.GAP_ROW_VALUE, widthValue)
@@ -2548,11 +2521,8 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
   }
 
-
   fun setGapRow(value: Float, type: Byte) {
-    val width = LengthPercentage.fromTypeValue(type, value)
-
-    width?.let {
+    if (LengthPercentage.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.GAP_ROW_TYPE, type)
       values.putFloat(StyleKeys.GAP_ROW_VALUE, value)
@@ -2561,9 +2531,7 @@ class Style internal constructor(@Transient internal var node: Node) {
   }
 
   fun setGapColumn(value: Float, type: Byte) {
-    val height = LengthPercentage.fromTypeValue(type, value)
-
-    height?.let {
+    if (LengthPercentage.isValid(type, value)) {
       prepareMut()
       values.put(StyleKeys.GAP_COLUMN_TYPE, type)
       values.putFloat(StyleKeys.GAP_COLUMN_VALUE, value)
@@ -2820,6 +2788,11 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   internal fun updateNativeStyle() {
     if (node.nativePtr == 0L) {
+      return
+    }
+
+    // During compute Rust holds the lock — defer native style sync to avoid deadlock
+    if (node.mason.inCompute) {
       return
     }
 

@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use objc2::runtime::NSObject;
 
 use parking_lot::{Mutex, RwLock};
+use slotmap::SecondaryMap;
 use std::sync::Arc;
 use taffy::{AvailableSpace, Cache, ClearState, Layout, Size};
 
@@ -212,7 +213,7 @@ pub enum InlineSegment {
 
 #[derive(Debug)]
 pub struct NodeData {
-    pub(crate) inline_segments: Vec<InlineSegment>,
+    pub(crate) inline_segments: Mutex<Vec<InlineSegment>>,
     #[cfg(not(target_os = "android"))]
     pub(crate) data: *mut std::os::raw::c_void,
     #[cfg(target_vendor = "apple")]
@@ -234,12 +235,12 @@ pub struct NodeData {
 }
 
 impl NodeData {
-    pub fn inline_segments(&self) -> &[InlineSegment] {
-        self.inline_segments.as_slice()
+    pub fn inline_segments(&self) -> parking_lot::MutexGuard<'_, Vec<InlineSegment>> {
+        self.inline_segments.lock()
     }
 
-    pub fn set_inline_segments(&mut self, segments: Vec<InlineSegment>) {
-        self.inline_segments = segments;
+    pub fn set_inline_segments(&self, segments: Vec<InlineSegment>) {
+        *self.inline_segments.lock() = segments;
     }
 
     #[cfg(target_os = "android")]
@@ -248,7 +249,7 @@ impl NodeData {
             Self {
                 measure: -1,
                 android_data: None,
-                inline_segments: vec![],
+                inline_segments: Mutex::new(vec![]),
             }
         }
     }
@@ -261,7 +262,7 @@ impl NodeData {
                 #[cfg(target_vendor = "apple")]
                 apple_data: None,
                 measure: None,
-                inline_segments: vec![],
+                inline_segments: Mutex::new(vec![]),
             }
         }
     }
@@ -605,6 +606,7 @@ pub struct NodeRef {
     pub(crate) guard: Arc<()>,
     pub(crate) tree: Arc<RwLock<TreeInner>>,
     pub(crate) deferred_cleanup: Arc<Mutex<Vec<Id>>>,
+    pub(crate) node_data: Arc<RwLock<SecondaryMap<Id, NodeData>>>,
 }
 
 unsafe impl Send for NodeRef {}
@@ -626,6 +628,7 @@ impl PartialEq for NodeRef {
 pub(crate) fn drain_deferred_cleanup(
     tree: &Arc<RwLock<TreeInner>>,
     deferred: &Arc<Mutex<Vec<Id>>>,
+    node_data: &Arc<RwLock<SecondaryMap<Id, NodeData>>>,
 ) {
     let ids: Vec<Id> = {
         let mut queue = deferred.lock();
@@ -635,6 +638,7 @@ pub(crate) fn drain_deferred_cleanup(
         queue.drain(..).collect()
     };
     let mut tree = tree.write();
+    let mut nd = node_data.write();
     for id in ids {
         let has_parent = tree
             .parents
@@ -650,6 +654,7 @@ pub(crate) fn drain_deferred_cleanup(
             if let Some(node) = tree.nodes.remove(id) {
                 tree.style_arena.release(node.style.handle);
             }
+            nd.remove(id);
         }
     }
 }
@@ -674,6 +679,9 @@ impl Drop for NodeRef {
                 if !has_parent && !has_children {
                     if let Some(node) = tree.nodes.remove(self.id) {
                         tree.style_arena.release(node.style.handle);
+                    }
+                    if let Some(mut nd) = self.node_data.try_write() {
+                        nd.remove(self.id);
                     }
                 }
             } else {

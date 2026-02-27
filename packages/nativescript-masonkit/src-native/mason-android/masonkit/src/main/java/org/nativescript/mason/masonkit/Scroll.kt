@@ -22,9 +22,9 @@ class Scroll @JvmOverloads constructor(
 
   override var enableScrollX: Boolean
     get() {
-      return when (val value = node.style.values.getInt(StyleKeys.OVERFLOW_X)) {
-        2, 4 -> true
-        0, 1, 3 -> false
+      return when (val value = node.style.values.get(StyleKeys.OVERFLOW_X)) {
+        Overflow.Scroll.value, Overflow.Auto.value -> true
+        Overflow.Visible.value, Overflow.Hidden.value, Overflow.Clip.value -> false
         else -> throw IllegalArgumentException("Unknown overflow enum value: $value")
       }
     }
@@ -32,9 +32,9 @@ class Scroll @JvmOverloads constructor(
 
   override var enableScrollY: Boolean
     get() {
-      return when (val value = node.style.values.getInt(StyleKeys.OVERFLOW_Y)) {
-        2, 4 -> true
-        0, 1, 3 -> false
+      return when (val value = node.style.values.get(StyleKeys.OVERFLOW_Y)) {
+        Overflow.Scroll.value, Overflow.Auto.value -> true
+        Overflow.Visible.value, Overflow.Hidden.value, Overflow.Clip.value -> false
         else -> throw IllegalArgumentException("Unknown overflow enum value: $value")
       }
     }

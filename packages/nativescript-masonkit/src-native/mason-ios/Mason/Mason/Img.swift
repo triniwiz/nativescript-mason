@@ -338,10 +338,15 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
   }
   
   
+  public override func layoutSubviews() {
+    super.layoutSubviews()
+    autoComputeIfRoot()
+  }
+
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
-  
+
   private static func measure(_ view: Img, _ known: CGSize?, _ available: CGSize) -> CGSize {
     var ret = CGSize.zero
     if let known = known {

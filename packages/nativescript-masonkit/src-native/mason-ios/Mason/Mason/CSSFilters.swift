@@ -30,8 +30,10 @@ public class CSSFilters {
   private static var device: MTLDevice?
   private static var commandQueue: MTLCommandQueue?
   private static var ciContext: CIContext?
-  
-  
+
+  // Shared color space — avoids CGColorSpaceCreateDeviceRGB() allocation per texture/image creation
+  private static let deviceRGB = CGColorSpaceCreateDeviceRGB()
+
   private static var textureLoader: MTKTextureLoader?
   
   // MARK: - MPS Texture Helpers
@@ -57,14 +59,13 @@ public class CSSFilters {
       y: -ciImage.extent.origin.y
     ))
     
-    let colorSpace = CGColorSpaceCreateDeviceRGB()
     guard let commandBuffer = commandQueue.makeCommandBuffer() else { return nil }
     context.render(
       normalizedImage,
       to: texture,
       commandBuffer: commandBuffer,
       bounds: CGRect(origin: .zero, size: ciImage.extent.size),
-      colorSpace: colorSpace
+      colorSpace: deviceRGB
     )
     commandBuffer.commit()
     commandBuffer.waitUntilCompleted()
@@ -73,7 +74,7 @@ public class CSSFilters {
   }
   
   private static func createCIImage(from texture: MTLTexture, extent: CGRect) -> CIImage? {
-    guard let image = CIImage(mtlTexture: texture, options: [.colorSpace: CGColorSpaceCreateDeviceRGB()]) else { return nil }
+    guard let image = CIImage(mtlTexture: texture, options: [.colorSpace: deviceRGB]) else { return nil }
     
     return image.transformed(by: CGAffineTransform(translationX: extent.origin.x, y: extent.origin.y))
   }
@@ -265,7 +266,6 @@ public class CSSFilters {
     var filters: [Filter]
     private var ciFilters: [CIFilter] = []
     private weak var view: UIView?
-    private var colorSpace = CGColorSpaceCreateDeviceRGB()
     
     public override init() {
       filters = []
@@ -622,7 +622,7 @@ public class CSSFilters {
                         to: drawable.texture,
                         commandBuffer: cb,
                         bounds: drawableBounds,
-                        colorSpace: colorSpace)
+                        colorSpace: CSSFilters.deviceRGB)
       if let cb = cb {
         cb.present(drawable)
         cb.commit()

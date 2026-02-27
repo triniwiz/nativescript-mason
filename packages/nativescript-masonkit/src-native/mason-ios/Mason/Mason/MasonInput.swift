@@ -436,29 +436,36 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   }
   
   public override func draw(_ rect: CGRect) {
-    
+
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
-    
+
+    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
-    let innerRect = bounds.inset(by: UIEdgeInsets(
-      top: borderWidths.top,
-      left: borderWidths.left,
-      bottom: borderWidths.bottom,
-      right: borderWidths.right
-    ))
-    
-    let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
-    let innerPath = style.mBorderRender.buildRoundedPath(in: innerRect, radius: innerRadius)
-    
-    context.saveGState()
-    context.addPath(innerPath.cgPath)
-    context.clip()
-    style.mBackground.draw(on: self, in: context, rect: innerRect)
-    context.restoreGState()
-    
+    let hasRadii = style.mBorderRender.hasRadii()
+
+    if hasBackground {
+      let innerRect = bounds.inset(by: UIEdgeInsets(
+        top: borderWidths.top,
+        left: borderWidths.left,
+        bottom: borderWidths.bottom,
+        right: borderWidths.right
+      ))
+
+      context.saveGState()
+      if hasRadii {
+        let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
+        let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: innerRadius)
+        context.addPath(innerPath.cgPath)
+        context.clip()
+      }
+      style.mBackground.draw(on: self, in: context, rect: innerRect)
+      context.restoreGState()
+    }
+
     switch(self.type){
     case .Radio, .Checkbox, .Range,.Color:
       break
@@ -537,6 +544,8 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   
   
   public override func layoutSubviews() {
+    super.layoutSubviews()
+    autoComputeIfRoot()
     var inputSize = bounds
     if(!node.computedLayout.paddingIsEmpty){
       let scale = NSCMason.scale

@@ -312,12 +312,11 @@ impl Mason {
     #[track_caller]
     pub fn setup(&mut self, node: Id, measure: jni::sys::jint) {
         let has_measure = measure != -1;
-        let mut tree = self.0.inner_mut();
-        if let Some(node) = tree.node_data.get_mut(node) {
-            node.measure = measure;
+        if let Some(nd) = self.0.node_data_mut().get_mut(node) {
+            nd.measure = measure;
         }
 
-        if let Some(node) = tree.nodes.get_mut(node) {
+        if let Some(node) = self.0.nodes_mut().get_mut(node) {
             node.has_measure = has_measure;
         }
     }
@@ -326,12 +325,11 @@ impl Mason {
     #[track_caller]
     pub fn set_measure(&mut self, node: Id, measure: jni::sys::jint) {
         let has_measure = measure != -1;
-        let mut tree = self.0.inner_mut();
-        if let Some(node) = tree.node_data.get_mut(node) {
-            node.measure = measure;
+        if let Some(nd) = self.0.node_data_mut().get_mut(node) {
+            nd.measure = measure;
         }
 
-        if let Some(node) = tree.nodes.get_mut(node) {
+        if let Some(node) = self.0.nodes_mut().get_mut(node) {
             node.has_measure = has_measure;
         }
     }
@@ -444,30 +442,28 @@ impl Mason {
     }
 
     pub fn append_segment(&mut self, node: Id, segment: InlineSegment) {
-        if let Some(data) = self.0.node_data_mut().get_mut(node) {
-            data.inline_segments.push(segment);
+        if let Some(data) = self.0.node_data().get(node) {
+            data.inline_segments.lock().push(segment);
         }
     }
 
     pub fn clear_segments(&mut self, node: Id) {
-        if let Some(data) = self.0.node_data_mut().get_mut(node) {
-            data.inline_segments.clear();
+        if let Some(data) = self.0.node_data().get(node) {
+            data.inline_segments.lock().clear();
         }
     }
 
     pub fn set_segments(&mut self, node: Id, segments: Vec<InlineSegment>) {
-        if let Some(data) = self.0.node_data_mut().get_mut(node) {
-            data.inline_segments = segments;
+        if let Some(data) = self.0.node_data().get(node) {
+            *data.inline_segments.lock() = segments;
         }
     }
 
-    pub fn get_segments(&self, node: Id) -> MappedRwLockReadGuard<'_, RawRwLock, [InlineSegment]> {
-        RwLockReadGuard::map(self.0 .0.read(), |data| {
-            data.node_data
-                .get(node)
-                .map(|data| data.inline_segments.as_slice())
-                .unwrap_or(&[])
-        })
+    pub fn get_segments(&self, node: Id) -> Vec<InlineSegment> {
+        self.0.node_data()
+            .get(node)
+            .map(|data| data.inline_segments.lock().clone())
+            .unwrap_or_default()
     }
 
     pub fn set_children(&mut self, parent: Id, children: &[Id]) {

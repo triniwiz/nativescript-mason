@@ -101,6 +101,11 @@ class MainActivity : AppCompatActivity() {
       startActivity(intent)
     }
 
+    binding.web.setOnClickListener {
+      val intent = Intent(this, WebActivity::class.java)
+      startActivity(intent)
+    }
+
 
   }
 

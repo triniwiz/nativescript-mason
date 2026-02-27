@@ -341,9 +341,21 @@ private fun LengthPercentage.toPx(viewSize: Float): Float {
 
 class BorderRenderer(private val style: Style) {
 
+  companion object {
+    // Static DashPathEffect instances — avoid allocation per draw
+    private val DASH_EFFECT = android.graphics.DashPathEffect(floatArrayOf(10f, 10f), 0f)
+    private val DOT_EFFECT = android.graphics.DashPathEffect(floatArrayOf(2f, 8f), 0f)
+  }
+
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val path = Path()
   private val clipPath = Path()
+
+  // Reusable RectF for arc corner calculations — avoids allocation per corner
+  private val cornerRect = RectF()
+
+  // Reusable PointF for passing radius to addCorner/addCornerToPath
+  private val tempRadius = PointF()
 
   // cached corner points
   private val topLeftCorner = PointF()
@@ -378,6 +390,9 @@ class BorderRenderer(private val style: Style) {
   private var lastHash = 0
 
   private var cacheInvalidated = true
+  private var clipPathDirty = true
+  private var lastClipWidth = 0f
+  private var lastClipHeight = 0f
 
   private fun computeHash(): Int {
     var result = 17
@@ -406,10 +421,19 @@ class BorderRenderer(private val style: Style) {
 
   fun invalidate() {
     cacheInvalidated = true
+    clipPathDirty = true
   }
 
 
   fun getClipPath(width: Float, height: Float): Path {
+    // Return cached clip path if nothing changed
+    if (!clipPathDirty && width == lastClipWidth && height == lastClipHeight) {
+      return clipPath
+    }
+
+    clipPathDirty = false
+    lastClipWidth = width
+    lastClipHeight = height
     clipPath.reset()
 
     val tl = topLeftCorner
@@ -417,55 +441,52 @@ class BorderRenderer(private val style: Style) {
     val br = bottomRightCorner
     val bl = bottomLeftCorner
 
-    // Clamp radii
-    val tlX = tl.x.coerceAtMost(width / 2f)
-    val tlY = tl.y.coerceAtMost(height / 2f)
-    val trX = tr.x.coerceAtMost(width / 2f)
-    val trY = tr.y.coerceAtMost(height / 2f)
-    val brX = br.x.coerceAtMost(width / 2f)
-    val brY = br.y.coerceAtMost(height / 2f)
-    val blX = bl.x.coerceAtMost(width / 2f)
-    val blY = bl.y.coerceAtMost(height / 2f)
+    // Inset the clip path by half the maximum stroke so strokes draw inside bounds
+    val maxStrokeHalf = maxOf(leftWidth, topWidth, rightWidth, bottomWidth) / 2f
+    val innerWidth = (width - maxStrokeHalf * 2).coerceAtLeast(0f)
+    val innerHeight = (height - maxStrokeHalf * 2).coerceAtLeast(0f)
 
-    clipPath.moveTo(tlX, 0f)
+    // Clamp radii to inner dimensions
+    val tlX = tl.x.coerceAtMost(innerWidth / 2f)
+    val tlY = tl.y.coerceAtMost(innerHeight / 2f)
+    val trX = tr.x.coerceAtMost(innerWidth / 2f)
+    val trY = tr.y.coerceAtMost(innerHeight / 2f)
+    val brX = br.x.coerceAtMost(innerWidth / 2f)
+    val brY = br.y.coerceAtMost(innerHeight / 2f)
+    val blX = bl.x.coerceAtMost(innerWidth / 2f)
+    val blY = bl.y.coerceAtMost(innerHeight / 2f)
+
+    val ofs = maxStrokeHalf
+
+    clipPath.moveTo(ofs + tlX, ofs)
 
     // Top edge
-    clipPath.lineTo(width - trX, 0f)
+    clipPath.lineTo(ofs + innerWidth - trX, ofs)
 
-    // Top-right corner
-    addCornerToPath(clipPath, Corner.TOP_RIGHT, PointF(trX, trY), topRightExponent, width, height)
+    // Top-right corner (reuse tempRadius to avoid PointF allocation)
+    tempRadius.set(trX, trY)
+    addCornerToPath(clipPath, Corner.TOP_RIGHT, tempRadius, topRightExponent, innerWidth, innerHeight)
 
     // Right edge
-    clipPath.lineTo(width, height - brY)
+    clipPath.lineTo(ofs + innerWidth, ofs + innerHeight - brY)
 
     // Bottom-right corner
-    addCornerToPath(
-      clipPath,
-      Corner.BOTTOM_RIGHT,
-      PointF(brX, brY),
-      bottomRightExponent,
-      width,
-      height
-    )
+    tempRadius.set(brX, brY)
+    addCornerToPath(clipPath, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, innerWidth, innerHeight)
 
     // Bottom edge
-    clipPath.lineTo(blX, height)
+    clipPath.lineTo(ofs + blX, ofs + innerHeight)
 
     // Bottom-left corner
-    addCornerToPath(
-      clipPath,
-      Corner.BOTTOM_LEFT,
-      PointF(blX, blY),
-      bottomLeftExponent,
-      width,
-      height
-    )
+    tempRadius.set(blX, blY)
+    addCornerToPath(clipPath, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, innerWidth, innerHeight)
 
     // Left edge
-    clipPath.lineTo(0f, tlY)
+    clipPath.lineTo(ofs, ofs + tlY)
 
     // Top-left corner
-    addCornerToPath(clipPath, Corner.TOP_LEFT, PointF(tlX, tlY), topLeftExponent, width, height)
+    tempRadius.set(tlX, tlY)
+    addCornerToPath(clipPath, Corner.TOP_LEFT, tempRadius, topLeftExponent, innerWidth, innerHeight)
 
     clipPath.close()
 
@@ -491,12 +512,12 @@ class BorderRenderer(private val style: Style) {
     if (radius.x <= 0f && radius.y <= 0f) return
 
     if (exponent == 1f) {
-      // Use Android's analytic arc
-      val rect = when (corner) {
-        Corner.TOP_LEFT -> RectF(0f, 0f, radius.x * 2, radius.y * 2)
-        Corner.TOP_RIGHT -> RectF(width - radius.x * 2, 0f, width, radius.y * 2)
-        Corner.BOTTOM_RIGHT -> RectF(width - radius.x * 2, height - radius.y * 2, width, height)
-        Corner.BOTTOM_LEFT -> RectF(0f, height - radius.y * 2, radius.x * 2, height)
+      // Use Android's analytic arc with reusable RectF
+      when (corner) {
+        Corner.TOP_LEFT -> cornerRect.set(0f, 0f, radius.x * 2, radius.y * 2)
+        Corner.TOP_RIGHT -> cornerRect.set(width - radius.x * 2, 0f, width, radius.y * 2)
+        Corner.BOTTOM_RIGHT -> cornerRect.set(width - radius.x * 2, height - radius.y * 2, width, height)
+        Corner.BOTTOM_LEFT -> cornerRect.set(0f, height - radius.y * 2, radius.x * 2, height)
       }
 
       val startAngle = when (corner) {
@@ -506,7 +527,7 @@ class BorderRenderer(private val style: Style) {
         Corner.BOTTOM_LEFT -> 90f
       }
 
-      path.arcTo(rect, startAngle, 90f)
+      path.arcTo(cornerRect, startAngle, 90f)
       return
     }
 
@@ -548,6 +569,7 @@ class BorderRenderer(private val style: Style) {
 
     lastHash = newHash
     cacheInvalidated = false
+    clipPathDirty = true  // border properties changed, clip path needs rebuild
 
     // Widths
     leftWidth = style.mBorderLeft.width.toPx(viewWidth)
@@ -587,17 +609,28 @@ class BorderRenderer(private val style: Style) {
 
   /** Draws the border into the canvas */
   fun draw(canvas: Canvas, width: Float, height: Float) {
-    // resets when building
-    // path.reset()
+    // Quick bail if all sides are invisible
+    if (topStyle == BorderStyle.None && rightStyle == BorderStyle.None &&
+      bottomStyle == BorderStyle.None && leftStyle == BorderStyle.None
+    ) return
+    if (topColor == 0 && rightColor == 0 && bottomColor == 0 && leftColor == 0) return
 
     // Build path with corners and sides
     buildBorderPath(width, height)
 
-    // Draw each side separately for per-side colors and styles
-    drawSide(canvas, Side.Top, path, topColor, topStyle)
-    drawSide(canvas, Side.Right, path, rightColor, rightStyle)
-    drawSide(canvas, Side.Bottom, path, bottomColor, bottomStyle)
-    drawSide(canvas, Side.Left, path, leftColor, leftStyle)
+    // Fast path: if all sides share the same color, style, and width, draw once
+    if (topColor == rightColor && rightColor == bottomColor && bottomColor == leftColor &&
+      topStyle == rightStyle && rightStyle == bottomStyle && bottomStyle == leftStyle &&
+      topWidth == rightWidth && rightWidth == bottomWidth && bottomWidth == leftWidth
+    ) {
+      drawSide(canvas, Side.Top, path, topColor, topStyle)
+    } else {
+      // Draw each side separately for per-side colors and styles
+      drawSide(canvas, Side.Top, path, topColor, topStyle)
+      drawSide(canvas, Side.Right, path, rightColor, rightStyle)
+      drawSide(canvas, Side.Bottom, path, bottomColor, bottomStyle)
+      drawSide(canvas, Side.Left, path, leftColor, leftStyle)
+    }
   }
 
   private enum class Corner { TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT }
@@ -610,38 +643,49 @@ class BorderRenderer(private val style: Style) {
 
     path.reset()
 
-    // Clamp radii
-    val tlX = tl.x.coerceAtMost(width / 2f)
-    val tlY = tl.y.coerceAtMost(height / 2f)
-    val trX = tr.x.coerceAtMost(width / 2f)
-    val trY = tr.y.coerceAtMost(height / 2f)
-    val brX = br.x.coerceAtMost(width / 2f)
-    val brY = br.y.coerceAtMost(height / 2f)
-    val blX = bl.x.coerceAtMost(width / 2f)
-    val blY = bl.y.coerceAtMost(height / 2f)
+    // Inset the border path by half the maximum stroke so strokes draw inside bounds
+    val maxStrokeHalf = maxOf(leftWidth, topWidth, rightWidth, bottomWidth) / 2f
+    val innerWidth = (width - maxStrokeHalf * 2).coerceAtLeast(0f)
+    val innerHeight = (height - maxStrokeHalf * 2).coerceAtLeast(0f)
 
-    path.moveTo(tlX, 0f)
+    // Clamp radii to inner dimensions
+    val tlX = tl.x.coerceAtMost(innerWidth / 2f)
+    val tlY = tl.y.coerceAtMost(innerHeight / 2f)
+    val trX = tr.x.coerceAtMost(innerWidth / 2f)
+    val trY = tr.y.coerceAtMost(innerHeight / 2f)
+    val brX = br.x.coerceAtMost(innerWidth / 2f)
+    val brY = br.y.coerceAtMost(innerHeight / 2f)
+    val blX = bl.x.coerceAtMost(innerWidth / 2f)
+    val blY = bl.y.coerceAtMost(innerHeight / 2f)
+
+    val ofs = maxStrokeHalf
+
+    path.moveTo(ofs + tlX, ofs)
 
     // Top edge
-    path.lineTo(width - trX, 0f)
+    path.lineTo(ofs + innerWidth - trX, ofs)
 
-    // --- Corners ---
-    addCorner(path, Corner.TOP_RIGHT, PointF(trX, trY), topRightExponent, width, height)
+    // --- Corners (reuse tempRadius to avoid PointF allocation) ---
+    tempRadius.set(trX, trY)
+    addCorner(path, Corner.TOP_RIGHT, tempRadius, topRightExponent, innerWidth, innerHeight)
 
     // Right edge
-    path.lineTo(width, height - brY)
+    path.lineTo(ofs + innerWidth, ofs + innerHeight - brY)
 
-    addCorner(path, Corner.BOTTOM_RIGHT, PointF(brX, brY), bottomRightExponent, width, height)
+    tempRadius.set(brX, brY)
+    addCorner(path, Corner.BOTTOM_RIGHT, tempRadius, bottomRightExponent, innerWidth, innerHeight)
 
     // Bottom edge
-    path.lineTo(blX, height)
+    path.lineTo(ofs + blX, ofs + innerHeight)
 
-    addCorner(path, Corner.BOTTOM_LEFT, PointF(blX, blY), bottomLeftExponent, width, height)
+    tempRadius.set(blX, blY)
+    addCorner(path, Corner.BOTTOM_LEFT, tempRadius, bottomLeftExponent, innerWidth, innerHeight)
 
     // Left edge
-    path.lineTo(0f, tlY)
+    path.lineTo(ofs, ofs + tlY)
 
-    addCorner(path, Corner.TOP_LEFT, PointF(tlX, tlY), topLeftExponent, width, height)
+    tempRadius.set(tlX, tlY)
+    addCorner(path, Corner.TOP_LEFT, tempRadius, topLeftExponent, innerWidth, innerHeight)
 
     path.close()
   }
@@ -657,12 +701,12 @@ class BorderRenderer(private val style: Style) {
     if (radius.x <= 0f && radius.y <= 0f) return
 
     if (exponent == 1f) {
-      // Use Android's analytic arc
-      val rect = when (corner) {
-        Corner.TOP_LEFT -> RectF(0f, 0f, radius.x * 2, radius.y * 2)
-        Corner.TOP_RIGHT -> RectF(width - radius.x * 2, 0f, width, radius.y * 2)
-        Corner.BOTTOM_RIGHT -> RectF(width - radius.x * 2, height - radius.y * 2, width, height)
-        Corner.BOTTOM_LEFT -> RectF(0f, height - radius.y * 2, radius.x * 2, height)
+      // Use Android's analytic arc with reusable RectF
+      when (corner) {
+        Corner.TOP_LEFT -> cornerRect.set(0f, 0f, radius.x * 2, radius.y * 2)
+        Corner.TOP_RIGHT -> cornerRect.set(width - radius.x * 2, 0f, width, radius.y * 2)
+        Corner.BOTTOM_RIGHT -> cornerRect.set(width - radius.x * 2, height - radius.y * 2, width, height)
+        Corner.BOTTOM_LEFT -> cornerRect.set(0f, height - radius.y * 2, radius.x * 2, height)
       }
 
       val startAngle = when (corner) {
@@ -672,7 +716,7 @@ class BorderRenderer(private val style: Style) {
         Corner.BOTTOM_LEFT -> 90f
       }
 
-      path.arcTo(rect, startAngle, 90f)
+      path.arcTo(cornerRect, startAngle, 90f)
       return
     }
 
@@ -733,12 +777,8 @@ class BorderRenderer(private val style: Style) {
     paint.strokeWidth = getWidthForSide(side)
     when (style) {
       BorderStyle.Solid -> paint.pathEffect = null
-      BorderStyle.Dashed -> paint.pathEffect =
-        android.graphics.DashPathEffect(floatArrayOf(10f, 10f), 0f)
-
-      BorderStyle.Dotted -> paint.pathEffect =
-        android.graphics.DashPathEffect(floatArrayOf(2f, 8f), 0f)
-
+      BorderStyle.Dashed -> paint.pathEffect = DASH_EFFECT
+      BorderStyle.Dotted -> paint.pathEffect = DOT_EFFECT
       else -> paint.pathEffect = null
     }
     canvas.drawPath(path, paint)
@@ -826,6 +866,7 @@ fun parseBorderShorthand(style: Style, value: String) {
   var valid = false
   val scale = style.node.mason.scale
   var width: LengthPercentage? = Points(scale * 3)
+  val widths = mutableListOf<LengthPercentage>()
   var borderStyle: BorderStyle? = BorderStyle.Solid
   // default to black
   var color: Int? = Color.BLACK
@@ -834,13 +875,17 @@ fun parseBorderShorthand(style: Style, value: String) {
   split.forEach { part ->
     when {
       parseLengthPercentage(part) != null -> {
-        width = when (part) {
+        val parsed = when (part) {
           "thin" -> Points(scale * 1)
           "medium" -> Points(scale * 3)
           "thick" -> Points(scale * 5)
           else -> parseLengthPercentage(part)
         }
-        valid = width != null
+        parsed?.let {
+          widths.add(it)
+          width = it
+          valid = true
+        }
       }
 
       BorderStyle.cssNames.contains(part.lowercase()) -> {
@@ -863,13 +908,28 @@ fun parseBorderShorthand(style: Style, value: String) {
   var batch = false
   var dirty = false
 
-  width?.let {
-    if (!style.inBatch) {
-      style.inBatch = true
-      batch = true
+  // If explicit per-side widths provided, map them according to CSS shorthand
+  // rules: 1 value -> all sides; 2 values -> top/bottom, right/left;
+  // 3 values -> top, right/left, bottom; 4 values -> top, right, bottom, left.
+  if (widths.isNotEmpty()) {
+    val wRect = when (widths.size) {
+      1 -> Rect.uniform(widths[0])
+      2 -> Rect(widths[0], widths[1], widths[0], widths[1])
+      3 -> Rect(widths[0], widths[1], widths[2], widths[1])
+      else -> Rect(widths[0], widths[1], widths[2], widths[3])
     }
+    if (!style.inBatch) { style.inBatch = true; batch = true }
     dirty = true
-    style.borderWidth = Rect.uniform(it)
+    style.borderWidth = wRect
+  } else {
+    width?.let {
+      if (!style.inBatch) {
+        style.inBatch = true
+        batch = true
+      }
+      dirty = true
+      style.borderWidth = Rect.uniform(it)
+    }
   }
 
   borderStyle?.let {

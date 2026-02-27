@@ -2226,6 +2226,42 @@ public class MasonStyle: NSObject {
   }
   
   
+  public var paddingLeft: MasonLengthPercentage {
+    get {
+      return MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_LEFT_VALUE), getInt8(StyleKeys.PADDING_LEFT_TYPE))!
+    }
+    set {
+      setPaddingLeft(newValue.value, Int(newValue.type))
+    }
+  }
+  
+  public var paddingTop: MasonLengthPercentage {
+    get {
+      return MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_TOP_VALUE), getInt8(StyleKeys.PADDING_TOP_TYPE))!
+    }
+    set {
+      setPaddingTop(newValue.value, Int(newValue.type))
+    }
+  }
+  
+  public var paddingRight: MasonLengthPercentage {
+    get {
+      return MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_RIGHT_VALUE), getInt8(StyleKeys.PADDING_RIGHT_TYPE))!
+    }
+    set {
+      setPaddingRight(newValue.value, Int(newValue.type))
+    }
+  }
+  
+  public var paddingBottom: MasonLengthPercentage {
+    get {
+      return MasonLengthPercentage.fromValueType(getFloat(StyleKeys.PADDING_BOTTOM_VALUE), getInt8(StyleKeys.PADDING_BOTTOM_TYPE))!
+    }
+    set {
+      setPaddingBottom(newValue.value, Int(newValue.type))
+    }
+  }
+  
   public func setPaddingLeft(_ value: Float, _ type: Int) {
     guard let left = getLengthPercentage(value, type) else {return}
     prepareMut()

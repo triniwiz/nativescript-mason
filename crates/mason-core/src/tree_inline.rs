@@ -824,7 +824,7 @@ impl Tree {
                 // Inline text container - check for text segments
                 if let Some(node_data) = self.node_data().get(child_id) {
                     let segments = node_data.inline_segments();
-                    for segment in segments {
+                    for segment in segments.iter() {
                         if let InlineSegment::Text { descent, .. } = segment {
                             // Text baseline is descent from bottom of text
                             // For a container, add padding/border
@@ -908,8 +908,8 @@ impl Tree {
 
     /// Get the content size from inline segments for a pure inline element
     fn get_inline_content_size(&self, child_id: Id) -> Option<Size<f32>> {
-        let tree = self.0.read();
-        let node_data = tree.node_data.get(child_id)?;
+        let nd = self.node_data();
+        let node_data = nd.get(child_id)?;
         let segments = node_data.inline_segments();
 
         if segments.is_empty() {
@@ -923,7 +923,7 @@ impl Tree {
         let mut max_descent = 0.0f32;
         let mut line_count = 1usize;
 
-        for segment in segments {
+        for segment in segments.iter() {
             match segment {
                 InlineSegment::Text {
                     width,
@@ -1408,7 +1408,14 @@ impl Tree {
             if layout.size.width > value {
                 layout.size.width = value;
             }
-            if layout.content_size.width > value {
+            // Don't clamp content_size for scroll/auto/hidden overflow containers —
+            // they need the true content extent for native scroll views
+            let overflow = self.nodes()[child_id].style().get_overflow();
+            let is_scroll_container = matches!(
+                overflow.x,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto | crate::style::Overflow::Hidden
+            );
+            if !is_scroll_container && layout.content_size.width > value {
                 layout.content_size.width = value;
             }
         }
@@ -1525,11 +1532,47 @@ impl Tree {
                 }
             }
 
-            // Get segments from native text measurement
+            // Compute container size FIRST — the native measure function
+            // populates fresh inline segments as a side effect, so we must
+            // call it before reading segments for IFC positioning.
+            let measure = self.node_data().get(id).unwrap().copy_measure();
+            let is_inline = matches!(style.display_mode(), DisplayMode::Inline);
+            let _is_block = matches!(style.get_display(), Display::Block);
+
+            let mut adjusted_style = style.clone();
+            if is_inline {
+                let mut size = adjusted_style.size();
+                if !size.width.is_auto() && size.width.value() == 0.0 {
+                    size.width = Dimension::auto();
+                }
+                if !size.height.is_auto() && size.height.value() == 0.0 {
+                    size.height = Dimension::auto();
+                }
+                adjusted_style.set_size(size);
+            }
+
+            let ret = compute_leaf_layout(
+                inputs,
+                &adjusted_style,
+                |_val, _basis| 0.0,
+                |known_dimensions, available_space| {
+                    let measure_known = if is_inline {
+                        Size::NONE
+                    } else {
+                        known_dimensions
+                    };
+                    measure.measure(measure_known, available_space)
+                },
+            );
+
+            // Now get segments (freshly populated by the measure call above)
             let segments = {
-                let tree = self.0.read();
-                let node_data = tree.node_data.get(id).unwrap();
-                node_data.inline_segments().to_vec()
+                let nd = self.node_data();
+                let node_data = nd.get(id).unwrap();
+                let guard = node_data.inline_segments();
+                let vec = guard.to_vec();
+                drop(guard);
+                vec
             };
 
             // If there are children, we need to position them using IFC
@@ -1639,53 +1682,16 @@ impl Tree {
                 }
             }
 
-            // Now use native measure for the container's size
-            let measure = self.node_data().get(id).unwrap().copy_measure();
-            let is_inline = matches!(style.display_mode(), DisplayMode::Inline);
-            let is_block = matches!(style.get_display(), Display::Block);
-
-            let mut adjusted_style = style.clone();
-            if is_inline {
-                let mut size = adjusted_style.size();
-                if !size.width.is_auto() && size.width.value() == 0.0 {
-                    size.width = Dimension::auto();
-                }
-                if !size.height.is_auto() && size.height.value() == 0.0 {
-                    size.height = Dimension::auto();
-                }
-                adjusted_style.set_size(size);
-            }
-
-            let ret = compute_leaf_layout(
-                inputs,
-                &adjusted_style,
-                |_val, _basis| 0.0,
-                |known_dimensions, available_space| {
-                    let measure_known = if is_inline {
-                        Size::NONE
-                    } else {
-                        known_dimensions
-                    };
-                    measure.measure(measure_known, available_space)
-                },
-            );
-
-            // if is_block && !size.height.is_auto() {
-            //     adjusted_style.set_size(
-            //         Size {
-            //             width: size.width,
-            //             height: auto()
-            //         }
-            //     );
-            // }
-
             return ret;
         }
 
         let segments = {
-            let tree = self.0.read();
-            let node_data = tree.node_data.get(id).unwrap();
-            node_data.inline_segments().to_vec()
+            let nd = self.node_data();
+            let node_data = nd.get(id).unwrap();
+            let guard = node_data.inline_segments();
+            let vec = guard.to_vec();
+            drop(guard);
+            vec
         };
 
         if child_ids.is_empty() && segments.is_empty() {

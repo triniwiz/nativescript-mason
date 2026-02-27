@@ -14,36 +14,47 @@ public class Scroll: UIScrollView, UIScrollViewDelegate,MasonEventTarget, MasonE
   }
   
   public override func draw(_ rect: CGRect) {
-    
+
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
+
+    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
-    let innerRect = bounds.inset(by: UIEdgeInsets(
-      top: borderWidths.top,
-      left: borderWidths.left,
-      bottom: borderWidths.bottom,
-      right: borderWidths.right
-    ))
-    
-    let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
-    let innerPath = style.mBorderRender.buildRoundedPath(in: innerRect, radius: innerRadius)
-    
-    
-    context.saveGState()
-    context.addPath(innerPath.cgPath)
-    context.clip()
-    style.mBackground.draw(on: self, in: context, rect: innerRect)
-    context.restoreGState()
-    
-    style.mBorderRender.draw(in: context, rect: bounds)
+    let hasRadii = style.mBorderRender.hasRadii()
+
+    if hasBackground {
+      let innerRect = bounds.inset(by: UIEdgeInsets(
+        top: borderWidths.top,
+        left: borderWidths.left,
+        bottom: borderWidths.bottom,
+        right: borderWidths.right
+      ))
+
+      context.saveGState()
+      if hasRadii {
+        let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
+        let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: innerRadius)
+        context.addPath(innerPath.cgPath)
+        context.clip()
+      }
+      style.mBackground.draw(on: self, in: context, rect: innerRect)
+      context.restoreGState()
+    }
+
     style.mBorderRender.draw(in: context, rect: bounds)
   }
   
+  public override func layoutSubviews() {
+    super.layoutSubviews()
+    autoComputeIfRoot()
+  }
+
   public let node: MasonNode
   public let mason: NSCMason
-  
+
   public var uiView: UIView {
     return self
   }

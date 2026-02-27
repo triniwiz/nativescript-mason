@@ -23,8 +23,8 @@ public class MasonLayout: NSObject, Codable {
   public let children: [MasonLayout]
   public static let zero = MasonLayout()
   public var hasChildren: Bool { !children.isEmpty }
-
-
+  
+  
   public var borderIsEmpty: Bool { border.isEmpty() }
   public var borderTop:Float {border.left}
   public var borderRight:Float {border.right}

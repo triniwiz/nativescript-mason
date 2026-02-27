@@ -7,6 +7,14 @@ sealed class LengthPercentage {
 
   companion object {
     @JvmStatic
+    fun isValid(type: Byte, value: Float): Boolean {
+      return when (type) {
+        0.toByte(), 1.toByte() -> true
+        else -> false
+      }
+    }
+
+    @JvmStatic
     fun from(value: LengthPercentage): LengthPercentage {
       return when (value) {
         is Percent -> Percent(value.percentage)

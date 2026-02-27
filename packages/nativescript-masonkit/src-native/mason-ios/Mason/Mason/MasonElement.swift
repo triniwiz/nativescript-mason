@@ -99,6 +99,7 @@ private struct MasonElementProperties {
   static var computeCache: UInt8 = 0
   static var isInLayout: UInt8 = 1
   static var computeCacheDirty: UInt8 = 2
+  static var lastAutoComputeSize: UInt8 = 3
 }
 
 func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style: NSCFontStyle) -> CTFont {
@@ -311,7 +312,33 @@ extension MasonElement {
     objc_setAssociatedObject(self, &MasonElementProperties.computeCache, value, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     computeCacheDirty = true
   }
-  
+
+  private var _lastAutoComputeSize: CGSize {
+    get {
+      return objc_getAssociatedObject(self, &MasonElementProperties.lastAutoComputeSize) as? CGSize ?? .zero
+    }
+    set {
+      objc_setAssociatedObject(self, &MasonElementProperties.lastAutoComputeSize, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+  }
+
+  /// Auto-compute layout when this is a root Mason view.
+  /// Call from layoutSubviews in any MasonElement UIView subclass.
+  /// Mirrors Android's onMeasure: if the parent isn't a MasonElement,
+  /// take the parent's size as the available space and compute.
+  public func autoComputeIfRoot() {
+    guard !(uiView.superview is MasonElement) else { return }
+    guard let parentSize = uiView.superview?.bounds.size else { return }
+    guard parentSize.width > 0 || parentSize.height > 0 else { return }
+    if _lastAutoComputeSize != parentSize || computeCacheDirty || node.isDirty {
+      _lastAutoComputeSize = parentSize
+      let scale = NSCMason.scale
+      let w = scale * Float(parentSize.width)
+      let h = scale * Float(parentSize.height)
+      computeWithSize(w, h)
+    }
+  }
+
   public func append(_ element: MasonElement){
     node.appendChild(element.node)
   }
@@ -593,24 +620,26 @@ class MasonElementHelpers: NSObject {
     }
     
     if(!layout.children.isEmpty){
-      let children = node.children.filter {
-        let node = $0
-        if(node.nativePtr == nil){
-          return false
-        }else if(node.parent?.view is TextContainer && node.view is TextContainer){
-          let flatten = (node.parent!.view as! MasonText).engine.shouldFlattenTextContainer(node.view as! TextContainer)
-          return !flatten
-        }else {
-          return true
-        }
-      }
-      
+      // Filter to only children with nativePtr (matching Rust layout tree order)
+      // Do NOT filter out flattened text containers here — indices must stay
+      // aligned with layout.children from Rust.
+      let children = node.children.filter { $0.nativePtr != nil }
+
       let count = children.count
       for i in 0..<count{
         let child = children[i]
         if(child.type == .text){
           continue
         }
+
+        // Skip flattened text containers — parent draws their text
+        if child.parent?.view is TextContainer && child.view is TextContainer {
+          if (child.parent!.view as! MasonText).engine.shouldFlattenTextContainer(child.view as! TextContainer) {
+            child.view?.frame = .zero
+            continue
+          }
+        }
+
         let layout = layout.children[i]
         applyToView(child, layout)
       }

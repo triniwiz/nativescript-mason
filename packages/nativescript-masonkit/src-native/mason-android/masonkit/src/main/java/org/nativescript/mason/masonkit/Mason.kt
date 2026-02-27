@@ -30,6 +30,10 @@ class Mason {
   private val nodeEventListeners =
     mutableMapOf<Node, MutableMap<String, MutableMap<UUID, (Event) -> Unit>>>()
 
+  // True while Rust holds a lock during compute — prevents re-entrant lock acquisition via prepareMut
+  @JvmField
+  internal var inCompute = false
+
   var scale: Float = Resources.getSystem().displayMetrics.density
     private set
 

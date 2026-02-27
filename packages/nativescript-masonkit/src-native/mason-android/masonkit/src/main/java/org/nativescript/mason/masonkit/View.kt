@@ -44,6 +44,7 @@ class View @JvmOverloads constructor(
 
   private val nodes = mutableMapOf<android.view.View, Node>()
 
+
   constructor(context: Context, mason: Mason) : this(context) {
     node = mason.createNode().apply {
       view = this@View
@@ -91,6 +92,7 @@ class View @JvmOverloads constructor(
 
   internal fun onChildZIndexChanged() {
     rebuildZOrder()
+    invalidate()
   }
 
   private fun rebuildZOrder() {
@@ -104,13 +106,11 @@ class View @JvmOverloads constructor(
     }.thenBy {
       indexOfChild(it)
     })
-
-    invalidate()
   }
 
 
   override fun getChildDrawingOrder(childCount: Int, drawingPosition: Int): Int {
-    val view = zSortedChildren[drawingPosition]
+    val view = zSortedChildren.getOrNull(drawingPosition) ?: return drawingPosition
     return indexOfChild(view)
   }
 
@@ -179,7 +179,6 @@ class View @JvmOverloads constructor(
 
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    // todo cache layout
     val layout = layout()
     applyLayoutRecursive(node, layout)
   }
@@ -198,9 +197,7 @@ class View @JvmOverloads constructor(
       )
     }
 
-    // todo cache layout
     val layout = layout()
-
 
     var width = layout.width.toInt()
     var height = layout.height.toInt()

@@ -8,6 +8,11 @@ import androidx.core.graphics.withSave
 
 class ViewUtils {
   companion object {
+    // Reusable Paint for background color drawing — avoids allocation per frame
+    private val bgPaint = Paint().apply {
+      style = Paint.Style.FILL
+    }
+
     private fun render(
       view: android.view.View,
       canvas: Canvas,
@@ -27,46 +32,44 @@ class ViewUtils {
       style.mBorderRenderer.updateCache(width, height)
 
       val hasRadii = style.mBorderRenderer.hasRadii()
+      val hasBackground = style.mBackground?.let { it.color != null || it.layers.isNotEmpty() } ?: false
 
-      // Draw background (clipped to border radius)
-      canvas.withSave {
-        // Apply border radius clip for background
-        if (hasRadii) {
-          canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
-        }
-        // Draw solid background color
-        style.mBackground?.let { background ->
-          background.color?.let { color ->
-            val paint = Paint().apply {
-              this.style = Paint.Style.FILL
-              this.color = color
-            }
-            canvas.drawRect(0f, 0f, width, height, paint)
+      // Block 1: Background with border-radius clip
+      if (hasBackground) {
+        canvas.withSave {
+          if (hasRadii) {
+            canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
           }
 
-          // Draw background layers (images, gradients)
-          background.layers.forEach { layer ->
-            canvas.withSave {
-              Style.applyClip(canvas, layer.clip, style.node)
-              drawBackground(view.context, view, layer, canvas, width.toInt(), height.toInt())
+          style.mBackground?.let { background ->
+            background.color?.let { color ->
+              bgPaint.color = color
+              canvas.drawRect(0f, 0f, width, height, bgPaint)
+            }
+
+            background.layers.forEach { layer ->
+              canvas.withSave {
+                Style.applyClip(canvas, layer.clip, style.node)
+                drawBackground(view.context, view, layer, canvas, width.toInt(), height.toInt())
+              }
             }
           }
         }
       }
 
+      // Border drawn OUTSIDE any clip scope so strokes aren't clipped
       if (!ignoreBorder) {
-        // Draw border on top of background
         style.mBorderRenderer.draw(canvas, width, height)
       }
 
-      // Apply overflow clip for content
+      // Block 2: Content with border-radius clip + overflow clip
       canvas.withSave {
         if (hasRadii) {
           canvas.clipPath(style.mBorderRenderer.getClipPath(width, height))
         }
+
         Style.applyOverflowClip(style, canvas, style.node)
 
-        // Draw content with filters
         style.mFilter?.let { filter ->
           if (filter.filters.isEmpty()) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

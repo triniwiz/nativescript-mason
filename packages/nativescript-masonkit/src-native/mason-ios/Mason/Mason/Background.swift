@@ -9,6 +9,9 @@
 import UIKit
 import CoreGraphics
 
+// Shared color space — avoids deviceRGB allocation per gradient draw
+private let deviceRGB = CGColorSpaceCreateDeviceRGB()
+
 // MARK: - Background
 extension Background {
   
@@ -91,7 +94,7 @@ extension Background {
       let colors = gradient.stops.compactMap {
         colorMap[$0]?.cgColor ?? UIColor(css: $0)?.cgColor
       } as CFArray
-      layer.shader = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: nil)
+      layer.shader = CGGradient(colorsSpace: deviceRGB, colors: colors, locations: nil)
     }
     guard let shader = layer.shader else { return }
     
@@ -225,7 +228,7 @@ func drawGradient(layer: BackgroundLayer, context: CGContext, width: CGFloat, he
     let colors = gradient.stops
       .compactMap { parseColor($0)?.cgColor } as CFArray
     
-    layer.shader = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+    layer.shader = CGGradient(colorsSpace: deviceRGB,
                               colors: colors,
                               locations: nil)
   }
@@ -362,8 +365,21 @@ func loadImageAsync(url: String, completion: @escaping (UIImage?) -> Void) {
     completion(nil)
     return
   }
-  URLSession.shared.dataTask(with: u) { data, _, _ in
+
+  // Check URLCache first to avoid redundant network requests
+  let request = URLRequest(url: u)
+  if let cached = URLCache.shared.cachedResponse(for: request),
+     let image = UIImage(data: cached.data) {
+    completion(image)
+    return
+  }
+
+  URLSession.shared.dataTask(with: u) { data, response, _ in
     guard let data = data else { completion(nil); return }
+    if let response = response {
+      let cachedData = CachedURLResponse(response: response, data: data)
+      URLCache.shared.storeCachedResponse(cachedData, for: request)
+    }
     completion(UIImage(data: data))
   }.resume()
 }

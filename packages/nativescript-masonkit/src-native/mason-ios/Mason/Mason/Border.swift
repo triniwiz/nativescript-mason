@@ -379,6 +379,12 @@ public final class CSSBorderRenderer {
   private var cachedRadius: BorderRadius = .zero
   internal var cachedWidths: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat) = (0,0,0,0)
   internal var css: String = ""
+
+  // Clip path cache — avoids UIBezierPath allocation every frame
+  private var cachedClipPath: UIBezierPath?
+  private var cachedClipRect: CGRect = .zero
+  private var cachedClipRadius: BorderRadius = .zero
+  private var clipPathDirty: Bool = true
   public init(style: MasonStyle) {
     self.style = style
     self.top = BorderSide(style: style, side: .top)
@@ -388,6 +394,29 @@ public final class CSSBorderRenderer {
     self.radius = BorderRadius.zero
   }
   
+  public func hasRadii() -> Bool {
+    return radius.topLeft != .zero || radius.topRight != .zero ||
+           radius.bottomRight != .zero || radius.bottomLeft != .zero
+  }
+
+  /// Returns a cached clip path for the given rect and inner radius, avoiding UIBezierPath allocation every frame.
+  public func getClipPath(rect: CGRect, radius: BorderRadius) -> UIBezierPath {
+    if !clipPathDirty, let cached = cachedClipPath, cachedClipRect == rect {
+      return cached
+    }
+    let path = buildRoundedPath(in: rect, radius: radius)
+    cachedClipPath = path
+    cachedClipRect = rect
+    clipPathDirty = false
+    return path
+  }
+
+  public func invalidateCache() {
+    lastHash = 0
+    clipPathDirty = true
+    cachedClipPath = nil
+  }
+
   internal func resetAllBorders(){
     top.color = .clear
     top.width = .Zero
@@ -416,9 +445,10 @@ public final class CSSBorderRenderer {
     if hash == lastHash && cachedResolvedRect == rect {
       return
     }
-    
+
     cachedResolvedRect = rect
     lastHash = hash
+    clipPathDirty = true
     
     cachedWidths = (
       top: CGFloat(top.width.resolve(relativeTo: Float(rect.width))),
@@ -475,17 +505,44 @@ public final class CSSBorderRenderer {
   
   public func draw(in ctx: CGContext, rect: CGRect) {
     resolve(for: rect)
+
+    // Early bail — skip if all sides are invisible
+    let topVisible = cachedWidths.top > 0 && top.style != .none && top.color.cgColor.alpha > 0
+    let rightVisible = cachedWidths.right > 0 && right.style != .none && right.color.cgColor.alpha > 0
+    let bottomVisible = cachedWidths.bottom > 0 && bottom.style != .none && bottom.color.cgColor.alpha > 0
+    let leftVisible = cachedWidths.left > 0 && left.style != .none && left.color.cgColor.alpha > 0
+    guard topVisible || rightVisible || bottomVisible || leftVisible else { return }
+
     ctx.saveGState()
     ctx.setAllowsAntialiasing(true)
     ctx.setShouldAntialias(true)
-    
+
     let outerPath = buildRoundedPath(in: rect, radius: radius)
-    
-    paintSide(.top, ctx: ctx, rect: rect, width: cachedWidths.top, side: top, outerPath: outerPath)
-    paintSide(.right, ctx: ctx, rect: rect, width: cachedWidths.right, side: right, outerPath: outerPath)
-    paintSide(.bottom, ctx: ctx, rect: rect, width: cachedWidths.bottom, side: bottom, outerPath: outerPath)
-    paintSide(.left, ctx: ctx, rect: rect, width: cachedWidths.left, side: left, outerPath: outerPath)
-    
+
+    // Uniform border fast path — single drawPath when all visible sides share color/style/width
+    if topVisible && rightVisible && bottomVisible && leftVisible,
+       cachedWidths.top == cachedWidths.right &&
+       cachedWidths.right == cachedWidths.bottom &&
+       cachedWidths.bottom == cachedWidths.left,
+       top.style == right.style && right.style == bottom.style && bottom.style == left.style,
+       top.color == right.color && right.color == bottom.color && bottom.color == left.color,
+       top.style == .solid {
+      let halfWidth = cachedWidths.top / 2.0
+      let inset = UIEdgeInsets(top: halfWidth, left: halfWidth, bottom: halfWidth, right: halfWidth)
+      let insetRect = rect.inset(by: inset)
+      let insetRadius = radius.insetByBorderWidths((halfWidth, halfWidth, halfWidth, halfWidth))
+      let strokePath = buildRoundedPath(in: insetRect, radius: insetRadius)
+      ctx.setStrokeColor(top.color.cgColor)
+      ctx.setLineWidth(cachedWidths.top)
+      ctx.addPath(strokePath.cgPath)
+      ctx.strokePath()
+    } else {
+      paintSide(.top, ctx: ctx, rect: rect, width: cachedWidths.top, side: top, outerPath: outerPath)
+      paintSide(.right, ctx: ctx, rect: rect, width: cachedWidths.right, side: right, outerPath: outerPath)
+      paintSide(.bottom, ctx: ctx, rect: rect, width: cachedWidths.bottom, side: bottom, outerPath: outerPath)
+      paintSide(.left, ctx: ctx, rect: rect, width: cachedWidths.left, side: left, outerPath: outerPath)
+    }
+
     ctx.restoreGState()
   }
   

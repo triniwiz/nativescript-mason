@@ -204,6 +204,7 @@ class TextView @JvmOverloads constructor(
 
         TextType.I, TextType.Em -> {
           fontFace.style = FontFace.NSCFontStyle.Italic
+          style.display = Display.Inline
         }
 
         TextType.P -> {
@@ -266,7 +267,9 @@ class TextView @JvmOverloads constructor(
       val metrics = style.getFontMetrics()
       val layout = node.computedLayout
       // Baseline is ascent distance from top of content box
-      val baselineY = layout.padding.top + layout.border.top + metrics.ascent
+      // `metrics.ascent` is negative (distance above baseline). Use its
+      // negated value to get the positive distance from the top to baseline.
+      val baselineY = layout.padding.top + layout.border.top + -metrics.ascent
       return baselineY.toInt()
     }
 

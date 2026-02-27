@@ -95,60 +95,11 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   }
   
   override func viewSafeAreaInsetsDidChange() {
-    // body.frame = body.frame.offsetBy(dx: view.safeAreaInsets.left, dy: view.safeAreaInsets.top)
     let left = Float(self.view.safeAreaInsets.left) * scale
     let right = Float(self.view.safeAreaInsets.right) * scale
     let top = Float(self.view.safeAreaInsets.top) * scale
     let bottom = Float(self.view.safeAreaInsets.bottom) * scale
-    
     body.style.padding = MasonRect(.Points(top),.Points(right), .Points(bottom), .Points(left))
-    
-   // body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-    
-    guard view.subviews.first is MasonUIView else {return}
-    
-    
-    //      view.style.inset = MasonRect(
-    //               .Points(left),
-    //               .Points(right),
-    //               .Points(top),
-    //               .Points(bottom)
-    //              )
-    //
-    //
-    //      view.computeWithSize(scale * Float(self.view.bounds.width), scale * Float(self.view.bounds.height))
-    //
-    
-    //         guard let rootView = rootView else {return}
-    //
-    //
-    //         rootView.mason.style.inset = MasonRect(
-    //         .Points(left),
-    //         .Points(right),
-    //         .Points(top),
-    //         .Points(bottom)
-    //         )
-    //
-    //         textTopLeft?.configure({ mason in
-    //         mason.style.topInset = .Points(top)
-    //         })
-    //
-    //         textTopRight?.configure({ mason in
-    //         mason.style.topInset = .Points(top)
-    //         })
-    //
-    //         textBottomLeft?.configure({ mason in
-    //         mason.style.bottomInset = .Points(bottom)
-    //         })
-    //
-    //         textBottomRight?.configure({ mason in
-    //         mason.style.bottomInset = .Points(bottom)
-    //         })
-    //
-    //         view.mason.computeWithMaxContent()
-    //
-    
-    
   }
   
   func textSample(){
@@ -238,11 +189,157 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     //    con.style.size =  MasonSize(MasonDimension.Points(scale * Float(body.bounds.width)), MasonDimension.Points(scale * Float(body.bounds.height)))
     
     
-    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+  //  body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
     
     
   }
   
+  // MARK: - Web-like Text Sample
+
+  func webTextSample() {
+    let root = mason.createScrollView()
+    root.style.overflowY = .Scroll
+    
+//    root.setSize(
+//      Float(view.frame.width * UIScreen.main.scale),
+//      Float(view.frame.height * UIScreen.main.scale)
+//    )
+//
+
+
+    // --- H1 heading ---
+    let h1 = mason.createTextView(type: .H1)
+    h1.append(text: "Mason Layout Engine")
+    
+    root.append(h1)
+    
+
+
+    // --- Paragraph with inline styles ---
+    let p1 = mason.createTextView(type: .P)
+    p1.append(text: "Mason is a ")
+
+    let bold = mason.createTextView(type: .Strong)
+    bold.append(text: "CSS-like layout engine")
+    p1.append(bold)
+
+    p1.append(text: " that brings ")
+
+    let italic = mason.createTextView(type: .Em)
+    italic.append(text: "web-standard")
+    p1.append(italic)
+
+    p1.append(text: " layouts to native iOS and Android views.")
+    root.append(p1)
+
+    // --- H2 heading ---
+    let h2 = mason.createTextView(type: .H2)
+    h2.append(text: "Features")
+    root.append(h2)
+
+    // --- Paragraph with nested inline elements ---
+    let p2 = mason.createTextView(type: .P)
+    p2.append(text: "Supports ")
+
+    let code1 = mason.createTextView(type: .Code)
+    code1.append(text: "flexbox")
+    code1.style.backgroundColor = 0xFFEFEFEF
+    p2.append(code1)
+
+    p2.append(text: ", ")
+
+    let code2 = mason.createTextView(type: .Code)
+    code2.append(text: "grid")
+    code2.style.backgroundColor = 0xFFEFEFEF
+    p2.append(code2)
+
+    p2.append(text: ", and ")
+
+    let code3 = mason.createTextView(type: .Code)
+    code3.append(text: "block")
+    code3.style.backgroundColor = 0xFFEFEFEF
+    p2.append(code3)
+
+    p2.append(text: " layouts with full CSS text rendering including ")
+
+    let underlined = mason.createTextView(type: .Span)
+    underlined.append(text: "underline")
+    underlined.decorationLine = .Underline
+    p2.append(underlined)
+
+    p2.append(text: ", ")
+
+    let colored = mason.createTextView(type: .Span)
+    colored.append(text: "color")
+    colored.setColor(ui: .systemBlue)
+    p2.append(colored)
+
+    p2.append(text: ", and ")
+
+    let boldItalic = mason.createTextView(type: .Span)
+    boldItalic.append(text: "bold italic")
+    boldItalic.fontWeight = "bold"
+    boldItalic.fontStyle = .Italic
+    p2.append(boldItalic)
+
+    p2.append(text: " text.")
+    root.append(p2)
+
+    // --- H3 heading ---
+    let h3 = mason.createTextView(type: .H3)
+    h3.append(text: "How it works")
+    root.append(h3)
+
+    // --- Paragraph ---
+    let p3 = mason.createTextView(type: .P)
+    p3.append(text: "The layout tree is computed by ")
+
+    let taffyLink = mason.createTextView(type: .A)
+    taffyLink.append(text: "Taffy")
+    taffyLink.setColor(ui: .link)
+    taffyLink.decorationLine = .Underline
+    p3.append(taffyLink)
+
+    p3.append(text: ", a Rust-based layout engine, and the results are applied to native UIView frames. Text measurement uses Core Text for pixel-perfect rendering.")
+    root.append(p3)
+
+    // --- Blockquote ---
+    let bq = mason.createTextView(type: .Blockquote)
+    bq.style.border = "0 0 0 3px solid #666666"
+    bq.style.paddingLeft = .Points(12 * scale)
+    bq.style.marginTop = .Points(8 * scale)
+    bq.style.marginBottom = .Points(8 * scale)
+
+    let bqText = mason.createTextView(type: .Em)
+    bqText.append(text: "\"Any application that can be written in JavaScript, will eventually be written in JavaScript.\"")
+    bqText.setColor(ui: .secondaryLabel)
+    bq.append(bqText)
+    root.append(bq)
+
+    // --- Pre/Code block ---
+    let h3Code = mason.createTextView(type: .H3)
+    h3Code.append(text: "Example")
+    root.append(h3Code)
+
+    let pre = mason.createTextView(type: .Pre)
+    pre.style.backgroundColor = 0xFFF5F5F5
+    pre.style.padding = MasonRect(uniform: .Points(12 * scale))
+    pre.style.borderRadius = "4px"
+    pre.fontSize = 13
+    pre.style.fontFamily = "'Courier New', monospace"
+    pre.append(text: """
+    let body = mason.createView()
+    let h1 = mason.createTextView(type: .H1)
+    h1.append(text: "Hello World")
+    body.append(h1)
+    """)
+    root.append(pre)
+
+    body.append(root)
+    
+    
+  }
+
   let urlSession: URLSession = {
     return URLSession(configuration: .ephemeral)
   }()
@@ -285,199 +382,31 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   var data:Data!
   
   override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
-    body.style.size = .init(.Points(Float(size.width * UIScreen.main.scale)), .Points(Float(size.height * UIScreen.main.scale)))
+    // body auto-computes in layoutSubviews when bounds change
   }
   override func viewDidLoad() {
     NSCMason.shared.setDeviceScale(Float(UIScreen.main.scale))
-    print("=== viewDidLoad() STARTING ===")
-    //  super.viewDidLoad()
-    //        var i = 0
-    //        repeat {
-    //            items.append("https://robohash.org/\(i + 1)?set=set4")
-    //            i+=1
-    //        } while i < 1000
-    
-    //    body.style.size = .init(.Points(Float(view.bounds.width * UIScreen.main.scale)), (.Points(Float(view.bounds.height * UIScreen.main.scale))))
-    // document.node.appendChild(body.node)
-    
+    super.viewDidLoad()
+
+    // Add body to view — layoutSubviews auto-computes when bounds are set
     view.addSubview(body)
+    body.style.size = MasonSize(
+      .Points(Float(view.frame.width * UIScreen.main.scale)),
+      .Percent(Float(view.frame.height * UIScreen.main.scale))
+    )
+   // body.frame = view.bounds
+   // body.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     
-    body.style.size = .init(.Points(Float(view.frame.width * UIScreen.main.scale)), .Points(Float(view.frame.height * UIScreen.main.scale)))
-  
-    
-    // let root = mason.createView()
-    // body.addView(root)
-    
-    /*
-     
-     let text = mason.createTextView(type: .Pre)
-     root.addView(text)
-     text.textContent = """
-     S
-     A
-     LUT
-     M
-     O N
-     D  E
-     DONT
-     E SUIS
-     LA LAN
-     G U E  É
-     L O Q U E N
-     TE      QUESA
-     B  O  U  C  H  E
-     O        P A R I S
-     T I R E   ET   TIRERA
-     T O U             JOURS
-     AUX                  A  L
-     LEM                      ANDS   - Apollinaire
-     """
-     
-     mason.printTree(root.node)
-     
-     
-     root.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-     
-     
-     */
-    // textWithImage()
-    
-    //imageTest()
-    
-    
-    //textSample()
-    
-    //flexIssue()
-    
-    // testLayout()
-    
-    //  showFlexExample()
-    
-    // showGridExample()
-    // animationExample()
-    
-    //wrapper5()
-    // wrapper6()
-    
-    /*
-     let con = mason.createView()
-     let text = mason.createTextView()
-     text.style.setSizeHeight(.Points(48))
-     text.textContent = "Hello, World!"
-     con.addView(text)
-     body.addView(con)
-     
-     con.backgroundColor = .blue
-     text.backgroundColor = .red
-     
-     text.color = UIColor.green.toUInt32()
-     
-     body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-     
-     */
-    
-    //  textDemo()
-    
-    // imageExample()
-    // textSample()
-    // gridSample()
-    
-    // testLateUpdate()
-    
-    // scrollTest()
-    
-    //headers()
-    
-    //      let root = mason.createView()
-    //      root.backgroundColor = .red
-    //
-    //      body.addView(root)
-    //
-    //      let a = mason.createTextView(type: .H1)
-    //      let b = mason.createTextView()
-    //      print(a.style.valuesCompat)
-    //
-    //      root.addView(a)
-    //
-    //
-    //      a.textContent = "a"
-    //      b.updateText("b")
-    //
-    //
-    //
-    //      let fg = mason.createView()
-    //      let f = mason.createView()
-    //      let g = mason.createView()
-    //
-    //      fg.addView(f)
-    //      fg.addView(g)
-    //
-    //      root.addView(fg)
-    //
-    //      f.backgroundColor = .blue
-    //      f.style.size = MasonSize(.Points(100), .Points(100))
-    //      g.backgroundColor = .yellow
-    //      g.style.size = MasonSize(.Points(100), .Points(100))
-    //
-    //      root.node.computeWithMaxContent()
-    
-   // inlineTest()
-    //  testTextInsert()
-    // testInsert()
-    // testInlineStyleChange()
-    //testTextNodeInsertingInline()
-   // testTextNodeReplaceWithImage()
-    // testTextAppend()
-    //flexDirection()
-    
-    // gridTemplateColumns()
-    // padding()
-    // fontSize()
-   //   textAlignment()
-    //wrapper8()
-    filter()
-  //  renderFloat(body)
-//    let sv = mason.createScrollView()
-   // sv.style.overflowY = .Scroll
-//    body.append(sv)
-//    objectFit(sv)
-       // filter()
-   // buttons()
-   // background()
-   // verticalAlignment()
-    
-    
-//    let container = mason.createView()
-//    container.background = "linear-gradient(180deg, #FEE2E2 0%, #FECACA 50%, #FCA5A5 100%);"
-//    container.configure { style in
-//     //container.setPadding(30, 30, 30, 30)
-//    //  style.size = .init(.Points(300), .Auto)
-//    }
-//    let a = mason.createButton()
-//    a.append(text: "Hello")
-//    a.append(text: " World!")
-//    
-//    container.append(a)
-//    
-//    body.append(container)
-//    
-//    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
-    
-   // radius()
-   // button()
-    
-   // grid_template_areas_500(body)
-   // input()
-  //  zOrder()
-   // webList()
-   // inputTest()
-//    let label = UILabel()
-//    label.text = "Hello World!"
-//    label.sizeToFit()
-//    let filter = CSSFilters.CSSFilter()
-//    filter.parse(css: "sepia(0%) drop-shadow(0px 0px 0px rgba(0,0,0,0))")
-//    filter.apply(to: label)
-//    view.addSubview(label)
+   // body.background = "red"
+
+    // --- Samples (uncomment one) ---
+   webTextSample()
+     //textSample()
+    // headers()
+      // webList()
+    // filter()
+    // input()
+   // zOrder()
   }
   
   func inputTest(){
@@ -567,7 +496,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
     body.addView(ul)
     
-    body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
+    //body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
     
     DispatchQueue.global().async {
       for i in 0..<arr.count {
@@ -617,7 +546,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
 
     
-    self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
+   // self.body.computeWithSize(scale * Float( self.body.bounds.width), scale * Float( self.body.bounds.height))
     
   }
   
@@ -1370,7 +1299,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
      body.append(rootLayout)
     
-    body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
+   // body.computeWithSize(scale * Float(body.bounds.width), scale * Float(body.bounds.height))
    }
   
   func backgroundTest(){

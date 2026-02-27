@@ -213,7 +213,7 @@ public enum NSCFontWeight: Int, RawRepresentable, Codable, CustomStringConvertib
 
 @objcMembers
 @objc(NSCFontDescriptors)
-public class NSCFontDescriptors: NSObject, Codable {
+public class NSCFontDescriptors: NSObject, Codable, NSMutableCopying {
   var weight: NSCFontWeight
   var family: String
   var ascentOverride: String
@@ -221,6 +221,22 @@ public class NSCFontDescriptors: NSObject, Codable {
   var display: NSCFontDisplay
   internal var styleValue: NSCFontStyle
   internal var isReadonly: Bool
+
+  public func mutableCopy(with zone: NSZone? = nil) -> Any {
+    let copy = NSCFontDescriptors(family: family)
+    copy.weight = weight
+    copy.ascentOverride = ascentOverride
+    copy.descentOverride = descentOverride
+    copy.display = display
+    copy.styleValue = styleValue
+    copy.stretch = stretch
+    copy.unicodeRange = unicodeRange
+    copy.featureSettings = featureSettings
+    copy.lineGapOverride = lineGapOverride
+    copy.variationSettings = variationSettings
+    copy.isReadonly = false
+    return copy
+  }
   var style: String {
     get {
       styleValue.cssValue
@@ -905,10 +921,9 @@ public class NSCFontFace: NSObject {
         }
         
         var descriptor = newFont.fontDescriptor
-        let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: fontDescriptors.weight.uiFontWeight]
-        
-        
-        descriptor.addingAttributes([.traits: traits])
+        let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: NSNumber(value: Double(fontDescriptors.weight.uiFontWeight.rawValue))]
+
+        descriptor = descriptor.addingAttributes([.traits: traits])
         
         switch(fontDescriptors.weight){
         case .semiBold, .bold, .extraBold, .black:

@@ -3,7 +3,6 @@ package org.nativescript.mason.masonkit
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -14,7 +13,6 @@ import org.nativescript.mason.masonkit.enums.ListStyleType
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.math.log
 
 class ListView @JvmOverloads constructor(
   context: Context, attrs: AttributeSet? = null, override: Boolean = false
@@ -50,7 +48,10 @@ class ListView @JvmOverloads constructor(
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
-  val count: Int
+  var count: Int
+    set(value) {
+      values.putInt(Keys.COUNT, value)
+    }
     get() {
       return staticViews.size + values.getInt(Keys.COUNT)
     }
@@ -93,11 +94,13 @@ class ListView @JvmOverloads constructor(
     val availableWidth = mapMeasureSpec(specWidthMode, specWidth).value
     val availableHeight = mapMeasureSpec(specHeightMode, specHeight).value
 
-    // Always compute using the available space so the RecyclerView measures with
-    // a bounded height instead of forcing MaxContent (which would bind all items).
-    compute(
-      availableWidth, availableHeight
-    )
+    // Only compute if we are the layout root — when parent is an Element,
+    // Taffy computes top-down and will handle this node in the recursive call.
+    if (parent !is Element) {
+      compute(
+        availableWidth, availableHeight
+      )
+    }
 
     val layout = layout()
     val width = layout.width.toInt()
@@ -198,9 +201,14 @@ class ListView @JvmOverloads constructor(
   }
 
   fun reload() {
-    itemIds.clear()
-    viewType.clear()
-    adapter.notifyDataSetChanged()
+    // Ensure adapter notifications and layout requests run on the UI thread
+    list.post {
+      itemIds.clear()
+      viewType.clear()
+      adapter.notifyDataSetChanged()
+      list.requestLayout()
+      list.invalidate()
+    }
   }
 
   fun notifyDataSetChanged() {
@@ -210,35 +218,51 @@ class ListView @JvmOverloads constructor(
 
   fun notifyItemInserted(index: Int) {
     viewType.remove(index)
-    adapter.notifyItemInserted(index)
+    list.post {
+      adapter.notifyItemInserted(index)
+      list.requestLayout()
+    }
   }
 
   fun notifyItemChanged(index: Int) {
     viewType.remove(index)
-    adapter.notifyItemChanged(index)
+    list.post {
+      adapter.notifyItemChanged(index)
+    }
   }
 
   fun notifyItemRemoved(index: Int) {
     viewType.remove(index)
-    adapter.notifyItemRemoved(index)
+    list.post {
+      adapter.notifyItemRemoved(index)
+      list.requestLayout()
+    }
   }
 
   fun notifyItemRangeInserted(index: Int, count: Int) {
     if (index < 0 || (count <= 0)) return
     for (i in index until index + count) viewType.remove(i)
-    adapter.notifyItemRangeInserted(index, count)
+    list.post {
+      adapter.notifyItemRangeInserted(index, count)
+      list.requestLayout()
+    }
   }
 
   fun notifyItemRangeChanged(index: Int, count: Int) {
     if (index < 0 || (count <= 0)) return
     for (i in index until index + count) viewType.remove(i)
-    adapter.notifyItemRangeChanged(index, count)
+    list.post {
+      adapter.notifyItemRangeChanged(index, count)
+    }
   }
 
   fun notifyItemRangeRemoved(index: Int, count: Int) {
     if (index < 0 || (count <= 0)) return
     for (i in index until index + count) viewType.remove(i)
-    adapter.notifyItemRangeRemoved(index, count)
+    list.post {
+      adapter.notifyItemRangeRemoved(index, count)
+      list.requestLayout()
+    }
   }
 
   fun notifyItemMoved(
@@ -287,8 +311,8 @@ class ListView @JvmOverloads constructor(
       }
     }
     // css visible default
-     clipChildren = false
-     clipToPadding = false
+    clipChildren = false
+    clipToPadding = false
 
     list.layoutParams = RecyclerView.LayoutParams(
       LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT

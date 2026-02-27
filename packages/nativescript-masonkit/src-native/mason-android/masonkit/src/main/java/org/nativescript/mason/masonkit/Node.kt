@@ -944,11 +944,19 @@ open class Node internal constructor(
   }
 
   fun dirty() {
+    // During compute Rust holds the lock — skip JNI to avoid deadlock
+    if (mason.inCompute) {
+      computeCacheDirty = true
+      return
+    }
     NativeHelpers.nativeNodeMarkDirty(mason.nativePtr, nativePtr)
     computeCacheDirty = true
   }
 
   fun isDirty(): Boolean {
+    if (mason.inCompute) {
+      return true
+    }
     return NativeHelpers.nativeNodeDirty(mason.nativePtr, nativePtr)
   }
 

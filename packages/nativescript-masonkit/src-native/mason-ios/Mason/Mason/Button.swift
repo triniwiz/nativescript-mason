@@ -90,6 +90,11 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
   }
 
   
+  public override func layoutSubviews() {
+    super.layoutSubviews()
+    autoComputeIfRoot()
+  }
+
   public override func draw(_ rect: CGRect) {
     
     guard let context = UIGraphicsGetCurrentContext() else {

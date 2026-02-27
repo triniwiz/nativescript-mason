@@ -154,6 +154,12 @@ class CSSFilters {
       }
 
     companion object {
+      // Reusable Paint for drop shadow — avoids allocation per filter render
+      internal val shadowPaint = Paint().apply {
+        isAntiAlias = true
+        isFilterBitmap = true
+      }
+
       fun createBlurBitmap(
         context: Context,
         width: Int,
@@ -236,9 +242,7 @@ class CSSFilters {
           destroyRS = true
         }
 
-        val paint = Paint().apply {
-          isAntiAlias = true
-          isFilterBitmap = true
+        val paint = shadowPaint.apply {
           colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
         }
 
@@ -732,8 +736,19 @@ class CSSFilters {
 
     internal var v3: Any? = null
 
+    // Cache the V3 RenderEffect for color-only filters (no shadows/blurs)
+    // The effect chain only depends on filter params, not content
+    private var cachedV3Effect: Any? = null
+    private var cachedV3HasShadows = false
+    private var cachedV3Width = 0
+    private var cachedV3Height = 0
+
     init {
       this.css = css
+    }
+
+    private fun hasShadowOrBlur(): Boolean {
+      return filters.any { it is Filter.DropShadow || it is Filter.Blur }
     }
 
     fun renderFilters(view: View, canvas: Canvas, draw: (Canvas) -> Unit) {
@@ -746,12 +761,31 @@ class CSSFilters {
       this.invalid = false
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val hasShadows = hasShadowOrBlur()
+
+        // For color-only filters, reuse cached RenderEffect if size hasn't changed
+        if (!hasShadows && cachedV3Effect != null &&
+          cachedV3Width == view.width && cachedV3Height == view.height
+        ) {
+          @Suppress("NewApi")
+          view.setRenderEffect(cachedV3Effect as? RenderEffect)
+          return
+        }
+
         val filter = FilterHelperV3.build(view, filters, draw)
         v3 = filter
+
         if (filter.shadowNodes.isEmpty()) {
           view.setRenderEffect(filter.filter)
+          // Cache the effect for reuse
+          cachedV3Effect = filter.filter
+          cachedV3HasShadows = false
+          cachedV3Width = view.width
+          cachedV3Height = view.height
         } else {
           view.setRenderEffect(null)
+          cachedV3Effect = null
+          cachedV3HasShadows = true
           if (filter.hasComposite) {
             canvas.drawRenderNode(filter.compositeNode)
           } else {
@@ -798,10 +832,8 @@ class CSSFilters {
           tmpCanvas.drawBitmap(sourceBmp, 0f, 0f, null)
 
           // draw composited temp with color matrix applied
-          val paint = Paint().apply {
-            colorFilter = ColorMatrixColorFilter(matrix)
-          }
-          canvas.drawBitmap(tmp, 0f, 0f, paint)
+          colorMatrixPaint.colorFilter = ColorMatrixColorFilter(matrix)
+          canvas.drawBitmap(tmp, 0f, 0f, colorMatrixPaint)
           //  pool.putBitmap(tmp, true)
         } ?: run {
           // no color matrix -> draw shadows/blurs + source directly
@@ -834,10 +866,8 @@ class CSSFilters {
 
         it.source?.let { source ->
           it.cssFilter?.let { matrix ->
-            val paint = Paint().apply {
-              colorFilter = ColorMatrixColorFilter(matrix)
-            }
-            canvas.drawBitmap(source, 0f, 0f, paint)
+            colorMatrixPaint.colorFilter = ColorMatrixColorFilter(matrix)
+            canvas.drawBitmap(source, 0f, 0f, colorMatrixPaint)
           } ?: run {
             canvas.drawBitmap(source, 0f, 0f, null)
           }
@@ -848,6 +878,8 @@ class CSSFilters {
   }
 
   companion object {
+    // Reusable Paint for color matrix filter rendering — avoids allocation per frame
+    private val colorMatrixPaint = Paint()
 
     private var mPool: BitmapPool? = null
 

@@ -41,11 +41,18 @@ struct SubtreeAnalysis {
 }
 
 #[derive(Debug)]
+/// # Locking Discipline
+///
+/// `node_data` lives in its own `RwLock` (`Tree.2`), independent of `TreeInner`.
+/// During layout:
+/// 1. `TreeInner` locks must be short and non-reentrant
+/// 2. Never call FFI/measure while holding `TreeInner`
+/// 3. Use `copy_measure()` to extract measure data, then call without locks
+/// 4. Callbacks may freely access `node_data` (separate lock)
 pub(crate) struct TreeInner {
     pub(crate) nodes: SlotMap<Id, Node>,
     pub(crate) parents: SecondaryMap<Id, Option<Id>>,
     pub(crate) children: SecondaryMap<Id, Vec<Id>>,
-    pub(crate) node_data: SecondaryMap<Id, NodeData>,
     pub(crate) use_rounding: bool,
     // small nesting counter to avoid re-entrant inline-run aggregation
     pub(crate) inline_run_nesting: usize,
@@ -69,7 +76,6 @@ impl TreeInner {
             nodes: Default::default(),
             parents: Default::default(),
             children: Default::default(),
-            node_data: Default::default(),
             use_rounding: false,
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
@@ -83,7 +89,6 @@ impl TreeInner {
             nodes: SlotMap::with_capacity_and_key(value),
             parents: SecondaryMap::with_capacity(value),
             children: SecondaryMap::with_capacity(value),
-            node_data: SecondaryMap::with_capacity(value),
             use_rounding: false,
             inline_run_nesting: 0,
             inline_run_pending: Vec::new(),
@@ -120,6 +125,7 @@ impl Default for TreeInner {
 pub struct Tree(
     pub(crate) Arc<RwLock<TreeInner>>,
     pub(crate) Arc<Mutex<Vec<Id>>>,
+    pub(crate) Arc<RwLock<SecondaryMap<Id, NodeData>>>,
 );
 
 impl Default for Tree {
@@ -165,13 +171,14 @@ impl Tree {
     }
 
     pub fn new() -> Self {
-        Self(Default::default(), Default::default())
+        Self(Default::default(), Default::default(), Default::default())
     }
 
     pub fn with_capacity(value: usize) -> Self {
         Self(
             Arc::new(RwLock::new(TreeInner::with_capacity(value))),
             Default::default(),
+            Arc::new(RwLock::new(SecondaryMap::with_capacity(value))),
         )
     }
 
@@ -195,14 +202,14 @@ impl Tree {
         RwLockWriteGuard::map(self.0.write(), |v| &mut v.nodes)
     }
 
-    pub fn node_data(&self) -> MappedRwLockReadGuard<'_, RawRwLock, SecondaryMap<Id, NodeData>> {
-        RwLockReadGuard::map(self.0.read(), |v| &v.node_data)
+    pub fn node_data(&self) -> RwLockReadGuard<'_, SecondaryMap<Id, NodeData>> {
+        self.2.read()
     }
 
     pub fn node_data_mut(
         &mut self,
-    ) -> MappedRwLockWriteGuard<'_, RawRwLock, SecondaryMap<Id, NodeData>> {
-        RwLockWriteGuard::map(self.0.write(), |v| &mut v.node_data)
+    ) -> RwLockWriteGuard<'_, SecondaryMap<Id, NodeData>> {
+        self.2.write()
     }
 
     pub fn children_mut(
@@ -252,15 +259,15 @@ impl Tree {
     }
 
     pub fn get_node_data(&self, node_id: NodeId) -> MappedRwLockReadGuard<'_, RawRwLock, NodeData> {
-        RwLockReadGuard::map(self.0.read(), |v| v.node_data.get(node_id.into()).unwrap())
+        RwLockReadGuard::map(self.2.read(), |v| v.get(node_id.into()).unwrap())
     }
 
     pub fn get_node_data_mut(
         &mut self,
         node_id: NodeId,
     ) -> MappedRwLockWriteGuard<'_, RawRwLock, NodeData> {
-        RwLockWriteGuard::map(self.0.write(), |v| {
-            v.node_data.get_mut(node_id.into()).unwrap()
+        RwLockWriteGuard::map(self.2.write(), |v| {
+            v.get_mut(node_id.into()).unwrap()
         })
     }
 
@@ -279,6 +286,7 @@ impl Tree {
                             guard: Arc::clone(&node.guard),
                             tree: Arc::clone(self.inner_ptr()),
                             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+                            node_data: Arc::clone(&self.2),
                         }
                     })
                     .collect::<Vec<_>>()
@@ -341,7 +349,7 @@ impl Tree {
         // locks for the layout pass.  This prevents the deferred queue from
         // growing unboundedly and cleans up nodes that couldn't be removed
         // earlier because the tree lock was contended.
-        drain_deferred_cleanup(&self.0, self.deferred_cleanup_queue());
+        drain_deferred_cleanup(&self.0, self.deferred_cleanup_queue(), &self.2);
 
         // update tree rounding mode so other helpers (Tree::layout etc.) are consistent
         self.set_use_rounding(use_rounding);
@@ -385,15 +393,16 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
 
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -407,14 +416,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -429,14 +439,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -452,14 +463,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -473,14 +485,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -494,14 +507,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -514,14 +528,15 @@ impl Tree {
             let id = tree.nodes.insert(node);
             tree.parents.insert(id, None);
             tree.children.insert(id, Vec::new());
-            tree.node_data.insert(id, NodeData::default());
             id
         };
+        self.2.write().insert(id, NodeData::default());
         NodeRef {
             id,
             guard,
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         }
     }
 
@@ -610,6 +625,7 @@ impl Tree {
             guard: Arc::clone(&child_node.guard),
             tree: Arc::clone(self.inner_ptr()),
             deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+            node_data: Arc::clone(&self.2),
         })
     }
 
@@ -618,7 +634,8 @@ impl Tree {
         tree.nodes.clear();
         tree.parents.clear();
         tree.children.clear();
-        tree.node_data.clear();
+        drop(tree);
+        self.2.write().clear();
     }
 
     pub fn is_children_same(&self, node: Id, children: &[Id]) -> bool {
@@ -814,11 +831,13 @@ impl Tree {
         if replaced == child {
             let tree = Arc::clone(&self.inner_ptr());
             let deferred = Arc::clone(self.deferred_cleanup_queue());
+            let nd = Arc::clone(&self.2);
             return self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
                 id: replaced,
                 guard: node.guard.clone(),
                 tree,
                 deferred_cleanup: deferred,
+                node_data: nd,
             });
         }
 
@@ -838,11 +857,13 @@ impl Tree {
 
         let tree = Arc::clone(&self.inner_ptr());
         let deferred = Arc::clone(self.deferred_cleanup_queue());
+        let nd = Arc::clone(&self.2);
         self.nodes_mut().get_mut(replaced).map(|node| NodeRef {
             id: replaced,
             guard: node.guard.clone(),
             tree,
             deferred_cleanup: deferred,
+            node_data: nd,
         })
     }
 
@@ -858,6 +879,7 @@ impl Tree {
                     guard: Arc::clone(&tree.nodes.get_mut(removed)?.guard),
                     tree: Arc::clone(self.inner_ptr()),
                     deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+                    node_data: Arc::clone(&self.2),
                 });
             }
         }
@@ -874,6 +896,7 @@ impl Tree {
                 guard: Arc::clone(&node.guard),
                 tree: Arc::clone(self.inner_ptr()),
                 deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+                node_data: Arc::clone(&self.2),
             })
         } else {
             None
@@ -920,6 +943,7 @@ impl Tree {
                 guard: node_data.guard.clone(),
                 tree: Arc::clone(self.inner_ptr()),
                 deferred_cleanup: Arc::clone(self.deferred_cleanup_queue()),
+                node_data: Arc::clone(&self.2),
             })
         })
     }
@@ -1163,7 +1187,7 @@ impl LayoutBlockContainer for Tree {
     ) -> LayoutOutput {
         compute_cached_layout(self, node_id, inputs, |tree, node_id, inputs| {
             let id: Id = node_id.into();
-            let (has_children, display_mode, display, padding, border, size, is_text_container) = {
+            let (has_children, display_mode, display, padding, border, size, is_text_container, overflow) = {
                 let inner = tree.0.read();
                 let node = inner.nodes.get(id).unwrap();
                 let style = node.style();
@@ -1182,8 +1206,26 @@ impl LayoutBlockContainer for Tree {
                     style.get_border(),
                     style.size(),
                     node.is_text_container(),
+                    style.get_overflow(),
                 )
             };
+
+            // For scroll/auto overflow containers with auto height, constrain
+            // to the parent's available height so the container doesn't expand
+            // to fit all content (which would prevent scrolling).
+            let mut inputs = inputs;
+            let is_scroll_container_y = matches!(
+                overflow.y,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto
+            );
+            if is_scroll_container_y
+                && inputs.known_dimensions.height.is_none()
+                && size.height.is_auto()
+            {
+                if let AvailableSpace::Definite(h) = inputs.available_space.height {
+                    inputs.known_dimensions.height = Some(h);
+                }
+            }
 
             match display_mode {
                 DisplayMode::None => match (display, has_children) {
@@ -1218,16 +1260,21 @@ impl LayoutBlockContainer for Tree {
                     (Display::Flex, true) => compute_flexbox_layout(tree, node_id, inputs),
                     (Display::Grid, true) => compute_grid_layout(tree, node_id, inputs),
                     (_, false) => {
-                        let tree = tree.inner();
-                        let node = tree.nodes.get(id).unwrap();
-                        let has_measure = node.has_measure;
-                        let style = node.style();
-                        let style_size = style.get_size();
-                        let node_data = tree.node_data.get(id).unwrap();
+                        // Extract data under short locks, then drop before
+                        // calling compute_leaf_layout (measure is FFI).
+                        let (has_measure, style, style_size, measure) = {
+                            let inner = tree.inner();
+                            let node = inner.nodes.get(id).unwrap();
+                            let has_measure = node.has_measure;
+                            let style = node.style().clone();
+                            let style_size = style.get_size();
+                            let measure = tree.node_data().get(id).unwrap().copy_measure();
+                            (has_measure, style, style_size, measure)
+                        };
 
                         compute_leaf_layout(
                             inputs,
-                            style,
+                            &style,
                             |_val, _basis| 0.0,
                             |known_dimensions, available_space| {
                                 let resolved_width = known_dimensions.width.or_else(|| {
@@ -1253,7 +1300,7 @@ impl LayoutBlockContainer for Tree {
                                         height: final_known.height.unwrap_or(0.0),
                                     }
                                 } else {
-                                    node_data.measure(final_known, available_space)
+                                    measure.measure(final_known, available_space)
                                 }
                             },
                         )
@@ -1272,15 +1319,25 @@ impl LayoutBlockContainer for Tree {
                     // the reduced available width. Finally add the reserved
                     // width back to the computed size so the li includes the
                     // marker.
-                    let lock = tree.0.read();
-                    let node = lock.nodes.get(id).unwrap();
 
-                    let marker_size = if node.has_measure {
+                    // Extract measure data under short locks (measure is FFI).
+                    let (has_measure, measure) = {
+                        let lock = tree.0.read();
+                        let node = lock.nodes.get(id).unwrap();
+                        let has_measure = node.has_measure;
+                        let measure = if has_measure {
+                            Some(tree.node_data().get(id).unwrap().copy_measure())
+                        } else {
+                            None
+                        };
+                        (has_measure, measure)
+                    };
+
+                    let marker_size = if let Some(m) = measure {
                         // Call the measure function; many native `Li`
                         // implementations return the marker size when
                         // measured.
-                        let node_data = lock.node_data.get(id).unwrap();
-                        node_data.measure(Size::NONE, inputs.available_space)
+                        m.measure(Size::NONE, inputs.available_space)
                     } else {
                         Size::ZERO
                     };
@@ -1311,8 +1368,6 @@ impl LayoutBlockContainer for Tree {
                         sizing_mode: inputs.sizing_mode,
                         ..inputs
                     };
-
-                    drop(lock);
 
                     let mut computed_layout = if tree.analyze_subtree(id).all_inline {
                         tree.compute_inline_layout(node_id, adjusted_inputs, block_ctx)

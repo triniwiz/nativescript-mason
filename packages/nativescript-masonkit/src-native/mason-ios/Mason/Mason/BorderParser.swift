@@ -105,67 +105,84 @@ extension CSSBorderRenderer {
   
   func parseBorderShorthand(_ value: String){
     let parsed = CSSBorderRenderer.parseBorderShorthand(value)
-    if(parsed.color == nil && parsed.style == nil && parsed.width == nil){
+    if(parsed.color == nil && parsed.style == nil && (parsed.widths == nil || parsed.widths!.isEmpty)){
       return
     }
     
     // Defaults
-    var width = parsed.width ?? MasonLengthPercentage.Points(3) // medium
+    // Determine widths per CSS shorthand rules
+    var width = MasonLengthPercentage.Points(3) // medium default
+    var widthsList = parsed.widths ?? []
+    if !widthsList.isEmpty {
+      width = widthsList[0]
+    }
     var style = parsed.style ?? CSSBorderRenderer.BorderStyle.solid
     var color = parsed.color ?? UIColor.black
     
     // If only width is specified
-    if parsed.width != nil && parsed.style == nil && parsed.color == nil {
+    if (parsed.widths != nil && !(parsed.widths!.isEmpty)) && parsed.style == nil && parsed.color == nil {
       style = .solid
       color = .black
     }
     
     // If only style is specified
-    if parsed.width == nil && parsed.style != nil && parsed.color == nil {
+    if (parsed.widths == nil || parsed.widths!.isEmpty) && parsed.style != nil && parsed.color == nil {
       width = MasonLengthPercentage.Points(3) // medium
       color = .black
     }
     
     // If only color is specified
-    if parsed.width == nil && parsed.style == nil && parsed.color != nil {
+    if (parsed.widths == nil || parsed.widths!.isEmpty) && parsed.style == nil && parsed.color != nil {
       width = MasonLengthPercentage.Points(3) // medium
       style = .solid
     }
     
     css = value
     
-    self.top.width = width
-    self.top.style = style
-    self.top.color = color
-    
-    self.right.width = width
-    self.right.style = style
-    self.right.color = color
-    
-    self.bottom.width = width
-    self.bottom.style = style
-    self.bottom.color = color
-    
-    self.left.width = width
-    self.left.style = style
-    self.left.color = color
+    // Map widths list to per-side values per CSS rules
+    if widthsList.isEmpty {
+      self.top.width = width
+      self.right.width = width
+      self.bottom.width = width
+      self.left.width = width
+    } else {
+      switch widthsList.count {
+      case 1:
+        let w = widthsList[0]
+        self.top.width = w; self.right.width = w; self.bottom.width = w; self.left.width = w
+      case 2:
+        let w0 = widthsList[0]; let w1 = widthsList[1]
+        self.top.width = w0; self.bottom.width = w0; self.right.width = w1; self.left.width = w1
+      case 3:
+        let w0 = widthsList[0]; let w1 = widthsList[1]; let w2 = widthsList[2]
+        self.top.width = w0; self.right.width = w1; self.left.width = w1; self.bottom.width = w2
+      default:
+        let w0 = widthsList[0]; let w1 = widthsList[1]; let w2 = widthsList[2]; let w3 = widthsList[3]
+        self.top.width = w0; self.right.width = w1; self.bottom.width = w2; self.left.width = w3
+      }
+    }
+
+    // Apply style and color to all sides
+    self.top.style = style; self.top.color = color
+    self.right.style = style; self.right.color = color
+    self.bottom.style = style; self.bottom.color = color
+    self.left.style = style; self.left.color = color
     
     self.style.node.view?.setNeedsDisplay()
   }
   /// Parse CSS shorthand border: "1px solid red"
-  static func parseBorderShorthand(_ value: String) -> (width: MasonLengthPercentage?, style: CSSBorderRenderer.BorderStyle?, color: UIColor?) {
-    var width: MasonLengthPercentage? = nil
+  static func parseBorderShorthand(_ value: String) -> (widths: [MasonLengthPercentage]?, style: CSSBorderRenderer.BorderStyle?, color: UIColor?) {
+    var widths: [MasonLengthPercentage] = []
     var style: BorderStyle? = nil
     var color: UIColor? = nil
-    
-    
+
     let tokens = value.split(separator: " ").map { String($0).lowercased() }
     for t in tokens {
       if let s = BorderStyle(name: t) { style = s; continue }
-      if let w = parseLengthPercentage(t) { width = w; continue }
+      if let w = parseLengthPercentage(t) { widths.append(w); continue }
       if let c = parseColor(t) { color = c; continue }
     }
-    return (width, style, color)
+    return (widths.isEmpty ? nil : widths, style, color)
   }
   
   

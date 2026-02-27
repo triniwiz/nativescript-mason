@@ -418,7 +418,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     node.measureFunc = { [weak self] known, available in
       guard let self = self else { return .zero }
       let type = self.type
-      return TextEngine.measure(self.engine, type == .None || type == .Span || type == .Code || type == .B , known, available)
+      return TextEngine.measure(self.engine, type == .None || type == .Span || type == .Code || type == .B || type == .Strong || type == .Em || type == .I , known, available)
     }
     node.setMeasureFunction(node.measureFunc!)
     let scale = NSCMason.scale
@@ -432,8 +432,10 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
       break
     case .Span:
+      style.display = .Inline
       break
     case .Code:
+      style.display = .Inline
       break
     case .H1:
       fontSize = 32
@@ -480,6 +482,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       style.margin = MasonRect(.Points(indent), .Points(0), .Points(indent), .Points(0))
       break
     case .B, .Strong:
+      style.display = .Inline
       style.font.weight = .bold
       break
     case .Pre:
@@ -487,6 +490,7 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       whiteSpace = .Pre
       break
     case .I, .Em:
+      style.display = .Inline
       style.font.style = "italic"
       break
     case .A:

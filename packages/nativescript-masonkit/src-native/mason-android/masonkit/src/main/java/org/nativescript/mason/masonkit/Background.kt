@@ -198,10 +198,12 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
   gradientPaint.shader = null
 }
 
+private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
 private fun drawBitmapLayer(
   bitmap: Bitmap, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 ) {
-  val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+  val paint = bitmapPaint
 
   // Determine the scaled size
   val (drawWidth, drawHeight) = when (layer.size) {

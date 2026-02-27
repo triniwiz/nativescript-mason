@@ -494,11 +494,27 @@ class TextEngine(val container: TextContainer) {
     var bitmap: android.graphics.Bitmap? = null
 
     fun updateBitmap(afterLayout: Boolean) {
-      val layout = node.computedLayout
-      val width = layout.width.toInt()
-      val height = layout.height.toInt()
+      var layout = node.computedLayout
+      var width = layout.width.toInt()
+      var height = layout.height.toInt()
 
-      if (width <= 0 || height <= 0) return
+      // If the computed layout doesn't provide a valid size yet, try an
+      // intrinsic measure pass so we can produce a bitmap.
+      if (width <= 0 || height <= 0) {
+        view.measure(
+          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        )
+        val mw = view.measuredWidth
+        val mh = view.measuredHeight
+        if (mw > 0 && mh > 0) {
+          width = mw
+          height = mh
+        } else {
+          // nothing we can draw right now
+          return
+        }
+      }
 
       view.layout(0, 0, width, height)
 
@@ -514,23 +530,36 @@ class TextEngine(val container: TextContainer) {
 
 
   // Custom span for inline child views
-  private class ViewSpan(
+  private inner class ViewSpan(
     val childNode: Node, private val viewHelper: ViewHelper
   ) : ReplacementSpan() {
 
     override fun getSize(
       paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?
     ): Int {
-      val width = if (childNode.cachedWidth > 0) {
+      var width = if (childNode.cachedWidth > 0) {
         childNode.cachedWidth.toInt()
       } else {
         childNode.computedLayout.width.toInt()
       }
 
-      val height = if (childNode.cachedHeight > 0) {
+      var height = if (childNode.cachedHeight > 0) {
         childNode.cachedHeight.toInt()
       } else {
         childNode.computedLayout.height.toInt()
+      }
+
+      // Fallback: if computed sizes are zero, try measuring the child view
+      if ((width <= 0 || height <= 0) && childNode.view is View) {
+        val childView = childNode.view as View
+        childView.measure(
+          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        )
+        val mw = childView.measuredWidth
+        val mh = childView.measuredHeight
+        if (mw > 0) width = mw
+        if (mh > 0) height = mh
       }
 
       // Get vertical-align from child's style
@@ -575,9 +604,9 @@ class TextEngine(val container: TextContainer) {
           }
 
           VerticalAlign.Bottom -> {
-            metrics.ascent = 0
-            metrics.descent = height
-          }
+              metrics.ascent = 0
+              metrics.descent = height
+            }
 
           VerticalAlign.Sub -> {
             metrics.ascent = -(height - parentFm.descent)
@@ -609,6 +638,22 @@ class TextEngine(val container: TextContainer) {
         metrics.bottom = metrics.descent
       }
 
+      // If this is a block-level child, try to use the parent's available
+      // width so the placeholder spans the full line instead of shrinking to
+      // the child's computed width (which may be zero while layouts are
+      // being computed).
+      try {
+        if (childNode.style.display == Display.Block) {
+          var parentWidth = childNode.parent?.computedLayout?.width?.toInt() ?: 0
+          if (parentWidth <= 0) {
+            // Fallback to nearest ancestor Element width to get the real container width
+            val ancestorElement = findAncestorElement(childNode)
+            parentWidth = ancestorElement?.node?.computedLayout?.width?.toInt() ?: parentWidth
+          }
+          if (parentWidth > 0) width = parentWidth
+        }
+      } catch (_: Throwable) {}
+
       return width
     }
 
@@ -623,19 +668,45 @@ class TextEngine(val container: TextContainer) {
       bottom: Int,
       paint: Paint
     ) {
-      val cachedWidth = if (childNode.cachedWidth > 0) {
+      var cachedWidth = if (childNode.cachedWidth > 0) {
         childNode.cachedWidth.toInt()
       } else {
         childNode.computedLayout.width.toInt()
       }
 
-      val cachedHeight = if (childNode.cachedHeight > 0) {
+      var cachedHeight = if (childNode.cachedHeight > 0) {
         childNode.cachedHeight.toInt()
       } else {
         childNode.computedLayout.height.toInt()
       }
 
       val childView = childNode.view as? View ?: return
+
+      // Ensure the child view has a measured size. Prefer cached/computed
+      // sizes but fall back to an intrinsic measure pass when necessary.
+      if (cachedWidth <= 0 || cachedHeight <= 0) {
+        childView.measure(
+          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+          MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        )
+        val mw = childView.measuredWidth
+        val mh = childView.measuredHeight
+        if (mw > 0) cachedWidth = mw
+        if (mh > 0) cachedHeight = mh
+      }
+
+      // If this child is a block, prefer to size it to the parent's width so
+      // borders and backgrounds span the full line.
+      if (childNode.style.display == Display.Block) {
+        var parentWidth = childNode.parent?.computedLayout?.width?.toInt() ?: 0
+        if (parentWidth <= 0) {
+          val ancestorElement = findAncestorElement(childNode)
+          parentWidth = ancestorElement?.node?.computedLayout?.width?.toInt() ?: parentWidth
+        }
+        if (parentWidth > 0) {
+          cachedWidth = parentWidth
+        }
+      }
 
       if (cachedWidth > 0 && cachedHeight > 0) {
         childView.measure(
@@ -754,8 +825,13 @@ class TextEngine(val container: TextContainer) {
       return false
     }
 
-    val hasBackground =
-      container.node.style.backgroundColor != 0 || (container.node.view as? View)?.background != null
+    // Treat a raw background Drawable as a true view-level background which
+    // prevents flattening. A plain background color (style.backgroundColor)
+    // however can be represented as a text background span when there is no
+    // padding/border/explicit size — so do not let a simple color alone block
+    // flattening.
+    val hasBackgroundDrawable = (container.node.view as? View)?.background != null
+    val hasBackgroundColor = container.node.style.backgroundColor != 0
     val borderWidth = style.borderWidth
     val hasBorder =
       borderWidth.top.value > 0f || borderWidth.right.value > 0f || borderWidth.bottom.value > 0f || borderWidth.left.value > 0f
@@ -767,8 +843,11 @@ class TextEngine(val container: TextContainer) {
     val size = style.size
     val hasExplicitSize = size.width != Dimension.Auto || size.height != Dimension.Auto
 
-    // If it has any view properties, treat as inline-block
-    return !(hasBackground || hasBorder || hasPadding || hasExplicitSize)
+    // If it has any view properties (drawable background, border, padding,
+    // explicit size), treat as inline-block and do NOT flatten. A plain
+    // background color will not prevent flattening — it will be applied as a
+    // `BackgroundColorSpan` when flattened.
+    return !(hasBackgroundDrawable || hasBorder || hasPadding || hasExplicitSize)
   }
 
   private fun applyTextViewStylesToSpan(
@@ -784,6 +863,12 @@ class TextEngine(val container: TextContainer) {
       spannable.setSpan(
         ForegroundColorSpan(color), start, end, flags
       )
+    }
+
+    // Apply background color as a text span when flattened
+    val bgColor = container.style.resolvedBackgroundColor
+    if (bgColor != 0) {
+      spannable.setSpan(Spans.BackgroundColorSpan(bgColor), start, end, flags)
     }
 
     val fontSize = container.style.resolvedFontSize
@@ -937,13 +1022,35 @@ class TextEngine(val container: TextContainer) {
             applyTextViewStylesToSpan(composed, start, end, childTextContainer)
           } else {
             val placeholder = createPlaceholder(child)
-            composed.append(placeholder)
+            // If the child is a block-level element, ensure it sits on its
+            // own line by surrounding the placeholder with newlines. This
+            // ensures StaticLayout places the block vertically as a separate
+            // block instead of inline with surrounding text.
+            val isBlock = child.style.display == Display.Block
+            if (isBlock) {
+              if (composed.isNotEmpty() && composed.last() != '\n') {
+                composed.append('\n')
+              }
+              composed.append(placeholder)
+              if (composed.isEmpty() || composed.last() != '\n') {
+                composed.append('\n')
+              }
+            } else {
+              composed.append(placeholder)
+            }
           }
         }
 
         child.nativePtr != 0L && child.style.display != Display.None -> {
           val placeholder = createPlaceholder(child)
-          composed.append(placeholder)
+          val isBlock = child.style.display == Display.Block
+          if (isBlock) {
+            if (composed.isNotEmpty() && composed.last() != '\n') composed.append('\n')
+            composed.append(placeholder)
+            if (composed.isEmpty() || composed.last() != '\n') composed.append('\n')
+          } else {
+            composed.append(placeholder)
+          }
         }
       }
     }
@@ -1011,7 +1118,7 @@ class TextEngine(val container: TextContainer) {
    * This is needed to trigger native layout recomputation when text changes
    * in a View that is not itself an Element.
    */
-  private fun findAncestorElement(node: Node): Element? {
+  internal fun findAncestorElement(node: Node): Element? {
     var current = node.parent
     while (current != null) {
       if (current.view is Element) {

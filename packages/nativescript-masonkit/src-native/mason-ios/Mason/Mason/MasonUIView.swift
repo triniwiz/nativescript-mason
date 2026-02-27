@@ -16,29 +16,38 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   }
   
   public override func draw(_ rect: CGRect) {
-    
+
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
-    
+
+    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
-    let innerRect = bounds.inset(by: UIEdgeInsets(
-      top: borderWidths.top,
-      left: borderWidths.left,
-      bottom: borderWidths.bottom,
-      right: borderWidths.right
-    ))
-    
-    let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
-    let innerPath = style.mBorderRender.buildRoundedPath(in: innerRect, radius: innerRadius)
-    
-    context.saveGState()
-    context.addPath(innerPath.cgPath)
-    context.clip()
-    style.mBackground.draw(on: self, in: context, rect: innerRect)
-    context.restoreGState()
-    
+    let hasRadii = style.mBorderRender.hasRadii()
+
+    // Block 1: Background with border-radius clip
+    if hasBackground {
+      let innerRect = bounds.inset(by: UIEdgeInsets(
+        top: borderWidths.top,
+        left: borderWidths.left,
+        bottom: borderWidths.bottom,
+        right: borderWidths.right
+      ))
+
+      context.saveGState()
+      if hasRadii {
+        let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
+        let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: innerRadius)
+        context.addPath(innerPath.cgPath)
+        context.clip()
+      }
+      style.mBackground.draw(on: self, in: context, rect: innerRect)
+      context.restoreGState()
+    }
+
+    // Border drawn OUTSIDE any clip scope so strokes aren't clipped
     style.mBorderRender.draw(in: context, rect: bounds)
   }
   
@@ -59,6 +68,11 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     return node.isDirty
   }
   
+  public override func layoutSubviews() {
+    super.layoutSubviews()
+    autoComputeIfRoot()
+  }
+
   init(mason doc: NSCMason) {
     node = doc.createNode()
     mason = doc
@@ -69,8 +83,8 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
     node.view = self
     style.setStyleChangeListener(listener: self)
   }
-  
-  
+
+
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }

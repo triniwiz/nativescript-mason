@@ -418,7 +418,7 @@ func parseLayer(_ str: String) -> BackgroundLayer {
       }
       
       if !cgColors.isEmpty {
-        layer.shader = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+        layer.shader = CGGradient(colorsSpace: UIColor.deviceCS,
                                   colors: cgColors as CFArray,
                                   locations: locations)
       }

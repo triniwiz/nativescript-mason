@@ -117,9 +117,9 @@ class GridActivity : AppCompatActivity() {
     //  textShadow(body)
     // input(body)
     // zOrder(body)
-    //list(body)
+    list(body)
 
-    inputTest(body)
+    //inputTest(body)
     root.addView(body)
     setContentView(root)
   }

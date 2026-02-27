@@ -52,6 +52,10 @@ interface Element : EventTarget {
     if (node.nativePtr == 0L) {
       return Layout.empty
     }
+    // During compute Rust holds the lock — return cached layout to avoid deadlock
+    if (node.mason.inCompute) {
+      return node.computedLayout ?: Layout.empty
+    }
     val layouts = NativeHelpers.nativeNodeLayout(node.mason.nativePtr, node.nativePtr)
     if (layouts.isEmpty()) {
       return Layout.empty
@@ -60,23 +64,51 @@ interface Element : EventTarget {
   }
 
   fun compute() {
-    NativeHelpers.nativeNodeCompute(node.mason.nativePtr, node.nativePtr)
+    val mason = node.mason
+    if (mason.inCompute) return // nested compute → skip to avoid Rust RWLock deadlock
+    mason.inCompute = true
+    try {
+      NativeHelpers.nativeNodeCompute(mason.nativePtr, node.nativePtr)
+    } finally {
+      mason.inCompute = false
+    }
     node.computeCache = SizeF(-2f, -2f)
   }
 
   fun compute(width: Float, height: Float) {
-    NativeHelpers.nativeNodeComputeWH(node.mason.nativePtr, node.nativePtr, width, height)
+    val mason = node.mason
+    if (mason.inCompute) return // nested compute → skip to avoid Rust RWLock deadlock
+    mason.inCompute = true
+    try {
+      NativeHelpers.nativeNodeComputeWH(mason.nativePtr, node.nativePtr, width, height)
+    } finally {
+      mason.inCompute = false
+    }
     node.computeCache = SizeF(width, height)
   }
 
   fun computeMaxContent() {
-    NativeHelpers.nativeNodeComputeMaxContent(node.mason.nativePtr, node.nativePtr)
+    val mason = node.mason
+    if (mason.inCompute) return // nested compute → skip to avoid Rust RWLock deadlock
+    mason.inCompute = true
+    try {
+      NativeHelpers.nativeNodeComputeMaxContent(mason.nativePtr, node.nativePtr)
+    } finally {
+      mason.inCompute = false
+    }
     node.computeCache = SizeF(-2f, -2f)
   }
 
   fun computeMinContent() {
+    val mason = node.mason
+    if (mason.inCompute) return // nested compute → skip to avoid Rust RWLock deadlock
+    mason.inCompute = true
+    try {
+      NativeHelpers.nativeNodeComputeMinContent(mason.nativePtr, node.nativePtr)
+    } finally {
+      mason.inCompute = false
+    }
     node.computeCache = SizeF(-2f, -2f)
-    NativeHelpers.nativeNodeComputeMinContent(node.mason.nativePtr, node.nativePtr)
   }
 
   fun computeWithViewSize() {
@@ -87,22 +119,36 @@ interface Element : EventTarget {
   }
 
   fun computeAndLayout(): Layout {
-    return Layout.fromFloatArray(
-      NativeHelpers.nativeNodeComputeAndLayout(
-        node.mason.nativePtr,
-        node.nativePtr,
-      ), 0
-    ).second
+    val mason = node.mason
+    if (mason.inCompute) return node.computedLayout // nested compute → skip to avoid Rust RWLock deadlock
+    mason.inCompute = true
+    try {
+      return Layout.fromFloatArray(
+        NativeHelpers.nativeNodeComputeAndLayout(
+          mason.nativePtr,
+          node.nativePtr,
+        ), 0
+      ).second
+    } finally {
+      mason.inCompute = false
+    }
   }
 
   fun computeAndLayout(width: Float, height: Float): Layout {
-    return Layout.fromFloatArray(
-      NativeHelpers.nativeNodeComputeWithSizeAndLayout(
-        node.mason.nativePtr,
-        node.nativePtr,
-        width, height
-      ), 0
-    ).second
+    val mason = node.mason
+    if (mason.inCompute) return node.computedLayout // nested compute → skip to avoid Rust RWLock deadlock
+    mason.inCompute = true
+    try {
+      return Layout.fromFloatArray(
+        NativeHelpers.nativeNodeComputeWithSizeAndLayout(
+          mason.nativePtr,
+          node.nativePtr,
+          width, height
+        ), 0
+      ).second
+    } finally {
+      mason.inCompute = false
+    }
   }
 
   fun computeWithSize(width: Float, height: Float) {
@@ -436,12 +482,11 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
         )
       }
 
-      // For TextContainer views, explicitly measure with EXACTLY specs so
-      // Android's internal text Layout (mLayout) is recreated with the
-      // correct width.  Without this, the MasonView parent never calls
-      // child.measure(), leaving the internal Layout stale after text
-      // changes and causing text to be clipped or wrapped incorrectly.
-      if (view is TextContainer) {
+      // For TextContainer and ListView views, explicitly measure with EXACTLY specs.
+      // The MasonView parent never calls child.measure() — it applies layout
+      // directly via applyLayoutRecursive.  Without this, measuredWidth/Height
+      // stay 0 and Android may skip drawing the view.
+      if (view is TextContainer || view is ListView) {
         view.measure(
           MeasureSpec.makeMeasureSpec(layoutWidth, MeasureSpec.EXACTLY),
           MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY)
@@ -452,16 +497,23 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
         if (this !== view.parent) {
           (view.parent as? View)?.layout(x, y, right, bottom)
         }
-        // For scroll root, layout at 0,0 with content dimensions
+        // For scroll root, use the full content size (not the constrained box size)
+        // so that TwoDScrollView.canScroll() returns true when content overflows.
         view.layout(
           0,
           0,
           when (overflow.x) {
-            Overflow.Scroll, Overflow.Auto -> contentWidth
+            Overflow.Scroll, Overflow.Auto -> {
+              val fullContentWidth = (layout.contentSize.width + layout.border.left + layout.border.right + layout.padding.left + layout.padding.right).toInt()
+              maxOf(layoutWidth, fullContentWidth)
+            }
             else -> layoutWidth
           },
           when (overflow.y) {
-            Overflow.Scroll, Overflow.Auto -> contentHeight
+            Overflow.Scroll, Overflow.Auto -> {
+              val fullContentHeight = (layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
+              maxOf(layoutHeight, fullContentHeight)
+            }
             else -> layoutHeight
           }
         )
