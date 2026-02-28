@@ -363,15 +363,22 @@ open class Node internal constructor(
   }
 
   internal val stateValue by lazy {
-    val buffer =
-      ObjectManager.shared[NativeHelpers.nativeGetStateBuffer(
-        mason.nativePtr,
-        nativePtr
-      )] as ByteBuffer
-    buffer.apply {
-      order(ByteOrder.nativeOrder())
+    val id = NativeHelpers.nativeGetStateBuffer(
+      mason.nativePtr,
+      nativePtr
+    )
+
+    if (id < 0) {
+      val empty = ByteBuffer.allocateDirect(0)
+      empty.order(ByteOrder.nativeOrder())
+      empty
+    } else {
+      val buffer = ObjectManager.shared[id] as ByteBuffer
+      buffer.apply {
+        order(ByteOrder.nativeOrder())
+      }
+      buffer
     }
-    buffer
   }
 
   companion object {
@@ -389,11 +396,34 @@ open class Node internal constructor(
       ) ?: MeasureOutput.make(0f, 0f)
     }
 
+    // Test hook: optional callback to observe engine write-backs during testing.
+    private var testComputedSizeCallback: ((Int, Float, Float) -> Unit)? = null
+
+    @JvmStatic
+    fun setComputedSizeTestCallback(cb: ((Int, Float, Float) -> Unit)?) {
+      testComputedSizeCallback = cb
+    }
+
     @JvmStatic
     fun setComputedSize(node: Int, width: Float, height: Float) {
-      (getObject(node) as? Node)?.setComputedSize(
-        width, height
-      )
+      val n = (getObject(node) as? Node)
+      n?.let {
+        // Detect suspicious case where engine's computed layout is zero but
+        // platform reports a non-zero size. This was previously logged for
+        // instrumentation but the log statement has been removed to reduce
+        // noisy output during layout passes.
+        try {
+          if (it.computedLayout.height == 0f && height > 0f) {
+            // suppressed
+          }
+        } catch (e: Exception) {
+          // ignore
+        }
+      }
+
+      n?.setComputedSize(width, height)
+
+      testComputedSizeCallback?.invoke(node, width, height)
     }
 
     @JvmStatic

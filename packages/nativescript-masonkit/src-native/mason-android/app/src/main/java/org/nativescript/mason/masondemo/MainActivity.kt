@@ -47,8 +47,6 @@ class MainActivity : AppCompatActivity() {
     for (j in 0 until 1_00_000) {
       val node = mason.createNode()
     }
-
-    Log.d("com.test", "time ${System.currentTimeMillis() - now}")
     */
 
     binding = ActivityMainBinding.inflate(layoutInflater)

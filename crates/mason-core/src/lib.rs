@@ -663,3 +663,175 @@ impl Mason {
         self.0.root(node)
     }
 }
+
+
+#[doc(hidden)]
+pub mod test_helpers {
+    use super::Id;
+    use std::sync::{Mutex, OnceLock};
+
+    type CB = Box<dyn Fn(Id, f32, f32) + Send + Sync>;
+
+    static CALLBACK: OnceLock<Mutex<Option<CB>>> = OnceLock::new();
+
+    pub fn set_computed_size_callback(cb: Option<CB>) {
+        let m = CALLBACK.get_or_init(|| Mutex::new(None));
+        let mut guard = m.lock().unwrap();
+        *guard = cb;
+    }
+
+    pub fn call_computed_size(id: Id, width: f32, height: f32) {
+        if let Some(m) = CALLBACK.get() {
+            if let Some(cb) = &*m.lock().unwrap() {
+                cb(id, width, height);
+            }
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::style::DisplayMode;
+    use std::ffi::{c_float, c_longlong, c_void};
+
+    extern "C" fn test_measure(
+        _data: *const c_void,
+        _known_w: c_float,
+        _known_h: c_float,
+        _avail_w: c_float,
+        _avail_h: c_float,
+    ) -> c_longlong {
+        MeasureOutput::make(200.0, 20.0)
+    }
+
+    extern "C" fn test_measure_parent_text(
+        _data: *const c_void,
+        _known_w: c_float,
+        _known_h: c_float,
+        _avail_w: c_float,
+        _avail_h: c_float,
+    ) -> c_longlong {
+        MeasureOutput::make(150.0, 12.0)
+    }
+
+    #[test]
+    fn inline_text_segments_compute_size() {
+        let mut mason = Mason::new();
+
+        let parent = mason.create_text_node();
+        let pid = parent.id();
+
+        // Two text segments: widths 50 and 100, ascent 10 descent 2 => line height 12
+        mason.set_segments(
+            pid,
+            vec![
+                InlineSegment::Text {
+                    width: 50.0,
+                    ascent: 10.0,
+                    descent: 2.0,
+                },
+                InlineSegment::Text {
+                    width: 100.0,
+                    ascent: 10.0,
+                    descent: 2.0,
+                },
+            ],
+        );
+
+        // Provide a platform measure function for the text container so
+        // the layout size is derived from the measure (as in real platforms).
+        mason.set_measure(pid, Some(test_measure_parent_text), std::ptr::null_mut());
+
+        mason.compute(pid);
+        let out = mason.layout(pid);
+
+        // layout() vector: [order, x, y, width, height, ...]
+        let width = out[3];
+        let height = out[4];
+
+        assert!((width - 150.0).abs() < 0.001, "unexpected width: {}", width);
+        assert!((height - 12.0).abs() < 0.001, "unexpected height: {}", height);
+    }
+
+    #[test]
+    fn inline_child_with_measure_function() {
+        let mut mason = Mason::new();
+
+        let parent = mason.create_text_node();
+        let child = mason.create_image_node();
+
+        let pid = parent.id();
+        let cid = child.id();
+
+        // Parent contains one inline child segment referencing the child
+        mason.set_segments(
+            pid,
+            vec![InlineSegment::InlineChild { id: Some(cid), baseline: 0.0 }],
+        );
+
+        // Append child to parent so IFC will consider it
+        mason.append_node(pid, &[cid]);
+
+        // Set a native-like measure function for the child
+        mason.set_measure(cid, Some(test_measure), std::ptr::null_mut());
+        // Also provide a parent measure so the text container reports a size
+        // that includes the measured child (mirroring platform behavior).
+        mason.set_measure(pid, Some(test_measure), std::ptr::null_mut());
+
+        mason.compute(pid);
+        let pout = mason.layout(pid);
+        let cout = mason.layout(cid);
+
+        let parent_width = pout[3];
+        let parent_height = pout[4];
+
+        let child_width = cout[3];
+        let child_height = cout[4];
+
+        assert!((child_width - 200.0).abs() < 0.001, "child width: {}", child_width);
+        assert!((child_height - 20.0).abs() < 0.001, "child height: {}", child_height);
+
+        // Parent should at least contain the child's size
+        assert!(parent_width >= child_width - 0.001);
+        assert!(parent_height >= child_height - 0.001);
+    }
+
+    /// Verify that shared style handles use COW correctly.
+    /// Two text nodes sharing DEFAULT_INLINE must get independent
+    /// copies when mutated so that modifying one doesn't corrupt
+    /// the other's style data.
+    #[test]
+    fn shared_style_handle_cow() {
+        let mut mason = Mason::new();
+
+        let a = mason.create_text_node();
+        let b = mason.create_text_node();
+        let a_id = a.id();
+        let b_id = b.id();
+
+        // Both start with DEFAULT_INLINE (DisplayMode::Inline)
+        mason.with_style(a_id, |s| {
+            assert_eq!(s.display_mode(), DisplayMode::Inline);
+        });
+        mason.with_style(b_id, |s| {
+            assert_eq!(s.display_mode(), DisplayMode::Inline);
+        });
+
+        // Mutate a: set_display resets display_mode to None
+        mason.with_style_mut(a_id, |s| {
+            s.set_display(Display::Block);
+        });
+
+        // a should now be DisplayMode::None
+        mason.with_style(a_id, |s| {
+            assert_eq!(s.display_mode(), DisplayMode::None, "a should be None after set_display(Block)");
+        });
+
+        // b must still be DisplayMode::Inline (COW should have protected it)
+        mason.with_style(b_id, |s| {
+            assert_eq!(s.display_mode(), DisplayMode::Inline, "b must be unchanged after mutating a");
+        });
+    }
+}

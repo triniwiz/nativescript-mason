@@ -504,16 +504,20 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
           0,
           when (overflow.x) {
             Overflow.Scroll, Overflow.Auto -> {
-              val fullContentWidth = (layout.contentSize.width + layout.border.left + layout.border.right + layout.padding.left + layout.padding.right).toInt()
+              val fullContentWidth =
+                (layout.contentSize.width + layout.border.left + layout.border.right + layout.padding.left + layout.padding.right).toInt()
               maxOf(layoutWidth, fullContentWidth)
             }
+
             else -> layoutWidth
           },
           when (overflow.y) {
             Overflow.Scroll, Overflow.Auto -> {
-              val fullContentHeight = (layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
+              val fullContentHeight =
+                (layout.contentSize.height + layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom).toInt()
               maxOf(layoutHeight, fullContentHeight)
             }
+
             else -> layoutHeight
           }
         )
@@ -527,23 +531,28 @@ internal fun Element.applyLayoutRecursive(node: Node, layout: Layout) {
   }
 
   if (layout.children.isNotEmpty()) {
-    val children = node.children.filter {
-      if (it.nativePtr == 0L) {
-        false
-      } else if (node.parent?.view is TextContainer && node.view is TextContainer) {
-        val flatten =
-          (node.parent?.view as TextContainer).engine.shouldFlattenTextContainer(node.view as TextContainer)
-        !flatten
-      } else {
-        true
-      }
-    }
+    // Only filter out nodes that don't exist in the native layout (nativePtr == 0).
+    // Do NOT remove flattened text containers here — indices must stay aligned
+    // with layout.children from Rust.
+    val children = node.children.filter { it.nativePtr != 0L }
 
     for (i in 0 until children.count()) {
       val child = children.getOrNull(i) ?: continue
       if (child.type == NodeType.Text) {
         continue
       }
+
+      // Skip flattened text containers — parent draws their text
+      if (child.parent?.view is TextContainer && child.view is TextContainer) {
+        val flatten =
+          (child.parent?.view as TextContainer).engine.shouldFlattenTextContainer(child.view as TextContainer)
+        if (flatten) {
+          // Ensure the flattened view occupies no space
+          (child.view as? View)?.layout(0, 0, 0, 0)
+          continue
+        }
+      }
+
       val layoutChild = layout.children.getOrNull(i) ?: continue
       applyLayoutRecursive(child, layoutChild)
     }

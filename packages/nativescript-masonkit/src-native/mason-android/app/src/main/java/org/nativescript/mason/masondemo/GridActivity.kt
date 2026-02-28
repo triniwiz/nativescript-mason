@@ -277,7 +277,7 @@ class GridActivity : AppCompatActivity() {
 
     input.addEventListener("input") {
       if (it is InputEvent) {
-        Log.d("com.test", "input ${(it).data} ${it.inputType}")
+        // debug: input event
       }
     }
 
@@ -964,7 +964,6 @@ class GridActivity : AppCompatActivity() {
     content.style.gridArea = "content"
     content.append("Content")
     val br = mason.createBr(this)
-    Log.d("com.test", "style ${mason.styleForViewOrNode(br)}")
     content.replaceChildAt(br, 1)
     content.replaceChildAt(mason.createBr(this), 2)
     content.replaceChildAt(mason.createBr(this), 3)
@@ -1365,7 +1364,7 @@ class GridActivity : AppCompatActivity() {
       it.gridTemplateRows = "repeat(4, 150px)"
     }
 
-    Log.d("com.test", " ${wrapper6.style}")
+    // wrapper6 style debug removed
 
 
     val boxA = createParentWith2Kids("This is box A.", "align-self: stretch", AlignSelf.Stretch)

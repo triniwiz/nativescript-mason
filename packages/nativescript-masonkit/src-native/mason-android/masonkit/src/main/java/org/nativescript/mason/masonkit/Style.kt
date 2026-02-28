@@ -617,7 +617,6 @@ class Style internal constructor(@Transient internal var node: Node) {
       // During compute Rust holds the lock — calling nativePrepareMut would deadlock.
       // Skip the JNI call; writes go to the existing buffer and will be flushed
       // via updateNativeStyle after compute finishes.
-      Log.d("com.test", "?? ${node.mason.inCompute}")
       if (node.mason.inCompute) {
         isValueInitialized = true
         mWritableValue = values
@@ -669,7 +668,7 @@ class Style internal constructor(@Transient internal var node: Node) {
 
   val textValues: ByteBuffer by lazy {
     isTextValueInitialized = true
-    ByteBuffer.allocateDirect(57).apply {
+    ByteBuffer.allocateDirect(61).apply {
       order(ByteOrder.nativeOrder())
 
       // Initialize all values with INHERIT state

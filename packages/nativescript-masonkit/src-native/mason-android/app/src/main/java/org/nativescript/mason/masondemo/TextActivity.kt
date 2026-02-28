@@ -719,7 +719,6 @@ Nullam tempor enim in tortor vestibulum, id dapibus lectus volutpat. Interdum et
 
     val d = Mason.shared.createTextView(this, TextType.P)
     d.textWrap = Styles.TextWrap.Wrap
-    Log.d("com.test", "display ${d.style.display}")
     d.append(
       "\n" +
         "\n" +

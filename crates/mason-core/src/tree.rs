@@ -146,11 +146,11 @@ impl Tree {
     pub fn prepare_mut(&mut self, node_id: NodeId) {
         self.inner_mut().prepare_mut(node_id);
     }
-    fn density(&self) -> MappedRwLockReadGuard<'_, RawRwLock, Arc<AtomicU32>> {
+    pub fn density(&self) -> MappedRwLockReadGuard<'_, RawRwLock, Arc<AtomicU32>> {
         RwLockReadGuard::map(self.0.read(), |v| &v.density)
     }
 
-    fn density_mut(&mut self) -> MappedRwLockWriteGuard<'_, RawRwLock, Arc<AtomicU32>> {
+    pub fn density_mut(&mut self) -> MappedRwLockWriteGuard<'_, RawRwLock, Arc<AtomicU32>> {
         RwLockWriteGuard::map(self.0.write(), |v| &mut v.density)
     }
 

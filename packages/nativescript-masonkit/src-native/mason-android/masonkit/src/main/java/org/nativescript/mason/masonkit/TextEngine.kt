@@ -173,7 +173,21 @@ class TextEngine(val container: TextContainer) {
     availableWidth: Float,
     availableHeight: Float
   ): android.text.Layout? {
-    val spannable = buildAttributedString()
+    val spannable = try {
+      buildAttributedString()
+    } catch (e: Exception) {
+      // If attributed string construction fails (span errors), fall back
+      // to a plain-text concatenation of direct TextNode children so
+      // the view still renders readable text instead of nothing.
+      val fallback = SpannableStringBuilder()
+      try {
+        for (child in node.children) {
+          if (child is TextNode) fallback.append(child.data)
+        }
+      } catch (_: Exception) {
+      }
+      fallback
+    }
     (container.node.view as? View)?.let {
       if (it.layoutParams == null) {
         it.layoutParams = ViewGroup.LayoutParams(
@@ -182,7 +196,15 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
-    container.setText(spannable, BufferType.SPANNABLE)
+    try {
+      container.setText(spannable, BufferType.SPANNABLE)
+    } catch (e: Exception) {
+      // As a last resort, set plain text to avoid leaving the view blank
+      try {
+        container.setText(spannable.toString(), BufferType.NORMAL)
+      } catch (_: Exception) {
+      }
+    }
 
     if (spannable.isEmpty() && node.children.isEmpty()) {
       return null
@@ -818,6 +840,11 @@ class TextEngine(val container: TextContainer) {
 
   internal fun shouldFlattenTextContainer(container: TextContainer): Boolean {
     if (!container.node.style.isValueInitialized) return true
+    // Always flatten blockquotes so we can render them as spans inside the
+    // parent text flow (no view-level border box).
+    if (container is TextView && container.type == org.nativescript.mason.masonkit.enums.TextType.Blockquote) {
+      return true
+    }
     val style = container.node.style
 
     // Inline-block elements should never be flattened
@@ -881,20 +908,38 @@ class TextEngine(val container: TextContainer) {
     }
 
     val fontFace = container.style.resolvedFontFace
-    // Apply typeface
+    // Apply typeface with bold/italic hints so we can synthesize when needed
     fontFace.font?.let { typeface ->
+      val isBold = fontFace.fontDescriptors.weight.isBold
+      val isItalic = fontFace.fontDescriptors.style.fontStyle == android.graphics.Typeface.ITALIC
       spannable.setSpan(
-        Spans.TypefaceSpan(typeface), start, end, flags
+        Spans.TypefaceSpan(typeface, isBold, isItalic), start, end, flags
       )
     }
 
     val decorationLine = container.style.resolvedDecorationLine
 
+    // Special handling for blockquotes: draw a left bar and add leading margin
+    if (container is TextView && container.type == org.nativescript.mason.masonkit.enums.TextType.Blockquote) {
+      val scale = container.node.mason.scale
+      val barWidth = (6f * scale)
+      val gap = (10f * scale)
+      // Leading margin to offset the bar + gap
+      spannable.setSpan(android.text.style.LeadingMarginSpan.Standard((barWidth + gap).toInt()), start, end, flags)
+      // Draw the bar using a LineBackgroundSpan
+      spannable.setSpan(Spans.BlockQuoteBackgroundSpan(0xFFCCCCCC.toInt(), barWidth), start, end, flags)
+    }
+
     // Apply text decoration
     if (decorationLine != Styles.DecorationLine.None) {
       when (decorationLine) {
         Styles.DecorationLine.Underline -> {
-          spannable.setSpan(UnderlineSpan(), start, end, flags)
+          spannable.setSpan(
+            Spans.UnderlineSpan(
+              container.style.resolvedDecorationColor,
+              container.style.resolvedDecorationThickness
+            ), start, end, flags
+          )
         }
 
         Styles.DecorationLine.LineThrough -> {
@@ -902,22 +947,55 @@ class TextEngine(val container: TextContainer) {
         }
 
         Styles.DecorationLine.Overline -> {
-          /*  spannable.setSpan(
-              OverlineSpan(
-                container.style.resolvedDecorationColor,
-                container.style.resolvedDecorationThickness
-              ), start, end, flags
-            )
-            */
+          spannable.setSpan(
+            Spans.OverlineSpan(
+              container.style.resolvedDecorationColor,
+              container.style.resolvedDecorationThickness
+            ), start, end, flags
+          )
         }
 
         Styles.DecorationLine.UnderlineLineThrough -> {
-          spannable.setSpan(UnderlineSpan(), start, end, flags)
+          spannable.setSpan(
+            Spans.UnderlineSpan(
+              container.style.resolvedDecorationColor,
+              container.style.resolvedDecorationThickness
+            ), start, end, flags
+          )
           spannable.setSpan(StrikethroughSpan(), start, end, flags)
         }
 
-        Styles.DecorationLine.UnderlineOverline -> {}
-        Styles.DecorationLine.OverlineUnderlineLineThrough -> {}
+        Styles.DecorationLine.UnderlineOverline -> {
+          spannable.setSpan(
+            Spans.UnderlineSpan(
+              container.style.resolvedDecorationColor,
+              container.style.resolvedDecorationThickness
+            ), start, end, flags
+          )
+          spannable.setSpan(
+            Spans.OverlineSpan(
+              container.style.resolvedDecorationColor,
+              container.style.resolvedDecorationThickness
+            ), start, end, flags
+          )
+        }
+
+        Styles.DecorationLine.OverlineUnderlineLineThrough -> {
+          spannable.setSpan(
+            Spans.OverlineSpan(
+              container.style.resolvedDecorationColor,
+              container.style.resolvedDecorationThickness
+            ), start, end, flags
+          )
+          spannable.setSpan(
+            Spans.UnderlineSpan(
+              container.style.resolvedDecorationColor,
+              container.style.resolvedDecorationThickness
+            ), start, end, flags
+          )
+          spannable.setSpan(StrikethroughSpan(), start, end, flags)
+        }
+
         else -> {}
       }
     }

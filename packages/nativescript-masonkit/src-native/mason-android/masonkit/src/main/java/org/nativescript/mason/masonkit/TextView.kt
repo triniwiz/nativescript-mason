@@ -12,6 +12,7 @@ import androidx.core.widget.TextViewCompat
 import org.nativescript.mason.masonkit.Styles.TextJustify
 import org.nativescript.mason.masonkit.Styles.TextWrap
 import org.nativescript.mason.masonkit.enums.Display
+import org.nativescript.mason.masonkit.enums.BorderStyle
 import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
 import org.nativescript.mason.masonkit.events.Event
@@ -139,47 +140,46 @@ class TextView @JvmOverloads constructor(
         TextType.Code -> {
           style.font = FontFace("monospace")
           style.display = Display.Inline
-          //  setBackgroundColor(0xFFEFEFEF.toInt())
         }
 
         TextType.H1 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = 32
           node.style.margin = margin(16f, 16f)
         }
 
         TextType.H2 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = 24
           node.style.margin = margin(14f, 14f)
         }
 
         TextType.H3 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = 18
           node.style.margin = margin(12f, 12f)
         }
 
         TextType.H4 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = Constants.DEFAULT_FONT_SIZE
           node.style.margin = margin(10f, 10f)
         }
 
         TextType.H5 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = 13
           node.style.margin = margin(8f, 8f)
         }
 
         TextType.H6 -> {
           node.style.display = Display.Block
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           fontSize = 10
           node.style.margin = margin(6f, 6f)
         }
@@ -189,10 +189,14 @@ class TextView @JvmOverloads constructor(
 
         TextType.Blockquote -> {
           node.style.display = Display.Block
+          style.fontStyle = FontFace.NSCFontStyle.Italic
+          // Make blockquote visually distinct via spans: give vertical spacing and lighter text
+          node.style.margin = margin(16f, 16f)
+          style.color = 0xFF7F7F7F.toInt()
         }
 
         TextType.B, TextType.Strong -> {
-          fontFace.weight = FontFace.NSCFontWeight.Bold
+          style.fontWeight = FontFace.NSCFontWeight.Bold
           style.display = Display.Inline
         }
 
@@ -203,7 +207,7 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.I, TextType.Em -> {
-          fontFace.style = FontFace.NSCFontStyle.Italic
+          style.fontStyle = FontFace.NSCFontStyle.Italic
           style.display = Display.Inline
         }
 

@@ -807,6 +807,7 @@ impl Style {
 
     pub fn new_with_handle(arena: *mut StyleArena, handle: StyleHandle) -> Self {
         let arena = unsafe { &mut *arena };
+        arena.retain(handle);
         let raw = arena.get_ptr_mut(handle);
         Self {
             arena,

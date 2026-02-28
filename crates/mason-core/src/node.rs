@@ -98,6 +98,12 @@ impl NodeMeasure {
         known_dimensions: taffy::Size<Option<f32>>,
         available_space: taffy::Size<AvailableSpace>,
     ) -> taffy::geometry::Size<f32> {
+        // If no JVM measure context is registered (measure == -1), avoid calling
+        // into Java and return the known dimensions or zero fallback.
+        if self.measure < 0 {
+            return known_dimensions.map(|v| v.unwrap_or(0.0));
+        }
+
         match crate::JVM.get() {
             Some(jvm) => {
                 let vm = jvm.attach_current_thread();

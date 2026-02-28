@@ -16,6 +16,7 @@ import org.nativescript.mason.masonkit.Styles
 import org.nativescript.mason.masonkit.enums.Overflow
 import org.nativescript.mason.masonkit.enums.TextType
 import androidx.core.graphics.toColorInt
+import org.nativescript.mason.masonkit.Img
 
 class WebActivity : AppCompatActivity() {
   val mason = Mason.shared
@@ -43,6 +44,7 @@ class WebActivity : AppCompatActivity() {
   private fun webTextSample() {
     val density = resources.displayMetrics.density
 
+
     // --- H1 heading ---
     val h1 = mason.createTextView(this, TextType.H1)
     h1.append("Mason Layout Engine")
@@ -65,6 +67,7 @@ class WebActivity : AppCompatActivity() {
     p1.append(" layouts to native iOS and Android views.")
     root.append(p1)
 
+
     // --- H2 heading ---
     val h2 = mason.createTextView(this, TextType.H2)
     h2.append("Features")
@@ -79,12 +82,16 @@ class WebActivity : AppCompatActivity() {
     code1.style.backgroundColor = 0xFFEFEFEF.toInt()
     p2.append(code1)
 
+
+
     p2.append(", ")
+
 
     val code2 = mason.createTextView(this, TextType.Code)
     code2.append("grid")
     code2.style.backgroundColor = 0xFFEFEFEF.toInt()
     p2.append(code2)
+
 
     p2.append(", and ")
 
@@ -116,7 +123,13 @@ class WebActivity : AppCompatActivity() {
     p2.append(boldItalic)
 
     p2.append(" text.")
+
     root.append(p2)
+
+
+    val img = Img(this)
+    img.src = "https://picsum.photos/seed/picsum/200/300"
+
 
     // --- H3 heading ---
     val h3 = mason.createTextView(this, TextType.H3)
@@ -152,7 +165,7 @@ class WebActivity : AppCompatActivity() {
       left = LengthPercentageAuto.Points(0f),
     )
 
-    val bqText = mason.createTextView(this, TextType.Em)
+    val bqText = mason.createTextView(this, TextType.Blockquote)
     bqText.append("\"Any application that can be written in JavaScript, will eventually be written in JavaScript.\"")
     bqText.color = Color.GRAY
     bq.append(bqText)

@@ -425,7 +425,6 @@ class AbsoluteActivity : AppCompatActivity() {
 
     // rootNode.compute(1000F, 1000F)
 //    rootLayout.node.compute()
-//    Log.d("com.test", "${rootLayout.node.layout()}")
 
 
     //  rootLayout.addView(text)

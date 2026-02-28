@@ -1023,6 +1023,9 @@ impl Tree {
                 }
             }
 
+            #[cfg(test)]
+            crate::test_helpers::call_computed_size(child_id, layout.size.width as f32, layout.size.height as f32);
+
             #[cfg(target_os = "android")]
             if let Some(data) = self.node_data_mut().get_mut(child_id) {
                 if let Some(node) = data.android_data.as_mut() {
@@ -1251,6 +1254,9 @@ impl Tree {
                 }
             }
 
+            #[cfg(test)]
+            crate::test_helpers::call_computed_size(child_id, layout.size.width as f32, layout.size.height as f32);
+
             #[cfg(target_os = "android")]
             if let Some(data) = self.node_data_mut().get_mut(child_id) {
                 if let Some(node) = data.android_data.as_mut() {
@@ -1302,6 +1308,9 @@ impl Tree {
                         node.set_computed_size(size.width as f64, size.height as f64);
                     }
                 }
+
+                #[cfg(test)]
+                crate::test_helpers::call_computed_size(child_id, size.width as f32, size.height as f32);
 
                 #[cfg(target_os = "android")]
                 if let Some(data) = self.node_data_mut().get_mut(child_id) {
@@ -1370,6 +1379,9 @@ impl Tree {
                 node.set_computed_size(layout.size.width as f64, layout.size.height as f64);
             }
         }
+
+        #[cfg(test)]
+        crate::test_helpers::call_computed_size(child_id, layout.size.width as f32, layout.size.height as f32);
 
         #[cfg(target_os = "android")]
         if let Some(data) = self.node_data_mut().get_mut(child_id) {
@@ -1523,8 +1535,15 @@ impl Tree {
                 ..inputs
             };
 
-            // Measure all children first
+            // Phase 1: Measure non-pure-inline children first.
+            // Pure inline children are flattened into the parent's text —
+            // their computed sizes must NOT be set before the parent measures,
+            // otherwise the native measure includes their heights and inflates
+            // the parent's total height.
             for &child_id in &child_ids {
+                if self.is_pure_inline(child_id) {
+                    continue;
+                }
                 if self.is_inline_level(child_id) {
                     self.measure_inline_child(child_id, child_inputs);
                 } else {
@@ -1564,6 +1583,15 @@ impl Tree {
                     measure.measure(measure_known, available_space)
                 },
             );
+
+            // Phase 2: Now measure pure inline children (after parent).
+            // Their sizes are needed for IFC positioning but must not
+            // affect the parent's height.
+            for &child_id in &child_ids {
+                if self.is_pure_inline(child_id) {
+                    self.measure_inline_child(child_id, child_inputs);
+                }
+            }
 
             // Now get segments (freshly populated by the measure call above)
             let segments = {
