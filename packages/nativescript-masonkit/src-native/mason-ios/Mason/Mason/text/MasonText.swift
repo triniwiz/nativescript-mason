@@ -261,10 +261,35 @@ public class MasonTextLayer: CALayer {
     guard let textView = textView else {
       return
     }
-    
+    // Draw background first
     textView.style.mBackground.draw(on: self, in: context, rect: bounds)
+
+    // If this is a flattened blockquote, draw an inline left bar (on top of background)
+    var flattenedBlockquote = false
+    if let tv = textView as? MasonText, tv.type == .Blockquote {
+      flattenedBlockquote = tv.engine.shouldFlattenTextContainer(tv)
+      if flattenedBlockquote {
+        // Resolve border renderer for this rect so cachedWidths/colors are available
+        textView.style.mBorderRender.resolve(for: bounds)
+        let leftWidth = textView.style.mBorderRender.cachedWidths.left
+        let leftSide = textView.style.mBorderRender.left
+        let leftVisible = leftWidth > 0 && leftSide.style != .none && leftSide.color.cgColor.alpha > 0
+        if leftVisible {
+          context.saveGState()
+          context.setFillColor(leftSide.color.cgColor)
+          context.fill(CGRect(x: bounds.minX, y: bounds.minY, width: leftWidth, height: bounds.height))
+          context.restoreGState()
+        }
+      }
+    }
+
+    // Draw text
     textView.engine.drawText(context: context, rect: bounds)
-    textView.style.mBorderRender.draw(in: context, rect: bounds)
+
+    // Draw full border only when not flattened (flattened blockquote uses inline bar above)
+    if !flattenedBlockquote {
+      textView.style.mBorderRender.draw(in: context, rect: bounds)
+    }
   }
 }
 
@@ -425,7 +450,6 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
     node.inBatch = true
     switch(type){
     case .None:
-      // noop
       break
     case .P:
       style.display = .Block
@@ -436,62 +460,63 @@ public class MasonText: UIView, MasonEventTarget, MasonElement, MasonElementObjc
       break
     case .Code:
       style.display = .Inline
+      style.fontFamily = "monospace"
       break
     case .H1:
       fontSize = 32
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
       break
     case .H2:
       fontSize = 24
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(14 * scale), .Points(0), .Points(14 * scale), .Points(0))
       break
     case .H3:
       fontSize = 18
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(12 * scale), .Points(0), .Points(12 * scale), .Points(0))
       break
     case .H4:
       fontSize = 16
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(10 * scale), .Points(0), .Points(10 * scale), .Points(0))
       break
     case .H5:
       fontSize = 13
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(8 * scale), .Points(0), .Points(8 * scale), .Points(0))
       break
     case .H6:
       fontSize = 10
       style.display = .Block
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       style.margin = MasonRect(.Points(6 * scale), .Points(0), .Points(6 * scale), .Points(0))
       break
     case .Li:
       break
     case .Blockquote:
-      style.font.style = "italic"
-      let indent: Float = 40 * scale
       style.display = .Block
-      style.margin = MasonRect(.Points(indent), .Points(0), .Points(indent), .Points(0))
+      style.margin = MasonRect(.Points(16 * scale), .Points(40 * scale), .Points(16 * scale), .Points(40 * scale))
       break
     case .B, .Strong:
       style.display = .Inline
-      style.font.weight = .bold
+      style.fontWeight = "bold"
       break
     case .Pre:
-      style.font = NSCFontFace(family: "ui-monospace")
+      style.display = .Block
+      style.fontFamily = "monospace"
       whiteSpace = .Pre
+      style.margin = MasonRect(.Points(16 * scale), .Points(0), .Points(16 * scale), .Points(0))
       break
     case .I, .Em:
       style.display = .Inline
-      style.font.style = "italic"
+      style.fontStyle = .Italic
       break
     case .A:
       node.style.display = Display.Inline

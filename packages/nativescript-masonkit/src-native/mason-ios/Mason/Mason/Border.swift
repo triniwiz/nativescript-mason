@@ -511,6 +511,7 @@ public final class CSSBorderRenderer {
     let rightVisible = cachedWidths.right > 0 && right.style != .none && right.color.cgColor.alpha > 0
     let bottomVisible = cachedWidths.bottom > 0 && bottom.style != .none && bottom.color.cgColor.alpha > 0
     let leftVisible = cachedWidths.left > 0 && left.style != .none && left.color.cgColor.alpha > 0
+    
     guard topVisible || rightVisible || bottomVisible || leftVisible else { return }
 
     ctx.saveGState()
@@ -717,29 +718,17 @@ public final class CSSBorderRenderer {
       ctx.addPath(outerPath.cgPath)
       ctx.clip()
 
+      // Clip to this side's band so the fill/stroke doesn't bleed into other sides
+      let band = bandRect(for: s, rect: rect, width: width)
+      ctx.clip(to: band)
+
       switch side.style {
       case .double(let spacing):
         // use resolved radius — you already have `radius` member resolved in resolve(for:)
         drawDoubleBorder(ctx, sideEdge: s, rect: rect, totalWidth: width, side: side, outerRadius: radius)
       case .solid:
-        // Stroke the border along the correct path
-        let halfWidth = width / 2.0
-        // Inset only the relevant side for the current border
-        let inset = insetForSide(s, amount: halfWidth)
-        let insetRect = rect.inset(by: inset)
-        // Inset the radii for this side
-        let borderWidthsForSide: (top: CGFloat, right: CGFloat, bottom: CGFloat, left: CGFloat) = (
-            top: s == .top ? width : 0,
-            right: s == .right ? width : 0,
-            bottom: s == .bottom ? width : 0,
-            left: s == .left ? width : 0
-        )
-        let insetRadius = radius.insetByBorderWidths(borderWidthsForSide)
-        let path = buildRoundedPath(in: insetRect, radius: insetRadius)
-        ctx.setStrokeColor(side.color.cgColor)
-        ctx.setLineWidth(width)
-        ctx.addPath(path.cgPath)
-        ctx.strokePath()
+        ctx.setFillColor(side.color.cgColor)
+        ctx.fill(band)
       case .dashed(let dash, let gap):
       //  strokeBandCenterline(band: bandRect(for: s, rect: rect, width: width), side: s, ctx: ctx, color: side.color, lineWidth: width, dash: dash, gap: gap)
         break

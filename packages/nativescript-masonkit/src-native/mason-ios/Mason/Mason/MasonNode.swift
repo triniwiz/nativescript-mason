@@ -360,8 +360,6 @@ public class MasonNode: NSObject {
       paragraphStyle.paragraphSpacing = CGFloat( 3 * scale)
       break
     case .Blockquote:
-      paragraphStyle.headIndent = CGFloat(40)
-      paragraphStyle.firstLineHeadIndent =  CGFloat(40)
       break
     default:
       //noop

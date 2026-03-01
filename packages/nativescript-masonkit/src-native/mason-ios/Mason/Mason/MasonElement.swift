@@ -605,18 +605,47 @@ class MasonElementHelpers: NSObject {
       view.frame = CGRect(origin: point, size: size)
       
       node.isLayoutValid = true
+      if(!(node.view?.superview is MasonElement)){
+        print(layout.contentSize, layout.width, layout.height)
+      }
       
       if let scroll = node.view as? Scroll {
         let overflow = node.style.overflow
         
-        scroll.contentSize = CGSize(width: CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), height: CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale))
+        var scrollWidth =
+        max(CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), CGFloat(realLayout.width.isNaN ? 0 : realLayout.width/NSCMason.scale))
+        
+        var scrollHeight =
+        max(CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale), CGFloat(realLayout.height.isNaN ? 0 : realLayout.height/NSCMason.scale))
+        
+        
+        if let parent = view.superview?.bounds {
+          switch(overflow.x){
+          case .Hidden, .Scroll, .Clip, .Auto:
+            scrollWidth = min(scrollWidth, parent.width)
+            break
+          default:
+            break
+          }
+      
+          switch(overflow.y){
+          case .Hidden, .Scroll, .Clip, .Auto:
+            scrollHeight = min(scrollHeight, parent.height)
+            break
+          default:
+            break
+          }
+        }
+      
+        
+        scroll.contentSize = CGSize(width: scrollWidth, height: scrollHeight)
+        
         
         MasonElementHelpers.handleOverflow(overflow.x, scroll)
         MasonElementHelpers.handleOverflow(overflow.y, scroll, true)
         
       }
-      
-      
+
     }
     
     if(!layout.children.isEmpty){

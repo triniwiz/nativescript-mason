@@ -13,6 +13,8 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   let scale = Float(UIScreen.main.scale)
   
   var items: [String] = []
+  var olVirtualData: [String] = []
+  weak var olList: MasonList?
   
   var textTopLeft: MasonText? = nil
   
@@ -243,21 +245,21 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
     let code1 = mason.createTextView(type: .Code)
     code1.append(text: "flexbox")
-    code1.style.backgroundColor = 0xFFEFEFEF
+    code1.style.backgroundColor = 0xFFE8E8EC
     p2.append(code1)
 
     p2.append(text: ", ")
 
     let code2 = mason.createTextView(type: .Code)
     code2.append(text: "grid")
-    code2.style.backgroundColor = 0xFFEFEFEF
+    code2.style.backgroundColor = 0xFFE8E8EC
     p2.append(code2)
 
     p2.append(text: ", and ")
 
     let code3 = mason.createTextView(type: .Code)
     code3.append(text: "block")
-    code3.style.backgroundColor = 0xFFEFEFEF
+    code3.style.backgroundColor = 0xFFE8E8EC
     p2.append(code3)
 
     p2.append(text: " layouts with full CSS text rendering including ")
@@ -312,7 +314,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
 
     let bqText = mason.createTextView(type: .Em)
     bqText.append(text: "\"Any application that can be written in JavaScript, will eventually be written in JavaScript.\"")
-    bqText.setColor(ui: .secondaryLabel)
+    bqText.setColor(ui: .darkGray)
     bq.append(bqText)
     root.append(bq)
 
@@ -325,6 +327,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     pre.style.backgroundColor = 0xFFF5F5F5
     pre.style.padding = MasonRect(uniform: .Points(12 * scale))
     pre.style.borderRadius = "4px"
+    pre.style.border = "1px solid #E0E0E0"
     pre.fontSize = 13
     pre.style.fontFamily = "'Courier New', monospace"
     pre.append(text: """
@@ -334,6 +337,338 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     body.append(h1)
     """)
     root.append(pre)
+
+    // ============================================================
+    // MARK: Inline-Block Demo
+    // ============================================================
+    let h3InlineBlock = mason.createTextView(type: .H3)
+    h3InlineBlock.append(text: "Inline Block")
+    root.append(h3InlineBlock)
+
+    // Use a flex row container so non-text views render alongside text
+    let ibRow = mason.createView()
+    ibRow.display = .Flex
+    ibRow.flexDirection = .Row
+    ibRow.flexWrap = .Wrap
+    ibRow.style.alignItems = .Center
+    ibRow.style.gap = MasonSize(MasonLengthPercentage.Points(4 * scale), MasonLengthPercentage.Points(4 * scale))
+    ibRow.style.marginBottom = .Points(8 * scale)
+
+    let ibLabel1 = mason.createTextView(type: .P)
+    ibLabel1.append(text: "Text before")
+    ibRow.addView(ibLabel1)
+
+    let ib1 = mason.createView()
+    ib1.display = .InlineBlock
+    ib1.setSize(80 * scale, 30 * scale)
+    ib1.style.background = "#E3F2FD"
+    ib1.style.border = "1px solid #90CAF9"
+    ib1.style.borderRadius = "4px"
+    ibRow.addView(ib1)
+
+    let ibLabel2 = mason.createTextView(type: .P)
+    ibLabel2.append(text: "middle text")
+    ibRow.addView(ibLabel2)
+
+    let ib2 = mason.createView()
+    ib2.display = .InlineBlock
+    ib2.setSize(60 * scale, 30 * scale)
+    ib2.style.background = "#FCE4EC"
+    ib2.style.border = "1px solid #F48FB1"
+    ib2.style.borderRadius = "4px"
+    ibRow.addView(ib2)
+
+    let ibLabel3 = mason.createTextView(type: .P)
+    ibLabel3.append(text: "and text after.")
+    ibRow.addView(ibLabel3)
+
+    root.append(ibRow)
+
+    // ============================================================
+    // MARK: Inline-Flex Demo
+    // ============================================================
+    let h3InlineFlex = mason.createTextView(type: .H3)
+    h3InlineFlex.append(text: "Inline Flex")
+    root.append(h3InlineFlex)
+
+    // Flex row: text label, then an inline-flex container with colored chips, then more text
+    let ifRow = mason.createView()
+    ifRow.display = .Flex
+    ifRow.flexDirection = .Row
+    ifRow.flexWrap = .Wrap
+    ifRow.style.alignItems = .Center
+    ifRow.style.gap = MasonSize(MasonLengthPercentage.Points(4 * scale), MasonLengthPercentage.Points(4 * scale))
+    ifRow.style.marginBottom = .Points(8 * scale)
+
+    let ifLabel1 = mason.createTextView(type: .P)
+    ifLabel1.append(text: "An inline-flex container:")
+    ifRow.addView(ifLabel1)
+
+    let ifBox = mason.createView()
+    ifBox.display = .InlineFlex
+    ifBox.flexDirection = .Row
+    ifBox.style.gap = MasonSize(MasonLengthPercentage.Points(4 * scale), MasonLengthPercentage.Points(4 * scale))
+    ifBox.style.padding = MasonRect(uniform: .Points(4 * scale))
+    ifBox.style.background = "#E8F5E9"
+    ifBox.style.border = "1px solid #A5D6A7"
+    ifBox.style.borderRadius = "4px"
+
+    for color in ["#EF5350", "#42A5F5", "#66BB6A"] {
+      let chip = mason.createView()
+      chip.setSize(24 * scale, 24 * scale)
+      chip.style.background = color
+      chip.style.borderRadius = "4px"
+      ifBox.addView(chip)
+    }
+    ifRow.addView(ifBox)
+
+    let ifLabel2 = mason.createTextView(type: .P)
+    ifLabel2.append(text: "sits inline with text.")
+    ifRow.addView(ifLabel2)
+
+    root.append(ifRow)
+
+    // ============================================================
+    // MARK: Inline-Grid Demo
+    // ============================================================
+    let h3InlineGrid = mason.createTextView(type: .H3)
+    h3InlineGrid.append(text: "Inline Grid")
+    root.append(h3InlineGrid)
+
+    // Flex row: text label, then an inline-grid 2×2 box, then more text
+    let igRow = mason.createView()
+    igRow.display = .Flex
+    igRow.flexDirection = .Row
+    igRow.flexWrap = .Wrap
+    igRow.style.alignItems = .Center
+    igRow.style.gap = MasonSize(MasonLengthPercentage.Points(4 * scale), MasonLengthPercentage.Points(4 * scale))
+    igRow.style.marginBottom = .Points(8 * scale)
+
+    let igLabel1 = mason.createTextView(type: .P)
+    igLabel1.append(text: "A 2×2 inline-grid:")
+    igRow.addView(igLabel1)
+
+    let igBox = mason.createView()
+    igBox.display = .InlineGrid
+    igBox.style.gridTemplateColumns = "1fr 1fr"
+    igBox.style.gap = MasonSize(MasonLengthPercentage.Points(2 * scale), MasonLengthPercentage.Points(2 * scale))
+    igBox.style.padding = MasonRect(uniform: .Points(4 * scale))
+    igBox.style.background = "#FFF3E0"
+    igBox.style.border = "1px solid #FFCC80"
+    igBox.style.borderRadius = "4px"
+
+    for color in ["#FF7043", "#FFA726", "#FFCA28", "#66BB6A"] {
+      let cell = mason.createView()
+      cell.setSize(20 * scale, 20 * scale)
+      cell.style.background = color
+      cell.style.borderRadius = "2px"
+      igBox.addView(cell)
+    }
+    igRow.addView(igBox)
+
+    let igLabel2 = mason.createTextView(type: .P)
+    igLabel2.append(text: "embedded in text flow.")
+    igRow.addView(igLabel2)
+
+    root.append(igRow)
+
+    // ============================================================
+    // MARK: Mixed Display Types
+    // ============================================================
+    let h3Mixed = mason.createTextView(type: .H3)
+    h3Mixed.append(text: "Mixed Display Types")
+    root.append(h3Mixed)
+
+    let pMixedDesc = mason.createTextView(type: .P)
+    pMixedDesc.append(text: "A flex container holding block, inline-block, and inline-flex children side by side:")
+    root.append(pMixedDesc)
+
+    let mixedContainer = mason.createView()
+    mixedContainer.display = .Flex
+    mixedContainer.flexDirection = .Row
+    mixedContainer.flexWrap = .Wrap
+    mixedContainer.style.alignItems = .Center
+    mixedContainer.style.gap = MasonSize(MasonLengthPercentage.Points(8 * scale), MasonLengthPercentage.Points(8 * scale))
+    mixedContainer.style.padding = MasonRect(uniform: .Points(8 * scale))
+    mixedContainer.style.background = "#F5F5F5"
+    mixedContainer.style.borderRadius = "4px"
+    mixedContainer.style.marginBottom = .Points(8 * scale)
+
+    // Block child
+    let blockChild = mason.createView()
+    blockChild.display = .Block
+    blockChild.setSize(60 * scale, 40 * scale)
+    blockChild.style.background = "#1565C0"
+    blockChild.style.borderRadius = "4px"
+    mixedContainer.addView(blockChild)
+
+    // Inline-block child
+    let ibChild = mason.createView()
+    ibChild.display = .InlineBlock
+    ibChild.setSize(60 * scale, 40 * scale)
+    ibChild.style.background = "#C62828"
+    ibChild.style.borderRadius = "4px"
+    mixedContainer.addView(ibChild)
+
+    // Inline-flex child with 2 sub-items
+    let ifChild = mason.createView()
+    ifChild.display = .InlineFlex
+    ifChild.flexDirection = .Column
+    ifChild.style.gap = MasonSize(MasonLengthPercentage.Points(2 * scale), MasonLengthPercentage.Points(2 * scale))
+    ifChild.style.padding = MasonRect(uniform: .Points(4 * scale))
+    ifChild.style.background = "#2E7D32"
+    ifChild.style.borderRadius = "4px"
+    for _ in 0..<2 {
+      let sub = mason.createView()
+      sub.setSize(50 * scale, 16 * scale)
+      sub.style.background = "#A5D6A7"
+      sub.style.borderRadius = "2px"
+      ifChild.addView(sub)
+    }
+    mixedContainer.addView(ifChild)
+
+    // Inline-grid child with 2x2
+    let igChild = mason.createView()
+    igChild.display = .InlineGrid
+    igChild.style.gridTemplateColumns = "1fr 1fr"
+    igChild.style.gap = MasonSize(MasonLengthPercentage.Points(2 * scale), MasonLengthPercentage.Points(2 * scale))
+    igChild.style.padding = MasonRect(uniform: .Points(4 * scale))
+    igChild.style.background = "#E65100"
+    igChild.style.borderRadius = "4px"
+    for _ in 0..<4 {
+      let sub = mason.createView()
+      sub.setSize(16 * scale, 16 * scale)
+      sub.style.background = "#FFCC80"
+      sub.style.borderRadius = "2px"
+      igChild.addView(sub)
+    }
+    mixedContainer.addView(igChild)
+
+    root.append(mixedContainer)
+
+    // Labels for the mixed container
+    let pMixedLabels = mason.createTextView(type: .P)
+    pMixedLabels.fontSize = 12
+    pMixedLabels.append(text: "Blue = block, Red = inline-block, Green = inline-flex (column), Orange = inline-grid (2×2)")
+    pMixedLabels.setColor(ui: .gray)
+    root.append(pMixedLabels)
+
+    // ============================================================
+    // MARK: Unordered List (static items via addView)
+    // ============================================================
+    let h3UL = mason.createTextView(type: .H3)
+    h3UL.append(text: "Unordered List (Static)")
+    root.append(h3UL)
+
+    let ul = mason.createListView(isOrdered: false)
+    ul.style.marginBottom = .Points(8 * scale)
+
+    // Static items added via addView (pushes to end)
+    let ulItem1 = mason.createListItem()
+    let ulText1 = mason.createTextView(type: .P)
+    ulText1.append(text: "First static item (bullet)")
+    ulItem1.append(ulText1)
+    ul.addView(ulItem1)
+
+    let ulItem2 = mason.createListItem()
+    let ulText2 = mason.createTextView(type: .P)
+    ulText2.append(text: "Second static item (bullet)")
+    ulItem2.append(ulText2)
+    ul.addView(ulItem2)
+
+    let ulItem3 = mason.createListItem()
+    let ulText3 = mason.createTextView(type: .P)
+    ulText3.append(text: "Third static item")
+    ulItem3.append(ulText3)
+    ul.addView(ulItem3)
+
+    ul.reload()
+    root.append(ul)
+
+    // ============================================================
+    // MARK: Ordered List (static + virtual interleaved)
+    // ============================================================
+    let h3OL = mason.createTextView(type: .H3)
+    h3OL.append(text: "Ordered List (Mixed Static + Virtual)")
+    root.append(h3OL)
+
+    let pOLDesc = mason.createTextView(type: .P)
+    pOLDesc.fontSize = 13
+    pOLDesc.append(text: "Static items at positions 0 and 3, virtual items fill the rest:")
+    pOLDesc.setColor(ui: .gray)
+    root.append(pOLDesc)
+
+    let ol = mason.createListView(isOrdered: true)
+    ol.style.marginBottom = .Points(8 * scale)
+    ol.delegate = self
+    olList = ol
+
+    // Static item at position 0
+    let olItem1 = mason.createListItem()
+    let olText1 = mason.createTextView(type: .P)
+    olText1.append(text: "[Static] Install Mason via SPM")
+    olItem1.append(olText1)
+    ol.addView(olItem1, at: 0)
+
+    // Static item at position 3 (interleaved with virtual items)
+    let olItem2 = mason.createListItem()
+    let olText2 = mason.createTextView(type: .P)
+    olText2.append(text: "[Static] Run your layout")
+    olItem2.append(olText2)
+    ol.addView(olItem2, at: 3)
+
+    // 3 virtual items (fill positions 1, 2, 4)
+    ol.count = 3
+    olVirtualData = ["[Virtual] Create a layout tree", "[Virtual] Add text and views", "[Virtual] Call compute()"]
+    ol.register(cellClass: MasonList.MasonListCell.self, forCellWithReuseIdentifier: "default")
+    ol.reload()
+    root.append(ol)
+
+    // ============================================================
+    // MARK: Horizontal Rule
+    // ============================================================
+    let hr = mason.createView()
+    hr.style.setSizeHeight(Float(1 * scale), 1)
+    hr.style.setSizeWidth(1, 2) // 100%
+    hr.style.background = "#BDBDBD"
+    hr.style.marginTop = .Points(16 * scale)
+    hr.style.marginBottom = .Points(16 * scale)
+    root.append(hr)
+
+    // ============================================================
+    // MARK: Nested Inline Styles
+    // ============================================================
+    let h3Nested = mason.createTextView(type: .H3)
+    h3Nested.append(text: "Nested Inline Styles")
+    root.append(h3Nested)
+
+    let pNested = mason.createTextView(type: .P)
+    pNested.append(text: "This paragraph has ")
+
+    let nestedStrong = mason.createTextView(type: .Strong)
+
+    let nestedEm = mason.createTextView(type: .Em)
+    nestedEm.append(text: "bold italic")
+    nestedStrong.append(nestedEm)
+
+    pNested.append(nestedStrong)
+    pNested.append(text: " text, a ")
+
+    let nestedCode = mason.createTextView(type: .Code)
+    nestedCode.append(text: "inline code")
+    nestedCode.style.backgroundColor = 0xFFE8E8EC
+    pNested.append(nestedCode)
+
+    pNested.append(text: " snippet, and a ")
+
+    let nestedLink = mason.createTextView(type: .A)
+    nestedLink.append(text: "hyperlink")
+    nestedLink.setColor(ui: .link)
+    nestedLink.decorationLine = .Underline
+    pNested.append(nestedLink)
+
+    pNested.append(text: " all in one line.")
+    root.append(pNested)
 
     body.append(root)
     
@@ -392,7 +727,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     view.addSubview(body)
     body.style.size = MasonSize(
       .Points(Float(view.frame.width * UIScreen.main.scale)),
-      .Percent(Float(view.frame.height * UIScreen.main.scale))
+      .Points(Float(view.frame.height * UIScreen.main.scale))
     )
    // body.frame = view.bounds
    // body.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -436,45 +771,54 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   
   
   var uiData: [String] = []
-  
+
   func list(_ list: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-    
     let d = list.dequeueReusableCell(withReuseIdentifier: "default", for: indexPath) as? MasonList.MasonListCell ?? MasonList.MasonListCell.initWithEmptyBackground()
-    
+
     let li = mason.createListItem()
     d.setView(li)
     d.contentView.addSubview(li)
-    let txt = mason.createTextView()
-    if(uiData.isEmpty){
+
+    // Determine which data source to use based on the parent list
+    let absolutePos = indexPath.row
+    if !olVirtualData.isEmpty, let staticKeys = olList?.staticItems.keys {
+      // Map absolute position to virtual-only index (skip static positions)
+      let staticsBefore = staticKeys.filter { $0 < absolutePos }.count
+      let virtualIndex = absolutePos - staticsBefore
+      if virtualIndex < olVirtualData.count {
+        let txt = mason.createTextView(type: .P)
+        txt.append(text: olVirtualData[virtualIndex])
+        li.append(txt)
+      }
+    } else if !uiData.isEmpty && absolutePos < uiData.count {
+      let txt = mason.createTextView()
+      txt.append(text: uiData[absolutePos])
+      li.append(txt)
+      let img = mason.createImageView()
+      img.style.size = MasonSize(MasonDimension.Points(100), MasonDimension.Points(100))
+      li.append(img)
+    } else {
+      let txt = mason.createTextView()
       txt.append(text: "")
-    }else {
-      txt.append(text: uiData[indexPath.row])
+      li.append(txt)
     }
 
-    li.append(txt)
-    let img = mason.createImageView()
-//    img.style.border = "10px solid blue"
-//    img.style.background = "pink"
-    img.style.size = MasonSize(MasonDimension.Points(100), MasonDimension.Points(100))
-    li.append(img)
     return d
   }
-  
+
   func list(_ list: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
-    guard let cell = cell as? MasonList.MasonListCell else {return}
+    guard let cell = cell as? MasonList.MasonListCell else { return }
     if let li = cell.contentView.subviews.first as? MasonLi {
-      if(uiData.isEmpty){
-        return
-      }
-       let url = uiData[indexPath.row] 
-      if let txt = li.subviews.first as? MasonText {
-        if let node = txt.node.getChildren().first as? MasonTextNode {
-          node.data = url
+      if !uiData.isEmpty, indexPath.row < uiData.count {
+        let url = uiData[indexPath.row]
+        if let txt = li.subviews.first as? MasonText {
+          if let node = txt.node.getChildren().first as? MasonTextNode {
+            node.data = url
+          }
         }
-      }
-      
-      if let img = li.subviews.last as? Img {
-        img.src = url
+        if let img = li.subviews.last as? Img {
+          img.src = url
+        }
       }
     }
   }

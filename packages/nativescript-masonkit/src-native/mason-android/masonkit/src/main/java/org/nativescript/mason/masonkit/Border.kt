@@ -614,22 +614,27 @@ class BorderRenderer(private val style: Style) {
       bottomStyle == BorderStyle.None && leftStyle == BorderStyle.None
     ) return
     if (topColor == 0 && rightColor == 0 && bottomColor == 0 && leftColor == 0) return
+    if (topWidth <= 0f && rightWidth <= 0f && bottomWidth <= 0f && leftWidth <= 0f) return
 
     // Build path with corners and sides
     buildBorderPath(width, height)
 
-    // Fast path: if all sides share the same color, style, and width, draw once
+    // Fast path: if all sides share the same color, style, and width, draw all at once
     if (topColor == rightColor && rightColor == bottomColor && bottomColor == leftColor &&
       topStyle == rightStyle && rightStyle == bottomStyle && bottomStyle == leftStyle &&
-      topWidth == rightWidth && rightWidth == bottomWidth && bottomWidth == leftWidth
+      topWidth == rightWidth && rightWidth == bottomWidth && bottomWidth == leftWidth &&
+      topWidth > 0f
     ) {
-      drawSide(canvas, Side.Top, path, topColor, topStyle)
+      drawSide(canvas, Side.Top, path, topColor, topStyle, width, height)
+      drawSide(canvas, Side.Right, path, rightColor, rightStyle, width, height)
+      drawSide(canvas, Side.Bottom, path, bottomColor, bottomStyle, width, height)
+      drawSide(canvas, Side.Left, path, leftColor, leftStyle, width, height)
     } else {
       // Draw each side separately for per-side colors and styles
-      drawSide(canvas, Side.Top, path, topColor, topStyle)
-      drawSide(canvas, Side.Right, path, rightColor, rightStyle)
-      drawSide(canvas, Side.Bottom, path, bottomColor, bottomStyle)
-      drawSide(canvas, Side.Left, path, leftColor, leftStyle)
+      drawSide(canvas, Side.Top, path, topColor, topStyle, width, height)
+      drawSide(canvas, Side.Right, path, rightColor, rightStyle, width, height)
+      drawSide(canvas, Side.Bottom, path, bottomColor, bottomStyle, width, height)
+      drawSide(canvas, Side.Left, path, leftColor, leftStyle, width, height)
     }
   }
 
@@ -770,18 +775,57 @@ class BorderRenderer(private val style: Style) {
     }
   }
 
-  private fun drawSide(canvas: Canvas, side: Side, path: Path, color: Int, style: BorderStyle) {
-    if (style == BorderStyle.None || color == 0) return
-    paint.color = color
-    paint.style = Paint.Style.STROKE
-    paint.strokeWidth = getWidthForSide(side)
-    when (style) {
-      BorderStyle.Solid -> paint.pathEffect = null
-      BorderStyle.Dashed -> paint.pathEffect = DASH_EFFECT
-      BorderStyle.Dotted -> paint.pathEffect = DOT_EFFECT
-      else -> paint.pathEffect = null
+  private fun drawSide(canvas: Canvas, side: Side, path: Path, color: Int, style: BorderStyle, viewWidth: Float, viewHeight: Float) {
+    val sideWidth = getWidthForSide(side)
+    if (style == BorderStyle.None || color == 0 || sideWidth <= 0f) return
+
+    canvas.save()
+
+    // Clip to this side's band so fill/stroke doesn't bleed into other sides
+    when (side) {
+      Side.Top -> canvas.clipRect(0f, 0f, viewWidth, sideWidth)
+      Side.Right -> canvas.clipRect(viewWidth - sideWidth, 0f, viewWidth, viewHeight)
+      Side.Bottom -> canvas.clipRect(0f, viewHeight - sideWidth, viewWidth, viewHeight)
+      Side.Left -> canvas.clipRect(0f, 0f, sideWidth, viewHeight)
     }
-    canvas.drawPath(path, paint)
+
+    paint.color = color
+    when (style) {
+      BorderStyle.Solid -> {
+        paint.pathEffect = null
+        paint.style = Paint.Style.FILL
+        when (side) {
+          Side.Top -> canvas.drawRect(0f, 0f, viewWidth, sideWidth, paint)
+          Side.Right -> canvas.drawRect(viewWidth - sideWidth, 0f, viewWidth, viewHeight, paint)
+          Side.Bottom -> canvas.drawRect(0f, viewHeight - sideWidth, viewWidth, viewHeight, paint)
+          Side.Left -> canvas.drawRect(0f, 0f, sideWidth, viewHeight, paint)
+        }
+      }
+      BorderStyle.Dashed -> {
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = sideWidth
+        paint.pathEffect = DASH_EFFECT
+        canvas.drawPath(path, paint)
+      }
+      BorderStyle.Dotted -> {
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = sideWidth
+        paint.pathEffect = DOT_EFFECT
+        canvas.drawPath(path, paint)
+      }
+      else -> {
+        paint.pathEffect = null
+        paint.style = Paint.Style.FILL
+        when (side) {
+          Side.Top -> canvas.drawRect(0f, 0f, viewWidth, sideWidth, paint)
+          Side.Right -> canvas.drawRect(viewWidth - sideWidth, 0f, viewWidth, viewHeight, paint)
+          Side.Bottom -> canvas.drawRect(0f, viewHeight - sideWidth, viewWidth, viewHeight, paint)
+          Side.Left -> canvas.drawRect(0f, 0f, sideWidth, viewHeight, paint)
+        }
+      }
+    }
+
+    canvas.restore()
   }
 
   private fun getWidthForSide(side: Side): Float = when (side) {

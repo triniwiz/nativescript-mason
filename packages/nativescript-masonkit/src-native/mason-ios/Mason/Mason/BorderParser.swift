@@ -112,7 +112,7 @@ extension CSSBorderRenderer {
     // Defaults
     // Determine widths per CSS shorthand rules
     var width = MasonLengthPercentage.Points(3) // medium default
-    var widthsList = parsed.widths ?? []
+    let widthsList = parsed.widths ?? []
     if !widthsList.isEmpty {
       width = widthsList[0]
     }
@@ -167,7 +167,8 @@ extension CSSBorderRenderer {
     self.right.style = style; self.right.color = color
     self.bottom.style = style; self.bottom.color = color
     self.left.style = style; self.left.color = color
-    
+
+    self.invalidateCache()
     self.style.node.view?.setNeedsDisplay()
   }
   /// Parse CSS shorthand border: "1px solid red"

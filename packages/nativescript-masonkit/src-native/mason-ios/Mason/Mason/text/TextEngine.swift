@@ -366,25 +366,48 @@ public class TextEngine: NSObject {
     }
     
     // Check for view-like properties that require inline-block behavior
-    let hasBackground =  container.node.style.backgroundColor != 0 || container.node.view?.backgroundColor?.cgColor.alpha ?? 0 > 0 //style.backgroundColor.alpha > 0.0
-    
+    let hasBackground =  container.node.style.backgroundColor != 0 || container.node.view?.backgroundColor?.cgColor.alpha ?? 0 > 0
+
     let border = style.mBorderRender
-    let hasBorder = border.top.width.value > 0.0 || border.right.width.value > 0.0 ||
-    border.bottom.width.value > 0.0 || border.left.width.value > 0.0
-    
+    // Check configured per-side widths (shorthand parsing sets these)
+    let hasBorder = border.top.width.value > 0.0 || border.right.width.value > 0.0 || border.bottom.width.value > 0.0 || border.left.width.value > 0.0
+
     let padding = style.padding
-    let hasPadding = padding.top.value > 0.0 || padding.right.value > 0.0 ||
-    padding.bottom.value > 0.0 || padding.left.value > 0.0
-    
-    
+    let hasPadding = padding.top.value > 0.0 || padding.right.value > 0.0 || padding.bottom.value > 0.0 || padding.left.value > 0.0
+
     let size = style.size
     let hasExplicitSize = size.width != .Auto || size.height != .Auto
-    
-    // If it has any view properties, treat as inline-block
+
+    // Special-case Blockquote: allow flattening when it's safe to render as an inline left-bar
+    if let tv = container as? MasonText, tv.type == .Blockquote {
+      // If only the LEFT border is present and there is no background/padding/explicit size,
+      // it's safe to flatten and draw a left-bar inline (matches web shorthand like "0 0 0 3px").
+      let hasBorderOtherThanLeft = border.top.width.value > 0.0 || border.right.width.value > 0.0 || border.bottom.width.value > 0.0
+      let leftOnlyBorder = border.left.width.value > 0.0 && !hasBorderOtherThanLeft
+
+      if leftOnlyBorder && !(hasBackground || hasPadding || hasExplicitSize) {
+        return true
+      }
+
+      // If any other view-like properties that affect layout or clipping are present, do NOT flatten
+      if hasBackground || hasPadding || hasExplicitSize || style.mBorderRender.hasRadii() {
+        return false
+      }
+
+      // If there are borders on any side other than left, avoid flattening (we'd lose those borders)
+      if hasBorderOtherThanLeft {
+        return false
+      }
+
+      // Otherwise flatten (left-border will be drawn inline by the text layer)
+      return true
+    }
+
+    // For general containers: if it has any view properties, treat as inline-block
     if hasBackground || hasBorder || hasPadding || hasExplicitSize {
       return false
     }
-    
+
     // Only has text properties: flatten it
     return true
   }

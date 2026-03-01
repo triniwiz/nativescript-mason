@@ -226,12 +226,26 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
     return node.style
   }
   
-  var staticViews: [MasonLi] = []
+  /// Static items keyed by their position in the overall list.
+  /// Positions not in this dictionary are virtual (recycled via delegate).
+  public private(set) var staticItems: [Int: MasonLi] = [:]
+
+  /// Backward-compat: flat array of static views (unpositioned).
+  /// Setting this clears staticItems and assigns positions 0..<array.count.
+  public var staticViews: [MasonLi] {
+    get { return staticItems.keys.sorted().compactMap { staticItems[$0] } }
+    set {
+      staticItems.removeAll()
+      for (i, item) in newValue.enumerated() {
+        staticItems[i] = item
+      }
+    }
+  }
 
   // List-level size cache keyed by item index — survives cell recycling
   private var sizeCache: [Int: CGSize] = [:]
   private var sizeCacheWidth: CGFloat = 0
-  
+
   public lazy var values: NSMutableData = {
     guard let data = NSMutableData(length: 32) else {
       let data = NSMutableData()
@@ -240,13 +254,14 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
     }
     return data
   }()
-  
+
+  /// Virtual item count (set by user). Total count = staticItems.count + this value.
   public var count: Int {
     set {
       MasonStyle.setInt32(Keys.COUNT, Int32(newValue), values)
     }
     get {
-      return staticViews.count + Int(values.bytes.advanced(by: Keys.COUNT).assumingMemoryBound(to: Int32.self).pointee)
+      return staticItems.count + Int(values.bytes.advanced(by: Keys.COUNT).assumingMemoryBound(to: Int32.self).pointee)
     }
   }
   
@@ -281,6 +296,23 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
   }
   
   
+  /// Appends a static item at the end of the list (position = current count).
+  public func addView(_ item: MasonLi) {
+    let pos = count
+    staticItems[pos] = item
+  }
+
+  /// Inserts a static item at the given position, shifting existing entries at >= index.
+  public func addView(_ item: MasonLi, at index: Int) {
+    // Shift existing static items at >= index
+    for key in staticItems.keys.sorted().reversed() {
+      if key >= index {
+        staticItems[key + 1] = staticItems.removeValue(forKey: key)
+      }
+    }
+    staticItems[index] = item
+  }
+
   public func reload(){
     sizeCache.removeAll()
     list.reloadData()
@@ -299,6 +331,7 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
     computeCacheDirty = false
     node.view = self
     style.setStyleChangeListener(listener: self)
+    list.register(MasonListCell.self, forCellWithReuseIdentifier: "static")
     addSubview(list)
   }
   
@@ -332,23 +365,39 @@ public class MasonList: UIView,MasonEventTarget, MasonElement, MasonElementObjc,
   }
   
   public func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+    let index = indexPath.item
+
+    // Static item at this position?
+    if let staticItem = staticItems[index] {
+      let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "static", for: indexPath) as? MasonListCell ?? MasonListCell.initWithEmptyBackground()
+      cell.setView(staticItem)
+      cell.contentView.addSubview(staticItem)
+      cell.index = indexPath
+      return cell
+    }
+
+    // Virtual item: delegate creates the cell
     let cell = delegate?.list(collectionView, cellForItemAt: indexPath) ?? MasonListCell.initWithEmptyBackground()
     if let cell = cell as? MasonListCell {
       cell.index = indexPath
     }
     return cell
   }
-  
+
   public func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
     if let cell = cell as? MasonListCell {
       cell.index = indexPath
-      
+
       // Bind MasonLi with position and ordered state
       if let li = cell.view as? MasonLi {
         li.bind(position: indexPath.item, isOrdered: isOrdered)
       }
     }
-    delegate?.list(collectionView, willDisplay: cell, forItemAt: indexPath)
+
+    // Only call delegate for virtual items
+    if staticItems[indexPath.item] == nil {
+      delegate?.list(collectionView, willDisplay: cell, forItemAt: indexPath)
+    }
   }
   
 }

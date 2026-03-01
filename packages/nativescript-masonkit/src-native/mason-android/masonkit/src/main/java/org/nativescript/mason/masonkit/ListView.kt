@@ -48,17 +48,28 @@ class ListView @JvmOverloads constructor(
     super.onSizeChanged(w, h, oldw, oldh)
   }
 
+  /// Virtual item count (set by user). Total = staticItems.size + this value.
   var count: Int
     set(value) {
       values.putInt(Keys.COUNT, value)
     }
     get() {
-      return staticViews.size + values.getInt(Keys.COUNT)
+      return staticItems.size + values.getInt(Keys.COUNT)
     }
 
   var isOrdered: Boolean = false
   private var itemIds = mutableMapOf<Int, Long>()
-  private var staticViews = mutableListOf<Li>()
+
+  /** Static items keyed by position. Positions not here are virtual (recycled). */
+  val staticItems = mutableMapOf<Int, Li>()
+
+  /** Backward-compat: flat list accessor. Setting clears staticItems and assigns 0..n. */
+  var staticViews: MutableList<Li>
+    get() = staticItems.keys.sorted().mapNotNull { staticItems[it] }.toMutableList()
+    set(value) {
+      staticItems.clear()
+      value.forEachIndexed { i, item -> staticItems[i] = item }
+    }
 
   interface Listener {
     fun onCreate(type: Int): Li
@@ -76,11 +87,31 @@ class ListView @JvmOverloads constructor(
 
   private var viewType = mutableMapOf<Int, Int>()
 
-  override fun addView(child: View?) {
+  /** Appends a static item at the end (position = current count). */
+  fun addView(item: Li) {
+    val pos = count
+    staticItems[pos] = item
+  }
+
+  /** Inserts a static item at the given position, shifting existing entries at >= index. */
+  fun addView(item: Li, index: Int) {
+    for (key in staticItems.keys.sortedDescending()) {
+      if (key >= index) {
+        staticItems[key + 1] = staticItems.remove(key)!!
+      }
+    }
+    staticItems[index] = item
+  }
+
+  override fun addView(child: android.view.View?) {
+    if (child is Li) {
+      addView(child)
+      return
+    }
     super.addView(child)
   }
 
-  override fun addView(child: View?, width: Int, height: Int) {
+  override fun addView(child: android.view.View?, width: Int, height: Int) {
     super.addView(child, width, height)
   }
 
@@ -131,9 +162,24 @@ class ListView @JvmOverloads constructor(
     override fun onCreateViewHolder(
       parent: ViewGroup, viewType: Int
     ): Holder {
-      val li = list.get()?.let { list ->
-        list.listener?.onCreate(viewType)?.let {
-          list.virtualItems.add(it)
+      val listView = list.get()
+
+      // Static items: each gets a unique viewType = -(position + 1)
+      // Recover the position and return the actual pre-built Li
+      if (viewType < 0) {
+        val position = -(viewType + 1)
+        val staticLi = listView?.staticItems?.get(position)
+        if (staticLi != null) {
+          (staticLi.parent as? ViewGroup)?.removeView(staticLi)
+          val holder = Holder(staticLi)
+          holder.setIsRecyclable(false)
+          return holder
+        }
+      }
+
+      val li = listView?.let { lv ->
+        lv.listener?.onCreate(viewType)?.let {
+          lv.virtualItems.add(it)
           it
         }
       } ?: Mason.shared.createListItem(parent.context)
@@ -145,24 +191,36 @@ class ListView @JvmOverloads constructor(
       holder: Holder, position: Int
     ) {
       val list = list.get() ?: return
+
       // Sync ordered mode to the Li item
       holder.view.isOrdered = list.isOrdered
       holder.view.position = position
       holder.view.holder = holder
 
       if (holder.view.resolveListStyleType() != ListStyleType.None.value) {
-        // Set marker text for custom markers
         val marker = if (list.isOrdered) {
           "${position + 1}."
         } else {
-          "\u2022" // bullet character as fallback for custom type
+          "\u2022"
         }
         holder.view.setMarkerValue(marker)
       } else {
         holder.view.setMarkerValue("")
       }
 
-      list.listener?.onBind(holder, position)
+      // Only call listener for virtual items (positions not in staticItems)
+      if (!list.staticItems.containsKey(position)) {
+        list.listener?.onBind(holder, position)
+      }
+    }
+
+    override fun getItemViewType(position: Int): Int {
+      val listView = list.get() ?: return 0
+      // Each static position gets a unique negative viewType: -(position + 1)
+      if (listView.staticItems.containsKey(position)) {
+        return -(position + 1)
+      }
+      return listView.listener?.getItemViewType(position) ?: 0
     }
 
     override fun getItemCount(): Int {
@@ -171,10 +229,14 @@ class ListView @JvmOverloads constructor(
 
     override fun onViewRecycled(holder: Holder) {
       super.onViewRecycled(holder)
+      // Don't reset static items
+      val listView = list.get()
+      if (listView != null && listView.staticItems.containsValue(holder.view)) {
+        return
+      }
       holder.view.resetForRecycle()
       holder.view.holder = null
     }
-
   }
 
   private val adapter by lazy {

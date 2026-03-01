@@ -840,10 +840,36 @@ class TextEngine(val container: TextContainer) {
 
   internal fun shouldFlattenTextContainer(container: TextContainer): Boolean {
     if (!container.node.style.isValueInitialized) return true
-    // Always flatten blockquotes so we can render them as spans inside the
-    // parent text flow (no view-level border box).
+    // Blockquotes: prefer flattening to render a CSS-like left bar, but only
+    // when it's safe to represent as an inline decoration. If the blockquote
+    // has other view-level properties (padding, background drawable, radii,
+    // or borders on other sides) we should NOT flatten so the element-level
+    // border/background/radius can render like the web.
     if (container is TextView && container.type == org.nativescript.mason.masonkit.enums.TextType.Blockquote) {
-      return true
+      val bstyle = container.style
+      val hasBackgroundDrawable = (container.node.view as? View)?.background != null
+      val padding = bstyle.padding
+      val hasPadding = padding.top.value > 0f || padding.right.value > 0f || padding.bottom.value > 0f || padding.left.value > 0f
+      val size = bstyle.size
+      val hasExplicitSize = size.width != Dimension.Auto || size.height != Dimension.Auto
+      val borderWidth = bstyle.borderWidth
+      // If any border other than the left is set, don't flatten — web would render a full box
+      val otherBorders = borderWidth.top.value > 0f || borderWidth.right.value > 0f || borderWidth.bottom.value > 0f
+      // If radii present, prefer the view-level rendering so corners clip correctly
+      val hasRadii = bstyle.mBorderRenderer.hasRadii()
+
+      // If only the LEFT border is present and there is no background/padding/explicit size,
+      // it's safe to flatten and draw a left-bar inline (matches web shorthand like "0 0 0 3px").
+      val leftOnlyBorder = borderWidth.left.value > 0f && !otherBorders
+      if (leftOnlyBorder && !(hasBackgroundDrawable || hasPadding || hasExplicitSize)) {
+        return true
+      }
+
+      if (!(hasBackgroundDrawable || hasPadding || hasExplicitSize || otherBorders || hasRadii)) {
+        return true
+      } else {
+        return false
+      }
     }
     val style = container.node.style
 
@@ -922,22 +948,48 @@ class TextEngine(val container: TextContainer) {
     // Special handling for blockquotes: draw a left bar and add leading margin
     if (container is TextView && container.type == org.nativescript.mason.masonkit.enums.TextType.Blockquote) {
       val scale = container.node.mason.scale
-      val barWidth = (6f * scale)
+      // Default visual values
+      var barWidth = (6f * scale)
       val gap = (10f * scale)
+      var barColor = 0xFF666666.toInt()
+
+      // If the style specifies a left border width, use it (points)
+      try {
+        val leftWidth = container.style.borderLeftWidth
+        when (leftWidth) {
+          is org.nativescript.mason.masonkit.LengthPercentage.Points -> {
+            barWidth = leftWidth.points
+          }
+          is org.nativescript.mason.masonkit.LengthPercentage.Zero -> {
+            // leave default
+          }
+          is org.nativescript.mason.masonkit.LengthPercentage.Percent -> {
+            // Percent width isn't meaningful for a hairline; ignore
+          }
+        }
+
+        val leftColor = container.style.borderColor.left
+        if (leftColor != 0 && leftColor != android.graphics.Color.TRANSPARENT) {
+          barColor = leftColor
+        }
+      } catch (_: Throwable) {}
+
       // Leading margin to offset the bar + gap
       spannable.setSpan(android.text.style.LeadingMarginSpan.Standard((barWidth + gap).toInt()), start, end, flags)
       // Draw the bar using a LineBackgroundSpan
-      spannable.setSpan(Spans.BlockQuoteBackgroundSpan(0xFFCCCCCC.toInt(), barWidth), start, end, flags)
+      spannable.setSpan(Spans.BlockQuoteBackgroundSpan(barColor, barWidth), start, end, flags)
     }
 
     // Apply text decoration
     if (decorationLine != Styles.DecorationLine.None) {
       when (decorationLine) {
         Styles.DecorationLine.Underline -> {
+          val scale = container.node.mason.scale
+          val thicknessPx = container.style.resolvedDecorationThickness * scale
           spannable.setSpan(
             Spans.UnderlineSpan(
               container.style.resolvedDecorationColor,
-              container.style.resolvedDecorationThickness
+              thicknessPx
             ), start, end, flags
           )
         }
@@ -947,19 +999,23 @@ class TextEngine(val container: TextContainer) {
         }
 
         Styles.DecorationLine.Overline -> {
+          val scale = container.node.mason.scale
+          val thicknessPx = container.style.resolvedDecorationThickness * scale
           spannable.setSpan(
             Spans.OverlineSpan(
               container.style.resolvedDecorationColor,
-              container.style.resolvedDecorationThickness
+              thicknessPx
             ), start, end, flags
           )
         }
 
         Styles.DecorationLine.UnderlineLineThrough -> {
+          val scale = container.node.mason.scale
+          val thicknessPx = container.style.resolvedDecorationThickness * scale
           spannable.setSpan(
             Spans.UnderlineSpan(
               container.style.resolvedDecorationColor,
-              container.style.resolvedDecorationThickness
+              thicknessPx
             ), start, end, flags
           )
           spannable.setSpan(StrikethroughSpan(), start, end, flags)

@@ -97,7 +97,10 @@ class TextView @JvmOverloads constructor(
   }
 
   override fun onDraw(canvas: Canvas) {
-    ViewUtils.onDraw(this, canvas, style) {
+    // Suppress view-level border only when this TextView will be flattened
+    // and the blockquote bar is drawn as an inline span.
+    val ignoreBorder = (this.type == TextType.Blockquote && this.engine.shouldFlattenTextContainer(this))
+    ViewUtils.onDraw(this, canvas, style, ignoreBorder) {
       super.onDraw(it)
     }
   }
@@ -138,7 +141,7 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.Code -> {
-          style.font = FontFace("monospace")
+          style.fontFamily = "monospace"
           style.display = Display.Inline
         }
 
@@ -189,10 +192,12 @@ class TextView @JvmOverloads constructor(
 
         TextType.Blockquote -> {
           node.style.display = Display.Block
-          style.fontStyle = FontFace.NSCFontStyle.Italic
-          // Make blockquote visually distinct via spans: give vertical spacing and lighter text
-          node.style.margin = margin(16f, 16f)
-          style.color = 0xFF7F7F7F.toInt()
+          node.style.margin = Rect(
+            top = LengthPercentageAuto.Points(16f),
+            right = LengthPercentageAuto.Points(40f),
+            bottom = LengthPercentageAuto.Points(16f),
+            left = LengthPercentageAuto.Points(40f),
+          )
         }
 
         TextType.B, TextType.Strong -> {
@@ -201,9 +206,11 @@ class TextView @JvmOverloads constructor(
         }
 
         TextType.Pre -> {
-          style.font = FontFace("monospace")
+          node.style.display = Display.Block
+          style.fontFamily = "monospace"
           fontSize = Constants.DEFAULT_FONT_SIZE
           whiteSpace = Styles.WhiteSpace.Pre
+          node.style.margin = margin(16f, 16f)
         }
 
         TextType.I, TextType.Em -> {
@@ -579,5 +586,13 @@ class TextView @JvmOverloads constructor(
     child.apply {
       attributes.sync(style)
     }
+  }
+
+   fun addView(view: Element) {
+    addChildAt(view, -1)
+  }
+
+  fun addView(view: Element, index: Int) {
+    addChildAt(view, index)
   }
 }
