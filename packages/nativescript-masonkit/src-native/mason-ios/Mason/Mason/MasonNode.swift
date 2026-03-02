@@ -532,8 +532,8 @@ extension MasonNode {
     
   
       container.children.append(child)
-      if let child = child as? MasonTextNode, let it = container.view as? MasonText {
-        child.attributes = it.getDefaultAttributes()
+      if let child = child as? MasonTextNode, let it = container.view as? TextContainer {
+        child.attributes = it.node.getDefaultAttributes()
         child.container = it
         it.engine.invalidateInlineSegments()
       }

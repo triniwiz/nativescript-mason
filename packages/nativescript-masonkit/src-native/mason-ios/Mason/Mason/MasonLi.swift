@@ -23,11 +23,17 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
 
 
   public override func draw(_ rect: CGRect) {
+    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+    let hasBoxShadow = !style.boxShadows.isEmpty
+    let hasBorder = !style.mBorderRender.css.isEmpty
+    let hasMarker = true // Li always potentially has a marker
+
+    // Early-out: skip all CoreGraphics work for plain views with no decoration
+    guard hasBackground || hasBoxShadow || hasBorder || hasMarker else { return }
+
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
-
-    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
 
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
@@ -40,6 +46,9 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
       right: borderWidths.right
     ))
 
+    // Outset shadows are handled by MasonShadowLayer
+
+    // Block 1: Background with border-radius clip
     if hasBackground {
       context.saveGState()
       if hasRadii {
@@ -52,10 +61,17 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
       context.restoreGState()
     }
 
+    // Inset box shadows (render on top of background)
+    if hasBoxShadow {
+      style.mBoxShadowRenderer.drawInsetShadows(in: context, rect: bounds, borderRenderer: style.mBorderRender)
+    }
+
     // Marker
     drawMarker(in: context, rect: innerRect)
 
-    style.mBorderRender.draw(in: context, rect: bounds)
+    if hasBorder {
+      style.mBorderRender.draw(in: context, rect: bounds)
+    }
   }
 
   public private(set) var node: MasonNode
@@ -85,6 +101,7 @@ public class MasonLi: UIView,MasonEventTarget, MasonElement, MasonElementObjc, S
 
   public override func layoutSubviews() {
     super.layoutSubviews()
+    style.updateShadowLayer(for: bounds)
 
     // Invalidate baseline cache when layout changes
     cachedBaseline = nil

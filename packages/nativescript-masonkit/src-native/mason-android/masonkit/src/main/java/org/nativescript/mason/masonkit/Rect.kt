@@ -12,6 +12,20 @@ data class Rect<T>(
       return Rect(value, value, value, value)
     }
 
+    val zeroAuto: Rect<LengthPercentageAuto> = Rect(
+      LengthPercentageAuto.Points(0f),
+      LengthPercentageAuto.Points(0f),
+      LengthPercentageAuto.Points(0f),
+      LengthPercentageAuto.Points(0f)
+    )
+
+    val zero: Rect<LengthPercentage> = Rect(
+      LengthPercentage.Points(0f),
+      LengthPercentage.Points(0f),
+      LengthPercentage.Points(0f),
+      LengthPercentage.Points(0f)
+    )
+
     fun withPx(
       top: Float,
       right: Float,

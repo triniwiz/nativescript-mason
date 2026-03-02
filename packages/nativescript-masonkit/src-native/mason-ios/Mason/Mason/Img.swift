@@ -56,6 +56,7 @@ public class MasonImageLayer: CALayer {
   let contentsLayer = CALayer()
 
   private func setup(){
+    masksToBounds = true
     contentsLayer.contentsGravity = .resizeAspectFill
     contentsLayer.contentsScale = UIScreen.main.scale
     addSublayer(contentsLayer)
@@ -201,6 +202,7 @@ public class Img: UIView, MasonEventTarget, MasonElement, MasonElementObjc {
   public var style: MasonStyle {
     return node.style
   }
+  
   
   public var didLayout: (() -> Void)?
   

@@ -131,6 +131,7 @@ class TextView @JvmOverloads constructor(
     gravity = android.view.Gravity.NO_GRAVITY
     setLineSpacing(0f, 1f)
     setPadding(0, 0, 0, 0)
+    background = null
 
     if (type != TextType.None) {
       node.style.inBatch = true

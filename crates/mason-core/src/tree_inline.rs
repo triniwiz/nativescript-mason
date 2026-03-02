@@ -1330,7 +1330,9 @@ impl Tree {
             }
         }
 
-        // For inline-block (DisplayMode::Box) or replaced elements, use normal layout
+        // For inline-block, inline-flex, or inline-grid (DisplayMode::Box),
+        // use normal layout which delegates to the appropriate algorithm
+        // (flex, grid, or block) based on the display property.
         let measure_inputs = LayoutInput {
             known_dimensions: Size::NONE,
             available_space: Size {
@@ -1357,20 +1359,39 @@ impl Tree {
             child.unrounded_layout.border = border;
             child.unrounded_layout.size = layout.size;
             child.unrounded_layout.padding = padding;
-            child.unrounded_layout.content_size = Size {
-                width: (layout.size.width
-                    - padding.left
-                    - padding.right
-                    - border.left
-                    - border.right)
-                    .max(0.0),
-                height: (layout.size.height
-                    - padding.top
-                    - padding.bottom
-                    - border.top
-                    - border.bottom)
-                    .max(0.0),
-            };
+            
+            // Preserve the content_size from the layout computation.
+            // For scroll containers, this may be larger than size - padding - border.
+            // For non-scroll containers, use the computed content_size or calculate it.
+            let overflow = child.style().get_overflow();
+            let is_scroll_container = matches!(
+                overflow.y,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto | crate::style::Overflow::Hidden
+            ) || matches!(
+                overflow.x,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto | crate::style::Overflow::Hidden
+            );
+
+            if is_scroll_container {
+                // For scroll containers, preserve the full content extent
+                child.unrounded_layout.content_size = layout.content_size;
+            } else {
+                // For non-scroll containers, content_size is the visible content area
+                child.unrounded_layout.content_size = Size {
+                    width: (layout.size.width
+                        - padding.left
+                        - padding.right
+                        - border.left
+                        - border.right)
+                        .max(0.0),
+                    height: (layout.size.height
+                        - padding.top
+                        - padding.bottom
+                        - border.top
+                        - border.bottom)
+                        .max(0.0),
+                };
+            }
         }
 
         #[cfg(target_vendor = "apple")]
@@ -1435,6 +1456,24 @@ impl Tree {
         if let Some(child) = self.nodes_mut().get_mut(child_id) {
             child.unrounded_layout.size = layout.size;
             child.unrounded_layout.content_size = layout.content_size;
+        }
+
+        // Notify platform of computed size
+        #[cfg(target_vendor = "apple")]
+        if let Some(data) = self.node_data_mut().get_mut(child_id) {
+            if let Some(node) = data.apple_data.as_mut() {
+                node.set_computed_size(layout.size.width as f64, layout.size.height as f64);
+            }
+        }
+
+        #[cfg(test)]
+        crate::test_helpers::call_computed_size(child_id, layout.size.width, layout.size.height);
+
+        #[cfg(target_os = "android")]
+        if let Some(data) = self.node_data_mut().get_mut(child_id) {
+            if let Some(node) = data.android_data.as_mut() {
+                node.set_computed_size(layout.size.width, layout.size.height);
+            }
         }
 
         layout
@@ -1570,7 +1609,7 @@ impl Tree {
                 adjusted_style.set_size(size);
             }
 
-            let ret = compute_leaf_layout(
+            let mut ret = compute_leaf_layout(
                 inputs,
                 &adjusted_style,
                 |_val, _basis| 0.0,
@@ -1698,15 +1737,61 @@ impl Tree {
                 // may position items themselves. In that case, avoid
                 // overriding the child's `y` for list-item children.
                 let parent_is_list = style.get_item_is_list();
-                for (child_id, x, y) in placements {
-                    if let Some(node) = self.nodes_mut().get_mut(child_id) {
-                        node.unrounded_layout.location.x = x;
+                for (child_id, x, y) in placements.iter() {
+                    if let Some(node) = self.nodes_mut().get_mut(*child_id) {
+                        node.unrounded_layout.location.x = *x;
                         if parent_is_list && node.is_list_item() {
                             // Leave y untouched so native container can position it.
                         } else {
-                            node.unrounded_layout.location.y = y;
+                            node.unrounded_layout.location.y = *y;
                         }
                     }
+                }
+            }
+
+            // For scroll/overflow containers, preserve the content_size from 
+            // the native measure - this is needed for scrolling to work.
+            let is_scroll_container = matches!(
+                style.get_overflow().y,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto | crate::style::Overflow::Hidden
+            ) || matches!(
+                style.get_overflow().x,
+                crate::style::Overflow::Scroll | crate::style::Overflow::Auto | crate::style::Overflow::Hidden
+            );
+
+            if is_scroll_container {
+                // For scroll containers, content_size should be the actual measured content
+                // which may be larger than the layout size (enabling scroll)
+                let measured_content = ret.content_size;
+                ret.content_size = Size {
+                    width: measured_content.width.max(ret.size.width),
+                    height: measured_content.height.max(ret.size.height),
+                };
+            }
+
+            // Update the node's layout
+            if let Some(node) = self.nodes_mut().get_mut(id) {
+                node.unrounded_layout.size = ret.size;
+                node.unrounded_layout.content_size = ret.content_size;
+                node.unrounded_layout.padding = padding;
+                node.unrounded_layout.border = border;
+            }
+
+            // Notify platform of computed size
+            #[cfg(target_vendor = "apple")]
+            if let Some(data) = self.node_data_mut().get_mut(id) {
+                if let Some(node) = data.apple_data.as_mut() {
+                    node.set_computed_size(ret.size.width as f64, ret.size.height as f64);
+                }
+            }
+
+            #[cfg(test)]
+            crate::test_helpers::call_computed_size(id, ret.size.width, ret.size.height);
+
+            #[cfg(target_os = "android")]
+            if let Some(data) = self.node_data_mut().get_mut(id) {
+                if let Some(node) = data.android_data.as_mut() {
+                    node.set_computed_size(ret.size.width, ret.size.height);
                 }
             }
 
@@ -1861,7 +1946,8 @@ impl Tree {
             }
         }
 
-        compute_leaf_layout(
+        // Compute the final layout using leaf algorithm
+        let mut output = compute_leaf_layout(
             inputs,
             &style,
             |_val, _basis| 0.0,
@@ -1869,7 +1955,66 @@ impl Tree {
                 width: content_width,
                 height: content_height,
             },
-        )
+        );
+
+        // For scroll/overflow containers, ensure content_size reflects the true
+        // content extent from IFC, not the clamped layout size. This is critical
+        // for native scroll views to know the full scrollable area.
+        let is_scroll_container = matches!(
+            style.get_overflow().y,
+            crate::style::Overflow::Scroll | crate::style::Overflow::Auto | crate::style::Overflow::Hidden
+        ) || matches!(
+            style.get_overflow().x,
+            crate::style::Overflow::Scroll | crate::style::Overflow::Auto | crate::style::Overflow::Hidden
+        );
+
+        if is_scroll_container {
+            // The IFC-computed content dimensions represent the full content extent.
+            // Add padding+border to get the full content box dimensions.
+            let full_content_width = content_width + pb.left + pb.right;
+            let full_content_height = content_height + pb.top + pb.bottom;
+
+            // content_size should be the larger of computed content and layout size
+            // to ensure scroll views know the full scrollable area
+            output.content_size = Size {
+                width: full_content_width.max(output.size.width),
+                height: full_content_height.max(output.size.height),
+            };
+        } else {
+            // For non-scroll containers, content_size is the actual content (without padding/border)
+            output.content_size = Size {
+                width: content_width,
+                height: content_height,
+            };
+        }
+
+        // Update the node's layout with proper content_size
+        if let Some(node) = self.nodes_mut().get_mut(id) {
+            node.unrounded_layout.size = output.size;
+            node.unrounded_layout.content_size = output.content_size;
+            node.unrounded_layout.padding = padding;
+            node.unrounded_layout.border = border;
+        }
+
+        // Notify platform of computed size
+        #[cfg(target_vendor = "apple")]
+        if let Some(data) = self.node_data_mut().get_mut(id) {
+            if let Some(node) = data.apple_data.as_mut() {
+                node.set_computed_size(output.size.width as f64, output.size.height as f64);
+            }
+        }
+
+        #[cfg(test)]
+        crate::test_helpers::call_computed_size(id, output.size.width, output.size.height);
+
+        #[cfg(target_os = "android")]
+        if let Some(data) = self.node_data_mut().get_mut(id) {
+            if let Some(node) = data.android_data.as_mut() {
+                node.set_computed_size(output.size.width, output.size.height);
+            }
+        }
+
+        output
     }
 
     pub fn compute_inline_layout(

@@ -196,13 +196,18 @@ class TextEngine(val container: TextContainer) {
       }
     }
 
-    try {
-      container.setText(spannable, BufferType.SPANNABLE)
-    } catch (e: Exception) {
-      // As a last resort, set plain text to avoid leaving the view blank
+    // Only update the container's text if there are Mason node children to render.
+    // When node.children is empty (e.g. Button with text set via Android setText),
+    // skip setText to avoid wiping externally-set text.
+    if (node.children.isNotEmpty()) {
       try {
-        container.setText(spannable.toString(), BufferType.NORMAL)
-      } catch (_: Exception) {
+        container.setText(spannable, BufferType.SPANNABLE)
+      } catch (e: Exception) {
+        // As a last resort, set plain text to avoid leaving the view blank
+        try {
+          container.setText(spannable.toString(), BufferType.NORMAL)
+        } catch (_: Exception) {
+        }
       }
     }
 
@@ -287,7 +292,7 @@ class TextEngine(val container: TextContainer) {
 
     if (isInline) {
       for (i in 0 until layout.lineCount) {
-        val lineWidth = ceil(layout.getLineWidth(i))
+        val lineWidth = ceil(layout.getLineWidth(i)).toFloat()
         if (lineWidth > measuredWidth) {
           measuredWidth = lineWidth
         }
@@ -295,12 +300,16 @@ class TextEngine(val container: TextContainer) {
 
       if (widthConstraint == Int.MAX_VALUE) {
         if (availableWidth == -1f) {
-          measuredWidth = spannable.split(white_space)
+          val minContentWidth = spannable.split(white_space)
             .maxOfOrNull { android.text.Layout.getDesiredWidth(it, paint) } ?: 0f
+          // For min-content, use the widest word but never smaller than what the
+          // layout/paint already measured (handles complex emoji clusters)
+          measuredWidth = maxOf(measuredWidth, minContentWidth)
         }
 
         if (availableWidth == -2f) {
-          measuredWidth = android.text.Layout.getDesiredWidth(spannable, paint)
+          val desiredWidth = android.text.Layout.getDesiredWidth(spannable, paint)
+          measuredWidth = maxOf(measuredWidth, desiredWidth)
         }
       }
     } else {
@@ -918,9 +927,10 @@ class TextEngine(val container: TextContainer) {
       )
     }
 
-    // Apply background color as a text span when flattened
+    // Apply background color as a text span only when explicitly set on this element.
+    // background-color is NOT inherited in CSS.
     val bgColor = container.style.resolvedBackgroundColor
-    if (bgColor != 0) {
+    if (bgColor != 0 && ((bgColor shr 24) and 0xFF) != 0) {
       spannable.setSpan(Spans.BackgroundColorSpan(bgColor), start, end, flags)
     }
 

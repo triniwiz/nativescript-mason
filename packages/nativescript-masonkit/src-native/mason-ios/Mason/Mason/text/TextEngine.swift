@@ -495,8 +495,20 @@ public class TextEngine: NSObject {
     var leading: CGFloat = 0
     let _ = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
 
-    let originX = drawBounds.origin.x
-    let baselineOrigin = CGPoint(x: originX, y: drawBounds.origin.y)
+    // Center the text vertically: place the baseline so the glyph center aligns with the draw area center
+    let baselineY = drawBounds.midY - (ascent - descent) / 2
+    let lineWidth = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+    var horizontalOffset: CGFloat = 0
+    switch style.resolvedTextAlign {
+    case .Center:
+      horizontalOffset = max(0, (drawBounds.width - lineWidth) / 2)
+    case .Right, .End:
+      horizontalOffset = max(0, drawBounds.width - lineWidth)
+    case .Left, .Auto, .Start, .Justify:
+      horizontalOffset = 0
+    }
+    let originX = drawBounds.origin.x + horizontalOffset
+    let baselineOrigin = CGPoint(x: originX, y: baselineY)
 
     var drawLine: CTLine = line
 
@@ -567,6 +579,9 @@ public class TextEngine: NSObject {
       }
     }
 
+    // Draw text decorations (underline, strikethrough) — CTRunDraw doesn't render these
+    drawTextDecorations(for: drawLine, at: baselineOrigin, in: context)
+
     // Draw inline attachments
     drawInlineAttachments(
       for: drawLine,
@@ -608,6 +623,86 @@ public class TextEngine: NSObject {
   }
   
   
+  /// Manually draws text decorations (underline, strikethrough) for a CTLine.
+  /// CTRunDraw does not render decorations — only CTLineDraw does — but we can't
+  /// use CTLineDraw because we need to skip placeholder / BrSpan runs.
+  private func drawTextDecorations(for line: CTLine, at lineOrigin: CGPoint, in context: CGContext) {
+    let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+    for run in runs {
+      guard let attrs = CTRunGetAttributes(run) as? [NSAttributedString.Key: Any] else { continue }
+      if attrs[Constants.VIEW_PLACEHOLDER_KEY] != nil { continue }
+      if attrs[NSAttributedString.Key("BrSpan")] != nil { continue }
+
+      let underlineStyleValue = attrs[.underlineStyle] as? Int ?? 0
+      let strikethruStyleValue = attrs[.strikethroughStyle] as? Int ?? 0
+
+      guard underlineStyleValue != 0 || strikethruStyleValue != 0 else { continue }
+
+      var ascent: CGFloat = 0
+      var descent: CGFloat = 0
+      var leading: CGFloat = 0
+      let width = CGFloat(CTRunGetTypographicBounds(run, CFRange(location: 0, length: 0), &ascent, &descent, &leading))
+      guard width > 0 else { continue }
+
+      var runPosition = CGPoint.zero
+      CTRunGetPositions(run, CFRange(location: 0, length: 1), &runPosition)
+      let x = lineOrigin.x + runPosition.x
+
+      // Try to get font for metrics
+      let ctFont: CTFont? = {
+        guard let f = attrs[.font], CFGetTypeID(f as CFTypeRef) == CTFontGetTypeID() else { return nil }
+        return (f as! CTFont)
+      }()
+
+      if underlineStyleValue != 0 {
+        let color: CGColor
+        if let ulColor = attrs[.underlineColor] as? UIColor {
+          color = ulColor.cgColor
+        } else if let fgColor = attrs[.foregroundColor] as? UIColor {
+          color = fgColor.cgColor
+        } else {
+          color = UIColor.black.cgColor
+        }
+
+        let thickness: CGFloat
+        let y: CGFloat
+        if let font = ctFont {
+          thickness = max(CTFontGetUnderlineThickness(font), 0.5)
+          // underlinePosition is negative in CoreText (below baseline)
+          y = lineOrigin.y + CTFontGetUnderlinePosition(font)
+        } else {
+          thickness = 1.0
+          y = lineOrigin.y - descent * 0.3
+        }
+
+        context.saveGState()
+        context.setFillColor(color)
+        context.fill(CGRect(x: x, y: y - thickness / 2, width: width, height: thickness))
+        context.restoreGState()
+      }
+
+      if strikethruStyleValue != 0 {
+        let color: CGColor
+        if let stColor = attrs[.strikethroughColor] as? UIColor {
+          color = stColor.cgColor
+        } else if let fgColor = attrs[.foregroundColor] as? UIColor {
+          color = fgColor.cgColor
+        } else {
+          color = UIColor.black.cgColor
+        }
+
+        let thickness: CGFloat = ctFont != nil ? max(CTFontGetUnderlineThickness(ctFont!), 0.5) : 1.0
+        let xHeight: CGFloat = ctFont != nil ? CTFontGetXHeight(ctFont!) : ascent * 0.5
+        let y = lineOrigin.y + xHeight / 2
+
+        context.saveGState()
+        context.setFillColor(color)
+        context.fill(CGRect(x: x, y: y - thickness / 2, width: width, height: thickness))
+        context.restoreGState()
+      }
+    }
+  }
+  
   
   internal func drawMultiLine(text: NSAttributedString, in context: CGContext, bounds: CGRect) {
     guard text.length > 0 else { return }
@@ -640,11 +735,15 @@ public class TextEngine: NSObject {
       nil
     )
 
+    // Use suggested height for layout so CTFrame positions lines tightly,
+    // then offset the whole frame to vertically center within drawBounds
+    let verticalCenterOffset = max(0, (drawBounds.height - suggestedSize.height) / 2)
+
     let layoutBounds = CGRect(
       x: drawBounds.origin.x,
-      y: drawBounds.origin.y,
+      y: drawBounds.origin.y + verticalCenterOffset,
       width: drawBounds.width,
-      height: max(drawBounds.height, suggestedSize.height)
+      height: suggestedSize.height
     )
 
     let path = CGPath(rect: layoutBounds, transform: nil)
@@ -666,7 +765,6 @@ public class TextEngine: NSObject {
         for i in 0..<linesCount {
           let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
           let lineOrigin = origins[i]
-          let verticalOffset = max(0, (layoutBounds.height - suggestedSize.height) / 2)
           let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
           // Compute horizontal offset based on resolved text alignment
           var horizontalOffset: CGFloat = 0
@@ -678,7 +776,7 @@ public class TextEngine: NSObject {
           case .Left, .Auto, .Start, .Justify:
             horizontalOffset = 0
           }
-          let textPos = CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset)
+          let textPos = CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y)
           context.saveGState()
           context.setShadow(offset: CGSize(width: shadow.offsetX, height: -shadow.offsetY), blur: shadow.blurRadius, color: shadow.color.cgColor)
           
@@ -702,7 +800,6 @@ public class TextEngine: NSObject {
     for i in 0..<linesCount {
       let line = unsafeBitCast(CFArrayGetValueAtIndex(linesCF, i), to: CTLine.self)
       let lineOrigin = origins[i]
-      let verticalOffset = max(0, (layoutBounds.height - suggestedSize.height) / 2)
       let lineWidth = CTLineGetTypographicBounds(line, nil, nil, nil)
       var horizontalOffset: CGFloat = 0
       switch style.resolvedTextAlign {
@@ -713,7 +810,7 @@ public class TextEngine: NSObject {
       case .Left, .Auto, .Start, .Justify:
         horizontalOffset = 0
       }
-      context.textPosition = CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset)
+      context.textPosition = CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y)
       let runsCF = CTLineGetGlyphRuns(line)
       let runCount = CFArrayGetCount(runsCF)
       for j in 0..<runCount {
@@ -729,7 +826,7 @@ public class TextEngine: NSObject {
           let isBold = symbolicTraits.contains(.traitBold)
           let weight = attributes[NSAttributedString.Key(Constants.FONT_WEIGHT)] as? CGFloat ?? traits?[kCTFontWeightTrait as CFString] as? CGFloat ?? 0
           if !isBold && weight >= 0.4 {
-            drawRunWithFakeBold(run, in: context, at: CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y + verticalOffset))
+            drawRunWithFakeBold(run, in: context, at: CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y))
           } else {
             CTRunDraw(run, context, CFRange(location: 0, length: 0))
           }
@@ -737,6 +834,9 @@ public class TextEngine: NSObject {
           CTRunDraw(run, context, CFRange(location: 0, length: 0))
         }
       }
+
+      // Draw text decorations (underline, strikethrough) for this line
+      drawTextDecorations(for: line, at: CGPoint(x: drawBounds.minX + horizontalOffset, y: lineOrigin.y), in: context)
     }
 
     context.restoreGState()

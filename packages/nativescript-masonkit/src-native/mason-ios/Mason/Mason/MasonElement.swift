@@ -146,11 +146,23 @@ func ctFont(from cgFont: CGFont, fontSize: CGFloat, weight: UIFont.Weight, style
   
   let postScriptName = cgFont.postScriptName! as String
   
-  let attributes: [CFString: Any] = [
-    kCTFontNameAttribute: postScriptName as CFString,
+  // System fonts (PostScript names starting with ".") can't be resolved by name alone —
+  // CoreText ignores weight traits when an explicit name like ".SFUI-Regular" is given.
+  // Use the family name + traits so CoreText selects the correct weight variant.
+  let isSystemFont = postScriptName.hasPrefix(".")
+  
+  var attributes: [CFString: Any] = [
     kCTFontSizeAttribute: fontSize,
     kCTFontTraitsAttribute: traits
   ]
+  
+  if isSystemFont {
+    // For system fonts, use CTFontCreateUIFontForLanguage to get the correct weight
+    let uiFont = UIFont.systemFont(ofSize: fontSize, weight: weight)
+    return CTFontCreateWithFontDescriptor(uiFont.fontDescriptor as CTFontDescriptor, fontSize, nil)
+  } else {
+    attributes[kCTFontNameAttribute] = postScriptName as CFString
+  }
   
   let descriptor = CTFontDescriptorCreateWithAttributes(attributes as CFDictionary)
   
@@ -604,38 +616,43 @@ class MasonElementHelpers: NSObject {
       
       view.frame = CGRect(origin: point, size: size)
       
-      node.isLayoutValid = true
-      if(!(node.view?.superview is MasonElement)){
-        print(layout.contentSize, layout.width, layout.height)
+      // Apply clipsToBounds for non-visible overflow on all views
+      let overflow = node.style.overflow
+      if overflow.x != .Visible || overflow.y != .Visible {
+        view.clipsToBounds = true
+        // Apply border-radius clipping via layer mask when radii are present
+        let borderRender = node.style.mBorderRender
+        borderRender.resolve(for: view.bounds)
+        if borderRender.hasRadii() {
+          let clipPath = borderRender.getClipPath(rect: view.bounds, radius: borderRender.radius)
+          if let existing = view.layer.mask as? CAShapeLayer {
+            existing.path = clipPath.cgPath
+          } else {
+            let maskLayer = CAShapeLayer()
+            maskLayer.path = clipPath.cgPath
+            view.layer.mask = maskLayer
+          }
+        } else if view.layer.mask != nil {
+          view.layer.mask = nil
+        }
+      } else {
+        view.clipsToBounds = false
+        if view.layer.mask != nil {
+          view.layer.mask = nil
+        }
       }
+      
+      node.isLayoutValid = true
       
       if let scroll = node.view as? Scroll {
         let overflow = node.style.overflow
         
-        var scrollWidth =
+        let scrollWidth =
         max(CGFloat(realLayout.contentSize.width.isNaN ? 0 : realLayout.contentSize.width/NSCMason.scale), CGFloat(realLayout.width.isNaN ? 0 : realLayout.width/NSCMason.scale))
         
-        var scrollHeight =
+        let scrollHeight =
         max(CGFloat(realLayout.contentSize.height.isNaN ? 0 : realLayout.contentSize.height/NSCMason.scale), CGFloat(realLayout.height.isNaN ? 0 : realLayout.height/NSCMason.scale))
         
-        
-        if let parent = view.superview?.bounds {
-          switch(overflow.x){
-          case .Hidden, .Scroll, .Clip, .Auto:
-            scrollWidth = min(scrollWidth, parent.width)
-            break
-          default:
-            break
-          }
-      
-          switch(overflow.y){
-          case .Hidden, .Scroll, .Clip, .Auto:
-            scrollHeight = min(scrollHeight, parent.height)
-            break
-          default:
-            break
-          }
-        }
       
         
         scroll.contentSize = CGSize(width: scrollWidth, height: scrollHeight)

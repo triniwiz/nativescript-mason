@@ -66,6 +66,9 @@ class Input @JvmOverloads constructor(
 
 
   override fun dispatchDraw(canvas: Canvas) {
+    // Draw children's outset box shadows first at parent level
+    drawChildrenOutsetShadows(canvas)
+
     ViewUtils.dispatchDraw(
       this,
       canvas,
@@ -73,6 +76,28 @@ class Input @JvmOverloads constructor(
       ignoreBorder = (type == Type.Radio || type == Type.Checkbox)
     ) {
       super.dispatchDraw(it)
+    }
+  }
+
+  private fun drawChildrenOutsetShadows(canvas: Canvas) {
+    for (i in 0 until childCount) {
+      val child = getChildAt(i)
+      val childStyle = (child as? Element)?.style ?: continue
+      val outsetShadows = childStyle.boxShadows.filter { !it.inset }
+      if (outsetShadows.isEmpty()) continue
+
+      canvas.save()
+      canvas.translate(child.left.toFloat(), child.top.toFloat())
+      childStyle.mBorderRenderer.updateCache(child.width.toFloat(), child.height.toFloat())
+      childStyle.mBoxShadowRenderer.drawOutsetShadows(
+        child,
+        canvas,
+        child.width.toFloat(),
+        child.height.toFloat(),
+        childStyle.mBorderRenderer,
+        forceLegacy = true  // Use bitmap-based rendering from parent context
+      )
+      canvas.restore()
     }
   }
 

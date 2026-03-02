@@ -17,15 +17,22 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   public override func draw(_ rect: CGRect) {
 
+    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+    let hasBoxShadow = !style.boxShadows.isEmpty
+    let hasBorder = !style.mBorderRender.css.isEmpty
+
+    // Early-out: skip all CoreGraphics work for plain views with no decoration
+    guard hasBackground || hasBoxShadow || hasBorder else { return }
+
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
 
-    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
-
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
     let hasRadii = style.mBorderRender.hasRadii()
+
+    // Outset shadows are handled by MasonShadowLayer
 
     // Block 1: Background with border-radius clip
     if hasBackground {
@@ -47,8 +54,15 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
       context.restoreGState()
     }
 
+    // Inset box shadows (render on top of background)
+    if hasBoxShadow {
+      style.mBoxShadowRenderer.drawInsetShadows(in: context, rect: bounds, borderRenderer: style.mBorderRender)
+    }
+
     // Border drawn OUTSIDE any clip scope so strokes aren't clipped
-    style.mBorderRender.draw(in: context, rect: bounds)
+    if hasBorder {
+      style.mBorderRender.draw(in: context, rect: bounds)
+    }
   }
   
   public let node: MasonNode
@@ -70,7 +84,29 @@ public class MasonUIView: UIView, MasonEventTarget, MasonElement, MasonElementOb
   
   public override func layoutSubviews() {
     super.layoutSubviews()
+    style.updateShadowLayer(for: bounds)
     autoComputeIfRoot()
+
+    // Optimize compositing: set isOpaque for solid opaque backgrounds
+    style.mBorderRender.resolve(for: bounds)
+    guard let bg = style.mBackground else {return}
+    let hasOpaqueBackground = bg.color != nil && (bg.color!.cgColor.alpha >= 1.0) && bg.layers.isEmpty
+    let hasBoxShadow = !style.boxShadows.isEmpty
+
+    if hasOpaqueBackground && !style.mBorderRender.hasRadii() && !hasBoxShadow {
+      isOpaque = true
+    } else {
+      isOpaque = false
+    }
+
+    // Rasterize complex decorated views (gradient + radii or box shadow)
+    let hasGradient = !bg.layers.isEmpty
+    if hasGradient && style.mBorderRender.hasRadii() || hasBoxShadow {
+      layer.shouldRasterize = true
+      layer.rasterizationScale = UIScreen.main.scale
+    } else {
+      layer.shouldRasterize = false
+    }
   }
 
   init(mason doc: NSCMason) {

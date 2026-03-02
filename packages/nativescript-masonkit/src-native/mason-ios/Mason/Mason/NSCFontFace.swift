@@ -453,9 +453,9 @@ public class NSCFontFace: NSObject {
     "monospace": "Courier",
     "cursive": "Snell Roundhand",
     "fantasy": "Papyrus",
-    "system-ui": "San Francisco",
+    "system-ui": "system",
     "ui-serif": "Times New Roman",
-    "ui-sans-serif": "San Francisco",
+    "ui-sans-serif": "system",
     "ui-monospace": "Menlo",
     "ui-rounded": "SF Rounded",
     "emoji": "Apple Color Emoji",
@@ -910,6 +910,15 @@ public class NSCFontFace: NSObject {
           return nil
         }
         
+        // "system" is a sentinel for system-ui / ui-sans-serif
+        if name == "system" {
+          let systemFont = UIFont.systemFont(ofSize: 16, weight: weight.uiFontWeight)
+          self.font = CTFontCopyGraphicsFont(systemFont, nil)
+          self.uiFont = systemFont
+          self.status = .loaded
+          self.owner?.syncFontMetrics()
+          return nil
+        }
         
         guard let newFont = UIFont(name: name, size: 16) else {
           let font = UIFont.systemFont(ofSize: 16)

@@ -28,7 +28,7 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   
   let document = NSCMason.shared.createDocument()
   
-  let body = NSCMason.shared.createView()
+  let body = NSCMason.shared.createScrollView()
   
   var mason: NSCMason {
     get {
@@ -199,487 +199,574 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
   // MARK: - Web-like Text Sample
 
   func webTextSample() {
-    let root = mason.createScrollView()
-    root.style.overflowY = .Scroll
-    
-//    root.setSize(
-//      Float(view.frame.width * UIScreen.main.scale),
-//      Float(view.frame.height * UIScreen.main.scale)
-//    )
-//
-
-
-    // --- H1 heading ---
-    let h1 = mason.createTextView(type: .H1)
-    h1.append(text: "Mason Layout Engine")
-    
-    root.append(h1)
-    
-
-
-    // --- Paragraph with inline styles ---
-    let p1 = mason.createTextView(type: .P)
-    p1.append(text: "Mason is a ")
-
-    let bold = mason.createTextView(type: .Strong)
-    bold.append(text: "CSS-like layout engine")
-    p1.append(bold)
-
-    p1.append(text: " that brings ")
-
-    let italic = mason.createTextView(type: .Em)
-    italic.append(text: "web-standard")
-    p1.append(italic)
-
-    p1.append(text: " layouts to native iOS and Android views.")
-    root.append(p1)
-
-    // --- H2 heading ---
-    let h2 = mason.createTextView(type: .H2)
-    h2.append(text: "Features")
-    root.append(h2)
-
-    // --- Paragraph with nested inline elements ---
-    let p2 = mason.createTextView(type: .P)
-    p2.append(text: "Supports ")
-
-    let code1 = mason.createTextView(type: .Code)
-    code1.append(text: "flexbox")
-    code1.style.backgroundColor = 0xFFE8E8EC
-    p2.append(code1)
-
-    p2.append(text: ", ")
-
-    let code2 = mason.createTextView(type: .Code)
-    code2.append(text: "grid")
-    code2.style.backgroundColor = 0xFFE8E8EC
-    p2.append(code2)
-
-    p2.append(text: ", and ")
-
-    let code3 = mason.createTextView(type: .Code)
-    code3.append(text: "block")
-    code3.style.backgroundColor = 0xFFE8E8EC
-    p2.append(code3)
-
-    p2.append(text: " layouts with full CSS text rendering including ")
-
-    let underlined = mason.createTextView(type: .Span)
-    underlined.append(text: "underline")
-    underlined.decorationLine = .Underline
-    p2.append(underlined)
-
-    p2.append(text: ", ")
-
-    let colored = mason.createTextView(type: .Span)
-    colored.append(text: "color")
-    colored.setColor(ui: .systemBlue)
-    p2.append(colored)
-
-    p2.append(text: ", and ")
-
-    let boldItalic = mason.createTextView(type: .Span)
-    boldItalic.append(text: "bold italic")
-    boldItalic.fontWeight = "bold"
-    boldItalic.fontStyle = .Italic
-    p2.append(boldItalic)
-
-    p2.append(text: " text.")
-    root.append(p2)
-
-    // --- H3 heading ---
-    let h3 = mason.createTextView(type: .H3)
-    h3.append(text: "How it works")
-    root.append(h3)
-
-    // --- Paragraph ---
-    let p3 = mason.createTextView(type: .P)
-    p3.append(text: "The layout tree is computed by ")
-
-    let taffyLink = mason.createTextView(type: .A)
-    taffyLink.append(text: "Taffy")
-    taffyLink.setColor(ui: .link)
-    taffyLink.decorationLine = .Underline
-    p3.append(taffyLink)
-
-    p3.append(text: ", a Rust-based layout engine, and the results are applied to native UIView frames. Text measurement uses Core Text for pixel-perfect rendering.")
-    root.append(p3)
-
-    // --- Blockquote ---
-    let bq = mason.createTextView(type: .Blockquote)
-    bq.style.border = "0 0 0 3px solid #666666"
-    bq.style.paddingLeft = .Points(12 * scale)
-    bq.style.marginTop = .Points(8 * scale)
-    bq.style.marginBottom = .Points(8 * scale)
-
-    let bqText = mason.createTextView(type: .Em)
-    bqText.append(text: "\"Any application that can be written in JavaScript, will eventually be written in JavaScript.\"")
-    bqText.setColor(ui: .darkGray)
-    bq.append(bqText)
-    root.append(bq)
-
-    // --- Pre/Code block ---
-    let h3Code = mason.createTextView(type: .H3)
-    h3Code.append(text: "Example")
-    root.append(h3Code)
-
-    let pre = mason.createTextView(type: .Pre)
-    pre.style.backgroundColor = 0xFFF5F5F5
-    pre.style.padding = MasonRect(uniform: .Points(12 * scale))
-    pre.style.borderRadius = "4px"
-    pre.style.border = "1px solid #E0E0E0"
-    pre.fontSize = 13
-    pre.style.fontFamily = "'Courier New', monospace"
-    pre.append(text: """
-    let body = mason.createView()
-    let h1 = mason.createTextView(type: .H1)
-    h1.append(text: "Hello World")
-    body.append(h1)
-    """)
-    root.append(pre)
+    let root = mason.createView()
+    body.style.overflowY = .Scroll
+    root.style.background = "#FAFBFC"
 
     // ============================================================
-    // MARK: Inline-Block Demo
+    // MARK: Hero Section with Full-Bleed Image
     // ============================================================
-    let h3InlineBlock = mason.createTextView(type: .H3)
-    h3InlineBlock.append(text: "Inline Block")
-    root.append(h3InlineBlock)
+    let heroContainer = mason.createView()
+    heroContainer.display = .Flex
+    heroContainer.flexDirection = .Column
+    heroContainer.style.setSizeWidth(1, 2) // 100%
+    heroContainer.style.setSizeHeight(toPx(380), 1)
+    heroContainer.style.position = .Relative
 
-    // Use a flex row container so non-text views render alongside text
-    let ibRow = mason.createView()
-    ibRow.display = .Flex
-    ibRow.flexDirection = .Row
-    ibRow.flexWrap = .Wrap
-    ibRow.style.alignItems = .Center
-    ibRow.style.gap = MasonSize(MasonLengthPercentage.Points(4 * scale), MasonLengthPercentage.Points(4 * scale))
-    ibRow.style.marginBottom = .Points(8 * scale)
+    // Hero background image
+    let heroImageView = mason.createImageView()
+    heroImageView.style.position = .Absolute
+    heroImageView.style.inset = MasonRect(.Points(0), .Points(0), .Points(0), .Points(0))
+    heroImageView.style.setSizeWidth(1, 2) // 100%
+    heroImageView.style.setSizeHeight(1, 2) // 100%
+    heroImageView.style.objectFit = .Cover
+    loadImage("https://picsum.photos/800/600?random=1", imageInstance: heroImageView, parent: heroContainer)
+    heroContainer.addView(heroImageView)
 
-    let ibLabel1 = mason.createTextView(type: .P)
-    ibLabel1.append(text: "Text before")
-    ibRow.addView(ibLabel1)
+    // Gradient overlay
+    let heroOverlay = mason.createView()
+    heroOverlay.style.position = .Absolute
+    heroOverlay.style.inset = MasonRect(.Points(0), .Points(0), .Points(0), .Points(0))
+    heroOverlay.style.background = "linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)"
+    heroContainer.addView(heroOverlay)
 
-    let ib1 = mason.createView()
-    ib1.display = .InlineBlock
-    ib1.setSize(80 * scale, 30 * scale)
-    ib1.style.background = "#E3F2FD"
-    ib1.style.border = "1px solid #90CAF9"
-    ib1.style.borderRadius = "4px"
-    ibRow.addView(ib1)
+    // Hero content
+    let heroContent = mason.createView()
+    heroContent.display = .Flex
+    heroContent.flexDirection = .Column
+    heroContent.style.justifyContent = .FlexEnd
+    heroContent.style.position = .Absolute
+    heroContent.style.inset = MasonRect(.Points(0), .Points(0), .Points(0), .Points(0))
+    heroContent.style.padding = MasonRect(
+      .Points(0),
+      .Points(toPx(24)),
+      .Points(toPx(32)),
+      .Points(toPx(24))
+    )
 
-    let ibLabel2 = mason.createTextView(type: .P)
-    ibLabel2.append(text: "middle text")
-    ibRow.addView(ibLabel2)
+    let heroTag = mason.createTextView(type: .Span)
+    heroTag.append(text: "FEATURED DESTINATION")
+    heroTag.style.setColor(css: "#FFFFFF")
+    heroTag.fontSize = 11
+    heroTag.fontWeight = "600"
+    heroTag.style.marginBottom = .Points(toPx(8))
+    heroContent.addView(heroTag)
 
-    let ib2 = mason.createView()
-    ib2.display = .InlineBlock
-    ib2.setSize(60 * scale, 30 * scale)
-    ib2.style.background = "#FCE4EC"
-    ib2.style.border = "1px solid #F48FB1"
-    ib2.style.borderRadius = "4px"
-    ibRow.addView(ib2)
+    let heroTitle = mason.createTextView(type: .H1)
+    heroTitle.append(text: "Discover the World")
+    heroTitle.style.setColor(css: "#FFFFFF")
+    heroTitle.fontSize = 32
+    heroTitle.fontWeight = "bold"
+    heroTitle.style.marginBottom = .Points(toPx(8))
+    heroContent.addView(heroTitle)
 
-    let ibLabel3 = mason.createTextView(type: .P)
-    ibLabel3.append(text: "and text after.")
-    ibRow.addView(ibLabel3)
+    let heroSubtitle = mason.createTextView(type: .P)
+    heroSubtitle.append(text: "Explore breathtaking destinations and create unforgettable memories")
+    heroSubtitle.style.setColor(css: "rgba(255,255,255,0.9)")
+    heroSubtitle.fontSize = 16
+    heroContent.addView(heroSubtitle)
 
-    root.append(ibRow)
+    heroContainer.addView(heroContent)
+    root.append(heroContainer)
 
     // ============================================================
-    // MARK: Inline-Flex Demo
+    // MARK: Stats Bar
     // ============================================================
-    let h3InlineFlex = mason.createTextView(type: .H3)
-    h3InlineFlex.append(text: "Inline Flex")
-    root.append(h3InlineFlex)
+    let statsBar = mason.createView()
+    statsBar.display = .Flex
+    statsBar.flexDirection = .Row
+    statsBar.style.justifyContent = .SpaceAround
+    statsBar.style.alignItems = .Center
+    statsBar.style.padding = MasonRect(uniform: .Points(toPx(20)))
+    statsBar.style.background = "#FFFFFF"
+    statsBar.style.border = "0 0 1px 0 solid #E5E7EB"
 
-    // Flex row: text label, then an inline-flex container with colored chips, then more text
-    let ifRow = mason.createView()
-    ifRow.display = .Flex
-    ifRow.flexDirection = .Row
-    ifRow.flexWrap = .Wrap
-    ifRow.style.alignItems = .Center
-    ifRow.style.gap = MasonSize(MasonLengthPercentage.Points(4 * scale), MasonLengthPercentage.Points(4 * scale))
-    ifRow.style.marginBottom = .Points(8 * scale)
+    let statsData = [
+      ("2.4M+", "Users"),
+      ("150K", "Reviews"),
+      ("4.9", "Rating")
+    ]
 
-    let ifLabel1 = mason.createTextView(type: .P)
-    ifLabel1.append(text: "An inline-flex container:")
-    ifRow.addView(ifLabel1)
+    for (value, label) in statsData {
+      let statItem = mason.createView()
+      statItem.display = .Flex
+      statItem.flexDirection = .Column
+      statItem.style.alignItems = .Center
 
-    let ifBox = mason.createView()
-    ifBox.display = .InlineFlex
-    ifBox.flexDirection = .Row
-    ifBox.style.gap = MasonSize(MasonLengthPercentage.Points(4 * scale), MasonLengthPercentage.Points(4 * scale))
-    ifBox.style.padding = MasonRect(uniform: .Points(4 * scale))
-    ifBox.style.background = "#E8F5E9"
-    ifBox.style.border = "1px solid #A5D6A7"
-    ifBox.style.borderRadius = "4px"
+      let statValue = mason.createTextView(type: .Span)
+      statValue.append(text: value)
+      statValue.fontSize = 22
+      statValue.fontWeight = "bold"
+      statValue.style.setColor(css: "#1E293B")
+      statItem.addView(statValue)
 
-    for color in ["#EF5350", "#42A5F5", "#66BB6A"] {
-      let chip = mason.createView()
-      chip.setSize(24 * scale, 24 * scale)
-      chip.style.background = color
-      chip.style.borderRadius = "4px"
-      ifBox.addView(chip)
+      let statLabel = mason.createTextView(type: .Span)
+      statLabel.append(text: label)
+      statLabel.fontSize = 12
+      statLabel.style.setColor(css: "#64748B")
+      statItem.addView(statLabel)
+
+      statsBar.addView(statItem)
     }
-    ifRow.addView(ifBox)
-
-    let ifLabel2 = mason.createTextView(type: .P)
-    ifLabel2.append(text: "sits inline with text.")
-    ifRow.addView(ifLabel2)
-
-    root.append(ifRow)
+    root.append(statsBar)
 
     // ============================================================
-    // MARK: Inline-Grid Demo
+    // MARK: Section - Popular Destinations
     // ============================================================
-    let h3InlineGrid = mason.createTextView(type: .H3)
-    h3InlineGrid.append(text: "Inline Grid")
-    root.append(h3InlineGrid)
+    let destSection = mason.createView()
+    destSection.style.padding = MasonRect(uniform: .Points(toPx(24)))
 
-    // Flex row: text label, then an inline-grid 2×2 box, then more text
-    let igRow = mason.createView()
-    igRow.display = .Flex
-    igRow.flexDirection = .Row
-    igRow.flexWrap = .Wrap
-    igRow.style.alignItems = .Center
-    igRow.style.gap = MasonSize(MasonLengthPercentage.Points(4 * scale), MasonLengthPercentage.Points(4 * scale))
-    igRow.style.marginBottom = .Points(8 * scale)
+    let destHeader = mason.createView()
+    destHeader.display = .Flex
+    destHeader.flexDirection = .Row
+    destHeader.style.justifyContent = .SpaceBetween
+    destHeader.style.alignItems = .Center
+    destHeader.style.marginBottom = .Points(toPx(16))
 
-    let igLabel1 = mason.createTextView(type: .P)
-    igLabel1.append(text: "A 2×2 inline-grid:")
-    igRow.addView(igLabel1)
+    let destTitle = mason.createTextView(type: .H2)
+    destTitle.append(text: "Popular Destinations")
+    destTitle.fontSize = 22
+    destTitle.fontWeight = "bold"
+    destTitle.style.setColor(css: "#1E293B")
+    destHeader.addView(destTitle)
 
-    let igBox = mason.createView()
-    igBox.display = .InlineGrid
-    igBox.style.gridTemplateColumns = "1fr 1fr"
-    igBox.style.gap = MasonSize(MasonLengthPercentage.Points(2 * scale), MasonLengthPercentage.Points(2 * scale))
-    igBox.style.padding = MasonRect(uniform: .Points(4 * scale))
-    igBox.style.background = "#FFF3E0"
-    igBox.style.border = "1px solid #FFCC80"
-    igBox.style.borderRadius = "4px"
+    let viewAllLink = mason.createTextView(type: .A)
+    viewAllLink.append(text: "View All")
+    viewAllLink.fontSize = 14
+    viewAllLink.fontWeight = "600"
+    viewAllLink.style.setColor(css: "#3B82F6")
+    destHeader.addView(viewAllLink)
 
-    for color in ["#FF7043", "#FFA726", "#FFCA28", "#66BB6A"] {
-      let cell = mason.createView()
-      cell.setSize(20 * scale, 20 * scale)
-      cell.style.background = color
-      cell.style.borderRadius = "2px"
-      igBox.addView(cell)
+    destSection.addView(destHeader)
+
+    // Destinations Grid - 2x2
+    let destGrid = mason.createView()
+    destGrid.display = .Grid
+    destGrid.style.gridTemplateColumns = "1fr 1fr"
+    destGrid.style.gap = MasonSize(MasonLengthPercentage.Points(toPx(12)), MasonLengthPercentage.Points(toPx(12)))
+
+    let destinations = [
+      ("Paris", "France", "https://picsum.photos/400/300?random=10"),
+      ("Tokyo", "Japan", "https://picsum.photos/400/300?random=11"),
+      ("New York", "USA", "https://picsum.photos/400/300?random=12"),
+      ("London", "UK", "https://picsum.photos/400/300?random=13")
+    ]
+
+    for (city, country, imageUrl) in destinations {
+      let card = mason.createView()
+      card.display = .Flex
+      card.flexDirection = .Column
+      card.style.borderRadius = "\(toPx(16))px"
+      card.style.overflow = MasonPoint(uniform: .Clip)
+      card.style.setSizeHeight(toPx(200), 1)
+      card.style.position = .Relative
+
+      // Full-bleed background image
+      let cardImage = mason.createImageView()
+      cardImage.style.position = .Absolute
+      cardImage.style.inset = MasonRect(.Points(0), .Points(0), .Points(0), .Points(0))
+      cardImage.style.setSizeWidth(1, 2)
+      cardImage.style.setSizeHeight(1, 2)
+      cardImage.style.objectFit = .Cover
+      loadImage(imageUrl, imageInstance: cardImage, parent: card)
+      card.addView(cardImage)
+
+      // Gradient overlay for text readability
+      let cardOverlay = mason.createView()
+      cardOverlay.style.position = .Absolute
+      cardOverlay.style.inset = MasonRect(.Points(0), .Points(0), .Points(0), .Points(0))
+      cardOverlay.style.background = "linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.6) 100%)"
+      card.addView(cardOverlay)
+
+      // Text content positioned at bottom
+      let cardContent = mason.createView()
+      cardContent.display = .Flex
+      cardContent.flexDirection = .Column
+      cardContent.style.justifyContent = .FlexEnd
+      cardContent.style.position = .Absolute
+      cardContent.style.inset = MasonRect(.Points(0), .Points(0), .Points(0), .Points(0))
+      cardContent.style.padding = MasonRect(uniform: .Points(toPx(16)))
+
+      let cardTitle = mason.createTextView(type: .H3)
+      cardTitle.append(text: city)
+      cardTitle.fontSize = 20
+      cardTitle.fontWeight = "700"
+      cardTitle.style.setColor(css: "#FFFFFF")
+      cardContent.addView(cardTitle)
+
+      let cardSubtitle = mason.createTextView(type: .P)
+      cardSubtitle.append(text: country)
+      cardSubtitle.fontSize = 14
+      cardSubtitle.style.setColor(css: "#E2E8F0")
+      cardContent.addView(cardSubtitle)
+
+      card.addView(cardContent)
+      destGrid.addView(card)
     }
-    igRow.addView(igBox)
 
-    let igLabel2 = mason.createTextView(type: .P)
-    igLabel2.append(text: "embedded in text flow.")
-    igRow.addView(igLabel2)
-
-    root.append(igRow)
+    destSection.addView(destGrid)
+    root.append(destSection)
 
     // ============================================================
-    // MARK: Mixed Display Types
+    // MARK: Feature Showcase Card
     // ============================================================
-    let h3Mixed = mason.createTextView(type: .H3)
-    h3Mixed.append(text: "Mixed Display Types")
-    root.append(h3Mixed)
+    let featureSection = mason.createView()
+    featureSection.style.padding = MasonRect(
+      .Points(0),
+      .Points(toPx(24)),
+      .Points(toPx(24)),
+      .Points(toPx(24))
+    )
 
-    let pMixedDesc = mason.createTextView(type: .P)
-    pMixedDesc.append(text: "A flex container holding block, inline-block, and inline-flex children side by side:")
-    root.append(pMixedDesc)
+    let featureCard = mason.createView()
+    featureCard.display = .Flex
+    featureCard.flexDirection = .Column
+    featureCard.style.background = "#0F172A"
+    featureCard.style.borderRadius = "\(toPx(20))px"
+    featureCard.style.padding = MasonRect(uniform: .Points(toPx(24)))
 
-    let mixedContainer = mason.createView()
-    mixedContainer.display = .Flex
-    mixedContainer.flexDirection = .Row
-    mixedContainer.flexWrap = .Wrap
-    mixedContainer.style.alignItems = .Center
-    mixedContainer.style.gap = MasonSize(MasonLengthPercentage.Points(8 * scale), MasonLengthPercentage.Points(8 * scale))
-    mixedContainer.style.padding = MasonRect(uniform: .Points(8 * scale))
-    mixedContainer.style.background = "#F5F5F5"
-    mixedContainer.style.borderRadius = "4px"
-    mixedContainer.style.marginBottom = .Points(8 * scale)
+    let featureLabel = mason.createTextView(type: .Span)
+    featureLabel.append(text: "WHY CHOOSE US")
+    featureLabel.fontSize = 11
+    featureLabel.fontWeight = "600"
+    featureLabel.style.setColor(css: "#60A5FA")
+    featureLabel.style.marginBottom = .Points(toPx(12))
+    featureCard.addView(featureLabel)
 
-    // Block child
-    let blockChild = mason.createView()
-    blockChild.display = .Block
-    blockChild.setSize(60 * scale, 40 * scale)
-    blockChild.style.background = "#1565C0"
-    blockChild.style.borderRadius = "4px"
-    mixedContainer.addView(blockChild)
+    let featureTitle = mason.createTextView(type: .H2)
+    featureTitle.append(text: "Travel with Confidence")
+    featureTitle.fontSize = 24
+    featureTitle.fontWeight = "bold"
+    featureTitle.style.setColor(css: "#FFFFFF")
+    featureTitle.style.marginBottom = .Points(toPx(12))
+    featureCard.addView(featureTitle)
 
-    // Inline-block child
-    let ibChild = mason.createView()
-    ibChild.display = .InlineBlock
-    ibChild.setSize(60 * scale, 40 * scale)
-    ibChild.style.background = "#C62828"
-    ibChild.style.borderRadius = "4px"
-    mixedContainer.addView(ibChild)
+    let featureDesc = mason.createTextView(type: .P)
+    featureDesc.append(text: "Expert local guides, 24/7 support, and flexible booking options make your journey seamless.")
+    featureDesc.fontSize = 15
+    featureDesc.style.setColor(css: "#94A3B8")
+    featureDesc.style.marginBottom = .Points(toPx(20))
+    featureCard.addView(featureDesc)
 
-    // Inline-flex child with 2 sub-items
-    let ifChild = mason.createView()
-    ifChild.display = .InlineFlex
-    ifChild.flexDirection = .Column
-    ifChild.style.gap = MasonSize(MasonLengthPercentage.Points(2 * scale), MasonLengthPercentage.Points(2 * scale))
-    ifChild.style.padding = MasonRect(uniform: .Points(4 * scale))
-    ifChild.style.background = "#2E7D32"
-    ifChild.style.borderRadius = "4px"
-    for _ in 0..<2 {
-      let sub = mason.createView()
-      sub.setSize(50 * scale, 16 * scale)
-      sub.style.background = "#A5D6A7"
-      sub.style.borderRadius = "2px"
-      ifChild.addView(sub)
+    // Feature icons row
+    let featureIcons = mason.createView()
+    featureIcons.display = .Flex
+    featureIcons.flexDirection = .Row
+    featureIcons.style.gap = MasonSize(MasonLengthPercentage.Points(toPx(16)), MasonLengthPercentage.Points(0))
+
+    let features = ["🛡️ Secure", "⭐ Rated", "🌍 Global"]
+    for feature in features {
+      let featureItem = mason.createTextView(type: .Span)
+      featureItem.append(text: feature)
+      featureItem.fontSize = 13
+      featureItem.style.setColor(css: "#CBD5E1")
+      featureItem.style.flexShrink = 0
+      featureIcons.addView(featureItem)
     }
-    mixedContainer.addView(ifChild)
+    featureCard.addView(featureIcons)
 
-    // Inline-grid child with 2x2
-    let igChild = mason.createView()
-    igChild.display = .InlineGrid
-    igChild.style.gridTemplateColumns = "1fr 1fr"
-    igChild.style.gap = MasonSize(MasonLengthPercentage.Points(2 * scale), MasonLengthPercentage.Points(2 * scale))
-    igChild.style.padding = MasonRect(uniform: .Points(4 * scale))
-    igChild.style.background = "#E65100"
-    igChild.style.borderRadius = "4px"
-    for _ in 0..<4 {
-      let sub = mason.createView()
-      sub.setSize(16 * scale, 16 * scale)
-      sub.style.background = "#FFCC80"
-      sub.style.borderRadius = "2px"
-      igChild.addView(sub)
+    featureSection.addView(featureCard)
+    root.append(featureSection)
+
+    // ============================================================
+    // MARK: Testimonials
+    // ============================================================
+    let testimonialSection = mason.createView()
+    testimonialSection.style.padding = MasonRect(
+      .Points(0),
+      .Points(toPx(24)),
+      .Points(toPx(24)),
+      .Points(toPx(24))
+    )
+
+    let testimonialTitle = mason.createTextView(type: .H2)
+    testimonialTitle.append(text: "What Travelers Say")
+    testimonialTitle.fontSize = 22
+    testimonialTitle.fontWeight = "bold"
+    testimonialTitle.style.setColor(css: "#1E293B")
+    testimonialTitle.style.marginBottom = .Points(toPx(16))
+    testimonialSection.addView(testimonialTitle)
+
+    // Testimonial cards
+    let testimonials = [
+      ("Sarah M.", "Amazing experience! The app made planning so easy.", "https://i.pravatar.cc/\(Int(toPx(100)))?img=1"),
+      ("James K.", "Best travel app I've ever used. Highly recommend!", "https://i.pravatar.cc/\(Int(toPx(100)))?img=3")
+    ]
+
+    for (name, quote, avatarUrl) in testimonials {
+      let testimonialCard = mason.createView()
+      testimonialCard.display = .Flex
+      testimonialCard.flexDirection = .Row
+      testimonialCard.style.background = "#FFFFFF"
+      testimonialCard.style.borderRadius = "\(toPx(16))px"
+      testimonialCard.style.padding = MasonRect(uniform: .Points(toPx(16)))
+      testimonialCard.style.marginBottom = .Points(toPx(12))
+      testimonialCard.style.border = "1px solid #E5E7EB"
+
+      // Avatar
+      let avatarContainer = mason.createView()
+      avatarContainer.style.setSizeWidth(toPx(48), 1)
+      avatarContainer.style.setSizeHeight(toPx(48), 1)
+      avatarContainer.style.setMinSizeWidth(toPx(48), 1)
+      avatarContainer.style.setMinSizeHeight(toPx(48), 1)
+      avatarContainer.style.borderRadius = "50%"
+      avatarContainer.style.overflow = MasonPoint(.Hidden, .Hidden)
+      avatarContainer.clipsToBounds = true
+      avatarContainer.style.marginRight = .Points(toPx(12))
+      avatarContainer.style.flexShrink = 0
+      avatarContainer.style.position = .Relative
+
+      let avatar = mason.createImageView()
+      avatar.style.position = .Absolute
+      avatar.style.inset = MasonRect(.Points(0), .Points(0), .Points(0), .Points(0))
+      avatar.style.setSizeWidth(1, 2)
+      avatar.style.setSizeHeight(1, 2)
+      avatar.style.objectFit = .Cover
+      loadImage(avatarUrl, imageInstance: avatar, parent: avatarContainer)
+      avatarContainer.addView(avatar)
+      testimonialCard.addView(avatarContainer)
+
+      // Content
+      let testimonialContent = mason.createView()
+      testimonialContent.display = .Flex
+      testimonialContent.flexDirection = .Column
+      testimonialContent.style.flexGrow = 1
+
+      // Stars
+      let stars = mason.createTextView(type: .Span)
+      stars.append(text: "★★★★★")
+      stars.fontSize = 14
+      stars.style.setColor(css: "#FBBF24")
+      stars.style.marginBottom = .Points(toPx(4))
+      testimonialContent.addView(stars)
+
+      let quoteText = mason.createTextView(type: .P)
+      quoteText.append(text: "\"\(quote)\"")
+      quoteText.fontSize = 14
+      quoteText.style.setColor(css: "#475569")
+      quoteText.style.marginBottom = .Points(toPx(8))
+      testimonialContent.addView(quoteText)
+
+      let authorName = mason.createTextView(type: .Span)
+      authorName.append(text: name)
+      authorName.fontSize = 13
+      authorName.fontWeight = "600"
+      authorName.style.setColor(css: "#1E293B")
+      testimonialContent.addView(authorName)
+
+      testimonialCard.addView(testimonialContent)
+      testimonialSection.addView(testimonialCard)
     }
-    mixedContainer.addView(igChild)
-
-    root.append(mixedContainer)
-
-    // Labels for the mixed container
-    let pMixedLabels = mason.createTextView(type: .P)
-    pMixedLabels.fontSize = 12
-    pMixedLabels.append(text: "Blue = block, Red = inline-block, Green = inline-flex (column), Orange = inline-grid (2×2)")
-    pMixedLabels.setColor(ui: .gray)
-    root.append(pMixedLabels)
+    root.append(testimonialSection)
 
     // ============================================================
-    // MARK: Unordered List (static items via addView)
+    // MARK: Travel Gallery
     // ============================================================
-    let h3UL = mason.createTextView(type: .H3)
-    h3UL.append(text: "Unordered List (Static)")
-    root.append(h3UL)
+    let gallerySection = mason.createView()
+    gallerySection.style.padding = MasonRect(
+      .Points(0),
+      .Points(toPx(24)),
+      .Points(toPx(24)),
+      .Points(toPx(24))
+    )
 
-    let ul = mason.createListView(isOrdered: false)
-    ul.style.marginBottom = .Points(8 * scale)
+    let galleryTitle = mason.createTextView(type: .H2)
+    galleryTitle.append(text: "Travel Gallery")
+    galleryTitle.fontSize = 22
+    galleryTitle.fontWeight = "bold"
+    galleryTitle.style.setColor(css: "#1E293B")
+    galleryTitle.style.marginBottom = .Points(toPx(16))
+    gallerySection.addView(galleryTitle)
 
-    // Static items added via addView (pushes to end)
-    let ulItem1 = mason.createListItem()
-    let ulText1 = mason.createTextView(type: .P)
-    ulText1.append(text: "First static item (bullet)")
-    ulItem1.append(ulText1)
-    ul.addView(ulItem1)
+    // Masonry-style gallery using two flex columns
+    let galleryGrid = mason.createView()
+    galleryGrid.display = .Flex
+    galleryGrid.flexDirection = .Row
+    galleryGrid.style.gap = MasonSize(MasonLengthPercentage.Points(toPx(8)), MasonLengthPercentage.Points(0))
 
-    let ulItem2 = mason.createListItem()
-    let ulText2 = mason.createTextView(type: .P)
-    ulText2.append(text: "Second static item (bullet)")
-    ulItem2.append(ulText2)
-    ul.addView(ulItem2)
+    var random = SystemRandomNumberGenerator()
+    let h150 = Int(toPx(150))
+    let h100 = Int(toPx(100))
 
-    let ulItem3 = mason.createListItem()
-    let ulText3 = mason.createTextView(type: .P)
-    ulText3.append(text: "Third static item")
-    ulItem3.append(ulText3)
-    ul.addView(ulItem3)
+    // Column 1: 150px then 100px
+    let col1 = mason.createView()
+    col1.display = .Flex
+    col1.flexDirection = .Column
+    col1.style.flexGrow = 1
+    col1.style.flexBasis = .Points(0)
+    col1.style.gap = MasonSize(MasonLengthPercentage.Points(0), MasonLengthPercentage.Points(toPx(8)))
 
-    ul.reload()
-    root.append(ul)
+    // Column 2: 100px then 150px
+    let col2 = mason.createView()
+    col2.display = .Flex
+    col2.flexDirection = .Column
+    col2.style.flexGrow = 1
+    col2.style.flexBasis = .Points(0)
+    col2.style.gap = MasonSize(MasonLengthPercentage.Points(0), MasonLengthPercentage.Points(toPx(8)))
 
-    // ============================================================
-    // MARK: Ordered List (static + virtual interleaved)
-    // ============================================================
-    let h3OL = mason.createTextView(type: .H3)
-    h3OL.append(text: "Ordered List (Mixed Static + Virtual)")
-    root.append(h3OL)
+    let galleryImages: [(String, Int, MasonUIView)] = [
+      ("https://picsum.photos/seed/\(random.next())/\(h150)/\(h150)", 150, col1),
+      ("https://picsum.photos/seed/\(random.next())/\(h100)/\(h100)", 100, col2),
+      ("https://picsum.photos/seed/\(random.next())/\(h100)/\(h100)", 100, col1),
+      ("https://picsum.photos/seed/\(random.next())/\(h150)/\(h150)", 150, col2)
+    ]
 
-    let pOLDesc = mason.createTextView(type: .P)
-    pOLDesc.fontSize = 13
-    pOLDesc.append(text: "Static items at positions 0 and 3, virtual items fill the rest:")
-    pOLDesc.setColor(ui: .gray)
-    root.append(pOLDesc)
+    for (imageUrl, height, column) in galleryImages {
+      let galleryItem = mason.createView()
+      galleryItem.style.height = .Points(toPx(Float(height)))
+      galleryItem.style.borderRadius = "\(toPx(12))px"
+      galleryItem.style.overflow = MasonPoint(uniform: .Clip)
+      galleryItem.style.position = .Relative
 
-    let ol = mason.createListView(isOrdered: true)
-    ol.style.marginBottom = .Points(8 * scale)
-    ol.delegate = self
-    olList = ol
+      let galleryImage = mason.createImageView()
+      galleryImage.style.position = .Absolute
+      galleryImage.style.inset = MasonRect(.Points(0), .Points(0), .Points(0), .Points(0))
+      galleryImage.style.setSizeWidth(1, 2)
+      galleryImage.style.setSizeHeight(1, 2)
+      galleryImage.style.objectFit = .Cover
+      loadImage(imageUrl, imageInstance: galleryImage, parent: galleryItem)
+      galleryItem.addView(galleryImage)
 
-    // Static item at position 0
-    let olItem1 = mason.createListItem()
-    let olText1 = mason.createTextView(type: .P)
-    olText1.append(text: "[Static] Install Mason via SPM")
-    olItem1.append(olText1)
-    ol.addView(olItem1, at: 0)
+      column.addView(galleryItem)
+    }
 
-    // Static item at position 3 (interleaved with virtual items)
-    let olItem2 = mason.createListItem()
-    let olText2 = mason.createTextView(type: .P)
-    olText2.append(text: "[Static] Run your layout")
-    olItem2.append(olText2)
-    ol.addView(olItem2, at: 3)
-
-    // 3 virtual items (fill positions 1, 2, 4)
-    ol.count = 3
-    olVirtualData = ["[Virtual] Create a layout tree", "[Virtual] Add text and views", "[Virtual] Call compute()"]
-    ol.register(cellClass: MasonList.MasonListCell.self, forCellWithReuseIdentifier: "default")
-    ol.reload()
-    root.append(ol)
-
-    // ============================================================
-    // MARK: Horizontal Rule
-    // ============================================================
-    let hr = mason.createView()
-    hr.style.setSizeHeight(Float(1 * scale), 1)
-    hr.style.setSizeWidth(1, 2) // 100%
-    hr.style.background = "#BDBDBD"
-    hr.style.marginTop = .Points(16 * scale)
-    hr.style.marginBottom = .Points(16 * scale)
-    root.append(hr)
+    galleryGrid.addView(col1)
+    galleryGrid.addView(col2)
+    gallerySection.addView(galleryGrid)
+    root.append(gallerySection)
 
     // ============================================================
-    // MARK: Nested Inline Styles
+    // MARK: CTA Section
     // ============================================================
-    let h3Nested = mason.createTextView(type: .H3)
-    h3Nested.append(text: "Nested Inline Styles")
-    root.append(h3Nested)
+    let ctaSection = mason.createView()
+    ctaSection.display = .Flex
+    ctaSection.flexDirection = .Column
+    ctaSection.style.alignItems = .Center
+    ctaSection.style.padding = MasonRect(uniform: .Points(toPx(32)))
+    ctaSection.style.margin = MasonRect(
+      .Points(0),
+      .Points(toPx(24)),
+      .Points(toPx(24)),
+      .Points(toPx(24))
+    )
+    ctaSection.style.background = "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)"
+    ctaSection.style.borderRadius = "\(toPx(20))px"
 
-    let pNested = mason.createTextView(type: .P)
-    pNested.append(text: "This paragraph has ")
+    let ctaTitle = mason.createTextView(type: .H2)
+    ctaTitle.append(text: "Start Your Journey")
+    ctaTitle.fontSize = 26
+    ctaTitle.fontWeight = "bold"
+    ctaTitle.style.setColor(css: "#FFFFFF")
+    ctaTitle.style.marginBottom = .Points(toPx(8))
+    ctaSection.addView(ctaTitle)
 
-    let nestedStrong = mason.createTextView(type: .Strong)
+    let ctaSubtitle = mason.createTextView(type: .P)
+    ctaSubtitle.append(text: "Join millions of happy travelers today")
+    ctaSubtitle.fontSize = 15
+    ctaSubtitle.style.setColor(css: "rgba(255,255,255,0.9)")
+    ctaSubtitle.style.marginBottom = .Points(toPx(20))
+    ctaSection.addView(ctaSubtitle)
 
-    let nestedEm = mason.createTextView(type: .Em)
-    nestedEm.append(text: "bold italic")
-    nestedStrong.append(nestedEm)
+    let ctaButton = mason.createButton()
+    ctaButton.append(text: "Get Started Free")
+    ctaButton.style.fontSize = 16
+    ctaButton.style.fontWeight = "600"
+    ctaButton.style.setColor(css: "#3B82F6")
+    ctaButton.style.background = "#FFFFFF"
+    ctaButton.style.borderRadius = "\(toPx(12))px"
+    ctaButton.style.border = "0"
+    ctaButton.style.padding = MasonRect(
+      .Points(toPx(14)),
+      .Points(toPx(32)),
+      .Points(toPx(14)),
+      .Points(toPx(32))
+    )
 
-    pNested.append(nestedStrong)
-    pNested.append(text: " text, a ")
+    ctaSection.addView(ctaButton)
+    root.append(ctaSection)
 
-    let nestedCode = mason.createTextView(type: .Code)
-    nestedCode.append(text: "inline code")
-    nestedCode.style.backgroundColor = 0xFFE8E8EC
-    pNested.append(nestedCode)
+    // ============================================================
+    // MARK: Footer
+    // ============================================================
+    let footer = mason.createView()
+    footer.display = .Flex
+    footer.flexDirection = .Column
+    footer.style.alignItems = .Center
+    footer.style.padding = MasonRect(
+      .Points(toPx(32)),
+      .Points(toPx(24)),
+      .Points(toPx(48)),
+      .Points(toPx(24))
+    )
+    footer.style.background = "#1E293B"
 
-    pNested.append(text: " snippet, and a ")
+    let footerLogo = mason.createTextView(type: .Span)
+    footerLogo.append(text: "✈ Wanderlust")
+    footerLogo.fontSize = 20
+    footerLogo.fontWeight = "bold"
+    footerLogo.style.setColor(css: "#FFFFFF")
+    footerLogo.style.marginBottom = .Points(toPx(16))
+    footer.addView(footerLogo)
 
-    let nestedLink = mason.createTextView(type: .A)
-    nestedLink.append(text: "hyperlink")
-    nestedLink.setColor(ui: .link)
-    nestedLink.decorationLine = .Underline
-    pNested.append(nestedLink)
+    let footerLinks = mason.createView()
+    footerLinks.display = .Flex
+    footerLinks.flexDirection = .Row
+    footerLinks.style.gap = MasonSize(MasonLengthPercentage.Points(toPx(24)), MasonLengthPercentage.Points(0))
+    footerLinks.style.marginBottom = .Points(toPx(16))
 
-    pNested.append(text: " all in one line.")
-    root.append(pNested)
+    for linkText in ["About", "Privacy", "Terms", "Contact"] {
+      let link = mason.createTextView(type: .A)
+      link.append(text: linkText)
+      link.fontSize = 14
+      link.style.setColor(css: "#94A3B8")
+      footerLinks.addView(link)
+    }
+    footer.addView(footerLinks)
+
+    let copyright = mason.createTextView(type: .P)
+    copyright.append(text: "© 2024 Wanderlust. All rights reserved.")
+    copyright.fontSize = 12
+    copyright.style.setColor(css: "#64748B")
+    footer.addView(copyright)
+
+    root.append(footer)
 
     body.append(root)
-    
-    
   }
 
   let urlSession: URLSession = {
-    return URLSession(configuration: .ephemeral)
+    return URLSession(configuration: .default)
   }()
   
   func loadImage(_ urlAddress: String, imageInstance: UIImageView, parent: UIView? = nil) {
+    guard let url = URL(string: urlAddress) else {
+      print("Invalid URL")
+      return
+    }
+    
+    // Asynchronous network call using URLSession
+    urlSession.dataTask(with: url) {  data, response, error in
+      // Check for errors
+      if let error = error {
+        print("Error loading image: \(error.localizedDescription)")
+        return
+      }
+      
+      // Validate data and convert it into an image
+      guard let data = data, let image = UIImage(data: data) else {
+        print("Unable to load image from data")
+        return
+      }
+      
+      // Update UI on the main thread
+      DispatchQueue.main.async {
+        imageInstance.image = image
+        parent!.setNeedsDisplay()
+      }
+    }.resume() // Don't forget to start the task!
+  }
+  
+  func loadImage(_ urlAddress: String, imageInstance: Img, parent: UIView? = nil) {
     guard let url = URL(string: urlAddress) else {
       print("Invalid URL")
       return

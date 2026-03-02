@@ -11,6 +11,8 @@
 		AA904E4C2DAF0EE300F22BE4 /* Mason.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = F184838C293534D800EC35F4 /* Mason.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F1047C672EDE8E3B00599B56 /* Button.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1047C662EDE8E0E00599B56 /* Button.swift */; };
 		F10A1B122F02684500888DDD /* Br.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10A1B112F02684200888DDD /* Br.swift */; };
+		F12BE0232F5425D0008C6B6B /* BoxShadowRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */; };
+		F12BE0252F544160008C6B6B /* MasonShadowLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12BE0242F544160008C6B6B /* MasonShadowLayer.swift */; };
 		F13289762F2AD6DE0026A7E2 /* SDWebImage in Frameworks */ = {isa = PBXBuildFile; productRef = F13289752F2AD6DE0026A7E2 /* SDWebImage */; };
 		F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016C2ECE04CB00D6CFD9 /* Background.swift */; };
 		F134016F2ECE04DD00D6CFD9 /* Border.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134016E2ECE04DC00D6CFD9 /* Border.swift */; };
@@ -130,6 +132,8 @@
 /* Begin PBXFileReference section */
 		F1047C662EDE8E0E00599B56 /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		F10A1B112F02684200888DDD /* Br.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Br.swift; sourceTree = "<group>"; };
+		F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxShadowRenderer.swift; sourceTree = "<group>"; };
+		F12BE0242F544160008C6B6B /* MasonShadowLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasonShadowLayer.swift; sourceTree = "<group>"; };
 		F134016C2ECE04CB00D6CFD9 /* Background.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Background.swift; sourceTree = "<group>"; };
 		F134016E2ECE04DC00D6CFD9 /* Border.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Border.swift; sourceTree = "<group>"; };
 		F13B6C7A2DC81AC400624D17 /* NSCFontFaceSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSCFontFaceSet.swift; sourceTree = "<group>"; };
@@ -305,6 +309,8 @@
 		F184838E293534D800EC35F4 /* Mason */ = {
 			isa = PBXGroup;
 			children = (
+				F12BE0242F544160008C6B6B /* MasonShadowLayer.swift */,
+				F12BE0222F5425D0008C6B6B /* BoxShadowRenderer.swift */,
 				F1903AC22F22115D00917254 /* MasonLi.swift */,
 				F1903AC02F22051D00917254 /* MasonList.swift */,
 				F16270A22F14996800ABE5FF /* MasonEventTarget.swift */,
@@ -663,6 +669,7 @@
 				F18C9B882E5199CA006E5561 /* MasonPoint.swift in Sources */,
 				F1EE40332ED666E500EAF4CC /* BorderParser.swift in Sources */,
 				F1F0AF3F2EB5D11D001F0C36 /* NodeUtils.swift in Sources */,
+				F12BE0232F5425D0008C6B6B /* BoxShadowRenderer.swift in Sources */,
 				F1F0AF042EA6C3E1001F0C36 /* SwiftHelpers.swift in Sources */,
 				F1EE93522E84BA4500DA90BB /* Extensions.swift in Sources */,
 				F1F4F1032F0F862C00FBA616 /* MasonNumberInput.swift in Sources */,
@@ -672,6 +679,7 @@
 				F18E99132DCB73FC0062B4F7 /* Img.swift in Sources */,
 				F18483DF29356CBF00EC35F4 /* Enums.swift in Sources */,
 				F18483DB29356C3A00EC35F4 /* MasonUIView.swift in Sources */,
+				F12BE0252F544160008C6B6B /* MasonShadowLayer.swift in Sources */,
 				F134016D2ECE04CE00D6CFD9 /* Background.swift in Sources */,
 				F18C9B862E5170CA006E5561 /* Scroll.swift in Sources */,
 				F10A1B122F02684500888DDD /* Br.swift in Sources */,

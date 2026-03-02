@@ -12,6 +12,15 @@ class Shadow {
     val color: Int
   )
 
+  data class BoxShadow(
+    val offsetX: Float,
+    val offsetY: Float,
+    val blurRadius: Float,
+    val spreadRadius: Float,
+    val color: Int,
+    val inset: Boolean
+  )
+
   companion object {
     fun parseTextShadow(style: Style, value: String): List<TextShadow> {
       return value.split(",").mapNotNull { shadow ->
@@ -57,5 +66,65 @@ class Shadow {
       }
     }
 
+    /**
+     * Parse CSS box-shadow value.
+     * Syntax: [inset] <offset-x> <offset-y> [blur-radius] [spread-radius] <color>
+     * Multiple shadows separated by commas are supported.
+     */
+    fun parseBoxShadow(style: Style, value: String): List<BoxShadow> {
+      return value.split(",").mapNotNull { shadow ->
+        try {
+          val tokens = shadow.trim().split(SPLIT_REGEX)
+          
+          var inset = false
+          var offsetX: Float? = null
+          var offsetY: Float? = null
+          var blur = 0f
+          var spread = 0f
+          var color: Int? = null
+          val lengths = mutableListOf<Float>()
+
+          for (token in tokens) {
+            // Check for inset keyword
+            if (token.equals("inset", ignoreCase = true)) {
+              inset = true
+              continue
+            }
+
+            // Try length first
+            val length = parseLength(style, token)
+            if (length != null) {
+              lengths.add(length)
+              continue
+            }
+
+            // Try color
+            val parsedColor = parseColor(token)
+            if (parsedColor != null) {
+              color = parsedColor
+            }
+          }
+
+          // Must have at least two lengths (offset-x and offset-y)
+          if (lengths.size < 2) return@mapNotNull null
+
+          offsetX = lengths[0]
+          offsetY = lengths[1]
+          if (lengths.size >= 3) blur = lengths[2].coerceAtLeast(0f)
+          if (lengths.size >= 4) spread = lengths[3]
+
+          BoxShadow(
+            offsetX = offsetX,
+            offsetY = offsetY,
+            blurRadius = blur,
+            spreadRadius = spread,
+            color = color ?: Color.BLACK,
+            inset = inset
+          )
+        } catch (_: Exception) {
+          null
+        }
+      }
+    }
   }
 }

@@ -442,11 +442,15 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
     }
 
     let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+    let hasBoxShadow = !style.boxShadows.isEmpty
 
     style.mBorderRender.resolve(for: bounds)
     let borderWidths = style.mBorderRender.cachedWidths
     let hasRadii = style.mBorderRender.hasRadii()
 
+    // Outset shadows are handled by MasonShadowLayer
+
+    // Block 1: Background with border-radius clip
     if hasBackground {
       let innerRect = bounds.inset(by: UIEdgeInsets(
         top: borderWidths.top,
@@ -466,6 +470,11 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       context.restoreGState()
     }
 
+    // Inset box shadows (render on top of background)
+    if hasBoxShadow {
+      style.mBoxShadowRenderer.drawInsetShadows(in: context, rect: bounds, borderRenderer: style.mBorderRender)
+    }
+
     switch(self.type){
     case .Radio, .Checkbox, .Range,.Color:
       break
@@ -474,7 +483,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
       break
     }
   }
-  
+
   private func measureText(_ text: String) -> CGSize {
     let attributes = node.getDefaultAttributes()
     let attString = NSAttributedString(string: text, attributes: attributes)
@@ -545,6 +554,7 @@ public class MasonInput: UIView,MasonEventTarget, MasonElement, StyleChangeListe
   
   public override func layoutSubviews() {
     super.layoutSubviews()
+    style.updateShadowLayer(for: bounds)
     autoComputeIfRoot()
     var inputSize = bounds
     if(!node.computedLayout.paddingIsEmpty){

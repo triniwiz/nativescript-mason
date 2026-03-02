@@ -56,7 +56,7 @@ class CSSFilters {
     ) : Filter()
   }
 
-  internal class BitmapPool(context: Context) {
+  class BitmapPool(context: Context) {
     // How many bytes this pool is allowed to use
     private val maxSizeBytes: Int
 

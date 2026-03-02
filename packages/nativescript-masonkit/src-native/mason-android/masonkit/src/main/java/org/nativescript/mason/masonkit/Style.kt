@@ -4,7 +4,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.text.TextPaint
-import android.util.Log
 import android.view.View
 import androidx.core.graphics.withClip
 import dalvik.annotation.optimization.FastNative
@@ -1742,6 +1741,61 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
   }
 
+
+  var marginTop: LengthPercentageAuto
+    get() {
+      return LengthPercentageAuto.fromTypeValue(
+        values.get(StyleKeys.MARGIN_TOP_TYPE), values.getFloat(StyleKeys.MARGIN_TOP_VALUE)
+      )!!
+    }
+    set(value) {
+      prepareMut()
+      values.put(StyleKeys.MARGIN_TOP_TYPE, value.type)
+      values.putFloat(StyleKeys.MARGIN_TOP_VALUE, value.value)
+      setOrAppendState(StateKeys.MARGIN)
+    }
+
+
+  var marginRight: LengthPercentageAuto
+    get() {
+      return LengthPercentageAuto.fromTypeValue(
+        values.get(StyleKeys.MARGIN_RIGHT_TYPE), values.getFloat(StyleKeys.MARGIN_RIGHT_VALUE)
+      )!!
+    }
+    set(value) {
+      prepareMut()
+      values.put(StyleKeys.MARGIN_RIGHT_TYPE, value.type)
+      values.putFloat(StyleKeys.MARGIN_RIGHT_VALUE, value.value)
+      setOrAppendState(StateKeys.MARGIN)
+    }
+
+  var marginBottom: LengthPercentageAuto
+    get() {
+      return LengthPercentageAuto.fromTypeValue(
+        values.get(StyleKeys.MARGIN_BOTTOM_TYPE), values.getFloat(StyleKeys.MARGIN_BOTTOM_VALUE)
+      )!!
+    }
+    set(value) {
+      prepareMut()
+      values.put(StyleKeys.MARGIN_BOTTOM_TYPE, value.type)
+      values.putFloat(StyleKeys.MARGIN_BOTTOM_VALUE, value.value)
+      setOrAppendState(StateKeys.MARGIN)
+    }
+
+  var marginLeft: LengthPercentageAuto
+    get() {
+      return LengthPercentageAuto.fromTypeValue(
+        values.get(StyleKeys.MARGIN_LEFT_TYPE), values.getFloat(StyleKeys.MARGIN_LEFT_VALUE)
+      )!!
+    }
+    set(value) {
+      prepareMut()
+      values.put(StyleKeys.MARGIN_LEFT_TYPE, value.type)
+      values.putFloat(StyleKeys.MARGIN_LEFT_VALUE, value.value)
+      setOrAppendState(StateKeys.MARGIN)
+    }
+
+
   var padding: Rect<LengthPercentage>
     get() {
       val left = LengthPercentage.fromTypeValue(
@@ -1871,10 +1925,27 @@ class Style internal constructor(@Transient internal var node: Node) {
     }
   }
 
-//  var boxShadow: String
-//    set(value) {
-//      field = value
-//    }
+  internal var boxShadows: List<Shadow.BoxShadow> = listOf()
+  private var mBoxShadowRaw: String = ""
+  internal val mBoxShadowRenderer by lazy {
+    BoxShadowRenderer(this)
+  }
+  var boxShadow: String
+    get() = mBoxShadowRaw
+    set(value) {
+      mBoxShadowRaw = value
+      boxShadows = Shadow.parseBoxShadow(this, value)
+      mBoxShadowRenderer.invalidate()
+      val view = node.view as? View
+      if (view != null) {
+        // Only disable clipping on immediate parent - parent draws child shadows
+        val parent = view.parent
+        if (parent is android.view.ViewGroup && boxShadows.any { !it.inset }) {
+          parent.clipChildren = false
+        }
+        view.invalidate()
+      }
+    }
 
   internal var textShadows: List<Shadow.TextShadow> = listOf()
   var textShadow: String = ""
@@ -3214,14 +3285,15 @@ class Style internal constructor(@Transient internal var node: Node) {
       }
     }
 
-  internal val resolvedBackgroundColor: Int
+  val resolvedBackgroundColor: Int
     get() {
+      // background-color is NOT inherited in CSS - each element has its own.
+      // Only return the color if explicitly set on this element.
       val state = textValues.get(TextStyleKeys.BACKGROUND_COLOR_STATE)
-      return if (state == StyleState.INHERIT) {
-        parentStyleWithTextValues?.resolvedBackgroundColor
-          ?: textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
-      } else {
+      return if (state == StyleState.SET) {
         textValues.getInt(TextStyleKeys.BACKGROUND_COLOR)
+      } else {
+        0 // transparent - do not inherit from parent
       }
     }
 
@@ -3450,24 +3522,29 @@ class Style internal constructor(@Transient internal var node: Node) {
       val padding = node.computedLayout.padding
       val border = node.computedLayout.border
 
-      val left = padding.left
-      val top = padding.top
-      val right = width - padding.right
-      val bottom = height - padding.bottom
-
-      // For content-box, subtract border
-      val contentLeft = left + border.left
-      val contentTop = top + border.top
-      val contentRight = right - border.right
-      val contentBottom = bottom - border.bottom
-
-
       when (clip) {
-        BackgroundClip.BORDER_BOX -> canvas.clipRect(left, top, right, bottom)
-        BackgroundClip.PADDING_BOX -> canvas.clipRect(left, top, right, bottom)
-        BackgroundClip.CONTENT_BOX -> canvas.clipRect(
-          contentLeft, contentTop, contentRight, contentBottom
-        )
+        BackgroundClip.BORDER_BOX -> {
+          // Border box = full view bounds
+          canvas.clipRect(0f, 0f, width, height)
+        }
+        BackgroundClip.PADDING_BOX -> {
+          // Padding box = inset by border widths
+          canvas.clipRect(
+            border.left,
+            border.top,
+            width - border.right,
+            height - border.bottom
+          )
+        }
+        BackgroundClip.CONTENT_BOX -> {
+          // Content box = inset by border + padding
+          canvas.clipRect(
+            border.left + padding.left,
+            border.top + padding.top,
+            width - border.right - padding.right,
+            height - border.bottom - padding.bottom
+          )
+        }
       }
     }
 
@@ -3494,12 +3571,16 @@ class Style internal constructor(@Transient internal var node: Node) {
         else -> false
       }
 
+      // If neither axis needs clipping, return early
+      if (!clipX && !clipY) return
+
       val clipLeft = if (clipX) padding.left else 0f
       val clipTop = if (clipY) padding.top else 0f
       val clipRight = if (clipX) width - padding.right else width
       val clipBottom = if (clipY) height - padding.bottom else height
 
-      canvas.withClip(clipLeft, clipTop, clipRight, clipBottom) {}
+      // Apply clip directly - caller is responsible for save/restore
+      canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
     }
 
     @FastNative

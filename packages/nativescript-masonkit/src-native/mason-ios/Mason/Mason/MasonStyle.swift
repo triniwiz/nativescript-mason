@@ -704,7 +704,7 @@ public class MasonStyle: NSObject {
   public init(node: MasonNode) {
     self.node = node
     super.init()
-    font =  NSCFontFace(family: "serif",owner: self)
+    font =  NSCFontFace(family: "sans-serif",owner: self)
     mBackground = Background(style: self)
   }
   
@@ -2318,6 +2318,54 @@ public class MasonStyle: NSObject {
       notifyTextStyleChanged(TextStyleChangeMasks.textShadow.rawValue)
     }
   }
+
+  internal var boxShadows: [BoxShadow] = []
+  internal lazy var mBoxShadowRenderer: BoxShadowRenderer = {
+    BoxShadowRenderer(style: self)
+  }()
+  
+  /// Shadow layer for rendering outset shadows outside view bounds
+  internal lazy var mShadowLayer: MasonShadowLayer = {
+    MasonShadowLayer(style: self)
+  }()
+  private var shadowLayerAdded = false
+  private weak var shadowLayerParent: CALayer?
+  
+  public var boxShadow: String = "" {
+    didSet {
+      boxShadows = ShadowParser.parseBoxShadow(style: self, value: boxShadow)
+      
+      if let view = node.view {
+        let hasOutsetShadows = boxShadows.contains { !$0.inset }
+        
+        if hasOutsetShadows {
+          // Add shadow layer to superview's layer so it can extend beyond view bounds
+          // without affecting the view's own clipping
+          if let superview = view.superview {
+            if !shadowLayerAdded || shadowLayerParent !== superview.layer {
+              mShadowLayer.removeFromSuperlayer()
+              superview.layer.insertSublayer(mShadowLayer, at: 0)
+              shadowLayerAdded = true
+              shadowLayerParent = superview.layer
+            }
+            mShadowLayer.updateBounds(viewBounds: view.bounds, viewFrame: view.frame)
+          }
+        } else if shadowLayerAdded {
+          mShadowLayer.isHidden = true
+        }
+        
+        view.setNeedsDisplay()
+      }
+    }
+  }
+  
+  /// Call this from layoutSubviews to update shadow layer bounds
+  internal func updateShadowLayer(for bounds: CGRect) {
+    guard let view = node.view else { return }
+    if shadowLayerAdded && !boxShadows.filter({ !$0.inset }).isEmpty {
+      mShadowLayer.updateBounds(viewBounds: bounds, viewFrame: view.frame)
+    }
+  }
   
   internal lazy var mBorderRender: CSSBorderRenderer  = {
     CSSBorderRenderer(style: self)
@@ -2724,6 +2772,43 @@ public class MasonStyle: NSObject {
   public func setSizeWidthHeight(_ value: Float, _ type: Int) {
     guard let wh = getDimension(value, type) else {return}
     size = MasonSize(wh, wh)
+  }
+  
+  
+  
+  public var width: MasonDimension {
+    get {
+      var type = getInt8(StyleKeys.WIDTH_TYPE)
+      
+      var value = getFloat(StyleKeys.WIDTH_VALUE)
+      
+      return MasonDimension.fromValueType(value, type)!
+    }
+    set {
+      prepareMut()
+      setInt8(StyleKeys.WIDTH_TYPE, newValue.type)
+      setFloat(StyleKeys.WIDTH_VALUE, newValue.value)
+      
+      setOrAppendState(StateKeys.size)
+    }
+  }
+  
+  
+  public var height: MasonDimension {
+    get {
+      var type = getInt8(StyleKeys.HEIGHT_TYPE)
+      
+      var value = getFloat(StyleKeys.HEIGHT_VALUE)
+      
+      return MasonDimension.fromValueType(value, type)!
+    }
+    set {
+      prepareMut()
+      setInt8(StyleKeys.HEIGHT_TYPE, newValue.type)
+      setFloat(StyleKeys.HEIGHT_VALUE, newValue.value)
+      
+      setOrAppendState(StateKeys.size)
+    }
   }
   
   
@@ -3477,12 +3562,13 @@ extension MasonStyle {
   }
   
   internal var resolvedBackgroundColor: UInt32 {
+    // background-color is NOT inherited in CSS - each element has its own.
+    // Only return the color if explicitly set on this element.
     let state = getUInt8(TextStyleKeys.BACKGROUND_COLOR_STATE, text: true)
-    return if (state == StyleState.INHERIT) {
-      parentStyleWithTextValues?.resolvedBackgroundColor
-      ?? getUInt32(TextStyleKeys.BACKGROUND_COLOR, text: true)
-    } else {
+    return if (state == StyleState.SET) {
       getUInt32(TextStyleKeys.BACKGROUND_COLOR, text: true)
+    } else {
+      0 // transparent - do not inherit from parent
     }
   }
   

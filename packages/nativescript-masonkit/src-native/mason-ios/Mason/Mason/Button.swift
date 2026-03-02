@@ -92,21 +92,58 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
   
   public override func layoutSubviews() {
     super.layoutSubviews()
+    style.updateShadowLayer(for: bounds)
     autoComputeIfRoot()
   }
 
   public override func draw(_ rect: CGRect) {
-    
+    let hasBackground = style.mBackground.color != nil || !style.mBackground.layers.isEmpty
+    let hasBoxShadow = !style.boxShadows.isEmpty
+    let hasBorder = !style.mBorderRender.css.isEmpty
+
     guard let context = UIGraphicsGetCurrentContext() else {
       return
     }
-    
-    style.mBackground.draw(on: self, in: context, rect: bounds)
+
+    style.mBorderRender.resolve(for: bounds)
+    let borderWidths = style.mBorderRender.cachedWidths
+    let hasRadii = style.mBorderRender.hasRadii()
+
+    // Outset shadows are handled by MasonShadowLayer
+
+    // Block 1: Background with border-radius clip
+    if hasBackground {
+      let innerRect = bounds.inset(by: UIEdgeInsets(
+        top: borderWidths.top,
+        left: borderWidths.left,
+        bottom: borderWidths.bottom,
+        right: borderWidths.right
+      ))
+
+      context.saveGState()
+      if hasRadii {
+        let innerRadius = style.mBorderRender.radius.insetByBorderWidths(borderWidths)
+        let innerPath = style.mBorderRender.getClipPath(rect: innerRect, radius: innerRadius)
+        context.addPath(innerPath.cgPath)
+        context.clip()
+      }
+      style.mBackground.draw(on: self, in: context, rect: innerRect)
+      context.restoreGState()
+    }
+
+    // Inset box shadows (render on top of background)
+    if hasBoxShadow {
+      style.mBoxShadowRenderer.drawInsetShadows(in: context, rect: bounds, borderRenderer: style.mBorderRender)
+    }
+
     engine.drawText(context: context, rect: bounds)
-    style.mBorderRender.draw(in: context, rect: bounds)
+
+    // Border drawn OUTSIDE any clip scope so strokes aren't clipped
+    if hasBorder {
+      style.mBorderRender.draw(in: context, rect: bounds)
+    }
   }
-  
-  
+
   private func setup(){
     isOpaque = false
     style.setStyleChangeListener(listener: self)
@@ -121,16 +158,19 @@ public class Button: UIControl,MasonEventTarget, MasonElement, MasonElementObjc,
 
     configure { style in
       style.display = Display.InlineBlock
+      style.fontFamily = "system-ui"
+      style.textWrap = .NoWrap
       style.padding = MasonRect(.Points(y), .Points(x), .Points(y), .Points(x))
+      style.background = "#F0F0F0"
       style.textAlign = .Center
-      style.border = "1px"
-      style.borderRadius = "\(4/scale)/px"
+      style.border = "1px solid #767676"
+      style.borderRadius = "4px"
     }
     node.view = self
    
     node.measureFunc = { [weak self] known, available in
       guard let self = self else { return .zero }
-      return TextEngine.measure(self.engine, true, isBlock: true , known, available)
+      return TextEngine.measure(self.engine, true, isBlock: false, known, available)
     }
     node.setMeasureFunction(node.measureFunc!)
   }

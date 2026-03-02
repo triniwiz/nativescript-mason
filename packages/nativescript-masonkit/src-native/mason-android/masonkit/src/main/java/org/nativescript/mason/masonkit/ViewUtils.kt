@@ -3,16 +3,10 @@ package org.nativescript.mason.masonkit
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.os.Build
-import android.util.Log
 import androidx.core.graphics.withSave
 
 class ViewUtils {
   companion object {
-    // Reusable Paint for background color drawing — avoids allocation per frame
-    private val bgPaint = Paint().apply {
-      style = Paint.Style.FILL
-    }
-
     private fun render(
       view: android.view.View,
       canvas: Canvas,
@@ -21,7 +15,7 @@ class ViewUtils {
       ignoreBorder: Boolean = false,
     ) {
       val suppressOps = view.getTag(R.id.tag_suppress_ops) as? Boolean ?: false
-      if (suppressOps || (!style.isValueInitialized && style.mFilter == null)) {
+      if (suppressOps || (!style.isValueInitialized && style.mFilter == null && style.boxShadows.isEmpty())) {
         superDraw(canvas)
         return
       }
@@ -33,6 +27,14 @@ class ViewUtils {
 
       val hasRadii = style.mBorderRenderer.hasRadii()
       val hasBackground = style.mBackground?.let { it.color != null || it.layers.isNotEmpty() } ?: false
+      val hasBoxShadow = style.boxShadows.isNotEmpty()
+
+      // Outset shadows are drawn by parent's dispatchDraw to avoid clipping
+      // Only draw inset shadows here
+      // (Comment out outset shadow drawing at child level)
+      // if (hasBoxShadow) {
+      //   style.mBoxShadowRenderer.drawOutsetShadows(view, canvas, width, height, style.mBorderRenderer)
+      // }
 
       // Block 1: Background with border-radius clip
       if (hasBackground) {
@@ -43,7 +45,10 @@ class ViewUtils {
 
           style.mBackground?.let { background ->
             background.color?.let { color ->
-              bgPaint.color = color
+              val bgPaint = Paint().apply {
+                this.style = Paint.Style.FILL
+                this.color = color
+              }
               canvas.drawRect(0f, 0f, width, height, bgPaint)
             }
 
@@ -55,6 +60,11 @@ class ViewUtils {
             }
           }
         }
+      }
+
+      // Block 1.5: Inset box shadows (render on top of background)
+      if (hasBoxShadow) {
+        style.mBoxShadowRenderer.drawInsetShadows(view, canvas, width, height, style.mBorderRenderer)
       }
 
       // Border drawn OUTSIDE any clip scope so strokes aren't clipped

@@ -7,7 +7,6 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
-import android.util.Log
 import android.widget.ImageView
 import androidx.core.graphics.withClip
 import androidx.core.graphics.withMatrix
@@ -34,6 +33,14 @@ class Img @JvmOverloads constructor(
     get() = this
 
   internal var currentBitmap: Bitmap? = null
+
+  var objectFit: ObjectFit
+    get() {
+      return style.objectFit
+    }
+    set(value) {
+      style.objectFit = value
+    }
 
   override fun setImageBitmap(bm: Bitmap?) {
     super.setImageBitmap(bm)

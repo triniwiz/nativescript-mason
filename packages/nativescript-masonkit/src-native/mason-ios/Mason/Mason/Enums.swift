@@ -540,7 +540,7 @@ public let MasonLengthPercentageAutoAuto = MasonLengthPercentageAuto.Auto
 public let MasonLengthPercentageAutoZero = MasonLengthPercentageAuto.Points(0)
 
 
-public enum MasonLengthPercentageAuto: Codable {
+public enum MasonLengthPercentageAuto: Codable, Equatable {
   case Auto
   case Points(Float)
   case Percent(Float)

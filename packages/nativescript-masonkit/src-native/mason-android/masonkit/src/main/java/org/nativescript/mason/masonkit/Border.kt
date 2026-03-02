@@ -501,6 +501,19 @@ class BorderRenderer(private val style: Style) {
       bottomLeftCorner.x > 0f || bottomLeftCorner.y > 0f
   }
 
+  /**
+   * Returns border radii as FloatArray(8) for use with Path.addRoundRect.
+   * Format: [topLeftX, topLeftY, topRightX, topRightY, bottomRightX, bottomRightY, bottomLeftX, bottomLeftY]
+   */
+  fun getRadii(): FloatArray {
+    return floatArrayOf(
+      topLeftCorner.x, topLeftCorner.y,
+      topRightCorner.x, topRightCorner.y,
+      bottomRightCorner.x, bottomRightCorner.y,
+      bottomLeftCorner.x, bottomLeftCorner.y
+    )
+  }
+
   private fun addCornerToPath(
     path: Path,
     corner: Corner,

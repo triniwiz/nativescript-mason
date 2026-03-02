@@ -1,29 +1,33 @@
 package org.nativescript.mason.masondemo
 
-import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.graphics.toColorInt
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import org.nativescript.mason.masonkit.Dimension
 import org.nativescript.mason.masonkit.FontFace
 import org.nativescript.mason.masonkit.LengthPercentage
 import org.nativescript.mason.masonkit.LengthPercentageAuto
-import org.nativescript.mason.masonkit.Li
-import org.nativescript.mason.masonkit.ListView
 import org.nativescript.mason.masonkit.Mason
+import org.nativescript.mason.masonkit.Point
 import org.nativescript.mason.masonkit.Rect
 import org.nativescript.mason.masonkit.Scroll
 import org.nativescript.mason.masonkit.Size
-import org.nativescript.mason.masonkit.Styles
 import org.nativescript.mason.masonkit.View
 import org.nativescript.mason.masonkit.enums.AlignItems
 import org.nativescript.mason.masonkit.enums.Display
 import org.nativescript.mason.masonkit.enums.FlexDirection
-import org.nativescript.mason.masonkit.enums.FlexWrap
+import org.nativescript.mason.masonkit.enums.JustifyContent
+import org.nativescript.mason.masonkit.enums.ObjectFit
 import org.nativescript.mason.masonkit.enums.Overflow
+import org.nativescript.mason.masonkit.enums.Position
+import org.nativescript.mason.masonkit.enums.TextAlign
 import org.nativescript.mason.masonkit.enums.TextType
+import org.nativescript.mason.masonkit.toCSSColorInt
+import kotlin.math.ceil
+import kotlin.random.Random
 
 class WebActivity : AppCompatActivity() {
   val mason = Mason.shared
@@ -31,14 +35,14 @@ class WebActivity : AppCompatActivity() {
     return dip * resources.displayMetrics.density
   }
 
-  lateinit var body: View
-  lateinit var root: Scroll
+  lateinit var body: Scroll
+  lateinit var root: View
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    body = mason.createView(this)
-    root = mason.createScrollView(this)
+    body = mason.createScrollView(this)
+    root = mason.createView(this)
     body.addView(root)
-    root.style.overflowY = Overflow.Scroll
+    body.style.overflowY = Overflow.Scroll
     enableEdgeToEdge()
     setContentView(body)
     ViewCompat.setOnApplyWindowInsetsListener(body) { v, insets ->
@@ -52,522 +56,519 @@ class WebActivity : AppCompatActivity() {
   }
 
   private fun webTextSample() {
-    val density = resources.displayMetrics.density
+    root.style.background = "#FAFBFC"
 
-    // --- H1 heading ---
-    val h1 = mason.createTextView(this, TextType.H1)
-    h1.append("Mason Layout Engine")
-    root.append(h1)
-
-    // --- Paragraph with inline styles ---
-    val p1 = mason.createTextView(this, TextType.P)
-    p1.append("Mason is a ")
-
-    val bold = mason.createTextView(this, TextType.Strong)
-    bold.append("CSS-like layout engine")
-    p1.append(bold)
-
-    p1.append(" that brings ")
-
-    val italic = mason.createTextView(this, TextType.Em)
-    italic.append("web-standard")
-    p1.append(italic)
-
-    p1.append(" layouts to native iOS and Android views.")
-    root.append(p1)
-
-    // --- H2 heading ---
-    val h2 = mason.createTextView(this, TextType.H2)
-    h2.append("Features")
-    root.append(h2)
-
-    // --- Paragraph with nested inline elements ---
-    val p2 = mason.createTextView(this, TextType.P)
-    p2.append("Supports ")
-
-    val code1 = mason.createTextView(this, TextType.Code)
-    code1.append("flexbox")
-    code1.style.backgroundColor = 0xFFE8E8EC.toInt()
-    code1.style.borderRadius = "3px"
-    code1.style.padding = Rect(
-      top = LengthPercentage.Points(1 * density),
-      right = LengthPercentage.Points(4 * density),
-      bottom = LengthPercentage.Points(1 * density),
-      left = LengthPercentage.Points(4 * density),
-    )
-    p2.append(code1)
-
-    p2.append(", ")
-
-    val code2 = mason.createTextView(this, TextType.Code)
-    code2.append("grid")
-    code2.style.backgroundColor = 0xFFE8E8EC.toInt()
-    code2.style.borderRadius = "3px"
-    code2.style.padding = Rect(
-      top = LengthPercentage.Points(1 * density),
-      right = LengthPercentage.Points(4 * density),
-      bottom = LengthPercentage.Points(1 * density),
-      left = LengthPercentage.Points(4 * density),
-    )
-    p2.append(code2)
-
-    p2.append(", and ")
-
-    val code3 = mason.createTextView(this, TextType.Code)
-    code3.append("block")
-    code3.style.backgroundColor = 0xFFE8E8EC.toInt()
-    code3.style.borderRadius = "3px"
-    code3.style.padding = Rect(
-      top = LengthPercentage.Points(1 * density),
-      right = LengthPercentage.Points(4 * density),
-      bottom = LengthPercentage.Points(1 * density),
-      left = LengthPercentage.Points(4 * density),
-    )
-    p2.append(code3)
-
-    p2.append(" layouts with full CSS text rendering including ")
-
-    val underlined = mason.createTextView(this, TextType.Span)
-    underlined.append("underline")
-    underlined.decorationLine = Styles.DecorationLine.Underline
-    p2.append(underlined)
-
-    p2.append(", ")
-
-    val colored = mason.createTextView(this, TextType.Span)
-    colored.append("color")
-    colored.color = "#2196F3".toColorInt()
-    p2.append(colored)
-
-    p2.append(", and ")
-
-    val boldItalic = mason.createTextView(this, TextType.Span)
-    boldItalic.append("bold italic")
-    boldItalic.fontWeight = FontFace.NSCFontWeight.Bold
-    boldItalic.fontStyle = FontFace.NSCFontStyle.Italic
-    p2.append(boldItalic)
-
-    p2.append(" text.")
-    root.append(p2)
-
-    // --- H3 heading ---
-    val h3 = mason.createTextView(this, TextType.H3)
-    h3.append("How it works")
-    root.append(h3)
-
-    // --- Paragraph ---
-    val p3 = mason.createTextView(this, TextType.P)
-    p3.append("The layout tree is computed by ")
-
-    val taffyLink = mason.createTextView(this, TextType.A)
-    taffyLink.append("Taffy")
-    taffyLink.color = "#1976D2".toColorInt()
-    taffyLink.decorationLine = Styles.DecorationLine.Underline
-    p3.append(taffyLink)
-
-    p3.append(", a Rust-based layout engine, and the results are applied to native View frames. Text measurement uses platform APIs for pixel-perfect rendering.")
-    root.append(p3)
-
-    // --- Blockquote ---
-    // Make the demo visually modern and professional
-    root.style.background = "#F7F8FA"
-
-    // Header
-    val header = mason.createView(this)
-    header.style.background = "#FFFFFF"
-    header.style.padding = Rect.withPx(16f, 24f, 16f, 24f)
-    header.style.borderRadius = "8px"
-    header.style.margin = Rect.withPxAuto(12f, 12f, 0f, 12f)
-
-    val title = mason.createTextView(this, TextType.H1)
-    title.append("Mason — Native Web Layout")
-    title.color = "#1F2D3D".toColorInt()
-    title.fontSize = 22
-    header.append(title)
-
-    val subtitle = mason.createTextView(this, TextType.P)
-    subtitle.append("Pixel-perfect, CSS-like layout primitives for native apps.")
-    subtitle.color = "#65758A".toColorInt()
-    subtitle.fontSize = 14
-    subtitle.style.margin = Rect.withPxAuto(8f, 0f, 0f, 0f)
-    header.append(subtitle)
-
-    root.append(header)
-
-    // Hero card
+    // ════════════════════════════════════════════════════════════════════════════
+    // HERO SECTION
+    // ════════════════════════════════════════════════════════════════════════════
     val hero = mason.createView(this)
-    hero.style.background = "#FFFFFF"
-    hero.style.padding = Rect.withPx(24f, 24f, 24f, 24f)
-    hero.style.borderRadius = "12px"
-    hero.style.margin = Rect.withPxAuto(12f, 12f, 0f, 12f)
+    hero.display = Display.Flex
+    hero.flexDirection = FlexDirection.Column
+    hero.style.setSizeWidth(1f, 2.toByte()) // 100%
+    hero.style.setSizeHeight(toPx(380f), 1.toByte())
+    hero.style.position = Position.Relative
 
-    val heroTitle = mason.createTextView(this, TextType.H2)
-    heroTitle.append("Build beautiful native layouts with web ergonomics")
-    heroTitle.fontSize = 18
-    heroTitle.color = "#0F1720".toColorInt()
-    hero.append(heroTitle)
+    // Hero background image
+    val heroImage = mason.createImageView(this)
+    heroImage.style.position = Position.Absolute
+    heroImage.style.inset = Rect.zeroAuto
+    heroImage.style.setSizeWidth(1f, 2.toByte())
+    heroImage.style.setSizeHeight(1f, 2.toByte())
+    heroImage.objectFit = ObjectFit.Cover
+    heroImage.src = "https://picsum.photos/800/600?random=1"
+    hero.addView(heroImage)
 
-    val heroDesc = mason.createTextView(this, TextType.P)
-    heroDesc.append("Design once, render everywhere — flexible, performant, and predictable.")
-    heroDesc.color = "#6B7280".toColorInt()
-    heroDesc.style.margin = Rect.withPxAuto(8f, 0f, 0f, 0f)
-    hero.append(heroDesc)
+    // Gradient overlay
+    val heroOverlay = mason.createView(this)
+    heroOverlay.style.position = Position.Absolute
+    heroOverlay.style.inset = Rect.zeroAuto
+    heroOverlay.style.background =
+      "linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)"
+    hero.addView(heroOverlay)
 
-    val ctaRow = mason.createView(this)
-    ctaRow.style.margin = Rect.withPxAuto(12f, 0f, 0f, 0f)
+    // Hero content
+    val heroContent = mason.createView(this)
+    heroContent.display = Display.Flex
+    heroContent.flexDirection = FlexDirection.Column
+    heroContent.style.justifyContent = JustifyContent.FlexEnd
+    heroContent.style.position = Position.Absolute
+    heroContent.style.inset = Rect.zeroAuto
+    heroContent.style.padding = Rect.withPx(0f, toPx(24f), toPx(32f), toPx(24f))
 
-    val primary = mason.createButton(this)
-    primary.text = "Get Started"
-    primary.style.background = "#0B74FF"
-    primary.style.color = "#FFFFFF".toColorInt()
-    primary.style.padding = Rect.withPx(10f, 18f, 10f, 18f)
-    primary.style.borderRadius = "8px"
-    ctaRow.append(primary)
+    val heroTag = mason.createTextView(this, TextType.Span)
+    heroTag.append("FEATURED DESTINATION")
+    heroTag.color = "#FFFFFF".toCSSColorInt()
+    heroTag.fontSize = 11
+    heroTag.fontWeight = FontFace.NSCFontWeight.SemiBold
+    heroTag.style.marginBottom = LengthPercentageAuto.Points(toPx(8f))
+    heroContent.addView(heroTag)
 
-    val secondary = mason.createButton(this)
-    secondary.text = "View Docs"
-    secondary.style.background = "#FFFFFF"
-    secondary.style.color = "#0B74FF".toColorInt()
-    secondary.style.border = "1px solid #E6EEF8"
-    secondary.style.padding = Rect.withPx(10f, 18f, 10f, 18f)
-    secondary.style.borderRadius = "8px"
-    secondary.style.margin = Rect.withPxAuto(0f, 12f, 0f, 0f)
-    ctaRow.append(secondary)
+    val heroTitle = mason.createTextView(this, TextType.H1)
+    heroTitle.append("Discover the World")
+    heroTitle.color = "#FFFFFF".toCSSColorInt()
+    heroTitle.fontSize = 32
+    heroTitle.fontWeight = FontFace.NSCFontWeight.Bold
+    heroTitle.style.marginBottom = LengthPercentageAuto.Points(toPx(8f))
+    heroContent.addView(heroTitle)
 
-    hero.append(ctaRow)
+    val heroSubtitle = mason.createTextView(this, TextType.P)
+    heroSubtitle.append("Explore breathtaking destinations and create unforgettable memories")
+    heroSubtitle.style.color = "rgba(255,255,255,0.9)".toCSSColorInt()
+    heroSubtitle.fontSize = 16
+    heroContent.addView(heroSubtitle)
+
+    hero.addView(heroContent)
     root.append(hero)
 
-    // Feature cards
-    val featuresRow = mason.createView(this)
-    featuresRow.style.margin = Rect.withPxAuto(12f, 12f, 0f, 12f)
+    // ════════════════════════════════════════════════════════════════════════════
+    // STATS BAR
+    // ════════════════════════════════════════════════════════════════════════════
+    val statsBar = mason.createView(this)
+    statsBar.display = Display.Flex
+    statsBar.flexDirection = FlexDirection.Row
+    statsBar.style.justifyContent = JustifyContent.SpaceAround
+    statsBar.style.alignItems = AlignItems.Center
+    statsBar.style.padding = Rect.withPx(toPx(20f), toPx(20f), toPx(20f), toPx(20f))
+    statsBar.style.background = "#FFFFFF"
+    statsBar.style.border = "0 0 1px 0 solid #E5E7EB"
 
-    val f1 = mason.createView(this)
-    f1.style.background = "#FFFFFF"
-    f1.style.padding = Rect.withPx(16f, 16f, 16f, 16f)
-    f1.style.borderRadius = "10px"
-    f1.style.margin = Rect.withPxAuto(0f, 0f, 0f, 12f)
-    val f1t = mason.createTextView(this, TextType.H3)
-    f1t.append("CSS-like APIs")
-    f1t.fontSize = 15
-    f1t.color = "#10203A".toColorInt()
-    f1.append(f1t)
-    val f1d = mason.createTextView(this, TextType.P)
-    f1d.append("Box model, flexbox, inline layout, and rich text styling.")
-    f1d.color = "#6B7280".toColorInt()
-    f1.append(f1d)
-
-    val f2 = mason.createView(this)
-    f2.style.background = "#FFFFFF"
-    f2.style.padding = Rect.withPx(16f, 16f, 16f, 16f)
-    f2.style.borderRadius = "10px"
-    f2.style.margin = Rect.withPxAuto(0f, 12f, 0f, 12f)
-    val f2t = mason.createTextView(this, TextType.H3)
-    f2t.append("Native Performance")
-    f2t.fontSize = 15
-    f2t.color = "#10203A".toColorInt()
-    f2.append(f2t)
-    val f2d = mason.createTextView(this, TextType.P)
-    f2d.append("Measured layout and native rendering keep your apps snappy.")
-    f2d.color = "#6B7280".toColorInt()
-    f2.append(f2d)
-
-    featuresRow.append(f1)
-    featuresRow.append(f2)
-    root.append(featuresRow)
-
-    // Quote
-    val bq = mason.createTextView(this, TextType.Blockquote)
-    bq.style.border = "0 0 0 ${3 * density}px solid #0B74FF"
-    bq.style.padding = Rect(
-      top = LengthPercentage.Points(0f),
-      right = LengthPercentage.Points(0f),
-      bottom = LengthPercentage.Points(0f),
-      left = LengthPercentage.Points(16 * density),
+    val stats = listOf(
+      Pair("2.4M+", "Users"),
+      Pair("150K", "Reviews"),
+      Pair("4.9", "Rating")
     )
-    bq.style.margin = Rect(
-      top = LengthPercentageAuto.Points(12 * density),
-      right = LengthPercentageAuto.Points(0f),
-      bottom = LengthPercentageAuto.Points(12 * density),
-      left = LengthPercentageAuto.Points(0f),
-    )
-    val bqText = mason.createTextView(this, TextType.P)
-    bqText.append("\"Design systems + native primitives = delightful apps.\"")
-    bqText.color = "#334155".toColorInt()
-    bq.append(bqText)
-    root.append(bq)
+    for ((value, label) in stats) {
+      val statItem = mason.createView(this)
+      statItem.display = Display.Flex
+      statItem.flexDirection = FlexDirection.Column
+      statItem.style.alignItems = AlignItems.Center
 
-    // Code sample
-    val codeHeader = mason.createTextView(this, TextType.H3)
-    codeHeader.append("Quick example")
-    root.append(codeHeader)
+      val statValue = mason.createTextView(this, TextType.Span)
+      statValue.append(value)
+      statValue.fontSize = 22
+      statValue.fontWeight = FontFace.NSCFontWeight.Bold
+      statValue.color = "#1E293B".toCSSColorInt()
+      statItem.addView(statValue)
 
-    val pre = mason.createTextView(this, TextType.Pre)
-    pre.style.background = "#0F1720"
-    pre.style.padding = Rect(
-      top = LengthPercentage.Points(12 * density),
-      right = LengthPercentage.Points(12 * density),
-      bottom = LengthPercentage.Points(12 * density),
-      left = LengthPercentage.Points(12 * density),
-    )
-    pre.style.borderRadius = "8px"
-    pre.fontSize = 13
-    pre.style.fontFamily = "'Courier New', monospace"
-    pre.color = "#E6EEF8".toColorInt()
-    pre.append(
-      "val view = mason.createView(context)\n" +
-        "view.style.background = \"#FFFFFF\"\n" +
-        "view.style.padding = Rect(12f,12f,12f,12f)\n" +
-        "val h1 = mason.createTextView(context, TextType.H1)\n" +
-        "h1.append(\"Hello, Mason\")\n" +
-        "view.append(h1)"
-    )
-    root.append(pre)
+      val statLabel = mason.createTextView(this, TextType.Span)
+      statLabel.append(label)
+      statLabel.fontSize = 12
+      statLabel.color = "#64748B".toCSSColorInt()
+      statItem.addView(statLabel)
 
-    // Footer
-    val footer = mason.createTextView(this, TextType.P)
-    footer.append("Crafted with care · © Mason 2026")
-    footer.color = "#9AA4B2".toColorInt()
-    footer.style.margin = Rect.withPxAuto(24f, 0f, 24f, 48f)
-    footer.fontSize = 12
+      statsBar.addView(statItem)
+    }
+    root.append(statsBar)
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // SECTION: Popular Destinations
+    // ════════════════════════════════════════════════════════════════════════════
+    val destSection = mason.createView(this)
+    destSection.style.padding = Rect.withPx(toPx(24f), toPx(24f), toPx(24f), toPx(24f))
+
+    val destHeader = mason.createView(this)
+    destHeader.display = Display.Flex
+    destHeader.flexDirection = FlexDirection.Row
+    destHeader.style.justifyContent = JustifyContent.SpaceBetween
+    destHeader.style.alignItems = AlignItems.Center
+    destHeader.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
+
+    val destTitle = mason.createTextView(this, TextType.H2)
+    destTitle.append("Popular Destinations")
+    destTitle.fontSize = 22
+    destTitle.fontWeight = FontFace.NSCFontWeight.Bold
+    destTitle.color = "#1E293B".toCSSColorInt()
+    destHeader.addView(destTitle)
+
+    val viewAllLink = mason.createTextView(this, TextType.A)
+    viewAllLink.append("View All")
+    viewAllLink.fontSize = 14
+    viewAllLink.fontWeight = FontFace.NSCFontWeight.SemiBold
+    viewAllLink.color = "#3B82F6".toCSSColorInt()
+    destHeader.addView(viewAllLink)
+
+    destSection.addView(destHeader)
+
+    // Destinations Grid - 2x2
+    val destGrid = mason.createView(this)
+    destGrid.display = Display.Grid
+    destGrid.style.gridTemplateColumns = "1fr 1fr"
+    destGrid.style.gap =
+      Size(LengthPercentage.Points(toPx(12f)), LengthPercentage.Points(toPx(12f)))
+
+    val destinations = listOf(
+      Triple("Paris", "France", "https://picsum.photos/400/300?random=10"),
+      Triple("Tokyo", "Japan", "https://picsum.photos/400/300?random=11"),
+      Triple("New York", "USA", "https://picsum.photos/400/300?random=12"),
+      Triple("London", "UK", "https://picsum.photos/400/300?random=13")
+    )
+
+    for ((city, country, imageUrl) in destinations) {
+      val card = mason.createView(this)
+      card.display = Display.Flex
+      card.flexDirection = FlexDirection.Column
+      card.style.borderRadius = "${toPx(16f)}px"
+      card.style.overflow = Point(Overflow.Hidden, Overflow.Hidden)
+      card.style.setSizeHeight(toPx(200f), 1.toByte())
+      card.style.position = Position.Relative
+
+      // Full-bleed background image
+      val cardImage = mason.createImageView(this)
+      cardImage.style.position = Position.Absolute
+      cardImage.style.inset = Rect.zeroAuto
+      cardImage.style.setSizeWidth(1f, 2.toByte())
+      cardImage.style.setSizeHeight(1f, 2.toByte())
+      cardImage.objectFit = ObjectFit.Cover
+      cardImage.src = imageUrl
+      card.addView(cardImage)
+
+      // Gradient overlay for text readability
+      val cardOverlay = mason.createView(this)
+      cardOverlay.style.position = Position.Absolute
+      cardOverlay.style.inset = Rect.zeroAuto
+      cardOverlay.style.background =
+        "linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.6) 100%)"
+      card.addView(cardOverlay)
+
+      // Text content positioned at bottom
+      val cardContent = mason.createView(this)
+      cardContent.display = Display.Flex
+      cardContent.flexDirection = FlexDirection.Column
+      cardContent.style.justifyContent = JustifyContent.FlexEnd
+      cardContent.style.position = Position.Absolute
+      cardContent.style.inset = Rect.zeroAuto
+      cardContent.style.padding = Rect.withPx(toPx(16f), toPx(16f), toPx(16f), toPx(16f))
+
+      val cardTitle = mason.createTextView(this, TextType.H3)
+      cardTitle.append(city)
+      cardTitle.fontSize = 20
+      cardTitle.fontWeight = FontFace.NSCFontWeight.Bold
+      cardTitle.color = "#FFFFFF".toCSSColorInt()
+      cardContent.addView(cardTitle)
+
+      val cardSubtitle = mason.createTextView(this, TextType.P)
+      cardSubtitle.append(country)
+      cardSubtitle.fontSize = 14
+      cardSubtitle.color = "#E2E8F0".toCSSColorInt()
+      cardContent.addView(cardSubtitle)
+
+      card.addView(cardContent)
+      destGrid.addView(card)
+    }
+
+    destSection.addView(destGrid)
+    root.append(destSection)
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // FEATURE SHOWCASE
+    // ════════════════════════════════════════════════════════════════════════════
+    val featureSection = mason.createView(this)
+    featureSection.style.padding = Rect.withPx(0f, toPx(24f), toPx(24f), toPx(24f))
+
+    val featureCard = mason.createView(this)
+    featureCard.display = Display.Flex
+    featureCard.flexDirection = FlexDirection.Column
+    featureCard.style.background = "#0F172A"
+    featureCard.style.borderRadius = "${toPx(20f)}px"
+    featureCard.style.padding = Rect.withPx(toPx(24f), toPx(24f), toPx(24f), toPx(24f))
+
+    val featureLabel = mason.createTextView(this, TextType.Span)
+    featureLabel.append("WHY CHOOSE US")
+    featureLabel.fontSize = 11
+    featureLabel.fontWeight = FontFace.NSCFontWeight.SemiBold
+    featureLabel.color = "#60A5FA".toCSSColorInt()
+    featureLabel.style.marginBottom = LengthPercentageAuto.Points(toPx(12f))
+    featureCard.addView(featureLabel)
+
+    val featureTitle = mason.createTextView(this, TextType.H2)
+    featureTitle.append("Travel with Confidence")
+    featureTitle.fontSize = 24
+    featureTitle.fontWeight = FontFace.NSCFontWeight.Bold
+    featureTitle.color = "#FFFFFF".toCSSColorInt()
+    featureTitle.style.marginBottom = LengthPercentageAuto.Points(toPx(12f))
+    featureCard.addView(featureTitle)
+
+    val featureDesc = mason.createTextView(this, TextType.P)
+    featureDesc.append("Expert local guides, 24/7 support, and flexible booking options make your journey seamless.")
+    featureDesc.fontSize = 15
+    featureDesc.color = "#94A3B8".toCSSColorInt()
+    featureDesc.style.marginBottom = LengthPercentageAuto.Points(toPx(20f))
+    featureCard.addView(featureDesc)
+
+    // Feature icons row
+    val featureIcons = mason.createView(this)
+    featureIcons.display = Display.Flex
+    featureIcons.flexDirection = FlexDirection.Row
+    featureIcons.style.gap =
+      Size(LengthPercentage.Points(toPx(16f)), LengthPercentage.Points(0f))
+
+    for (feature in listOf("🛡️ Secure", "⭐ Rated", "🌍 Global")) {
+      val featureItem = mason.createTextView(this, TextType.Span)
+      featureItem.append(feature)
+      featureItem.fontSize = 13
+      featureItem.color = "#CBD5E1".toCSSColorInt()
+      featureItem.style.flexShrink = 0f
+      featureIcons.addView(featureItem)
+    }
+    featureCard.addView(featureIcons)
+
+    featureSection.addView(featureCard)
+    root.append(featureSection)
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // TESTIMONIALS
+    // ════════════════════════════════════════════════════════════════════════════
+    val testimonialSection = mason.createView(this)
+    testimonialSection.style.padding = Rect.withPx(0f, toPx(24f), toPx(24f), toPx(24f))
+
+    val testimonialsTitle = mason.createTextView(this, TextType.H2)
+    testimonialsTitle.append("What Travelers Say")
+    testimonialsTitle.fontSize = 22
+    testimonialsTitle.fontWeight = FontFace.NSCFontWeight.Bold
+    testimonialsTitle.color = "#1E293B".toCSSColorInt()
+    testimonialsTitle.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
+    testimonialSection.addView(testimonialsTitle)
+
+    val h100 = ceil(toPx(100f)).toInt()
+    val h150 = ceil(toPx(150f)).toInt()
+
+    val testimonials = listOf(
+      Triple(
+        "Sarah M.",
+        "Amazing experience! The app made planning so easy.",
+        "https://i.pravatar.cc/$h100?img=1"
+      ),
+      Triple(
+        "James K.",
+        "Best travel app I've ever used. Highly recommend!",
+        "https://i.pravatar.cc/$h100?img=3"
+      )
+    )
+
+    for ((name, quote, avatarUrl) in testimonials) {
+      val testimonialCard = mason.createView(this)
+      testimonialCard.display = Display.Flex
+      testimonialCard.flexDirection = FlexDirection.Row
+      testimonialCard.style.background = "#FFFFFF"
+      testimonialCard.style.borderRadius = "${toPx(16f)}px"
+      testimonialCard.style.padding = Rect.withPx(toPx(16f), toPx(16f), toPx(16f), toPx(16f))
+      testimonialCard.style.marginBottom = LengthPercentageAuto.Points(toPx(12f))
+      testimonialCard.style.border = "1px solid #E5E7EB"
+
+      // Avatar
+      val avatarContainer = mason.createView(this)
+      avatarContainer.style.setSizeWidth(toPx(48f), 1.toByte())
+      avatarContainer.style.setSizeHeight(toPx(48f), 1.toByte())
+      avatarContainer.style.setMinSizeWidth(toPx(48f), 1.toByte())
+      avatarContainer.style.setMinSizeHeight(toPx(48f), 1.toByte())
+      avatarContainer.style.borderRadius = "50%"
+      avatarContainer.style.overflow = Point(Overflow.Hidden, Overflow.Hidden)
+      avatarContainer.style.marginRight = LengthPercentageAuto.Points(toPx(12f))
+      avatarContainer.style.flexShrink = 0f
+      avatarContainer.style.position = Position.Relative
+
+      val avatar = mason.createImageView(this)
+      avatar.style.position = Position.Absolute
+      avatar.style.inset = Rect.zeroAuto
+      avatar.style.setSizeWidth(1f, 2.toByte())
+      avatar.style.setSizeHeight(1f, 2.toByte())
+      avatar.objectFit = ObjectFit.Cover
+      avatar.src = avatarUrl
+      avatarContainer.addView(avatar)
+      testimonialCard.addView(avatarContainer)
+
+      // Content
+      val testimonialContent = mason.createView(this)
+      testimonialContent.display = Display.Flex
+      testimonialContent.flexDirection = FlexDirection.Column
+      testimonialContent.style.flexGrow = 1f
+
+      // Stars
+      val stars = mason.createTextView(this, TextType.Span)
+      stars.append("★★★★★")
+      stars.fontSize = 14
+      stars.color = "#FBBF24".toCSSColorInt()
+      stars.style.marginBottom = LengthPercentageAuto.Points(toPx(4f))
+      testimonialContent.addView(stars)
+
+      val quoteText = mason.createTextView(this, TextType.P)
+      quoteText.append("\"$quote\"")
+      quoteText.fontSize = 14
+      quoteText.color = "#475569".toCSSColorInt()
+      quoteText.style.marginBottom = LengthPercentageAuto.Points(toPx(8f))
+      testimonialContent.addView(quoteText)
+
+      val authorName = mason.createTextView(this, TextType.Span)
+      authorName.append(name)
+      authorName.fontSize = 13
+      authorName.fontWeight = FontFace.NSCFontWeight.SemiBold
+      authorName.color = "#1E293B".toCSSColorInt()
+      testimonialContent.addView(authorName)
+
+      testimonialCard.addView(testimonialContent)
+      testimonialSection.addView(testimonialCard)
+    }
+    root.append(testimonialSection)
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // TRAVEL GALLERY
+    // ════════════════════════════════════════════════════════════════════════════
+    val gallerySection = mason.createView(this)
+    gallerySection.style.padding = Rect.withPx(0f, toPx(24f), toPx(24f), toPx(24f))
+
+    val galleryTitle = mason.createTextView(this, TextType.H2)
+    galleryTitle.append("Travel Gallery")
+    galleryTitle.fontSize = 22
+    galleryTitle.fontWeight = FontFace.NSCFontWeight.Bold
+    galleryTitle.color = "#1E293B".toCSSColorInt()
+    galleryTitle.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
+    gallerySection.addView(galleryTitle)
+
+    // Masonry-style gallery using two flex columns
+    val galleryGrid = mason.createView(this)
+    galleryGrid.display = Display.Flex
+    galleryGrid.flexDirection = FlexDirection.Row
+    galleryGrid.style.gap =
+      Size(LengthPercentage.Points(toPx(8f)), LengthPercentage.Points(0f))
+
+    val current = Random(System.currentTimeMillis())
+    val seed1 = current.nextInt(1, Int.MAX_VALUE)
+    val seed2 = current.nextInt(1, Int.MAX_VALUE)
+    val seed3 = current.nextInt(1, Int.MAX_VALUE)
+    val seed4 = current.nextInt(1, Int.MAX_VALUE)
+
+    // Column 1: 150px then 100px
+    val col1 = mason.createView(this)
+    col1.display = Display.Flex
+    col1.flexDirection = FlexDirection.Column
+    col1.style.flexGrow = 1f
+    col1.style.flexBasis = Dimension.Points(0f)
+    col1.style.gap = Size(LengthPercentage.Points(0f), LengthPercentage.Points(toPx(8f)))
+
+    // Column 2: 100px then 150px
+    val col2 = mason.createView(this)
+    col2.display = Display.Flex
+    col2.flexDirection = FlexDirection.Column
+    col2.style.flexGrow = 1f
+    col2.style.flexBasis = Dimension.Points(0f)
+    col2.style.gap = Size(LengthPercentage.Points(0f), LengthPercentage.Points(toPx(8f)))
+
+    val galleryImages = listOf(
+      Triple("https://picsum.photos/seed/${seed1}/${h150}/${h150}", 150, col1),
+      Triple("https://picsum.photos/seed/${seed2}/${h100}/${h100}", 100, col2),
+      Triple("https://picsum.photos/seed/${seed3}/${h100}/${h100}", 100, col1),
+      Triple("https://picsum.photos/seed/${seed4}/${h150}/${h150}", 150, col2)
+    )
+
+    for ((imageUrl, height, column) in galleryImages) {
+      val galleryItem = mason.createView(this)
+      galleryItem.style.setSizeHeight(toPx(height.toFloat()), 1.toByte())
+      galleryItem.style.borderRadius = "${toPx(12f)}px"
+      galleryItem.style.overflow = Point(Overflow.Hidden, Overflow.Hidden)
+      galleryItem.style.position = Position.Relative
+
+      val galleryImage = mason.createImageView(this)
+      galleryImage.style.position = Position.Absolute
+      galleryImage.style.inset = Rect.zeroAuto
+      galleryImage.style.setSizeWidth(1f, 2.toByte())
+      galleryImage.style.setSizeHeight(1f, 2.toByte())
+      galleryImage.objectFit = ObjectFit.Cover
+      galleryImage.src = imageUrl
+      galleryItem.addView(galleryImage)
+
+      column.addView(galleryItem)
+    }
+
+    galleryGrid.addView(col1)
+    galleryGrid.addView(col2)
+    gallerySection.addView(galleryGrid)
+    root.append(gallerySection)
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // CTA SECTION
+    // ════════════════════════════════════════════════════════════════════════════
+    val ctaSection = mason.createView(this)
+    ctaSection.display = Display.Flex
+    ctaSection.flexDirection = FlexDirection.Column
+    ctaSection.style.alignItems = AlignItems.Center
+    ctaSection.style.padding = Rect.uniform(
+      LengthPercentage.Points(32f)
+    )
+    ctaSection.style.margin = Rect.withPxAuto(0f, toPx(24f), toPx(24f), toPx(24f))
+    ctaSection.style.background = "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)"
+    ctaSection.style.borderRadius = "${toPx(20f)}px"
+
+
+    val ctaTitle = mason.createTextView(this, TextType.H2)
+    ctaTitle.append("Start Your Journey")
+    ctaTitle.fontSize = 26
+    ctaTitle.fontWeight = FontFace.NSCFontWeight.Bold
+    ctaTitle.color = "#FFFFFF".toCSSColorInt()
+    ctaTitle.style.textAlign = TextAlign.Center
+    ctaTitle.style.marginBottom = LengthPercentageAuto.Points(toPx(8f))
+    ctaSection.addView(ctaTitle)
+
+    val ctaSubtitle = mason.createTextView(this, TextType.P)
+    ctaSubtitle.append("Join millions of happy travelers today")
+    ctaSubtitle.fontSize = 15
+    ctaSubtitle.style.color = "rgba(255,255,255,0.9)".toCSSColorInt()
+    ctaSubtitle.style.textAlign = TextAlign.Center
+    ctaSubtitle.style.marginBottom = LengthPercentageAuto.Points(toPx(20f))
+    ctaSection.addView(ctaSubtitle)
+
+    val ctaButton = mason.createButton(this)
+    ctaButton.append("Get Started Free")
+    ctaButton.style.fontSize = 16
+    ctaButton.style.fontWeight = FontFace.NSCFontWeight.SemiBold
+    ctaButton.style.color = "#3B82F6".toCSSColorInt()
+    ctaButton.style.background = "#FFFFFF"
+    ctaButton.style.borderRadius = "${toPx(12f)}px"
+    ctaButton.style.border = "0"
+    ctaButton.style.padding = Rect.withPx(toPx(14f), toPx(32f), toPx(14f), toPx(32f))
+    ctaButton.style.textWrap = org.nativescript.mason.masonkit.Styles.TextWrap.NoWrap
+
+    ctaSection.addView(ctaButton)
+    root.append(ctaSection)
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // FOOTER
+    // ════════════════════════════════════════════════════════════════════════════
+    val footer = mason.createView(this)
+    footer.display = Display.Flex
+    footer.flexDirection = FlexDirection.Column
+    footer.style.alignItems = AlignItems.Center
+    footer.style.padding = Rect.withPx(toPx(32f), toPx(24f), toPx(48f), toPx(24f))
+    footer.style.background = "#1E293B"
+
+    val footerLogo = mason.createTextView(this, TextType.Span)
+    footerLogo.append("✈ Wanderlust")
+    footerLogo.fontSize = 20
+    footerLogo.fontWeight = FontFace.NSCFontWeight.Bold
+    footerLogo.color = "#FFFFFF".toCSSColorInt()
+    footerLogo.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
+    footer.addView(footerLogo)
+
+    val footerLinks = mason.createView(this)
+    footerLinks.display = Display.Flex
+    footerLinks.flexDirection = FlexDirection.Row
+    footerLinks.style.gap = Size(LengthPercentage.Points(toPx(24f)), LengthPercentage.Points(0f))
+    footerLinks.style.marginBottom = LengthPercentageAuto.Points(toPx(16f))
+
+    for (linkText in listOf("About", "Privacy", "Terms", "Contact")) {
+      val link = mason.createTextView(this, TextType.A)
+      link.append(linkText)
+      link.fontSize = 14
+      link.color = "#94A3B8".toCSSColorInt()
+      footerLinks.addView(link)
+    }
+    footer.addView(footerLinks)
+
+    val copyright = mason.createTextView(this, TextType.P)
+    copyright.append("© 2024 Wanderlust. All rights reserved.")
+    copyright.fontSize = 12
+    copyright.color = "#64748B".toCSSColorInt()
+    footer.addView(copyright)
+
     root.append(footer)
-
-    // ============================================================
-    // Mixed Display Types
-    // ============================================================
-    val h3Mixed = mason.createTextView(this, TextType.H3)
-    h3Mixed.append("Mixed Display Types")
-    root.append(h3Mixed)
-
-    val pMixedDesc = mason.createTextView(this, TextType.P)
-    pMixedDesc.append("A flex container holding block, inline-block, and inline-flex children side by side:")
-    root.append(pMixedDesc)
-
-    val mixedContainer = mason.createView(this)
-    mixedContainer.display = Display.Flex
-    mixedContainer.flexDirection = FlexDirection.Row
-    mixedContainer.flexWrap = FlexWrap.Wrap
-    mixedContainer.style.alignItems = AlignItems.Center
-    mixedContainer.style.gap =
-      Size(LengthPercentage.Points(8 * density), LengthPercentage.Points(8 * density))
-    mixedContainer.style.padding = Rect(
-      top = LengthPercentage.Points(8 * density),
-      right = LengthPercentage.Points(8 * density),
-      bottom = LengthPercentage.Points(8 * density),
-      left = LengthPercentage.Points(8 * density),
-    )
-    mixedContainer.style.background = "#F5F5F5"
-    mixedContainer.style.borderRadius = "4px"
-    mixedContainer.style.setMarginBottom(8 * density, 1.toByte())
-
-    // Block child
-    val blockChild = mason.createView(this)
-    blockChild.display = Display.Block
-    blockChild.setSize(toPx(60f), toPx(40f))
-    blockChild.style.background = "#1565C0"
-    blockChild.style.borderRadius = "4px"
-    mixedContainer.addView(blockChild)
-
-    // Inline-block child
-    val ibChild = mason.createView(this)
-    ibChild.display = Display.InlineBlock
-    ibChild.setSize(toPx(60f), toPx(40f))
-    ibChild.style.background = "#C62828"
-    ibChild.style.borderRadius = "4px"
-    mixedContainer.addView(ibChild)
-
-    // Inline-flex child with 2 sub-items
-    val ifChild = mason.createView(this)
-    ifChild.display = Display.InlineFlex
-    ifChild.flexDirection = FlexDirection.Column
-    ifChild.style.gap =
-      Size(LengthPercentage.Points(2 * density), LengthPercentage.Points(2 * density))
-    ifChild.style.padding = Rect(
-      top = LengthPercentage.Points(4 * density),
-      right = LengthPercentage.Points(4 * density),
-      bottom = LengthPercentage.Points(4 * density),
-      left = LengthPercentage.Points(4 * density),
-    )
-    ifChild.style.background = "#2E7D32"
-    ifChild.style.borderRadius = "4px"
-    for (i in 0 until 2) {
-      val sub = mason.createView(this)
-      sub.setSize(toPx(50f), toPx(16f))
-      sub.style.background = "#A5D6A7"
-      sub.style.borderRadius = "2px"
-      ifChild.addView(sub)
-    }
-    mixedContainer.addView(ifChild)
-
-    // Inline-grid child with 2x2
-    val igChild = mason.createView(this)
-    igChild.display = Display.InlineGrid
-    igChild.style.gridTemplateColumns = "1fr 1fr"
-    igChild.style.gap =
-      Size(LengthPercentage.Points(2 * density), LengthPercentage.Points(2 * density))
-    igChild.style.padding = Rect(
-      top = LengthPercentage.Points(4 * density),
-      right = LengthPercentage.Points(4 * density),
-      bottom = LengthPercentage.Points(4 * density),
-      left = LengthPercentage.Points(4 * density),
-    )
-    igChild.style.background = "#E65100"
-    igChild.style.borderRadius = "4px"
-    for (i in 0 until 4) {
-      val sub = mason.createView(this)
-      sub.setSize(toPx(16f), toPx(16f))
-      sub.style.background = "#FFCC80"
-      sub.style.borderRadius = "2px"
-      igChild.addView(sub)
-    }
-    mixedContainer.addView(igChild)
-
-    root.append(mixedContainer)
-
-    // Labels
-    val pMixedLabels = mason.createTextView(this, TextType.P)
-    pMixedLabels.fontSize = 12
-    pMixedLabels.append("Blue = block, Red = inline-block, Green = inline-flex (column), Orange = inline-grid (2\u00D72)")
-    pMixedLabels.color = Color.GRAY
-    root.append(pMixedLabels)
-
-    // ============================================================
-    // Unordered List (static items via addView)
-    // ============================================================
-    val h3UL = mason.createTextView(this, TextType.H3)
-    h3UL.append("Unordered List (Static)")
-    root.append(h3UL)
-
-    val ul = mason.createListView(this, isOrdered = false)
-    ul.style.setMarginBottom(8 * density, 1.toByte())
-
-    val ulItem1 = mason.createListItem(this)
-    val ulText1 = mason.createTextView(this, TextType.P)
-    ulText1.append("First static item (bullet)")
-    ulItem1.append(ulText1)
-    ul.addView(ulItem1)
-
-    val ulItem2 = mason.createListItem(this)
-    val ulText2 = mason.createTextView(this, TextType.P)
-    ulText2.append("Second static item (bullet)")
-    ulItem2.append(ulText2)
-    ul.addView(ulItem2)
-
-    val ulItem3 = mason.createListItem(this)
-    val ulText3 = mason.createTextView(this, TextType.P)
-    ulText3.append("Third static item")
-    ulItem3.append(ulText3)
-    ul.addView(ulItem3)
-
-    ul.reload()
-    root.append(ul)
-
-    // ============================================================
-    // Ordered List (static + virtual interleaved)
-    // ============================================================
-    val h3OL = mason.createTextView(this, TextType.H3)
-    h3OL.append("Ordered List (Mixed Static + Virtual)")
-    root.append(h3OL)
-
-    val pOLDesc = mason.createTextView(this, TextType.P)
-    pOLDesc.fontSize = 13
-    pOLDesc.append("Static items at positions 0 and 3, virtual items fill the rest:")
-    pOLDesc.color = Color.GRAY
-    root.append(pOLDesc)
-
-    val ol = mason.createListView(this, isOrdered = true)
-    ol.style.setMarginBottom(8 * density, 1.toByte())
-
-    val olItem1 = mason.createListItem(this)
-    val olText1 = mason.createTextView(this, TextType.P)
-    olText1.append("[Static] Install Mason via Gradle")
-    olItem1.append(olText1)
-   // ol.addView(olItem1, 0)
-
-    val olItem2 = mason.createListItem(this)
-    val olText2 = mason.createTextView(this, TextType.P)
-    olText2.append("[Static] Run your layout")
-    olItem2.append(olText2)
-    //ol.addView(olItem2, 3)
-
-    // 3 virtual items (fill positions 1, 2, 4)
-    ol.count = 3
-    ol.listener = object : ListView.Listener {
-      override fun onCreate(type: Int): Li {
-        return mason.createListItem(this@WebActivity)
-      }
-
-      override fun onBind(holder: ListView.Holder, index: Int) {
-        val virtualData = listOf(
-          "[Virtual] Create a layout tree",
-          "[Virtual] Add text and views",
-          "[Virtual] Call compute()"
-        )
-        val txt = mason.createTextView(this@WebActivity, TextType.P)
-        // Map the virtual index to the data
-        val virtualPositions = (0 until ol.count).filter { !ol.staticItems.containsKey(it) }
-        val dataIndex = virtualPositions.indexOf(index)
-        if (dataIndex in virtualData.indices) {
-          txt.append(virtualData[dataIndex])
-        }
-        holder.view.append(txt)
-      }
-
-      override fun getItemViewType(position: Int): Int = 0
-    }
-    ol.reload()
-    root.append(ol)
-
-    // ============================================================
-    // Horizontal Rule
-    // ============================================================
-    val hr = mason.createView(this)
-    hr.setSizeHeight(1 * density, 1.toByte())
-    hr.setSizeWidth(1f, 2.toByte()) // 100%
-    hr.style.background = "#BDBDBD"
-    hr.style.setMarginTop(16 * density, 1.toByte())
-    hr.style.setMarginBottom(16 * density, 1.toByte())
-    root.append(hr)
-
-    // ============================================================
-    // Nested Inline Styles
-    // ============================================================
-    val h3Nested = mason.createTextView(this, TextType.H3)
-    h3Nested.append("Nested Inline Styles")
-    root.append(h3Nested)
-
-    val pNested = mason.createTextView(this, TextType.P)
-    pNested.append("This paragraph has ")
-
-    val nestedStrong = mason.createTextView(this, TextType.Strong)
-
-    val nestedEm = mason.createTextView(this, TextType.Em)
-    nestedEm.append("bold italic")
-    nestedStrong.append(nestedEm)
-
-    pNested.append(nestedStrong)
-    pNested.append(" text, a ")
-
-    val nestedCode = mason.createTextView(this, TextType.Code)
-    nestedCode.append("inline code")
-    nestedCode.style.backgroundColor = 0xFFE8E8EC.toInt()
-    nestedCode.style.borderRadius = "3px"
-    nestedCode.style.padding = Rect(
-      top = LengthPercentage.Points(1 * density),
-      right = LengthPercentage.Points(4 * density),
-      bottom = LengthPercentage.Points(1 * density),
-      left = LengthPercentage.Points(4 * density),
-    )
-    pNested.append(nestedCode)
-
-    pNested.append(" snippet, and a ")
-
-    val nestedLink = mason.createTextView(this, TextType.A)
-    nestedLink.append("hyperlink")
-    nestedLink.color = "#1976D2".toColorInt()
-    nestedLink.decorationLine = Styles.DecorationLine.Underline
-    pNested.append(nestedLink)
-
-    pNested.append(" all in one line.")
-    root.append(pNested)
   }
 }

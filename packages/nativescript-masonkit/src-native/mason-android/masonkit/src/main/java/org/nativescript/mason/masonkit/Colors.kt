@@ -27,3 +27,8 @@ internal val COLOR_MAP = mapOf(
   "pink" to 0xFFFFC0CB.toInt(),
   "transparent" to 0x00000000
 )
+
+
+fun String.toCSSColorInt(): Int {
+  return CSSFilters.parseCssColor(this)
+}

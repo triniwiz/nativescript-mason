@@ -90,10 +90,6 @@ data class Gradient(
   val stops: List<String>,      // color stops
 )
 
-private val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-  isDither = true
-}
-
 fun drawBackground(
   context: Context, view: View?, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 ) {
@@ -173,13 +169,9 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 
     layer.shader = when (gradient.type.lowercase()) {
       "linear" -> {
-        val (x0, y0, x1, y1) = when (gradient.direction?.lowercase()) {
-          "to bottom", "180deg" -> listOf(0f, 0f, 0f, height.toFloat())
-          "to top", "0deg" -> listOf(0f, height.toFloat(), 0f, 0f)
-          "to right", "90deg" -> listOf(0f, 0f, width.toFloat(), 0f)
-          "to left", "270deg" -> listOf(width.toFloat(), 0f, 0f, 0f)
-          else -> listOf(0f, 0f, 0f, height.toFloat())
-        }
+        val (x0, y0, x1, y1) = resolveLinearGradientEndpoints(
+          gradient.direction, width.toFloat(), height.toFloat()
+        )
         LinearGradient(x0, y0, x1, y1, colorsArray, positionsArray, Shader.TileMode.CLAMP)
       }
 
@@ -193,17 +185,79 @@ fun drawGradient(layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
     }
   }
 
-  gradientPaint.shader = layer.shader
-  canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), gradientPaint)
-  gradientPaint.shader = null
+  val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    isDither = true
+    shader = layer.shader
+  }
+  canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 }
 
-private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+/**
+ * Resolve linear-gradient endpoints for the given direction string and box size.
+ * Supports CSS angle values (deg, rad, turn, grad), named directions
+ * ("to bottom", "to top right", etc.), and falls back to top-to-bottom (180deg).
+ */
+private fun resolveLinearGradientEndpoints(
+  direction: String?,
+  width: Float,
+  height: Float
+): List<Float> {
+  val dir = direction?.trim()?.lowercase() ?: return listOf(0f, 0f, 0f, height)
+
+  // Named directions
+  when (dir) {
+    "to bottom" -> return listOf(0f, 0f, 0f, height)
+    "to top" -> return listOf(0f, height, 0f, 0f)
+    "to right" -> return listOf(0f, 0f, width, 0f)
+    "to left" -> return listOf(width, 0f, 0f, 0f)
+    "to bottom right", "to right bottom" -> return listOf(0f, 0f, width, height)
+    "to bottom left", "to left bottom" -> return listOf(width, 0f, 0f, height)
+    "to top right", "to right top" -> return listOf(0f, height, width, 0f)
+    "to top left", "to left top" -> return listOf(width, height, 0f, 0f)
+  }
+
+  // Try to parse as an angle
+  val angleRad = parseCssAngleToRadians(dir)
+  if (angleRad != null) {
+    val centerX = width / 2f
+    val centerY = height / 2f
+    val sinA = kotlin.math.sin(angleRad).toFloat()
+    val cosA = kotlin.math.cos(angleRad).toFloat()
+    // Half-length of gradient line per CSS spec
+    val halfLen = (kotlin.math.abs(width * sinA) + kotlin.math.abs(height * cosA)) / 2f
+    val x0 = centerX - halfLen * sinA
+    val y0 = centerY + halfLen * cosA
+    val x1 = centerX + halfLen * sinA
+    val y1 = centerY - halfLen * cosA
+    return listOf(x0, y0, x1, y1)
+  }
+
+  // Fallback: top-to-bottom (CSS default)
+  return listOf(0f, 0f, 0f, height)
+}
+
+/**
+ * Parse a CSS angle string (e.g. "135deg", "0.75turn", "1.5rad", "200grad")
+ * to radians. Returns null if the string cannot be parsed.
+ */
+private fun parseCssAngleToRadians(value: String): Double? {
+  val v = value.trim().lowercase()
+  return when {
+    v.endsWith("deg") -> v.removeSuffix("deg").toDoubleOrNull()
+      ?.let { it * Math.PI / 180.0 }
+    v.endsWith("grad") -> v.removeSuffix("grad").toDoubleOrNull()
+      ?.let { it * Math.PI / 200.0 }
+    v.endsWith("turn") -> v.removeSuffix("turn").toDoubleOrNull()
+      ?.let { it * 2.0 * Math.PI }
+    v.endsWith("rad") -> v.removeSuffix("rad").toDoubleOrNull()
+    else -> null
+  }
+}
 
 private fun drawBitmapLayer(
   bitmap: Bitmap, layer: BackgroundLayer, canvas: Canvas, width: Int, height: Int
 ) {
-  val paint = bitmapPaint
+  val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
   // Determine the scaled size
   val (drawWidth, drawHeight) = when (layer.size) {

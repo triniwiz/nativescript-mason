@@ -91,7 +91,8 @@ class Button @JvmOverloads constructor(
         LengthPercentage.Points(y),
         LengthPercentage.Points(x),
       )
-      style.border = "1px"
+      style.background = "#F0F0F0"
+      style.border = "1px solid #767676"
       style.borderRadius = "4px"
       style.textAlign = TextAlign.Center
       style.syncFontMetrics()
